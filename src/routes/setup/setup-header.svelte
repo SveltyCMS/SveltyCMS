@@ -18,7 +18,8 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 	import {
 		applayout_accessibility_help,
 		applayout_systemlanguage,
-		setup_heading_subtitle
+		setup_heading_subtitle_after,
+		setup_heading_subtitle_before
 	} from '@src/paraglide/messages';
 	import { getLanguageName } from '@utils/language-utils';
 	// Utils
@@ -46,7 +47,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 	}
 </script>
 
-<div class="shrink-0 bg-(--admin-bg-card) p-2 text-(--admin-text-body)">
+<div class="shrink-0 bg-(--admin-bg-card) py-2 text-(--admin-text-body)">
 	<!-- Row 1: Branding and Controls (Grid on desktop, flex on mobile) -->
 	<div class="flex flex-col gap-4 lg:grid lg:grid-cols-3 lg:items-center lg:gap-4">
 		<!-- Branding: Left on desktop, between on mobile -->
@@ -62,7 +63,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 					<img src="/SveltyCMS_Logo.svg" alt="SveltyCMS Logo" class="h-9 w-auto sm:h-12" />
 				</a>
 				<div class="flex min-w-0 flex-col justify-center overflow-hidden">
-					<h1 class="truncate text-lg font-bold leading-none sm:text-2xl lg:text-3xl">
+					<h1 class="truncate text-lg font-bold leading-normal sm:text-2xl lg:text-3xl">
 						<a
 							aria-label="Documentation"
 							href="https://github.com/SveltyCMS/SveltyCMS"
@@ -124,10 +125,10 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 
 		<!-- Center: Subtitle (Desktop only) -->
 		<div class="hidden lg:flex justify-center">
-			<p
-				class="text-center text-sm leading-snug text-(--admin-text-body) xl:text-base font-medium opacity-80"
-			>
-				{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
+			<p class="text-center text-sm leading-snug text-(--admin-text-body) xl:text-base font-medium">
+				{setup_heading_subtitle_before()}
+				<SiteName {siteName} highlight="CMS" />
+				{setup_heading_subtitle_after()}
 			</p>
 		</div>
 
@@ -184,14 +185,22 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 				</Button>
 			</SystemTooltip>
 
-			<ThemeToggle showTooltip={true} tooltipPlacement="bottom" iconSize={20} />
+			<ThemeToggle
+				showTooltip={true}
+				tooltipPlacement="bottom"
+				iconSize={20}
+				buttonClass="h-10 w-10"
+				iconClass="text-white"
+			/>
 		</div>
 	</div>
 
 	<!-- Row 2: Description (Mobile only) -->
 	<div class="mt-2 lg:hidden">
 		<p class="text-center text-xs leading-snug text-(--admin-text-body) sm:text-base">
-			{setup_heading_subtitle({ siteName: siteName || 'SveltyCMS' })}
+			{setup_heading_subtitle_before()}
+			<SiteName {siteName} highlight="CMS" />
+			{setup_heading_subtitle_after()}
 		</p>
 	</div>
 </div>

@@ -6,7 +6,7 @@ order: 0
 icon: "mdi:rocket-launch"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-10-05"
+updated: "2026-10-13"
 tags:
   - "getting-started"
   - "quickstart"
@@ -57,13 +57,14 @@ Production build and start commands are in [Production deployment](./guides/depl
 
 ## Open the wizard
 
-The walkthrough is the [setup wizard walkthrough](./onboarding/setup-wizard.mdx). The five steps are:
+The walkthrough is the [setup wizard walkthrough](./onboarding/setup-wizard.mdx). The six steps are:
 
-1. **Database.** SQLite, or host, port, name, and credentials for PostgreSQL, MariaDB, or MongoDB. Test the connection.
+1. **Database.** SQLite, or host, port, name, and credentials for PostgreSQL, MariaDB, or MongoDB. Test the connection. Optionally enable Redis caching (and test it), and add regional read-replica connection strings under the advanced options.
 2. **Admin account.** Username, email, and a password of at least 8 characters, using upper case, lower case, a number, and a symbol.
-3. **Site and blueprint.** Site name, production URL, languages, country, and one project blueprint. **Website Starter** is the recommended default. The country starts on Germany and fills currency, shop language, and a suggested tax rate you can edit.
-4. **Email.** Optional. You can set SMTP later.
-5. **Review and complete.** The wizard writes the admin user, the collections for that blueprint, and `config/private.ts`, then signs you in.
+3. **Project blueprint.** Pick one blueprint; **Website Starter** is the recommended default. **Country and prices** appears only when you pick the **E-commerce** blueprint — the country starts on Germany and fills currency, shop language, and a suggested tax rate you can edit.
+4. **System.** Site name, production URL, timezone, languages, media storage, the collapsible Cloudflare CDN purge fields, then infrastructure mode (multi-tenant, demo).
+5. **Email.** Optional. You can set SMTP later.
+6. **Review and complete.** The wizard writes the admin user, the collections for that blueprint, and `config/private.ts`, then signs you in.
 
 After that, `/setup` sends you to `/login`, and `/api/setup` answers `403`.
 
@@ -81,7 +82,7 @@ A store is the **E-commerce** blueprint, then the Commerce plugin in Extensions.
 
 ## Next
 
-- [Setup wizard walkthrough](./onboarding/setup-wizard.mdx) — the five steps, short
+- [Setup wizard walkthrough](./onboarding/setup-wizard.mdx) — the six steps, short
 - [Setup wizard guide](./guides/configuration/setup-wizard.mdx) — fields, blueprints, and recovery
 - [Roles and permissions](./guides/configuration/access-management.mdx)
 - [E-commerce](./guides/content/ecommerce.mdx)

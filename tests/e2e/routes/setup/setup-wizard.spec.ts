@@ -216,6 +216,9 @@ test.describe("Setup Wizard: Error Handling", () => {
     await page.locator("#admin-confirm-password").fill("Password123!");
     await wizard.next();
 
+    // Project Blueprint step — accept the default blueprint and continue.
+    await wizard.next();
+
     await page.locator("#site-name").fill("Test Site");
     await page.locator("#media-folder").fill("./mediaFolder");
     await wizard.next();
@@ -386,23 +389,28 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
         await wizard.next();
       });
 
-      await test.step("Step 3: System Settings", async () => {
-        console.log(`[${dbType}] Configuring system...`);
+      await test.step("Step 3: Project Blueprint", async () => {
+        console.log(`[${dbType}] Selecting blueprint...`);
         const websitePreset = page.getByRole("option", { name: /website starter/i }).first();
         if (await websitePreset.isVisible({ timeout: 5000 }).catch(() => false)) {
           await websitePreset.click();
         }
+        await wizard.next();
+      });
+
+      await test.step("Step 4: System Settings", async () => {
+        console.log(`[${dbType}] Configuring system...`);
         await page.locator("#site-name").fill(`SveltyCMS ${dbType.toUpperCase()}`);
         await page.locator("#media-folder").fill(`./mediaFolder_${dbType}`);
         await wizard.next();
       });
 
-      await test.step("Step 4: Email Configuration (Skip)", async () => {
+      await test.step("Step 5: Email Configuration (Skip)", async () => {
         console.log(`[${dbType}] Skipping email...`);
         await wizard.next();
       });
 
-      await test.step("Step 5: Review & Finalize", async () => {
+      await test.step("Step 6: Review & Finalize", async () => {
         console.log(`[${dbType}] Finalizing...`);
         await wizard.complete();
 

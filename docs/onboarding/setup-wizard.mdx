@@ -1,12 +1,12 @@
 ---
 path: "docs/onboarding/setup-wizard.mdx"
 title: "Setup Wizard Walkthrough"
-description: "The five first-run steps: database, admin, blueprint, optional email, and completion."
+description: "The six first-run steps: database, admin, project blueprint, system, optional email, and completion."
 order: 3
 icon: "mdi:wizard-hat"
 author: "SveltyCMS Team"
 created: "2026-08-20"
-updated: "2026-10-05"
+updated: "2026-10-13"
 tags:
   - "installer"
   - "database"
@@ -31,6 +31,10 @@ Pick an engine and test the connection before Next.
 
 If the database already has tables, the wizard asks before it replaces them.
 
+Redis caching lives on this step too, because it caches database queries. Tick **Enable Redis Caching**, fill host, port, and password, and pass the Redis test before Next.
+
+An expandable **Advanced Database Options (Clustering & Scaling)** section collects connection strings for regional read-only replicas. It is optional, the wizard does not persist the values, and you configure replicas later through the `DB_REPLICA_URLS` setting or the `DB_REPLICAS` environment variable.
+
 ## 2. Admin account
 
 - **Username** is 2–50 characters: letters, numbers, and `@ $ ! % * # . _ -`.
@@ -38,21 +42,25 @@ If the database already has tables, the wizard asks before it replaces them.
 - **Password** is at least 8 characters and includes lower case, upper case, a number, and a symbol. Confirm it on the same step.
 - Two-factor authentication can wait until the user profile.
 
-## 3. Site and blueprint
+## 3. Project blueprint
 
-Set the site name, the production URL (`https://…`), and the admin and content languages. English and German ship compiled. Extra language codes are written when setup completes.
+Pick one blueprint from the carousel. **Website Starter** is the recommended default. It creates `pages` and seeds Home, a legal page, and Privacy. The legal page is Impressum for Germany, Austria, and Switzerland, Mentions légales for France, Aviso legal for Spain, Note legali for Italy, Bedrijfsgegevens for the Netherlands, and Legal notice otherwise. Replace that text before a public launch. The other cards are Blog, Agency, SaaS, Corporate, E-commerce, and Blank. Each card lists the collections it creates. The list is in the [setup wizard guide](../guides/configuration/setup-wizard.mdx#solution-presets-starter-kits).
 
-The country field starts on Germany: euro, German shop text, 19% and 7%. Change the country and the currency, shop language, and tax fields update. Choose “Choose later”, or clear the standard rate, and no tax row is created. Germany, Austria, and Switzerland suggest German shop text. Every other country suggests English. The suggested rates were checked on 5 October 2026. They are a starting point, not a tax ruling.
+**Country and prices** appears only when you pick the **E-commerce** blueprint. It starts on Germany: euro, German shop text, 19% and 7%. Change the country and the currency, shop language, and tax fields update. Choose “Choose later”, or clear the standard rate, and no tax row is created. Germany, Austria, and Switzerland suggest German shop text. Every other country suggests English. The suggested rates were checked on 5 October 2026. They are a starting point, not a tax ruling. Every other blueprint hides this block, because country and tax data only matter for a shop.
 
-Then pick one blueprint. **Website Starter** is the recommended default. It creates `pages` and seeds Home, a legal page, and Privacy. The legal page is Impressum for Germany, Austria, and Switzerland, Mentions légales for France, Aviso legal for Spain, Note legali for Italy, Bedrijfsgegevens for the Netherlands, and Legal notice otherwise. Replace that text before a public launch. The other cards are Blog, Agency, SaaS, Corporate, E-commerce, and Blank. Each card lists the collections it creates. The list is in the [setup wizard guide](../guides/configuration/setup-wizard.mdx#solution-presets-starter-kits).
+## 4. System
 
-Multi-tenant mode, Redis, and cloud media storage are on this step and can stay off.
+Set the site name, the production URL (`https://…`), and the timezone, then set the admin and content languages. English and German ship compiled. Extra language codes are written when setup completes.
 
-## 4. Email
+Media storage (Local, Amazon S3, Cloudflare R2, or Cloudinary) sits below the language sections. Pick a cloud type and a reminder appears beside the Cloudflare CDN heading that its credentials are configured later in System Settings.
+
+The Cloudflare CDN purge fields come next, behind a chevron and collapsed by default; picking a cloud media storage type expands them. Each field has a help tooltip. The CDN purge invalidates the edge HTTP cache; it is a different layer from the database read replicas on step 1. Multi-tenant mode and demo mode come last and can stay off; demo mode wipes data automatically, so do not enable it on production.
+
+## 5. Email
 
 Optional. Skip it and set SMTP later in settings. If you fill it in, send the test message before Next.
 
-## 5. Review and complete
+## 6. Review and complete
 
 Read the summary. Complete writes the admin user, the blueprint collections, and `config/private.ts`, then signs you in. You land on the first collection, or on `/login` when the blueprint created none (Blank).
 

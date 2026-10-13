@@ -6,6 +6,7 @@ Displays the current step title and icon, and a reset button.
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { loading_loading, setup_reset_data } from '@src/paraglide/messages';
 
 	// Using iconify-icon web component
 	const { currentStep, steps, onreset = () => {} } = $props();
@@ -13,6 +14,7 @@ Displays the current step title and icon, and a reset button.
 	const icons = $derived([
 		'mdi:database',
 		'mdi:account',
+		'mdi:package-variant-closed',
 		'mdi:cog',
 		'mdi:email',
 		'mdi:check-circle'
@@ -32,19 +34,19 @@ Displays the current step title and icon, and a reset button.
 				aria-hidden="true"
 			></iconify-icon>
 		{/if}
-		{steps[currentStep]?.label || 'Loading...'}
+		{steps[currentStep]?.label || loading_loading()}
 	</h2>
-	<SystemTooltip title="Reset data">
+	<SystemTooltip title={setup_reset_data()}>
 		<Button
 			variant="outline"
 			onclick={() => onreset()}
 			type="button"
-			aria-label="Reset data"
+			aria-label={setup_reset_data()}
 			size="sm"
 			class="text-surface-900 dark:text-surface-50"
 		>
 			<iconify-icon icon="mdi:backup-restore" width={24} class="me-1"></iconify-icon>
-			<span class="">Reset Data</span>
+			<span>{setup_reset_data()}</span>
 		</Button>
 	</SystemTooltip>
 </div>

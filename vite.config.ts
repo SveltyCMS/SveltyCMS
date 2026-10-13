@@ -17,29 +17,6 @@ import bunAdapter from "svelte-adapter-bun";
 // Der Competitive-Benchmark (benchmark-repo) baut beide Varianten (ARG ADAPTER)
 // und misst sie unter node vs bun (RUNTIME).
 //
-// Windows-resilience: adapter-node (6.0.0-next.12/13) posixifies `entries` but forgets
-// to posixify `builder.getServerDirectory()`, creating mixed slashes ('D:\...\server/env.js')
-// that fail Rolldown's Rust entry resolver on Windows. We wrap the builder transparently:
-function safeNodeAdapter(opts?: Parameters<typeof nodeAdapter>[0]) {
-  const orig = nodeAdapter(opts);
-  return {
-    ...orig,
-    async adapt(builder: Parameters<NonNullable<typeof orig.adapt>>[0]) {
-      const wrappedBuilder = new Proxy(builder, {
-        get(target, prop, receiver) {
-          if (prop === "getServerDirectory") {
-            return () => {
-              const dir = target.getServerDirectory();
-              return typeof dir === "string" ? dir.replace(/\\/g, "/") : dir;
-            };
-          }
-          return Reflect.get(target, prop, receiver);
-        },
-      });
-      return orig.adapt(wrappedBuilder);
-    },
-  };
-}
 
 // svelte-adapter-bun (1.0.1) still reads the SvelteKit-2 `config.kit.*` legacy
 // alias, which makes kit emit `adapter_config_kit_deprecated` on every
@@ -92,7 +69,7 @@ function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
   };
 }
 
-const adapter = process.env.ADAPTER === "bun" ? safeBunAdapter : safeNodeAdapter;
+const adapter = process.env.ADAPTER === "bun" ? safeBunAdapter : nodeAdapter;
 
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -1426,6 +1403,65 @@ function shouldEnableLiteRtWasm(): boolean {
   }
 }
 
+/**
+ * Dev-only heads-up for the one-time Paraglide compile.
+ *
+ * The Paraglide Vite plugin compiles every configured locale on the first dev
+ * start (and again after any catalog/settings edit), then caches the result in
+ * `project.inlang/cache/paraglide-js/`; warm starts skip it. A cold compile of
+ * the full admin catalog blocks the dev server for several seconds with no
+ * explanation, so we print one line first. Detection mirrors the plugin's own
+ * cache: inputs are cold when no cache exists or a catalog/settings file is
+ * newer than it. Serve-only (never affects `vite build`); all reads are
+ * best-effort so a notice can never break startup.
+ */
+function paraglideColdStartNoticePlugin(): Plugin {
+  return {
+    name: "paraglide-cold-start-notice",
+    apply: "serve",
+    configResolved() {
+      if (isTestHarness) return;
+      try {
+        const projectDir = path.resolve(CWD, "project.inlang");
+        const settingsPath = path.join(projectDir, "settings.json");
+        const cacheDir = path.join(projectDir, "cache", "paraglide-js");
+        const cacheFiles = existsSync(cacheDir)
+          ? readdirSync(cacheDir).filter((name) => name.endsWith(".json"))
+          : [];
+        // No cache yet → the plugin cannot skip, so this start compiles.
+        const cacheMtime = cacheFiles.reduce(
+          (newest, name) => Math.max(newest, statSync(path.join(cacheDir, name)).mtimeMs),
+          0,
+        );
+
+        const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as { locales?: string[] };
+        const locales = settings.locales ?? [];
+        const messagesDir = path.resolve(CWD, "src/messages");
+        let newestInput = statSync(settingsPath).mtimeMs;
+        let messageCount = 0;
+        for (const locale of locales) {
+          const file = path.join(messagesDir, `${locale}.json`);
+          if (!existsSync(file)) continue;
+          newestInput = Math.max(newestInput, statSync(file).mtimeMs);
+          messageCount += Object.keys(
+            JSON.parse(readFileSync(file, "utf8")) as Record<string, string>,
+          ).length;
+        }
+
+        // Warm: the plugin logs "Compilation skipped — inputs unchanged".
+        if (cacheMtime !== 0 && newestInput <= cacheMtime) return;
+        if (locales.length === 0 || messageCount === 0) return;
+
+        log.info(
+          `Paraglide is compiling ${locales.length} admin locales (${messageCount.toLocaleString()} messages) — first run only; later starts skip it.`,
+        );
+      } catch {
+        // A notice is never worth failing (or slowing) dev startup.
+      }
+    },
+  };
+}
+
 // ── Config ─────────────────────────────────────────────────────────────────
 
 export default defineConfig(() => {
@@ -1483,6 +1519,7 @@ export default defineConfig(() => {
       bundleYjsSyncServerPlugin(),
       bundleBackgroundWorkerPlugin(),
       adapterNodeBuildPatchPlugin(),
+      paraglideColdStartNoticePlugin(),
       paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
     ],
     // 🚀 SK3: aliases moved from the deprecated `config.alias` to plain Vite

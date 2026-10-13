@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-12"
+updated: "2026-10-13"
 tags:
   - "achievements"
   - "log"
@@ -906,6 +906,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **AI-Smart CMS Migration**: 5-format importer with heuristic field mapping, ACF/CMB2 detection, and drag-and-drop UI.
 - **Quick-Start Collection Templates**: 7 setup presets — Website Starter (default) plus Blog, Agency, SaaS, Corporate, E-commerce, and Blank.
 - **Progressive Initialization UX**: Synchronous middleware init — zero-latency cold start without intermediate pages or polling, saving system resources.
+- **Setup Wizard: dedicated Project Blueprint step (October 2026)**: Blueprint and market controls moved out of the System step into a new step (wizard order: Database → Admin → **Project** → System → Email → Complete), implemented in `src/routes/setup/project-config.svelte` with the step graph re-indexed in `src/stores/setup-store.svelte.ts` and `+page.svelte`. The market fields (country, currency, shop language, tax rates) now render only when the `ecommerce` blueprint is selected, so country data is never requested for non-commerce setups; tax/shipping rows were already seeded only for the `ecommerce` preset (`seedEcommerceDefaults`, `setup.server.ts`). New step labels ship translated across all 8 locales (`setup_step_project`/`setup_step_project_desc`); `tests/e2e/routes/setup/setup-wizard.spec.ts` updated to the new step order.
 - **Behavioral Learning Engine (June 2026)**: Server-side access pattern tracking with exponential decay scoring, driving adaptive cache warming, smart prefetch, and automatic dashboard reordering.
 
 - **AI Widget Scaffolder (June 2026)**: On-demand code generation for custom 3-pillar widgets from a config object.

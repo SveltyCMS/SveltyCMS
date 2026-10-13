@@ -220,7 +220,7 @@
 				>
 					{#snippet post()}
 						<Button
-							variant="ghost"
+							variant="transparent"
 							type="button"
 							size="sm"
 							tabindex={-1}
@@ -317,7 +317,7 @@
 				>
 					{#snippet post()}
 						<Button
-							variant="ghost"
+							variant="transparent"
 							type="button"
 							size="sm"
 							tabindex={-1}

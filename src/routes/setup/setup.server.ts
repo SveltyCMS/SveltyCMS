@@ -45,7 +45,7 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
 }
 
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync } from "node:fs";
 import { dirname } from "node:path";
 import { generateUUID } from "@utils/native-utils";
 import { logger } from "@utils/logger";
@@ -120,6 +120,11 @@ export async function testDatabaseConnection(
   configData: DbConfig,
   createIfMissing = false,
   allowOverwrite = false,
+  // The setup wizard already owns this DB: a successful test runs ensureAuth()/
+  // ensureSystem()/… (creating the system tables) and auto-seeds, so the DB is
+  // non-empty on the next test. Only a *foreign* non-empty DB should trip the
+  // guard, so callers pass `ownsDatabase` once they've successfully tested it.
+  ownsDatabase = false,
 ) {
   if (configData.port === "" || configData.port === null) (configData as any).port = undefined;
   else if (configData.port !== undefined) {
@@ -153,7 +158,7 @@ export async function testDatabaseConnection(
     }
 
     const isEmptyRes = await dbAdapter.isEmpty();
-    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite) {
+    if (isEmptyRes.success && !isEmptyRes.data && !allowOverwrite && !ownsDatabase) {
       // In test mode, the test harness resets the DB before each file — skip the
       // emptiness warning to avoid false positives from test collection seeding.
       const isTest =
@@ -790,11 +795,9 @@ export async function probeRedis() {
 
 // ── internal helpers ──
 async function dropDatabase(db: any) {
-  // Pre-auth wizard input reaches raw DDL below — allowlist the identifier
-  // instead of relying on escaping alone (escId/escSql can't stop stacked
-  // statements; a plain identifier allowlist can).
-  const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
-  assertSafeSqlIdentifier(db.name, "database name");
+  // Pre-auth wizard input reaches raw DDL below — the identifier allowlist is
+  // applied per SQL-engine branch. SQLite's "name" is a filename and MongoDB's
+  // is a URI segment, so neither is a SQL identifier.
   if (db.type === "mongodb" || db.type === "mongodb+srv") {
     const m = (await import("mongoose")).default;
     const uri = db.host.includes("://")
@@ -804,6 +807,8 @@ async function dropDatabase(db: any) {
     await c.dropDatabase();
     await c.close();
   } else if (db.type === "mariadb" || db.type === "mysql") {
+    const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
+    assertSafeSqlIdentifier(db.name, "database name");
     const m = await import("mysql2/promise");
     const c = await m.createConnection({
       host: db.host,
@@ -814,6 +819,8 @@ async function dropDatabase(db: any) {
     await c.query(`DROP DATABASE IF EXISTS \`${db.name}\``);
     await c.end();
   } else if (db.type === "postgresql") {
+    const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
+    assertSafeSqlIdentifier(db.name, "database name");
     const p = (await import("postgres")).default;
     const s = p({
       host: db.host,
@@ -840,13 +847,15 @@ async function dropDatabase(db: any) {
     }
     await s.end();
   } else if (db.type === "sqlite") {
+    // SQLite's "database" is a file plus its -wal/-shm sidecars — remove them.
     const { buildDatabaseConnectionString } = await import("./utils");
     const p = buildDatabaseConnectionString(db);
-    if (require("node:fs").existsSync(p)) {
+    for (const file of [p, `${p}-wal`, `${p}-shm`]) {
+      if (!existsSync(file)) continue;
       let deleted = false;
       for (let attempt = 0; attempt < 5 && !deleted; attempt++) {
         try {
-          require("node:fs").unlinkSync(p);
+          unlinkSync(file);
           deleted = true;
         } catch {
           if (attempt < 4) await new Promise((r) => setTimeout(r, 500));
@@ -856,13 +865,14 @@ async function dropDatabase(db: any) {
   }
 }
 async function createDatabase(db: any) {
-  // Same allowlist as dropDatabase — db.name must never reach raw DDL unvalidated.
-  const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
-  assertSafeSqlIdentifier(db.name, "database name");
+  // Same per-engine allowlist as dropDatabase — db.name must never reach raw DDL
+  // unvalidated (SQLite's name is a filename, not a SQL identifier).
   if (db.type === "sqlite") {
     const { buildDatabaseConnectionString } = await import("./utils");
     mkdirSync(dirname(buildDatabaseConnectionString(db)), { recursive: true });
   } else if (db.type === "postgresql") {
+    const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
+    assertSafeSqlIdentifier(db.name, "database name");
     const p = (await import("postgres")).default;
     const s = p({
       host: db.host,
@@ -874,6 +884,8 @@ async function createDatabase(db: any) {
     await s.unsafe(`CREATE DATABASE "${db.name}"`);
     await s.end();
   } else if (db.type === "mariadb" || db.type === "mysql") {
+    const { assertSafeSqlIdentifier } = await import("@databases/core/relational-utils");
+    assertSafeSqlIdentifier(db.name, "database name");
     const m = await import("mysql2/promise");
     const c = await m.createConnection({
       host: db.host,

@@ -648,6 +648,22 @@ None (TreeView has its own keyboard navigation)
 					currentConfig = installed;
 					setDraftContentStructure(installed);
 					treeVersion++;
+
+					// The preset install writes the collections server-side, but the builder's
+					// Save is the explicit commit for the resulting tree/layout. Stage the
+					// adopted hierarchy so the toolbar Save button enables instead of staying
+					// greyed out after an empty-state Quick Start.
+					const staged: Record<string, NodeOperation> = {};
+					for (const node of installed) {
+						staged[node._id.toString()] = {
+							type: 'move',
+							node:
+								node.nodeType === 'category' && !node.source
+									? { ...node, source: 'builder' as const }
+									: node
+						};
+					}
+					nodesToSave = staged;
 				}
 
 				// Soft refresh — refreshes the layout/sidebar, keeps consent + session state

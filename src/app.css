@@ -24,6 +24,32 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ------------------------------------------------------------------------
+   THEMED NATIVE CONTROLS
+   ------------------------------------------------------------------------
+   `color-scheme` tells the browser to render native UI (scrollbars, date/time
+   pickers, and autofill) for the active theme. Without it, Chrome paints
+   autofilled inputs with its light background, overriding the components'
+   `dark:bg-*` — a white field on a dark page. The override below pins
+   autofilled inputs to the themed surface in dark mode (light mode matches).
+   ------------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover,
+.dark input:-webkit-autofill:focus,
+.dark input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--color-surface-50);
+  caret-color: var(--color-surface-50);
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface-900) inset;
+}
+
 /* ========================================================================
    🎨 DESIGN TOKENS
    ======================================================================== */

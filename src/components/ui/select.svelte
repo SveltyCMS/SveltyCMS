@@ -39,6 +39,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 <script lang="ts">
 	import { cn } from '@utils/cn';
 	import { generateId } from '@utils/id-generator';
+	import type { Snippet } from 'svelte';
 
 	interface SelectOption {
 		value: string;
@@ -50,6 +51,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		id?: string;
 		value?: string;
 		label?: string;
+		labelSnippet?: Snippet;
 		placeholder?: string;
 		options?: SelectOption[];
 		disabled?: boolean;
@@ -72,6 +74,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		id,
 		value = $bindable(''),
 		label,
+		labelSnippet,
 		placeholder = 'Select an option...',
 		options = [],
 		disabled = false,
@@ -178,9 +181,13 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 		</div>
 	{:else}
 		<!-- Default label-above variant -->
-		{#if label}
+		{#if label || labelSnippet}
 			<label for={generatedId} class="text-sm font-semibold text-surface-600 dark:text-surface-400">
-				{label}
+				{#if labelSnippet}
+					{@render labelSnippet()}
+				{:else}
+					{label}
+				{/if}
 				{#if required}
 					<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
 				{/if}

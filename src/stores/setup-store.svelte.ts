@@ -264,8 +264,9 @@ function createSetupStore() {
   const validationMap: Record<number, { schema: any; data: () => any }> = {
     0: { schema: dbConfigSchema, data: () => wizard.dbConfig },
     1: { schema: setupAdminSchema, data: () => wizard.adminUser },
-    2: { schema: systemSettingsSchema, data: () => wizard.systemSettings },
-    // Steps 3 (Email) and 4 (Review) have no validation, so they are omitted
+    // Step 2 (Project Blueprint) has no schema — preset/market fields stay optional.
+    3: { schema: systemSettingsSchema, data: () => wizard.systemSettings },
+    // Steps 4 (Email) and 5 (Review) have no validation, so they are omitted
   };
 
   function validateStep(step: number, mutateErrors = true): boolean {
@@ -359,39 +360,39 @@ function createSetupStore() {
   const stepCompleted = $derived.by<boolean[]>(() => [
     wizard.dbTestPassed || wizard.highestStepReached > 0,
     wizard.highestStepReached > 1 && validateStep(1, false),
-    wizard.highestStepReached > 2 && validateStep(2, false),
-    wizard.highestStepReached > 3, // Email is optional, always considered complete
+    wizard.highestStepReached > 2, // Project Blueprint is always valid
+    wizard.highestStepReached > 3 && validateStep(3, false),
+    wizard.highestStepReached > 4, // Email is optional, always considered complete
     false,
   ]);
 
   const stepClickable = $derived.by<boolean[]>(() => [
     true, // Step 0 (Database) is always clickable
     wizard.highestStepReached >= 1, // Step 1 (Admin) is clickable if we've reached it
-    wizard.highestStepReached >= 2, // Step 2 (System) is clickable if we've reached it
-    wizard.highestStepReached >= 3, // Step 3 (Email) is clickable if we've reached it
-    wizard.highestStepReached >= 4, // Step 4 (Complete) is clickable if we've reached it
+    wizard.highestStepReached >= 2, // Step 2 (Project) is clickable if we've reached it
+    wizard.highestStepReached >= 3, // Step 3 (System) is clickable if we've reached it
+    wizard.highestStepReached >= 4, // Step 4 (Email) is clickable if we've reached it
+    wizard.highestStepReached >= 5, // Step 5 (Complete) is clickable if we've reached it
   ]);
 
   const canProceed = $derived.by<boolean>(() => {
     if (wizard.currentStep === 0) {
-      return wizard.dbTestPassed;
+      // Enforce Redis test when caching is enabled on the Database step.
+      return wizard.dbTestPassed && (!wizard.systemSettings.useRedis || wizard.redisTestPassed);
     }
     if (wizard.currentStep === 1) {
       return validateStep(wizard.currentStep, false);
     }
     if (wizard.currentStep === 2) {
-      const isValid = validateStep(wizard.currentStep, false);
-      if (!isValid) return false;
-      // Enforce Redis test if enabled
-      if (wizard.systemSettings.useRedis && !wizard.redisTestPassed) {
-        return false;
-      }
-      return true;
+      return true; // Project Blueprint is always valid
     }
     if (wizard.currentStep === 3) {
-      return true; // Email step is optional, always can proceed
+      return validateStep(wizard.currentStep, false);
     }
     if (wizard.currentStep === 4) {
+      return true; // Email step is optional, always can proceed
+    }
+    if (wizard.currentStep === 5) {
       return !wizard.isSeeding; // Block completion if still seeding
     }
     return false;
@@ -447,6 +448,10 @@ function createSetupStore() {
         configData: wizard.dbConfig,
         createIfMissing,
         allowOverwrite,
+        // Once a test succeeded for this exact config the wizard owns the DB (the
+        // test creates the system tables and auto-seeds) — skip the "not empty"
+        // guard on re-tests so the button doesn't fail against our own database.
+        ownsDatabase: wizard.dbTestPassed && !dbConfigChangedSinceTest,
       });
       wizard.lastDbTestResult = data;
 
@@ -555,9 +560,9 @@ function createSetupStore() {
     // Final validation of all steps
     const step0Valid = validateStep(0, true);
     const step1Valid = validateStep(1, true);
-    const step2Valid = validateStep(2, true);
+    const systemValid = validateStep(3, true);
 
-    if (!(step0Valid && step1Valid && step2Valid)) {
+    if (!(step0Valid && step1Valid && systemValid)) {
       toast.error("Please fix validation errors before completing setup.");
 
       // Navigate to first invalid step
@@ -565,8 +570,8 @@ function createSetupStore() {
         wizard.currentStep = 0;
       } else if (!step1Valid) {
         wizard.currentStep = 1;
-      } else if (!step2Valid) {
-        wizard.currentStep = 2;
+      } else if (!systemValid) {
+        wizard.currentStep = 3;
       }
       return false;
     }

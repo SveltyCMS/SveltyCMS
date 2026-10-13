@@ -36,13 +36,15 @@ export const testDatabaseConnection = query(
     configData,
     createIfMissing = false,
     allowOverwrite = false,
+    ownsDatabase = false,
   }: {
     configData: import("./setup-types").DbConfig;
     createIfMissing?: boolean;
     allowOverwrite?: boolean;
+    ownsDatabase?: boolean;
   }) => {
     const { testDatabaseConnection: fn } = await import("./setup.server");
-    return fn(configData, createIfMissing, allowOverwrite);
+    return fn(configData, createIfMissing, allowOverwrite, ownsDatabase);
   },
 );
 

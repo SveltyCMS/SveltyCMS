@@ -41,6 +41,7 @@ corner-shape angled corners.
 	type Props = HTMLInputAttributes & {
 		value?: string | number | string[];
 		label?: string;
+		labelSnippet?: Snippet;
 		labelClass?: string;
 		inputClass?: string;
 		error?: string;
@@ -57,6 +58,7 @@ corner-shape angled corners.
 		value = $bindable(),
 		inputRef = $bindable(),
 		label,
+		labelSnippet,
 		labelClass,
 		inputClass,
 		error,
@@ -135,7 +137,7 @@ corner-shape angled corners.
 </script>
 
 <div class="space-y-2 w-full">
-	{#if label}
+	{#if label || labelSnippet}
 		<label
 			for={id}
 			class={cn(
@@ -143,7 +145,11 @@ corner-shape angled corners.
 				labelClass
 			)}
 		>
-			{label}
+			{#if labelSnippet}
+				{@render labelSnippet()}
+			{:else}
+				{label}
+			{/if}
 		</label>
 	{/if}
 

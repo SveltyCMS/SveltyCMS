@@ -41,10 +41,12 @@ keyboard navigation, and motion-respecting transitions.
 <script lang="ts">
 	import { cn } from '@utils/cn';
 	import { generateId } from '@utils/id-generator';
+	import type { Snippet } from 'svelte';
 
 	interface Props {
 		checked?: boolean | 'indeterminate';
 		label?: string;
+		labelSnippet?: Snippet;
 		description?: string;
 		disabled?: boolean;
 		required?: boolean;
@@ -62,6 +64,7 @@ keyboard navigation, and motion-respecting transitions.
 	let {
 		checked = $bindable(false),
 		label,
+		labelSnippet,
 		description,
 		disabled = false,
 		required = false,
@@ -228,10 +231,14 @@ keyboard navigation, and motion-respecting transitions.
 					{/if}
 				</span>
 				<span class="flex flex-col gap-0.5">
-					{#if label}
-						<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}
-							>{label}</span
-						>
+					{#if label || labelSnippet}
+						<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}>
+							{#if labelSnippet}
+								{@render labelSnippet()}
+							{:else}
+								{label}
+							{/if}
+						</span>
 					{/if}
 					{#if description}
 						<span id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400"
@@ -278,14 +285,18 @@ keyboard navigation, and motion-respecting transitions.
 						disabled && 'cursor-not-allowed'
 					)}
 				>
-					{#if label}
+					{#if label || labelSnippet}
 						<span
 							class={cn(
 								'font-medium text-surface-900 dark:text-surface-100 leading-tight',
 								sizeTokens.text
 							)}
 						>
-							{label}
+							{#if labelSnippet}
+								{@render labelSnippet()}
+							{:else}
+								{label}
+							{/if}
 							{#if required}
 								<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
 							{/if}

@@ -337,7 +337,7 @@
 				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
 					{form_required()}
 
-					<div class="absolute inset-e-50">
+					<div class="absolute inset-e-0">
 						<SystemTooltip title="Go Back" role={null} tabindex={null}>
 							<Button
 								type="button"

@@ -318,7 +318,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 			<SveltyCMSLogo fill="red" className="h-9 w-auto shrink-0" />
 			{#if isSidebarFull}
 				<span
-					class="base-font-color relative min-w-0 flex-1 truncate text-2xl font-bold leading-none"
+					class="base-font-color relative min-w-0 flex-1 truncate text-2xl font-bold leading-normal"
 					title={publicEnv.SITE_NAME}
 					in:adminFade={{ duration: 200, delay: 60 }}
 					out:adminFade={{ duration: 120 }}

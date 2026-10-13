@@ -736,7 +736,7 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
 
 **Two-Layer Gating**:
 
-1. **TurboPipeline (Early)** — Checks `isSetupComplete()` at the gateway level. If `config/private.ts` is missing, redirects all non-setup routes to `/setup` with a 302. If setup IS complete, blocks `/setup` page requests by redirecting to `/login`.
+1. **TurboPipeline (Early)** — For non-setup routes it uses the fast `isSetupComplete()`: if `config/private.ts` is missing, redirects all non-setup routes to `/setup` with a 302. For `/setup` requests it resolves the **DB-aware** state (`getSetupState()`), so the page is only blocked once an admin account + roles exist. `config/private.ts` is written during the DB test/seed (before the admin is created), so mere file presence must not count as "complete" — the `/setup` page's own `load` likewise redirects to `/login` only on `SetupState.COMPLETE`. An abandoned half-setup therefore keeps `/setup` reachable instead of locking the user out.
 
 2. **SystemState (Later)** — Acts as the authoritative gatekeeper. Verifies system state transitions (IDLE → SETUP → READY). Blocks `/api/setup` with 403 after setup completes. Handles the `INITIALIZING` wait with a 60s timeout.
 

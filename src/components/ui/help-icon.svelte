@@ -16,7 +16,7 @@
 </script>
 
 <Button
-	variant="ghost"
+	variant="transparent"
 	type="button"
 	tabindex="-1"
 	aria-label={ariaLabel}

@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:translate"
 author: "SveltyCMS Team"
 created: "2026-09-08"
-updated: "2026-09-08"
+updated: "2026-10-13"
 tags:
   - "i18n"
   - "paraglide"
@@ -88,6 +88,20 @@ bun run paraglide      # compile src/paraglide/
 3. Ship the reviewed file in git so the next build does not depend on the translate service.
 
 Catalogs live in **`src/messages/{locale}.json`** — not under `src/paraglide/` (that folder is generated).
+
+---
+
+## Dev server: first-run compile
+
+`vite dev` compiles every configured locale once and caches the result in `project.inlang/cache/paraglide-js/`. The first start after a fresh install, a cleared cache, or any catalog / `settings.json` change is the slow one — the compile is ~linear in messages, so the full admin catalog (~3.4k keys × N locales) is the cost. Every later start logs `Compilation skipped — inputs unchanged` and is instant.
+
+A cold start is announced in the dev log before the pause:
+
+```text
+[SveltyCMS] ℹ️ Paraglide is compiling 8 admin locales (27,072 messages) — first run only; later starts skip it.
+```
+
+Fewer locales = faster first start: a stock install (EN/DE) compiles in ~2s, while all eight seeded packs cost ~7s. See _What ships by default_ above.
 
 ---
 

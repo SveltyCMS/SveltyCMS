@@ -119,7 +119,7 @@ This component presents a summary of all configuration steps before finalizing t
 						></iconify-icon>
 						{setup_review_section_database?.() || 'Database Configuration'}
 					</h3>
-					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt
 							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
 						>
@@ -181,6 +181,22 @@ This component presents a summary of all configuration steps before finalizing t
 								{redact(dbConfig.user)}
 							</dd>
 						{/if}
+
+						{#if dbConfig.replicaUrls && dbConfig.replicaUrls.length > 0}
+							<dt
+								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
+							>
+								Read Replicas:
+								<SystemTooltip
+									title="Regional read-only replicas from Advanced Database Options (Clustering & Scaling). Connection strings are kept hidden."
+								>
+									<HelpIcon ariaLabel="Help for Read Replicas" />
+								</SystemTooltip>
+							</dt>
+							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
+								{dbConfig.replicaUrls.length} configured
+							</dd>
+						{/if}
 					</dl>
 				</div>
 
@@ -197,7 +213,7 @@ This component presents a summary of all configuration steps before finalizing t
 						></iconify-icon>
 						{setup_review_section_admin?.() || 'Administrator Account'}
 					</h3>
-					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt
 							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
 						>
@@ -249,7 +265,7 @@ This component presents a summary of all configuration steps before finalizing t
 						></iconify-icon>
 						{setup_review_section_media?.() || 'Media Storage'}
 					</h3>
-					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt
 							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
 						>
@@ -300,7 +316,7 @@ This component presents a summary of all configuration steps before finalizing t
 						></iconify-icon>
 						Email Configuration
 					</h3>
-					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt
 							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
 						>
@@ -363,7 +379,7 @@ This component presents a summary of all configuration steps before finalizing t
 						></iconify-icon>
 						{setup_review_section_system?.() || 'System Settings'}
 					</h3>
-					<dl class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1 text-sm">
+					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
 						<dt
 							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
 						>

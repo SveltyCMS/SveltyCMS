@@ -21,6 +21,7 @@ Relies on the centralized `themeStore` for state and logic.
 
 	interface Props {
 		buttonClass?: string;
+		iconClass?: string;
 		iconSize?: number;
 		showTooltip?: boolean;
 		tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
@@ -34,7 +35,8 @@ Relies on the centralized `themeStore` for state and logic.
 		buttonClass = variant === 'ghost' || variant === 'transparent'
 			? 'text-black dark:text-white'
 			: 'border border-surface-500/30 rounded-full dark:border-surface-500/40 dark:text-white',
-		iconSize = 22
+		iconSize = 22,
+		iconClass = ''
 	}: Props = $props();
 
 	const icon = $derived(
@@ -63,13 +65,8 @@ Relies on the centralized `themeStore` for state and logic.
 </script>
 
 {#snippet toggleButton()}
-	<Button
-		{variant}
-		onclick={cycleTheme}
-		aria-label="Toggle theme"
-		class={`${buttonClass} p-0! min-w-0`}
-	>
-		<iconify-icon {icon} width={iconSize} aria-hidden="true"></iconify-icon>
+	<Button {variant} onclick={cycleTheme} aria-label="Toggle theme" class={buttonClass}>
+		<iconify-icon {icon} width={iconSize} aria-hidden="true" class={iconClass}></iconify-icon>
 	</Button>
 {/snippet}
 

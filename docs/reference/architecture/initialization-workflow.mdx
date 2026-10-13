@@ -23,7 +23,7 @@ tags:
 
 # Boot and initialization
 
-This page is the engine side of first run: the installer's phases, the config it generates, the state machine that follows, and how a restart recompiles collections without moving UUIDs. The operator's procedure — prerequisites, the five steps, verification, and recovery — is the [Setup wizard guide](../../guides/configuration/setup-wizard.mdx), and install commands are [Getting started](../../getting-started.mdx).
+This page is the engine side of first run: the installer's phases, the config it generates, the state machine that follows, and how a restart recompiles collections without moving UUIDs. The operator's procedure — prerequisites, the six steps, verification, and recovery — is the [Setup wizard guide](../../guides/configuration/setup-wizard.mdx), and install commands are [Getting started](../../getting-started.mdx).
 
 ---
 
@@ -974,6 +974,8 @@ const data = await testDbRemote({
   configData: wizard.dbConfig,
   createIfMissing,
   allowOverwrite,
+  // the wizard owns this DB once a test has succeeded for this exact config
+  ownsDatabase: wizard.dbTestPassed && !dbConfigChangedSinceTest,
 });
 wizard.lastDbTestResult = data;
 if (data?.success) {
@@ -1003,6 +1005,8 @@ if (/authentication failed|bad auth|not authorized|bad login/i.test(lower)) {
 ```
 
 Two flags drive the follow-up dialogs: `dbDoesNotExist` offers to create the database, `canOverwrite` offers to drop and recreate it.
+
+`DB_ALREADY_EXISTS` ("Database not empty") is only raised for a _foreign_ database. A successful test runs `ensureAuth()` / `ensureSystem()` / … and the store then auto-seeds, so the wizard's own database is non-empty on the next test. The guard is therefore skipped when the caller reports it already owns that exact config (`ownsDatabase`) — re-testing your own initialised database succeeds instead of offering to overwrite it.
 
 ### Adding a New Step
 

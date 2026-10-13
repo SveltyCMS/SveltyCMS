@@ -18,6 +18,7 @@
 	import Select from '@components/ui/select.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
+		setup_email_aria_help_from,
 		setup_email_aria_help_host,
 		setup_email_aria_help_password,
 		setup_email_aria_help_port,
@@ -39,6 +40,7 @@
 		setup_email_feature_workflow,
 		setup_email_from,
 		setup_email_from_note,
+		setup_email_help_from,
 		setup_email_help_host,
 		setup_email_help_password,
 		setup_email_help_port,
@@ -741,44 +743,47 @@
 					<HelpIcon ariaLabel={setup_email_aria_help_password()} />
 				</SystemTooltip>
 			</div>
-			<div class="relative">
-				<Input
-					id="smtp-password"
-					type={showPassword ? 'text' : 'password'}
-					bind:value={wizard.emailSettings.password}
-					placeholder={setup_email_password_placeholder()}
-					required
-					autocomplete="current-password"
-					onblur={() => {
-						const trimmed = wizard.emailSettings.password.trim();
-						if (trimmed !== wizard.emailSettings.password) {
-							wizard.emailSettings.password = trimmed;
-						}
-						handleBlur('password');
-					}}
-					onchange={() => {
-						testSuccess = false;
-						testError = '';
-					}}
-					error={displayErrors.password}
-					inputClass="pe-10"
-				/>
-				<Button
-					variant="ghost"
-					type="button"
-					onclick={() => (showPassword = !showPassword)}
-					aria-label={showPassword
-						? setup_email_aria_hide_password()
-						: setup_email_aria_show_password()}
-					size="sm"
-					class="p-0! min-w-0 absolute inset-e-0 top-0"
-				>
-					<iconify-icon
-						icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'}
-						class="text-lg text-surface-600 dark:text-surface-50"
-					></iconify-icon>
-				</Button>
-			</div>
+			<Input
+				id="smtp-password"
+				type={showPassword ? 'text' : 'password'}
+				bind:value={wizard.emailSettings.password}
+				placeholder={setup_email_password_placeholder()}
+				required
+				autocomplete="current-password"
+				onblur={() => {
+					const trimmed = wizard.emailSettings.password.trim();
+					if (trimmed !== wizard.emailSettings.password) {
+						wizard.emailSettings.password = trimmed;
+					}
+					handleBlur('password');
+				}}
+				onchange={() => {
+					testSuccess = false;
+					testError = '';
+				}}
+				error={displayErrors.password}
+			>
+				{#snippet post()}
+					<Button
+						variant="transparent"
+						type="button"
+						size="sm"
+						tabindex={-1}
+						onclick={() => (showPassword = !showPassword)}
+						aria-label={showPassword
+							? setup_email_aria_hide_password()
+							: setup_email_aria_show_password()}
+						class="w-full! h-full! p-0! min-w-0 text-surface-500! dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100"
+					>
+						<iconify-icon
+							icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'}
+							width="18"
+							height="18"
+							aria-hidden="true"
+						></iconify-icon>
+					</Button>
+				{/snippet}
+			</Input>
 		</label>
 
 		<!-- From Email (Optional) -->
@@ -791,6 +796,9 @@
 					aria-hidden="true"
 				></iconify-icon>
 				<span class="text-surface-900 dark:text-surface-50">{setup_email_from()}</span>
+				<SystemTooltip title={setup_email_help_from()}>
+					<HelpIcon ariaLabel={setup_email_aria_help_from()} />
+				</SystemTooltip>
 			</div>
 			<Input
 				id="smtp-from"

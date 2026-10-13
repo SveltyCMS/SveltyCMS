@@ -12,7 +12,6 @@ Features:
 
 -->
 <script lang="ts">
-	import Alert from '@components/ui/alert.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -62,8 +61,6 @@ Features:
 		setup_system_site_name,
 		setup_system_site_name_placeholder,
 		setup_system_timezone,
-		setup_db_test_redis_button,
-		setup_db_test_redis_success,
 		setup_badge_rtl,
 		setup_badge_translated,
 		setup_badge_english_ui,
@@ -88,7 +85,6 @@ Features:
 	} from '@src/paraglide/messages';
 	//  Import types from the store
 	import type { ValidationErrors } from '@src/stores/setup-store.svelte.ts';
-	import { setupStore } from '@src/stores/setup-store.svelte.ts';
 	import { systemSettingsSchema } from '@utils/schemas';
 	import iso6391 from '@utils/iso639-1.json';
 	import { getLanguageName } from '@utils/language-utils';
@@ -98,17 +94,11 @@ Features:
 		isIso6391LanguageCode,
 		languageBase
 	} from '@utils/system-locale';
-	import { countryOptions, suggestMarket } from './market';
 	import { logger } from '@utils/logger';
 	import { safeParse } from 'valibot';
-	// Components
-	import PresetSelector from './preset-selector.svelte';
-	import { PRESETS } from './presets';
-
-	const presets = PRESETS;
 
 	// --- PROPS ---
-	let { systemSettings = $bindable(), validationErrors, redisAvailable } = $props();
+	let { systemSettings = $bindable(), validationErrors } = $props();
 
 	import { SvelteSet } from 'svelte/reactivity';
 
@@ -183,19 +173,6 @@ Features:
 		showSystemPicker = false;
 		systemPickerSearch = '';
 	}
-	const countryChoices = countryOptions();
-
-	function applyCountry(code: string) {
-		const suggestion = suggestMarket(code, systemSettings.defaultContentLanguage);
-		systemSettings.homeCountry = code;
-		systemSettings.currency = suggestion.currency;
-		systemSettings.pricesIncludeTax = suggestion.pricesIncludeTax;
-		systemSettings.storeLanguage = suggestion.storeLanguage;
-		systemSettings.taxRate = suggestion.taxRate == null ? '' : String(suggestion.taxRate);
-		systemSettings.reducedRate =
-			suggestion.reducedRate == null ? '' : String(suggestion.reducedRate);
-	}
-
 	function addSystemLanguage(code: string) {
 		const c = languageBase(code);
 		if (!isIso6391LanguageCode(c)) {
@@ -353,7 +330,11 @@ Features:
 	// Timezone options for Dropdown
 	const allTimezones = Intl.supportedValuesOf('timeZone');
 	const timezoneOptions = $derived(allTimezones.map((tz: string) => ({ label: tz, value: tz })));
-	let showScaling = $state(false);
+
+	// Cloudflare CDN section: collapsed by default, auto-expands when a cloud media
+	// storage type is selected (which is when the cloud-credentials notice appears).
+	let showCdn = $state(false);
+	const cdnExpanded = $derived(showCdn || systemSettings.mediaStorageType !== 'local');
 
 	const mediaStorageOptions = $derived([
 		{ value: 'local', label: setup_media_type_local?.() || '📁 Local Storage' },
@@ -390,98 +371,6 @@ Features:
 	</div>
 
 	<div class="space-y-2">
-		{#if redisAvailable && !systemSettings.useRedis}
-			<Alert
-				variant="info"
-				title="Performance Optimization Detected"
-				class="animate-in fade-in slide-in-from-top-4 duration-500"
-			>
-				<div class="flex items-center justify-between gap-4">
-					<div class="flex items-center gap-2">
-						<Badge variant="error" class="uppercase">Recommended</Badge>
-					</div>
-					<Button
-						variant="outline"
-						type="button"
-						size="sm"
-						onclick={() => (redisAvailable = false)}
-						aria-label="Dismiss recommendation"
-						rounded
-						class="p-0 aspect-square min-w-0 shrink-0 flex items-center justify-center"
-					>
-						<iconify-icon icon="mdi:close" width="14"></iconify-icon>
-					</Button>
-				</div>
-				<p class="mt-1 text-sm leading-relaxed italic">
-					A local Redis server was detected on this system. <br />Enabling Redis caching can speed
-					up data access by up to <strong>50x</strong>
-					by reducing database load.
-				</p>
-			</Alert>
-		{/if}
-
-		<!-- Project Blueprint -->
-		<section class="mb-2">
-			<PresetSelector {presets} bind:selected={systemSettings.preset} />
-		</section>
-
-		<section class="space-y-4" aria-labelledby="market-heading">
-			<div>
-				<h2 id="market-heading" class="text-sm font-medium text-surface-900 dark:text-surface-50">
-					Country and prices
-				</h2>
-				<p class="mt-1 text-xs leading-relaxed text-(--admin-text-muted)">
-					Pick a country to fill currency, shop language, and a suggested tax rate. Edit every
-					value. Leave the country empty and no tax row is created. Suggested rates were checked on
-					5 October 2026. They are a starting point, not a tax ruling.
-				</p>
-			</div>
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<Select
-					id="home-country"
-					label="Country"
-					bind:value={systemSettings.homeCountry}
-					options={countryChoices}
-					onchange={applyCountry}
-				/>
-				<Input
-					id="market-currency"
-					label="Currency"
-					bind:value={systemSettings.currency}
-					maxlength={3}
-					autocomplete="off"
-				/>
-				<Select
-					id="store-language"
-					label="Shop language"
-					bind:value={systemSettings.storeLanguage}
-					options={[
-						{ value: 'en', label: 'English' },
-						{ value: 'de', label: 'German' }
-					]}
-				/>
-				<Checkbox
-					bind:checked={systemSettings.pricesIncludeTax}
-					label="Prices include tax"
-					description="Catalog prices are the amount the buyer pays. Tax is extracted, not added."
-				/>
-				<Input
-					id="tax-rate"
-					label="Standard tax %"
-					bind:value={systemSettings.taxRate}
-					inputmode="decimal"
-					autocomplete="off"
-				/>
-				<Input
-					id="reduced-rate"
-					label="Reduced tax %"
-					bind:value={systemSettings.reducedRate}
-					inputmode="decimal"
-					autocomplete="off"
-				/>
-			</div>
-		</section>
-
 		<!-- Basic Site Settings -->
 		<section class="space-y-4">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-3 items-start">
@@ -600,76 +489,6 @@ Features:
 						bind:value={systemSettings.passwordMinLength}
 						type="number"
 					/>
-				</div>
-			</div>
-
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 items-start pt-1">
-				<!-- Media Storage Configuration -->
-				<div class="space-y-2">
-					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon
-							icon="mdi:cloud-outline"
-							width="18"
-							class="text-tertiary-500 dark:text-primary-500"
-							aria-hidden="true"
-						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50"
-							>{setup_system_media_type?.() || 'Media Storage Type'}</span
-						>
-						<SystemTooltip title={setup_help_media_type?.() || setup_help_media_path()}>
-							<HelpIcon ariaLabel="Help: Media Storage Type" />
-						</SystemTooltip>
-					</label>
-
-					<Select
-						id="media-storage-type"
-						bind:value={systemSettings.mediaStorageType}
-						options={mediaStorageOptions}
-						placeholder="Select storage type..."
-					/>
-				</div>
-
-				<!-- Media Folder Path -->
-				<div class="space-y-2">
-					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
-						<iconify-icon
-							icon="mdi:folder"
-							width="18"
-							class="text-tertiary-500 dark:text-primary-500"
-							aria-hidden="true"
-						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">
-							{systemSettings.mediaStorageType === 'local'
-								? setup_system_media_folder_local?.() || 'Media Folder Path'
-								: setup_system_media_folder_cloud?.() || 'Bucket/Cloud Name'}
-						</span>
-						<SystemTooltip title={setup_help_media_type?.() || 'Storage path configuration'}>
-							<HelpIcon ariaLabel="Help: Media Folder" />
-						</SystemTooltip>
-					</label>
-
-					<Input
-						id="media-folder"
-						bind:value={systemSettings.mediaFolder}
-						type="text"
-						data-1p-ignore
-						placeholder={systemSettings.mediaStorageType === 'local'
-							? setup_system_media_path_placeholder?.() || './mediaFolder'
-							: setup_system_bucket_placeholder?.() || 'my-bucket-name'}
-					/>
-
-					{#if systemSettings.mediaStorageType !== 'local'}
-						<div
-							class="rounded border border-warning-500/50 bg-warning-500/50 p-3 dark:border-warning-500/40 dark:bg-warning-900/20"
-							role="status"
-						>
-							<p class="flex items-center gap-1 text-xs text-warning-600 dark:text-warning-400">
-								<iconify-icon icon="mdi:information-outline" width="16" aria-hidden="true"
-								></iconify-icon>
-								<strong>{setup_note_cloud_credentials?.() || 'Note:'}</strong>
-							</p>
-						</div>
-					{/if}
 				</div>
 			</div>
 		</section>
@@ -963,13 +782,191 @@ Features:
 			</div>
 		</section>
 
+		<!-- Media Storage -->
+		<section class="space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 items-start">
+				<!-- Media Storage Configuration -->
+				<div class="space-y-2">
+					<label for="media-storage-type" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon
+							icon="mdi:cloud-outline"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="text-surface-900 dark:text-surface-50"
+							>{setup_system_media_type?.() || 'Media Storage Type'}</span
+						>
+						<SystemTooltip title={setup_help_media_type?.() || setup_help_media_path()}>
+							<HelpIcon ariaLabel="Help: Media Storage Type" />
+						</SystemTooltip>
+					</label>
+
+					<Select
+						id="media-storage-type"
+						bind:value={systemSettings.mediaStorageType}
+						options={mediaStorageOptions}
+						placeholder="Select storage type..."
+					/>
+				</div>
+
+				<!-- Media Folder Path -->
+				<div class="space-y-2">
+					<label for="media-folder" class="mb-1 flex items-center gap-1 text-sm font-medium">
+						<iconify-icon
+							icon="mdi:folder"
+							width="18"
+							class="text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<span class="text-surface-900 dark:text-surface-50">
+							{systemSettings.mediaStorageType === 'local'
+								? setup_system_media_folder_local?.() || 'Media Folder Path'
+								: setup_system_media_folder_cloud?.() || 'Bucket/Cloud Name'}
+						</span>
+						<SystemTooltip title={setup_help_media_type?.() || 'Storage path configuration'}>
+							<HelpIcon ariaLabel="Help: Media Folder" />
+						</SystemTooltip>
+					</label>
+
+					<Input
+						id="media-folder"
+						bind:value={systemSettings.mediaFolder}
+						type="text"
+						data-1p-ignore
+						placeholder={systemSettings.mediaStorageType === 'local'
+							? setup_system_media_path_placeholder?.() || './mediaFolder'
+							: setup_system_bucket_placeholder?.() || 'my-bucket-name'}
+					/>
+				</div>
+			</div>
+		</section>
+
+		<!-- Cloudflare CDN — collapsible (default collapsed; auto-expands for cloud storage) -->
+		<section class="space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30">
+			<div class="flex items-center gap-2">
+				<Button
+					variant="transparent"
+					type="button"
+					onclick={() => (showCdn = !cdnExpanded)}
+					aria-expanded={cdnExpanded}
+					aria-label={cdnExpanded
+						? 'Collapse Advanced: Enterprise Scaling (Cloudflare CDN)'
+						: 'Expand Advanced: Enterprise Scaling (Cloudflare CDN)'}
+					class="flex items-center gap-2 p-0! h-auto! min-w-0! text-base font-medium! text-surface-900 dark:text-surface-50"
+				>
+					<iconify-icon icon={cdnExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"
+					></iconify-icon>
+					<iconify-icon
+						icon="mdi:cloud-cog"
+						width="18"
+						class="text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+					Advanced: Enterprise Scaling (Cloudflare CDN)
+				</Button>
+				<SystemTooltip
+					title="Purges Cloudflare's edge cache when content changes, so visitors get fresh pages immediately instead of waiting for the CDN's own expiry. Requires a Cloudflare API token with cache-purge permission and the zone ID. This is edge/CDN caching — separate from the database read replicas under Database → Advanced Database Options (Clustering & Scaling)."
+				>
+					<HelpIcon ariaLabel="Help: Cloudflare CDN purging" />
+				</SystemTooltip>
+				{#if systemSettings.mediaStorageType !== 'local'}
+					<span
+						class="ms-auto flex items-center gap-1 rounded border border-warning-500/50 bg-warning-500/50 px-2 py-1 text-[11px] font-normal text-warning-600 dark:border-warning-500/40 dark:bg-warning-900/20 dark:text-warning-400"
+						role="status"
+					>
+						<iconify-icon icon="mdi:information-outline" width="14" aria-hidden="true"
+						></iconify-icon>
+						{setup_note_cloud_credentials?.() ||
+							'Cloud storage credentials must be configured in System Settings after setup.'}
+					</span>
+				{/if}
+			</div>
+
+			{#if cdnExpanded}
+				<div class="space-y-4 rounded border border-surface-500/30 dark:border-surface-500/30 p-4">
+					<p class="text-xs text-(--admin-text-muted)">
+						Configure native CDN purging to synchronize global edge nodes instantly upon content
+						updates.
+					</p>
+
+					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+						<Input
+							id="cf-token"
+							bind:value={systemSettings.cfApiToken}
+							type="password"
+							placeholder="Enter API Token"
+						>
+							{#snippet labelSnippet()}
+								<span
+									class="flex items-center gap-1 text-base font-medium text-surface-900 dark:text-surface-50"
+								>
+									Cloudflare API Token
+									<SystemTooltip
+										title="A Cloudflare API token with permission to purge the cache for this zone. Create one under My Profile → API Tokens."
+									>
+										<HelpIcon ariaLabel="Help: Cloudflare API Token" />
+									</SystemTooltip>
+								</span>
+							{/snippet}
+						</Input>
+						<Input
+							id="cf-zone"
+							bind:value={systemSettings.cfZoneId}
+							type="text"
+							placeholder="Enter Zone ID"
+						>
+							{#snippet labelSnippet()}
+								<span
+									class="flex items-center gap-1 text-base font-medium text-surface-900 dark:text-surface-50"
+								>
+									Cloudflare Zone ID
+									<SystemTooltip
+										title="The Cloudflare zone ID for your domain, shown on the site's Overview page in the Cloudflare dashboard."
+									>
+										<HelpIcon ariaLabel="Help: Cloudflare Zone ID" />
+									</SystemTooltip>
+								</span>
+							{/snippet}
+						</Input>
+					</div>
+
+					<div class="space-y-1">
+						<Select
+							bind:value={systemSettings.cfPurgeMode}
+							options={cfPurgeOptions}
+							placeholder="Select purge strategy..."
+							size="sm"
+							ariaLabel="Purge Strategy"
+						>
+							{#snippet labelSnippet()}
+								<span
+									class="flex items-center gap-1 text-base font-medium text-surface-900 dark:text-surface-50"
+								>
+									Purge Strategy
+									<SystemTooltip
+										title="How the CDN cache is invalidated. 'Surgical (tag-based)' purges only the changed URLs and needs Cloudflare Enterprise or Cache Tags; 'Entire cache' purges everything."
+									>
+										<HelpIcon ariaLabel="Help: Purge Strategy" />
+									</SystemTooltip>
+								</span>
+							{/snippet}
+						</Select>
+						<p class="text-[10px] text-warning-500 italic mt-1">
+							* Surgical purging requires a Cloudflare Enterprise plan or specific Cache Tag
+							support.
+						</p>
+					</div>
+				</div>
+			{/if}
+		</section>
+
 		<!-- System Infrastructure / Mode -->
 		<section
 			id="infrastructure-section"
-			class="mt-4 border-t border-surface-500/30 dark:border-surface-500/30 pt-4"
+			class="space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30"
 		>
 			<h4
-				class="flex items-center gap-2 text-sm font-semibold text-surface-500 dark:text-primary-500 mb-4"
+				class="flex items-center gap-2 text-sm font-semibold text-surface-500 dark:text-primary-500"
 			>
 				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
 				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}
@@ -1009,7 +1006,7 @@ Features:
 					<span
 						class="text-xs font-bold {systemSettings.demoMode && !systemSettings.multiTenant
 							? 'text-warning-600 dark:text-warning-400'
-							: 'invisible'}"
+							: 'hidden'}"
 						aria-hidden={!(systemSettings.demoMode && !systemSettings.multiTenant)}
 					>
 						({setup_note_demo_requires_multitenant?.() || 'Enables Multi-Tenant'})
@@ -1017,176 +1014,5 @@ Features:
 				</div>
 			</div>
 		</section>
-
-		<!-- Redis Caching — expand/collapse stays inside step-content scroll; footer is absolute in +page -->
-		<section
-			id="redis-section"
-			class="mt-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30"
-		>
-			<div
-				class="rounded-lg border border-surface-500/30 bg-surface-500/50 p-4 dark:border-surface-500/40 dark:bg-surface-900/20"
-			>
-				<div class="flex items-center justify-between gap-4">
-					<Checkbox
-						bind:checked={systemSettings.useRedis}
-						label="Enable Redis Caching"
-						description="Significantly improves performance by caching database queries and session data in-memory."
-						variant="default"
-					/>
-					{#if systemSettings.useRedis}
-						{#if setupStore.wizard.redisTestPassed}
-							<span
-								class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-500"
-							>
-								<iconify-icon icon="mdi:check-circle" width="14"></iconify-icon>
-								Connected
-							</span>
-						{:else}
-							<span
-								class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning-500/10 px-2.5 py-1 text-xs font-semibold text-warning-600 dark:text-warning-400"
-							>
-								<iconify-icon icon="mdi:clock-outline" width="14"></iconify-icon>
-								Pending Test
-							</span>
-						{/if}
-					{/if}
-				</div>
-
-				{#if systemSettings.useRedis}
-					<div
-						class="mt-4 space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
-					>
-						<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-							<Input
-								id="redis-host"
-								bind:value={systemSettings.redisHost}
-								type="text"
-								data-1p-ignore
-								label="Redis Host"
-								placeholder="localhost"
-							/>
-							<Input
-								id="redis-port"
-								bind:value={systemSettings.redisPort}
-								type="text"
-								data-1p-ignore
-								label="Redis Port"
-								placeholder="6379"
-							/>
-							<Input
-								id="redis-password"
-								bind:value={systemSettings.redisPassword}
-								type="password"
-								data-1p-ignore
-								label="Redis Password (Optional)"
-								placeholder="••••••••"
-							/>
-						</div>
-
-						<div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-							<Button
-								variant={setupStore.wizard.redisTestPassed ? 'outline' : 'tertiary'}
-								type="button"
-								onclick={setupStore.testRedisConnection}
-								aria-label="test-redis-connection"
-								disabled={setupStore.wizard.isLoading}
-								class="flex items-center gap-2 rounded"
-							>
-								{#if setupStore.wizard.isLoading}
-									<iconify-icon icon="line-md:loading-twotone-loop" width="16"></iconify-icon>
-									<span>Testing Connection...</span>
-								{:else if setupStore.wizard.redisTestPassed}
-									<iconify-icon icon="mdi:check-bold" width="16" class="text-primary-500"
-									></iconify-icon>
-									<span>{setup_db_test_redis_success?.() || 'Connected - Re-test'}</span>
-								{:else}
-									<iconify-icon icon="mdi:flash-outline" width="16"></iconify-icon>
-									<span>{setup_db_test_redis_button?.() || 'Test Redis Connection'}</span>
-								{/if}
-							</Button>
-
-							{#if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
-								<p class="flex items-center gap-1.5 text-xs font-medium text-error-500">
-									<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
-									{setupStore.wizard.errorMessage}
-								</p>
-							{/if}
-						</div>
-					</div>
-				{/if}
-			</div>
-		</section>
-
-		<!-- Enterprise Scaling & performance -->
-		<div class="mt-4 border-t border-surface-500/30 dark:border-surface-500/30 pt-4">
-			<Button
-				variant="transparent"
-				type="button"
-				class="flex w-full! items-center justify-between! rounded-lg! border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/50! dark:bg-surface-900/20! p-3! h-auto! text-sm font-semibold! text-surface-700 dark:text-primary-400 hover:bg-surface-500/10 dark:hover:bg-surface-800 transition-all"
-				onclick={() => (showScaling = !showScaling)}
-				aria-label={showScaling ? 'Collapse enterprise scaling' : 'Expand enterprise scaling'}
-			>
-				<div class="flex items-center gap-2">
-					<iconify-icon
-						icon={showScaling ? 'mdi:cloud-sync' : 'mdi:cloud-cog'}
-						width="18"
-						class="text-tertiary-500 dark:text-primary-500"
-					></iconify-icon>
-					<span>Advanced: Enterprise Scaling (Cloudflare CDN)</span>
-				</div>
-				<div class="flex items-center gap-2 text-xs font-normal">
-					<span>{showScaling ? 'Collapse' : 'Expand'}</span>
-					<iconify-icon
-						icon={showScaling ? 'mdi:chevron-up' : 'mdi:chevron-down'}
-						width="18"
-						class="transition-transform duration-200"
-					></iconify-icon>
-				</div>
-			</Button>
-
-			{#if showScaling}
-				<div
-					class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-surface-500/30 p-4 transition-all duration-300"
-				>
-					<p class="text-xs text-(--admin-text-muted)">
-						Configure native CDN purging to synchronize global edge nodes instantly upon content
-						updates.
-					</p>
-
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<Input
-							id="cf-token"
-							bind:value={systemSettings.cfApiToken}
-							type="password"
-							label="Cloudflare API Token"
-							labelClass="text-xs font-bold uppercase tracking-wider text-surface-400"
-							placeholder="Enter API Token"
-						/>
-						<Input
-							id="cf-zone"
-							bind:value={systemSettings.cfZoneId}
-							type="text"
-							label="Cloudflare Zone ID"
-							labelClass="text-xs font-bold uppercase tracking-wider text-surface-400"
-							placeholder="Enter Zone ID"
-						/>
-					</div>
-
-					<div class="space-y-1">
-						<Select
-							bind:value={systemSettings.cfPurgeMode}
-							label="Purge Strategy"
-							options={cfPurgeOptions}
-							placeholder="Select purge strategy..."
-							size="sm"
-						/>
-						<p class="text-[10px] text-warning-500 italic mt-1">
-							* Surgical purging requires a Cloudflare Enterprise plan or specific Cache Tag
-							support.
-						</p>
-					</div>
-				</div>
-			{/if}
-		</div>
 	</div>
 </form>

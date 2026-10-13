@@ -6,7 +6,9 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 <script lang="ts">
 	import Alert from '@components/ui/alert.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -14,6 +16,10 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		common_confirm_no,
 		common_confirm_overwrite,
 		common_confirm_yes,
+		label_database,
+		label_host,
+		label_port,
+		label_user,
 		setup_button_test_connection,
 		setup_database_host,
 		setup_database_host_placeholder,
@@ -33,6 +39,13 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 		setup_db_not_found_title,
 		setup_db_postgres_mysql_note,
 		setup_db_postgres_mysql_timeline,
+		setup_db_test_details_hide,
+		setup_db_test_details_show,
+		setup_db_test_engine,
+		setup_db_test_latency,
+		setup_db_test_user,
+		setup_db_test_redis_button,
+		setup_db_test_redis_success,
 		setup_help_database_host,
 		setup_help_database_name,
 		setup_help_database_password,
@@ -56,14 +69,24 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	// Props from parent wizard (destructure via $props to allow internal mutation without warnings)
 	let {
 		dbConfig = $bindable(),
+		systemSettings = $bindable(),
 		validationErrors,
 		isLoading,
 		showDbPassword = $bindable(),
 		toggleDbPassword,
 		testDatabaseConnection,
 		dbConfigChangedSinceTest,
-		clearDbTestError
+		clearDbTestError,
+		redisAvailable
 	} = $props();
+
+	const wizard = setupStore.wizard;
+	// A full connection URI embeds the port, so the details grid omits it.
+	const isFullUri = $derived(() => {
+		return (
+			wizard.dbConfig.host.includes('mongodb://') || wizard.dbConfig.host.includes('mongodb+srv://')
+		);
+	});
 
 	let unsupportedDbSelected = $state(false);
 	let isAtlas = $derived(dbConfig.type === 'mongodb+srv');
@@ -289,6 +312,36 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			{setup_database_intro()}
 		</p>
 	</div>
+
+	<!-- Redis recommendation (moved from the System step — Redis caches DB queries) -->
+	{#if redisAvailable && !systemSettings.useRedis}
+		<Alert variant="info" class="mb-4 animate-in fade-in slide-in-from-top-4 duration-500 sm:mb-6">
+			<div class="flex items-start justify-between gap-4">
+				<div class="flex flex-wrap items-center gap-4">
+					<h4 class="font-bold leading-tight text-base text-white">
+						Performance Optimization Detected
+					</h4>
+					<Badge variant="error" class="uppercase">Recommended</Badge>
+				</div>
+				<Button
+					variant="outline"
+					type="button"
+					size="sm"
+					onclick={() => (redisAvailable = false)}
+					aria-label="Dismiss recommendation"
+					rounded
+					class="p-0 aspect-square min-w-0 shrink-0 flex items-center justify-center"
+				>
+					<iconify-icon icon="mdi:close" width="14"></iconify-icon>
+				</Button>
+			</div>
+			<p class="mt-1 text-sm leading-relaxed italic">
+				A local <span class="font-bold">Redis server</span> was detected on this system. Enabling Redis
+				caching can reduce database load under concurrent traffic and share cached query results across
+				instances.
+			</p>
+		</Alert>
+	{/if}
 
 	<!-- MongoDB Atlas Helper Message -->
 	{#if dbConfig.type === 'mongodb+srv'}
@@ -618,7 +671,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				</div>
 			{/if}
 		</div>
-		<div class="mb-4">
+		<div class="mb-4 flex items-center gap-2">
 			<Button
 				variant="transparent"
 				type="button"
@@ -629,6 +682,17 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				></iconify-icon>
 				Advanced Database Options (Clustering & Scaling)
 			</Button>
+			<SystemTooltip
+				title="Offload reads to regional read-only replicas (PostgreSQL/MongoDB). Writes always go to the primary. Add one connection string per replica; append ?region=code for geo routing. Optional — leave empty to use the primary only."
+			>
+				<HelpIcon ariaLabel="Help: Advanced database options (clustering and scaling)" />
+				{#snippet content()}
+					Offload reads to regional read-only replicas (PostgreSQL/MongoDB). Writes always go to the
+					primary. Add one connection string per replica; append
+					<code class="whitespace-nowrap">?region=code</code> for geo routing. Optional — leave empty
+					to use the primary only.
+				{/snippet}
+			</SystemTooltip>
 
 			{#if showAdvanced}
 				<div
@@ -637,12 +701,16 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					<div class="flex flex-col gap-2">
 						<label
 							for="replica-urls"
-							class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-surface-400"
+							class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-surface-900 dark:text-white"
 						>
-							<iconify-icon icon="mdi:database-import" width="16"></iconify-icon>
+							<iconify-icon
+								icon="mdi:database-import"
+								width="16"
+								class="text-tertiary-500 dark:text-primary-500"
+							></iconify-icon>
 							Regional Read Replicas (Optional)
 						</label>
-						<p class="text-xs text-surface-500 dark:text-white/40 mb-2">
+						<p class="text-xs text-tertiary-500 dark:text-primary-500 mb-2">
 							Add full connection strings for regional read-only replicas (PostgreSQL/MongoDB).
 						</p>
 
@@ -654,19 +722,21 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 									placeholder="postgresql://user:pass@replica-host:5432/db?region=us-east"
 									class="flex-1"
 								/>
-								<Button
-									variant="ghost"
-									type="button"
-									aria-label="Remove replica"
-									onclick={() => {
-										dbConfig.replicaUrls = dbConfig.replicaUrls.filter(
-											(_: string, i: number) => i !== index
-										);
-									}}
-									class="p-0! min-w-0 rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
-								>
-									<iconify-icon icon="mdi:close" width="16"></iconify-icon>
-								</Button>
+								{#if dbConfig.replicaUrls.length > 1}
+									<Button
+										variant="ghost"
+										type="button"
+										aria-label="Remove replica"
+										onclick={() => {
+											dbConfig.replicaUrls = dbConfig.replicaUrls.filter(
+												(_: string, i: number) => i !== index
+											);
+										}}
+										class="p-0! min-w-0 rounded-full bg-error-500/10 text-error-500 hover:bg-error-500 hover:text-white transition-all"
+									>
+										<iconify-icon icon="mdi:close" width="16"></iconify-icon>
+									</Button>
+								{/if}
 							</div>
 						{/each}
 
@@ -695,7 +765,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				aria-label={isLoading
 					? 'Testing database connection, please wait'
 					: 'Test database connection'}
-				class="w-full"
+				class="flex w-full items-center justify-center gap-2"
 			>
 				{#if isLoading}
 					<div
@@ -704,7 +774,11 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						aria-label="Loading"
 					></div>
 					Testing Connection...
+				{:else if wizard.dbTestPassed && !dbConfigChangedSinceTest}
+					<iconify-icon icon="mdi:check-bold" width="16"></iconify-icon>
+					{setup_button_test_connection()}
 				{:else}
+					<iconify-icon icon="mdi:database" width="16"></iconify-icon>
 					{setup_button_test_connection()}
 				{/if}
 			</Button>
@@ -716,4 +790,270 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</Alert>
 		{/if}
 	</form>
+
+	<!-- DB test result (success/error) — sits between the test button and Redis caching -->
+	{#if (wizard.successMessage || wizard.errorMessage) && wizard.lastDbTestResult && !setupStore.dbConfigChangedSinceTest}
+		<div
+			class="mt-6 flex flex-col rounded border-s-4 p-0 text-sm overflow-hidden"
+			class:border-primary-500={!!wizard.successMessage}
+			class:border-error-500={!!wizard.errorMessage}
+			aria-live="polite"
+			aria-atomic="true"
+		>
+			<div
+				class="flex items-center gap-2 px-4 py-3 {wizard.successMessage
+					? 'bg-success-500/10 text-primary-600 dark:text-primary-400'
+					: ''} {wizard.errorMessage ? 'bg-error-500/10 text-error-600 dark:text-error-400' : ''}"
+			>
+				<svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					{#if wizard.successMessage}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M5 13l4 4L19 7"
+						/>
+					{:else}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						/>
+					{/if}
+				</svg>
+				<div class="flex-1">
+					{#if wizard.errorMessage}
+						<span class="font-bold">Connection Failed</span>{#if wizard.showDbDetails}: <span
+								class="font-normal">{wizard.errorMessage}</span
+							>{/if}
+					{:else}
+						{wizard.successMessage}
+					{/if}
+				</div>
+				<div class="flex gap-2">
+					<Button
+						variant="outline"
+						type="button"
+						onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
+						size="sm"
+						class="text-surface-900 dark:text-surface-50 flex items-center gap-1"
+					>
+						<iconify-icon
+							icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'}
+							class="h-4 w-4"
+						></iconify-icon>
+						<span class="hidden sm:inline"
+							>{wizard.showDbDetails
+								? setup_db_test_details_hide()
+								: setup_db_test_details_show()}</span
+						>
+					</Button>
+					<Button
+						variant="outline"
+						type="button"
+						aria-label="Close message"
+						onclick={setupStore.clearDbTestError}
+						rounded
+						size="sm"
+						class="p-0! min-w-0 h-7 w-7"
+					>
+						<iconify-icon icon="mdi:close" size="16" class="dark:text-white"></iconify-icon>
+					</Button>
+				</div>
+			</div>
+			{#if wizard.showDbDetails && wizard.lastDbTestResult}
+				<div
+					class="border-t border-surface-500/30 bg-secondary-500/50 text-xs dark:border-surface-500/40 dark:bg-surface-900/50"
+				>
+					<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
+						<div class="flex flex-col">
+							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+								>{setup_db_test_latency()}:</span
+							>
+							<span class="text-tertiary-500 dark:text-primary-500 font-bold"
+								>{wizard.lastDbTestResult.latencyMs ?? '—'} ms</span
+							>
+						</div>
+						<div class="flex flex-col">
+							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+								>{setup_db_test_engine()}:</span
+							>
+							<span class="text-tertiary-500 dark:text-primary-500 font-bold"
+								>{wizard.dbConfig.type}</span
+							>
+						</div>
+						<div class="flex flex-col">
+							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+								>{label_host()}:</span
+							>
+							<span
+								class="text-tertiary-500 dark:text-primary-500 font-bold truncate"
+								title={wizard.dbConfig.host}>{wizard.dbConfig.host}</span
+							>
+						</div>
+						{#if !isFullUri}
+							<div class="flex flex-col">
+								<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+									>{label_port()}:</span
+								>
+								<span class="text-tertiary-500 dark:text-primary-500 font-bold"
+									>{wizard.dbConfig.port}</span
+								>
+							</div>
+						{/if}
+						<div class="flex flex-col">
+							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+								>{label_database()}:</span
+							>
+							<span
+								class="text-tertiary-500 dark:text-primary-500 font-bold truncate"
+								title={wizard.dbConfig.name}>{wizard.dbConfig.name}</span
+							>
+						</div>
+						{#if wizard.dbConfig.user}
+							<div class="flex flex-col">
+								<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+									>{label_user?.() || setup_db_test_user()}:</span
+								>
+								<span
+									class="text-tertiary-500 dark:text-primary-500 font-bold truncate"
+									title={wizard.dbConfig.user}>{wizard.dbConfig.user}</span
+								>
+							</div>
+						{/if}
+					</div>
+					{#if !wizard.lastDbTestResult.success && wizard.lastDbTestResult.hint}
+						<div
+							class="border-t border-surface-500/30 p-4 dark:border-surface-500/40 bg-warning-500/30 dark:bg-warning-900/10"
+						>
+							<div
+								class="flex items-center gap-2 font-bold text-warning-600 dark:text-warning-400 mb-2"
+							>
+								<iconify-icon icon="mdi:lightbulb-outline" class="text-lg"></iconify-icon>
+								<span class="uppercase tracking-widest text-[10px]"
+									>Troubleshooting Suggestions</span
+								>
+							</div>
+							<div class="space-y-2">
+								{#each wizard.lastDbTestResult.hint.split('\n') as step (step)}
+									<div class="flex gap-2 text-surface-600 dark:text-surface-400">
+										<span class="shrink-0 text-warning-500">•</span>
+										<span>{step.replace(/^\d+\.\s*/, '')}</span>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<!-- Redis Caching (moved from the System step) -->
+	<section
+		id="redis-section"
+		class="mt-6 border-t border-surface-500/30 pt-4 dark:border-surface-500/30"
+	>
+		<div
+			class="rounded-lg border border-surface-500/30 bg-surface-500/50 p-4 dark:border-surface-500/40 dark:bg-surface-900/20"
+		>
+			<div class="flex items-center justify-between gap-4">
+				<Checkbox
+					bind:checked={systemSettings.useRedis}
+					label="Enable Redis Caching"
+					description="Significantly improves performance by caching database queries and session data in-memory."
+					variant="default"
+				>
+					{#snippet labelSnippet()}
+						<span class="inline-flex items-center gap-1.5">
+							Enable Redis Caching
+							<SystemTooltip
+								title="Caches database queries and session data in memory so repeated reads skip the database. Best for high read traffic or multi-instance deployments. Requires a reachable Redis server — use Test Redis Connection to verify. Leave off to use the built-in in-memory cache."
+							>
+								<HelpIcon ariaLabel="Help: Enable Redis caching" />
+							</SystemTooltip>
+						</span>
+					{/snippet}
+				</Checkbox>
+				{#if systemSettings.useRedis}
+					{#if setupStore.wizard.redisTestPassed}
+						<span
+							class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-500/10 px-2.5 py-1 text-xs font-semibold text-primary-500"
+						>
+							<iconify-icon icon="mdi:check-circle" width="14"></iconify-icon>
+							Connected
+						</span>
+					{:else}
+						<span
+							class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-warning-500/10 px-2.5 py-1 text-xs font-semibold text-warning-600 dark:text-warning-400"
+						>
+							<iconify-icon icon="mdi:clock-outline" width="14"></iconify-icon>
+							Pending Test
+						</span>
+					{/if}
+				{/if}
+			</div>
+
+			{#if systemSettings.useRedis}
+				<div class="mt-4 space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+						<Input
+							id="redis-host"
+							bind:value={systemSettings.redisHost}
+							type="text"
+							data-1p-ignore
+							label="Redis Host"
+							placeholder="localhost"
+						/>
+						<Input
+							id="redis-port"
+							bind:value={systemSettings.redisPort}
+							type="text"
+							data-1p-ignore
+							label="Redis Port"
+							placeholder="6379"
+						/>
+						<Input
+							id="redis-password"
+							bind:value={systemSettings.redisPassword}
+							type="password"
+							data-1p-ignore
+							label="Redis Password (Optional)"
+							placeholder="••••••••"
+						/>
+					</div>
+
+					<div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+						<Button
+							variant={setupStore.wizard.redisTestPassed ? 'success' : 'tertiary'}
+							type="button"
+							onclick={setupStore.testRedisConnection}
+							aria-label="test-redis-connection"
+							disabled={setupStore.wizard.isLoading}
+							class="flex w-full items-center justify-center gap-2 rounded"
+						>
+							{#if setupStore.wizard.isLoading}
+								<iconify-icon icon="line-md:loading-twotone-loop" width="16"></iconify-icon>
+								<span>Testing Connection...</span>
+							{:else if setupStore.wizard.redisTestPassed}
+								<iconify-icon icon="mdi:check-bold" width="16" class="text-white"></iconify-icon>
+								<span>{setup_db_test_redis_success?.() || 'Connected - Re-test'}</span>
+							{:else}
+								<iconify-icon icon="mdi:flash-outline" width="16"></iconify-icon>
+								<span>{setup_db_test_redis_button?.() || 'Test Redis Connection'}</span>
+							{/if}
+						</Button>
+
+						{#if setupStore.wizard.errorMessage && !setupStore.wizard.redisTestPassed}
+							<p class="flex items-center gap-1.5 text-xs font-medium text-error-500">
+								<iconify-icon icon="mdi:alert-circle" width="16"></iconify-icon>
+								{setupStore.wizard.errorMessage}
+							</p>
+						{/if}
+					</div>
+				</div>
+			{/if}
+		</div>
+	</section>
 </div>

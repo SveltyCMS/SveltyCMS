@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:wizard-hat"
 author: "SveltyCMS Team"
 created: "2025-10-30"
-updated: "2026-10-05"
+updated: "2026-10-13"
 tags:
   - "setup"
   - "wizard"
@@ -20,7 +20,7 @@ tags:
 
 # Setup Wizard Guide
 
-This page is the operator's path through first-run setup: what to prepare, what each of the five steps asks for, how to confirm it worked, and what to do when a step fails. The short version is the [setup walkthrough](../../onboarding/setup-wizard.mdx) and install commands are [Getting started](../../getting-started.mdx). How the installer itself works — its phases, the config it writes, and the boot that follows — is [Boot and initialization](../../reference/architecture/initialization-workflow.mdx).
+This page is the operator's path through first-run setup: what to prepare, what each of the six steps asks for, how to confirm it worked, and what to do when a step fails. The short version is the [setup walkthrough](../../onboarding/setup-wizard.mdx) and install commands are [Getting started](../../getting-started.mdx). How the installer itself works — its phases, the config it writes, and the boot that follows — is [Boot and initialization](../../reference/architecture/initialization-workflow.mdx).
 
 The SveltyCMS setup wizard provides a professional, multi-step configuration experience with real-time validation, intelligent error handling, and a modern user interface.
 
@@ -38,13 +38,14 @@ The SveltyCMS setup wizard provides a professional, multi-step configuration exp
 
 ## Overview
 
-The setup wizard is a multi-step form that guides users through initial SveltyCMS configuration. It consists of 5 main steps:
+The setup wizard is a multi-step form that guides users through initial SveltyCMS configuration. It consists of 6 main steps:
 
-1. **Database Configuration** - Database connection and testing
+1. **Database Configuration** - Database connection and testing, optional Redis caching, and optional read replicas
 2. **Admin Account** - Administrator user creation
-3. **System Settings** - Site configuration, languages, and the project blueprint
-4. **Email Configuration** (Optional) - SMTP setup for notifications
-5. **Review & Complete** - Final review and system initialization
+3. **Project Blueprint** - Starting blueprint, plus the market (country, currency, tax) for a shop
+4. **System Settings** - Site identity, languages, media storage, infrastructure mode, and Cloudflare CDN purging
+5. **Email Configuration** (Optional) - SMTP setup for notifications
+6. **Review & Complete** - Final review and system initialization
 
 ### Before you start
 
@@ -65,18 +66,21 @@ flowchart TD
     Seed --> Admin[2. Admin Account]
     Admin --> |Validate| AdminCheck{Valid?}
     AdminCheck -->|No| Admin
-    AdminCheck -->|Yes| System[3. System Settings and preset]
+    AdminCheck -->|Yes| Project[3. Project Blueprint]
+    Project --> |Validate| ProjectCheck{Valid?}
+    ProjectCheck -->|No| Project
+    ProjectCheck -->|Yes| System[4. System Settings]
     System --> |Validate| SystemCheck{Valid?}
     SystemCheck -->|No| System
-    SystemCheck -->|Yes| Email[4. Email Config]
-    Email --> |Optional| Review[5. Review & Complete]
+    SystemCheck -->|Yes| Email[5. Email Config]
+    Email --> |Optional| Review[6. Review & Complete]
     Review --> |Create admin and preset collections| Complete[Complete Setup]
     Complete --> Redirect((First collection or login))
 ```
 
 ### Quick Stats
 
-- **Total Steps**: 5 (4 required + 1 optional)
+- **Total Steps**: 6 (5 required + 1 optional)
 - **Real-time Validation**: All input fields
 - **Auto-save**: localStorage persistence
 - **No server restart required**: the system becomes operational immediately after setup completion
@@ -134,12 +138,14 @@ WCAG 2.1 AA compliant features:
 
 **fields**:
 
-- Database Type (SQLite, PostgreSQL, MySQL, MariaDB, MongoDB, MongoDB Atlas)
+- Database Type (SQLite, PostgreSQL, MariaDB/MySQL, MongoDB, MongoDB Atlas)
 - Host/Connection String
 - Port (for non-Atlas)
 - Database Name
-- Username (required for PostgreSQL, MySQL, MariaDB and `mongodb+srv`, optional for a local MongoDB)
+- Username (required for PostgreSQL, MariaDB/MySQL and `mongodb+srv`, optional for a local MongoDB)
 - Password (same rules as the username)
+- **Redis caching** (optional): when enabled, Redis host, port, and password, plus a **Test Redis Connection** button
+- **Advanced Database Options (Clustering & Scaling)** (optional): full connection strings for regional read-only replicas (PostgreSQL and MongoDB), one per replica, with an optional `?region=code` suffix for geo routing
 
 **Features**:
 
@@ -156,10 +162,29 @@ WCAG 2.1 AA compliant features:
 - Host is required and non-empty
 - Database name is required, and may contain letters, numbers, hyphens, underscores, and dots
 - Port must be a number between 1 and 65535 (not required for Atlas)
-- Username and password are required for PostgreSQL, MySQL, MariaDB and `mongodb+srv`
+- Username and password are required for PostgreSQL, MariaDB/MySQL and `mongodb+srv`
 - Credentials validated on test
 
-**Server calls**: `testDatabaseConnection` and `installDatabaseDriver` (remote functions in `src/routes/setup/setup.remote.ts`); the same test logic is also exposed as the `testDatabase` form action.
+**Redis caching (optional)**:
+
+Redis lives on this step because it caches database queries and session data.
+
+- An **Enable Redis Caching** checkbox carries a help tooltip explaining what it does.
+- Enabling it reveals host, port, and password fields plus a **Test Redis Connection** button.
+- The test is optional; the check is not. Enabling Redis without a passing test blocks **Next**, and the wizard shows a toast telling you to test the connection first.
+- The connection values are written to the database settings on completion — not to `config/private.ts`.
+
+**Advanced Database Options (Clustering & Scaling)** (optional):
+
+An expandable section, with a help tooltip, that collects full connection strings for regional read-only replicas (PostgreSQL and MongoDB).
+
+- One connection string per replica, added with **Add Replica Node** and removed with the row's close button.
+- Append `?region=code` to a string for geographic routing, for example `postgresql://user:pass@replica-host:5432/db?region=us-east`.
+- This field is collected for a future, opt-in read-replica setup. It is not required, and the wizard does not persist these values. Read replicas are configured at runtime through the `DB_REPLICA_URLS` System Setting (or the `DB_REPLICAS` environment variable) after setup.
+
+These are three separate scaling layers: Redis caches database queries in memory, the database read replicas above offload read queries to additional databases, and the Cloudflare purge on [Step 4](#step-4-system-settings) invalidates the CDN's edge HTTP cache. They are not the same mechanism.
+
+**Server calls**: `testDatabaseConnection`, `installDatabaseDriver`, and `testRedisConnection` (remote functions in `src/routes/setup/setup.remote.ts`); the database test logic is also exposed as the `testDatabase` form action.
 
 **Success Criteria**:
 
@@ -223,9 +248,44 @@ stateDiagram-v2
 - No validation errors
 - "Next" button enabled
 
-### Step 3: System Settings
+### Step 3: Project Blueprint
 
-**Purpose**: Configure site identity, language settings, and the project blueprint
+**Purpose**: Choose the starting blueprint and, for a shop, the market defaults
+
+**fields**:
+
+**Project Blueprint**:
+
+- The preset carousel described in [Solution Presets](#solution-presets-starter-kits). Seven cards: Blank, Website Starter (recommended default), Blog / Editorial, Agency / Portfolio, SaaS Product, Corporate Site, and E-commerce. Each card lists the collections it creates.
+
+**Country and prices** — shown only when the **E-commerce** blueprint is selected:
+
+- Country, or “Choose later”
+- Currency (ISO 4217) and shop language (English or German)
+- Whether catalog prices already include tax
+- Standard and reduced tax percents. The form fills a suggestion checked on 5 October 2026. Clear the standard rate, or leave the country empty, and the shop seeds no tax row
+
+**Features**:
+
+- **Blueprint Carousel**: Browse and pick one starting preset; the selection is stored as the `preset` setting.
+- **Market Gating**: The **Country and prices** block appears only for the `ecommerce` blueprint, because country, currency, and tax data only matter for a shop. It is hidden for every other blueprint.
+- **Suggested Market Data**: Picking a country fills currency, shop language, and suggested tax rates, and every value stays editable.
+- **Collections at Completion**: The selected blueprint's collections are written when you complete the wizard, not earlier.
+
+**Validation Rules**:
+
+- A blueprint must be selected
+
+**Server calls**: None (the preset id is sent to `completeSetup` when you finish). Tax and shipping rows are seeded only for the E-commerce preset (`seedEcommerceDefaults` in `setup.server.ts`).
+
+**Success Criteria**:
+
+- A blueprint is selected
+- “Next” button enabled
+
+### Step 4: System Settings
+
+**Purpose**: Configure site identity, language settings, media storage, and infrastructure
 
 **fields**:
 
@@ -233,6 +293,7 @@ stateDiagram-v2
 
 - Site Name (e.g., "My SveltyCMS Site")
 - Production URL (full URL with https://)
+- Timezone
 
 **Language Configuration**:
 
@@ -244,24 +305,21 @@ stateDiagram-v2
 **Media Storage**:
 
 - Storage Type (Local, S3, R2, Cloudinary)
-- Storage Path/Bucket Name
+- Storage Path/Bucket Name (a folder path for Local, or a bucket/cloud name for the cloud types)
 
-**Project Blueprint**:
+**Advanced: Enterprise Scaling (Cloudflare CDN)** — collapsible, collapsed by default:
 
-- The preset carousel described in [Solution Presets](#solution-presets-starter-kits)
+- Toggled with a chevron in the heading. It expands automatically when a cloud media storage type (Amazon S3, Cloudflare R2, or Cloudinary) is selected above.
+- Cloudflare API Token — with a help tooltip
+- Cloudflare Zone ID — with a help tooltip
+- Purge Strategy — with a help tooltip
+- This purges the Cloudflare edge cache when content changes, so visitors get fresh pages immediately. It is a different layer from the database read replicas in [Step 1](#step-1-database-configuration): this is edge/CDN HTTP cache invalidation, not read-query offloading.
+- When a cloud media storage type is selected in the **Media Storage** section above, a notice renders to the right of this heading: “Cloud storage credentials must be configured in System Settings after setup.” Select **Local** and the notice disappears.
 
-**Country and prices**:
+**Infrastructure Mode**:
 
-- Country, or “Choose later”
-- Currency (ISO 4217) and shop language (English or German)
-- Whether catalog prices already include tax
-- Standard and reduced tax percents. The form fills a suggestion checked on 5 October 2026. Clear the standard rate, or leave the country empty, and the shop seeds no tax row
-
-**Advanced (optional)**:
-
-- Multi-tenant mode, demo mode, timezone, minimum password length
-- Redis (host, port, password) — run **Test Redis Connection** if you enable it
-- Cloudflare purge (API token, zone ID, purge mode)
+- Multi-Tenant Mode
+- Demo Mode (warns that data is wiped automatically; do not enable on production)
 
 **Features**:
 
@@ -271,8 +329,8 @@ stateDiagram-v2
 - **Dual Language System**:
   - **System Languages**: Same ISO 639-1 picker as content. **English and German ship compiled.** Extra codes are written to `project.inlang/settings.json` and machine-translated (`bun translate`) when setup completes. RTL languages use `getTextDirection()` in `@utils/string`.
   - **Content Languages**: From ISO-639-1 (150+ languages), no rebuild required.
-- **Redis Verification**: Optional performance optimization with a dedicated "Test Redis Connection" button to verify host, port, and credentials. The button is optional, the check is not: enabling Redis without a passing test blocks "Next".
-- **Storage Type Notice**: Shows configuration reminder for cloud storage
+- **Cloud Storage Notice**: When a cloud media storage type is selected, a notice appears beside the Cloudflare CDN heading reminding you to configure the credentials in System Settings after setup
+- **Collapsible CDN Section**: The Cloudflare purge fields sit behind a chevron toggle, collapsed by default and expanded automatically for a cloud media storage type. The section and each of the three field labels carry a help tooltip
 
 **Validation Rules**:
 
@@ -282,17 +340,16 @@ stateDiagram-v2
 - At least one content language required
 - Default languages must be in their respective arrays
 
-**Server calls**: None for the form itself; `testRedisConnection` for the Redis test (validated locally, sent to `completeSetup` when you finish)
+**Server calls**: None (validated in the step and sent to `completeSetup` when you finish)
 
 **Success Criteria**:
 
 - All required fields filled
 - Valid URL format
 - Language configuration valid
-- Redis test passed, if Redis is enabled
 - "Next" button enabled
 
-### Step 4: Email Configuration (Optional)
+### Step 5: Email Configuration (Optional)
 
 **Purpose**: Configure SMTP for email notifications
 
@@ -327,7 +384,7 @@ stateDiagram-v2
 - OR step skipped (optional)
 - "Next" button always enabled
 
-### 5. Review & Complete
+### Step 6: Review & Complete
 
 **Purpose**: Review all settings and finalize setup
 
@@ -335,6 +392,7 @@ stateDiagram-v2
 
 - ✅ Database configuration summary
 - ✅ Admin account details (password hidden)
+- ✅ Project blueprint summary
 - ✅ System settings summary
 - ✅ Email configuration status
 
@@ -354,7 +412,7 @@ stateDiagram-v2
 
 ## 📦 Solution Presets (Starter Kits) {#solution-presets-starter-kits}
 
-Presets are pre-configured collections of schemas, widgets, and settings designed for specific use cases. You choose one in the **Project Blueprint** carousel on [Step 3](#step-3-system-settings); the collections are created when you complete the wizard, and the preset id is stored as a setting.
+Presets are pre-configured collections of schemas, widgets, and settings designed for specific use cases. You choose one in the **Project Blueprint** carousel on [Step 3](#step-3-project-blueprint); the collections are created when you complete the wizard, and the preset id is stored as a setting.
 
 ### Available Presets
 
@@ -369,7 +427,7 @@ Each card lists the collections that preset creates (`src/routes/setup/presets.t
 
 - **Recommended default.**
 - **Best for**: A SvelteKit frontend in the same repo with inline page design.
-- **Includes**: `pages`, a seeded homepage, a legal page named for the country chosen on this step, and a privacy page for the operator to complete. Live preview and the Editable Website plugin turn on when setup finishes.
+- **Includes**: `pages`, a seeded homepage, a legal page named for the market country (Impressum with the default Germany), and a privacy page for the operator to complete. Live preview and the Editable Website plugin turn on when setup finishes.
 
 #### 3. Blog / Editorial
 
@@ -642,10 +700,11 @@ Then clear localStorage and retry test. MongoDB and SQLite drivers ship with the
 
 **Cause and fix, by step**:
 
-- **Step 1**: there is no connection test yet for the current values. Editing host, port, name, user, or password after a green result clears it — press **Test Connection** again. There is no automatic retry: fix the reported cause first.
+- **Step 1**: there is no connection test yet for the current values. Editing host, port, name, user, or password after a green result clears it — press **Test Connection** again. There is no automatic retry: fix the reported cause first. If Redis is enabled, it also needs a passing **Test Redis Connection**.
 - **Step 2**: one of the password requirements is unmet, or the two passwords differ.
-- **Step 3**: site name or production URL missing, no language selected, or Redis is enabled without a passing Redis test.
-- **Step 5**: seeding is still running; the button enables when it finishes.
+- **Step 3**: no blueprint is selected.
+- **Step 4**: site name or production URL missing, or no language selected.
+- **Step 6**: seeding is still running; the button enables when it finishes.
 
 #### Issue: Setup Refuses to Finish Because Administrators Exist
 

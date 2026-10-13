@@ -11,7 +11,7 @@ import { promisify } from "node:util";
 import { version as pkgVersion } from "../../../package.json";
 import { logger } from "@utils/logger";
 import { redirect } from "@sveltejs/kit";
-import { isSetupComplete } from "@utils/setup-check-fast";
+import { getSetupState, SetupState } from "@utils/server/setup-check";
 import type { Actions, PageServerLoad } from "./$types";
 import inlangSettings from "../../../project.inlang/settings.json";
 
@@ -48,7 +48,11 @@ const DRIVER_PACKAGES = {
 type DatabaseType = keyof typeof DRIVER_PACKAGES;
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
-  if (isSetupComplete()) {
+  // DB-aware check: `config/private.ts` is written during the DB test/seed (and the
+  // store auto-seeds), i.e. BEFORE the admin account exists — so the file's mere
+  // presence is NOT a completed setup. Only redirect once an admin + roles exist;
+  // otherwise an abandoned half-setup would lock the user out of /setup entirely.
+  if ((await getSetupState()) === SetupState.COMPLETE) {
     throw redirect(302, "/login");
   }
 
@@ -75,7 +79,8 @@ export const actions: Actions = {
     const config = JSON.parse(fd.get("config") as string);
     const createIfMissing = fd.get("createIfMissing") === "true";
     const allowOverwrite = fd.get("allowOverwrite") === "true";
-    return testDatabaseConnection(config, createIfMissing, allowOverwrite);
+    const ownsDatabase = fd.get("ownsDatabase") === "true";
+    return testDatabaseConnection(config, createIfMissing, allowOverwrite, ownsDatabase);
   },
   seedDatabase: async ({ request }) => {
     const fd = await request.formData();
