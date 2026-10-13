@@ -169,7 +169,6 @@ Store values are in percentage (0-100) range for consistency with UI controls.
 		// --- PROFESSIONAL FOCUS RETICLE (Camera / Lightroom Style) ---
 		// Dynamic accent color based on theme primary
 		const reticleColor = 'oklch(62% 0.22 250)'; // High-visibility precision cyan-blue
-		const reticleGlow = 'rgba(59, 130, 246, 0.4)';
 		const dropShadow = 'rgba(0, 0, 0, 0.5)';
 
 		// 1. Subtle soft focus zone ring (proportional guide)
