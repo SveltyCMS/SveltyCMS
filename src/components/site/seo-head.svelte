@@ -18,7 +18,12 @@ robots, hreflang alternates, Open Graph, Twitter Card, JSON-LD) for site-starter
 	let { meta }: Props = $props();
 
 	/**
-	 * Type-safe marker confirming pre-sanitized server-generated JSON-LD markup.
+	 * Pass-through marker documenting that the value is pre-sanitized,
+	 * server-generated JSON-LD. The escape guarantee lives one layer away in
+	 * `serializeJsonLd()` (src/services/content/seo/seo-head.ts): it emits `<` as
+	 * `\u003c` plus U+2028/U+2029 escapes, so a stored string can never terminate
+	 * the script tag. Do not route arbitrary or user-built JSON-LD through this
+	 * `{@html}` sink.
 	 */
 	function sanitizeJsonLd(script: string): string {
 		return script;

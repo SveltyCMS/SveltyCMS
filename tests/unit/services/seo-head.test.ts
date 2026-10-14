@@ -219,6 +219,32 @@ describe("buildSeoHead", () => {
     expect(script).toContain("\\u003c/script>");
   });
 
+  it("escapes every raw `<` and JS-illegal separator in the JSON-LD payload", () => {
+    const seo: SeoWidgetStoredValue = {
+      en: {
+        title: "T",
+        schemaMarkup: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: "a <em>b</em>\u2028\u2029",
+        }),
+      },
+    };
+    const script = buildSeoHead({ ...BASE, lang: "en", seo }).jsonLdScript;
+    expect(script).toBeDefined();
+    const prefix = '<script type="application/ld+json">';
+    const suffix = "</script>";
+    expect(script!.startsWith(prefix)).toBe(true);
+    expect(script!.endsWith(suffix)).toBe(true);
+    const payload = script!.slice(prefix.length, -suffix.length);
+    // Invariant: the producer escapes `<` (so the payload can never close the
+    // tag) and U+2028/U+2029 (legal JSON, illegal in a JS literal).
+    expect(payload).not.toContain("<");
+    expect(payload).not.toContain("\u2028");
+    expect(payload).not.toContain("\u2029");
+    expect(payload).toContain("\\u003c");
+  });
+
   it("omits invalid or non-object JSON-LD", () => {
     expect(
       buildSeoHead({ ...BASE, lang: "en", seo: { en: { title: "T", schemaMarkup: "{oops" } } })
