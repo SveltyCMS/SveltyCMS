@@ -265,6 +265,16 @@ bun run scripts/check-test-db-safety.ts
 
 **Used by**: Pre-commit hook.
 
+### `scripts/probe-hardware-tiers.ts` — Hardware Tier Probe (cgroup)
+
+Self-bundles the real `src/utils/hardware-profile.ts` and runs it inside memory/CPU-limited containers (`--memory=256m --cpus=1`, `--memory=512m --cpus=2`, plus an unconstrained case), asserting the derived budgets exactly: heap, RSS target, L1 caches, body limit, DB pool, workers, threadpool, and the ≤ 70 % invariant. The unit suite injects limits; this gate proves the runtime actually reads the cgroup.
+
+```bash
+bun run scripts/probe-hardware-tiers.ts          # needs a reachable Docker daemon
+```
+
+**Used by**: CI whitebox job (`08-hardware-tiers`).
+
 ### `scripts/slop-scanner.ts` — Code Quality + Security Architecture Scanner
 
 Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxlint doesn't cover.

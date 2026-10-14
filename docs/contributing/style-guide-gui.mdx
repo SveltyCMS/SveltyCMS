@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-10-11"
+updated: "2026-10-15"
 tags:
   - "gui"
   - "styling"
@@ -63,6 +63,8 @@ Use **role tokens** from `src/utilities.css` instead of paired light/dark surfac
 | `--admin-text-body` / `--admin-text-muted`         | Text                                      |
 
 Shadows and border **width** follow **card variant** (`flat` | `bordered` | `elevated`) via `AdminTheme.cardShadow` / `cardBorder`. Do **not** hardcode `hover:shadow-lg` on every card — that breaks **flat** themes.
+
+**Reference implementation:** the setup wizard (`src/routes/setup/`) — 13 files, zero raw palette shades in markup. Chrome composes the `--admin-*` roles above, status states use [the shade contract](#status-shade-contract), ink on `{hue}-500` fills is `text-white`, and decorative tokens come from `--admin-bg-chip` / `--admin-border-subtle`. Copy its class strings when building new chrome.
 
 Theme/shorthand palette import maps `surface` into full shade scales and rebinds `--admin-bg-*` in generated `customCss` (`theme-preset-mapper.ts`). The generated CSS is scoped to `:root, .admin-theme-container, [data-admin-theme]` so a theme change repaints **every** element — utilities, `--admin-*` roles, scrollbars, and portalled overlays — with no per-component JS.
 

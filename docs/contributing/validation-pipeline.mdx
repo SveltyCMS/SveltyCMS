@@ -56,7 +56,7 @@ Docs-only pushes skip build + integration. Multi-DB matrix, benchmarks, and Play
 
 Workflow: `.github/workflows/ci.yml`
 
-bootstrap → whitebox (format / lint / check / unit / tenant / secrets / CVE / backdoor probe) → build → db-tests × 4 → bench-core × 4 → e2e-prep → e2e × 6 named groups → all-green
+bootstrap → whitebox (format / lint / check / unit / tenant / secrets / CVE / backdoor probe / hardware tiers) → build → db-tests × 4 → bench-core × 4 → e2e-prep → e2e × 6 named groups → all-green
 
 ## Manual commands
 

@@ -263,10 +263,16 @@ sequenceDiagram
 if (!building) {
   /**
    * Hardware Optimization:
-   * Maximizes UV_THREADPOOL_SIZE and Sharp concurrency to match CPU cores.
+   * `initHardwareProfile()` detects the machine ONCE (memory the OS actually
+   * allows, CPUs this process may use) and publishes it to the shared registry;
+   * everything else reads that object instead of probing again.
+   *
+   * `UV_THREADPOOL_SIZE` is NOT set here: libuv reads it before the loop starts,
+   * so a runtime assignment is a no-op (measured: blocking pbkdf2 n=8/n=4 ratio
+   * 1.69 set at runtime vs 1.25 pre-set). The entry (`index.cjs`) applies the
+   * profile's derived value before the server starts.
    */
-  const cores = os.cpus().length;
-  process.env.UV_THREADPOOL_SIZE = String(cores);
+  initHardwareProfile();
 
   /**
    * ✨ ENTERPRISE: Graceful Shutdown Registry
@@ -277,8 +283,6 @@ if (!building) {
     // ... wait for inFlightRequests to drain ...
     await shutdownSystem();
     process.exit(0);
-  });
-}
 ```
 
 **Why Dynamic Import?**

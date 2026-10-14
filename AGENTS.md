@@ -89,19 +89,19 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 
 ### CI gate parity (`ci.yml` → local mirror)
 
-CI runs 8 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
+CI runs 9 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
 
-| CI job (`ci.yml`)                  | Local mirror                                                                                                             |
-| :--------------------------------- | :----------------------------------------------------------------------------------------------------------------------- |
-| 🏁 Bootstrap (paraglide + codegen) | `bun run paraglide`; `bun x svelte-kit sync`                                                                             |
-| 01-format / 02-lint                | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                            |
-| 03-check                           | subset of `bun run check` (format + lint + lockfile) — always run full `bun run check`                                   |
-| 04-unit                            | `bun run test:unit`                                                                                                      |
-| 04b-tenant-gate                    | `bun run test:tenant`; on a dirty tree: `bun run lint:tenant -- --full`                                                  |
-| 05-cve / 06-secret / 07-backdoor   | `bun run risk:audit`; `bun run scripts/probe-deploy-testing-api.ts`                                                      |
-| 🏗️ Build                           | `COMPILE_ALL_ADAPTERS=true bun run build` (keeps `/api/testing`; plain `bun run build` strips it)                        |
-| 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`)       |
-| 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"` |
+| CI job (`ci.yml`)                  | Local mirror                                                                                                                  |
+| :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| 🏁 Bootstrap (paraglide + codegen) | `bun run paraglide`; `bun x svelte-kit sync`                                                                                  |
+| 01-format / 02-lint                | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                                 |
+| 03-check                           | subset of `bun run check` (format + lint + lockfile) — always run full `bun run check`                                        |
+| 04-unit                            | `bun run test:unit`                                                                                                           |
+| 04b-tenant-gate                    | `bun run test:tenant`; on a dirty tree: `bun run lint:tenant -- --full`                                                       |
+| 05-cve / 06 / 07 / 08-hardware     | `bun run risk:audit`; `bun run scripts/probe-deploy-testing-api.ts`; `bun run scripts/probe-hardware-tiers.ts` (needs Docker) |
+| 🏗️ Build                           | `COMPILE_ALL_ADAPTERS=true bun run build` (keeps `/api/testing`; plain `bun run build` strips it)                             |
+| 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`)            |
+| 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"`      |
 
 **Parity rules — the ones that break otherwise-green trees:**
 

@@ -264,7 +264,7 @@ Manual equivalent: `bun run prepush` / `bun run gate` (via hardened git wrapper)
 
 CI runs the complete matrix automatically on every PR/push to `next`. Covers what local hooks skip:
 
-- **Whitebox**: format + lint + type check + secret scan + deploy backdoor probe
+- **Whitebox**: format + lint + type check + secret scan + deploy backdoor probe + hardware tier probe (real cgroup limits)
 - **Build**: `COMPILE_ALL_ADAPTERS=true` production build
 - **DB tests**: Full multi-adapter matrix (MongoDB, PostgreSQL, MariaDB, SQLite)
 - **E2E**: Playwright prep + 6 shards (chromium)

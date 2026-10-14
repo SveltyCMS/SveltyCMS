@@ -955,9 +955,37 @@ SveltyCMS supports dual-target execution on both **Node.js (>=24)** and **Bun (>
   - You utilize high-concurrency **WebSockets / Yjs collaboration** on `/ws`.
   - You need fast cold starts (<100ms) on serverless or container autoscale.
 
-### Hardware-adaptive profile (2026-08)
+### Hardware-adaptive profile (2026-08, extended 2026-10)
 
-SveltyCMS detects the host machine **once at process start** and tunes every CPU-critical subsystem to it (`@utils/hardware-profile` → shared global registry → all modules/workers read the same object). The CMS runs lean on a 1-core VPS and fully parallel on a 24-core workstation — no config file required.
+SveltyCMS detects what the machine **actually allows** once at process start and tunes every resource-sensitive subsystem to it (`@utils/hardware-profile` → shared global registry → all modules/workers read the same object). Two independent axes: CPU (`cores`, `tier`) and memory (`memTier`). No config file required.
+
+**Effective memory — not host RAM.** `effectiveMemoryBytes` resolves as `HARDWARE_MEM_LIMIT_MB` → `process.constrainedMemory()` (the cgroup limit: the number that actually gets the process OOM-killed) → `os.totalmem()`. Measured wrinkle across runtimes: Node reports `0` when unconstrained, **Bun reports the host total** — so a limit at or above the host total is treated as unconstrained and a bare-metal deployment keeps V8's own behaviour rather than a container-derived cap.
+
+| Tier     | Effective limit | Example                 |
+| -------- | --------------- | ----------------------- |
+| `nano`   | < 0.5 GB        | 256 MB VPS              |
+| `small`  | < 1 GB          | 512 MB container        |
+| `medium` | < 2 GB          | 1 GB container          |
+| `large`  | < 8 GB          | 2–4 GB VPS              |
+| `xlarge` | ≥ 8 GB          | workstation / dedicated |
+
+**Effective CPU — cgroup quota aware.** `cores` comes from `os.availableParallelism()` (libuv honours both the cgroup CPU quota and `cpuset`), **not** `os.cpus().length`, which reports the host's cores inside a container. Measured in Docker on a 24-core host: `--cpus=1` → `cores=1`; `--cpus=4 --cpuset-cpus=0-1` → `cores=2`. `HARDWARE_CPU_CORES` overrides. Without this, a 1-vCPU container derived 24 libuv threads and disabled weak-box compression.
+
+**Derived memory budgets.** Linear values are ratios of the effective limit (one constant each, so `index.cjs` can mirror them without a second table); tiered values come from a six-row budget table (256 MB / 512 MB / 1 GB / 2 GB / 4 GB / ≥16 GB):
+
+| Budget                                 | Rule                                                    | 256 MB  | 512 MB  | 1 GB    | 2 GB      | ≥16 GB     | Env override                                                                        |
+| -------------------------------------- | ------------------------------------------------------- | ------- | ------- | ------- | --------- | ---------- | ----------------------------------------------------------------------------------- |
+| **V8 heap cap**                        | `0.5 × limit`, clamped 128–4096 MB                      | 128     | 256     | 512     | 1024      | 4096       | `NODE_HEAP_MB`                                                                      |
+| **RSS target** (governor)              | `0.75 × limit` when constrained, else derived from heap | 192     | 384     | 768     | 1536      | —          | `SVELTY_MEMORY_RSS_MB`, `SVELTY_MEMORY_CONSTRAINED_RATIO`                           |
+| **Request body**                       | `limit / 32`, clamped 8–128 MB                          | 8       | 16      | 32      | 64        | 128        | `BODY_SIZE_LIMIT_MB`, `API_MAX_BODY_SIZE_MB`                                        |
+| **L1 list / point cache**              | tier table                                              | 16 / 8  | 32/16   | 64/32   | 96/48     | 256/128    | `SVELTY_L1_MAX_MB`, `SVELTY_L1_POINT_MAX_MB`                                        |
+| **DB pool / workers / compile / jobs** | tier caps on the CPU-derived values                     | 4·2·4·5 | 6·2·4·5 | 8·2·4·5 | 12·4·8·10 | 32·8·32·50 | `DB_POOL_SIZE`, `MODULE_WORKER_POOL_SIZE`, `COMPILE_CONCURRENCY`, `JOB_CONCURRENCY` |
+
+**One source of truth for the pool.** PostgreSQL, MariaDB and MongoDB all read `dbPoolSize` from the profile. The adapter-local floor (20 on small hosts, 32 on medium+) was removed (2026-10): it countermanded the profile on exactly the boxes that need the smallest pool — a 1-core/256 MB box derived 4 connections and got 20. `DATABASE_MAX_CONNECTIONS` / `DB_POOL_SIZE` remain the explicit overrides, and a dedicated high-concurrency host raises the profile with `HARDWARE_CPU_BUDGET=1`.
+
+**Invariant (unit-tested):** `heap + L1 list + L1 point ≤ 70 %` of the effective limit at every tier floor, so a deployment never has to run a GC sweep just to fit — see `tests/unit/utils/hardware-profile-memory.test.ts`.
+
+**CI gate (containers, not mocks):** `scripts/probe-hardware-tiers.ts` runs the real profile inside `--memory=256m --cpus=1`, `--memory=512m --cpus=2` and an unconstrained container and asserts the table rows above exactly (plus the ≤ 70 % invariant) — a 32 GB developer machine still fails the gate if the derivation stops following the cgroup. Wired as CI task `08-hardware-tiers`.
 
 **Global CPU budget** — `HARDWARE_CPU_BUDGET` (default `0.75`). The reserved share stays for co-hosted services on all-in-one deployments; set `1` when the app server is dedicated (managed/remote DB):
 
@@ -968,18 +996,26 @@ SveltyCMS detects the host machine **once at process start** and tunes every CPU
 
 **Workload-prioritized allocation** — each subsystem gets a share of the budget appropriate to its nature (media is bursty and CPU-hungry → largest slice; DB fan-out is most conservative so a co-hosted DB server never starves):
 
-| Subsystem                      | Share of budget             | Env override              | Notes                                                                        |
-| ------------------------------ | --------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
-| **Media (sharp/libvips)**      | up to 50% of physical cores | `SHARP_CONCURRENCY`       | 12-way parallel variant pipelines saturate first — measured flat beyond this |
-| **DB pool** (MariaDB/PG/Mongo) | 2 queries per budget core   | `DB_POOL_SIZE`            | Conservative — every query burns CPU on the (possibly co-hosted) DB server   |
-| **Module workers**             | 50%, capped at 8            | `MODULE_WORKER_POOL_SIZE` | Each worker loads a full module graph                                        |
-| **Compile** (content sync)     | 75%, capped at 32           | `COMPILE_CONCURRENCY`     | CPU-bound collection compilation                                             |
-| **Jobs** (background)          | 50%                         | `JOB_CONCURRENCY`         | Keeps the request path responsive                                            |
-| **libuv threadpool**           | logical cores               | `UV_THREADPOOL_SIZE`      | I/O threads block — they don't steal CPU from co-hosted services             |
-| **Mongo minPool**              | 25% of budget, capped 10    | `MONGO_MIN_POOL_SIZE`     | Pre-spawned sockets scaled down on weak hosts                                |
-| **Compression**                | weak boxes: gzip 4 / br 4   | —                         | Keeps CPU on the request path, not the ratio                                 |
+| Subsystem                      | Share of budget                          | Env override              | Notes                                                                                                                                                                                         |
+| ------------------------------ | ---------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Media (sharp/libvips)**      | up to 50% of physical cores              | `SHARP_CONCURRENCY`       | 12-way parallel variant pipelines saturate first — measured flat beyond this                                                                                                                  |
+| **DB pool** (MariaDB/PG/Mongo) | 2 queries per budget core, memory-capped | `DB_POOL_SIZE`            | Conservative — every query burns CPU on the (possibly co-hosted) DB server                                                                                                                    |
+| **Module workers**             | 50%, capped at 8                         | `MODULE_WORKER_POOL_SIZE` | Each worker loads a full module graph                                                                                                                                                         |
+| **Compile** (content sync)     | 75%, capped at 32                        | `COMPILE_CONCURRENCY`     | CPU-bound collection compilation                                                                                                                                                              |
+| **Jobs** (background)          | 50%                                      | `JOB_CONCURRENCY`         | Keeps the request path responsive                                                                                                                                                             |
+| **libuv threadpool**           | available CPUs (cgroup-aware), 4–32      | `UV_THREADPOOL_SIZE`      | I/O threads block — they don't steal CPU from co-hosted services. Applied by the entry _before_ the loop starts: libuv reads the variable once, so a runtime assignment is a no-op (measured) |
+| **Mongo minPool**              | 25% of budget, capped 10                 | `MONGO_MIN_POOL_SIZE`     | Pre-spawned sockets scaled down on weak hosts                                                                                                                                                 |
+| **Compression**                | weak boxes: gzip 4 / br 4                | —                         | Keeps CPU on the request path, not the ratio                                                                                                                                                  |
 
-The detected profile is surfaced in boot logs, the setup-wizard completion response, and `/api/dashboard/system-info` (dashboard CPU widget). GPU: sharp/libvips has no GPU backend — media parallelism is CPU-tier capped; further media gains come from variant dedup/deferral, not more threads.
+The detected profile is surfaced in boot logs, the setup-wizard completion response, `/api/dashboard/system-info` (dashboard CPU widget), and `/api/system/health?verbose=true` (the `hardware` block: tiers, cores, effective limit, derived budgets, and `heapAligned`). GPU: sharp/libvips has no GPU backend — media parallelism is CPU-tier capped; further media gains come from variant dedup/deferral, not more threads.
+
+**V8 heap cap (`index.cjs`).** V8 on Node 24 does read cgroups — measured `heap_size_limit` **259 MB** in a 256 MB container and **560 MB** in a 1 GB one (unconstrained: 4288 MB; Bun: 163 MB at 256 MB) — but it is not _conservative_ on tiny boxes: 259 MB of old-space on a 256 MB container leaves nothing for code space, buffers and thread stacks. Node exposes no in-process API to change it (`v8.setHeapLimits` is absent, and `v8.setFlagsFromString('--max-old-space-size=…')` does not move `heap_size_limit` — both verified), so the entry applies the profile's 50 % cap by re-executing with the flag.
+
+- Skipped when the operator already set a heap flag (`NODE_OPTIONS` or `execArgv`), when `SVELTY_NO_HEAP_CAP=1`, when the process is **unconstrained** (capping a 64 GB box at a container budget would be a regression), and under **Phusion Passenger** (`PASSENGER_*` — it owns the process lifecycle). A loop guard (`SVELTY_HEAP_REEXEC`) prevents recursion; termination signals are forwarded and the child's exit status is propagated.
+- The same entry derives the adapter-node request-body ceiling (`BODY_SIZE_LIMIT`) from the effective limit, floored at 16 MB so 10 MB multipart uploads keep working and the app's own API gate is never the tighter of the two — a machine-blind 100 MB default is an OOM vector on a 256 MB box.
+- It also applies `UV_THREADPOOL_SIZE` (available CPUs, clamped 4–32) when the operator has not set it. libuv reads that variable once, before the loop starts, so the previous runtime assignment in the boot hook never took effect — measured with blocking `pbkdf2`: n=8/n=4 wall-time ratio **1.69** when set at runtime versus **1.25** when set in the environment (default pool 4 → **1.78**).
+
+**Self-check.** Boot logs one line — `[Boot] Hardware profile: … cpu=… mem=… heap=… rssTarget=… l1=… body=… dbPool=… workers=…`. When the runtime's heap ceiling exceeds 75 % of the effective limit, the boot emits an **error** (production defaults to `LOG_LEVEL=error`, so a warning-level notice would be filtered exactly where it is needed) naming the fix. Measured in the built server: aligned → `heapLimitMb 176 · heapAligned true`; `SVELTY_NO_HEAP_CAP=1` → `heapLimitMb 4288 · heapAligned false` + the boot error line.
 
 ### Memory governor (runtime)
 
@@ -987,30 +1023,31 @@ V8 does not hand committed pages back on its own: after a burst (seeding, bulk i
 
 The system watchdog therefore runs a governor (`src/services/system/memory-governor.ts`) on its own timer. It fires when any signal is over its threshold:
 
-| Signal           | Threshold                                                                | Why it exists                                                                        |
-| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
-| **heap**         | `heapUsed / heap_size_limit > 0.7`                                       | Classic live-heap pressure                                                           |
-| **live-set**     | `(heapUsed + external + arrayBuffers) / limit > 0.7`                     | HTTP body/buffer bursts keep `heapUsed` flat — a heap-only check never sees them     |
-| **rss**          | `rss > 0.75 × cgroup limit`, else `1.25 × V8 heap limit`                 | The number that actually gets the container OOM-killed                               |
-| **idle reclaim** | quiet loop, `rss > 192 MB`, and `rss > max(1.6 × floor, floor + 128 MB)` | Returns the process to its own low-water mark — nothing to do with a container limit |
+| Signal           | Threshold                                                                                                                      | Why it exists                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| **heap**         | `heapUsed / heap_size_limit > 0.7`                                                                                             | Classic live-heap pressure                                                           |
+| **live-set**     | `(heapUsed + external + arrayBuffers) / limit > 0.7`                                                                           | HTTP body/buffer bursts keep `heapUsed` flat — a heap-only check never sees them     |
+| **rss**          | `rss > profile.rssTargetMb` (= effective limit × `SVELTY_MEMORY_CONSTRAINED_RATIO`, default 0.75), else `1.25 × V8 heap limit` | The number that actually gets the container OOM-killed                               |
+| **idle reclaim** | quiet loop, `rss > 192 MB`, and `rss > max(1.6 × floor, floor + 128 MB)`                                                       | Returns the process to its own low-water mark — nothing to do with a container limit |
 
-The floor is the live set plus 64 MB of non-reclaimable runtime; it rises with a genuinely larger working set and ratchets down whenever a lower idle RSS is observed. `SVELTY_MEMORY_RSS_MB` overrides the derived RSS target in all cases — set it when the container has no cgroup limit and the derived `1.25 × heap limit` is too generous (that is the default when `process.constrainedMemory()` reports nothing).
+The floor is the live set plus 64 MB of non-reclaimable runtime; it rises with a genuinely larger working set and ratchets down whenever a lower idle RSS is observed. `SVELTY_MEMORY_RSS_MB` overrides the derived RSS target in all cases. The target itself has **one derivation**, shared with the boot line: the hardware profile computes `effective limit × SVELTY_MEMORY_CONSTRAINED_RATIO` and the governor adopts it, so the profile's own log and the governor's behaviour cannot disagree on the same box (unit-tested in `tests/unit/services/memory-governor-profile-target.test.ts`). Unconstrained hosts derive no target and the governor falls back to `1.25 × heap limit` — which is also the behaviour when `process.constrainedMemory()` reports nothing.
 
 A sweep runs an **async** major GC first (marking concurrent, off the request path), a **sync** pass only when the first one handed back less than 8 MB and the process is still over a threshold, and trims the response-cache L1 tiers only if the live heap is _still_ over the ratio — an RSS spike alone is not a reason to throw away turbo hits. The trim awaits the cache handle, so a pressured sweep during boot waits for the module instead of silently doing nothing. Cooldown starts at 5 s and doubles up to 2 minutes while sweeps stay unproductive, so a steady working set is not GC-thrashed.
 
-| Env var                           | Default | Effect                                                                         |
-| --------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `SVELTY_MEMORY_TRIGGER_RATIO`     | `0.7`   | Heap / live-set share of the V8 heap limit that triggers a sweep               |
-| `SVELTY_MEMORY_RSS_MB`            | derived | Explicit RSS ceiling; unset derives from the cgroup limit (else heap limit)    |
-| `SVELTY_MEMORY_CHECK_MS`          | `2000`  | Governor tick — a burst tail is caught within seconds, not a minute            |
-| `SVELTY_L1_MAX_MB`                | `64`    | Byte budget for the list-response L1 tier (entry counts alone do not bound it) |
-| `SVELTY_L1_POINT_MAX_MB`          | `16`    | Byte budget for the point-read L1 tier                                         |
-| `SVELTY_FILE_EXISTS_CACHE_MAX`    | `5000`  | Entry cap for the media storage existence-probe cache (LRU, per storage path)  |
-| `SVELTY_FILE_EXISTS_CACHE_TTL_MS` | `10000` | TTL for a cached existence probe (positive or negative)                        |
+| Env var                           | Default                 | Effect                                                                         |
+| --------------------------------- | ----------------------- | ------------------------------------------------------------------------------ |
+| `SVELTY_MEMORY_TRIGGER_RATIO`     | `0.7`                   | Heap / live-set share of the V8 heap limit that triggers a sweep               |
+| `SVELTY_MEMORY_RSS_MB`            | profile-derived         | Absolute RSS ceiling override; unset derives `limit × constrained ratio`       |
+| `SVELTY_MEMORY_CONSTRAINED_RATIO` | `0.75`                  | Share of the effective limit that counts as RSS pressure (feeds the profile)   |
+| `SVELTY_MEMORY_CHECK_MS`          | `2000`                  | Governor tick — a burst tail is caught within seconds, not a minute            |
+| `SVELTY_L1_MAX_MB`                | memory tier (16–256 MB) | Byte budget for the list-response L1 tier (entry counts alone do not bound it) |
+| `SVELTY_L1_POINT_MAX_MB`          | memory tier (8–128 MB)  | Byte budget for the point-read L1 tier                                         |
+| `SVELTY_FILE_EXISTS_CACHE_MAX`    | `5000`                  | Entry cap for the media storage existence-probe cache (LRU, per storage path)  |
+| `SVELTY_FILE_EXISTS_CACHE_TTL_MS` | `10000`                 | TTL for a cached existence probe (positive or negative)                        |
 
-**Native memory is not on this list.** SQLite in production is configured by the hardware profile: `PRAGMA cache_size=-256000` (256 MB page cache on a large host) and `PRAGMA mmap_size=536870912` (512 MB window). Both are process-resident, so on a memory-capped container they — not the JS heap — are what an RSS ceiling actually has to hold; `SQLITE_CACHE_SIZE` / `SQLITE_MMAP_SIZE` are the knobs, and a 3-minute soak measured the same +53 MB RSS climb with both of them minimised, i.e. the climb in that window is not SQLite's (see the soak evidence in [achievements-2026](../../project/achievements-2026.mdx)).
+**Native memory is not on this list.** SQLite in production is configured by the hardware profile, and its thresholds now follow the **effective** limit (the cgroup, not host RAM): `PRAGMA cache_size=-256000` (256 MB page cache on a large host) and `PRAGMA mmap_size=536870912` (512 MB window). Both are process-resident, so on a memory-capped container they — not the JS heap — are what an RSS ceiling actually has to hold; `SQLITE_CACHE_SIZE` / `SQLITE_MMAP_SIZE` are the knobs, and a 3-minute soak measured the same +53 MB RSS climb with both of them minimised, i.e. the climb in that window is not SQLite's (see the soak evidence in [achievements-2026](../../project/achievements-2026.mdx)).
 
-**Observing it:** every sweep logs one evidence line — `🧹 [Memory] pass 1/2 (rss) rss 389→286MB · heap 100→57MB · ext+ab 242→172MB · limit 4288MB · busy 88%` — which is what to correlate with `docker stats` after a seeding run. Give the container a real `--memory` limit (Node reads it via `process.constrainedMemory()`) or set `SVELTY_MEMORY_RSS_MB`; keep `--max-old-space-size` in line with it so V8's own limit and the cgroup agree. `--heapsnapshot-signal=USR2` gives a heap diff when a release still looks wrong.
+**Observing it:** every sweep logs one evidence line — `🧹 [Memory] pass 1/2 (rss) rss 389→286MB · heap 100→57MB · ext+ab 242→172MB · limit 4288MB · busy 88%` — which is what to correlate with `docker stats` after a seeding run. Start with a real `--memory` limit (the CMS reads it via `process.constrainedMemory()`) or set `HARDWARE_MEM_LIMIT_MB` to pin a tier; `/api/system/health?verbose=true` then reports `heapAligned` and the derived budgets, and a misaligned heap is reported in the boot log at error level. `--heapsnapshot-signal=USR2` gives a heap diff when a release still looks wrong.
 
 ### Module graph: what loads when
 

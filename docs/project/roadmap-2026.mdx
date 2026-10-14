@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-12"
+updated: "2026-10-15"
 tags:
   - "roadmap"
   - "backlog"
@@ -56,6 +56,14 @@ tags:
 - **Engine-Native Capability Gaps**:
   - Normalise group keys read from JSON extraction types across all SQL adapters to prevent caller post-processing.
   - Harden MariaDB dynamic-field filters (`JSON_UNQUOTE`) against loose type coercion on numeric vs string comparisons.
+- **Hardware-Adaptivity Proof On Small Boxes**:
+  - Boot the Linux image in a 256 MB / 1 vCPU container and run the seed + read + write lanes — the built server carries platform-native modules, so the container is where "boots in 256 MB" is demonstrated rather than derived.
+  - Verify the `index.cjs` heap-cap skip path under Phusion Passenger (the guard is unit-adjacent only; the `PASSENGER_*` branch has no runtime proof yet).
+  - Re-measure the lanes with the entry-applied `UV_THREADPOOL_SIZE`: the boot-hook assignment was a runtime no-op until 2026-10-14, so historical local runs used libuv's default of 4 — fs/crypto-heavy paths (media, audit hashing) are the ones expected to move.
+  - Publish a small-box row in the comparative ledger (1 vCPU / 512 MB, then 256 MB) so the derived budgets stay a measured column instead of a claim.
+  - Add a CI job that runs the profile under `docker run --memory=256m` and asserts the expected tiers, so a future hardcoded budget fails the build.
+  - Derive the adapter-node body ceiling for stacks that never launch through `index.cjs` (systemd unit, `node build/index.js` directly), where the 100 MB default still applies.
+- **Role-token migration for the remaining admin surfaces**: beyond the wizard, ~294 `src/` Svelte files still paint palette utilities — ≈2 500 paired `surface-*` light/dark classes (concentrated in `config/design-system/+page.svelte`, the widget UIs and older pages; the `input`/`textarea`/`select`/`stepper` primitives are included, so every form inherits them) — plus 38 files / ≈244 legacy-palette usages (`gray-*`/`slate-*` pairs, `bg-white`, `dark:bg-[#0d0f12]`). The setup wizard is fully migrated and documented as the reference (see [style guide](../contributing/style-guide-gui.mdx)); migrate screen by screen with a visual pass, primitives first, and add a budget guard (like `consolidate-shades`) so the raw-class count can only go down.
 
 ---
 
