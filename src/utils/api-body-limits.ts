@@ -18,9 +18,28 @@
  */
 
 import { raise } from "@utils/error-handling";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
-/** Maximum accepted API request body: 15 MB (allows 10 MB multipart uploads). */
-export const API_MAX_BODY_SIZE_BYTES = 15 * 1024 * 1024;
+/**
+ * Floor for the API body budget: 10 MB multipart uploads must keep working on
+ * the smallest box, so the derived value never drops below 15 MB.
+ */
+const MIN_API_BODY_MB = 15;
+
+/**
+ * Maximum accepted API request body. Precedence: `API_MAX_BODY_SIZE_MB` (explicit
+ * operator override, wins outright) → the hardware profile's memory tier
+ * (16–128 MB — a big box may take a large bulk import, a small one keeps the safe
+ * floor) → the 15 MB floor. Derived, never a machine-blind constant.
+ */
+export const API_MAX_BODY_SIZE_BYTES =
+  (() => {
+    const envMb = Number(process.env.API_MAX_BODY_SIZE_MB);
+    if (Number.isFinite(envMb) && envMb > 0) return envMb;
+    return Math.max(MIN_API_BODY_MB, getHardwareProfile().bodySizeLimitMb);
+  })() *
+  1024 *
+  1024;
 
 /**
  * Canonical 413 message for both the declared and the observed body size. The

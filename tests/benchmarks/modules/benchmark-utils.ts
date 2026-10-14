@@ -1749,6 +1749,12 @@ export async function setupBenchmarkServer() {
       PG_SYNCHRONOUS_COMMIT: process.env.PG_SYNCHRONOUS_COMMIT || "off",
       DATABASE_SYNCHRONOUS_COMMIT: process.env.DATABASE_SYNCHRONOUS_COMMIT || "off",
       SVELTY_FAST_LANE_WRITE: process.env.SVELTY_FAST_LANE_WRITE || "1",
+      // 🧮 TIER PARITY: the published container row runs with `mem_limit: 1g`,
+      // so its profile derives mem=medium (heap 512, l1 64/32, dbPool 8). An
+      // unbounded host profiles as xlarge (heap 4096, l1 256/128) — which
+      // flatters cache-hit and RSS numbers for reasons that are not code.
+      // Pin the same 1 GB tier locally; override with HARDWARE_MEM_LIMIT_MB.
+      HARDWARE_MEM_LIMIT_MB: process.env.HARDWARE_MEM_LIMIT_MB || "1024",
       // Seconds — adapter-node build/index.js. index.cjs uses HTTP_*_TIMEOUT_MS.
       HEADERS_TIMEOUT: process.env.HEADERS_TIMEOUT || "600",
       KEEP_ALIVE_TIMEOUT: process.env.KEEP_ALIVE_TIMEOUT || "75",
@@ -1757,6 +1763,14 @@ export async function setupBenchmarkServer() {
       HTTP_KEEPALIVE_TIMEOUT_MS: process.env.HTTP_KEEPALIVE_TIMEOUT_MS || "75000",
       NODE_OPTIONS:
         process.env.NODE_OPTIONS || "--max-semi-space-size=64 --max-old-space-size=1024",
+      // 🧵 THREADPOOL PARITY: `index.cjs` derives UV_THREADPOOL_SIZE from the
+      // visible CPUs when the env is unset (adaptive), and libuv reads it once
+      // before the loop starts. On a many-core host an unpinned lane run would
+      // now use 24 blocking-I/O threads where every previously recorded run
+      // used the libuv default 4 — pin the historical value so local numbers
+      // stay comparable. The adaptive derivation itself is asserted by
+      // `scripts/probe-hardware-tiers.ts` (CI task 08-hardware-tiers).
+      UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || "4",
     },
     stdio: "pipe",
     shell: false,
@@ -1770,6 +1784,16 @@ export async function setupBenchmarkServer() {
       _stderr += msg + "\n";
       process.stderr.write(`[bench-server] ${msg}\n`);
     }
+  });
+
+  // ALWAYS drain stdout: it was never read, so a chatty boot could fill the pipe
+  // and block the server mid-benchmark. Kept for the failure message; forwarded
+  // live only with BENCH_SERVER_STDOUT=1 (the boot line lands here).
+  let _stdout = "";
+  serverProcess.stdout?.on("data", (chunk: Buffer) => {
+    const msg = chunk.toString();
+    _stdout = (_stdout + msg).slice(-64 * 1024);
+    if (process.env.BENCH_SERVER_STDOUT === "1") process.stdout.write(`[bench-server] ${msg}`);
   });
 
   const healthUrl = `http://127.0.0.1:${port}/api/system/health`;
@@ -1827,7 +1851,10 @@ export async function setupBenchmarkServer() {
   if (!healthy) {
     serverProcess.kill("SIGTERM");
     const stderrSnippet = _stderr ? `\nServer stderr:\n${_stderr.trim().slice(-2000)}` : "";
-    throw new Error(`Server at ${healthUrl} did not become healthy within 45s${stderrSnippet}`);
+    const stdoutSnippet = _stdout ? `\nServer stdout:\n${_stdout.trim().slice(-2000)}` : "";
+    throw new Error(
+      `Server at ${healthUrl} did not become healthy within 45s${stderrSnippet}${stdoutSnippet}`,
+    );
   }
 
   // Authenticate with a REAL production session (login + cookie).

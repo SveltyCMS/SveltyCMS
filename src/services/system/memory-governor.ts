@@ -25,6 +25,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
 const MB = 1024 * 1024;
 
@@ -124,10 +125,24 @@ export class MemoryGovernor {
   constructor(deps: MemoryGovernorDeps, config: Partial<MemoryGovernorConfig> = {}) {
     this.deps = deps;
     this.config = { ...DEFAULT_CONFIG, ...config };
+    // SINGLE SOURCE OF TRUTH: `SVELTY_MEMORY_RSS_MB` (or a caller-supplied
+    // config) is the absolute override; otherwise the hardware profile's
+    // derived target — effective limit × `SVELTY_MEMORY_CONSTRAINED_RATIO` — is
+    // used, so the boot line and the governor can never report different
+    // numbers for the same box. Unconstrained hosts expose 0 and the
+    // snapshot-driven chain below decides instead.
+    if (this.config.rssTargetBytes <= 0) {
+      const profileTargetMb = getHardwareProfile().rssTargetMb;
+      if (profileTargetMb > 0) this.config.rssTargetBytes = profileTargetMb * MB;
+    }
     this.cooldownMs = this.config.cooldownMs;
   }
 
-  /** RSS target derived from the container limit, the env override, or the heap limit. */
+  /**
+   * RSS target, in precedence order: explicit env/caller override → the
+   * hardware profile's derived target (applied in the constructor) → the
+   * container limit × ratio → the V8 heap limit (unconstrained dev/CI).
+   */
   private rssTarget(snap: MemorySnapshot): number {
     if (this.config.rssTargetBytes > 0) return this.config.rssTargetBytes;
     // A cgroup limit is the number that actually kills the process.

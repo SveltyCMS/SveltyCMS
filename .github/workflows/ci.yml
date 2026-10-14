@@ -178,6 +178,12 @@ jobs:
           - task: 07-deploy-backdoor
             name: 🚪 Deploy Backdoor Probe (A01)
             run: bun run scripts/probe-deploy-testing-api.ts
+          # Proves the hardware profile follows the cgroup limits (memory + CPU
+          # quota), not the host: the runner has ~16 GB / 4 cores, the probe
+          # asserts the 256 MB / 512 MB rows derive exactly as documented.
+          - task: 08-hardware-tiers
+            name: 🧠 Hardware Tier Derivation (cgroup)
+            run: bun run scripts/probe-hardware-tiers.ts
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms

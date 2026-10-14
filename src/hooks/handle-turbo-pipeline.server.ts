@@ -45,6 +45,8 @@ import {
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getTurboAuthContext } from "./handle-turbo-get";
 import { logger } from "@src/utils/logger";
+import { getHeapStatistics } from "node:v8";
+import { getHardwareProfile, hardwareDiagnostics } from "@utils/hardware-profile";
 
 /** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
 let settingsServiceModulePromise:
@@ -163,6 +165,13 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
       }
     }
     health.memory = process.memoryUsage();
+    // 🖥️ HARDWARE: what THIS machine derived (pools, caches, workers, compression)
+    // plus the actionable heap-alignment verdict — the same payload the API
+    // dispatcher's health handler emits, so neither can drift.
+    health.hardware = hardwareDiagnostics(
+      getHardwareProfile(),
+      getHeapStatistics().heap_size_limit,
+    );
   }
 
   return new Response(JSON.stringify(health), {

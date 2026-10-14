@@ -45,6 +45,7 @@ import "@utils/logger.server";
 import { building } from "$app/env";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { getHeapStatistics } from "node:v8";
 import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/context";
 
 // 🚀 SK3: background services are STATICALLY imported (they start on READY).
@@ -90,7 +91,13 @@ import { handleCompression } from "./hooks/handle-compression";
 import { applyAllSecurityHeaders } from "./hooks/handle-security-headers";
 import { registerWsAuthenticator } from "@src/services/collaboration/ws-auth-registry";
 import { routeResourceStateMachine } from "@src/services/core/route-resource-state-machine";
-import { initHardwareProfile, getHardwareProfile, describeHardware } from "@utils/hardware-profile";
+import {
+  initHardwareProfile,
+  getHardwareProfile,
+  describeHardware,
+  hardwareDiagnostics,
+  isHeapAligned,
+} from "@utils/hardware-profile";
 import { getSharp } from "@utils/media/sharp-loader.server";
 import { generateUUID } from "@utils/native-utils";
 import { startCpuProfilerIfEnabled } from "@utils/cpu-profiler";
@@ -102,6 +109,29 @@ import { installFastLanes } from "./hooks/fast-lane.server";
 // object and tunes itself for THIS machine.
 initHardwareProfile();
 logger.info(`[Boot] Hardware profile: ${describeHardware()}`);
+
+// 🩺 HEAP ALIGNMENT SELF-CHECK: on any hardware, tell the operator when the
+// runtime's own heap ceiling is not aligned with the memory the OS allows —
+// V8 on Node 24 reads cgroups but is not conservative on tiny boxes (measured:
+// 259 MB of heap in a 256 MB container). Starting via `index.cjs` applies the
+// profile's cap (or set NODE_OPTIONS=--max-old-space-size=… when the entry is
+// owned by an external supervisor). Emitted at ERROR on purpose: production
+// defaults to `LOG_LEVEL=error`, and a misconfiguration that leads to OOM kills
+// must not be filtered out of the operator's logs. Never fatal.
+{
+  const hw = getHardwareProfile();
+  const heapLimitBytes = getHeapStatistics().heap_size_limit;
+  if (!isHeapAligned(heapLimitBytes, hw.effectiveMemoryBytes)) {
+    const heapMb = Math.round(heapLimitBytes / (1024 * 1024));
+    const limitMb = Math.round(hw.effectiveMemoryBytes / (1024 * 1024));
+    logger.error(
+      `[Boot] V8 heap limit ${heapMb}MB is not aligned with the ${limitMb}MB memory limit (>75%) — ` +
+        `cpu=${hw.tier} mem=${hw.memTier} cores=${hw.cores}/${hw.hostCores} · ` +
+        `start via \`index.cjs\` for the derived ${hw.nodeHeapMb}MB cap, or set ` +
+        `NODE_OPTIONS=--max-old-space-size=${hw.nodeHeapMb} (SVELTY_NO_HEAP_CAP=1 silences this).`,
+    );
+  }
+}
 
 // 🔬 OPT-IN V8 SAMPLING: `SVELTY_CPU_PROFILE=<dir>` writes a `.cpuprofile`
 // snapshot every interval, which is what makes cold-path attribution possible
@@ -291,8 +321,14 @@ if (!building) {
         // ✨ Hardware-Adaptive Tuning — the profile was detected ONCE at process
         // start (module scope above) and published to the shared global registry.
         // Here we only APPLY the knobs that must be set on the ready state.
+        //
+        // `UV_THREADPOOL_SIZE` is deliberately NOT set here: libuv reads it
+        // before the loop starts, so a runtime assignment is a no-op (measured:
+        // blocking pbkdf2 n=8/n=4 wall-time ratio 1.69 when set at runtime vs
+        // 1.25 when set in the environment). The entry (`index.cjs`) applies the
+        // profile's derived value before the server starts; `hw.threadPoolSize`
+        // is the reported/derived value and honours an operator-set env.
         const hw = getHardwareProfile();
-        process.env.UV_THREADPOOL_SIZE = String(hw.threadPoolSize);
         getSharp()
           .then((sharp) => {
             // Measured: variant pipelines are generated in parallel, so the
@@ -908,6 +944,14 @@ export const handle: Handle = async ({ event, resolve }) => {
         try {
           health.graphql = metricsService.getReport().graphql;
         } catch {}
+
+        // 🖥️ HARDWARE: what THIS machine derived (pools, caches, workers,
+        // compression) + the actionable heap-alignment verdict. Same payload the
+        // turbo/dispatcher responders emit, so none of them can drift.
+        health.hardware = hardwareDiagnostics(
+          getHardwareProfile(),
+          getHeapStatistics().heap_size_limit,
+        );
       }
 
       const healthRes = Response.json(health, { headers: HEALTH_HEADERS });

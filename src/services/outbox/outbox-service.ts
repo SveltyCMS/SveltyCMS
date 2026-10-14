@@ -295,6 +295,19 @@ class OutboxServiceImpl {
     }
     if (this.emitBuffer.length === 0) return;
 
+    // The DB registry can be briefly empty mid-boot (or permanently empty in a
+    // broken deployment). Deferring keeps the events buffered for the next
+    // flush trigger instead of silently dropping them — the buffer cap bounds
+    // the memory. The flush latch is NOT taken on this path, so a later
+    // enqueue/poll tick retries normally.
+    const db = getDb();
+    if (!db) {
+      logger.warn(
+        `[Outbox] Database not available; deferring ${this.emitBuffer.length} buffered event(s)`,
+      );
+      return;
+    }
+
     const batch = this.emitBuffer;
     this.emitBuffer = [];
     if (this.emitFlushTimer) {
@@ -311,8 +324,6 @@ class OutboxServiceImpl {
     }
 
     this.emitFlushInFlight = (async () => {
-      const db = getDb();
-      if (!db || batch.length === 0) return;
       // Count of events durably committed so a mid-flush failure re-queues ONLY
       // the uncommitted tail — never duplicates already-persisted chunks.
       let committed = 0;
@@ -369,6 +380,7 @@ class OutboxServiceImpl {
     const db = getDb();
     if (!db) {
       this.isProcessing = false;
+      logger.debug("[Outbox] processBatch skipped: database not available");
       return empty;
     }
 

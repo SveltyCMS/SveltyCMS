@@ -1995,12 +1995,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const { detectPostgresSocketDir, preferIpv4Loopback } = await import("../db-local-socket");
         const socketDir = detectPostgresSocketDir(url.hostname);
         const hw = getHardwareProfile();
-        // 🚀 POOL FLOOR: raise to 32 on medium+ hosts so the pool never saturates
-        // before 32 concurrent workers (findById peaks at 16c, drops −19% at 32c
-        // — classic pool-exhaustion signature). Single/small hosts keep 20 to
-        // avoid drowning a co-located DB server. `DATABASE_MAX_CONNECTIONS` env
-        // always wins.
-        const poolFloor = hw.tier === "single" || hw.tier === "small" ? 20 : 32;
+        // 🚀 POOL SIZING: the hardware profile OWNS the default — it is CPU- and
+        // memory-derived (2 × budget cores, memory-capped), so a 1-core/512 MB
+        // box gets a handful of connections instead of the 20 a constant floor
+        // forced (the anti-lean case). MariaDB/Mongo already read the profile
+        // directly; this removes the last adapter-specific override.
+        // `DATABASE_MAX_CONNECTIONS` always wins; high-concurrency sweeps on a
+        // dedicated host raise `HARDWARE_CPU_BUDGET=1` (or set the env).
         options = {
           host: socketDir || preferIpv4Loopback(url.hostname),
           port: Number(url.port || 5432),
@@ -2013,7 +2014,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onclose,
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
-          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || Math.max(poolFloor, hw.dbPoolSize),
+          max: Number(process.env.DATABASE_MAX_CONNECTIONS) || hw.dbPoolSize,
           connect_timeout: 10,
           prepare: effectivePrepare,
           idle_timeout: pgIdleTimeout(),
@@ -2033,7 +2034,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const c = (finalConnection || {}) as any;
         const usePrepared = (c.prepare ?? process.env.DATABASE_PREPARE ?? "true") !== "false";
         const hw2 = getHardwareProfile();
-        const poolFloor2 = hw2.tier === "single" || hw2.tier === "small" ? 20 : 32;
 
         const { detectPostgresSocketDir, preferIpv4Loopback } = await import("../db-local-socket");
         const rawHost = c.host || c.DB_HOST || "127.0.0.1";
@@ -2044,9 +2044,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           user: c.user || c.DB_USER || "postgres",
           password: c.password || c.DB_PASSWORD || "",
           database: c.database || c.DB_NAME,
-          max:
-            Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) ||
-            Math.max(poolFloor2, hw2.dbPoolSize),
+          max: Number(c.max || process.env.DATABASE_MAX_CONNECTIONS) || hw2.dbPoolSize,
           connect_timeout: Number(c.connect_timeout || 10),
           ssl: c.ssl || false,
           onnotice: () => {},

@@ -3,7 +3,9 @@
  * @description System, Settings, Widgets, and Utility handlers for the dispatcher.
  */
 
-import { logger } from "@utils/logger";
+import { logger } from "@src/utils/logger";
+import { getHeapStatistics } from "node:v8";
+import { getHardwareProfile, hardwareDiagnostics } from "@utils/hardware-profile";
 import { AppError } from "@utils/error-handling";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import { acceptStatusTransitionJob } from "@src/services/scheduler";
@@ -1389,8 +1391,13 @@ export async function handleHealthRoutes(
     );
   }
 
-  // 🚀 PERFORMANCE: Memoization of health report with state-change invalidation
+  // 🚀 PERFORMANCE: Memoization of health report with state-change invalidation.
+  // Verbose (hardware) requests are excluded — their payload differs, so caching
+  // one shape would serve the other.
+  const verbose =
+    request.headers.has("x-verbose") || new URL(request.url).searchParams.get("verbose") === "true";
   if (
+    !verbose &&
     lastHealthReport &&
     now - lastHealthTime < 10000 &&
     lastHealthOverallState === currentOverallState &&
@@ -1405,6 +1412,12 @@ export async function handleHealthRoutes(
   const { getDatabaseResilience } = await import("@src/databases/database-resilience");
   const metrics = getDatabaseResilience().getMetrics();
   const ready = isSystemReady();
+  // 🖥️ HARDWARE (verbose only): what THIS machine derived — the numbers the
+  // pools, caches, workers and compression levels were sized from. `heapAligned`
+  // is the actionable one: false means the runtime's V8 ceiling is not aligned
+  // with the memory the OS allows (start via `index.cjs`, or set NODE_OPTIONS).
+  const hw = verbose ? getHardwareProfile() : null;
+  const heapLimitBytes = verbose ? getHeapStatistics().heap_size_limit : 0;
   const report = {
     status: isUp ? "healthy" : "degraded",
     overallStatus: currentOverallState,
@@ -1420,6 +1433,7 @@ export async function handleHealthRoutes(
       totalRetries: metrics.totalRetries,
       successfulReconnections: metrics.successfulReconnections,
     },
+    ...(hw ? { hardware: hardwareDiagnostics(hw, heapLimitBytes) } : {}),
   };
 
   const reportString = JSON.stringify({

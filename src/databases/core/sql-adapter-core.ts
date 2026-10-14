@@ -1747,6 +1747,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     // The raw stream self-catches and reports found / missing / declined.
     const rawWire = await this.rawFindPointWireStream(table, collection, id, options);
+    // Fast path: the engine already produced the serialized wire body — return it
+    // without `wrap()` (which would re-enter the queue gate / AsyncLocalStorage /
+    // traceSpan for an in-memory object). Mirrors the `missing` early return; only
+    // the `declined` case needs the guarded findOne fallback below.
+    if (rawWire.kind === "found") {
+      return { success: true, data: { wireBody: rawWire.wireBody, etag: rawWire.etag } };
+    }
     if (rawWire.kind === "missing") {
       // Definitive: the compiled SELECT ran and returned no row (id absent or
       // publication-clamped away). A distinct failure code lets the read lane
@@ -1762,8 +1769,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
 
     return this.wrap(async () => {
-      if (rawWire.kind === "found") return { wireBody: rawWire.wireBody, etag: rawWire.etag };
-
       // Engine declined (no native JSON support, etc.) → findOne fallback.
       // The HTTP point-read contract is the TRIMMED body
       // (`trimPointReadEnvelope`: no tenantId/createdAt/updatedAt/isDeleted,

@@ -16,6 +16,7 @@
 
 import * as nodeCrypto from "node:crypto";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { getHardwareProfile } from "@utils/hardware-profile";
 
 export interface CachedResponseEntry {
   body: string;
@@ -53,29 +54,47 @@ const MAX_LIST_ADMISSION = 8192;
  * changes — an operator (or a test) can retune the ceiling without a reboot,
  * and the parse cost stays a string compare per enforcement call.
  */
-const DEFAULT_MAX_L1_MB = 64;
-const DEFAULT_MAX_POINT_L1_MB = 16;
+/**
+ * Byte budgets per L1 tier (env-tunable, `SVELTY_L1_MAX_MB` / `SVELTY_L1_POINT_MAX_MB`).
+ * Entry counts alone do not bound memory: list bodies are 50-100 KB each.
+ *
+ * Precedence: explicit env → the hardware profile's memory tier (so a 256 MB
+ * container gets a 16 MB list tier instead of a fixed 64 MB) → absolute floor.
+ * Resolved through `l1BudgetEnvMb`, which re-reads the raw env value when it
+ * changes — an operator (or a test) can retune the ceiling without a reboot,
+ * and the parse cost stays a string compare per enforcement call.
+ */
+const FLOOR_L1_MB = 16;
+const FLOOR_POINT_L1_MB = 8;
 
-let _maxL1Raw: string | undefined;
-let _maxL1Mb = DEFAULT_MAX_L1_MB;
-let _maxPointL1Raw: string | undefined;
-let _maxPointL1Mb = DEFAULT_MAX_POINT_L1_MB;
+interface L1TierBudget {
+  raw: string | undefined;
+  mb: number;
+  resolved: boolean;
+}
 
+const _listTier: L1TierBudget = { raw: undefined, mb: 0, resolved: false };
+const _pointTier: L1TierBudget = { raw: undefined, mb: 0, resolved: false };
+
+/**
+ * Env wins → hardware profile memory tier → absolute floor. The floors (16/8 MB)
+ * are deliberately NOT zero: a misconfigured profile must never disable the
+ * cache tier, only shrink it.
+ */
 function l1BudgetEnvMb(pointReads: boolean): number {
-  if (pointReads) {
-    const raw = process.env.SVELTY_L1_POINT_MAX_MB;
-    if (raw !== _maxPointL1Raw) {
-      _maxPointL1Raw = raw;
-      _maxPointL1Mb = Number(raw) || DEFAULT_MAX_POINT_L1_MB;
-    }
-    return _maxPointL1Mb;
-  }
-  const raw = process.env.SVELTY_L1_MAX_MB;
-  if (raw !== _maxL1Raw) {
-    _maxL1Raw = raw;
-    _maxL1Mb = Number(raw) || DEFAULT_MAX_L1_MB;
-  }
-  return _maxL1Mb;
+  const tier = pointReads ? _pointTier : _listTier;
+  const raw = pointReads ? process.env.SVELTY_L1_POINT_MAX_MB : process.env.SVELTY_L1_MAX_MB;
+  if (tier.resolved && raw === tier.raw) return tier.mb;
+
+  const parsed = Number(raw);
+  const byEnv = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  const profileMb = pointReads
+    ? getHardwareProfile().l1PointCacheMb
+    : getHardwareProfile().l1CacheMb;
+  tier.raw = raw;
+  tier.mb = byEnv || profileMb || (pointReads ? FLOOR_POINT_L1_MB : FLOOR_L1_MB);
+  tier.resolved = true;
+  return tier.mb;
 }
 
 /**

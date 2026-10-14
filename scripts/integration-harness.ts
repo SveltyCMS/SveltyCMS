@@ -241,6 +241,14 @@ export function buildIntegrationServerEnv(
     DB_PASSWORD: process.env.DB_PASSWORD ?? creds.password,
     TEST_MODE: "true",
     NODE_ENV: process.env.NODE_ENV || "test",
+    // 🧮 BODY-CEILING DETERMINISM: `API_MAX_BODY_SIZE_BYTES` is derived from the
+    // memory tier in production (15–128 MB: a small box keeps the 15 MB floor,
+    // a large one accepts bigger bulk imports) and adapter-node's own ceiling is
+    // derived the same way. The dispatcher-guard test in
+    // `tests/integration/api/user-extended.test.ts` asserts the 413 on a
+    // declared oversize body, so the harness pins the documented 15 MB contract
+    // instead of leaving the acceptance boundary machine-dependent.
+    API_MAX_BODY_SIZE_MB: process.env.API_MAX_BODY_SIZE_MB || "15",
     JWT_SECRET_KEY: secrets.jwt,
     ENCRYPTION_KEY: secrets.encryption,
     TEST_API_SECRET: secrets.testApiSecret,

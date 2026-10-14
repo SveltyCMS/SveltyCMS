@@ -275,10 +275,13 @@ describe("User API Extended Integration", () => {
       adminCookie = await prepareAuthenticatedContext({ skipReset: true });
     });
 
-    it("should reject upload above the app ceiling (15 MB dispatcher guard)", async () => {
+    it("should reject upload above the app ceiling (dispatcher guard)", async () => {
       // The dispatcher rejects declared Content-Length > API_MAX_BODY_SIZE_BYTES
       // with 413 PAYLOAD_TOO_LARGE before any byte is read — the real ceiling
-      // now that the kit transport limit no longer masks it.
+      // now that the kit transport limit no longer masks it. That ceiling is
+      // derived from the memory tier in production (15–128 MB); the integration
+      // harness pins `API_MAX_BODY_SIZE_MB=15` so the acceptance boundary is
+      // machine-independent and this guard keeps asserting the documented floor.
       const overBytes = new Uint8Array(15 * 1024 * 1024 + 1024);
       overBytes.fill(0x00);
       overBytes.set(tinyPngBytes().slice(0, 8), 0);

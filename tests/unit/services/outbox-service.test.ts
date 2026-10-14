@@ -15,6 +15,7 @@ const {
   countMock,
   publishMock,
   webhookTriggerMock,
+  dbState,
 } = vi.hoisted(() => ({
   insertMock: vi.fn(),
   insertManyMock: vi.fn(),
@@ -24,19 +25,24 @@ const {
   countMock: vi.fn(),
   publishMock: vi.fn(),
   webhookTriggerMock: vi.fn(),
+  /** Flip to simulate the DB registry being empty (mid-boot / broken boot). */
+  dbState: { available: true },
 }));
 
 vi.mock("@src/databases/db", () => ({
-  getDb: () => ({
-    crud: {
-      insert: insertMock,
-      insertMany: insertManyMock,
-      findMany: findManyMock,
-      update: updateMock,
-      deleteMany: deleteManyMock,
-      count: countMock,
-    },
-  }),
+  getDb: () =>
+    dbState.available
+      ? {
+          crud: {
+            insert: insertMock,
+            insertMany: insertManyMock,
+            findMany: findManyMock,
+            update: updateMock,
+            deleteMany: deleteManyMock,
+            count: countMock,
+          },
+        }
+      : null,
 }));
 
 vi.mock("@src/services/background/pub-sub", () => ({
@@ -63,6 +69,7 @@ import {
   OUTBOX_MAX_ATTEMPTS,
   type OutboxEvent,
 } from "@src/services/outbox/outbox-service";
+import { logger } from "@utils/logger";
 
 function makeEvent(overrides: Partial<OutboxEvent> = {}): OutboxEvent {
   const now = new Date().toISOString();
@@ -116,6 +123,7 @@ describe("outboxBackoffMs / isOutboxEventReady", () => {
 describe("outboxService.emit", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbState.available = true;
     delete process.env.DISABLE_OUTBOX;
     delete process.env.BENCHMARK;
   });
@@ -199,6 +207,29 @@ describe("outboxService.emit", () => {
     expect(result.success).toBe(false);
     expect((result as any).error?.code).toBe("OUTBOX_DISABLED");
     expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("defers buffered events (never drops) while the DB registry is empty", async () => {
+    dbState.available = false;
+    try {
+      await outboxService.emit("entry:create", "entry", "doc-deferred", {}, "tenant-dbdown");
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      expect(insertManyMock).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("deferring"));
+    } finally {
+      dbState.available = true;
+    }
+
+    // The next emit re-arms the debounce and persists BOTH events — the deferred
+    // batch was kept buffered, not silently discarded.
+    insertManyMock.mockResolvedValue({ success: true, data: [] });
+    await outboxService.emit("entry:create", "entry", "doc-after", {}, "tenant-dbdown");
+    await vi.waitFor(() => {
+      const calls = insertManyMock.mock.calls as [string, Array<{ aggregateId: string }>][];
+      const ids = calls.flatMap((c) => c[1].map((r) => r.aggregateId));
+      expect(ids).toContain("doc-deferred");
+      expect(ids).toContain("doc-after");
+    });
   });
 });
 
