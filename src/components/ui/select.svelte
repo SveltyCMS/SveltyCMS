@@ -134,14 +134,14 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				data-testid={data_testid}
 				class={cn(
-					'peer block w-full appearance-none rounded border bg-surface-500/10 dark:bg-surface-900 transition-all',
-					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
+					'peer block w-full appearance-none rounded-(--admin-radius-input) border bg-(--admin-bg-input) transition-all',
+					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:focus:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
 					'pt-5 pb-1.5 px-3',
 					invalid
 						? 'border-error-500 focus:ring-error-500/20 focus:border-error-500'
-						: 'border-surface-500/30 dark:border-surface-500/40',
+						: 'border-(--admin-border-default)',
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
@@ -207,15 +207,15 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				aria-required={required}
 				data-testid={data_testid}
 				class={cn(
-					'block w-full appearance-none rounded border bg-surface-500/10 dark:bg-surface-900 transition-all',
-					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
+					'block w-full appearance-none rounded-(--admin-radius-input) border bg-(--admin-bg-input) transition-all',
+					'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:focus:border-primary-500',
 					sizeTokens.height,
 					sizeTokens.text,
 					sizeTokens.padding,
 					'pe-10',
 					invalid
 						? 'border-error-500 focus:ring-error-500/20 focus:border-error-500'
-						: 'border-surface-500/30 dark:border-surface-500/40',
+						: 'border-(--admin-border-default)',
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>

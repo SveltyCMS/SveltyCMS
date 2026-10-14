@@ -100,7 +100,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 			if (done) return 'bg-tertiary-500 dark:bg-primary-500 text-white';
 			if (current) return 'bg-error-500 text-white shadow-xl';
 			return orientation === 'vertical'
-				? 'bg-slate-200 text-slate-600 ring-1 ring-slate-300 dark:bg-slate-700 dark:text-slate-300 dark:ring-slate-600'
+				? 'bg-surface-200 text-surface-600 ring-1 ring-surface-300 dark:bg-surface-700 dark:text-surface-300 dark:ring-surface-600'
 				: 'bg-surface-200 text-surface-500 dark:bg-surface-500/10 dark:text-surface-50';
 		}
 		if (done) return 'bg-success-500 text-white';
@@ -110,9 +110,9 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 
 	function labelClass(index: number): string {
 		if (variant === 'setup') {
-			if (index < currentStep) return 'text-slate-800 dark:text-slate-200';
-			if (index === currentStep) return 'text-slate-900 dark:text-white';
-			return 'text-slate-400 dark:text-slate-600';
+			if (index < currentStep) return 'text-surface-600 dark:text-surface-400';
+			if (index === currentStep) return 'text-surface-900 dark:text-white';
+			return 'text-surface-400 dark:text-surface-600';
 		}
 		if (index === currentStep) return 'text-tertiary-600 dark:text-primary-600';
 		return 'text-surface-900 dark:text-surface-100';
@@ -120,9 +120,9 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 
 	function descClass(index: number): string {
 		if (variant === 'setup') {
-			if (index < currentStep) return 'text-slate-500 dark:text-slate-400';
-			if (index === currentStep) return 'text-slate-600 dark:text-slate-300';
-			return 'text-slate-400 dark:text-slate-600';
+			if (index < currentStep) return 'text-surface-500 dark:text-surface-400';
+			if (index === currentStep) return 'text-surface-600 dark:text-surface-400';
+			return 'text-surface-400 dark:text-surface-600';
 		}
 		return 'text-surface-500';
 	}
@@ -131,8 +131,8 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 		if (!isCompleted(index)) {
 			return variant === 'setup'
 				? orientation === 'horizontal'
-					? 'border-t-2 border-dashed border-slate-200 bg-transparent'
-					: 'border-s-2 border-dashed border-slate-200 bg-transparent'
+					? 'border-t-2 border-dashed border-surface-500/30 bg-transparent'
+					: 'border-s-2 border-dashed border-surface-500/30 bg-transparent'
 				: 'bg-surface-200 dark:bg-surface-700';
 		}
 		return variant === 'setup' ? 'bg-tertiary-500 dark:bg-primary-500' : 'bg-success-500';
@@ -167,7 +167,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 					: ''}
 					{clickable
 					? variant === 'setup' && orientation === 'vertical'
-						? 'hover:bg-slate-50 dark:hover:bg-slate-800/70 cursor-pointer'
+						? 'hover:bg-surface-500/10 dark:hover:bg-surface-800/70 cursor-pointer'
 						: 'hover:bg-surface-500/10 dark:hover:bg-surface-800 cursor-pointer'
 					: 'cursor-not-allowed opacity-50'}"
 				onclick={() => clickable && onStepClick(i)}
