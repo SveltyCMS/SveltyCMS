@@ -58,7 +58,7 @@ Features:
 
 	{#if showMarket}
 		<section
-			class="mt-4 space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30"
+			class="mt-4 space-y-4 border-t border-(--admin-border-default) pt-4"
 			aria-labelledby="market-heading"
 		>
 			<div>

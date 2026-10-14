@@ -37,9 +37,9 @@ Features:
 	} = $props();
 </script>
 
-<div class="flex flex-col dark:text-white">
+<div class="flex flex-col dark:text-(--admin-text-body)">
 	{#if isSeeding}
-		<div class="bg-surface-500/10 h-1.5 w-full overflow-hidden dark:bg-surface-700">
+		<div class="bg-(--admin-bg-chip) h-1.5 w-full overflow-hidden">
 			<div
 				class="bg-tertiary-500 h-full transition-all duration-500 ease-out dark:bg-primary-500"
 				style="width: {seedingProgress}%"
@@ -50,7 +50,7 @@ Features:
 			></div>
 		</div>
 		<div
-			class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-surface-500 sm:px-8"
+			class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-(--admin-text-muted) sm:px-8"
 		>
 			<span>Database Seeding Progress</span>
 			<span>{seedingProgress}%</span>

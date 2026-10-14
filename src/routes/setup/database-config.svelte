@@ -432,7 +432,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50">{setup_label_database_type()}</span>
+					<span class="text-(--admin-text-body)">{setup_label_database_type()}</span>
 					<SystemTooltip title={setup_help_database_type()}>
 						<HelpIcon ariaLabel="Help: Database Type" />
 					</SystemTooltip>
@@ -483,7 +483,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50"
+					<span class="text-(--admin-text-body)"
 						>{isAtlas ? 'Atlas Cluster Host' : setup_database_host()}</span
 					>
 					<SystemTooltip title={setup_help_database_host()}>
@@ -538,7 +538,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_database_port()}</span>
+						<span class="text-(--admin-text-body)">{setup_database_port()}</span>
 						<SystemTooltip title={setup_help_database_port()}>
 							<HelpIcon ariaLabel="Help: Port" />
 						</SystemTooltip>
@@ -564,7 +564,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50">{setup_database_name()}</span>
+					<span class="text-(--admin-text-body)">{setup_database_name()}</span>
 					<SystemTooltip title={setup_help_database_name()}>
 						<HelpIcon ariaLabel="Help: Database Name" />
 					</SystemTooltip>
@@ -596,7 +596,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_database_user()}</span>
+						<span class="text-(--admin-text-body)">{setup_database_user()}</span>
 						<SystemTooltip title={setup_help_database_user()}>
 							<HelpIcon ariaLabel="Help: Database User" />
 						</SystemTooltip>
@@ -628,7 +628,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">{setup_database_password()}</span>
+						<span class="text-(--admin-text-body)">{setup_database_password()}</span>
 						<SystemTooltip title={setup_help_database_password()}>
 							<HelpIcon ariaLabel="Help: Database Password" />
 						</SystemTooltip>
@@ -676,7 +676,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 				variant="transparent"
 				type="button"
 				onclick={() => (showAdvanced = !showAdvanced)}
-				class="flex items-center gap-2 text-sm font-semibold! text-surface-500 dark:text-primary-500 hover:text-tertiary-500 transition-colors p-0! h-auto! justify-start! min-w-0!"
+				class="flex items-center gap-2 text-sm font-semibold! text-(--admin-text-muted) dark:text-primary-500 hover:text-tertiary-500 transition-colors p-0! h-auto! justify-start! min-w-0!"
 			>
 				<iconify-icon icon={showAdvanced ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"
 				></iconify-icon>
@@ -696,12 +696,12 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 			{#if showAdvanced}
 				<div
-					class="mt-4 space-y-4 rounded border border-surface-500/30 dark:border-white/10 p-4 transition-all duration-300"
+					class="mt-4 space-y-4 rounded border border-(--admin-border-default) p-4 transition-all duration-300"
 				>
 					<div class="flex flex-col gap-2">
 						<label
 							for="replica-urls"
-							class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-surface-900 dark:text-white"
+							class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-(--admin-text-body)"
 						>
 							<iconify-icon
 								icon="mdi:database-import"
@@ -837,7 +837,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						type="button"
 						onclick={() => (wizard.showDbDetails = !wizard.showDbDetails)}
 						size="sm"
-						class="text-surface-900 dark:text-surface-50 flex items-center gap-1"
+						class="text-(--admin-text-body) flex items-center gap-1"
 					>
 						<iconify-icon
 							icon={wizard.showDbDetails ? 'mdi:chevron-up' : 'mdi:chevron-down'}
@@ -858,17 +858,19 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						size="sm"
 						class="p-0! min-w-0 h-7 w-7"
 					>
-						<iconify-icon icon="mdi:close" size="16" class="dark:text-white"></iconify-icon>
+						<iconify-icon icon="mdi:close" size="16" class="dark:text-(--admin-text-body)"
+						></iconify-icon>
 					</Button>
 				</div>
 			</div>
 			{#if wizard.showDbDetails && wizard.lastDbTestResult}
 				<div
-					class="border-t border-surface-500/30 bg-secondary-500/50 text-xs dark:border-surface-500/40 dark:bg-surface-900/50"
+					class="border-t border-(--admin-border-default) bg-secondary-500/50 text-xs dark:bg-(--admin-bg-sidebar)"
 				>
 					<div class="grid grid-cols-2 gap-x-4 gap-y-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
 						<div class="flex flex-col">
-							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+							<span
+								class="font-semibold text-(--admin-text-muted) uppercase text-[10px] tracking-wider"
 								>{setup_db_test_latency()}:</span
 							>
 							<span class="text-tertiary-500 dark:text-primary-500 font-bold"
@@ -876,7 +878,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							>
 						</div>
 						<div class="flex flex-col">
-							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+							<span
+								class="font-semibold text-(--admin-text-muted) uppercase text-[10px] tracking-wider"
 								>{setup_db_test_engine()}:</span
 							>
 							<span class="text-tertiary-500 dark:text-primary-500 font-bold"
@@ -884,7 +887,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							>
 						</div>
 						<div class="flex flex-col">
-							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+							<span
+								class="font-semibold text-(--admin-text-muted) uppercase text-[10px] tracking-wider"
 								>{label_host()}:</span
 							>
 							<span
@@ -894,7 +898,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</div>
 						{#if !isFullUri}
 							<div class="flex flex-col">
-								<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+								<span
+									class="font-semibold text-(--admin-text-muted) uppercase text-[10px] tracking-wider"
 									>{label_port()}:</span
 								>
 								<span class="text-tertiary-500 dark:text-primary-500 font-bold"
@@ -903,7 +908,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							</div>
 						{/if}
 						<div class="flex flex-col">
-							<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+							<span
+								class="font-semibold text-(--admin-text-muted) uppercase text-[10px] tracking-wider"
 								>{label_database()}:</span
 							>
 							<span
@@ -913,7 +919,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 						</div>
 						{#if wizard.dbConfig.user}
 							<div class="flex flex-col">
-								<span class="font-semibold text-surface-500 uppercase text-[10px] tracking-wider"
+								<span
+									class="font-semibold text-(--admin-text-muted) uppercase text-[10px] tracking-wider"
 									>{label_user?.() || setup_db_test_user()}:</span
 								>
 								<span
@@ -925,7 +932,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 					</div>
 					{#if !wizard.lastDbTestResult.success && wizard.lastDbTestResult.hint}
 						<div
-							class="border-t border-surface-500/30 p-4 dark:border-surface-500/40 bg-warning-500/30 dark:bg-warning-900/10"
+							class="border-t border-(--admin-border-default) p-4 bg-warning-500/30 dark:bg-warning-900/10"
 						>
 							<div
 								class="flex items-center gap-2 font-bold text-warning-600 dark:text-warning-400 mb-2"
@@ -937,7 +944,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 							</div>
 							<div class="space-y-2">
 								{#each wizard.lastDbTestResult.hint.split('\n') as step (step)}
-									<div class="flex gap-2 text-surface-600 dark:text-surface-400">
+									<div class="flex gap-2 text-(--admin-text-muted)">
 										<span class="shrink-0 text-warning-500">•</span>
 										<span>{step.replace(/^\d+\.\s*/, '')}</span>
 									</div>
@@ -951,13 +958,8 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 	{/if}
 
 	<!-- Redis Caching (moved from the System step) -->
-	<section
-		id="redis-section"
-		class="mt-6 border-t border-surface-500/30 pt-4 dark:border-surface-500/30"
-	>
-		<div
-			class="rounded-lg border border-surface-500/30 bg-surface-500/50 p-4 dark:border-surface-500/40 dark:bg-surface-900/20"
-		>
+	<section id="redis-section" class="mt-6 border-t border-(--admin-border-default) pt-4">
+		<div class="rounded-lg border border-(--admin-border-default) bg-(--admin-bg-chip) p-4">
 			<div class="flex items-center justify-between gap-4">
 				<Checkbox
 					bind:checked={systemSettings.useRedis}
@@ -996,7 +998,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 			</div>
 
 			{#if systemSettings.useRedis}
-				<div class="mt-4 space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
+				<div class="mt-4 space-y-4 border-t border-(--admin-border-default) pt-4">
 					<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
 						<Input
 							id="redis-host"

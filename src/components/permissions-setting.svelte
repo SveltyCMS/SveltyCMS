@@ -454,7 +454,7 @@ Advanced permission management interface with bulk actions and presets.
 		{/if}
 
 		<!-- Permissions Table -->
-		<div class="overflow-x-auto rounded border border-surface-500/30 dark:text-surface-50">
+		<div class="overflow-x-auto rounded border border-(--admin-border-default)">
 			<table class="table w-full" role="grid">
 				<thead>
 					<tr>
@@ -478,7 +478,7 @@ Advanced permission management interface with bulk actions and presets.
 				</thead>
 				<tbody>
 					{#each filteredRoles as role (role._id)}
-						<tr class="border-t border-surface-500/30 dark:text-surface-50">
+						<tr class="border-t border-(--admin-border-default)">
 							<!-- Role Info -->
 							<th scope="row" class="px-4 py-3">
 								<div class="flex flex-col gap-1">
@@ -489,7 +489,7 @@ Advanced permission management interface with bulk actions and presets.
 										{/if}
 									</div>
 									{#if role.description}
-										<span class="text-xs text-surface-600 dark:text-surface-50">
+										<span class="text-xs text-(--admin-text-muted)">
 											{role.description}
 										</span>
 									{/if}
@@ -512,7 +512,7 @@ Advanced permission management interface with bulk actions and presets.
 											role._id
 										]?.[action]
 											? 'bg-success-500 text-white hover:bg-success-600'
-											: 'bg-surface-200 text-surface-400 hover:bg-surface-300 dark:bg-surface-700 dark:text-surface-500 dark:hover:bg-surface-600'} {role.isAdmin
+											: 'bg-(--admin-bg-chip) text-(--admin-text-muted) hover:bg-(--admin-border-subtle)'} {role.isAdmin
 											? 'cursor-not-allowed opacity-40'
 											: 'cursor-pointer hover:scale-110'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
 									>
@@ -579,11 +579,12 @@ Advanced permission management interface with bulk actions and presets.
 		<!-- No Results -->
 		{#if filteredRoles.length === 0}
 			<div
-				class="flex flex-col items-center gap-3 rounded bg-surface-500/10 py-12 text-center dark:bg-surface-800"
+				class="flex flex-col items-center gap-3 rounded bg-(--admin-bg-chip) py-12 text-center"
 				transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
-				<iconify-icon icon="mdi:magnify-close" width="48" class="text-surface-400"></iconify-icon>
-				<p class="text-surface-600 dark:text-surface-50">
+				<iconify-icon icon="mdi:magnify-close" width="48" class="text-(--admin-text-muted)"
+				></iconify-icon>
+				<p class="text-(--admin-text-muted)">
 					No roles match your search for "<span class="font-medium">{searchQuery}</span>"
 				</p>
 			</div>

@@ -501,15 +501,15 @@
 		<!-- Collapsible content -->
 		{#if showWhySmtp}
 			<div id="why-smtp-content" class="ms-8 mt-2 space-y-2">
-				<p class="text-surface-600 dark:text-surface-400 text-sm">{setup_email_why_desc()}</p>
-				<ul class="text-surface-600 dark:text-surface-400 list-inside list-disc space-y-1 text-sm">
+				<p class="text-(--admin-text-muted) text-sm">{setup_email_why_desc()}</p>
+				<ul class="text-(--admin-text-muted) list-inside list-disc space-y-1 text-sm">
 					<li>{setup_email_feature_user_mgmt()}</li>
 					<li>{setup_email_feature_password()}</li>
 					<li>{setup_email_feature_2fa()}</li>
 					<li>{setup_email_feature_notifications()}</li>
 					<li>{setup_email_feature_workflow()}</li>
 				</ul>
-				<p class="text-surface-600 dark:text-surface-400 mt-2 text-sm italic">
+				<p class="text-(--admin-text-muted) mt-2 text-sm italic">
 					{setup_email_skip_note()}
 				</p>
 			</div>
@@ -526,7 +526,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50">{setup_email_provider()}</span>
+				<span class="text-(--admin-text-body)">{setup_email_provider()}</span>
 				<SystemTooltip title={setup_email_help_provider()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_provider()} />
 				</SystemTooltip>
@@ -559,7 +559,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50"
+				<span class="text-(--admin-text-body)"
 					>{setup_email_host()} <span class="text-error-500">*</span></span
 				>
 				<SystemTooltip title={setup_email_help_host()}>
@@ -596,7 +596,7 @@
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="font-medium text-surface-900 dark:text-surface-50"
+					<span class="font-medium text-(--admin-text-body)"
 						>{setup_email_port()} <span class="text-error-500">*</span></span
 					>
 					<SystemTooltip title={setup_email_help_port()}>
@@ -632,7 +632,7 @@
 							wizard.emailSettings.port = '587'; // Reset to default
 						}}
 						size="sm"
-						class="whitespace-nowrap border border-surface-500/30 dark:border-surface-600"
+						class="whitespace-nowrap border border-(--admin-border-default)"
 					>
 						<iconify-icon icon="mdi:arrow-u-left-top" class="text-lg" aria-hidden="true"
 						></iconify-icon>
@@ -640,9 +640,7 @@
 					</Button>
 				</div>
 				{#if !displayErrors.port}
-					<span class="text-xs text-surface-600 dark:text-surface-50"
-						>{setup_email_port_custom_desc()}</span
-					>
+					<span class="text-xs text-(--admin-text-body)">{setup_email_port_custom_desc()}</span>
 				{/if}
 			{:else}
 				<!-- Standard port dropdown -->
@@ -666,7 +664,7 @@
 							useCustomPort = true;
 						}}
 						size="sm"
-						class="dark:border-surface-600 whitespace-nowrap"
+						class="dark:border-(--admin-border-default) whitespace-nowrap"
 					>
 						<iconify-icon icon="mdi:pencil" class="text-lg" aria-hidden="true"></iconify-icon>
 						{setup_email_button_custom()}
@@ -681,9 +679,7 @@
 								{setup_email_port_encrypted()}
 							</Badge>
 						{/if}
-						<span class="text-xs text-surface-600 dark:text-surface-50"
-							>{selectedPort.description}</span
-						>
+						<span class="text-xs text-(--admin-text-body)">{selectedPort.description}</span>
 					</div>
 				{/if}
 			{/if}
@@ -698,7 +694,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50"
+				<span class="text-(--admin-text-body)"
 					>{setup_email_user()} <span class="text-error-500">*</span></span
 				>
 				<SystemTooltip title={setup_email_help_user()}>
@@ -736,7 +732,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50"
+				<span class="text-(--admin-text-body)"
 					>{setup_email_password()} <span class="text-error-500">*</span></span
 				>
 				<SystemTooltip title={setup_email_help_password()}>
@@ -773,7 +769,7 @@
 						aria-label={showPassword
 							? setup_email_aria_hide_password()
 							: setup_email_aria_show_password()}
-						class="w-full! h-full! p-0! min-w-0 text-surface-500! dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100"
+						class="w-full! h-full! p-0! min-w-0 text-(--admin-text-muted)! hover:text-(--admin-text-body)"
 					>
 						<iconify-icon
 							icon={showPassword ? 'mdi:eye-off' : 'mdi:eye'}
@@ -795,7 +791,7 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<span class="text-surface-900 dark:text-surface-50">{setup_email_from()}</span>
+				<span class="text-(--admin-text-body)">{setup_email_from()}</span>
 				<SystemTooltip title={setup_email_help_from()}>
 					<HelpIcon ariaLabel={setup_email_aria_help_from()} />
 				</SystemTooltip>
@@ -812,7 +808,7 @@
 					}
 				}}
 			/>
-			<span class="text-xs text-surface-600 dark:text-surface-50">{setup_email_from_note()}</span>
+			<span class="text-xs text-(--admin-text-body)">{setup_email_from_note()}</span>
 		</label>
 	</div>
 

@@ -146,7 +146,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 	<!-- Scroll track -->
 	<div class="relative min-w-0">
 		<div
-			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 inset-s-0 bg-linear-to-r from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollLeft
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 inset-s-0 bg-linear-to-r from-(--admin-bg-card) via-(--admin-bg-card)/30 to-transparent {canScrollLeft
 				? 'opacity-100'
 				: ''}"
 		></div>
@@ -174,7 +174,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					aria-label={preset.title}
 					class="relative flex flex-col flex-none w-70 p-4! h-auto! items-stretch! justify-start! font-normal! overflow-hidden text-start cursor-pointer snap-start dark:backdrop-blur-md border rounded shadow-[0_1px_3px_rgba(0,0,0,0.05)] dark:shadow-none transition-all duration-250! hover:-translate-y-1 hover:shadow-[0_10px_20px_-10px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] {selected ===
 					preset.id
-						? 'bg-tertiary-500! dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_rgba(16,185,129,0.1),0_10px_25px_-12px_rgba(16,185,129,0.2)]! dark:shadow-[0_0_0_2px_rgba(110,231,183,0.3),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_rgba(110,231,183,0.15)]! -translate-y-1!'
+						? 'bg-tertiary-500! dark:bg-primary-900! border-tertiary-500 dark:border-primary-500/40!  shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-tertiary-500)_15%,transparent),0_10px_25px_-12px_color-mix(in_srgb,var(--color-tertiary-500)_25%,transparent)]! dark:shadow-[0_0_0_2px_color-mix(in_srgb,var(--color-primary-500)_30%,transparent),0_15px_35px_-12px_rgba(0,0,0,0.6),inset_0_0_15px_color-mix(in_srgb,var(--color-primary-500)_15%,transparent)]! -translate-y-1!'
 						: 'border-(--admin-border-default) bg-(--admin-bg-card)! hover:border-tertiary-500 dark:hover:border-primary-500'}"
 					onclick={() => select(preset.id)}
 				>
@@ -183,20 +183,20 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 							icon={preset.icon}
 							width="22"
 							class={selected === preset.id
-								? 'text-white dark:text-white'
+								? 'text-white'
 								: 'text-tertiary-500 dark:text-primary-500'}
 						></iconify-icon>
 						<span
 							class="flex-1 font-bold text-[0.88rem] leading-[1.2] {selected === preset.id
-								? 'text-white dark:text-white'
-								: 'text-surface-900 dark:text-surface-50'}">{preset.title}</span
+								? 'text-white'
+								: 'text-(--admin-text-body)'}">{preset.title}</span
 						>
 
 						{#if preset.recommended}
 							<Badge
 								variant="primary"
 								size="sm"
-								class="absolute top-1 inset-e-1 shrink-0 bg-primary-500 text-white dark:bg-primary-600 dark:text-white"
+								class="absolute top-1 inset-e-1 shrink-0 bg-primary-500 text-white"
 							>
 								Recommended
 							</Badge>
@@ -218,7 +218,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 
 					<div
 						class="line-clamp-3 text-xs leading-relaxed {selected === preset.id
-							? 'text-white/90 dark:text-white/90'
+							? 'text-white/90'
 							: 'text-(--admin-text-muted)'}"
 					>
 						{preset.description}
@@ -229,7 +229,9 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 							<Badge
 								variant="surface"
 								size="sm"
-								class={selected === preset.id ? 'text-white/90! bg-white/15! border-white/20!' : ''}
+								class={selected === preset.id
+									? 'text-white/90! bg-(--admin-bg-chip)! border-(--admin-border-subtle)!'
+									: ''}
 							>
 								{f}
 							</Badge>
@@ -238,7 +240,9 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 							<Badge
 								variant="surface"
 								size="sm"
-								class={selected === preset.id ? 'text-white/70 bg-white/10! border-white/20!' : ''}
+								class={selected === preset.id
+									? 'text-white/70 bg-(--admin-bg-chip)! border-(--admin-border-subtle)!'
+									: ''}
 							>
 								+{preset.features.length - 2}
 							</Badge>
@@ -249,14 +253,14 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 						<iconify-icon
 							icon="mdi:check-circle"
 							width="24"
-							class="absolute inset-e-1 bottom-2 text-white dark:text-white"
+							class="absolute inset-e-1 bottom-2 text-white"
 						></iconify-icon>
 					{/if}
 				</Button>
 			{/each}
 		</div>
 		<div
-			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 inset-e-0 bg-linear-to-l from-white dark:from-[#0d0f12] via-white/30 dark:via-[#0d0f12]/30 to-transparent {canScrollRight
+			class="absolute top-0 bottom-3.5 z-2 w-14 pointer-events-none opacity-0 transition-opacity duration-250 inset-e-0 bg-linear-to-l from-(--admin-bg-card) via-(--admin-bg-card)/30 to-transparent {canScrollRight
 				? 'opacity-100'
 				: ''}"
 		></div>
@@ -268,7 +272,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 			<Button
 				type="button"
 				variant="transparent"
-				class="h-1.5! w-1.5! min-w-0! rounded-full! border-none p-0! bg-surface-900/15! transition-all duration-250! dark:bg-surface-400! {visibleIndex ===
+				class="h-1.5! w-1.5! min-w-0! rounded-full! border-none p-0! bg-(--admin-border-default)! transition-all duration-250! {visibleIndex ===
 				i
 					? 'w-4.5! rounded-[3px]! bg-tertiary-500! dark:bg-primary-500! '
 					: ''}"
@@ -281,7 +285,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 		{/each}
 	</div>
 
-	<p class="mb-1 text-[0.71rem] italic text-center text-surface-900 dark:text-surface-50">
+	<p class="mb-1 text-[0.71rem] italic text-center text-(--admin-text-body)">
 		{#if selected === 'blank'}
 			"Blank Project" selected — start with a clean slate. No collections will be added
 			automatically.

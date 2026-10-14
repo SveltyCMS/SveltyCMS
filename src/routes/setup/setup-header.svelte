@@ -97,7 +97,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 								</Button>
 							{/snippet}
 							<div
-								class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2"
+								class="border-b border-(--admin-border-default) bg-(--admin-bg-sidebar) px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 -mx-2"
 							>
 								{applayout_systemlanguage()}
 							</div>
@@ -107,7 +107,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 										variant="transparent"
 										type="button"
 										onclick={() => selectLanguage(lang)}
-										class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors font-normal!"
+										class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-(--admin-border-subtle) transition-colors font-normal!"
 									>
 										<span class="text-sm font-medium">{getLanguageName(lang)}</span>
 										<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500"
@@ -150,7 +150,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 							</Button>
 						{/snippet}
 						<div
-							class="border-b border-surface-500/30 dark:border-surface-600 bg-surface-500/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 dark:bg-surface-900/90 -mx-2"
+							class="border-b border-(--admin-border-default) bg-(--admin-bg-sidebar) px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-tertiary-500 dark:text-primary-500 -mx-2"
 						>
 							{applayout_systemlanguage()}
 						</div>
@@ -160,7 +160,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 									variant="transparent"
 									type="button"
 									onclick={() => selectLanguage(lang)}
-									class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-surface-200/60 dark:hover:bg-surface-700/60 transition-colors font-normal!"
+									class="flex w-full! items-center justify-between! px-3! py-2! h-auto! text-start rounded cursor-pointer hover:bg-(--admin-border-subtle) transition-colors font-normal!"
 								>
 									<span class="text-sm font-medium">{getLanguageName(lang)}</span>
 									<span class="text-xs font-bold text-tertiary-500 dark:text-primary-500"
@@ -179,7 +179,7 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 					type="button"
 					onclick={() => modalState.trigger(AccessibilityHelp)}
 					aria-label={applayout_accessibility_help()}
-					class="h-10 w-10 rounded text-surface-900 dark:text-surface-50"
+					class="h-10 w-10 rounded text-(--admin-text-body)"
 				>
 					<iconify-icon icon="mdi:accessibility" width="20"></iconify-icon>
 				</Button>
@@ -190,7 +190,6 @@ Middle-ground height (h-[38px]), fixed dropdown borders, and right-aligned mobil
 				tooltipPlacement="bottom"
 				iconSize={20}
 				buttonClass="h-10 w-10"
-				iconClass="text-white"
 			/>
 		</div>
 	</div>

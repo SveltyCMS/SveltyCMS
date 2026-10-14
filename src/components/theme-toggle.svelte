@@ -34,7 +34,7 @@ Relies on the centralized `themeStore` for state and logic.
 		variant = 'outline',
 		buttonClass = variant === 'ghost' || variant === 'transparent'
 			? 'text-(--admin-text-body)'
-			: 'border border-surface-500/30 rounded-full dark:border-surface-500/40 dark:text-white',
+			: 'border border-(--admin-border-default) rounded-full dark:text-(--admin-text-body)',
 		iconSize = 22,
 		iconClass = ''
 	}: Props = $props();

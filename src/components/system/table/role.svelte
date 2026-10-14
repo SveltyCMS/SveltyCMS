@@ -26,6 +26,9 @@
 	const { value, roles = [] } = $props();
 
 	const findRole = (roleId: string): Role | undefined => {
+		// An empty value must not resolve: `includes("")` is true for every role,
+		// so an unset role used to render the FIRST role in the list.
+		if (!roleId) return undefined;
 		// Exact _id match first
 		let role = roles.find((r: Role) => r._id === roleId);
 		// Fallback: case-insensitive name match
@@ -62,11 +65,11 @@
 
 	const roleName = (roleId: string) => {
 		const role = findRole(roleId);
-		if (!role) {
-			const defaultRole = findRole('user');
-			return defaultRole?.name || 'User';
-		}
-		return role.name || 'User';
+		// An unresolved role renders the value it was given — never another role's
+		// name. The old fallback returned the "user"/guest role, so a stale or
+		// unknown role id silently displayed a *different* role's label.
+		if (!role) return roleId || 'User';
+		return role.name || String(role._id || 'User');
 	};
 </script>
 

@@ -42,6 +42,8 @@ Features:
 	} from '@src/paraglide/messages';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 
 	interface Props {
 		close?: (result?: { schema: ParsedSchemaResult } | null) => void;
@@ -141,7 +143,7 @@ Features:
 </script>
 
 <div class="space-y-4" data-testid="modal-schema-ingestion">
-	<p class="text-sm text-surface-600 dark:text-surface-400 leading-relaxed">
+	<p class="text-sm text-(--admin-text-muted) leading-relaxed">
 		{builder_ingest_intro_part1()}{' '}
 		<code class="font-mono text-tertiary-600 dark:text-primary-500"
 			>{builder_ingest_create_table()}</code
@@ -150,7 +152,7 @@ Features:
 	</p>
 
 	<!-- Tab Bar -->
-	<div class="flex border-b border-surface-500/20 gap-2">
+	<div class="flex border-b border-(--admin-border-default) gap-2">
 		<Button
 			type="button"
 			variant="transparent"
@@ -158,7 +160,7 @@ Features:
 			class="h-auto! rounded-none px-4! py-2! text-sm! font-semibold! border-b-2 {activeTab ===
 			'sql'
 				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
-				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+				: 'border-transparent text-(--admin-text-muted) hover:text-(--admin-text-body)'}"
 			onclick={() => {
 				activeTab = 'sql';
 			}}
@@ -175,7 +177,7 @@ Features:
 			class="h-auto! rounded-none px-4! py-2! text-sm! font-semibold! border-b-2 {activeTab ===
 			'json'
 				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
-				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+				: 'border-transparent text-(--admin-text-muted) hover:text-(--admin-text-body)'}"
 			onclick={() => {
 				activeTab = 'json';
 			}}
@@ -192,7 +194,7 @@ Features:
 			class="h-auto! rounded-none px-4! py-2! text-sm! font-semibold! border-b-2 {activeTab ===
 			'database'
 				? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
-				: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+				: 'border-transparent text-(--admin-text-muted) hover:text-(--admin-text-body)'}"
 			onclick={() => {
 				activeTab = 'database';
 			}}
@@ -208,7 +210,7 @@ Features:
 	{#if activeTab === 'sql'}
 		<div class="space-y-3">
 			<div class="flex items-center justify-between">
-				<p class="text-xs text-surface-500">
+				<p class="text-xs text-(--admin-text-muted)">
 					{builder_ingest_ddl_hint_part1()}{' '}<code
 						class="font-mono text-tertiary-600 dark:text-primary-500"
 						>{builder_ingest_create_table()}</code
@@ -225,13 +227,14 @@ Features:
 				</Button>
 			</div>
 
-			<textarea
+			<Textarea
 				aria-label={builder_ingest_ddl_aria()}
 				bind:value={sqlInput}
-				rows="7"
+				rows={7}
 				placeholder={builder_ingest_ddl_placeholder()}
-				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
-				data-testid="ingest-sql-textarea"></textarea>
+				textareaClass="font-mono text-xs"
+				data-testid="ingest-sql-textarea"
+			/>
 		</div>
 	{/if}
 
@@ -239,7 +242,7 @@ Features:
 	{#if activeTab === 'json'}
 		<div class="space-y-3">
 			<div class="flex items-center justify-between">
-				<p class="text-xs text-surface-500">
+				<p class="text-xs text-(--admin-text-muted)">
 					{builder_ingest_json_hint()}
 				</p>
 				<Button
@@ -254,37 +257,34 @@ Features:
 			</div>
 
 			<div>
-				<label
-					class="block mb-1 text-xs font-medium text-surface-600 dark:text-surface-400"
-					for="json-col-name"
-				>
+				<label class="block mb-1 text-xs font-medium text-(--admin-text-muted)" for="json-col-name">
 					{builder_ingest_json_name_label()}
 				</label>
-				<input
+				<Input
 					aria-label={builder_ingest_json_name_aria()}
 					id="json-col-name"
 					type="text"
 					bind:value={jsonCollectionName}
 					placeholder={builder_ingest_json_name_placeholder()}
-					class="w-full rounded-lg border border-surface-500/30 bg-(--admin-bg-input) px-3 py-1.5 text-sm text-(--admin-text-body) focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40"
 					data-testid="ingest-json-name-input"
 				/>
 			</div>
 
-			<textarea
+			<Textarea
 				aria-label={builder_ingest_json_aria()}
 				bind:value={jsonInput}
-				rows="6"
+				rows={6}
 				placeholder={builder_ingest_json_placeholder()}
-				class="w-full rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 font-mono text-xs text-surface-900 focus:border-tertiary-500 dark:focus:border-primary-500 focus:outline-hidden dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-100"
-				data-testid="ingest-json-textarea"></textarea>
+				textareaClass="font-mono text-xs"
+				data-testid="ingest-json-textarea"
+			/>
 		</div>
 	{/if}
 
 	<!-- Tab 3: Live Database Introspection via SmartImporter -->
 	{#if activeTab === 'database'}
 		<div
-			class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-4 dark:border-surface-500/40 dark:bg-surface-900/20 space-y-3"
+			class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-chip) p-4 space-y-3"
 		>
 			<div class="flex items-center gap-2">
 				<iconify-icon
@@ -294,7 +294,7 @@ Features:
 				></iconify-icon>
 				<h4 class="font-semibold text-sm">{builder_ingest_smart_heading()}</h4>
 			</div>
-			<p class="text-xs text-surface-600 dark:text-surface-400 leading-relaxed">
+			<p class="text-xs text-(--admin-text-muted) leading-relaxed">
 				{builder_ingest_smart_intro()}
 			</p>
 			<div class="pt-2">
@@ -325,7 +325,7 @@ Features:
 	<!-- Parsed Preview -->
 	{#if parsedResult}
 		<div
-			class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/20 space-y-2"
+			class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-chip) p-3 space-y-2"
 		>
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2">
@@ -348,7 +348,7 @@ Features:
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-44 overflow-y-auto p-1">
 				{#each parsedResult.fields as field (field.db_fieldName)}
 					<div
-						class="flex items-center justify-between rounded border border-surface-500/20 bg-(--admin-bg-card) px-2.5 py-1.5 text-xs dark:bg-surface-800"
+						class="flex items-center justify-between rounded border border-(--admin-border-default) bg-(--admin-bg-card) px-2.5 py-1.5 text-xs"
 					>
 						<span class="font-medium truncate max-w-30">{field.label}</span>
 						<div class="flex items-center gap-1">
@@ -366,7 +366,7 @@ Features:
 	{/if}
 
 	<!-- Modal Actions Footer -->
-	<footer class="flex justify-end pt-4 border-t border-surface-500/20 gap-2">
+	<footer class="flex justify-end pt-4 border-t border-(--admin-border-default) gap-2">
 		<Button variant="outline" type="button" onclick={() => close?.(null)}>{button_cancel()}</Button>
 		{#if activeTab !== 'database'}
 			<Button

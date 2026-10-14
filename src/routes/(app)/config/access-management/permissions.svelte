@@ -24,6 +24,7 @@ It provides the following functionality:
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
+	import FloatingInput from '@components/ui/floating-input.svelte';
 	import {
 		access_permissions_action,
 		access_permissions_assign_all_title,
@@ -284,7 +285,7 @@ It provides the following functionality:
 			case 'manage':
 				return 'bg-tertiary-500/10 text-tertiary-600 dark:text-tertiary-400';
 			default:
-				return 'bg-surface-500/10 text-surface-600 dark:text-surface-400';
+				return 'bg-(--admin-bg-chip) text-(--admin-text-muted)';
 		}
 	}
 </script>
@@ -292,40 +293,34 @@ It provides the following functionality:
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<h3 class="mb-2 text-center text-xl font-bold text-surface-900 dark:text-surface-50">
+	<h3 class="mb-2 text-center text-xl font-bold text-(--admin-text-body)">
 		{access_permissions_heading()}
 	</h3>
-	<p class="mb-6 text-center text-sm text-surface-500 dark:text-surface-400">
+	<p class="mb-6 text-center text-sm text-(--admin-text-muted)">
 		{access_permissions_intro()}
 	</p>
 
 	<div class="sticky top-0 z-10 mb-6 flex items-center justify-between">
-		<div class="relative w-full">
-			<div
-				class="absolute inset-y-0 inset-s-0 ps-3.5 flex items-center pointer-events-none text-surface-400"
-			>
-				<iconify-icon icon="material-symbols:search-rounded" width="20"></iconify-icon>
-			</div>
-			<input
-				type="text"
-				aria-label={access_permissions_search_aria()}
-				placeholder={access_permissions_search_placeholder()}
+		<div class="w-full">
+			<FloatingInput
 				bind:value={searchTerm}
-				class="w-full ps-11 pe-4 py-2.5 rounded border border-surface-500/30 bg-(--admin-bg-card) text-surface-900 dark:text-surface-100 focus:outline-hidden focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500 placeholder-surface-400 dark:placeholder-surface-500 transition-all text-sm shadow-xs"
+				label={access_permissions_search_placeholder()}
+				icon="mdi:magnify"
+				aria-label={access_permissions_search_aria()}
 			/>
 		</div>
 	</div>
 
 	{#if filteredPermissions.length === 0}
 		<div
-			class="text-center py-8 border border-dashed border-(--admin-border-default) rounded bg-surface-500/10 dark:bg-surface-900"
+			class="text-center py-8 border border-dashed border-(--admin-border-default) rounded bg-(--admin-bg-chip)"
 		>
 			<iconify-icon
 				icon="material-symbols:search-off-rounded"
 				width="32"
-				class="text-surface-400 mb-2"
+				class="text-(--admin-text-muted) mb-2"
 			></iconify-icon>
-			<p class="text-surface-500 dark:text-surface-400 text-sm">
+			<p class="text-(--admin-text-muted) text-sm">
 				{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
 			</p>
 		</div>
@@ -333,7 +328,7 @@ It provides the following functionality:
 		<!-- Admin Notice -->
 		{#if adminRole}
 			<div
-				class="mb-4 flex items-center justify-center gap-1.5 text-xs text-surface-500 dark:text-surface-400 bg-surface-500/10 dark:bg-surface-900/20 border border-(--admin-border-default) py-2 px-4 rounded w-max mx-auto shadow-xs"
+				class="mb-4 flex items-center justify-center gap-1.5 text-xs text-(--admin-text-muted) bg-(--admin-bg-chip) border border-(--admin-border-default) py-2 px-4 rounded w-max mx-auto shadow-xs"
 			>
 				<span class="font-extrabold text-error-500">*</span>
 				<span
@@ -349,12 +344,10 @@ It provides the following functionality:
 		>
 			<table class="w-full text-start border-collapse table-auto">
 				<!-- Header -->
-				<thead
-					class="bg-surface-500/10 dark:bg-surface-500/10 border-b border-(--admin-border-default)"
-				>
+				<thead class="bg-(--admin-bg-sidebar) border-b border-(--admin-border-default)">
 					<tr>
 						<th
-							class="px-3 py-3 font-semibold text-surface-600 dark:text-surface-400 w-2/5"
+							class="px-3 py-3 font-semibold text-(--admin-text-muted) w-2/5"
 							aria-sort={sortBy === 'name'
 								? sortOrder === 1
 									? 'ascending'
@@ -366,7 +359,7 @@ It provides the following functionality:
 								positioning={{ placement: 'top' }}
 							>
 								<button
-									class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
+									class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-(--admin-text-muted) hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 									onclick={() => handleSort('name')}
 									aria-label={access_permissions_sort_name_aria()}
 								>
@@ -397,7 +390,7 @@ It provides the following functionality:
 								positioning={{ placement: 'top' }}
 							>
 								<button
-									class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-surface-600 hover:text-tertiary-500 dark:text-primary-600 dark:hover:text-tertiary-500 transition-colors mx-auto"
+									class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-(--admin-text-muted) hover:text-tertiary-500 dark:text-primary-600 dark:hover:text-tertiary-500 transition-colors mx-auto"
 									onclick={() => handleSort('action')}
 									aria-label={access_permissions_sort_action_aria()}
 								>
@@ -420,7 +413,7 @@ It provides the following functionality:
 						{#each roles as role (role._id)}
 							{#if !role.isAdmin}
 								{@const headerState = getHeaderCheckboxState(role)}
-								<th class="px-3 py-3 dark:text-surface-50 text-center" scope="col">
+								<th class="px-3 py-3 text-center" scope="col">
 									<div class="flex flex-col items-center gap-1.5">
 										<SystemTooltip
 											title={`Permissions for the ${role.name} role`}
@@ -429,7 +422,7 @@ It provides the following functionality:
 											tabindex={null}
 										>
 											<span
-												class="text-xs font-semibold tracking-wider uppercase text-surface-600 dark:text-surface-400"
+												class="text-xs font-semibold tracking-wider uppercase text-(--admin-text-muted)"
 												>{role.name}</span
 											>
 										</SystemTooltip>
@@ -444,7 +437,7 @@ It provides the following functionality:
 												onchange={(e) => toggleAllForRole(role._id, e.currentTarget.checked)}
 											/>
 											<button
-												class="flex items-center justify-center p-0.5 rounded-sm border border-(--admin-border-default) hover:bg-surface-500/10 dark:hover:bg-surface-800 text-surface-500 hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
+												class="flex items-center justify-center p-0.5 rounded-sm border border-(--admin-border-default) hover:bg-(--admin-bg-chip) text-(--admin-text-muted) hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 												onclick={() => toggleAllForRole(role._id, true)}
 												title={access_permissions_assign_all_title()}
 												aria-label={`Assign ${role.name} to all filtered permissions`}
@@ -458,12 +451,12 @@ It provides the following functionality:
 						{/each}
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+				<tbody class="divide-y divide-(--admin-border-subtle)">
 					<!-- Permission Groups -->
 					{#each groups as group (group)}
 						{#if filterGroups(filteredPermissions, group).length > 0}
 							<!-- Group Name -->
-							<tr class="bg-surface-500/70 dark:bg-surface-900/20">
+							<tr class="bg-(--admin-bg-sidebar)">
 								<td
 									colspan={nonAdminRolesCount + 2}
 									class="px-3 py-2 font-bold text-xs tracking-wider uppercase text-(--admin-text-body) border-y border-(--admin-border-default)"
@@ -473,9 +466,9 @@ It provides the following functionality:
 							</tr>
 							<!-- Permissions within the Group -->
 							{#each filterGroups(filteredPermissions, group) as permission (permission._id)}
-								<tr class="hover:bg-surface-500/40 dark:hover:bg-surface-850/40 transition-colors">
+								<tr class="hover:bg-(--admin-bg-chip) transition-colors">
 									<!-- Type -->
-									<td class="px-3 py-2 text-sm text-surface-600 dark:text-surface-400 font-medium">
+									<td class="px-3 py-2 text-sm text-(--admin-text-muted) font-medium">
 										<span class="inline-flex items-center gap-1.5">
 											{permission.name}
 											{#if permission.description}

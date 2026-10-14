@@ -327,7 +327,7 @@
 		>
 			<div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden py-2">
 				<div
-					class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-color:color-mix(in_srgb,var(--color-surface-400)_45%,transparent)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-surface-400/40 dark:[&::-webkit-scrollbar-thumb]:bg-surface-500/50"
+					class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto [scrollbar-color:color-mix(in_srgb,var(--admin-text-muted)_45%,transparent)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-(--admin-border-default)"
 				>
 					<Stepper
 						{steps}
@@ -339,7 +339,7 @@
 						onStepClick={selectSetupStep}
 					/>
 				</div>
-				<div class="shrink-0 border-t border-surface-500/30 pt-3 dark:border-surface-500/40 p-4">
+				<div class="shrink-0 border-t border-(--admin-border-default) pt-3 p-4">
 					<h4 class="mb-4 w-full text-center text-sm font-semibold">
 						{setup_legend()}
 					</h4>
@@ -353,11 +353,11 @@
 											? ' bg-tertiary-500 dark:bg-primary-500 text-white'
 											: item.key === 'current'
 												? 'bg-error-500 text-white shadow-sm'
-												: 'bg-surface-200 text-surface-600 ring-1 ring-surface-300 dark:bg-surface-700 dark:text-surface-300 dark:ring-surface-600'}"
+												: 'bg-(--admin-border-subtle) text-(--admin-text-muted) ring-1 ring-(--admin-border-default)'}"
 									>
 										<span class="text-[0.65rem]">{item.content}</span>
 									</div>
-									<span class="text-surface-600 dark:text-surface-400">{item.label}</span>
+									<span class="text-(--admin-text-muted)">{item.label}</span>
 								</li>
 							{/each}
 						</ul>
@@ -371,9 +371,7 @@
 			 Redis / multi-tenant expand scrolls inside step-content and cannot reflow
 			 the navigation. overflow-clip (not hidden) so browser focus-scrolling
 			 can never drag the footer. -->
-		<main
-			class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip bg-surface-500/10 dark:bg-surface-900"
-		>
+		<main class="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-clip bg-(--admin-bg-page)">
 			<!-- Mobile Stepper (shared UI Stepper) -->
 			<div
 				class="z-10 shrink-0 border-b border-(--admin-border-default) bg-(--admin-bg-card) p-4 lg:hidden"

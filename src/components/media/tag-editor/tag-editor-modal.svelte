@@ -331,7 +331,7 @@ Features:
 						</div>
 						{#if pendingCount === 0 && !hideGenerate}
 							<Button
-								color="var(--color-primary-500)"
+								variant="primary"
 								size="sm"
 								onclick={handleAITagging}
 								disabled={isGenerating}
@@ -418,7 +418,7 @@ Features:
 
 					{#if pendingCount > 0}
 						<Button
-							color="var(--color-primary-500)"
+							variant="primary"
 							size="sm"
 							onclick={saveAITags}
 							disabled={isSaving}

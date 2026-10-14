@@ -25,7 +25,7 @@ Displays the current step title and icon, and a reset button.
 	class="flex shrink-0 justify-between rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-2"
 >
 	<h2
-		class="flex justify-center items-center text-lg font-semibold tracking-tight sm:text-xl text-surface-900 dark:text-surface-50"
+		class="flex justify-center items-center text-lg font-semibold tracking-tight sm:text-xl text-(--admin-text-body)"
 	>
 		{#if icons[currentStep]}
 			<iconify-icon
@@ -43,7 +43,7 @@ Displays the current step title and icon, and a reset button.
 			type="button"
 			aria-label={setup_reset_data()}
 			size="sm"
-			class="text-surface-900 dark:text-surface-50"
+			class="text-(--admin-text-body)"
 		>
 			<iconify-icon icon="mdi:backup-restore" width={24} class="me-1"></iconify-icon>
 			<span>{setup_reset_data()}</span>

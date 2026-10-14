@@ -383,9 +383,7 @@ Features:
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50"
-							>{setup_system_site_name?.() || 'CMS Name'}</span
-						>
+						<span class="text-(--admin-text-body)">{setup_system_site_name?.() || 'CMS Name'}</span>
 						<SystemTooltip title={setup_help_site_name()}>
 							<HelpIcon ariaLabel={setup_help_site_name_aria()} />
 						</SystemTooltip>
@@ -411,7 +409,7 @@ Features:
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50"
+						<span class="text-(--admin-text-body)"
 							>{setup_system_host_prod?.() || 'Production URL'}</span
 						>
 						<SystemTooltip title={setup_help_host_prod?.() || 'The production URL...'}>
@@ -439,9 +437,7 @@ Features:
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50"
-							>{setup_system_timezone?.() || 'Timezone'}</span
-						>
+						<span class="text-(--admin-text-body)">{setup_system_timezone?.() || 'Timezone'}</span>
 						<SystemTooltip title={setup_help_timezone?.() || 'Default system timezone'}>
 							<HelpIcon ariaLabel={setup_help_timezone_aria()} />
 						</SystemTooltip>
@@ -468,7 +464,7 @@ Features:
 								<iconify-icon
 									icon="mdi:chevron-down"
 									width="16"
-									class="ms-auto shrink-0 text-surface-400"
+									class="ms-auto shrink-0 text-(--admin-text-muted)"
 								></iconify-icon>
 							</Button>
 						{/snippet}
@@ -494,10 +490,10 @@ Features:
 		</section>
 
 		<!-- Languages -->
-		<section class="space-y-5 border-t border-surface-500/30 dark:border-surface-500/30 pt-2">
+		<section class="space-y-5 border-t border-(--admin-border-default) pt-2">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 				<!-- Default System Language -->
-				<div class="space-y-2 rounded border border-surface-500/30 dark:border-surface-500/20 p-4">
+				<div class="space-y-2 rounded border border-(--admin-border-subtle) p-4">
 					<label for="default-system-lang" class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon
 							icon="mdi:translate"
@@ -505,7 +501,7 @@ Features:
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50"
+						<span class="text-(--admin-text-body)"
 							>{setup_label_default_system_language?.() || 'Default System Language'}</span
 						>
 						<SystemTooltip title={setup_help_default_system_language()}>
@@ -531,7 +527,7 @@ Features:
 								class="text-tertiary-500 dark:text-primary-500"
 								aria-hidden="true"
 							></iconify-icon>
-							<span class="text-surface-900 dark:text-surface-50"
+							<span class="text-(--admin-text-body)"
 								>{setup_label_system_languages?.() || 'System Languages'}</span
 							>
 							<SystemTooltip title={setup_help_system_languages()}>
@@ -563,7 +559,7 @@ Features:
 										<Button
 											variant="transparent"
 											type="button"
-											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-surface-500/20 transition-colors"
+											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-(--admin-bg-chip) transition-colors"
 											onclick={() => removeSystemLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
@@ -592,7 +588,7 @@ Features:
 							{#if showSystemPicker}
 								<div
 									id="system-lang-picker"
-									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-surface-500/30 dark:border-surface-500/30 bg-(--admin-bg-card) p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-2 shadow-xl"
 									role="dialog"
 									aria-label={setup_aria_add_system_language()}
 									tabindex="-1"
@@ -620,7 +616,7 @@ Features:
 												onclick={() => addSystemLanguage(sug.code)}
 												aria-label="Add language: {sug.name}"
 											>
-												<span class="text-surface-900 dark:text-surface-50"
+												<span class="text-(--admin-text-body)"
 													>{sug.name} ({sug.code.toUpperCase()})
 													<span class="text-(--admin-text-muted)">- {sug.native}</span></span
 												>
@@ -648,7 +644,7 @@ Features:
 					</div>
 				</div>
 				<!-- Default Content Language -->
-				<div class="space-y-2 rounded border border-surface-500/30 dark:border-surface-500/20 p-4">
+				<div class="space-y-2 rounded border border-(--admin-border-subtle) p-4">
 					<div class="mb-1 flex items-center gap-1 text-sm font-medium">
 						<iconify-icon
 							icon="mdi:book-open-page-variant"
@@ -656,7 +652,7 @@ Features:
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50"
+						<span class="text-(--admin-text-body)"
 							>{setup_label_default_content_language?.() || 'Default Content Language'}</span
 						>
 						<SystemTooltip title={setup_help_default_content_language()}>
@@ -681,7 +677,7 @@ Features:
 								class="text-tertiary-500 dark:text-primary-500"
 								aria-hidden="true"
 							></iconify-icon>
-							<span class="text-surface-900 dark:text-surface-50"
+							<span class="text-(--admin-text-body)"
 								>{setup_label_content_languages?.() || 'Content Languages'}</span
 							>
 							<SystemTooltip title={setup_help_content_languages()}>
@@ -701,7 +697,7 @@ Features:
 										<Button
 											variant="transparent"
 											type="button"
-											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-surface-500/20 transition-colors"
+											class="flex items-center justify-center -me-1.5 p-0.5! h-auto! min-w-0! rounded-full! hover:bg-(--admin-bg-chip) transition-colors"
 											onclick={() => removeContentLang(lang)}
 											aria-label={`Remove ${displayLang(lang)}`}
 										>
@@ -728,7 +724,7 @@ Features:
 							{#if showContentPicker}
 								<div
 									id="content-lang-picker"
-									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-white/10 bg-surface-800 p-2 shadow-xl"
+									class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-(--admin-border-default) bg-(--admin-bg-overlay) p-2 shadow-xl"
 									role="dialog"
 									aria-label={setup_aria_add_content_language()}
 									tabindex="-1"
@@ -756,7 +752,7 @@ Features:
 												onclick={() => addContentLanguage(sug.code)}
 												aria-label="Add content language: {sug.name}"
 											>
-												<span class="text-surface-900 dark:text-surface-50"
+												<span class="text-(--admin-text-body)"
 													>{sug.name} ({sug.code.toUpperCase()})
 													<span class="text-(--admin-text-muted)">- {sug.native}</span></span
 												>
@@ -783,7 +779,7 @@ Features:
 		</section>
 
 		<!-- Media Storage -->
-		<section class="space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30">
+		<section class="space-y-4 border-t border-(--admin-border-default) pt-4">
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2 items-start">
 				<!-- Media Storage Configuration -->
 				<div class="space-y-2">
@@ -794,7 +790,7 @@ Features:
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50"
+						<span class="text-(--admin-text-body)"
 							>{setup_system_media_type?.() || 'Media Storage Type'}</span
 						>
 						<SystemTooltip title={setup_help_media_type?.() || setup_help_media_path()}>
@@ -819,7 +815,7 @@ Features:
 							class="text-tertiary-500 dark:text-primary-500"
 							aria-hidden="true"
 						></iconify-icon>
-						<span class="text-surface-900 dark:text-surface-50">
+						<span class="text-(--admin-text-body)">
 							{systemSettings.mediaStorageType === 'local'
 								? setup_system_media_folder_local?.() || 'Media Folder Path'
 								: setup_system_media_folder_cloud?.() || 'Bucket/Cloud Name'}
@@ -843,7 +839,7 @@ Features:
 		</section>
 
 		<!-- Cloudflare CDN — collapsible (default collapsed; auto-expands for cloud storage) -->
-		<section class="space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30">
+		<section class="space-y-4 border-t border-(--admin-border-default) pt-4">
 			<div class="flex items-center gap-2">
 				<Button
 					variant="transparent"
@@ -853,7 +849,7 @@ Features:
 					aria-label={cdnExpanded
 						? 'Collapse Advanced: Enterprise Scaling (Cloudflare CDN)'
 						: 'Expand Advanced: Enterprise Scaling (Cloudflare CDN)'}
-					class="flex items-center gap-2 p-0! h-auto! min-w-0! text-base font-medium! text-surface-900 dark:text-surface-50"
+					class="flex items-center gap-2 p-0! h-auto! min-w-0! text-base font-medium! text-(--admin-text-body)"
 				>
 					<iconify-icon icon={cdnExpanded ? 'mdi:chevron-up' : 'mdi:chevron-down'} width="18"
 					></iconify-icon>
@@ -883,7 +879,7 @@ Features:
 			</div>
 
 			{#if cdnExpanded}
-				<div class="space-y-4 rounded border border-surface-500/30 dark:border-surface-500/30 p-4">
+				<div class="space-y-4 rounded border border-(--admin-border-default) p-4">
 					<p class="text-xs text-(--admin-text-muted)">
 						Configure native CDN purging to synchronize global edge nodes instantly upon content
 						updates.
@@ -898,7 +894,7 @@ Features:
 						>
 							{#snippet labelSnippet()}
 								<span
-									class="flex items-center gap-1 text-base font-medium text-surface-900 dark:text-surface-50"
+									class="flex items-center gap-1 text-base font-medium text-(--admin-text-body)"
 								>
 									Cloudflare API Token
 									<SystemTooltip
@@ -917,7 +913,7 @@ Features:
 						>
 							{#snippet labelSnippet()}
 								<span
-									class="flex items-center gap-1 text-base font-medium text-surface-900 dark:text-surface-50"
+									class="flex items-center gap-1 text-base font-medium text-(--admin-text-body)"
 								>
 									Cloudflare Zone ID
 									<SystemTooltip
@@ -940,7 +936,7 @@ Features:
 						>
 							{#snippet labelSnippet()}
 								<span
-									class="flex items-center gap-1 text-base font-medium text-surface-900 dark:text-surface-50"
+									class="flex items-center gap-1 text-base font-medium text-(--admin-text-body)"
 								>
 									Purge Strategy
 									<SystemTooltip
@@ -963,10 +959,10 @@ Features:
 		<!-- System Infrastructure / Mode -->
 		<section
 			id="infrastructure-section"
-			class="space-y-4 border-t border-surface-500/30 pt-4 dark:border-surface-500/30"
+			class="space-y-4 border-t border-(--admin-border-default) pt-4"
 		>
 			<h4
-				class="flex items-center gap-2 text-sm font-semibold text-surface-500 dark:text-primary-500"
+				class="flex items-center gap-2 text-sm font-semibold text-(--admin-text-muted) dark:text-primary-500"
 			>
 				<iconify-icon icon="mdi:server-network" width="18"></iconify-icon>
 				{setup_system_infrastructure_mode?.() || 'System Infrastructure / Mode'}

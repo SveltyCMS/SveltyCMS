@@ -1428,7 +1428,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	<!-- Save Bar (admin theme edits only) -->
 	{#if hasChanges && isAdmin && activeTab !== 'overrides' && activeTab !== 'preview'}
 		<div
-			class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-(--admin-border-default) bg-white/90 dark:bg-surface-900/90 backdrop-blur-md flex items-center justify-between"
+			class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 backdrop-blur-md flex items-center justify-between"
 		>
 			<p class="text-sm text-warning-600 dark:text-warning-400 font-medium">
 				<iconify-icon icon="mdi:alert-circle" class="inline me-1" width="16"></iconify-icon>

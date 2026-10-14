@@ -133,9 +133,7 @@
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50"
-						>{form_username?.() || 'Username'}</span
-					>
+					<span class="text-(--admin-text-body)">{form_username?.() || 'Username'}</span>
 					<SystemTooltip title={setup_help_admin_username()}>
 						<HelpIcon ariaLabel={setup_help_admin_username?.() || 'Help: Username'} />
 					</SystemTooltip>
@@ -168,7 +166,7 @@
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50">{form_email?.() || 'Email'}</span>
+					<span class="text-(--admin-text-body)">{form_email?.() || 'Email'}</span>
 					<SystemTooltip title={setup_help_admin_email()}>
 						<HelpIcon ariaLabel={setup_help_admin_email?.() || 'Help: Email'} />
 					</SystemTooltip>
@@ -201,7 +199,7 @@
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50">{form_password()}</span>
+					<span class="text-(--admin-text-body)">{form_password()}</span>
 					<SystemTooltip title={setup_help_admin_password()}>
 						<HelpIcon ariaLabel={setup_help_admin_password?.() || 'Help: Password'} />
 					</SystemTooltip>
@@ -226,7 +224,7 @@
 							tabindex={-1}
 							onclick={() => (showAdminPassword = !showAdminPassword)}
 							aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
-							class="w-full! h-full! p-0! min-w-0 text-surface-500! dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100"
+							class="w-full! h-full! p-0! min-w-0 text-(--admin-text-muted)! hover:text-(--admin-text-body)"
 						>
 							<iconify-icon
 								icon={showAdminPassword ? 'mdi:eye-off' : 'mdi:eye'}
@@ -243,7 +241,7 @@
 					{const score = Object.values(passwordRequirements).filter(Boolean).length}
 					<div class="space-y-4">
 						<div
-							class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+							class="flex h-1.5 w-full gap-1 overflow-hidden rounded-full bg-(--admin-border-subtle)"
 						>
 							<div
 								class="h-full transition-all duration-500 {score >= 1 ? 'bg-error-500' : ''}"
@@ -274,9 +272,13 @@
 							></div>
 						</div>
 						<div class="flex justify-between text-[10px] font-bold uppercase tracking-wider">
-							<span class={score >= 1 ? 'text-error-500' : 'text-surface-400'}>Weak</span>
-							<span class={score >= 3 ? 'text-warning-500' : 'text-surface-400'}>Moderate</span>
-							<span class={score >= 5 ? 'text-success-500' : 'text-surface-400'}>Strong</span>
+							<span class={score >= 1 ? 'text-error-500' : 'text-(--admin-text-muted)'}>Weak</span>
+							<span class={score >= 3 ? 'text-warning-500' : 'text-(--admin-text-muted)'}
+								>Moderate</span
+							>
+							<span class={score >= 5 ? 'text-success-500' : 'text-(--admin-text-muted)'}
+								>Strong</span
+							>
 						</div>
 					</div>
 				{/if}
@@ -294,7 +296,7 @@
 						class="text-tertiary-500 dark:text-primary-500"
 						aria-hidden="true"
 					></iconify-icon>
-					<span class="text-surface-900 dark:text-surface-50"
+					<span class="text-(--admin-text-body)"
 						>{form_confirmpassword?.() || 'Confirm Password'}</span
 					>
 					<SystemTooltip title={setup_help_admin_confirm_password()}>
@@ -325,7 +327,7 @@
 							aria-label={showConfirmPassword
 								? 'Hide password confirmation'
 								: 'Show password confirmation'}
-							class="w-full! h-full! p-0! min-w-0 text-surface-500! dark:text-surface-400 hover:text-surface-900 dark:hover:text-surface-100"
+							class="w-full! h-full! p-0! min-w-0 text-(--admin-text-muted)! hover:text-(--admin-text-body)"
 						>
 							<iconify-icon
 								icon={showConfirmPassword ? 'mdi:eye-off' : 'mdi:eye'}
@@ -353,12 +355,12 @@
 				<li
 					class="flex items-center font-semibold {passwordRequirements.length
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-50'}"
+						: 'text-(--admin-text-muted)'}"
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.length
 							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
-							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
+							: 'border-(--admin-border-default) bg-(--admin-bg-chip) text-(--admin-text-muted)'}"
 					>
 						{#if passwordRequirements.length}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
@@ -371,12 +373,12 @@
 				<li
 					class="flex items-center font-semibold {passwordRequirements.letter
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-50'}"
+						: 'text-(--admin-text-muted)'}"
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.letter
 							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
-							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
+							: 'border-(--admin-border-default) bg-(--admin-bg-chip) text-(--admin-text-muted)'}"
 					>
 						{#if passwordRequirements.letter}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
@@ -389,12 +391,12 @@
 				<li
 					class="flex items-center font-semibold {passwordRequirements.number
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-50'}"
+						: 'text-(--admin-text-muted)'}"
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.number
 							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
-							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
+							: 'border-(--admin-border-default) bg-(--admin-bg-chip) text-(--admin-text-muted)'}"
 					>
 						{#if passwordRequirements.number}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
@@ -407,12 +409,12 @@
 				<li
 					class="flex items-center font-semibold {passwordRequirements.special
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-50'}"
+						: 'text-(--admin-text-muted)'}"
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.special
 							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
-							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
+							: 'border-(--admin-border-default) bg-(--admin-bg-chip) text-(--admin-text-muted)'}"
 					>
 						{#if passwordRequirements.special}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
@@ -426,12 +428,12 @@
 				<li
 					class="flex items-center font-semibold {passwordRequirements.match
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-surface-500 dark:text-surface-50'}"
+						: 'text-(--admin-text-muted)'}"
 				>
 					<span
 						class="me-2 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border {passwordRequirements.match
 							? 'border-primary-500/30 bg-primary-500/10 text-tertiary-500 dark:text-primary-500'
-							: 'border-surface-500/30 bg-surface-500/10 text-surface-400 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-500'}"
+							: 'border-(--admin-border-default) bg-(--admin-bg-chip) text-(--admin-text-muted)'}"
 					>
 						{#if passwordRequirements.match}
 							<iconify-icon icon="mdi:check-bold" class="h-3.5 w-3.5" aria-hidden="true"
@@ -442,7 +444,7 @@
 					<span class="sr-only">, {passwordRequirements.match ? 'complete' : 'incomplete'}.</span>
 				</li>
 				<li
-					class="mt-2 flex items-center justify-center border-t border-surface-500/40 pt-2 font-bold dark:border-surface-500/30 text-(--admin-text-body)"
+					class="mt-2 flex items-center justify-center border-t border-(--admin-border-default) pt-2 font-bold text-(--admin-text-body)"
 				>
 					<span class="me-2 inline-flex h-5 w-5 items-center justify-center">
 						<iconify-icon

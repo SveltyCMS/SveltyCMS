@@ -772,12 +772,11 @@
 				<span class="hidden sm:inline">{mediagallery_new_folder()}</span>
 			</Button>
 
-			<span class="hidden h-4 w-px bg-surface-300 sm:block dark:bg-surface-700" aria-hidden="true"
-			></span>
+			<span class="hidden h-4 w-px bg-(--admin-border-default) sm:block" aria-hidden="true"></span>
 
 			<Button
 				size="sm"
-				color="var(--color-primary-500)"
+				variant="primary"
 				onclick={() => fileUploadInput?.click()}
 				disabled={isUploading}
 				aria-busy={isUploading}

@@ -42,7 +42,7 @@ Features:
 
 	<section id="welcome-body" class="space-y-4 p-4">
 		<p>{welcome_modal_body()}</p>
-		<p class="text text-surface-500 dark:text-surface-50">
+		<p class="text text-(--admin-text-muted)">
 			<span class="me-1 inline-block text-xl">⏱️</span>
 			{welcome_modal_eta()}
 		</p>

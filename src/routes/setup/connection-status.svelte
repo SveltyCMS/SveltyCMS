@@ -115,7 +115,7 @@ Features:
 		if (state === 'error') {
 			return 'text-error-600 dark:text-error-400';
 		}
-		return 'text-surface-400 dark:text-surface-600';
+		return 'text-(--admin-text-muted)';
 	}
 
 	function getStatusText(state: ConnectionState, result: TestResult | null): string {
@@ -224,7 +224,7 @@ Features:
 			? 'border-error-500/20 bg-error-500/10 dark:border-error-500/40 dark:bg-error-900/20'
 			: state === 'testing'
 				? 'border-tertiary-500/20 bg-tertiary-500/10 dark:border-tertiary-500/40 dark:bg-tertiary-900/20'
-				: 'border-surface-500/30 bg-surface-500/10 dark:text-surface-50 dark:bg-surface-800/50'}"
+				: 'border-(--admin-border-default) bg-(--admin-bg-chip)'}"
 	role="region"
 	aria-live="polite"
 	aria-atomic="true"
@@ -239,7 +239,7 @@ Features:
 				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
 				<p class="font-semibold {getStatusColor(state)}">{@html getStatusText(state, result)}</p>
 				{#if result?.latencyMs && state === 'success'}
-					<p class="text-sm text-surface-600 dark:text-surface-50">
+					<p class="text-sm text-(--admin-text-body)">
 						{setup_connection_latency({ ms: result.latencyMs })}
 					</p>
 				{/if}
@@ -266,11 +266,11 @@ Features:
 				{/if}
 
 				{#if result.stats}
-					<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
-						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">
+					<div class="rounded bg-(--admin-bg-chip) p-3">
+						<p class="mb-2 font-semibold text-(--admin-text-body)">
 							{setup_connection_stats_title()}
 						</p>
-						<div class="grid gap-1 text-surface-600 dark:text-surface-50">
+						<div class="grid gap-1 text-(--admin-text-body)">
 							{#if result.stats.collections !== undefined}
 								<div class="flex justify-between">
 									<span
@@ -301,14 +301,14 @@ Features:
 				{/if}
 
 				{#if result.collectionsSample && result.collectionsSample.length > 0}
-					<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
-						<p class="mb-2 font-semibold text-surface-900 dark:text-surface-50">
+					<div class="rounded bg-(--admin-bg-chip) p-3">
+						<p class="mb-2 font-semibold text-(--admin-text-body)">
 							{setup_connection_sample_collections()}
 						</p>
 						<div class="flex flex-wrap gap-2">
 							{#each result.collectionsSample as collection (collection)}
 								<span
-									class="rounded bg-indigo-100 px-2 py-1 font-mono text-xs text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+									class="rounded bg-tertiary-500/10 px-2 py-1 font-mono text-xs text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400"
 								>
 									{collection}
 								</span>
@@ -325,11 +325,11 @@ Features:
 		<div class="border-t border-error-500/20 bg-(--admin-bg-card) p-4 dark:border-error-500/40">
 			<!-- Technical Error Message -->
 			{#if result.error && result.error !== result.userFriendly}
-				<div class="mb-3 rounded bg-surface-500/10 p-3 dark:bg-surface-900/50">
-					<p class="mb-1 text-xs font-semibold uppercase text-surface-500 dark:text-surface-50">
+				<div class="mb-3 rounded bg-(--admin-bg-chip) p-3">
+					<p class="mb-1 text-xs font-semibold uppercase text-(--admin-text-muted)">
 						{setup_connection_technical_details()}
 					</p>
-					<p class="font-mono text-xs text-surface-600 dark:text-surface-50">{result.error}</p>
+					<p class="font-mono text-xs text-(--admin-text-body)">{result.error}</p>
 				</div>
 			{/if}
 
@@ -380,14 +380,12 @@ Features:
 			class="border-t border-tertiary-500/20 bg-(--admin-bg-card) p-4 dark:border-tertiary-500/40"
 		>
 			<div class="flex items-center gap-3">
-				<div class="h-2 flex-1 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
+				<div class="h-2 flex-1 overflow-hidden rounded-full bg-(--admin-border-subtle)">
 					<div
-						class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full bg-linear-to-r from-tertiary-500 to-indigo-500"
+						class="h-full w-1/3 animate-[slide_1.5s_ease-in-out_infinite] rounded-full gradient-tertiary"
 					></div>
 				</div>
-				<span class="text-sm text-surface-600 dark:text-surface-50"
-					>{setup_connection_connecting()}</span
-				>
+				<span class="text-sm text-(--admin-text-body)">{setup_connection_connecting()}</span>
 			</div>
 		</div>
 	{/if}

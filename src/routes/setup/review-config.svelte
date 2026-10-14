@@ -108,9 +108,7 @@ This component presents a summary of all configuration steps before finalizing t
 			<div class="space-y-4">
 				<!-- Database Configuration -->
 				<div>
-					<h3
-						class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50"
-					>
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-(--admin-text-body)">
 						<iconify-icon
 							icon="mdi:database"
 							width="24"
@@ -120,9 +118,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{setup_review_section_database?.() || 'Database Configuration'}
 					</h3>
 					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_label_database_type ? setup_label_database_type() : 'Type'}:
 							<SystemTooltip title={setup_help_database_type?.() || 'Database type'}>
 								<HelpIcon ariaLabel="Help for Database Type" />
@@ -131,9 +127,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">{dbConfig.type}</dd>
 
 						{#if dbConfig.host}
-							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-							>
+							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								{label_host?.() || 'Host'}:
 								<SystemTooltip title={setup_help_database_host?.() || 'Database host'}>
 									<HelpIcon ariaLabel="Help for Database Host" />
@@ -145,9 +139,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{/if}
 
 						{#if dbConfig.port}
-							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-							>
+							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								{label_port?.() || 'Port'}:
 								<SystemTooltip title={setup_help_database_port?.() || 'Database port'}>
 									<HelpIcon ariaLabel="Help for Database Port" />
@@ -157,9 +149,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{/if}
 
 						{#if dbConfig.name}
-							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-							>
+							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								{label_database?.() || 'Database'}:
 								<SystemTooltip title={setup_help_database_name?.() || 'Database name'}>
 									<HelpIcon ariaLabel="Help for Database Name" />
@@ -169,9 +159,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{/if}
 
 						{#if dbConfig.user}
-							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-							>
+							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								{form_username()}:
 								<SystemTooltip title={setup_help_database_user?.() || 'Database username'}>
 									<HelpIcon ariaLabel="Help for Database Username" />
@@ -183,9 +171,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{/if}
 
 						{#if dbConfig.replicaUrls && dbConfig.replicaUrls.length > 0}
-							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-							>
+							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								Read Replicas:
 								<SystemTooltip
 									title="Regional read-only replicas from Advanced Database Options (Clustering & Scaling). Connection strings are kept hidden."
@@ -202,9 +188,7 @@ This component presents a summary of all configuration steps before finalizing t
 
 				<!-- Administrator Account -->
 				<div>
-					<h3
-						class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50"
-					>
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-(--admin-text-body)">
 						<iconify-icon
 							icon="mdi:account"
 							width="24"
@@ -214,9 +198,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{setup_review_section_admin?.() || 'Administrator Account'}
 					</h3>
 					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{form_username()}:
 							<SystemTooltip title={setup_help_admin_username?.() || 'Admin username'}>
 								<HelpIcon ariaLabel="Help for Admin Username" />
@@ -225,9 +207,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{adminUser.username}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{form_email()}:
 							<SystemTooltip title={setup_help_admin_email?.() || 'Admin email'}>
 								<HelpIcon ariaLabel="Help for Admin Email" />
@@ -236,9 +216,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{redact(adminUser.email)}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{form_password()}:
 							<SystemTooltip title={setup_help_admin_password?.() || 'Admin password'}>
 								<HelpIcon ariaLabel="Help for Admin Password" />
@@ -254,9 +232,7 @@ This component presents a summary of all configuration steps before finalizing t
 
 				<!-- Media Storage -->
 				<div>
-					<h3
-						class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50"
-					>
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-(--admin-text-body)">
 						<iconify-icon
 							icon="mdi:folder"
 							width="24"
@@ -266,9 +242,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{setup_review_section_media?.() || 'Media Storage'}
 					</h3>
 					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							Storage Type:
 							<SystemTooltip
 								title={setup_help_media_path?.() || 'The storage mechanism for user uploads.'}
@@ -287,9 +261,7 @@ This component presents a summary of all configuration steps before finalizing t
 								☁️ Cloudinary
 							{/if}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{systemSettings.mediaStorageType === 'local' ? 'Folder Path' : 'Bucket Name'}:
 							<SystemTooltip
 								title="For local storage: specify the folder path (e.g., ./mediaFolder). For cloud storage: enter the bucket or container name."
@@ -305,9 +277,7 @@ This component presents a summary of all configuration steps before finalizing t
 
 				<!-- Email Configuration (SMTP) -->
 				<div>
-					<h3
-						class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50"
-					>
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-(--admin-text-body)">
 						<iconify-icon
 							icon="mdi:email"
 							width="24"
@@ -317,9 +287,7 @@ This component presents a summary of all configuration steps before finalizing t
 						Email Configuration
 					</h3>
 					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							Status:
 							<SystemTooltip
 								title="Shows if the SMTP configuration was successfully tested and saved, or skipped."
@@ -332,28 +300,28 @@ This component presents a summary of all configuration steps before finalizing t
 						</dd>
 
 						{#if emailSettings.smtpConfigured}
-							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
+							<dt class="flex items-center font-medium text-(--admin-text-body)">
 								{setup_email_host()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 								{redact(emailSettings.host)}
 							</dd>
 
-							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
+							<dt class="flex items-center font-medium text-(--admin-text-body)">
 								{setup_email_port()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 								{emailSettings.port}
 							</dd>
 
-							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
+							<dt class="flex items-center font-medium text-(--admin-text-body)">
 								{setup_email_user()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 								{redact(emailSettings.user)}
 							</dd>
 
-							<dt class="flex items-center font-medium text-surface-900 dark:text-surface-50">
+							<dt class="flex items-center font-medium text-(--admin-text-body)">
 								{setup_email_from()}:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
@@ -368,9 +336,7 @@ This component presents a summary of all configuration steps before finalizing t
 			<div class="space-y-4">
 				<!-- System Settings -->
 				<div>
-					<h3
-						class="mb-3 flex items-center font-semibold tracking-tight text-surface-900 dark:text-surface-50"
-					>
+					<h3 class="mb-3 flex items-center font-semibold tracking-tight text-(--admin-text-body)">
 						<iconify-icon
 							icon="mdi:cog"
 							width="24"
@@ -380,9 +346,7 @@ This component presents a summary of all configuration steps before finalizing t
 						{setup_review_section_system?.() || 'System Settings'}
 					</h3>
 					<dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							CMS Name:
 							<SystemTooltip title={setup_help_site_name?.() || 'The name for your CMS instance.'}>
 								<HelpIcon ariaLabel="Help for Site Name" />
@@ -393,9 +357,7 @@ This component presents a summary of all configuration steps before finalizing t
 						</dd>
 
 						<!-- Added missing preset -->
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							Project Blueprint:
 							<SystemTooltip title="The selected project blueprint/preset.">
 								<HelpIcon ariaLabel="Help for Project Blueprint" />
@@ -404,16 +366,16 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.preset}
 						</dd>
-						<dt class="font-medium text-surface-900 dark:text-surface-50">Country:</dt>
+						<dt class="font-medium text-(--admin-text-body)">Country:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.homeCountry || 'Not set'}
 						</dd>
-						<dt class="font-medium text-surface-900 dark:text-surface-50">Currency:</dt>
+						<dt class="font-medium text-(--admin-text-body)">Currency:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.currency || 'EUR'}
 							{systemSettings.pricesIncludeTax ? '(prices include tax)' : '(tax added at checkout)'}
 						</dd>
-						<dt class="font-medium text-surface-900 dark:text-surface-50">Shop language:</dt>
+						<dt class="font-medium text-(--admin-text-body)">Shop language:</dt>
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">
 							{systemSettings.storeLanguage}
 							{#if systemSettings.taxRate}
@@ -424,9 +386,7 @@ This component presents a summary of all configuration steps before finalizing t
 							{/if}
 						</dd>
 						{#if presetCollections.length > 0}
-							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-							>
+							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								Creates:
 							</dt>
 							<dd class="text-tertiary-500 dark:text-primary-500 text-sm">
@@ -434,9 +394,7 @@ This component presents a summary of all configuration steps before finalizing t
 							</dd>
 						{/if}
 
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							Production URL:
 							<SystemTooltip
 								title="The production URL where your CMS will be accessible (e.g., https://mysite.com). Used for OAuth callbacks and email links."
@@ -447,9 +405,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.hostProd}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_review_label_default_system_lang?.() || 'Default System Lang'}:
 							<SystemTooltip
 								title={setup_help_default_system_language?.() ||
@@ -461,9 +417,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">
 							{systemSettings.defaultSystemLanguage}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_review_label_system_languages?.() || 'System Languages'}:
 							<SystemTooltip
 								title={setup_help_system_languages?.() ||
@@ -475,9 +429,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">
 							{systemSettings.systemLanguages.join(', ')}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_review_label_default_content_lang?.() || 'Default Content Lang'}:
 							<SystemTooltip
 								title={setup_help_default_content_language?.() ||
@@ -489,9 +441,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">
 							{systemSettings.defaultContentLanguage}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_review_label_content_languages?.() || 'Content Languages'}:
 							<SystemTooltip
 								title={setup_help_content_languages?.() ||
@@ -503,9 +453,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold uppercase">
 							{systemSettings.contentLanguages.join(', ')}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_review_label_timezone?.() || 'Timezone'}:
 							<SystemTooltip
 								title="The default timezone for the system. Used for scheduling and date displays."
@@ -516,9 +464,7 @@ This component presents a summary of all configuration steps before finalizing t
 						<dd class="text-tertiary-500 dark:text-primary-500 font-semibold">
 							{systemSettings.timezone}
 						</dd>
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_system_multi_tenant?.() || 'Multi-Tenant Mode'}:
 							<SystemTooltip
 								title={setup_system_multi_tenant_desc?.() ||
@@ -531,9 +477,7 @@ This component presents a summary of all configuration steps before finalizing t
 							{systemSettings.multiTenant ? 'Enabled' : 'Disabled'}
 						</dd>
 
-						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-						>
+						<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 							{setup_system_demo_mode?.() || 'Demo Mode'}:
 							<SystemTooltip
 								title={setup_system_demo_mode_desc?.() ||
@@ -547,7 +491,7 @@ This component presents a summary of all configuration steps before finalizing t
 						</dd>
 
 						<dt
-							class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1"
+							class="flex items-center justify-between font-medium text-(--admin-text-body) border-t border-(--admin-border-subtle) pt-1 mt-1"
 						>
 							Redis Caching:
 							<SystemTooltip title="In-memory caching for database queries and session data.">
@@ -555,15 +499,13 @@ This component presents a summary of all configuration steps before finalizing t
 							</SystemTooltip>
 						</dt>
 						<dd
-							class="text-tertiary-500 dark:text-primary-500 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1 font-semibold"
+							class="text-tertiary-500 dark:text-primary-500 border-t border-(--admin-border-subtle) pt-1 mt-1 font-semibold"
 						>
 							{systemSettings.useRedis ? '🚀 Enabled' : 'Disabled'}
 						</dd>
 
 						{#if systemSettings.useRedis}
-							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50"
-							>
+							<dt class="flex items-center justify-between font-medium text-(--admin-text-body)">
 								Redis Host:
 								<SystemTooltip title="The connection address and port for your Redis instance.">
 									<HelpIcon ariaLabel="Help for Redis Host" />
@@ -576,7 +518,7 @@ This component presents a summary of all configuration steps before finalizing t
 
 						{#if systemSettings.cfApiToken}
 							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1"
+								class="flex items-center justify-between font-medium text-(--admin-text-body) border-t border-(--admin-border-subtle) pt-1 mt-1"
 							>
 								Cloudflare CDN:
 								<SystemTooltip title="Native Cloudflare CDN integration for edge purging.">
@@ -584,13 +526,13 @@ This component presents a summary of all configuration steps before finalizing t
 								</SystemTooltip>
 							</dt>
 							<dd
-								class="text-tertiary-500 dark:text-primary-500 border-t border-surface-100 dark:border-surface-500/40 pt-1 mt-1 font-semibold"
+								class="text-tertiary-500 dark:text-primary-500 border-t border-(--admin-border-subtle) pt-1 mt-1 font-semibold"
 							>
 								🚀 {systemSettings.cfZoneId ? 'Active' : 'Partial (Missing Zone ID)'}
 							</dd>
 							{#if systemSettings.cfZoneId}
 								<dt
-									class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 ps-4 text-xs opacity-70"
+									class="flex items-center justify-between font-medium text-(--admin-text-body) ps-4 text-xs opacity-70"
 								>
 									Zone ID:
 								</dt>
@@ -599,7 +541,7 @@ This component presents a summary of all configuration steps before finalizing t
 								</dd>
 							{/if}
 							<dt
-								class="flex items-center justify-between font-medium text-surface-900 dark:text-surface-50 ps-4 text-xs opacity-70"
+								class="flex items-center justify-between font-medium text-(--admin-text-body) ps-4 text-xs opacity-70"
 							>
 								Purge Strategy:
 							</dt>
