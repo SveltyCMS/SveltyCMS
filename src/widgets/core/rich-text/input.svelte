@@ -113,7 +113,6 @@
 		return html;
 	}
 
-	let isScrolled = $state(false);
 	let editorStateVersion = $state(0);
 	let showSlashMenu = $state(false);
 	let showSource = $state(false); // Source View Toggle
@@ -297,6 +296,7 @@
 				{
 					type: 'dropdown',
 					label: 'Font',
+					icon: 'format-font',
 					items: [
 						{
 							label: 'Default',
@@ -336,6 +336,7 @@
 				{
 					type: 'dropdown',
 					label: 'Text',
+					icon: 'format-header-pound',
 					items: [
 						{
 							label: 'Paragraph',
@@ -491,10 +492,6 @@
 		}
 	];
 
-	function handleScroll() {
-		isScrolled = window.scrollY > 120;
-	}
-
 	// Undo/redo arrows are directional — mirror them in RTL layouts.
 	function mirrorDirIcon(icon: string): string {
 		return icon === 'arrow-u-left-top' || icon === 'arrow-u-right-top' ? 'rtl:-scale-x-[-1]' : '';
@@ -559,12 +556,10 @@
 			});
 		})();
 
-		window.addEventListener('scroll', handleScroll);
 		window.addEventListener('click', closeDropdowns);
 
 		return () => {
 			editor?.destroy();
-			window.removeEventListener('scroll', handleScroll);
 			window.removeEventListener('click', closeDropdowns);
 		};
 	});
@@ -598,46 +593,52 @@
 </script>
 
 <div
-	class="my-2 relative overflow-hidden rounded border {error
+	class="my-2 relative overflow-hidden bg-white dark:bg-surface-900 dark:text-surface-50 {error
 		? 'border-error-500 bg-error-500-10'
-		: 'border-surface-500/30 dark:text-surface-50'} bg-white dark:bg-surface-900"
+		: ''}"
+	style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid {error
+		? 'var(--color-error-500)'
+		: 'var(--admin-border-default, var(--color-surface-200))'}"
 >
 	<!-- Toolbar -->
 	<div
-		class="border-b border-surface-500/30 dark:border-surface-500/40 bg-surface-500/95 dark:bg-surface-800/95 backdrop-blur-sm px-2 transition-all duration-300 {isScrolled
-			? 'fixed inset-x-0 top-0 z-50 shadow-lg'
-			: ''}"
+		class="border-b border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-800/40"
 	>
-		<div class="w-full flex max-w-none flex-wrap items-center gap-2 py-1">
+		<div class="flex w-full flex-nowrap items-center gap-1 overflow-x-auto px-2 py-1.5">
 			{#each toolbarGroups as group, groupIdx (groupIdx)}
 				{#if !group.condition || group.condition()}
-					<div
-						class="btn-group border border-surface-500/30 dark:border-surface-500/40 overflow-hidden"
-					>
+					{#if groupIdx > 0}
+						<div
+							class="mx-0.5 h-5 w-px shrink-0 bg-surface-500/30 dark:bg-surface-500/40"
+							aria-hidden="true"
+						></div>
+					{/if}
+					<div class="flex shrink-0 items-center gap-0.5">
 						{#each group.buttons as btn (btn.label)}
 							{#if btn.type === 'dropdown'}
 								<div class="relative">
 									<SystemTooltip title={btn.label}>
 										<Button
-											variant="tertiary"
+											variant="transparent"
 											type="button"
+											size="sm"
 											onclick={(e: MouseEvent) => toggleDropdown(btn.label, e)}
 											aria-label={btn.label}
-											class="{editorStateVersion && activeDropdown === btn.label
-												? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20'
-												: 'preset-tonal'} flex items-center gap-2"
+											aria-expanded={activeDropdown === btn.label}
+											class="h-8 min-w-0 px-1.5! text-surface-600 hover:bg-surface-500/10 hover:brightness-100 dark:text-surface-400 {editorStateVersion &&
+											activeDropdown === btn.label
+												? 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/20 dark:text-primary-400'
+												: ''}"
 										>
 											{#if btn.icon}
 												<iconify-icon
 													icon="mdi:{btn.icon}"
-													width="20"
+													width="18"
 													class={mirrorDirIcon(btn.icon)}
 												></iconify-icon>
 											{/if}
-											{#if !btn.icon || btn.label !== 'Table'}
-												<span class={btn.icon ? 'hidden sm:inline' : ''}>{btn.label}</span>
-												<iconify-icon icon="mdi:chevron-down" width="14"></iconify-icon>
-											{/if}
+											<iconify-icon icon="mdi:chevron-down" width="12" aria-hidden="true"
+											></iconify-icon>
 										</Button>
 									</SystemTooltip>
 									{#if activeDropdown === btn.label}
@@ -833,15 +834,18 @@
 							{:else}
 								<SystemTooltip title={btn.label}>
 									<Button
-										variant="tertiary"
+										variant="transparent"
 										type="button"
+										size="sm"
 										aria-label={btn.label}
+										aria-pressed={btn.active?.() ?? false}
 										onclick={btn.cmd}
-										class="p-0! min-w-0 {editorStateVersion && btn.active?.()
-											? 'text-tertiary-500 dark:text-primary-500 bg-primary-500/10 dark:bg-primary-900/20'
-											: 'preset-tonal'}"
+										class="size-8 min-w-0 p-0! text-surface-600 hover:bg-surface-500/10 hover:brightness-100 dark:text-surface-400 {editorStateVersion &&
+										btn.active?.()
+											? 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/20 dark:text-primary-400'
+											: ''}"
 									>
-										<iconify-icon icon="mdi:{btn.icon}" width="24" class={mirrorDirIcon(btn.icon)}
+										<iconify-icon icon="mdi:{btn.icon}" width="18" class={mirrorDirIcon(btn.icon)}
 										></iconify-icon>
 									</Button>
 								</SystemTooltip>
@@ -860,7 +864,7 @@
 		bind:this={element}
 		dir={editorDir}
 		onclick={() => editor?.chain().focus().run()}
-		class="prose dark:prose-invert max-w-none px-6 py-4 min-h-96 leading-relaxed cursor-text {showSource
+		class="prose dark:prose-invert max-w-none px-3 py-2 min-h-40 focus:outline-none leading-relaxed cursor-text {showSource
 			? 'hidden'
 			: ''}"
 	>
@@ -895,7 +899,7 @@
 	{#if showSource}
 		<textarea
 			aria-label={widget_rt_image_alt()}
-			class="w-full min-h-96 p-4 font-mono text-sm bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
+			class="w-full min-h-48 p-3 font-mono text-sm bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
 			value={editor?.getHTML() || ''}
 			oninput={(e) => {
 				const content = (e.target as HTMLTextAreaElement).value;

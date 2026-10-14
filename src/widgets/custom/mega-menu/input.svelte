@@ -237,7 +237,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	</div>
 
 	<div
-		class="mmin-h-[200px] space-y-2"
+		class="min-h-50 space-y-2"
 		class:flex={!value || value.length === 0}
 		class:items-center={!value || value.length === 0}
 		class:justify-center={!value || value.length === 0}

@@ -9,6 +9,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 <script lang="ts">
 	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
+	import Loader from '@components/ui/loader.svelte';
 	import {
 		common_analysis,
 		common_no_data,
@@ -117,7 +118,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 			<div class="flex items-center gap-3">
 				<div
 					class="font-bold {analysisResult.score.overall >= 80
-						? 'text-tertiary-500 dark:text-primary-500'
+						? 'text-success-500'
 						: analysisResult.score.overall >= 50
 							? 'text-warning-500'
 							: 'text-error-500'}"
@@ -153,7 +154,13 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 	{#if expanded}
 		{#if isAnalyzing}
 			<div class="flex-1 flex flex-col items-center justify-center text-surface-400 opacity-50 p-4">
-				<div class="placeholder-circle animate-pulse w-8 h-8 mb-2"></div>
+				<Loader
+					variant="circle"
+					width="size-8"
+					height="size-8"
+					class="mb-2"
+					ariaLabel={seo_analysis_analyzing()}
+				/>
 				<span class="text-xs">{seo_analysis_analyzing()}</span>
 			</div>
 		{:else if analysisResult}
@@ -194,7 +201,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 										? 'border-error-500 bg-error-500/10'
 										: suggestion.type === 'warning'
 											? 'border-warning-500 bg-warning-500/10'
-											: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/10'}"
+											: 'border-tertiary-500 dark:border-primary-500 bg-tertiary-500/10 dark:bg-primary-500/10'}"
 								>
 									<div class="flex items-start gap-2">
 										<div class="mt-0.5 shrink-0">

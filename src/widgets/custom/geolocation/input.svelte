@@ -79,7 +79,8 @@
 				>{widget_geo_latitude()}</span
 			>
 			<div
-				class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
 			>
 				<Input
 					type="number"
@@ -104,7 +105,8 @@
 				>{widget_geo_longitude()}</span
 			>
 			<div
-				class="flex w-full overflow-hidden rounded border border-surface-500/30 dark:border-surface-600 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
 			>
 				<Input
 					type="number"
@@ -143,7 +145,8 @@
 	<!-- Visual Feedback -->
 	{#if value}
 		<div
-			class="p-3 bg-surface-500/10 dark:bg-surface-800 rounded border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center"
+			class="p-3 bg-surface-500/10 dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center"
+			style="border-radius: var(--admin-radius-input, 0.25rem)"
 		>
 			{widget_geo_geojson()}
 			{JSON.stringify(value)}

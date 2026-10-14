@@ -116,7 +116,8 @@ Part of the Three Pillars Architecture for widget system.
 				>{common_start()}</label
 			>
 			<div
-				class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
 			>
 				<Input
 					type="date"
@@ -139,7 +140,8 @@ Part of the Three Pillars Architecture for widget system.
 				>{common_end()}</label
 			>
 			<div
-				class="flex w-full overflow-hidden rounded border border-surface-500 dark:border-surface-600 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+				style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
 			>
 				<Input
 					type="date"

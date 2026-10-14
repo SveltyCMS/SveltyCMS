@@ -1,16 +1,10 @@
 <!--
-@file src/widgets/custom/Number/Input.svelte
+@file src/widgets/core/number/input.svelte
 @component
 **Number Widget Component**
 
 @example
-<Number field={{ label: "Price", db_fieldName: "price", required: true, min: 0, required={field?.required as boolean | undefined}
-				readonly={field?.readonly as boolean | undefined}
-				disabled={field?.disabled as boolean | undefined}
-				min={field?.min as number | undefined}
-				max={field?.max as number | undefined}
-				step={(field?.step as number) || 1}
-				class="input w-full flex-1 rounded-none text-black dark:text-primary-500"00 }} />
+<Number field={{ label: "Price", db_fieldName: "price", required: true, min: 0 }} />
 
 ### Props
 - `field`: FieldType
@@ -110,8 +104,10 @@
 
 <div class="number-widget flex flex-col gap-1">
 	<div
-		class="flex items-center rounded border transition-all bg-white dark:bg-surface-900 border-surface-500 dark:border-surface-600 focus-within:ring-2 focus-within:ring-primary-500"
-		class:!border-error-500={!!error}
+		class="flex items-center transition-all bg-white dark:bg-surface-900 focus-within:ring-2 focus-within:ring-primary-500/40"
+		style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid {error
+			? 'var(--color-error-500)'
+			: 'var(--admin-border-default, var(--color-surface-200))'}"
 		class:ring-2={!!error}
 		class:ring-error-500={!!error}
 	>

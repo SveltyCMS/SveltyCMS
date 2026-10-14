@@ -81,8 +81,8 @@
 <div class="relative mb-4 w-full">
 	<Select
 		bind:value={localValue}
-		label={field.label}
 		placeholder={field.placeholder || 'Select an option...'}
+		aria-label={field.label || 'Select an option'}
 		options={selectOptions}
 		allowEmptySelection
 		required={field.required}

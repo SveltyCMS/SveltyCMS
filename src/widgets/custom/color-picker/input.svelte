@@ -97,7 +97,8 @@ Renders a color input with label, helper, and validation
 		class:ring-error-500={!!error}
 	>
 		<div
-			class="relative h-10 w-10 shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-500/40"
+			class="relative h-10 w-10 shrink-0 overflow-hidden border border-surface-500/30 dark:border-surface-500/40"
+			style="border-radius: var(--admin-radius-input, 0.25rem)"
 		>
 			<input
 				aria-label={widget_color_picker_label()}
