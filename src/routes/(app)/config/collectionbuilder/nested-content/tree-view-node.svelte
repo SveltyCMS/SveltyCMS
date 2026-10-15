@@ -15,7 +15,7 @@ Features:
 <script lang="ts">
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte.ts';
-	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
+	import { collectionMetadata, getTagColor } from '@src/stores/collection-store.svelte';
 	import type { TreeViewItem } from './tree-view-board.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';

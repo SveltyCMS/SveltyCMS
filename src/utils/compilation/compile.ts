@@ -661,6 +661,13 @@ async function loadManifest(dir: string): Promise<LoadedManifest> {
 }
 
 // ─── Manifest save (atomic write) ───────────────────────────────────────
+// OWNERSHIP CONTRACT (single writer per section):
+//   - compiler owns: per-file entries + `__fingerprint` + `__version`
+//   - reconciler owns: `collectionOrder` + `structureNodes` (collection-order.server.ts)
+// Both writers persist atomically via `atomicWriteJson`. This function writes
+// only the compiler-owned section plus the already-loaded order/structure —
+// it never re-reads the file here, so a reconciler write between `loadManifest`
+// and this save cannot be silently merged or clobbered.
 async function saveManifest(
   dir: string,
   manifest: Map<string, ManifestEntry>,
@@ -674,30 +681,11 @@ async function saveManifest(
   if (fingerprint) payload[MANIFEST_FINGERPRINT_KEY] = fingerprint;
   payload[MANIFEST_VERSION_KEY] = TRANSFORMER_VERSION;
 
-  // Preserve collectionOrder from previous run if not provided
   if (collectionOrder && Object.keys(collectionOrder).length > 0) {
     payload[MANIFEST_ORDER_KEY] = collectionOrder;
-  } else {
-    try {
-      const existing = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-      if (existing[MANIFEST_ORDER_KEY]) payload[MANIFEST_ORDER_KEY] = existing[MANIFEST_ORDER_KEY];
-    } catch {
-      /* no prior manifest */
-    }
   }
-
-  // Preserve structureNodes from previous run if not provided
   if (structureNodes?.length) {
     payload[MANIFEST_STRUCTURE_KEY] = structureNodes;
-  } else {
-    try {
-      const existing = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-      if (existing[MANIFEST_STRUCTURE_KEY]) {
-        payload[MANIFEST_STRUCTURE_KEY] = existing[MANIFEST_STRUCTURE_KEY];
-      }
-    } catch {
-      /* no prior manifest */
-    }
   }
 
   assertLiveDataWriteAllowed(manifestPath);

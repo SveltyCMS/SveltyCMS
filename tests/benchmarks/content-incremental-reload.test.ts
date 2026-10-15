@@ -1,7 +1,8 @@
 /**
  * @file tests/benchmarks/content-incremental-reload.test.ts
  * @description Incremental Content Reload Benchmark (Optimized)
- * @summary Measures surgical single-file fullReload vs full reconciliation path and batch processing.
+ * @summary Measures surgical single-file fullReload vs full reconciliation path and batch processing,
+ *          plus a no-op calibration baseline so the harness/async noise floor is measured alongside the signal.
  */
 
 import {
@@ -96,6 +97,21 @@ test("Incremental vs Full Content Reload", async () => {
       },
     };
 
+    // ── 0. CALIBRATION BASELINE (noise floor) ──────────────────────────────
+    forceGarbageCollection();
+    await stabilize(100);
+
+    console.log("   → Measuring harness/async noise floor (no-op)...");
+    const baselineResult = await runBenchmark({
+      name: "baseline (no-op async)",
+      iterations: 1000,
+      warmupIterations: 1000,
+      runs: 3,
+      trimOutliers: "iqr",
+      silent: true,
+      onIteration: async () => {},
+    });
+
     // ── 1. INCREMENTAL SINGLE-FILE RELOAD ───────────────────────────────────
     forceGarbageCollection();
     await stabilize(100);
@@ -103,9 +119,9 @@ test("Incremental vs Full Content Reload", async () => {
     console.log("   → Measuring Surgical Single-File fullReload...");
     const incrementalResult = await runBenchmark({
       name: "Incremental fullReload (1 file)",
-      iterations: 100,
-      warmupIterations: 10,
-      runs: 2,
+      iterations: 1000,
+      warmupIterations: 1000,
+      runs: 3,
       trimOutliers: "iqr",
       silent: true,
       onIteration: async () => {
@@ -120,9 +136,9 @@ test("Incremental vs Full Content Reload", async () => {
     console.log("   → Measuring Full Reconciliation (1k Collections)...");
     const fullReconcileResult = await runBenchmark({
       name: "Full Reconciliation Reload",
-      iterations: 50,
-      warmupIterations: 5,
-      runs: 2,
+      iterations: 200,
+      warmupIterations: 50,
+      runs: 3,
       trimOutliers: "iqr",
       silent: true,
       onIteration: async () => {
@@ -141,7 +157,6 @@ test("Incremental vs Full Content Reload", async () => {
       await fs.writeFile(fp, createFixtureSchema(`batch_${i}`, `Batch ${i}`), "utf-8");
     }
 
-    // Hoist execution methods & static option bags outside benchmark closures
     const reloadOptions = Object.freeze({ broadcast: false });
     const hasIncrementalHandler =
       typeof (contentService as any).handleIncrementalReload === "function";
@@ -187,9 +202,9 @@ test("Incremental vs Full Content Reload", async () => {
     console.log("   → Measuring Sequential 10-File Reload...");
     const sequentialResult = await runBenchmark({
       name: "Sequential 10-File Reload",
-      iterations: 20,
-      warmupIterations: 3,
-      runs: 2,
+      iterations: 100,
+      warmupIterations: 20,
+      runs: 3,
       trimOutliers: "iqr",
       silent: true,
       onIteration: runSequentialReload,
@@ -201,9 +216,9 @@ test("Incremental vs Full Content Reload", async () => {
     console.log("   → Measuring Batched 10-File Reload...");
     const batchedResult = await runBenchmark({
       name: "Batched 10-File Reload",
-      iterations: 20,
-      warmupIterations: 3,
-      runs: 2,
+      iterations: 100,
+      warmupIterations: 20,
+      runs: 3,
       trimOutliers: "iqr",
       silent: true,
       onIteration: runBatchedReload,
@@ -219,6 +234,7 @@ test("Incremental vs Full Content Reload", async () => {
       batchedResult.avgMs > 0 ? (sequentialResult.avgMs / batchedResult.avgMs).toFixed(1) : "N/A";
 
     const allResults = [
+      { ...baselineResult, layer: "Harness", shortLabel: "No-op baseline" },
       { ...incrementalResult, layer: "Surgical", shortLabel: "Incremental (1f)" },
       { ...fullReconcileResult, layer: "Full", shortLabel: "Full (1k files)" },
       { ...sequentialResult, layer: "Sequential", shortLabel: "Seq (10f)" },
@@ -228,12 +244,13 @@ test("Incremental vs Full Content Reload", async () => {
     printTruthTable({
       title: "SVELTYCMS — INCREMENTAL CONTENT RELOAD AUDIT",
       shortLabel: "Incremental",
-      subtitle: "Surgical 1-file vs 1k full reconciliation vs batch processing",
+      subtitle: "No-op baseline vs surgical 1-file vs 1k full reconciliation vs batch processing",
       results: allResults,
     });
 
     printSummaryTable(
       [
+        { key: "No-op baseline", val: baselineResult.avgMs.toFixed(3), unit: "ms" },
         {
           key: "Incremental Reload (1 file)",
           val: incrementalResult.avgMs.toFixed(3),
@@ -256,6 +273,7 @@ test("Incremental vs Full Content Reload", async () => {
       "Incremental Reload Summary",
     );
 
+    exportMetric("internals.baseline.avg", baselineResult.avgMs, "ms");
     exportMetric("internals.incremental.avg", incrementalResult.avgMs, "ms");
     exportMetric(
       "internals.incremental.p95",

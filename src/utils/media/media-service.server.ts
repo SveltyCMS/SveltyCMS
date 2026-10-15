@@ -1392,12 +1392,12 @@ export class MediaService {
         /[<>&"]/g,
         (c: string) =>
           (
-            ({
+            {
               "<": "&lt;",
               ">": "&gt;",
               "&": "&amp;",
               '"': "&quot;",
-            }) as Record<string, string>
+            } as Record<string, string>
           )[c] ?? c,
       );
 

@@ -219,9 +219,10 @@ describe("syncContentState", () => {
       const engine = await import("@src/content/engine.server");
       const sseSpy = vi.spyOn(engine, "notifyContentUpdate").mockResolvedValue(undefined);
 
-      // Avoid real compile against empty/minimal fixture during gui-save
+      // gui-save no longer compiles (organizational ops don't touch schemas) —
+      // store the spy so we can assert it is never invoked.
       const compileMod = await import("@utils/compilation/compile");
-      vi.spyOn(compileMod, "compile").mockResolvedValue({
+      const compileSpy = vi.spyOn(compileMod, "compile").mockResolvedValue({
         processed: 0,
         skipped: 1,
         errors: [],
@@ -252,6 +253,8 @@ describe("syncContentState", () => {
 
       expect(upsertSpy).toHaveBeenCalled();
       expect(fullReloadSpy).not.toHaveBeenCalled();
+      // 🚀 FAST ORGANIZATIONAL SAVE: gui-save must NOT run a full compile.
+      expect(compileSpy).not.toHaveBeenCalled();
       // FIX 3: gui-save mutates collection STRUCTURE so notifyContentUpdate must be
       // called with invalidateSchema:true (clears the real _schemaCache LRU).
       expect(sseSpy).toHaveBeenCalledWith("global", { invalidateSchema: true });
@@ -385,6 +388,11 @@ describe("syncContentState", () => {
       });
 
       const { syncContentState } = await import("@src/content/sync-content-state.server");
+      // Seed the store (production: it is already populated from layout/reconcile
+      // before any Save). applyOperations applies the delta on top of it.
+      const { contentStore } = await import("@src/stores/content-registry.svelte");
+      contentStore.clear("global");
+      contentStore.sync([news, blog] as never);
       await syncContentState({
         reason: "gui-save",
         tenantId: "global",

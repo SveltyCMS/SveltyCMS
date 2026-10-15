@@ -120,7 +120,7 @@ function getLiveRoots(): string[] {
 
 function liveCompiledCollectionsPath(tenantId?: string | null): string {
   const base = path.join(process.cwd(), ".compiledCollections");
-  if (tenantId === undefined || tenantId === null) return base;
+  if (tenantId === undefined || tenantId === null || tenantId === "global") return base;
   return path.join(base, tenantId);
 }
 

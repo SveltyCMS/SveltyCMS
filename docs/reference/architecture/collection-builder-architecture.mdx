@@ -85,7 +85,7 @@ Located at `src/content/index.ts`, this singleton is responsible for bridging th
 - **Startup Sync**: On boot, it scans `compiledCollections` and compares them against the `system_content_structure` table/collection in the active database adapter.
 - **Defensive Import**: It actively filters out "garbage" nodes from the database (e.g., nodes where `path` is a UUID instead of a valid file path) to prevent database corruption from looping back into the application state.
 - **ID Persistence**: While collection _definitions_ come from disk, `_id`, `parentId`, and `order` are preserved from the database and manifest (`collectionOrder`, `structureNodes`).
-- **Save without destructive refresh**: `executeGuiStructureSave()` (via `saveContentStructure` remote or legacy `?/saveConfig` action) upserts `move` / `rename` / `create` / `delete` operations through `syncContentState({ reason: "gui-save" })`, syncs `contentStore`, writes the manifest, and broadcasts SSE — it does **not** call `fullReload()`.
+- **Save without destructive refresh**: `executeGuiStructureSave()` (via the `saveContentStructure` remote) upserts organizational `move` / `rename` / `create` (category) / `delete` operations through `syncContentState({ reason: "gui-save" })`, applies the delta to `contentStore`, persists the manifest, and broadcasts SSE — it does **not** call `fullReload()`. Collection `create` / `rename` are **rejected** here (files own existence, C1): presets materialize via `installTemplateCollections` and duplicates via `duplicateCollection` (a source `.ts` copy with an AST identity rewrite), both on the explicit Save click.
 - **Schema save**: Editor `saveCollection` writes `.ts` then `syncContentState({ reason: "collection-save", targetFile })` — compile + incremental refresh + model provision under a **GUI compile lock** so the Vite watcher does not double-compile.
 - **Soft UI refresh**: Presets, quick-start, and structure saves use `invalidate("app:content")` only — **no** `window.location.reload()` (session, consent, and builder context stay intact).
 - **Boot manifest watchdog**: On `syncContentState({ reason: "boot" })`, `reconcileOrganizationalManifest()` compares `.compilation-manifest.json` (`collectionOrder`, `structureNodes`) against the DB flat structure and re-aligns the manifest when drift is detected (e.g. after manual DB edits).
@@ -160,9 +160,9 @@ Reverse-engineers existing database schemas and API payloads directly into colle
 - **Defaults & Nullability**: `NOT NULL` → required; `DEFAULT true` → the widget's default value.
 - **JSON Payload Reverse-Engineering**: Synthesizes schemas from sample JSON objects/arrays (ISO strings → `DateTime`, URL strings → url `Input`, string arrays → `Tags`, object arrays → `Repeater`, nested objects → `Relation`).
 
-#### Unified Metadata & Tagging Store (`collection-metadata-store.svelte.ts`)
+#### Unified Metadata & Tagging (in `collection-store.svelte.ts`)
 
-A cross-cutting reactive store that maintains favorites and tag metadata across all administrative views.
+A cross-cutting reactive surface (`collectionMetadata`, `pinnedStore`, `getTagColor`) that maintains favorites and tag metadata across all administrative views. It was consolidated out of `collection-metadata-store.svelte.ts` into `collection-store.svelte.ts` so the board/sidebar read one store.
 
 - **Reactive State Sync**: Powered by Svelte 5 `$state` runes, immediately broadcasting favorite toggles and tag changes between the Collection Builder tree, the Collection Editor form, and the LeftSidebar navigation tree.
 - **Cross-Tab Storage Sync**: Listens to the `storage` event to propagate changes across concurrent browser tabs.

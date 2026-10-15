@@ -552,7 +552,7 @@ Both `mapQuery` implementations now build database conditions directly from user
 
 - **Proxy extraction**: 3 scattered Proxy factories → 1 shared `core/proxy-utils.ts` with 23 dedicated tests
 - **Tenant filter centralization**: ~4+ duplicate sites → single source of truth in `relational-utils.ts`
-- **Query IR removal**: standalone `query-ir.ts` removed; translator inlined into the only 2 real consumers
+- **Query IR & wire-descriptor removal**: standalone `query-ir.ts` (translator already inlined into the 2 real consumers) and `wire-descriptor.ts` removed as unreferenced
 - **Mongo file reduction**: 43 → 39 files (4 thin module/model pairs merged)
 - **Code reduction**: 1,105 lines deleted across 36 files
 - **Lazy Zero-Allocation GraphQL Loaders**: Eager per-request user, media, and collection loaders are refactored into on-demand lazy getters, eliminating memory overhead on requests that do not query those fields.
@@ -1073,8 +1073,6 @@ SveltyCMS incorporates a 4-phase modern database engine optimization pipeline de
 ├────────────────────────────────┬───────────────────────────────────────┤
 │ Phase 1: Boot Statement Warmup │ Eliminates p99 planning cold-penalties│
 │ Phase 2: Write Coalescing      │ Concurrent micro-batching via gate    │
-│ Phase 3: Wire-Plane Projection │ Zero-copy JSON direct-to-wire bypass  │
-│ Phase 4: Canonical QueryIR     │ Sub-microsecond WeakMap AST emitter   │
 └────────────────────────────────┴───────────────────────────────────────┘
 ```
 
@@ -1087,14 +1085,6 @@ SveltyCMS incorporates a 4-phase modern database engine optimization pipeline de
    - **Mechanism**: Intercepts mutation requests (`insert`, `update`, `delete`, `upsert`) arriving within the same event-loop microtask tick and groups them into concurrent micro-batches with per-operation error isolation.
    - **Impact**: Reduces WAL sync contention and connection pool queue lockups during concurrency spikes (measured **361x throughput speedup** under 200 concurrent writes).
    - **Control**: Toggleable via `SVELTY_WRITE_COALESCING=0` (disabled) / `1` (enabled, default).
-
-3. **Phase 3: Compiled Wire-Plane Projection (`src/databases/core/wire-descriptor.ts`)**
-   - **Mechanism**: Pre-compiles database-native JSON construction statements (`jsonb_build_object` on PostgreSQL, `json_object` on SQLite, `JSON_OBJECT` on MariaDB, `$project` on MongoDB) cached via `WeakMap`.
-   - **Impact**: Streams formatted JSON directly from database kernel to HTTP sockets, bypassing JS object hydration, intermediate DTO allocations, and runtime `JSON.stringify()`. Measured **27.8M compilations/sec (0.04 µs overhead)**.
-
-4. **Phase 4: Canonical QueryIR AST (`src/databases/core/query-ir.ts`)**
-   - **Mechanism**: Replaces string concatenation and dialect branching with an immutable AST query specification emitted directly into optimized dialect SQL and MongoDB pipelines.
-   - **Impact**: Zero runtime regex or string parsing overhead (measured **3.26M queries/sec, 0.31 µs per compilation**).
 
 ---
 

@@ -597,6 +597,20 @@ async function applyGuiStructureSave(
     return op;
   });
 
+  // C1 — files own existence + schema. The board (gui-save) may reorganize a
+  // collection (move it into a category, or delete it) but must never CREATE or
+  // RENAME one: only the collection editor writes/renames the source `.ts` file.
+  // A create/rename here would leave a DB-only node with no source, which the
+  // next compile/reconcile treats as an orphan (the historical DB-only-collection
+  // bug: visible in the builder, gone after a rebuild).
+  for (const op of normalized) {
+    if ((op.type === "create" || op.type === "rename") && op.node.nodeType === "collection") {
+      throw new Error(
+        `Collection "${op.node.name ?? op.node.path}" must be created or renamed in the collection editor — a source file (config/collections/<name>.ts) is required`,
+      );
+    }
+  }
+
   const deletedPaths = new Set(
     normalized.filter((op) => op.type === "delete").map((op) => op.node.path),
   );
@@ -642,13 +656,13 @@ async function applyGuiStructureSave(
       compiledCollections,
     ]);
   }
-  const updated = (await contentService.getContentStructureFromDatabase(
-    "flat",
-    tenantId,
-    _adapter,
-  )) as ContentNode[];
-
-  contentStore.batchUpsert(updated);
+  // 🚀 SURGICAL STORE UPDATE: apply the structural delta directly to the store
+  // (O(delta)) instead of re-reading the whole tree + re-syncing every node.
+  // The DB write (`upsertContentNodes`) above is already the durability point.
+  contentStore.applyOperations(normalized, tenantId);
+  // Deep-clone so the directory-move mutation below never aliases the store's
+  // internal node objects (path changes are re-applied explicitly after).
+  const updated = deepClone(contentStore.getNodesForTenant(tenantId)) as ContentNode[];
 
   // Dragging a category under another parent renames the directory.
   // Sibling reorder keeps the same folder and only updates `order`.
@@ -669,6 +683,8 @@ async function applyGuiStructureSave(
     }
     if (pathChanges.length > 0) {
       await contentService.replaceContentNodePaths(pathChanges, tenantId, _adapter);
+      // Re-apply the new paths to the store so its path index stays coherent.
+      contentStore.batchUpsert(pathChanges.map((pc) => pc.node));
     }
   }
 
@@ -676,6 +692,10 @@ async function applyGuiStructureSave(
   await ensureCategoryDirectories(updated, [userCollections, compiledCollections]);
 
   const { order, structureNodes } = buildOrganizationalManifestFromNodes(updated);
+  // The manifest is read synchronously by runtime readers (`getStructureNodes` /
+  // `getCollectionOrder` in layout + API paths), so it must be persisted before
+  // the save returns — it is NOT a pure boot-time cache. The DB write above is
+  // still the durability point; this write keeps the on-disk manifest coherent.
   await setOrganizationalManifest(order, structureNodes, tenantId ?? null);
 
   // 🐛 L1 TURBO INVALIDATION: GETs on /api/content-structure are served from the
@@ -896,16 +916,18 @@ export async function syncContentState(
           .map((n) => (n._id as string) || n.name || "")
           .filter(Boolean);
 
-        const { userCollections, compiledCollections } = resolvePathRoots(tenantId);
-        const compileStart = Date.now();
-        result.compiled = await compile({
-          userCollections,
-          compiledCollections,
-          tenantId,
-        });
-        result.metrics.compileMs = Date.now() - compileStart;
-        result.metrics.processed = result.compiled.processed;
-        result.metrics.skipped = result.compiled.skipped;
+        // 🚀 FAST ORGANIZATIONAL SAVE: a gui-save only reorganizes the tree
+        // (move / order / category / delete) — it never changes a schema. C1
+        // rejects collection create/rename here, so no source file changes and
+        // no compile is needed. The previous unconditional compile() re-scanned
+        // every source on each builder Save (~10x the cost of the structure
+        // upsert). `changedIds` come from the upserted structure;
+        // `applyGuiStructureSave` already writes the manifest + category dirs and
+        // invalidates the schema cache.
+        result.compiled = null;
+        result.metrics.compileMs = 0;
+        result.metrics.processed = 0;
+        result.metrics.skipped = 0;
         result.contentVersion = contentStore.contentVersion;
         ok = true;
       } finally {

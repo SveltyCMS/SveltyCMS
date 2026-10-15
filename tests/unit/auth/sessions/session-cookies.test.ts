@@ -100,11 +100,11 @@ describe("readSessionCookie", () => {
     const cookies = {
       get: (name: string) =>
         (
-          ({
+          {
             auth_sessions: "plain",
             "__Host-auth_sessions": "host",
             "__Secure-auth_sessions": "secure",
-          }) as Record<string, string>
+          } as Record<string, string>
         )[name],
     };
     expect(readSessionCookie(cookies, false)).toBe("plain");
@@ -114,9 +114,9 @@ describe("readSessionCookie", () => {
     const cookies = {
       get: (name: string) =>
         (
-          ({
+          {
             "__Host-auth_sessions": "host-only",
-          }) as Record<string, string>
+          } as Record<string, string>
         )[name],
     };
     expect(readSessionCookie(cookies, false)).toBe("host-only");
@@ -126,11 +126,11 @@ describe("readSessionCookie", () => {
     const cookies = {
       get: (name: string) =>
         (
-          ({
+          {
             auth_sessions: "plain",
             "__Host-auth_sessions": "host",
             "__Secure-auth_sessions": "secure",
-          }) as Record<string, string>
+          } as Record<string, string>
         )[name],
     };
     expect(readSessionCookie(cookies, true)).toBe("host");

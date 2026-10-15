@@ -72,7 +72,7 @@ afterAll(async () => {
   await deletePaths(db, new Set(cleanupPaths));
 
   // The gui-save contract creates real category directories under the tenant's
-  // collection root (`config/global/test-collections/` in a test harness). The
+  // collection root (`config/test-collections/` in a test harness). The
   // rows are deleted above; remove the empty directories as well — but only
   // when they resolve inside a `test-collections` or `.compiledCollections`
   // root, never a live `collections` directory.
@@ -83,6 +83,7 @@ afterAll(async () => {
       const resolvedRoot = path.resolve(root);
       const safeRoot =
         path.basename(resolvedRoot) === "test-collections" ||
+        path.basename(resolvedRoot) === ".compiledCollections" ||
         path.basename(path.dirname(resolvedRoot)) === ".compiledCollections";
       if (!safeRoot) continue;
       await fs.rm(path.join(resolvedRoot, relative), { recursive: true, force: true });

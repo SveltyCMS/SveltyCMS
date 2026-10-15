@@ -43,20 +43,4 @@ describe("ContentStructureNamespace", () => {
       expect.objectContaining({ reason: "gui-save", tenantId: TENANT }),
     );
   });
-
-  it("deleteByIds builds delete operations from node ids", async () => {
-    const { ContentStructureNamespace } =
-      await import("@src/services/sdk/namespaces/data-operations");
-    const { syncContentState } = await import("@src/content/index.server");
-
-    const ns = new ContentStructureNamespace({} as never);
-    const result = await ns.deleteByIds(["cat-1"], { tenantId: TENANT });
-
-    expect(result.found).toBe(true);
-    expect(syncContentState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        operations: [{ type: "delete", node: { path: "/blog" } }],
-      }),
-    );
-  });
 });

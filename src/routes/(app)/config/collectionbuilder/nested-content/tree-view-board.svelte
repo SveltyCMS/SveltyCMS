@@ -56,7 +56,7 @@ offset within the row on the native `dragover` event — that event carries
 	import Select from '@components/ui/select.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import AdminCard from '@components/admin-card.svelte';
-	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
+	import { collectionMetadata, getTagColor } from '@src/stores/collection-store.svelte';
 	import {
 		builder_close_tag_modal,
 		builder_collapse_all,

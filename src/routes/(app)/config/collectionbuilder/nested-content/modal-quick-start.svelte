@@ -16,7 +16,6 @@ Selecting a template auto-creates the collections using the installTemplateColle
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
-	import type { ContentNode } from '@src/databases/db-interface';
 	import { PRESETS } from '@src/routes/setup/presets';
 	import {
 		builder_quickstart_available_templates,
@@ -26,30 +25,20 @@ Selecting a template auto-creates the collections using the installTemplateColle
 		builder_quickstart_creates_singular,
 		builder_quickstart_install,
 		builder_quickstart_install_aria,
-		builder_quickstart_installing,
 		builder_quickstart_intro_part1,
 		builder_quickstart_more,
 		builder_quickstart_template_aria,
 		button_cancel,
 		common_recommended
 	} from '@src/paraglide/messages';
-	import { toast } from '@src/stores/toast.svelte.ts';
-	import { logger } from '@utils/logger';
 
 	interface Props {
-		close?: (
-			result?: {
-				installed: boolean;
-				collections?: string[];
-				contentStructure?: ContentNode[];
-			} | null
-		) => void;
+		close?: (result?: { presetId: string } | null) => void;
 	}
 
 	const { close }: Props = $props();
 
 	let selectedPreset = $state<string | null>(null);
-	let isSubmitting = $state(false);
 	let hoveredPreset = $state<string | null>(null);
 
 	const availablePresets = $derived(
@@ -60,32 +49,10 @@ Selecting a template auto-creates the collections using the installTemplateColle
 		selectedPreset = id;
 	}
 
-	async function handleInstall() {
+	function handleInstall() {
 		if (!selectedPreset) return;
-
-		try {
-			isSubmitting = true;
-			const { installTemplateCollections } = await import('../collectionbuilder.remote');
-			const result = await installTemplateCollections(selectedPreset);
-
-			if ('success' in result && result.success) {
-				toast.success(result.message ?? 'Collections created successfully');
-				close?.({
-					installed: true,
-					collections: (result as any).collections ?? [],
-					contentStructure: (result as any).contentStructure ?? []
-				});
-			} else {
-				const message = (result as any).message ?? 'Failed to install template';
-				toast.error(message);
-			}
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : String(err);
-			logger.error('Quick-Start template install failed:', msg);
-			toast.error(msg || 'An error occurred while installing the template');
-		} finally {
-			isSubmitting = false;
-		}
+		// Stage only: no server write. The board's Save button commits the preset.
+		close?.({ presetId: selectedPreset });
 	}
 
 	function getComplexityVariant(
@@ -134,7 +101,6 @@ Selecting a template auto-creates the collections using the installTemplateColle
 					: hoveredPreset === preset.id
 						? 'border-surface-500 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-700/60'
 						: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-tertiary-500 dark:hover:border-primary-400'}"
-				disabled={isSubmitting}
 			>
 				<!-- Icon, Title & Selection -->
 				<div class="mb-3 flex items-start gap-2.5">
@@ -220,7 +186,6 @@ Selecting a template auto-creates the collections using the installTemplateColle
 			variant="ghost"
 			type="button"
 			onclick={() => close?.(null)}
-			disabled={isSubmitting}
 			aria-label={builder_quickstart_cancel_aria()}
 		>
 			{button_cancel()}
@@ -229,17 +194,11 @@ Selecting a template auto-creates the collections using the installTemplateColle
 			variant="tertiary"
 			type="button"
 			onclick={handleInstall}
-			disabled={isSubmitting || !selectedPreset}
+			disabled={!selectedPreset}
 			aria-label={builder_quickstart_install_aria()}
 		>
-			{#if isSubmitting}
-				<iconify-icon icon="mdi:loading" width="18" class="animate-spin" aria-hidden="true"
-				></iconify-icon>
-				{builder_quickstart_installing()}
-			{:else}
-				<iconify-icon icon="mdi:magic-staff" width="18" aria-hidden="true"></iconify-icon>
-				{builder_quickstart_install()}
-			{/if}
+			<iconify-icon icon="mdi:magic-staff" width="18" aria-hidden="true"></iconify-icon>
+			{builder_quickstart_install()}
 		</Button>
 	</footer>
 </div>

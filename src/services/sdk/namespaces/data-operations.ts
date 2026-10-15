@@ -434,31 +434,6 @@ export class ContentStructureNamespace extends BaseNamespace {
       this._dbAdapter,
     );
   }
-
-  async deleteByIds(ids: string[], options: LocalApiOptions = {}) {
-    const current = await this.getFlatStructure(options);
-    // Set-based membership + a single pass — avoids the filter→map→filter chains
-    // and the O(ids) `.includes()` scan per node.
-    const idSet = new Set(ids);
-    const paths: string[] = [];
-    for (const n of current) {
-      if (idSet.has(n._id?.toString()) && n.path) {
-        paths.push(n.path);
-      }
-    }
-
-    if (paths.length === 0) {
-      return { found: false as const, paths: [] as string[] };
-    }
-
-    const operations: import("@src/content/types").ContentNodeOperation[] = paths.map((p) => ({
-      type: "delete",
-      node: { path: p },
-    }));
-
-    const result = await this.saveGuiStructure(operations, options);
-    return { found: true as const, paths, result };
-  }
 }
 
 export class ContentSyncNamespace extends BaseNamespace {

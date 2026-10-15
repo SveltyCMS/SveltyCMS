@@ -17,15 +17,18 @@ export const saveContentStructure = command(
   },
 );
 
-export const deleteContentNodes = command("unchecked", async (ids: string[]) => {
-  const { deleteContentNodes: fn } = await import("./collectionbuilder.server");
-  return fn(getRequestEvent(), ids);
-});
-
 export const installTemplateCollections = command("unchecked", async (presetId: string) => {
   const { installTemplateCollections: fn } = await import("./collectionbuilder.server");
   return fn(getRequestEvent(), presetId);
 });
+
+export const duplicateCollection = command(
+  "unchecked",
+  async (input: { originalName: string; newName: string }) => {
+    const { duplicateCollection: fn } = await import("./collectionbuilder.server");
+    return fn(getRequestEvent(), input);
+  },
+);
 
 /**
  * Read-only server function: reverse-engineer SQL DDL / JSON into a collection

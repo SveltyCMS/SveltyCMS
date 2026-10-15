@@ -113,10 +113,6 @@ test("GUI Save vs Legacy Full Reload", async () => {
     },
   ];
 
-  const cwd = process.cwd();
-  const manifestRoot = path.join(cwd, ".compiledCollections", "global");
-  await fs.mkdir(manifestRoot, { recursive: true });
-
   try {
     const legacyResult = await runBenchmark({
       name: "Legacy fullReload (organizational save)",

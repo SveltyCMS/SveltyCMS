@@ -1,13 +1,10 @@
 /**
- * @file tests/unit/stores/collection-metadata-store.test.ts
+ * @file tests/unit/stores/collection-store-metadata.test.ts
  * @description Unit tests for collectionMetadata reactive store and tag color mapping.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  collectionMetadata,
-  getTagColor,
-} from "../../../src/stores/collection-metadata-store.svelte";
+import { collectionMetadata, getTagColor } from "../../../src/stores/collection-store.svelte";
 
 describe("collectionMetadata store", () => {
   beforeEach(() => {

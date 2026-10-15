@@ -39,9 +39,8 @@ Features:
 	} from '@src/paraglide/messages';
 
 	// Stores
-	import { collections, setContentStructure } from '@src/stores/collection-store.svelte';
+	import { collections } from '@src/stores/collection-store.svelte';
 	import { logger } from '@utils/logger';
-	import { invalidate } from '$app/navigation';
 
 	import type { ContentNode } from '@root/src/databases/db-interface';
 	import Button from '@components/ui/button.svelte';
@@ -170,36 +169,14 @@ Features:
 
 		const bodyText =
 			attachedCount > 0
-				? `Delete category "${existingCategory.name}" and all ${attachedCount} attached collection(s) and sub-categories? Their config files will be removed. This action cannot be undone.`
-				: `Are you sure you wish to delete the category "${existingCategory.name}"? This action cannot be undone.`;
+				? `Remove category "${existingCategory.name}" and all ${attachedCount} attached collection(s) and sub-categories? Click Save to persist. This action cannot be undone.`
+				: `Remove category "${existingCategory.name}"? Click Save to persist. This action cannot be undone.`;
 
 		const confirmed = confirm(bodyText);
 		if (!confirmed) return;
 
-		isSubmitting = true;
-		formError = null;
-
-		try {
-			const { deleteContentNodes } = await import('../collectionbuilder.remote');
-			const result = await deleteContentNodes(idsToDelete);
-
-			if ('success' in result && result.success) {
-				const newStructure = flat.filter(
-					(n) => !new SvelteSet(idsToDelete).has(n._id?.toString() ?? '')
-				);
-				setContentStructure(newStructure);
-				await invalidate('app:content');
-				close?.({ __categoryDeleted: true, contentStructure: newStructure });
-			} else {
-				const message = (result as any).message ?? 'Deletion failed';
-				formError = message;
-			}
-		} catch (error) {
-			logger.error('Error deleting category:', error);
-			formError = error instanceof Error ? error.message : 'Failed to delete category';
-		} finally {
-			isSubmitting = false;
-		}
+		// Stage only — the board's Save button is the commit point.
+		close?.({ __categoryDeleted: true, categoryId });
 	}
 
 	// Live preview derived state

@@ -193,7 +193,7 @@ Collections are organized into **categories** for structured hierarchy and navig
 
 #### Method 2: Direct Creation
 
-1. Navigate to `/config/collectionbuilder/create/[collectionName]`
+1. Navigate to `/config/collectionbuilder/new`
 2. Fill in collection details
 3. Configure fields
 4. Click **"Save"** to create
@@ -562,23 +562,30 @@ You can reverse-engineer existing database structures and APIs directly into Sve
 
 ### Saving Changes
 
-When you make changes to categories and collections, use the **"Save"** button to persist:
+The board **"Save"** button is the single commit point for every collection-builder
+edit. Editing the board never auto-saves: additions and changes are **staged** in the
+local draft, and the Save button enables only once there is something to persist.
+The button is always visible in the header (next to Back) — it is **disabled** when
+there are no pending changes, never hidden.
 
-**API Endpoint**: `POST /api/content-structure`
+On Save, the staged work is flushed in order:
 
-**Operations Tracked**:
+1. **Collection creation** (files own existence, C1): a Quick-Start preset writes its
+   `.ts` files via `installTemplateCollections`; a duplicated collection copies its
+   source `.ts` file with an identity rewrite via `duplicateCollection`.
+2. **Organizational changes** (categories, order, parent links, deletes) persist
+   through the `saveContentStructure` server function — not a public REST endpoint.
+   It upserts the staged operations to the database, applies the delta to the
+   store, and persists the organizational manifest.
 
-- **create**: New category or collection
-- **update**: Modified properties (icon, name)
-- **move**: Changed parent or order
-- **rename**: Name changes
-- **delete**: Removed items
+**HTTP endpoint**: `POST /api/content-structure`
 
-**Batch Operations**:
+This endpoint is a narrow refresh/reorder surface, not a general CRUD API:
 
-- All changes saved together
-- Atomic operations (all or nothing)
-- Rollback on errors
+- `action: "reorderContentStructure"` — apply the sidebar drag-and-drop order
+  (payload: `{ action, items: [{ id, parentId, order, path }] }`).
+- `action: "refresh" | "recompile" | "refreshCollections"` — trigger a content
+  refresh.
 
 ## Unified Favorites & Tagging System
 

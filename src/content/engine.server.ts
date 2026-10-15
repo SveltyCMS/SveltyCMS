@@ -457,7 +457,7 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 
   // Bootstrap: if no file schemas exist but DB has schemas, regenerate .ts source files
   if (fileSchemas.length === 0 && dbSchemas.length > 0) {
-    await bootstrapCollectionFilesFromDb(dbSchemas);
+    await bootstrapCollectionFilesFromDb(dbSchemas, tenantId);
     // Re-scan to pick up the newly generated files
     markFileDirty();
     const regenerated = await scanCompiledCollections(targetDir);
@@ -511,7 +511,10 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
  * Bootstrap: regenerates .ts collection files from database schemas when
  * config/collections/ is empty. Prevents blank state after cache clears.
  */
-async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void> {
+async function bootstrapCollectionFilesFromDb(
+  dbSchemas: Schema[],
+  tenantId?: string | null,
+): Promise<void> {
   // Defensive: if the sandbox module is stripped from the artifact, skip the
   // sandbox guard instead of crashing the content engine on startup.
   let isLocalBenchmarkSandbox = () => false;
@@ -526,7 +529,10 @@ async function bootstrapCollectionFilesFromDb(dbSchemas: Schema[]): Promise<void
     return;
   }
 
-  const baseDir = path.resolve(process.cwd(), "config", "collections");
+  // Tenant-aware: live collections regenerate under the tenant's own collection
+  // root (config/<tenant>/collections), never the flat global root — otherwise a
+  // multi-tenant self-heal writes files to a scope nothing reads.
+  const baseDir = path.resolve(getCollectionsPath(tenantId));
   await fs.mkdir(baseDir, { recursive: true });
   const testDir = path.resolve(process.cwd(), "config", "test-collections");
   let testDirEnsured = false;
@@ -595,7 +601,7 @@ export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: 
     const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
     await compile({
       userCollections: baseDir,
-      compiledCollections: getCompiledCollectionsPath(null),
+      compiledCollections: getCompiledCollectionsPath(tenantId),
     });
   } catch (e) {
     logger.warn("[Bootstrap] Compilation after regeneration failed:", e);

@@ -768,7 +768,7 @@ export function printSummaryTable(
 export async function runBenchmark(config: any) {
   const {
     iterations,
-    runs = 1,
+    runs = 3,
     concurrency = 1,
     onIteration,
     onSetup,
@@ -779,14 +779,27 @@ export async function runBenchmark(config: any) {
   } = config;
   if (!onIteration) throw new Error("Benchmark must provide onIteration");
 
+  // 🎯 CALIBRATION BASELINE (noise floor): measure the harness + async overhead
+  // once per run with a no-op async loop. A real signal must exceed this to be
+  // meaningful. Exported as `harnessOverheadMs` so every benchmark ships its own
+  // noise floor instead of relying on each caller to add a no-op baseline.
+  const CALIBRATION_ITERATIONS = 1000;
+  const calStart = performance.now();
+  for (let i = 0; i < CALIBRATION_ITERATIONS; i++) {
+    await (async () => {})();
+  }
+  const harnessOverheadMs = (performance.now() - calStart) / CALIBRATION_ITERATIONS;
+
   // 🚀 LOW-NOISE ENTERPRISE DEFAULTS:
-  // JIT tiering (V8 Turbofan / JSC FTL) requires warmups to stabilize compiler optimizations.
-  // If warmupIterations is not explicitly passed or 0, default to minimum 100 for repeatable measurements.
+  // JIT tiering (V8 Turbofan / JSC FTL) requires warmups to stabilize compiler
+  // optimizations. When not explicitly set, default to a 1000-iteration warmup
+  // floor (per the repo rule "run ≥1k warm-up iterations before any timed loop")
+  // for fast micro-workloads; small-iteration (heavy) workloads keep a low floor.
   const effectiveWarmup =
     typeof config.warmupIterations === "number"
       ? config.warmupIterations
       : iterations >= 200
-        ? 100
+        ? 1000
         : Math.min(50, Math.floor(iterations / 2));
 
   // 🛡️ HONEST THINK-TIME: simulate user think time BETWEEN iterations, OUTSIDE
@@ -936,6 +949,7 @@ export async function runBenchmark(config: any) {
   const eluEnd = eluAvailable && eluStart ? performance.eventLoopUtilization(eluStart) : null;
   if (eluEnd) (stats as any).eventLoopUtilization = eluEnd.utilization;
   if (maxEventLoopLagMs > 0) (stats as any).eventLoopLagMs = maxEventLoopLagMs;
+  if (harnessOverheadMs > 0) (stats as any).harnessOverheadMs = harnessOverheadMs;
 
   // ❄️ Calculate dual-phase Cold and Warm metrics
   if (warmupLatencies.length > 0) {

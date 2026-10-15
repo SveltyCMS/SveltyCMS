@@ -11,6 +11,12 @@
  * The `.compiledCollections/.compilation-manifest.json` stores:
  * - `collectionOrder`: `{ [collectionId]: number }` for sidebar/builder ordering
  * - `structureNodes`: GUI-created categories and organizational hierarchy
+ *
+ * OWNERSHIP CONTRACT (single writer per section): this module owns
+ * `collectionOrder` + `structureNodes` (the GUI reorder overlay). The compiler
+ * (`compile.ts`) owns per-file entries + `__fingerprint` + `__version`. Each
+ * writer persists atomically and only mutates its own section via
+ * read-modify-write, so the two never clobber each other.
  */
 
 import fs from "node:fs/promises";

@@ -60,7 +60,7 @@
 	import Card from '@src/components/ui/card.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
-	import { collectionMetadata, getTagColor } from '@src/stores/collection-metadata-store.svelte';
+	import { collectionMetadata, getTagColor } from '@src/stores/collection-store.svelte';
 
 	let { data = $bindable(null), syncKey = '' } = $props();
 

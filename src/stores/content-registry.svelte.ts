@@ -8,7 +8,7 @@ import {
   getSchemaKey,
   getSchemaPath,
 } from "@src/content/first-collection";
-import type { ContentNode, Schema } from "@src/content/types";
+import type { ContentNode, ContentNodeInput, Schema } from "@src/content/types";
 import { deepClone } from "@utils/native-utils";
 
 // ✨ Absolute Global Singleton Pattern using 'process' to bypass bundler chunk isolation
@@ -405,6 +405,70 @@ class ContentStore {
    */
   upsert(node: ContentNode) {
     this._upsertInternal(node);
+    this.updateVersion();
+  }
+
+  /**
+   * Surgical remove of a single node (indexes + tenant bucket + schema catalog).
+   * Does not bump the version — callers batch it (see applyOperations).
+   */
+  remove(id: string): void {
+    const node = this._allNodes.get(id);
+    if (!node) return;
+    const tid = node.tenantId || "global";
+    this._allNodes.delete(id);
+    if (node.path) this._pathIndex.delete(node.path);
+    const tNodes = this._nodes.get(tid);
+    if (tNodes)
+      this._nodes.set(
+        tid,
+        tNodes.filter((n) => String(n._id) !== id),
+      );
+    if (node.nodeType === "collection") {
+      const schemaId = String(node.collectionDef?._id ?? node._id ?? id);
+      this._schemas.delete(schemaId);
+      this._schemaAliasIndex.delete(schemaId.toLowerCase());
+      const tCols = this._collections.get(tid);
+      if (tCols)
+        this._collections.set(
+          tid,
+          tCols.filter((c) => String(c._id) !== schemaId),
+        );
+    }
+  }
+
+  /**
+   * Apply a structural delta (create / update / move / rename / delete) directly
+   * to the store — O(delta) instead of re-reading + re-syncing the whole tree.
+   * The caller must already have persisted the delta to the DB (the durability
+   * point), so no rollback snapshot is needed here.
+   */
+  applyOperations(
+    operations: Array<{ type: string; node: ContentNodeInput }>,
+    tenantId?: string | null,
+  ): void {
+    const tid = this._tenantKey(tenantId);
+    for (const op of operations) {
+      const node = op.node;
+      if (op.type === "delete") {
+        let id = node._id != null ? String(node._id) : "";
+        if (!id && node.path) id = this._pathIndex.get(node.path) ?? "";
+        if (id) this.remove(id);
+        continue;
+      }
+      const id = node._id != null ? String(node._id) : "";
+      if (!id) continue;
+      const existing = this._allNodes.get(id);
+      const next = existing
+        ? ({
+            ...existing,
+            ...node,
+            _id: existing._id ?? node._id,
+            tenantId: existing.tenantId ?? tid,
+          } as ContentNode)
+        : ({ ...node, _id: node._id ?? id, tenantId: tid } as ContentNode);
+      this._upsertInternal(next);
+    }
     this.updateVersion();
   }
 

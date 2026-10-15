@@ -124,7 +124,7 @@ None (TreeView has its own keyboard navigation)
 
 	interface NodeOperation {
 		node: ContentNode;
-		type: 'create' | 'update' | 'move' | 'rename';
+		type: 'create' | 'update' | 'move' | 'rename' | 'delete';
 	}
 
 	interface CategoryModalResponse {
@@ -141,6 +141,10 @@ None (TreeView has its own keyboard navigation)
 	let nodesToSave: Record<string, NodeOperation> = $state.raw({});
 	let isLoading = $state(false);
 	let draftRevision = 0;
+	/** Staged Quick-Start preset — materialized (files → DB → store) only on Save. */
+	let pendingPresetId: string | null = $state(null);
+	/** Staged collection duplicates — each materializes a `.ts` copy on Save. */
+	let pendingDuplicates: Array<{ originalName: string; newName: string }> = $state.raw([]);
 	/** Single category selected for "add collection" (only one at a time). */
 	let selectedCategoryId = $state<string | null>(null);
 	/** Incremented when immediate category operations intentionally adopt a server structure. */
@@ -210,35 +214,26 @@ None (TreeView has its own keyboard navigation)
 		nodesToSave = freshOps;
 	}
 
-	async function doDelete(idsToDelete: string[]) {
-		try {
-			const { deleteContentNodes } = await import('./collectionbuilder.remote');
-			const result = await deleteContentNodes(idsToDelete);
-			if ('success' in result && result.success && result.contentStructure) {
-				const idSet = new SvelteSet(idsToDelete);
-				const confirmedStructure = result.contentStructure as unknown as ContentNode[];
-				if (confirmedStructure.some((node) => idSet.has(node._id?.toString() ?? ''))) {
-					throw new Error('Delete was not confirmed by the persisted structure');
-				}
-				currentConfig = confirmedStructure;
-				setDraftContentStructure(confirmedStructure);
-				// Invalidate layout so edit/create page sidebar gets fresh structure (no deleted items)
-				await invalidate('app:content');
-				toast.success(
-					idsToDelete.length > 1
-						? 'Category and attached items deleted'
-						: 'Item deleted successfully'
-				);
-			} else {
-				const message = (result as any).message ?? 'Deletion failed';
-				logger.error('Delete failed', message);
-				toast.error(message);
-			}
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Deletion failed';
-			logger.error('Delete failed', message);
-			toast.error(message);
+	/**
+	 * Stage deletions as `delete` ops + optimistically remove the nodes from the
+	 * local draft. Nothing touches the server until the user presses Save.
+	 */
+	function stageDeletes(idsToDelete: string[]) {
+		const idSet = new SvelteSet(idsToDelete);
+		const ops: Record<string, NodeOperation> = { ...nodesToSave };
+		for (const node of currentConfig) {
+			const id = node._id?.toString() ?? '';
+			if (idSet.has(id)) ops[id] = { type: 'delete', node };
 		}
+		nodesToSave = ops;
+		currentConfig = currentConfig.filter((node) => !idSet.has(node._id?.toString() ?? ''));
+		setDraftContentStructure(currentConfig);
+		draftRevision++;
+		toast.success(
+			idsToDelete.length > 1
+				? 'Items staged for deletion. Click Save to persist.'
+				: 'Item staged for deletion. Click Save to persist.'
+		);
 	}
 
 	function handleDeleteNode(node: Partial<ContentNode>) {
@@ -253,41 +248,19 @@ None (TreeView has its own keyboard navigation)
 			const attachedCount = idsToDelete.length - 1; // exclude the category itself
 			const body =
 				attachedCount > 0
-					? `Delete category "${node.name}" and all ${attachedCount} attached collection(s) and sub-categories? This action cannot be undone.`
-					: `Delete category "${node.name}"? This action cannot be undone.`;
+					? `Remove category "${node.name}" and all ${attachedCount} attached collection(s) and sub-categories? Click Save to persist. This cannot be undone.`
+					: `Remove category "${node.name}"? Click Save to persist. This cannot be undone.`;
 
 			showConfirm({
-				title: 'Delete Category and Contents?',
+				title: 'Remove Category and Contents?',
 				body,
-				onConfirm: async () => {
-					try {
-						isLoading = true;
-						await doDelete(idsToDelete);
-					} catch (err) {
-						const msg = err instanceof Error ? err.message : String(err);
-						logger.error('Delete failed', msg);
-						toast.error(msg || 'Failed to delete');
-					} finally {
-						isLoading = false;
-					}
-				}
+				onConfirm: () => stageDeletes(idsToDelete)
 			});
 		} else {
 			showConfirm({
-				title: 'Delete Item?',
-				body: `Are you sure you want to delete "${node.name}"? This action cannot be undone.`,
-				onConfirm: async () => {
-					try {
-						isLoading = true;
-						await doDelete([nodeId]);
-					} catch (err) {
-						const msg = err instanceof Error ? err.message : String(err);
-						logger.error('Delete failed', msg);
-						toast.error(msg || 'Failed to delete item');
-					} finally {
-						isLoading = false;
-					}
-				}
+				title: 'Remove Item?',
+				body: `Remove "${node.name}"? Click Save to persist. This cannot be undone.`,
+				onConfirm: () => stageDeletes([nodeId])
 			});
 		}
 	}
@@ -334,16 +307,17 @@ None (TreeView has its own keyboard navigation)
 			return;
 		}
 
-		// Single collection duplicate  use id-based path so DB and refresh keep stable path (not name-based)
+		// Single collection duplicate — stage as a `.ts` copy (files own existence,
+		// C1). The Save button materializes the source file via `duplicateCollection`.
 		const newId = generateUUID() as unknown as DatabaseId;
-		const baseName = (
+		const originalName = (
 			original.name ||
 			(original.collectionDef as { name?: string })?.name ||
 			'copy'
 		)
 			.toString()
 			.replace(/\s+/g, '_');
-		const newName = `${baseName}_copy`;
+		const newName = `${originalName}_copy`;
 		const parentId = original.parentId as DatabaseId | undefined;
 		if (hasDuplicateSiblingName(currentConfig, parentId ?? undefined, newName)) {
 			toast.warning(
@@ -374,17 +348,19 @@ None (TreeView has its own keyboard navigation)
 
 		currentConfig = [...currentConfig, newNode];
 		setDraftContentStructure(currentConfig);
-		nodesToSave = {
-			...nodesToSave,
-			[newId.toString()]: { type: 'create', node: newNode }
-		};
+		pendingDuplicates = [...pendingDuplicates, { originalName, newName }];
 		draftRevision++;
 		toast.success('Item duplicated. Click Save to persist change.');
 	}
 
 	async function handleSave() {
 		const items = $state.snapshot(Object.values(nodesToSave)) as NodeOperation[];
-		if (items.length === 0) {
+		const presetId = pendingPresetId;
+		const duplicates = $state.snapshot(pendingDuplicates) as Array<{
+			originalName: string;
+			newName: string;
+		}>;
+		if (items.length === 0 && presetId === null && duplicates.length === 0) {
 			toast.info('No changes to save.');
 			return;
 		}
@@ -395,6 +371,70 @@ None (TreeView has its own keyboard navigation)
 		try {
 			isLoading = true;
 
+			// 1. Materialize a staged Quick-Start preset first. Files own collection
+			//    existence (C1), so preset creation is the one collection-create path
+			//    that may run here — via the dedicated installer (writes `.ts` files,
+			//    refreshes the engine, persists the store, then returns the tree).
+			if (presetId !== null) {
+				const { installTemplateCollections } = await import('./collectionbuilder.remote');
+				const result = await installTemplateCollections(presetId);
+
+				if (!('success' in result && result.success)) {
+					const message =
+						(result as any)?.message ??
+						(result as any)?.data?.message ??
+						'Failed to install template';
+					logger.error('Error installing template:', message);
+					toast.error(message);
+					return;
+				}
+
+				pendingPresetId = null;
+				const installed = (result as any).contentStructure as ContentNode[] | undefined;
+				if (installed?.length) {
+					currentConfig = $state.snapshot(installed) as ContentNode[];
+					setDraftContentStructure(currentConfig);
+					treeVersion++;
+				}
+				// The install persists the whole tree server-side; any staged structural
+				// ops were against the pre-install draft and are superseded by it.
+				nodesToSave = {};
+				pendingDuplicates = [];
+				await invalidate('app:content');
+				toast.success((result as any).message ?? 'Template installed successfully');
+				return;
+			}
+
+			// 1b. Materialize staged collection duplicates (source `.ts` copy).
+			if (duplicates.length > 0) {
+				const { duplicateCollection } = await import('./collectionbuilder.remote');
+				let committed: ContentNode[] | undefined;
+				for (const dup of duplicates) {
+					const result = await duplicateCollection(dup);
+					if (!('success' in result && result.success)) {
+						const message =
+							(result as any)?.message ??
+							(result as any)?.data?.message ??
+							'Failed to duplicate collection';
+						logger.error('Error duplicating collection:', message);
+						toast.error(message);
+						return;
+					}
+					committed = (result as any).contentStructure as ContentNode[] | undefined;
+				}
+				pendingDuplicates = [];
+				if (committed?.length) {
+					currentConfig = $state.snapshot(committed) as ContentNode[];
+					setDraftContentStructure(currentConfig);
+					treeVersion++;
+				}
+				nodesToSave = {};
+				await invalidate('app:content');
+				toast.success('Collection duplicated successfully');
+				return;
+			}
+
+			// 2. Flush structural ops (move / rename / delete / category-create).
 			const { saveContentStructure } = await import('./collectionbuilder.remote');
 			const result = await saveContentStructure(items as any);
 
@@ -508,24 +548,16 @@ None (TreeView has its own keyboard navigation)
 				size: 'xl'
 			},
 			async (
-				response:
-					| CategoryModalResponse
-					| boolean
-					| { __categoryDeleted: true; contentStructure: ContentNode[] }
+				response: CategoryModalResponse | boolean | { __categoryDeleted: true; categoryId: string }
 			) => {
 				// User cancelled
 				if (!response || typeof response === 'boolean') {
 					return;
 				}
 
-				// Handle deletion result
-				if (
-					typeof response === 'object' &&
-					'__categoryDeleted' in response &&
-					response.contentStructure
-				) {
-					currentConfig = response.contentStructure;
-					toast.success('Category deleted successfully');
+				// Deletion is staged by the modal; stage the cascade here too.
+				if (typeof response === 'object' && '__categoryDeleted' in response) {
+					stageDeletes(getDescendantIds(response.categoryId, currentConfig));
 					return;
 				}
 
@@ -533,92 +565,54 @@ None (TreeView has its own keyboard navigation)
 				const nameTrimmed = form.newCategoryName.trim();
 				const icon = form.newCategoryIcon || 'mdi:folder-outline';
 
-				// --- Immediate save via remote function (no staging) ---
-				isLoading = true;
-				try {
-					const { saveContentStructure } = await import('./collectionbuilder.remote');
+				if (existingCategory?._id) {
+					// Edit existing category — staged as a rename (no immediate save).
+					const updated = {
+						...existingCategory,
+						name: form.newCategoryName,
+						icon,
+						description:
+							form.newCategoryDescription ?? (existingCategory as any)?.description ?? '',
+						updatedAt: nowISODateString()
+					} as ContentNode;
 
-					if (existingCategory?._id) {
-						// Edit existing category
-						const updated = {
-							...existingCategory,
-							name: form.newCategoryName,
-							icon,
-							description:
-								form.newCategoryDescription ?? (existingCategory as any)?.description ?? '',
-							updatedAt: nowISODateString()
-						} as ContentNode;
+					currentConfig = currentConfig.map((node) =>
+						node._id?.toString() === updated._id?.toString() ? updated : node
+					);
+					setDraftContentStructure(currentConfig);
+					nodesToSave = {
+						...nodesToSave,
+						[updated._id?.toString() ?? '']: { type: 'rename', node: updated }
+					};
+					draftRevision++;
+					toast.success(`Category "${nameTrimmed}" staged. Click Save to persist.`);
+				} else {
+					// Create new category — staged as a create (no immediate save).
+					const newId = generateUUID() as unknown as DatabaseId;
+					const path = uniquePathForCategory(form.newCategoryName);
+					const newCategory: ContentNode = {
+						_id: newId,
+						name: form.newCategoryName,
+						icon,
+						path,
+						order: currentConfig.length,
+						translations: [],
+						description: form.newCategoryDescription ?? '',
+						updatedAt: nowISODateString(),
+						createdAt: nowISODateString(),
+						parentId: undefined,
+						nodeType: 'category',
+						source: 'builder'
+					};
 
-						const result = await saveContentStructure([{ type: 'rename', node: updated }] as any);
-
-						if ('success' in result && result.success && result.contentStructure) {
-							currentConfig = result.contentStructure as unknown as ContentNode[];
-							setDraftContentStructure(currentConfig);
-							treeVersion++;
-							toast.success(`Category "${nameTrimmed}" updated successfully`);
-							await invalidate('app:content');
-						} else {
-							const message = (result as any).message ?? 'Failed to update category';
-							// Check if it's a duplicate name error
-							if (
-								typeof message === 'string' &&
-								(message.includes('already exists') || message.includes('duplicate'))
-							) {
-								toast.warning(message);
-							} else {
-								logger.error('Error updating category:', message);
-								toast.error(message);
-							}
-						}
-					} else {
-						// Create new category — immediate save
-						const newId = generateUUID() as unknown as DatabaseId;
-						const path = uniquePathForCategory(form.newCategoryName);
-						const newCategory: ContentNode = {
-							_id: newId,
-							name: form.newCategoryName,
-							icon,
-							path,
-							order: currentConfig.length,
-							translations: [],
-							description: form.newCategoryDescription ?? '',
-							updatedAt: nowISODateString(),
-							createdAt: nowISODateString(),
-							parentId: undefined,
-							nodeType: 'category',
-							source: 'builder'
-						};
-
-						const result = await saveContentStructure([
-							{ type: 'create', node: newCategory }
-						] as any);
-
-						if ('success' in result && result.success && result.contentStructure) {
-							currentConfig = result.contentStructure as unknown as ContentNode[];
-							setDraftContentStructure(currentConfig);
-							treeVersion++;
-							toast.success(`Category "${nameTrimmed}" created successfully`);
-							await invalidate('app:content');
-						} else {
-							const message = (result as any).message ?? 'Failed to create category';
-							// Check if it's a duplicate name error
-							if (
-								typeof message === 'string' &&
-								(message.includes('already exists') || message.includes('duplicate'))
-							) {
-								toast.warning(message);
-							} else {
-								logger.error('Error creating category:', message);
-								toast.error(message);
-							}
-						}
-					}
-				} catch (error) {
-					const msg = error instanceof Error ? error.message : String(error);
-					logger.error('Error saving category:', msg);
-					toast.error(msg || 'Failed to save category');
-				} finally {
-					isLoading = false;
+					currentConfig = [...currentConfig, newCategory];
+					setDraftContentStructure(currentConfig);
+					nodesToSave = {
+						...nodesToSave,
+						[newId.toString()]: { type: 'create', node: newCategory }
+					};
+					draftRevision++;
+					toast.success(`Category "${nameTrimmed}" staged. Click Save to persist.`);
 				}
 			}
 		);
@@ -631,43 +625,37 @@ None (TreeView has its own keyboard navigation)
 				title: 'Quick-Start Templates',
 				size: 'xl'
 			},
-			async (
-				response: {
-					installed: boolean;
-					collections?: string[];
-					contentStructure?: ContentNode[];
-				} | null
-			) => {
-				if (!response || !response.installed) return;
+			async (response: { presetId: string } | null) => {
+				if (!response?.presetId) return;
 
-				// Adopt the freshly installed structure. This page's load does NOT depend
-				// on 'app:content', so invalidating alone never refreshes
-				// `data.contentStructure` — the empty state would stay on screen.
-				const installed = response.contentStructure as unknown as ContentNode[] | undefined;
-				if (installed?.length) {
-					currentConfig = installed;
-					setDraftContentStructure(installed);
-					treeVersion++;
+				const { PRESETS } = await import('@src/routes/setup/presets');
+				const preset = PRESETS.find((p) => p.id === response.presetId);
+				if (!preset?.collections?.length) return;
 
-					// The preset install writes the collections server-side, but the builder's
-					// Save is the explicit commit for the resulting tree/layout. Stage the
-					// adopted hierarchy so the toolbar Save button enables instead of staying
-					// greyed out after an empty-state Quick Start.
-					const staged: Record<string, NodeOperation> = {};
-					for (const node of installed) {
-						staged[node._id.toString()] = {
-							type: 'move',
-							node:
-								node.nodeType === 'category' && !node.source
-									? { ...node, source: 'builder' as const }
-									: node
-						};
-					}
-					nodesToSave = staged;
-				}
+				// Stage the preset (no server write) and preview its collections in
+				// the board. The Save button is the single commit point.
+				pendingPresetId = response.presetId;
+				const now = nowISODateString();
+				const preview: ContentNode[] = preset.collections.map((col, i) => ({
+					_id: `preset:${col.name}` as unknown as DatabaseId,
+					name: col.name,
+					icon: col.icon,
+					path: `/collection/${col.name}`,
+					order: currentConfig.length + i,
+					translations: [],
+					description: col.description,
+					nodeType: 'collection',
+					source: 'builder',
+					updatedAt: now,
+					createdAt: now
+				}));
 
-				// Soft refresh — refreshes the layout/sidebar, keeps consent + session state
-				await invalidate('app:content');
+				currentConfig = [...currentConfig, ...preview];
+				setDraftContentStructure(currentConfig);
+				treeVersion++;
+				toast.success(
+					`Template staged. Click Save to create ${preset.collections.length} collection(s).`
+				);
 			}
 		);
 	}
@@ -728,27 +716,30 @@ None (TreeView has its own keyboard navigation)
 	titleBorderless={true}
 >
 	{#snippet actions()}
-		{#if currentConfig.length > 0}
-			<Button
-				variant="tertiary"
-				data-testid="save-structure-button"
-				onclick={handleSave}
-				disabled={isLoading || Object.keys(nodesToSave).length === 0}
-				title={Object.keys(nodesToSave).length === 0
-					? builder_tip_save_no_changes()
-					: builder_tip_save_changes()}
-				aria-keyshortcuts="mod+s"
-				size="md"
-				class="flex items-center gap-1.5 px-4"
-			>
-				{#if isLoading}
-					<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
-				{/if}
-				<span>{button_save()}</span>
-			</Button>
-		{/if}
+		<Button
+			variant="primary"
+			data-testid="save-structure-button"
+			onclick={handleSave}
+			disabled={isLoading ||
+				(pendingPresetId === null &&
+					pendingDuplicates.length === 0 &&
+					Object.keys(nodesToSave).length === 0)}
+			title={pendingPresetId === null &&
+			pendingDuplicates.length === 0 &&
+			Object.keys(nodesToSave).length === 0
+				? builder_tip_save_no_changes()
+				: builder_tip_save_changes()}
+			aria-keyshortcuts="mod+s"
+			size="md"
+			class="flex items-center gap-1.5 px-4"
+		>
+			{#if isLoading}
+				<iconify-icon icon="mdi:loading" width="20" class="animate-spin"></iconify-icon>
+			{:else}
+				<iconify-icon icon="mdi:content-save" width="20"></iconify-icon>
+			{/if}
+			<span>{button_save()}</span>
+		</Button>
 	{/snippet}
 
 	{#if currentConfig.length > 0}
@@ -844,7 +835,7 @@ None (TreeView has its own keyboard navigation)
 
 			<div class="max-h-[calc(100vh-120px)] overflow-auto" data-testid="collection-builder-board">
 				<div class="mx-auto w-full max-w-screen-2xl">
-					{#if Object.keys(nodesToSave).length > 0}
+					{#if pendingPresetId !== null || pendingDuplicates.length > 0 || Object.keys(nodesToSave).length > 0}
 						<div
 							class="sticky top-0 z-50 mb-4 mt-0 rounded border border-warning-500/30 bg-warning-500/10 px-4 py-3 text-center text-sm font-medium text-warning-600 shadow-sm dark:text-warning-400"
 							role="status"

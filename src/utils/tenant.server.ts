@@ -20,6 +20,23 @@ function getConfigRoot(): string {
 }
 
 /**
+ * Canonical "no tenant" sentinel. `undefined`, `null`, the empty string, and the
+ * legacy `"global"` alias all normalize to `null` — one representation for the
+ * global/global scope. A real tenant id is returned unchanged.
+ *
+ * The filesystem layer previously treated `"global"` as a literal directory
+ * (`config/global/collections`, `.compiledCollections/global`) while the DB layer
+ * treated it as "system scope" and the stores collapsed it to a `"global"` key.
+ * Three spellings for one scope produced two manifests for the same logical root.
+ */
+export function normalizeTenantId(tenantId?: string | null): string | null {
+  if (tenantId === undefined || tenantId === null || tenantId === "" || tenantId === "global") {
+    return null;
+  }
+  return tenantId;
+}
+
+/**
  * Resolve collection directory. 🛡️ Hardened: Path normalized to prevent escapes.
  */
 export function getCollectionsPath(tenantId?: string | null): string {
@@ -30,7 +47,8 @@ export function getCollectionsPath(tenantId?: string | null): string {
     process.env.BUN_TEST === "true" ||
     process.env.BENCHMARK === "true";
 
-  const activeTenant = tenantId ?? sveltyContext.getStore()?.tenantId;
+  const activeTenant =
+    normalizeTenantId(tenantId) ?? normalizeTenantId(sveltyContext.getStore()?.tenantId);
   if (activeTenant) {
     const sanitizedTenant = path.basename(activeTenant);
     // Mirror path-resolver's tenant branch: a test harness must write under
@@ -79,6 +97,7 @@ export function isValidTenantId(tenantId: string | null | undefined): boolean {
  * Get display path for logging.
  */
 export function getCollectionDisplayPath(collectionName: string, tenantId?: string | null): string {
-  const tenant = tenantId === undefined ? "collections" : (tenantId ?? "global") + "/collections";
+  const t = normalizeTenantId(tenantId);
+  const tenant = t ? `${t}/collections` : "collections";
   return `config/${tenant}/${collectionName}.ts`;
 }
