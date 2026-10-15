@@ -460,7 +460,7 @@ class CollectionAnalyticsService {
       Record<string, unknown>
     >;
 
-    const buckets = new Map<string, number>();
+    const buckets = new Map<string, { sum: number; count: number }>();
 
     for (const doc of docs) {
       let key = "Other";
@@ -488,28 +488,45 @@ class CollectionAnalyticsService {
             : "None";
       }
 
-      const val = measure === "sum" && metricField ? Number(doc[metricField]) || 0 : 1;
-
-      buckets.set(key, (buckets.get(key) || 0) + val);
+      // Accumulate raw sum + count per bucket so every measure (count/sum/avg) is
+      // derived from the same aggregates. The previous code reduced `avg` to a
+      // per-document "1", silently reporting counts for avg chart requests.
+      const numeric = metricField ? Number(doc[metricField]) || 0 : 0;
+      const entry = buckets.get(key) ?? { sum: 0, count: 0 };
+      entry.sum += numeric;
+      entry.count += 1;
+      buckets.set(key, entry);
     }
+
+    const valueOf = (entry: { sum: number; count: number }): number => {
+      // `count`, and sum/avg without a metric field, both reduce to a document count.
+      if (measure === "count" || !metricField) return entry.count;
+      if (measure === "avg") return entry.count > 0 ? entry.sum / entry.count : 0;
+      return entry.sum;
+    };
 
     let entries = Array.from(buckets.entries());
     if (groupBy === "field") {
-      entries.sort((a, b) => b[1] - a[1]);
+      entries.sort((a, b) => valueOf(b[1]) - valueOf(a[1]));
       if (entries.length > limit) {
         const top = entries.slice(0, limit);
-        const otherSum = entries.slice(limit).reduce((acc, curr) => acc + curr[1], 0);
-        if (otherSum > 0) top.push(["Other", otherSum]);
+        const rest = entries.slice(limit);
+        const otherSum = rest.reduce((acc, [, e]) => acc + e.sum, 0);
+        const otherCount = rest.reduce((acc, [, e]) => acc + e.count, 0);
+        if (otherCount > 0) top.push(["Other", { sum: otherSum, count: otherCount }]);
         entries = top;
       }
     }
 
-    const total = entries.reduce((acc, curr) => acc + curr[1], 0);
-    const series: ChartSeriesItem[] = entries.map(([label, value]) => ({
-      label,
-      value,
-      pct: total > 0 ? Math.round((value / total) * 100) : 0,
-    }));
+    const total = entries.reduce((acc, [, entry]) => acc + valueOf(entry), 0);
+    const series: ChartSeriesItem[] = entries.map(([label, entry]) => {
+      const value = valueOf(entry);
+      return {
+        label,
+        value,
+        pct: total > 0 ? Math.round((value / total) * 100) : 0,
+      };
+    });
 
     return {
       series,

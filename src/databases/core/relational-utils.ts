@@ -1015,20 +1015,31 @@ export function buildRawTenantClause(
   dialect: "mysql" | "postgres" | "sqlite" = "sqlite",
   opts: { parameterized?: boolean; paramIndex?: number } = {},
 ): { sql: string; params: string[] } {
-  if (hasTenantBypass(options) || !options?.tenantId || options?.tenantId === "global") {
+  if (hasTenantBypass(options)) {
     return EMPTY_TENANT_CLAUSE;
   }
-  const parameterized = opts.parameterized !== false;
+  const tenantId = getEffectiveTenantId(options);
+  if (tenantId === undefined) {
+    return EMPTY_TENANT_CLAUSE;
+  }
   const col = dialect === "mysql" ? "`tenantId`" : `"tenantId"`;
+  // Canonical global scope (tenantId: null) must pin to NULL rows, not skip the
+  // predicate — the old `!options?.tenantId` short-circuit treated null (global)
+  // and undefined (unset) identically, so raw SQL read/write paths could span
+  // tenants. Mirrors getTenantCondition: null → IS NULL.
+  if (tenantId === null) {
+    return { sql: ` AND ${col} IS NULL`, params: [] };
+  }
+  const parameterized = opts.parameterized !== false;
   if (parameterized) {
     if (dialect === "postgres") {
       const idx = opts.paramIndex ?? 1;
-      return { sql: ` AND ${col} = $${idx}`, params: [String(options.tenantId)] };
+      return { sql: ` AND ${col} = $${idx}`, params: [String(tenantId)] };
     }
-    return { sql: ` AND ${col} = ?`, params: [String(options.tenantId)] };
+    return { sql: ` AND ${col} = ?`, params: [String(tenantId)] };
   }
   // Legacy literal path — quote-escape only (avoid for new code)
-  const id = String(options.tenantId).replace(/'/g, "''");
+  const id = String(tenantId).replace(/'/g, "''");
   return { sql: ` AND ${col} = '${id}'`, params: [] };
 }
 

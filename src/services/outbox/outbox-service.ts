@@ -38,6 +38,7 @@ import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import { pubSub } from "@src/services/background/pub-sub";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { isMultiTenantMode } from "@src/utils/security/safe-query";
 import type {
   BaseQueryOptions,
   CountOptions,
@@ -54,7 +55,7 @@ export type OutboxEventStatus = "pending" | "delivered" | "failed";
  */
 export interface OutboxEvent {
   _id: string;
-  tenantId: string;
+  tenantId: string | null;
   eventType: string; // e.g. "entry:create", "media:delete"
   aggregateType: string; // e.g. "entry", "media", "webhook"
   aggregateId: string; // the ID of the entity that changed
@@ -131,6 +132,16 @@ export function isOutboxDisabled(): boolean {
 }
 
 /**
+ * Missing tenant scope check, mirroring `assertTenantContext`: `undefined` and
+ * `""` mean "no context" and only fail closed under MULTI_TENANT; `null`
+ * (explicit global scope) and non-empty strings are always a scope decision.
+ */
+function hasMissingTenantContext(tenantId: string | null | undefined): boolean {
+  if (!isMultiTenantMode()) return false;
+  return tenantId === undefined || tenantId === "";
+}
+
+/**
  * Hard cap: force a macrotask flush (never inline on the write tick) so a
  * tight create loop is not serialized behind outbox insertMany on SQLite.
  */
@@ -161,7 +172,7 @@ class OutboxServiceImpl {
     aggregateType: string,
     aggregateId: string,
     payload: unknown,
-    tenantId: string,
+    tenantId: string | null | undefined,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<OutboxEvent>> {
     if (isOutboxDisabled()) {
@@ -169,6 +180,18 @@ class OutboxServiceImpl {
         success: false,
         message: "Outbox disabled",
         error: { code: "OUTBOX_DISABLED", message: "Outbox disabled" },
+      };
+    }
+
+    // Validate the tenant scope before either path so the buffered fast path
+    // returns a graceful result instead of propagating enqueueBuffered's throw.
+    // Consistent with assertTenantContext: a missing scope (undefined/"") fails
+    // closed only under MULTI_TENANT; null (explicit global) and real strings pass.
+    if (hasMissingTenantContext(tenantId)) {
+      return {
+        success: false,
+        message: "Outbox emit requires a resolved tenantId",
+        error: { code: "OUTBOX_ERROR", message: "Outbox emit requires a resolved tenantId" },
       };
     }
 
@@ -196,7 +219,7 @@ class OutboxServiceImpl {
     // Transactional path: must share the caller's txn for atomicity.
     const event: OutboxEvent = {
       _id: generateUUID(),
-      tenantId: tenantId || "default",
+      tenantId: tenantId === undefined || tenantId === "" ? null : tenantId,
       eventType,
       aggregateType,
       aggregateId: String(aggregateId),
@@ -234,12 +257,15 @@ class OutboxServiceImpl {
     aggregateType: string,
     aggregateId: string,
     payload: unknown,
-    tenantId: string,
+    tenantId: string | null | undefined,
   ): OutboxEvent {
+    if (hasMissingTenantContext(tenantId)) {
+      throw new Error("[Outbox] enqueueBuffered requires a resolved tenantId");
+    }
     const now = nowISODateString();
     const event: OutboxEvent = {
       _id: generateUUID(),
-      tenantId: tenantId || "default",
+      tenantId: tenantId === undefined || tenantId === "" ? null : tenantId,
       eventType,
       aggregateType,
       aggregateId: String(aggregateId),
@@ -468,7 +494,7 @@ class OutboxServiceImpl {
       const webhookEvent = OUTBOX_TO_WEBHOOK_EVENT[event.eventType];
       if (webhookEvent) {
         const { webhookService } = await import("@src/services/background/webhook-service");
-        await webhookService.trigger(webhookEvent as any, event.payload, event.tenantId);
+        await webhookService.trigger(webhookEvent as any, event.payload, event.tenantId ?? "");
       }
 
       // 3. Mark delivered

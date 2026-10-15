@@ -93,11 +93,20 @@ export class CacheWarmingService {
           const redirects = await db.crud.find("redirects", {}, { limit: 100, ...systemScope });
           if (redirects.success && redirects.data) {
             for (const r of redirects.data) {
+              // The redirects schema uses `source`/`target` (read by handle-redirects via
+              // `redirectsMV`); `from` was a legacy spelling. Reading only `from` wrote
+              // every redirect under the single key `redirect:undefined`.
+              const sourcePath = r.source || r.from;
+              if (!sourcePath) continue;
               const rTenant = r.tenantId ?? "global";
-              await cacheService.set(`redirect:${r.from}`, r, 3600, rTenant, CacheCategory.API, [
-                "redirect",
-                `redirect:${r.from}`,
-              ]);
+              await cacheService.set(
+                `redirect:${sourcePath}`,
+                r,
+                3600,
+                rTenant,
+                CacheCategory.API,
+                ["redirect", `redirect:${sourcePath}`],
+              );
             }
           }
         } catch (err: any) {

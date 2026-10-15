@@ -76,9 +76,16 @@ describe("sanitizeString", () => {
     expect(sanitizeString("")).toBe("");
   });
 
-  test("skips very large payloads (>100k chars)", () => {
+  test("returns clean large payloads by reference (>100k chars)", () => {
     const large = "a".repeat(100_001);
     expect(sanitizeString(large)).toBe(large);
+  });
+
+  test("sanitizes large payloads containing XSS vectors (>100k chars)", () => {
+    const prefix = "a".repeat(100_000);
+    const result = sanitizeString(`${prefix}<script>alert(1)</script>`);
+    expect(result).not.toContain("<script");
+    expect(result).toContain(prefix);
   });
 
   test("removes onmouseover handler", () => {

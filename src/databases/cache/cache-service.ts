@@ -22,6 +22,10 @@ import { CacheLockManager, LOCK_ERROR } from "./cache-locks";
 import { NegativeCacheManager } from "./negative-cache";
 import { RedisWriteBatcher, serializeL2Value, deserializeL2Value } from "./redis-pipeline";
 
+// Read once at module load so the L1-hit hot path pays a single boolean check
+// instead of a process.env lookup (and zero clock syscalls when sampling is off).
+const ENABLE_HOOK_TIMING = process.env.ENABLE_HOOK_TIMING === "1";
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
 function loadDbModule(): Promise<typeof import("@src/databases/db")> {
@@ -91,32 +95,12 @@ export class CacheService {
   private negative = new NegativeCacheManager();
   private batcher = new RedisWriteBatcher();
 
-  private stats: CacheStats = {
-    hits: 0,
-    misses: 0,
-    evictions: 0,
-    l1Hits: 0,
-    l2Hits: 0,
-    l1Size: 0,
-    size: 0,
-    deletes: 0,
-  };
-
   private bootstrapping = false;
-  private latencyBuffer: number[] = [];
-  private latencyIdx = 0;
-  private l1LatencyBuffer: number[] = [];
-  private l1LatencyIdx = 0;
-  private readonly MAX_LATENCY_SAMPLES = 1024;
-  private _metrics: any = null;
   private _cdnResolved = false;
   private _cdnActive = false;
 
   /** Collection write epochs for fencing race conditions between background warm and user writes. */
   private collectionEpochs = new Map<string, number>();
-
-  /** Cooperative in-process counters for the no-Redis `increment()` fallback (FIX 5). */
-  private _coopCounters = new Map<string, { value: number }>();
 
   constructor() {
     // The L1 was bounded only by entry count (500k). A read-heavy workload on a
@@ -154,7 +138,7 @@ export class CacheService {
       ttl: 1000 * 60 * 5,
       dispose: (_value: unknown, key: string) => {
         if (!this._isBulkClearing) {
-          this.stats.evictions++;
+          cacheMetrics.recordEviction();
           this.cleanupTagsForKey(key);
           this.removeFromPrefixMap(key);
           this.negative.invalidate(key);
@@ -181,44 +165,6 @@ export class CacheService {
       if (typeof (t as unknown as { unref?: () => void })?.unref === "function") {
         (t as unknown as { unref: () => void }).unref();
       }
-    }
-  }
-
-  private async getMetrics() {
-    if (this._metrics) return this._metrics;
-    try {
-      const { metricsService } = await import("@src/services/observability/metrics-service");
-      this._metrics = metricsService;
-    } catch {
-      this._metrics = { recordMetric: () => {} };
-    }
-    return this._metrics;
-  }
-
-  private recordMetricSync(name: string, value: number) {
-    if (this._metrics && typeof this._metrics.recordMetric === "function") {
-      this._metrics.recordMetric(name, value);
-    }
-  }
-
-  private recordLatency(ms: number) {
-    if (this.latencyBuffer.length < this.MAX_LATENCY_SAMPLES) {
-      this.latencyBuffer.push(ms);
-    } else {
-      this.latencyBuffer[this.latencyIdx] = ms;
-      this.latencyIdx = (this.latencyIdx + 1) % this.MAX_LATENCY_SAMPLES;
-    }
-  }
-
-  /** 🔴 FIX 9: record L1-hit latency separately. Previously L1 hits (the dominant path)
-   * never called recordLatency, so getLatencyStats() reported only L2 Redis round-trips —
-   * a benchmark relying on it looked healthy while L1 hits and lock-wait were unmeasured. */
-  private recordL1Latency(ms: number) {
-    if (this.l1LatencyBuffer.length < this.MAX_LATENCY_SAMPLES) {
-      this.l1LatencyBuffer.push(ms);
-    } else {
-      this.l1LatencyBuffer[this.l1LatencyIdx] = ms;
-      this.l1LatencyIdx = (this.l1LatencyIdx + 1) % this.MAX_LATENCY_SAMPLES;
     }
   }
 
@@ -335,7 +281,6 @@ export class CacheService {
       const { loadPrivateConfig } = await loadDbModule();
       config = await loadPrivateConfig();
     }
-    this.getMetrics().catch(() => {});
     return this.initializeL2(config);
   }
 
@@ -514,12 +459,11 @@ export class CacheService {
 
   getSync<T>(key: string, tenantId?: string | null): T | null {
     const fullKey = this.generateKey(key, tenantId);
-    const start = performance.now();
+    const start = ENABLE_HOOK_TIMING ? performance.now() : 0;
     const l1Value = this.l1.get(fullKey, L1_GET_OPTS_SYNC);
     if (l1Value !== undefined) {
-      this.stats.hits++;
-      this.stats.l1Hits++;
-      this.recordL1Latency(performance.now() - start);
+      cacheMetrics.recordHit(fullKey, CacheCategory.GENERAL, tenantId, 0, "l1");
+      if (ENABLE_HOOK_TIMING) cacheMetrics.recordLatency(performance.now() - start);
       return l1Value as T;
     }
     return null;
@@ -537,22 +481,17 @@ export class CacheService {
     // "peek" without promoting recency or refreshing the TTL so random point reads
     // can't evict hot collection lists. Query/list results (CONTENT) are high-traffic
     // pages and must be promoted + kept warm on every hit.
-    const l1Start = performance.now();
+    const l1Start = ENABLE_HOOK_TIMING ? performance.now() : 0;
     const coldCategory = _category === CacheCategory.ENTRY;
     const l1Value = this.l1.get(fullKey, coldCategory ? L1_GET_OPTS_COLD : L1_GET_OPTS_DEFAULT);
     if (l1Value !== undefined) {
-      this.stats.hits++;
-      this.stats.l1Hits++;
-      this.recordL1Latency(performance.now() - l1Start);
-      this.recordMetricSync("cache:hit:l1", 1);
-      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
+      cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0, "l1");
+      if (ENABLE_HOOK_TIMING) cacheMetrics.recordLatency(performance.now() - l1Start);
       return l1Value as T;
     }
 
     // 2. Negative Cache Hit
     if (this.negative.isNegativeHit(fullKey)) {
-      this.stats.hits++;
-      this.recordL1Latency(0);
       cacheMetrics.recordHit(fullKey, _category || CacheCategory.GENERAL, tenantId, 0);
       return null;
     }
@@ -567,20 +506,18 @@ export class CacheService {
           if (l2Value) {
             const parsed = deserializeL2Value(l2Value);
             const responseTime = performance.now() - start;
-            this.recordLatency(responseTime);
+            cacheMetrics.recordLatency(responseTime);
             this.l1.set(fullKey, parsed);
             // Keep the namespace bucket index consistent with L1 so pattern
             // clears don't silently miss L2-hydrated entries (and fall back to
             // a full L1 scan).
             this.addToPrefixMap(fullKey);
-            this.stats.hits++;
-            this.stats.l2Hits++;
-            this.recordMetricSync("cache:hit:l2", 1);
             cacheMetrics.recordHit(
               fullKey,
               _category || CacheCategory.GENERAL,
               tenantId,
               responseTime,
+              "l2",
             );
             return parsed as T;
           }
@@ -589,8 +526,6 @@ export class CacheService {
         }
       }
 
-      this.stats.misses++;
-      this.recordMetricSync("cache:miss", 1);
       cacheMetrics.recordMiss(fullKey, _category || CacheCategory.GENERAL, tenantId);
 
       // 4. Distributed Stampede Lock Coordination
@@ -659,8 +594,7 @@ export class CacheService {
       const l1Value = this.l1.get(fullKeys[i]);
       if (l1Value !== undefined) {
         results[i] = l1Value as T;
-        this.stats.hits++;
-        this.stats.l1Hits++;
+        cacheMetrics.recordHit(fullKeys[i], CacheCategory.GENERAL, tenantId, 0, "l1");
       } else {
         missingIndices.push(i);
         missingKeys.push(fullKeys[i]);
@@ -680,13 +614,12 @@ export class CacheService {
           results[missingIndices[i]] = parsed as T;
           this.l1.set(missingKeys[i], parsed);
           this.addToPrefixMap(missingKeys[i]);
-          this.stats.hits++;
-          this.stats.l2Hits++;
+          cacheMetrics.recordHit(missingKeys[i], CacheCategory.GENERAL, tenantId, undefined, "l2");
         } else {
-          this.stats.misses++;
+          cacheMetrics.recordMiss(missingKeys[i], CacheCategory.GENERAL, tenantId);
         }
       }
-      this.recordLatency(performance.now() - start);
+      cacheMetrics.recordLatency(performance.now() - start);
     } catch (err) {
       logger.error("[CacheService] L2 mGet Failure:", err);
     }
@@ -785,7 +718,7 @@ export class CacheService {
         // Keep L1 coherent with L2 (version scans read via get()).
         this.l1.set(fullKey, next, { ttl: (CATEGORY_TTL_SECONDS[_category] ?? 300) * 1000 });
         this.addToPrefixMap(fullKey);
-        this.stats.hits++;
+        cacheMetrics.recordHit(fullKey, _category, tenantId);
         return next as number;
       } catch (err) {
         logger.error(`[CacheService] L2 increment failure for ${fullKey}`, err);
@@ -793,17 +726,14 @@ export class CacheService {
       }
     }
 
-    // L1 cooperative atomic-ish increment: keyed on the singleton so concurrent callers on the
-    // same process serialize through this map rather than reading+writing a shared number.
-    let coop = this._coopCounters.get(fullKey);
-    if (!coop) {
-      coop = { value: (this.l1.get(fullKey) as number) || 0 };
-      this._coopCounters.set(fullKey, coop);
-    }
-    coop.value += delta;
-    this.l1.set(fullKey, coop.value, { ttl: (CATEGORY_TTL_SECONDS[_category] ?? 300) * 1000 });
+    // L1 increment: get + set on the same synchronous tick is already atomic in
+    // single-process JavaScript (no await between read and write), so a shared
+    // `_coopCounters` map is unnecessary bookkeeping that only leaks keys.
+    const current = (this.l1.get(fullKey) as number) || 0;
+    const next = current + delta;
+    this.l1.set(fullKey, next, { ttl: (CATEGORY_TTL_SECONDS[_category] ?? 300) * 1000 });
     this.addToPrefixMap(fullKey);
-    return coop.value;
+    return next;
   }
 
   /**
@@ -889,13 +819,11 @@ export class CacheService {
     if (cachedEntry && typeof cachedEntry === "object" && "storedAt" in cachedEntry) {
       const age = Date.now() - cachedEntry.storedAt;
       if (age < ttl) {
-        this.stats.hits++;
-        this.stats.l1Hits++;
+        cacheMetrics.recordHit(fullKey, _category, tenantId, 0, "l1");
         return cachedEntry.value as T;
       }
       if (age < staleTtl) {
-        this.stats.hits++;
-        this.stats.l1Hits++;
+        cacheMetrics.recordHit(fullKey, _category, tenantId, 0, "l1");
         // Background SWR refresh
         this.locks.coalesce(`swr:refresh:${fullKey}`, async () => {
           try {
@@ -939,10 +867,13 @@ export class CacheService {
   async delete(key: string, tenantId?: string | null): Promise<boolean> {
     const fullKey = this.generateKey(key, tenantId);
     this.l1.delete(fullKey);
+    // Cancel any buffered L2 write for this key so a deferred 15ms flush cannot
+    // resurrect the just-deleted value (stale read-after-write).
+    this.batcher.cancelPending(fullKey);
     this.cleanupTagsForKey(fullKey);
     this.removeFromPrefixMap(fullKey);
     this.negative.invalidate(fullKey);
-    this.stats.deletes++;
+    cacheMetrics.recordDelete(fullKey, CacheCategory.GENERAL, tenantId);
 
     if (this.isL2Ready()) {
       try {
@@ -1122,7 +1053,6 @@ export class CacheService {
   }
 
   private logSkippedFullScan(pattern: string): void {
-    this.recordMetricSync("cache:pattern-scan-skipped", 1);
     logger.debug(
       `[Cache] Skipped O(n) L1 scan for pattern "${pattern}" (l1Size=${this.l1.size}); relying on tags + TTL.`,
     );
@@ -1238,6 +1168,14 @@ export class CacheService {
   }
 
   async invalidateAll(tenantId: string | null = "*") {
+    const isWildcard = tenantId === "*" || tenantId == null || tenantId === "";
+    if (!isWildcard) {
+      // Scoped: clear only this tenant — never wipe the whole process L1 or all
+      // Redis DBs (which would also nuke sessions and rate-limiters).
+      await this.clearByPattern("*", tenantId);
+      return;
+    }
+
     this.l1.clear();
     this.tagMap.clear();
     this.keyToTags.clear();
@@ -1246,7 +1184,13 @@ export class CacheService {
     this.locks.clear();
 
     if (this.isL2Ready()) {
-      await this.l2.flushAll();
+      // FLUSHDB (current logical DB) instead of FLUSHALL (every DB) so other
+      // Redis databases (sessions, rate-limiters) stay intact.
+      if (typeof this.l2.flushDb === "function") {
+        await this.l2.flushDb();
+      } else {
+        await this.l2.flushAll();
+      }
       await this.publishInvalidation("*", tenantId);
     }
   }
@@ -1275,31 +1219,21 @@ export class CacheService {
   // ── Observability & Stats ───────────────────────────────────────────────
 
   getStats(): CacheStats {
+    const counters = cacheMetrics.getCounters();
     return {
-      ...this.stats,
+      hits: counters.hits,
+      misses: counters.misses,
+      evictions: counters.evictions,
+      l1Hits: counters.l1Hits,
+      l2Hits: counters.l2Hits,
       l1Size: this.l1.size,
       size: this.l1.size,
+      deletes: counters.deletes,
     };
   }
 
   getLatencyStats(): { avg: number; p95: number; p99: number; samples: number } {
-    // 🔴 FIX 9: combine L1-hit latency (the dominant path) with L2/lock latency so the
-    // reported p95/p99 reflects real end-to-end read latency, not only Redis round-trips.
-    const combined = [...this.l1LatencyBuffer, ...this.latencyBuffer];
-    if (combined.length === 0) {
-      return { avg: 0, p95: 0, p99: 0, samples: 0 };
-    }
-    const sorted = [...combined].sort((a, b) => a - b);
-    const sum = sorted.reduce((acc, v) => acc + v, 0);
-    const avg = sum / sorted.length;
-    const p95Idx = Math.max(0, Math.min(Math.ceil(sorted.length * 0.95) - 1, sorted.length - 1));
-    const p99Idx = Math.max(0, Math.min(Math.ceil(sorted.length * 0.99) - 1, sorted.length - 1));
-    return {
-      avg: Math.round(avg * 1000) / 1000,
-      p95: Math.round(sorted[p95Idx] * 1000) / 1000,
-      p99: Math.round(sorted[p99Idx] * 1000) / 1000,
-      samples: sorted.length,
-    };
+    return cacheMetrics.getLatencyStats();
   }
 
   async cleanup(): Promise<void> {

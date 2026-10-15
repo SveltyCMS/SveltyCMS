@@ -56,7 +56,7 @@ export class MaintenanceService {
         const result = await db.cleanupExpiredData();
 
         if (result.success) {
-          const { sessions, tokens } = result.data;
+          const { sessions = 0, tokens = 0 } = result.data ?? {};
           if (sessions > 0 || tokens > 0) {
             logger.info(
               `[Maintenance] Cleanup successful: ${sessions} sessions, ${tokens} tokens purged.`,

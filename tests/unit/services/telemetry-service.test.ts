@@ -109,7 +109,7 @@ describe("TelemetryService Environment Checks", () => {
 
     // Decrypt using the test client secret to verify the decrypted payload
     const crypto = await import("node:crypto");
-    const key = crypto.createHash("sha256").update("test-client-secret-123").digest();
+    const key = crypto.scryptSync("test-client-secret-123", "sveltycms-telemetry-aes-key", 32);
     const decipher = crypto.createDecipheriv(
       "aes-256-gcm",
       key,

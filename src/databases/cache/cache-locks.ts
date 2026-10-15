@@ -21,6 +21,9 @@ import { generateUUID } from "@utils/native-utils";
  */
 export const LOCK_ERROR = "";
 
+/** Atomic GET-then-DEL in one round-trip (prevents deleting a successor's lock). */
+const UNLOCK_LUA = `if redis.call("get", KEYS[1]) == ARGV[1] then return redis.call("del", KEYS[1]) else return 0 end`;
+
 export class CacheLockManager {
   private pendingRequests = new Map<string, Promise<any>>();
   private activeLocks = new Map<string, string>();
@@ -135,9 +138,15 @@ export class CacheLockManager {
 
     const lockKey = `lock:${key}`;
     try {
-      const currentOwner = await l2.get(lockKey);
-      if (currentOwner === lockOwner) {
-        await l2.del(lockKey);
+      // Atomic GET-then-DEL (avoids deleting a successor's lock after our TTL
+      // expires between a separate get and del). Falls back to get+del on L2
+      // clients without EVAL.
+      if (typeof l2.eval === "function") {
+        // slop:suppress — fixed Lua literal (atomic lock release), never dynamic code
+        await l2.eval(UNLOCK_LUA, { keys: [lockKey], arguments: [lockOwner] });
+      } else {
+        const currentOwner = await l2.get(lockKey);
+        if (currentOwner === lockOwner) await l2.del(lockKey);
       }
     } catch (err) {
       logger.error(`[CacheLock] Failed to release lock for ${key}`, err);

@@ -618,7 +618,9 @@ export class WorkflowService {
 
     // 3. Batch insert instances
     if (dbAdapter.batch?.bulkInsert) {
-      await dbAdapter.batch.bulkInsert(this.INSTANCES_COLLECTION, instances as any[]);
+      await dbAdapter.batch.bulkInsert(this.INSTANCES_COLLECTION, instances as any[], {
+        tenantId: tenantId as DatabaseId,
+      });
     } else {
       // Fallback to sequential if batch not supported by adapter
       for (const instance of instances) {

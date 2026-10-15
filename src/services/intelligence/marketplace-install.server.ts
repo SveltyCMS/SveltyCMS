@@ -41,17 +41,13 @@ const ALLOWED_INSTALL_PREFIXES = [
 /** Node fs/path surface used by the install path guard (loaded lazily by callers). */
 type PathOps = Pick<typeof import("node:path"), "resolve" | "relative" | "isAbsolute">;
 
-function assertSafeInstallPath(
-  path: PathOps,
-  installPath: string,
-  filename: string,
-  cwd: string,
-): string {
-  if (!installPath || installPath.includes("\0") || filename.includes("\0")) {
+/** Resolve + validate an install directory against the allowlist and traversal rules. */
+function resolveInstallDir(path: PathOps, installPath: string, cwd: string): string {
+  if (!installPath || installPath.includes("\0")) {
     throw new Error("Invalid install path");
   }
   const normalized = installPath.replace(/\\/g, "/").replace(/^\/+/, "");
-  if (normalized.includes("..") || filename.includes("..")) {
+  if (normalized.includes("..")) {
     throw new Error("Install path must not contain '..'");
   }
   const allowed = ALLOWED_INSTALL_PREFIXES.some(
@@ -60,7 +56,19 @@ function assertSafeInstallPath(
   if (!allowed) {
     throw new Error(`Install path "${normalized}" is outside the allowed marketplace directories`);
   }
-  const installDir = path.resolve(cwd, normalized);
+  return path.resolve(cwd, normalized);
+}
+
+function assertSafeInstallPath(
+  path: PathOps,
+  installPath: string,
+  filename: string,
+  cwd: string,
+): string {
+  if (filename.includes("\0") || filename.includes("..")) {
+    throw new Error("Invalid filename");
+  }
+  const installDir = resolveInstallDir(path, installPath, cwd);
   const filePath = path.resolve(installDir, filename);
   const rel = path.relative(installDir, filePath);
   if (rel.startsWith("..") || path.isAbsolute(rel)) {
@@ -154,7 +162,11 @@ export async function installPlugin(
     throw new Error(`License required for ${plugin.name} (${plugin.license})`);
   }
 
-  await fs.mkdir(nodePath.join(cwd, plugin.installPath.replace(/\\/g, "/")), { recursive: true });
+  // Validate + resolve the install directory BEFORE any mkdir — `installPath`
+  // comes from remote marketplace metadata and must be checked the same way as
+  // the individual file paths.
+  const installDir = resolveInstallDir(nodePath, plugin.installPath, cwd);
+  await fs.mkdir(installDir, { recursive: true });
 
   for (const [filename, content] of Object.entries(plugin.files)) {
     const filePath = assertSafeInstallPath(nodePath, plugin.installPath, filename, cwd);

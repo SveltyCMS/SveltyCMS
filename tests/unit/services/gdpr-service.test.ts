@@ -22,7 +22,7 @@ describe("GDPRService", () => {
 
   beforeEach(() => {
     mockAuditLog.log.mockClear();
-    mockAuditLog.getLogs.mockClear();
+    mockAuditLog.queryLogs.mockClear();
     (mockDbAdapter.auth.getUserById as any).mockImplementation((id: string, tid: string) =>
       Promise.resolve({
         success: true,
@@ -42,18 +42,22 @@ describe("GDPRService", () => {
   describe("exportUserData", () => {
     it("should fetch user profile and related logs", async () => {
       const userId = "123";
-      const mockLogs = [
-        { actor: { id: "123" }, action: "entry.create", tenantId },
-        { actor: { id: "456" }, action: "entry.update", tenantId }, // different user
-      ];
-      mockAuditLog.getLogs.mockReturnValue(Promise.resolve(mockLogs as any));
+      const mockLogs = [{ actor: { id: "123" }, action: "entry.create", tenantId }];
+      mockAuditLog.queryLogs.mockReturnValue(
+        Promise.resolve({ success: true, data: mockLogs as any }),
+      );
 
       const result = (await gdprService.exportUserData(userId, tenantId)) as any;
 
       expect(mockDbAdapter.auth.getUserById).toHaveBeenCalledWith(userId, {
         tenantId,
       });
-      expect(mockAuditLog.getLogs).toHaveBeenCalled();
+      expect(mockAuditLog.queryLogs).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tenantId,
+          filters: { actorId: userId },
+        }),
+      );
       expect(result.profile._id).toBe(userId);
       expect(result.history).toHaveLength(1);
       expect(result.history[0].action).toBe("entry.create");

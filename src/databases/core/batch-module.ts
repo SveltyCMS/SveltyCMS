@@ -57,20 +57,30 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
       // 🚀 Write-Queue Coalescing: Group same-collection + same-operation items
       // to use bulk SQL (INSERT ... VALUES (...), (...)) instead of N sequential
       // round-trips. This transforms O(N) mutex acquisitions into O(groups).
-      // 🛡️ MULTI-TENANT ISOLATION: Reject batches containing mixed tenantIds.
-      // Without this guard, coalescing across tenants sharing a DB instance
-      // could cause cross-tenant data leaks.
-      let batchTenantId: string | null = null;
+      // 🛡️ MULTI-TENANT ISOLATION: Reject batches containing mixed tenantIds, and
+      // thread the derived scope into every bulk call. Scope may live on
+      // op.tenantId, op.data.tenantId, or op.query.tenantId — inspect all three.
+      let batchTenantId: DatabaseId | null | undefined;
+      let hasBatchTenant = false;
       for (const op of operations) {
-        const opTenant = (op as any).tenantId || null;
-        if (batchTenantId === null) {
+        const opTenant = (op.tenantId ??
+          (op.data as Record<string, unknown> | undefined)?.tenantId ??
+          (op.query as Record<string, unknown> | undefined)?.tenantId) as
+          | DatabaseId
+          | null
+          | undefined;
+        if (!hasBatchTenant) {
           batchTenantId = opTenant;
-        } else if (opTenant && opTenant !== batchTenantId) {
+          hasBatchTenant = true;
+        } else if ((opTenant ?? null) !== (batchTenantId ?? null)) {
           throw new Error(
-            `[SECURITY] Batch contains mixed tenantIds: ${batchTenantId} vs ${opTenant}. Cross-tenant coalescing rejected.`,
+            `[SECURITY] Batch contains mixed tenantIds: ${String(batchTenantId ?? null)} vs ${String(opTenant ?? null)}. Cross-tenant coalescing rejected.`,
           );
         }
       }
+
+      const batchOptions: BaseQueryOptions =
+        batchTenantId !== undefined ? { tenantId: batchTenantId } : {};
 
       const groups = new Map<string, BatchOperation<T>[]>();
       for (const op of operations) {
@@ -92,7 +102,7 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
             const items = ops.map(
               (op) => op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
             );
-            const bulkRes = await this.crud.insertMany(collection, items);
+            const bulkRes = await this.crud.insertMany(collection, items, batchOptions);
             if (bulkRes.success && bulkRes.data) {
               for (const item of bulkRes.data) {
                 results.push({
@@ -111,7 +121,7 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
               query: op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
               data: op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
             }));
-            const bulkRes = await this.crud.upsertMany(collection, items);
+            const bulkRes = await this.crud.upsertMany(collection, items, batchOptions);
             if (bulkRes.success && Array.isArray(bulkRes.data)) {
               for (const item of bulkRes.data) {
                 results.push({ success: true, data: item } as DatabaseResult<T>);
@@ -130,9 +140,13 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
           }
           if (operation === "delete" && ops.length > 1) {
             const ids = ops.map((op) => op.id!);
-            const deleteRes = await this.crud.deleteMany(collection, {
-              _id: { $in: ids },
-            } as any);
+            const deleteRes = await this.crud.deleteMany(
+              collection,
+              {
+                _id: { $in: ids },
+              } as any,
+              batchOptions,
+            );
             if (deleteRes.success) {
               for (const id of ids) {
                 results.push({
@@ -156,7 +170,7 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
 
           // Fallback: individual ops for updates, upserts, or single-item groups
           for (const op of ops) {
-            const res = await this.executeSingleOp(collection, op);
+            const res = await this.executeSingleOp(collection, op, batchOptions);
             results.push(res as DatabaseResult<T>);
             if (res.success) totalProcessed++;
             else if (res.error) errors.push(res.error);
@@ -190,12 +204,14 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
   private async executeSingleOp<T extends BaseEntity>(
     collection: string,
     op: BatchOperation<T>,
+    options: BaseQueryOptions,
   ): Promise<DatabaseResult<T | undefined>> {
     switch (op.operation) {
       case "insert":
         return await this.crud.insert(
           collection,
           op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+          options,
         );
       case "update":
         if (!op.id) throw new Error("ID required for update operation");
@@ -203,16 +219,22 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
           collection,
           op.id,
           op.data as Partial<Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">>,
+          options,
         );
       case "delete":
         if (!op.id) throw new Error("ID required for delete operation");
-        return (await this.crud.delete(collection, op.id)) as unknown as DatabaseResult<undefined>;
+        return (await this.crud.delete(
+          collection,
+          op.id,
+          options,
+        )) as unknown as DatabaseResult<undefined>;
       case "upsert":
         if (!(op.query && op.data)) throw new Error("Query and data required");
         return await this.crud.upsert(
           collection,
           op.query as import("../db-interface").QueryFilter<T & BaseEntity>,
           op.data as Omit<T & BaseEntity, "_id" | "createdAt" | "updatedAt">,
+          options,
         );
       default:
         throw new Error(`Unsupported batch operation: ${op.operation}`);
@@ -222,8 +244,12 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
   async bulkInsert<T extends BaseEntity>(
     collection: string,
     items: Omit<T, "_id" | "createdAt" | "updatedAt">[],
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
-    return this.crud.insertMany(collection, items);
+    // 🛡️ TENANT ISOLATION: thread the caller's scope through insertMany (which
+    // applies the tenant filter + fail-closed MULTI_TENANT gate).
+    assertTenantContext(options, "batch.bulkInsert");
+    return this.crud.insertMany(collection, items, options);
   }
 
   async bulkUpdate<T extends BaseEntity>(
@@ -356,12 +382,15 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
   async bulkDelete(
     collection: string,
     ids: DatabaseId[],
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
     return this.core.wrap(async () => {
       const table = this.core.getTable(collection);
-      const result = await this.db
-        .delete(table as any)
-        .where(inArray((table as any)._id, ids as string[]));
+      // 🛡️ TENANT ISOLATION: previously `_id IN (...)` only — could delete rows
+      // owned by another tenant sharing the DB instance.
+      const conditions = [inArray((table as any)._id, ids as string[])];
+      applyTenantFilter(conditions, (table as any).tenantId, options);
+      const result = await this.db.delete(table as any).where(and(...conditions));
       return {
         deletedCount: (result as unknown as { changes: number }).changes,
       };
@@ -371,13 +400,17 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
   async bulkUpsert<T extends BaseEntity>(
     collection: string,
     items: Array<Partial<T> & { id?: DatabaseId }>,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
+    assertTenantContext(options, "batch.bulkUpsert");
     const mappedItems = items.map((item) => ({
       query: {
         _id: item.id,
       } as unknown as import("../db-interface").QueryFilter<T>,
       data: item as unknown as Omit<T, "_id" | "createdAt" | "updatedAt">,
     }));
-    return this.crud.upsertMany<T>(collection, mappedItems) as unknown as DatabaseResult<T[]>;
+    return this.crud.upsertMany<T>(collection, mappedItems, options) as unknown as DatabaseResult<
+      T[]
+    >;
   }
 }

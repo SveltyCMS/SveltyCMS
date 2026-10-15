@@ -191,6 +191,9 @@ export type RawListWireStreamResult =
 
 const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/** Upper bound on Phase-2 update coalescer cache entries (see getUpdateCoalescer). */
+const UPDATE_COALESCER_MAX = 512;
+
 /**
  * Index plan for a paginated list order. Only a same-direction `(column, _id)`
  * pair is worth a B-tree. `updatedAt` and `status` already have list indexes.
@@ -2649,6 +2652,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     if (!this._updateCoalescers) this._updateCoalescers = new Map();
     let coalescer = this._updateCoalescers.get(key);
     if (!coalescer) {
+      // 🔒 Bound the cache: one entry is created per (collection × column
+      // signature × tenant shape). Dynamically-created collections could
+      // otherwise grow this unboundedly for the process lifetime. Evict the
+      // oldest entry (Map insertion order) past the cap; a coalescer is cheap
+      // to recreate and any in-flight batch keeps its own drain timer.
+      if (this._updateCoalescers.size >= UPDATE_COALESCER_MAX) {
+        const oldest = this._updateCoalescers.keys().next().value;
+        if (oldest !== undefined) this._updateCoalescers.delete(oldest);
+      }
       coalescer = new StatementCoalescer<any>(
         async (entries) => {
           const table = this.getTable(collection);
@@ -3194,10 +3206,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const table = this.getTable(collection);
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
         if (!idCol) throw new Error("ID column not found");
+        // 🛡️ TENANT ISOLATION: scope by tenant exactly like delete(). Without it,
+        // a caller with a valid `_id` could soft-undelete a row owned by another
+        // tenant (assertTenantContext + applyTenantFilter fail closed).
+        const conditions: SQL[] = [eq(idCol, id as any)];
+        applyTenantFilter(conditions, this.getColumn(table, "tenantId"), options);
         await this.getDrizzleInstance(options)
           .update(table)
           .set({ isDeleted: false, updatedAt: new Date() })
-          .where(eq(idCol, id as any));
+          .where(and(...conditions));
       },
       "RESTORE_FAILED",
       undefined,
@@ -3279,16 +3296,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     data: EntityCreate<T>,
     options: BaseQueryOptions,
   ): Promise<DatabaseResult<T>> {
-    const existing = await this.findOne(collection, query, options);
-    if (existing.success && existing.data) {
-      const existingId =
-        (existing.data as { _id?: DatabaseId; id?: DatabaseId })._id ||
-        (existing.data as { id?: DatabaseId }).id;
-      if (existingId) {
-        return this.update(collection, existingId, data as EntityUpdate<T>, options);
+    // 🔒 FIND-THEN-INSERT/UPDATE is a read-modify-write race without a lock: two
+    // callers can both miss `findOne` and both INSERT → duplicate rows / unique
+    // violation. Serialize under the adapter's write lock (reentrant; a no-op
+    // where the engine has no cross-process writers).
+    return this.withWriteLock(async () => {
+      const existing = await this.findOne(collection, query, options);
+      if (existing.success && existing.data) {
+        const existingId =
+          (existing.data as { _id?: DatabaseId; id?: DatabaseId })._id ||
+          (existing.data as { id?: DatabaseId }).id;
+        if (existingId) {
+          return this.update(collection, existingId, data as EntityUpdate<T>, options);
+        }
       }
-    }
-    return this.insert(collection, data, options);
+      return this.insert(collection, data, options);
+    });
   }
 
   /**
@@ -3569,6 +3592,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   public override destroy(): void {
     if (this.preparedStatements.size > 0) this.preparedStatements.clear();
+    if (this._updateCoalescers) this._updateCoalescers.clear();
   }
 }
 

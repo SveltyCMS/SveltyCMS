@@ -201,14 +201,18 @@ export function createTenantGuardedCrud(
         }
       : {}),
 
-    atomicIncrement: async (collection, id, field, amount, options) =>
-      inner.atomicIncrement!(
-        collection,
-        id,
-        field,
-        amount,
-        g(options, `${collection}.atomicIncrement`),
-      ),
+    ...(typeof inner.atomicIncrement === "function"
+      ? {
+          atomicIncrement: async (collection, id, field, amount, options) =>
+            inner.atomicIncrement!(
+              collection,
+              id,
+              field,
+              amount,
+              g(options, `${collection}.atomicIncrement`),
+            ),
+        }
+      : {}),
   };
 }
 

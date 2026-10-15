@@ -428,7 +428,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
           `Operator/array values in where() are not supported (field "${String(key)}") — use whereIn, whereBetween, whereNull or whereNotNull`,
         );
       }
-      const column = this.table[key];
+      const column = Object.hasOwn(this.table, key) ? this.table[key] : undefined;
       if (column) {
         if (value === null) {
           this.conditions.push(isNull(column));
@@ -531,7 +531,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
 
   /** Compiles a single field comparison inside an OR alternative, or null. */
   private compileOrLeaf(key: string, value: unknown): CompiledOrLeaf | null {
-    const column = this.table[key];
+    const column = Object.hasOwn(this.table, key) ? this.table[key] : undefined;
     if (!column || typeof column.name !== "string" || column.name.length === 0) return null;
     const name = column.name;
     if (value === null) return { k: "isnull", name };
@@ -590,7 +590,14 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
 
   /** Single field → Drizzle condition (physical column or JSON blob field). */
   private drizzleFieldCondition(key: string, value: unknown): SQL | undefined {
-    const column = this.table[key];
+    // 🛡️ PROTO-GUARD: an inherited key (`constructor`/`__proto__`/…) must not
+    // resolve to a prototype member and be treated as a physical column. The
+    // `as unknown as Column` cast keeps the variable's declared type identical
+    // to the previous `this.table[key]` read (the truthiness checks below
+    // already route `undefined` to the JSON path at runtime).
+    const column = Object.hasOwn(this.table, key)
+      ? this.table[key]
+      : (undefined as unknown as Column);
     const jsonField = () => this.core.getJsonField(key);
     if (value === null) return column ? isNull(column) : isNull(jsonField());
     if (value instanceof Date)
@@ -627,7 +634,9 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   whereIn<K extends keyof T>(field: K, values: NonNullable<T[K]>[]): this {
-    const column = this.table[field as string];
+    const column = Object.hasOwn(this.table, field as string)
+      ? this.table[field as string]
+      : undefined;
     const name = typeof column?.name === "string" && column.name.length > 0 ? column.name : null;
     const bindable = values.length > 0 && values.every(isBindable);
     if (column && name && bindable) {
@@ -662,7 +671,9 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   whereNotIn<K extends keyof T>(field: K, values: NonNullable<T[K]>[]): this {
-    const column = this.table[field as string];
+    const column = Object.hasOwn(this.table, field as string)
+      ? this.table[field as string]
+      : undefined;
     const name = typeof column?.name === "string" && column.name.length > 0 ? column.name : null;
     const bindable = values.length > 0 && values.every(isBindable);
     if (column && name && bindable) {
@@ -685,7 +696,9 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   whereBetween<K extends keyof T>(field: K, min: T[K], max: T[K]): this {
-    const column = this.table[field as string];
+    const column = Object.hasOwn(this.table, field as string)
+      ? this.table[field as string]
+      : undefined;
     const name = typeof column?.name === "string" && column.name.length > 0 ? column.name : null;
     const bindable = isBindable(min) && isBindable(max);
     if (column && name && bindable) {
@@ -725,7 +738,9 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   whereNull<K extends keyof T>(field: K): this {
-    const column = this.table[field as string];
+    const column = Object.hasOwn(this.table, field as string)
+      ? this.table[field as string]
+      : undefined;
     if (column) {
       this.conditions.push(isNull(column));
       this.notePhysical(column, { k: "isnull", name: column.name });
@@ -737,7 +752,9 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
   }
 
   whereNotNull<K extends keyof T>(field: K): this {
-    const column = this.table[field as string];
+    const column = Object.hasOwn(this.table, field as string)
+      ? this.table[field as string]
+      : undefined;
     if (column) {
       this.conditions.push(sql`${column} IS NOT NULL`);
       this.notePhysical(column, { k: "notnull", name: column.name });
@@ -760,7 +777,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       sql`${column} ${sql.raw(this.dialect.likeOperator)} ${pattern} ESCAPE ${ESCAPE_CHAR}`;
 
     const resolveField = (f: string): SQL | null => {
-      const column = this.table[f];
+      const column = Object.hasOwn(this.table, f) ? this.table[f] : undefined;
       if (column) {
         return (column as any).dataType !== "json" ? likeCondition(column) : null;
       }
@@ -798,7 +815,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
 
       if (fields && fields.length > 0) {
         for (const f of candidateFields) {
-          const col = this.table[f];
+          const col = Object.hasOwn(this.table, f) ? this.table[f] : undefined;
           if (
             col &&
             (col as any).dataType !== "json" &&
@@ -813,7 +830,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
         }
       } else {
         for (const f of candidateFields) {
-          const col = this.table[f];
+          const col = Object.hasOwn(this.table, f) ? this.table[f] : undefined;
           if (
             col &&
             (col as any).dataType !== "json" &&
@@ -821,10 +838,15 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
             col.name.length > 0
           ) {
             physicalNames.push(col.name);
+          } else {
+            // 🐛 SEARCH NARROWING: a default field that is NOT a physical
+            // non-json column (i.e. lives in the JSON `data` blob) cannot be
+            // represented by the compiled plan. Falling back to Drizzle keeps
+            // the full search (physical + JSON) instead of silently dropping
+            // the JSON-field matches.
+            canCompileSearch = false;
+            break;
           }
-        }
-        if (physicalNames.length === 0) {
-          canCompileSearch = false;
         }
       }
 
@@ -934,7 +956,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
     if (this.selectedFields) {
       const projection: Record<string, Column> = {};
       this.selectedFields.forEach((f) => {
-        const column = this.table[f as string];
+        const column = Object.hasOwn(this.table, f as string) ? this.table[f as string] : undefined;
         if (column) {
           projection[f as string] = column;
         }
@@ -980,7 +1002,11 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
       const s = this.sortOptions[i];
       const direction = normalizeSortDirection(s.direction);
       const fieldName = s.field as string;
-      const column = this.table[fieldName] ?? this.table[fieldName.replace(/^_/, "")];
+      const column = Object.hasOwn(this.table, fieldName)
+        ? this.table[fieldName]
+        : Object.hasOwn(this.table, fieldName.replace(/^_/, ""))
+          ? this.table[fieldName.replace(/^_/, "")]
+          : undefined;
       if (!column) {
         out.push({ name: null, direction, column: this.core.getJsonField(fieldName) });
       } else {
@@ -1430,7 +1456,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
     if ("$eq" in valObj && isBindable(valObj.$eq)) {
       this.where({ [key]: valObj.$eq } as unknown as Partial<T>);
     } else if ("$ne" in valObj && isBindable(valObj.$ne)) {
-      const col = this.table[key];
+      const col = Object.hasOwn(this.table, key) ? this.table[key] : undefined;
       if (col && typeof col.name === "string" && col.name.length > 0) {
         const bound = this.coerceFilterValue(col, valObj.$ne);
         this.conditions.push(sql`${col} <> ${bound}`);
@@ -1477,7 +1503,7 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
     key: string,
     value: string | number,
   ): void {
-    const col = this.table[key];
+    const col = Object.hasOwn(this.table, key) ? this.table[key] : undefined;
     if (col && typeof col.name === "string" && col.name.length > 0) {
       const bound = this.coerceFilterValue(col, value);
       if (kind === "gt") this.conditions.push(sql`${col} > ${bound}`);

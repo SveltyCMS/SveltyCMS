@@ -52,6 +52,7 @@ interface PendingPubSubEvent {
   action: string;
   data: any;
   timestamp: string;
+  tenantId?: string | null;
   user: any;
 }
 
@@ -249,6 +250,7 @@ export function schedulePostWrite(
       action,
       data,
       timestamp: nowISODateString(),
+      tenantId,
       user,
     });
   }
@@ -410,6 +412,12 @@ let _outboxRef: {
 } | null = null;
 
 function enqueueOne(entry: PendingOutboxItem): void {
+  // A missing tenant scope (undefined / "") is a fire-and-forget side effect on
+  // an already-committed write — skip the outbox event rather than throw (which
+  // would crash persistWithOutbox). null (explicit global) and real strings pass
+  // through unchanged; never synthesize a tenant id.
+  if (entry.tenantId === undefined || entry.tenantId === "") return;
+
   const eventType =
     entry.action === "create"
       ? "entry:create"
@@ -430,7 +438,7 @@ function enqueueOne(entry: PendingOutboxItem): void {
       data: entry.data,
       userId: entry.user?._id,
     },
-    String(entry.tenantId ?? "default"),
+    entry.tenantId,
   );
 }
 

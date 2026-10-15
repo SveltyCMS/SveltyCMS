@@ -175,9 +175,10 @@ export async function handleSAMLACS(request: Request, cookies?: any) {
   const SAMLResponse = formData.get("SAMLResponse") as string;
   const RelayState = formData.get("RelayState") as string;
 
-  // Validate state to prevent CSRF attacks (if cookie is present)
+  // Validate state to prevent CSRF attacks — a missing cookie must also be
+  // rejected (fail closed), not treated as an empty state that skips the check.
   const stateCookie = cookies?.get("saml_state");
-  if (stateCookie && stateCookie !== RelayState) {
+  if (!stateCookie || stateCookie !== RelayState) {
     logger.error("SAML Authentication Failed: CSRF State mismatch");
     return json({ success: false, message: "CSRF State mismatch" }, { status: 403 });
   }

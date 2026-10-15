@@ -161,7 +161,11 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
       };
 
       if (node.path) {
-        await db.content.nodes.update(node.path, updateData as any);
+        // 🛡️ TENANT ISOLATION: `path` is per-tenant; scope the update so a scheduled
+        // publish can't touch another tenant's node (and doesn't throw under MULTI_TENANT).
+        await db.content.nodes.update(node.path, updateData as any, {
+          tenantId: node.tenantId as any,
+        });
         webhookService.trigger(
           "entry:publish",
           {

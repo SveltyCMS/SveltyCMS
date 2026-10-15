@@ -857,11 +857,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const idColName =
         (this.getColumn(table, "_id") || this.getColumn(table, "id"))?.name ?? "_id";
       const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
-      const hasTenant = tenantClause.sql !== "";
+      // 🛡️ Append the clause verbatim: it is "" for no tenant, `AND "tenantId" = $2`
+      // for a real tenant, and `AND "tenantId" IS NULL` (empty params) for the
+      // canonical global scope. The old `hasTenant` flag treated IS NULL as `= $2`,
+      // producing a missing $2 and silently returning null for global-scope rows.
       const sqlText =
         `SELECT "data" FROM "${assertSafeSqlIdentifier(tableName, "table")}"` +
-        ` WHERE "${assertSafeSqlIdentifier(idColName, "column")}" = $1${hasTenant ? ' AND "tenantId" = $2' : ""} LIMIT 1`;
-      const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
+        ` WHERE "${assertSafeSqlIdentifier(idColName, "column")}" = $1${tenantClause.sql} LIMIT 1`;
+      const params = [String(id), ...tenantClause.params];
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       return parseJsonDataBlob(Array.isArray(rows) && rows.length > 0 ? rows[0]?.data : null);
     } catch {
@@ -880,6 +883,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       withoutData: string;
       withDataTenant: string;
       withoutDataTenant: string;
+      withDataNull: string;
+      withoutDataNull: string;
     }
   >();
 
@@ -940,25 +945,33 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           withoutData: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
           withDataTenant: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
           withoutDataTenant: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
+          withDataNull: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
+          withoutDataNull: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
         };
         this._rawFindByIdSqlCache.set(table, cachedSql);
       }
 
       // Reuse the shared tenant-clause contract (respects bypass + "global")
       // so the raw path scopes identically to SQLite/MariaDB and the Drizzle
-      // fallback below.
+      // fallback below. Distinguish a real tenant (param present) from the
+      // canonical global scope (IS NULL, no param).
       const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
-      const hasTenant = tenantClause.sql !== "";
+      const hasTenantParam = tenantClause.params.length > 0;
+      const hasTenantClause = tenantClause.sql !== "";
 
-      const sqlText = hasTenant
-        ? wantsData
-          ? cachedSql.withDataTenant
-          : cachedSql.withoutDataTenant
+      const sqlText = hasTenantClause
+        ? hasTenantParam
+          ? wantsData
+            ? cachedSql.withDataTenant
+            : cachedSql.withoutDataTenant
+          : wantsData
+            ? cachedSql.withDataNull
+            : cachedSql.withoutDataNull
         : wantsData
           ? cachedSql.withData
           : cachedSql.withoutData;
 
-      const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
+      const params = [String(id), ...tenantClause.params];
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       if (!Array.isArray(rows) || rows.length === 0) return null;
 

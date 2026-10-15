@@ -13,6 +13,8 @@
  */
 
 import type { DatabaseId } from "@src/databases/db-interface";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
+import { getPrivateSetting } from "@src/services/core/settings-service";
 import { getHotCollections } from "./behavioral-learner";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
@@ -62,6 +64,7 @@ export async function findSimilarEntries(
   collectionId: string,
   entryId: string,
   limit = 5,
+  tenantId?: DatabaseId | null,
 ): Promise<ContentSuggestion[]> {
   try {
     const { semanticSearch } = await import("./semantic-index");
@@ -71,7 +74,7 @@ export async function findSimilarEntries(
     const entry = await dbAdapter?.crud?.findOne(
       collectionId,
       { _id: entryId as DatabaseId },
-      { tenantId: "global" as DatabaseId },
+      tenantId ? { tenantId } : withSystemScope("bootstrap"),
     );
 
     if (!entry?.success || !entry.data) return [];
@@ -89,6 +92,7 @@ export async function findSimilarEntries(
       types: ["entry"],
       collectionId,
       minScore: 0.2,
+      ...(tenantId ? { tenantId } : {}),
     });
 
     return results
@@ -115,13 +119,18 @@ export async function suggestFieldDefaults(
   collectionId: string,
   fieldName: string,
   limit = 20,
+  tenantId?: DatabaseId | null,
 ): Promise<FieldDefault | null> {
   try {
     const { dbAdapter } = await loadDbModule();
     const result = await dbAdapter?.crud?.findMany(
       collectionId,
       {},
-      { limit, sort: { updatedAt: "desc" } },
+      {
+        limit,
+        sort: { updatedAt: "desc" },
+        ...(tenantId ? { tenantId } : withSystemScope("bootstrap")),
+      },
     );
 
     if (!result?.success || !result.data?.length) return null;
@@ -177,20 +186,18 @@ export async function generateTags(
         Content: ${text.slice(0, 2000)}
       `.trim();
 
-      const response = await fetch(
-        `${process.env.OLLAMA_HOST || "http://127.0.0.1:11434"}/api/generate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "llama3.2:1b", // Small, fast model for tagging
-            prompt,
-            stream: false,
-            options: { num_predict: 100, temperature: 0.3 },
-          }),
-          signal: AbortSignal.timeout(5000),
-        },
-      );
+      const ollamaUrl = (await getPrivateSetting("OLLAMA_URL")) || "http://127.0.0.1:11434";
+      const response = await fetch(`${ollamaUrl}/api/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "llama3.2:1b", // Small, fast model for tagging
+          prompt,
+          stream: false,
+          options: { num_predict: 100, temperature: 0.3 },
+        }),
+        signal: AbortSignal.timeout(5000),
+      });
 
       if (response.ok) {
         const data = await response.json();
@@ -400,7 +407,14 @@ export async function getContentInsights(tenantId: string): Promise<{
     let totalQuality = 0;
 
     for (const { id } of hotCollections) {
-      const result = await dbAdapter?.crud?.findMany(id, {}, { limit: 10 });
+      const result = await dbAdapter?.crud?.findMany(
+        id,
+        {},
+        {
+          limit: 10,
+          ...(tenantId ? { tenantId: tenantId as DatabaseId } : withSystemScope("bootstrap")),
+        },
+      );
       if (!result?.success) continue;
 
       for (const entry of result.data ?? []) {

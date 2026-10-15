@@ -24,6 +24,8 @@ interface PointWireSql {
   tenant: string;
   basePub: string | null;
   tenantPub: string | null;
+  tenantNull: string;
+  tenantPubNull: string | null;
 }
 
 interface ListWireSql {
@@ -31,6 +33,8 @@ interface ListWireSql {
   tenant: string;
   basePub: string | null;
   tenantPub: string | null;
+  tenantNull: string;
+  tenantPubNull: string | null;
 }
 
 export class PostgresWireStreamEngine {
@@ -85,23 +89,33 @@ export class PostgresWireStreamEngine {
           tenantPub: hasStatusCol
             ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" = $2 LIMIT 1`
             : null,
+          tenantNull: `${selectPrefix} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
+          tenantPubNull: hasStatusCol
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" IS NULL LIMIT 1`
+            : null,
         };
         this._pointSqlCache.set(table, cachedWireSql);
       }
 
       const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
-      const hasTenant = tenantClause.sql !== "";
+      const hasTenantParam = tenantClause.params.length > 0;
+      const hasTenantClause = tenantClause.sql !== "";
       const wantPublished = options?.requirePublished === true;
       if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
 
-      const sqlText = wantPublished
-        ? hasTenant
-          ? cachedWireSql.tenantPub!
-          : cachedWireSql.basePub!
-        : hasTenant
-          ? cachedWireSql.tenant
-          : cachedWireSql.base;
-      const params = hasTenant ? [String(id), ...tenantClause.params] : [String(id)];
+      let sqlText: string;
+      if (hasTenantClause) {
+        sqlText = hasTenantParam
+          ? wantPublished
+            ? cachedWireSql.tenantPub!
+            : cachedWireSql.tenant
+          : wantPublished
+            ? cachedWireSql.tenantPubNull!
+            : cachedWireSql.tenantNull;
+      } else {
+        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
+      }
+      const params = [String(id), ...tenantClause.params];
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
       const first = rows[0];
@@ -226,6 +240,10 @@ export class PostgresWireStreamEngine {
           tenantPub: hasStatusCol
             ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = $1`, 2, 3)
             : null,
+          tenantNull: wrap(`"tenantId" IS NULL`, 1, 2),
+          tenantPubNull: hasStatusCol
+            ? wrap(`"status" IN ('publish', 'published') AND "tenantId" IS NULL`, 1, 2)
+            : null,
         };
         tableCache.set(cacheKey, cachedWireSql);
       }
@@ -233,15 +251,21 @@ export class PostgresWireStreamEngine {
       const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;
       const offset = typeof options.offset === "number" && options.offset >= 0 ? options.offset : 0;
       const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 1 });
-      const hasTenant = tenantClause.sql !== "";
+      const hasTenantParam = tenantClause.params.length > 0;
+      const hasTenantClause = tenantClause.sql !== "";
       const wantPublished = options?.requirePublished === true;
       if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
 
       let sqlText: string;
       let params: unknown[];
-      if (hasTenant) {
-        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
-        params = [tenantClause.params[0], limit, offset];
+      if (hasTenantClause) {
+        if (hasTenantParam) {
+          sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
+          params = [tenantClause.params[0], limit, offset];
+        } else {
+          sqlText = wantPublished ? cachedWireSql.tenantPubNull! : cachedWireSql.tenantNull;
+          params = [limit, offset];
+        }
       } else {
         sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
         params = [limit, offset];

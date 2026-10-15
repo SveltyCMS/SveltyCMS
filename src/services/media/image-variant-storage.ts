@@ -22,15 +22,29 @@
  */
 
 import { getStorageAdapter } from "@src/utils/media/storage-adapters";
+import { raise } from "@utils/error-handling";
 
 // ─── Path helpers ──────────────────────────────────────────────────────────
 
 /** Sentinel value for global / no-tenant storage paths. */
 const TENANT_GLOBAL = "global";
 
-/** Normalise a tenant-id to a safe path segment, falling back to the global sentinel. */
+/**
+ * Normalise a tenant-id to a safe path segment, falling back to the global sentinel.
+ * Rejects traversal/control characters so a raw caller input cannot escape the tenant
+ * directory. Valid UUIDs and the `"global"` sentinel pass through unchanged.
+ */
 function tenantPathSegment(tenantId?: string | null): string {
-  return tenantId && tenantId !== TENANT_GLOBAL ? tenantId : TENANT_GLOBAL;
+  if (!tenantId || tenantId === TENANT_GLOBAL) return TENANT_GLOBAL;
+  if (
+    tenantId.includes("/") ||
+    tenantId.includes("\\") ||
+    tenantId.includes("..") ||
+    tenantId.includes(":")
+  ) {
+    raise(400, "Invalid tenant id");
+  }
+  return tenantId;
 }
 
 /**

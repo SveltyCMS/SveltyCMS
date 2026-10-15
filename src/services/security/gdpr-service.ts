@@ -11,6 +11,7 @@
 
 import { dbAdapter } from "@databases/db";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 import { auditLogService, AuditEventType } from "./audit-service";
 import type { DatabaseId } from "@src/content/types";
 
@@ -47,12 +48,14 @@ export class GDPRService {
       const user = userResult.data;
 
       // 2. Fetch User Activity (Audit Logs)
-      // We filter the audit logs for actions by this user AND this tenant
-      const allLogs = await auditLogService.getLogs(1000);
-      const userLogs = allLogs.filter(
-        (log: any) =>
-          (log.actorId === userId || log.actor?.id === userId) && log.tenantId === tenantId,
-      );
+      // Scope the query server-side to this tenant and actor so we never load
+      // cross-tenant audit records into memory.
+      const logsResult = await auditLogService.queryLogs({
+        limit: 1000,
+        tenantId: tenantId as DatabaseId,
+        filters: { actorId: userId },
+      });
+      const userLogs = logsResult.success ? logsResult.data : [];
 
       // 3. Log the Export Request
       await auditLogService.log(
@@ -68,7 +71,7 @@ export class GDPRService {
         profile: user,
         history: userLogs,
         metadata: {
-          exportedAt: new Date().toISOString(),
+          exportedAt: nowISODateString(),
           version: "1.0",
           tenantId,
         },
@@ -152,14 +155,21 @@ export class GDPRService {
     }
 
     try {
-      const targetTenant = (tenantId || "global") as DatabaseId;
+      const targetTenant = tenantId as DatabaseId;
       const targetUser = userId as DatabaseId;
+
+      // Track whether any deletion strategy actually removed the user so the
+      // Article 17 result reflects reality instead of swallowing failures.
+      let userDeleted = false;
 
       // 1. Invalidate and purge sessions/tokens if auth adapter supports it
       if (dbAdapter.auth?.deleteUserAndSessions) {
-        await dbAdapter.auth
+        const result = await dbAdapter.auth
           .deleteUserAndSessions(targetUser, { tenantId: targetTenant })
-          .catch(() => {});
+          .catch(() => null);
+        if (result?.success && result.data?.deletedUser) {
+          userDeleted = true;
+        }
       }
 
       // 2. Cascade delete records via crud if available
@@ -181,17 +191,25 @@ export class GDPRService {
             })
             .catch(() => {}),
         ]);
-        await dbAdapter.crud
+        const deleteResult = await dbAdapter.crud
           .delete("auth_users", targetUser, {
             permanent: true,
             tenantId: targetTenant,
           })
-          .catch(() => {});
+          .catch(() => null);
+        if (deleteResult?.success) {
+          userDeleted = true;
+        }
       }
 
       // 3. Fallback direct user delete via auth adapter
       if (dbAdapter.auth?.deleteUser) {
-        await dbAdapter.auth.deleteUser(targetUser, { tenantId: targetTenant }).catch(() => {});
+        const deleteResult = await dbAdapter.auth
+          .deleteUser(targetUser, { tenantId: targetTenant })
+          .catch(() => null);
+        if (deleteResult?.success) {
+          userDeleted = true;
+        }
       }
 
       // 4. Log erasure audit record
@@ -205,7 +223,7 @@ export class GDPRService {
       );
 
       logger.info(`User ${userId} permanently erased under GDPR Article 17 (tenant: ${tenantId}).`);
-      return true;
+      return userDeleted;
     } catch (error) {
       logger.error(`GDPR Erasure Failed for user ${userId} (tenant: ${tenantId}):`, error);
       return false;

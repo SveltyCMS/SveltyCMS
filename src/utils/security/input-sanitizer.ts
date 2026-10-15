@@ -112,11 +112,13 @@ export const SAFE_TAGS = new Set([
  */
 export function sanitizeString(input: string): string {
   if (!input || typeof input !== "string") return input;
-  if (input.length > 100_000) return input; // Skip very large payloads
 
   // Fast triage: without '<', ':' or '=' none of the seven strip patterns
   // below can match, so the input is returned as-is — the clean-text hot path
-  // avoids all sequential full-string scans.
+  // avoids all sequential full-string scans. Large payloads are NOT skipped:
+  // a >100KB clean-text field short-circuits here in a single test, while a
+  // large payload containing markup/URL/handler characters still goes through
+  // the linear strip below instead of being returned unsanitized.
   if (!XSS_VECTOR_GATE_RE.test(input)) return input;
 
   let cleaned = input;

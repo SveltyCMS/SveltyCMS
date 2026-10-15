@@ -17,7 +17,8 @@ interface CdnPurgeOptions {
 }
 
 export class CdnService {
-  private static instance: CdnService;
+  private static instance: CdnService | null = null;
+  private static initPromise: Promise<CdnService> | null = null;
   private active = false;
   private apiToken: string | null = null;
   private zoneId: string | null = null;
@@ -25,11 +26,24 @@ export class CdnService {
 
   private constructor() {}
 
-  public static async getInstance(): Promise<CdnService> {
-    if (!CdnService.instance) {
-      CdnService.instance = new CdnService();
-      await CdnService.instance.initialize();
+  /**
+   * Race-free singleton: concurrent callers await the same initialization
+   * promise instead of receiving the not-yet-initialized instance.
+   */
+  public static getInstance(): Promise<CdnService> {
+    if (!CdnService.initPromise) {
+      CdnService.initPromise = (async () => {
+        const instance = new CdnService();
+        await instance.initialize();
+        CdnService.instance = instance;
+        return instance;
+      })();
     }
+    return CdnService.initPromise;
+  }
+
+  /** The initialized singleton, or null while initialization is still pending. */
+  public static get resolved(): CdnService | null {
     return CdnService.instance;
   }
 
@@ -121,4 +135,25 @@ export class CdnService {
   }
 }
 
-export const cdnService = CdnService.getInstance();
+/**
+ * Lazily-resolving singleton handle. `getInstance()` is async, so exporting its
+ * return value produced a `Promise<CdnService>` and broke the documented
+ * `cdnService.purge(...)` call shape. This proxy delegates to the initialized
+ * instance and awaits first-use initialization, keeping the sync API working.
+ */
+export const cdnService: CdnService = new Proxy({} as CdnService, {
+  get(_target, prop) {
+    if (prop === "then") return undefined; // never accidentally thenable
+    const instance = CdnService.resolved;
+    if (instance) {
+      const value = Reflect.get(instance, prop);
+      return typeof value === "function" ? value.bind(instance) : value;
+    }
+    // First access before initialization: bootstrap, then forward once ready.
+    return async (...args: unknown[]) => {
+      const resolved = await CdnService.getInstance();
+      const value = Reflect.get(resolved, prop);
+      return typeof value === "function" ? value.apply(resolved, args) : value;
+    };
+  },
+});

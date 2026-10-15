@@ -96,7 +96,16 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
       responseText = await clonedResponse.text();
     }
 
-    if (responseText.length > MAX_JSON_SIZE || !responseText.includes("{{")) return response;
+    if (responseText.length > MAX_JSON_SIZE) return response;
+
+    const hasTokens = responseText.includes("{{");
+    const collectionName = getCollectionFromPath(pathname);
+    const isAdminUser = (event.locals as any).isAdmin === true;
+    // FLAC redaction is independent of {{token}} replacement: a non-admin
+    // response with no tokens must still have restricted fields stripped.
+    const needsFlacCheck = !isAdminUser && Boolean(collectionName);
+
+    if (!hasTokens && !needsFlacCheck) return response;
 
     let body: any;
     try {
@@ -114,22 +123,29 @@ export const handleTokenResolution: Handle = async ({ event, resolve }) => {
     // (e.g. editor sees title/body but not internal_notes). Runs only when a
     // FIELD_PERMISSIONS policy exists for this collection+role — otherwise the
     // body passes through untouched with zero cost.
-    const fieldFiltered = applyFieldPermissionsToBody(
-      body,
-      getCollectionFromPath(pathname),
-      (event.locals as any).user?.role,
-      (event.locals as any).isAdmin === true,
-    );
+    const fieldFiltered = needsFlacCheck
+      ? applyFieldPermissionsToBody(
+          body,
+          collectionName,
+          (event.locals as any).user?.role,
+          isAdminUser,
+        )
+      : body;
 
-    const processed = await processTokensInResponse(
-      fieldFiltered,
-      event.locals.user || undefined,
-      (event.locals as any).contentLanguage || "en",
-      {
-        tenantId: (event.locals as any).tenantId,
-        roles: (event.locals as any).roles,
-      },
-    );
+    const processed = hasTokens
+      ? await processTokensInResponse(
+          fieldFiltered,
+          event.locals.user || undefined,
+          (event.locals as any).contentLanguage || "en",
+          {
+            tenantId: (event.locals as any).tenantId,
+            roles: (event.locals as any).roles,
+          },
+        )
+      : fieldFiltered;
+
+    // If neither FLAC nor tokens mutated the body, return the original response.
+    if (!hasTokens && processed === body) return response;
 
     const serializedPayload = JSON.stringify(processed);
 

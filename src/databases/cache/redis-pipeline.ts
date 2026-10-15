@@ -54,7 +54,10 @@ export function deserializeL2Value(raw: any): any {
 }
 
 export class RedisWriteBatcher {
-  private writeBuffer: RedisWriteEntry[] = [];
+  // Keyed by fullKey: deduplicates burst writes to the same key within the
+  // 15ms window and lets delete() cancel a pending write in O(1) — without
+  // this, a delete() followed by the deferred flush resurrects stale data.
+  private writeBuffer = new Map<string, RedisWriteEntry>();
   private writeFlushTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly WRITE_BATCH_MS = 15;
   private readonly WRITE_BATCH_MAX = 50;
@@ -67,12 +70,17 @@ export class RedisWriteBatcher {
    */
   private flushChain: Promise<void> = Promise.resolve();
 
+  /** Cancel a pending buffered write when its key is deleted before the flush. */
+  cancelPending(key: string): void {
+    this.writeBuffer.delete(key);
+  }
+
   /**
    * Adds an entry to the micro-batch write buffer.
    */
   async bufferWrite(l2: any, entry: RedisWriteEntry): Promise<void> {
-    this.writeBuffer.push(entry);
-    if (this.writeBuffer.length >= this.WRITE_BATCH_MAX) {
+    this.writeBuffer.set(entry.key, entry);
+    if (this.writeBuffer.size >= this.WRITE_BATCH_MAX) {
       await this.flush(l2);
     } else {
       this.scheduleFlush(l2);
@@ -105,7 +113,8 @@ export class RedisWriteBatcher {
   }
 
   private async flushOnce(l2: any): Promise<void> {
-    const batch = this.writeBuffer.splice(0);
+    const batch = Array.from(this.writeBuffer.values());
+    this.writeBuffer.clear();
     if (this.writeFlushTimer) {
       clearTimeout(this.writeFlushTimer);
       this.writeFlushTimer = null;
@@ -115,18 +124,22 @@ export class RedisWriteBatcher {
     try {
       // Group tags across the batch so each Redis tag key receives a single sAdd command
       // with all associated entry keys, shrinking Redis pipeline command volume by 80-90%.
-      const tagMap = new Map<string, string[]>();
+      // Track the max TTL per tag so the tag set itself expires with (a margin past) its
+      // longest-lived member — otherwise tag:* sets are immortal and leak Redis memory.
+      const tagMap = new Map<string, { keys: string[]; maxTtl: number }>();
       for (let i = 0; i < batch.length; i++) {
         const entry = batch[i];
         if (entry.tags && entry.tags.length > 0) {
           for (let j = 0; j < entry.tags.length; j++) {
             const tagKey = `tag:${entry.tagPrefix}${entry.tags[j]}`;
-            let list = tagMap.get(tagKey);
-            if (!list) {
-              list = [];
-              tagMap.set(tagKey, list);
+            let group = tagMap.get(tagKey);
+            if (!group) {
+              group = { keys: [], maxTtl: entry.ttl };
+              tagMap.set(tagKey, group);
+            } else if (entry.ttl > group.maxTtl) {
+              group.maxTtl = entry.ttl;
             }
-            list.push(entry.key);
+            group.keys.push(entry.key);
           }
         }
       }
@@ -137,8 +150,9 @@ export class RedisWriteBatcher {
           const { key, val, ttl } = batch[i];
           multi.set(key, val, { EX: ttl });
         }
-        for (const [tagKey, keys] of tagMap) {
-          multi.sAdd(tagKey, keys);
+        for (const [tagKey, group] of tagMap) {
+          multi.sAdd(tagKey, group.keys);
+          if (typeof multi.expire === "function") multi.expire(tagKey, group.maxTtl + 60);
         }
         await multi.exec();
       } else {
@@ -146,8 +160,9 @@ export class RedisWriteBatcher {
           const { key, val, ttl } = batch[i];
           await l2.set(key, val, { EX: ttl });
         }
-        for (const [tagKey, keys] of tagMap) {
-          await l2.sAdd(tagKey, keys);
+        for (const [tagKey, group] of tagMap) {
+          await l2.sAdd(tagKey, group.keys);
+          if (typeof l2.expire === "function") await l2.expire(tagKey, group.maxTtl + 60);
         }
       }
     } catch (err) {
@@ -156,7 +171,7 @@ export class RedisWriteBatcher {
   }
 
   clear(): void {
-    this.writeBuffer = [];
+    this.writeBuffer.clear();
     if (this.writeFlushTimer) {
       clearTimeout(this.writeFlushTimer);
       this.writeFlushTimer = null;

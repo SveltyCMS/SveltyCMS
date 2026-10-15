@@ -276,3 +276,24 @@ describe("translateAggregation — fail-closed refusals", () => {
     expect(pipeline).toEqual(snapshot);
   });
 });
+
+describe("translateAggregation — prototype pollution guard", () => {
+  it("keeps a `__proto__` accumulator alias as an own select field", () => {
+    // JSON.parse materializes `__proto__` as an own key (object literals would
+    // invoke the prototype setter). With a null-prototype select map the alias
+    // is preserved instead of mutating the plan's prototype.
+    const pipeline = JSON.parse('[{ "$group": { "_id": null, "__proto__": { "$sum": 1 } } }]');
+    const plan = planOf(pipeline);
+    expect(Object.getPrototypeOf(plan.select)).toBeNull();
+    expect(Object.keys(plan.select as object)).toContain("__proto__");
+    expect(selectSql(plan)["__proto__"]).toBe("COUNT(*)");
+  });
+
+  it("keeps a `__proto__` projection name as an own select field", () => {
+    const pipeline = JSON.parse('[{ "$project": { "__proto__": 1 } }]');
+    const plan = planOf(pipeline);
+    expect(Object.getPrototypeOf(plan.select)).toBeNull();
+    expect(Object.keys(plan.select as object)).toContain("__proto__");
+    expect(selectSql(plan)["__proto__"]).toBe("F[__proto__]");
+  });
+});

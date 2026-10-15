@@ -322,6 +322,41 @@ export function expandFields(
 }
 
 /**
+ * Recursively freeze plain objects and arrays so plugins cannot mutate
+ * access/validation rules at runtime. Skips null, primitives, and non-plain
+ * objects (Date, Map, Set, class instances) which we leave untouched.
+ */
+function isPlainObject(value: unknown): boolean {
+  if (value === null || typeof value !== "object") return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      deepFreeze(item);
+    }
+    return Object.freeze(value) as T;
+  }
+
+  if (isPlainObject(value)) {
+    const record = value as Record<string, unknown>;
+    for (const key of Object.keys(record)) {
+      deepFreeze(record[key]);
+    }
+    return Object.freeze(value) as T;
+  }
+
+  // Non-plain object (Date, Map, Set, class instance) — leave untouched.
+  return value;
+}
+
+/**
  * Process a full collection schema, expanding all sugar types.
  * This should be called during collection loading/sync.
  *
@@ -360,7 +395,7 @@ export function desugarSchemaFields(fields: FieldDefinition[]): FieldDefinition[
 
   // Deep-freeze the expanded schema to prevent runtime mutations by plugin contexts.
   // A plugin cannot redefine access rules or validation on desugared fields.
-  return Object.freeze(processed) as FieldDefinition[];
+  return deepFreeze(processed) as FieldDefinition[];
 }
 
 /**

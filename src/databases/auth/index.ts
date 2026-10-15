@@ -148,7 +148,8 @@ export class Auth {
 
       // --- PASSWORD HASHING ---
       if (password) {
-        if (password.length < 8) throw new Error("Password too short");
+        // 🔴 FIX: enforce the same 4-class strength policy as createUser/updateUser.
+        this.validatePasswordStrength(password);
         userData.password = await cryptoHashPassword(password);
       }
 

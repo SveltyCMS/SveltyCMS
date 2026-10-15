@@ -134,22 +134,27 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
   async bulkDelete(
     collection: string,
     ids: DatabaseId[],
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
-    return (this.adapter as any)["crud"].deleteMany(collection, {
-      _id: { $in: ids },
-    } as any);
+    return (this.adapter as any)["crud"].deleteMany(
+      collection,
+      applyTenantFilterToMongoQuery({ _id: { $in: ids } } as any, options),
+      options,
+    );
   }
 
   async bulkUpsert(
     collection: string,
     items: Array<{ id: DatabaseId; data: any }>,
+    options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<any>> {
     return (this.adapter as any)["crud"].upsertMany(
       collection,
       items.map((item) => ({
-        query: { _id: item.id } as any,
+        query: applyTenantFilterToMongoQuery({ _id: item.id } as any, options),
         data: item.data,
       })),
+      options,
     ) as any;
   }
 }

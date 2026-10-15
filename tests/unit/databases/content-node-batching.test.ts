@@ -132,7 +132,9 @@ describe("RelationalContentModule.bulkUpdate stale-id cleanup", () => {
       const where = renderSqlite(fake.deletes[0]);
       expect(where.sql).toContain(" in (");
       expect(where.sql).toContain("_id");
-      expect(where.params.flat(Infinity)).toEqual(["alpha", "beta", "gamma"]);
+      // 🛡️ TENANT ISOLATION: the pre-clean DELETE is now tenant-scoped, so the
+      // bound params carry the stale `_id`s followed by the tenant predicate.
+      expect(where.params.flat(Infinity)).toEqual(["alpha", "beta", "gamma", TENANT]);
 
       // The single multi-row upsert is untouched.
       expect(fake.inserts).toHaveLength(1);

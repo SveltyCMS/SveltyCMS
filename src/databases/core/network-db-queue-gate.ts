@@ -129,7 +129,9 @@ export class NetworkDbQueueGate {
       this.queue.push(item);
     });
 
-    this.active++;
+    // 🛡️ The permit was reserved in dequeue() at handoff (active++ happens there)
+    // so a concurrent fast-path admission cannot oversubscribe. Do NOT increment
+    // here again.
     try {
       return await this.asyncLocal.run(true, fn);
     } finally {
@@ -145,6 +147,11 @@ export class NetworkDbQueueGate {
     if (this.active < this.maxConcurrency && this.queue.length > 0) {
       const next = this.queue.shift();
       if (next) {
+        // Reserve the slot NOW, at handoff, before the waiter resumes. Otherwise
+        // the fast path (active < maxConcurrency && queue empty) could admit a
+        // fresh request into the just-vacated slot while the shifted waiter has
+        // not yet incremented active, oversubscribing past maxConcurrency.
+        this.active++;
         next.resolve();
       }
     }

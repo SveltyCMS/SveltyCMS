@@ -723,10 +723,10 @@ export class ConfigService {
     }
   }
 
-  private async scanRoles(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async scanRoles(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter?.auth) return;
     try {
-      const roles: Role[] = await dbAdapter.auth.getAllRoles();
+      const roles: Role[] = await dbAdapter.auth.getAllRoles({ tenantId: tenantId as any });
       for (const role of roles) {
         const id = String(role._id);
         if (!id || !role.name) continue;
@@ -739,12 +739,12 @@ export class ConfigService {
     }
   }
 
-  private async scanPermissions(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async scanPermissions(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter?.auth) return;
     try {
       // Permissions are embedded in roles; collect unique permission entries.
       // Some adapters may expose a separate permissions table.
-      const roles: Role[] = await dbAdapter.auth.getAllRoles();
+      const roles: Role[] = await dbAdapter.auth.getAllRoles({ tenantId: tenantId as any });
       const seen = new Set<string>();
       for (const role of roles) {
         if (!Array.isArray(role.permissions)) continue;
@@ -815,10 +815,12 @@ export class ConfigService {
     }
   }
 
-  private async scanThemes(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async scanThemes(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter?.system?.themes) return;
     try {
-      const themes: Theme[] = await dbAdapter.system.themes.getAllThemes();
+      const themes: Theme[] = await dbAdapter.system.themes.getAllThemes({
+        tenantId: tenantId as any,
+      });
       for (const theme of themes) {
         const id = String(theme._id);
         if (!id || !theme.name) continue;
@@ -957,10 +959,10 @@ export class ConfigService {
     }
   }
 
-  private async fetchRolesFromDb(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async fetchRolesFromDb(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter?.auth) return;
     try {
-      const roles: Role[] = await dbAdapter.auth.getAllRoles();
+      const roles: Role[] = await dbAdapter.auth.getAllRoles({ tenantId: tenantId as any });
       for (const role of roles) {
         const id = String(role._id);
         if (!id || !role.name) continue;
@@ -973,10 +975,10 @@ export class ConfigService {
     }
   }
 
-  private async fetchPermissionsFromDb(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async fetchPermissionsFromDb(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter?.auth) return;
     try {
-      const roles: Role[] = await dbAdapter.auth.getAllRoles();
+      const roles: Role[] = await dbAdapter.auth.getAllRoles({ tenantId: tenantId as any });
       const seen = new Set<string>();
       for (const role of roles) {
         if (!Array.isArray(role.permissions)) continue;
@@ -1051,10 +1053,12 @@ export class ConfigService {
     }
   }
 
-  private async fetchThemesFromDb(state: Map<string, ConfigEntity>, _tenantId?: string) {
+  private async fetchThemesFromDb(state: Map<string, ConfigEntity>, tenantId?: string) {
     if (!dbAdapter?.system?.themes) return;
     try {
-      const themes: Theme[] = await dbAdapter.system.themes.getAllThemes();
+      const themes: Theme[] = await dbAdapter.system.themes.getAllThemes({
+        tenantId: tenantId as any,
+      });
       for (const theme of themes) {
         const id = String(theme._id);
         if (!id || !theme.name) continue;

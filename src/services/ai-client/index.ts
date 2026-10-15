@@ -190,9 +190,11 @@ export const ai = {
    * @returns A structured capabilities report.
    */
   async getCapabilities(): Promise<AiCapabilities> {
-    // Fast path: detect WebGPU synchronously from the main thread
-    const webgpu = typeof (navigator as any).gpu !== "undefined";
-    const webnn = typeof (navigator as any).ml !== "undefined";
+    // Fast path: detect WebGPU synchronously from the main thread.
+    // `globalThis.navigator?.` keeps this SSR-safe (bare `navigator` throws a
+    // ReferenceError outside the browser), matching ai.worker.ts.
+    const webgpu = typeof (globalThis as any).navigator?.gpu !== "undefined";
+    const webnn = typeof (globalThis as any).navigator?.ml !== "undefined";
     const xnnpack =
       typeof WebAssembly !== "undefined" && typeof WebAssembly.instantiate === "function";
 

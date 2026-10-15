@@ -556,14 +556,26 @@ async function createGraphQLSchema(dbAdapter: any, tenantId?: string | null) {
           if (!context.user) throw new AppError("Unauthorized", 401);
           return context.pubSub.subscribe("contentStructureUpdated");
         },
-        resolve: (payload: any) => payload,
+        // 🛡️ Cross-tenant isolation: drop events whose concrete tenant differs.
+        resolve: (payload: any, _args: any, context: any) => {
+          const p = payload?.tenantId;
+          const c = context?.tenantId;
+          if (p && c && p !== "global" && c !== "global" && p !== c) return null;
+          return payload;
+        },
       },
       entryUpdated: {
         subscribe: (_: any, __: any, context: any) => {
           if (!context.user) throw new AppError("Unauthorized", 401);
           return context.pubSub.subscribe("entryUpdated");
         },
-        resolve: (payload: any) => payload,
+        // 🛡️ Cross-tenant isolation: drop events whose concrete tenant differs.
+        resolve: (payload: any, _args: any, context: any) => {
+          const p = payload?.tenantId;
+          const c = context?.tenantId;
+          if (p && c && p !== "global" && c !== "global" && p !== c) return null;
+          return payload;
+        },
       },
       onPing: {
         subscribe: (_: any, __: any, context: any) => {

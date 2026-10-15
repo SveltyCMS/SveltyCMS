@@ -231,8 +231,10 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     return applyRedirect(event.url, redirectEntry);
   }
 
-  // Log 404
-  if (connected && ready && path !== "/favicon.ico") {
+  // Only record a 404 after the route is known to be missing. Logging a hit
+  // for every non-redirected page load (before resolve) pollutes 404_logs.
+  const record404 = () => {
+    if (!connected || !ready || path === "/favicon.ico") return;
     const logKey = `${tenantId}|${path}`;
     const existingEntry = logBuffer.get(logKey);
     if (existingEntry) {
@@ -249,7 +251,7 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     } else {
       scheduleFlush();
     }
-  }
+  };
 
   // Validate route exists
   // SvelteKit has already resolved the route (`event.route`) before this
@@ -293,14 +295,17 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
             "/" + pathSegments.slice(1).join("/"),
             tenantId,
           );
-          if (!exists)
+          if (!exists) {
+            record404();
             return new Response("Not Found", {
               status: 404,
               headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
             });
+          }
         } catch {}
       }
     } else if (!isAllowedRoot) {
+      record404();
       return new Response("Not Found", {
         status: 404,
         headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
@@ -308,7 +313,9 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
     }
   }
 
-  return resolve(event);
+  const response = await resolve(event);
+  if (response.status === 404) record404();
+  return response;
 };
 
 function applyRedirect(requestUrl: URL, redirect: any) {

@@ -269,6 +269,11 @@ export class AdminThemeService {
     const db = getDb();
     if (!db) throw new Error("ThemeManager DB not available");
 
+    // 🛡️ XSS: sanitize admin-supplied CSS before persisting (mirrors saveAdminTheme).
+    if (settings?.customCss) {
+      settings.customCss = sanitizeCss(settings.customCss);
+    }
+
     const adminConfig = {
       ...buildDefaults(name),
       ...settings,

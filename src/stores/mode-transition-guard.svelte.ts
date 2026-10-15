@@ -52,6 +52,12 @@ class ModeStateMachine {
     const transition = this.transitions.find((t) => t.from === currentMode && t.to === newMode);
     if (!transition) {
       if (newMode === "view") {
+        if (!this.checkUnsavedChanges()) {
+          logger.warn(
+            `[ModeStateMachine] Blocked forced transition to 'view': unsaved changes present (${currentMode} -> ${newMode})`,
+          );
+          return false;
+        }
         logger.warn(
           `[ModeStateMachine] Forcing transition to 'view' from unexpected state '${currentMode}'`,
         );

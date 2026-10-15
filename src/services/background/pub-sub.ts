@@ -13,6 +13,7 @@ export const pubSub = createPubSub<{
       timestamp: string;
       affectedCollections: string[];
       changeType: string;
+      tenantId?: string | null;
     },
   ];
   entryUpdated: [
@@ -22,6 +23,7 @@ export const pubSub = createPubSub<{
       action: string;
       data: unknown;
       timestamp: string;
+      tenantId?: string | null;
       user?: import("@src/databases/auth/types").User;
     },
   ];

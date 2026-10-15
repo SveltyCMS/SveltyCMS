@@ -5,6 +5,7 @@ charges order grandTotal (F1). Display amount is optional UI only.
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
 	import Button from '@components/ui/button.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { formatMoney } from '@src/services/commerce/price';
@@ -108,7 +109,9 @@ charges order grandTotal (F1). Display amount is optional UI only.
 	}
 
 	const display = $derived(
-		typeof displayAmount === 'number' ? formatMoney(displayAmount, displayCurrency) : ''
+		typeof displayAmount === 'number'
+			? formatMoney(displayAmount, displayCurrency, page.data?.systemLanguage)
+			: ''
 	);
 </script>
 

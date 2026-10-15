@@ -8,8 +8,9 @@
  * - LIKE fallback when FULLTEXT index is unavailable
  */
 
-import type { IFtsAdapter, DatabaseResult } from "../db-interface";
+import type { IFtsAdapter, DatabaseResult, DatabaseId } from "../db-interface";
 import type { IDBAdapter } from "../db-interface";
+import { assertSafeSqlIdentifier, buildRawTenantClause } from "../core/relational-utils";
 
 export class MariaDBFtsAdapter implements IFtsAdapter {
   private adapter: IDBAdapter;
@@ -54,14 +55,17 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
     offset: number,
     options?: { tenantId?: string | null; filters?: Record<string, unknown> },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
-    const columnNames = columns.map((c) => `\`${c.name}\``).join(", ");
+    const safeCollection = assertSafeSqlIdentifier(collection, "table");
+    const columnNames = columns
+      .map((c) => `\`${assertSafeSqlIdentifier(c.name, "column")}\``)
+      .join(", ");
     const filterSQL = this.buildFilterSQL(options);
 
     const matchExpr = `MATCH(${columnNames}) AGAINST('${query.replace(/'/g, "''")}' IN BOOLEAN MODE)`;
 
     const rawSQL = `
       SELECT *, ${matchExpr} AS relevance
-      FROM \`${collection}\`
+      FROM \`${safeCollection}\`
       WHERE ${matchExpr}
       ${filterSQL}
       ORDER BY relevance DESC
@@ -70,7 +74,7 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
 
     const countSQL = `
       SELECT COUNT(*) AS total
-      FROM \`${collection}\`
+      FROM \`${safeCollection}\`
       WHERE ${matchExpr}
       ${filterSQL}
     `;
@@ -103,18 +107,19 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
     offset: number,
     options?: { tenantId?: string | null; filters?: Record<string, unknown> },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
-    const colNames = columns.map((c) => c.name);
+    const safeCollection = assertSafeSqlIdentifier(collection, "table");
+    const colNames = columns.map((c) => `\`${assertSafeSqlIdentifier(c.name, "column")}\``);
     const escapedQuery = query
       .replace(/\\/g, "\\\\")
       .replace(/'/g, "''")
       .replace(/%/g, "\\%")
       .replace(/_/g, "\\_");
-    const orConditions = colNames.map((col) => `\`${col}\` LIKE '%${escapedQuery}%'`).join(" OR ");
+    const orConditions = colNames.map((col) => `${col} LIKE '%${escapedQuery}%'`).join(" OR ");
     const filterSQL = this.buildFilterSQL(options);
 
     const rawSQL = `
       SELECT *, 0.5 AS relevance
-      FROM \`${collection}\`
+      FROM \`${safeCollection}\`
       WHERE (${orConditions})
       ${filterSQL}
       LIMIT ${limit} OFFSET ${offset}
@@ -122,7 +127,7 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
 
     const countSQL = `
       SELECT COUNT(*) AS total
-      FROM \`${collection}\`
+      FROM \`${safeCollection}\`
       WHERE (${orConditions})
       ${filterSQL}
     `;
@@ -153,15 +158,21 @@ export class MariaDBFtsAdapter implements IFtsAdapter {
   }): string {
     const conditions: string[] = [];
 
-    if (options?.tenantId) {
-      conditions.push(`\`tenantId\` = '${options.tenantId.replace(/'/g, "''")}'`);
-    }
+    // Tenant scope via the shared clause: null → `tenantId` IS NULL, a real
+    // tenant → bound-equivalent literal, "global"/unset → no predicate.
+    const { sql: tenantSql } = buildRawTenantClause(
+      { tenantId: options?.tenantId as DatabaseId | null | undefined },
+      "mysql",
+      { parameterized: false },
+    );
+    if (tenantSql) conditions.push(tenantSql.trim().replace(/^AND\s+/, ""));
 
     if (options?.filters) {
       for (const [key, value] of Object.entries(options.filters)) {
         if (value !== undefined && value !== null) {
+          const safeKey = assertSafeSqlIdentifier(key, "fts.filter");
           const strVal = String(value).replace(/'/g, "''");
-          conditions.push(`\`${key}\` = '${strVal}'`);
+          conditions.push(`\`${safeKey}\` = '${strVal}'`);
         }
       }
     }

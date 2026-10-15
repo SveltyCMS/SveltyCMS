@@ -9,7 +9,7 @@
  * - Shared OAuth state signing/verification helpers
  */
 
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 // System Logger
@@ -72,7 +72,9 @@ async function setCredentials(credentials: Credentials): Promise<void> {
 function signOAuthState(token: string | null | undefined): string | undefined {
   if (!token) return undefined;
   const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
-  if (!secret) return encodeURIComponent(token);
+  // 🔴 FIX: without a secret we cannot sign the state — fail closed (throw) rather
+  // than emit an unsigned token that an attacker can replay/forge.
+  if (!secret) throw new Error("OAuth state signing requires JWT_SECRET_KEY");
   const signature = createHmac("sha256", secret).update(token).digest("hex");
   return encodeURIComponent(`${token}.${signature}`);
 }
@@ -87,9 +89,13 @@ export function verifyOAuthState(state: string | null | undefined): string | nul
   }
   const [token, signature] = parts;
   const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
-  if (!secret) return token;
+  // 🔴 FIX: fail closed — never return an unverified token.
+  if (!secret) return null;
   const expected = createHmac("sha256", secret).update(token).digest("hex");
-  if (signature !== expected) {
+  // 🔴 FIX: constant-time comparison to avoid HMAC timing side-channels.
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     logger.warn("OAuth state HMAC signature mismatch!");
     return null;
   }

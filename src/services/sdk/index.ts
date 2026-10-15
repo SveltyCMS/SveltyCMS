@@ -74,11 +74,75 @@ function instrumentNamespace<T extends object>(name: string, instance: T): T {
 }
 
 /**
+ * Options-bag positions for the five CRUD methods on `CollectionsNamespace`.
+ * The options object is the *last* argument for every one of them, but `create`
+ * and `update` also take a `data` object before it — so we key on the exact
+ * index rather than "last argument" to avoid mistaking a data payload for the
+ * options bag when a caller omits options.
+ */
+const COLLECTION_CRUD_METHODS = [
+  { name: "find", optionsIndex: 1 },
+  { name: "findById", optionsIndex: 2 },
+  { name: "create", optionsIndex: 2 },
+  { name: "update", optionsIndex: 3 },
+  { name: "delete", optionsIndex: 2 },
+] as const;
+
+/**
+ * Bind a default tenant/user onto the collection CRUD methods of a namespace.
+ *
+ * When a `LocalCMS` is constructed with an options bag (`{ tenantId, user }`),
+ * callers may omit those values on individual calls; this wrapper supplies the
+ * stored defaults. An explicit `tenantId`/`user` passed by the caller always
+ * wins (fail-closed binding never overrides the request context).
+ */
+function bindTenantDefaults<T extends object>(
+  namespace: T,
+  defaultTenantId: string | null | undefined,
+  defaultUser: unknown,
+): T {
+  if (defaultTenantId == null && defaultUser == null) return namespace;
+
+  const target = namespace as Record<string, unknown>;
+  for (const { name, optionsIndex } of COLLECTION_CRUD_METHODS) {
+    const original = target[name];
+    if (typeof original !== "function") continue;
+
+    target[name] = function (this: unknown, ...args: unknown[]) {
+      const options = args[optionsIndex];
+      const isOptionsBag =
+        options !== null &&
+        typeof options === "object" &&
+        !Array.isArray(options) &&
+        !(options instanceof Date);
+
+      const merged: Record<string, unknown> = isOptionsBag
+        ? { ...(options as Record<string, unknown>) }
+        : {};
+
+      if (defaultTenantId != null && merged.tenantId === undefined) {
+        merged.tenantId = defaultTenantId;
+      }
+      if (defaultUser != null && merged.user === undefined) {
+        merged.user = defaultUser;
+      }
+
+      args[optionsIndex] = merged;
+      return (original as (...a: unknown[]) => unknown).apply(this, args);
+    };
+  }
+
+  return namespace;
+}
+
+/**
  * LocalCMS SDK
  * Orchestrator for all modular CMS namespaces.
  */
 export class LocalCMS {
   private _contentSystem: any;
+  private _defaultTenantId?: string;
+  private _defaultUser?: unknown;
 
   public readonly auth!: AuthNamespace;
   public readonly tokens!: TokensNamespace;
@@ -146,6 +210,15 @@ export class LocalCMS {
         ? candidate
         : undefined;
 
+    // Documented options-bag binding: `{ tenantId, user, contentSystem? }`.
+    // A legacy content system (identified by `getCollection`) is never treated
+    // as an options bag, even if it happens to carry a `tenantId` property.
+    if (!isLegacyContentSystem && candidate !== null && typeof candidate === "object") {
+      const options = candidate as { tenantId?: string | null; user?: unknown };
+      this._defaultTenantId = options.tenantId ?? undefined;
+      this._defaultUser = options.user ?? undefined;
+    }
+
     // Initialize Namespaces lazily using defineLazyNamespace (Hyper-Performance)
     defineLazyNamespace(
       this,
@@ -164,10 +237,11 @@ export class LocalCMS {
 
     defineLazyNamespace(this, "collections", async () => {
       const { CollectionsNamespace } = await import("./namespaces/collections-namespace");
-      return instrumentNamespace(
+      const namespace = instrumentNamespace(
         "collections",
         new CollectionsNamespace(this._dbAdapter, this._contentSystem),
       );
+      return bindTenantDefaults(namespace, this._defaultTenantId, this._defaultUser);
     });
 
     defineLazyNamespace(this, "media", async () => {
@@ -279,33 +353,33 @@ export class LocalCMS {
     const facade = {
       find: (id: string, options?: any) =>
         cms.collections.find(id, {
+          ...options,
           tenantId: eventLocals.tenantId,
           user: eventLocals.user,
-          ...options,
         }),
       findById: (id: string, entryId: string, options?: any) =>
         cms.collections.findById(id, entryId, {
+          ...options,
           tenantId: eventLocals.tenantId,
           user: eventLocals.user,
-          ...options,
         }),
       create: (id: string, data: any, options?: any) =>
         cms.collections.create(id, data, {
+          ...options,
           tenantId: eventLocals.tenantId,
           user: eventLocals.user,
-          ...options,
         }),
       update: (id: string, entryId: string, data: any, options?: any) =>
         cms.collections.update(id, entryId, data, {
+          ...options,
           tenantId: eventLocals.tenantId,
           user: eventLocals.user,
-          ...options,
         }),
       delete: (id: string, entryId: string, options?: any) =>
         cms.collections.delete(id, entryId, {
+          ...options,
           tenantId: eventLocals.tenantId,
           user: eventLocals.user,
-          ...options,
         }),
     } as LocalsFacade;
     localsCmsBinding.set(facade, cms);

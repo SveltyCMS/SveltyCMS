@@ -6,6 +6,8 @@
  * - Circular buffer for recentEvents event log.
  * - Hoisted response histogram boundary lookup (zero-allocation).
  * - Numeric timestamp tracking on the hot path (lazy format conversion).
+ * - Single source of truth for hit/miss/category/tenant/latency counters plus a
+ *   unified raw-latency ring (L1 + L2) that feeds getLatencyStats().
  */
 
 import type { ISODateString } from "@src/content/types";
@@ -47,6 +49,10 @@ interface InternalCacheEvent {
 export class CacheMetrics {
   private hits = 0;
   private misses = 0;
+  private l1Hits = 0;
+  private l2Hits = 0;
+  private evictions = 0;
+  private deletes = 0;
   private totalResponseTime = 0;
   private requestCount = 0;
   private lastResetTime: ISODateString = dateToISODateString(new Date());
@@ -64,6 +70,14 @@ export class CacheMetrics {
   // Response time histogram buckets (for Prometheus)
   private responseTimeBuckets = HISTOGRAM_BOUNDS.map(() => 0);
 
+  // Single fixed-size ring of raw latency samples (L1 + L2) — the only source of
+  // truth for getLatencyStats(). It replaces the two parallel buffers that used to
+  // live in CacheService, so percentile math pays one slice() copy instead of a
+  // double spread + sort allocation on every call.
+  private latencySamples: number[] = [];
+  private latencyIdx = 0;
+  private readonly MAX_LATENCY_SAMPLES = 1024;
+
   private getOrCreateCategory(category: string) {
     let cat = this.categoryMetrics.get(category);
     if (!cat) {
@@ -73,9 +87,17 @@ export class CacheMetrics {
     return cat;
   }
 
-  recordHit(_key: string, category: string, tenantId?: string | null, responseTime?: number): void {
+  recordHit(
+    _key: string,
+    category: string,
+    tenantId?: string | null,
+    responseTime?: number,
+    layer?: "l1" | "l2",
+  ): void {
     this.hits++;
     this.requestCount++;
+    if (layer === "l1") this.l1Hits++;
+    else if (layer === "l2") this.l2Hits++;
     if (responseTime !== undefined) {
       this.totalResponseTime += responseTime;
       this.updateResponseHistogram(responseTime);
@@ -129,12 +151,26 @@ export class CacheMetrics {
   }
 
   recordDelete(key: string, category: string, tenantId?: string | null): void {
+    this.deletes++;
     this.addEvent({
       type: "delete",
       key,
       category,
       tenantId,
     });
+  }
+
+  recordEviction(): void {
+    this.evictions++;
+  }
+
+  recordLatency(ms: number): void {
+    if (this.latencySamples.length < this.MAX_LATENCY_SAMPLES) {
+      this.latencySamples.push(ms);
+    } else {
+      this.latencySamples[this.latencyIdx] = ms;
+      this.latencyIdx = (this.latencyIdx + 1) % this.MAX_LATENCY_SAMPLES;
+    }
   }
 
   recordClear(pattern: string, category: string, tenantId?: string | null): void {
@@ -197,6 +233,44 @@ export class CacheMetrics {
     };
   }
 
+  getCounters(): {
+    deletes: number;
+    evictions: number;
+    hits: number;
+    l1Hits: number;
+    l2Hits: number;
+    misses: number;
+  } {
+    return {
+      deletes: this.deletes,
+      evictions: this.evictions,
+      hits: this.hits,
+      l1Hits: this.l1Hits,
+      l2Hits: this.l2Hits,
+      misses: this.misses,
+    };
+  }
+
+  getLatencyStats(): { avg: number; p95: number; p99: number; samples: number } {
+    const samples = this.latencySamples.length;
+    if (samples === 0) {
+      return { avg: 0, p95: 0, p99: 0, samples: 0 };
+    }
+    // One slice() copy, then sort in place — no double spread + sort allocation.
+    const sorted = this.latencySamples.slice();
+    sorted.sort((a, b) => a - b);
+    const sum = sorted.reduce((acc, v) => acc + v, 0);
+    const avg = sum / samples;
+    const p95Idx = Math.max(0, Math.min(Math.ceil(samples * 0.95) - 1, samples - 1));
+    const p99Idx = Math.max(0, Math.min(Math.ceil(samples * 0.99) - 1, samples - 1));
+    return {
+      avg: Math.round(avg * 1000) / 1000,
+      p95: Math.round(sorted[p95Idx] * 1000) / 1000,
+      p99: Math.round(sorted[p99Idx] * 1000) / 1000,
+      samples,
+    };
+  }
+
   getRecentEvents(limit = 50): CacheEvent[] {
     const events: CacheEvent[] = [];
     const size = this.recentEvents.length;
@@ -220,6 +294,9 @@ export class CacheMetrics {
 
   reset(): void {
     this.hits = this.misses = this.totalResponseTime = this.requestCount = 0;
+    this.l1Hits = this.l2Hits = this.evictions = this.deletes = 0;
+    this.latencySamples = [];
+    this.latencyIdx = 0;
     this.lastResetTime = dateToISODateString(new Date());
     this.categoryMetrics.clear();
     this.tenantMetrics.clear();

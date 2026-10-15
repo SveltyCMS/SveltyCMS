@@ -1349,6 +1349,7 @@ const mockAuditLog = {
   log: mock(() => Promise.resolve()),
   logEvent: mock(() => Promise.resolve()),
   getLogs: mock(() => Promise.resolve([])),
+  queryLogs: mock(() => Promise.resolve({ success: true, data: [] })),
 };
 const mockDbAdapter = {
   auth: {

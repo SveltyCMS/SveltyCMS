@@ -8,9 +8,10 @@
  * - LIKE fallback when FTS5 virtual table is not configured
  */
 
-import type { IFtsAdapter, DatabaseResult } from "../db-interface";
+import type { IFtsAdapter, DatabaseResult, DatabaseId } from "../db-interface";
 import type { IDBAdapter } from "../db-interface";
 import { logger } from "@utils/logger";
+import { assertSafeSqlIdentifier, buildRawTenantClause } from "../core/relational-utils";
 
 export class SQLiteFtsAdapter implements IFtsAdapter {
   private adapter: IDBAdapter;
@@ -49,7 +50,8 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
     offset: number,
     options?: { tenantId?: string | null; filters?: Record<string, unknown> },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
-    const ftsTable = `${collection}_fts`;
+    const safeCollection = assertSafeSqlIdentifier(collection, "table");
+    const safeFtsTable = assertSafeSqlIdentifier(`${collection}_fts`, "table");
     const ftsQuery = query
       .split(/\s+/)
       .filter(Boolean)
@@ -64,10 +66,10 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
     // implicit FTS rowid is an integer and can never match a TEXT UUID, so the
     // join must use the mirror column.
     const rawSQL = `
-      SELECT c.*, bm25(${ftsTable}) AS relevance
-      FROM "${ftsTable}" fts
-      JOIN "${collection}" c ON c._id = fts."_id"
-      WHERE ${ftsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
+      SELECT c.*, bm25(${safeFtsTable}) AS relevance
+      FROM "${safeFtsTable}" fts
+      JOIN "${safeCollection}" c ON c._id = fts."_id"
+      WHERE ${safeFtsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
       ${filterSQL}
       ORDER BY relevance
       LIMIT ${limit} OFFSET ${offset}
@@ -77,9 +79,9 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
     // capped by LIMIT and would lie about pagination metadata.
     const countSQL = `
       SELECT COUNT(*) AS total
-      FROM "${ftsTable}" fts
-      JOIN "${collection}" c ON c._id = fts."_id"
-      WHERE ${ftsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
+      FROM "${safeFtsTable}" fts
+      JOIN "${safeCollection}" c ON c._id = fts."_id"
+      WHERE ${safeFtsTable} MATCH '${ftsQuery.replace(/'/g, "''")}'
       ${filterSQL}
     `;
 
@@ -111,18 +113,23 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
     offset: number,
     options?: { tenantId?: string | null; filters?: Record<string, unknown> },
   ): Promise<DatabaseResult<{ items: any[]; total: number }>> {
-    const colNames = columns?.map((c) => c.name) ?? ["title", "content", "description"];
+    const safeCollection = assertSafeSqlIdentifier(collection, "table");
+    const colNames = columns?.map((c) => `"${assertSafeSqlIdentifier(c.name, "column")}"`) ?? [
+      "title",
+      "content",
+      "description",
+    ];
     const escapedQuery = query
       .replace(/\\/g, "\\\\")
       .replace(/'/g, "''")
       .replace(/%/g, "\\%")
       .replace(/_/g, "\\_");
-    const orConditions = colNames.map((col) => `"${col}" LIKE '%${escapedQuery}%'`).join(" OR ");
+    const orConditions = colNames.map((col) => `${col} LIKE '%${escapedQuery}%'`).join(" OR ");
     const filterSQL = this.buildFilterSQL(options);
 
     const rawSQL = `
       SELECT *, 0.5 AS relevance
-      FROM "${collection}"
+      FROM "${safeCollection}"
       WHERE (${orConditions})
       ${filterSQL}
       LIMIT ${limit} OFFSET ${offset}
@@ -130,7 +137,7 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
 
     const countSQL = `
       SELECT COUNT(*) AS total
-      FROM "${collection}"
+      FROM "${safeCollection}"
       WHERE (${orConditions})
       ${filterSQL}
     `;
@@ -161,15 +168,19 @@ export class SQLiteFtsAdapter implements IFtsAdapter {
   }): string {
     const conditions: string[] = [];
 
-    if (options?.tenantId) {
-      conditions.push(`"tenantId" = '${options.tenantId.replace(/'/g, "''")}'`);
-    }
+    const { sql: tenantSql } = buildRawTenantClause(
+      { tenantId: options?.tenantId as DatabaseId | null | undefined },
+      "sqlite",
+      { parameterized: false },
+    );
+    if (tenantSql) conditions.push(tenantSql.trim().replace(/^AND\s+/, ""));
 
     if (options?.filters) {
       for (const [key, value] of Object.entries(options.filters)) {
         if (value !== undefined && value !== null) {
+          const safeKey = assertSafeSqlIdentifier(key, "fts.filter");
           const strVal = String(value).replace(/'/g, "''");
-          conditions.push(`"${key}" = '${strVal}'`);
+          conditions.push(`"${safeKey}" = '${strVal}'`);
         }
       }
     }

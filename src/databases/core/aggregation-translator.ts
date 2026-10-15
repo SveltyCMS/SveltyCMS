@@ -198,7 +198,7 @@ export function translateAggregation(
         if (!("_id" in spec))
           return fail("$group requires an _id key (use null for a single group)");
 
-        const groupSelection: Record<string, SQL> = {};
+        const groupSelection: Record<string, SQL> = Object.create(null) as Record<string, SQL>;
         if (spec._id !== null) {
           const ref = fieldRef(spec._id);
           if (!ref) {
@@ -297,7 +297,7 @@ export function translateAggregation(
         if (includes.length === 0)
           return fail("$project must include at least one field ({ field: 1 })");
 
-        const projected: Record<string, SQL> = {};
+        const projected: Record<string, SQL> = Object.create(null) as Record<string, SQL>;
         for (const [name] of includes) projected[name] = select?.[name] ?? dialect.field(name);
         // `_id` is kept unless explicitly excluded (MongoDB behaviour).
         const dropId = entries.some(([name, v]) => name === "_id" && v === 0);

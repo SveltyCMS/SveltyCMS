@@ -59,16 +59,26 @@ export function fractionDigits(currency: string): number {
   return ZERO_DECIMAL.has(currency.toUpperCase()) ? 0 : 2;
 }
 
+/** Deterministic fallback locale so SSR and client hydration always agree. */
+const DEFAULT_LOCALE = "en";
+
 /**
  * Human display of a minor-unit amount with the correct ISO currency symbol.
  * Pure + locale-aware (`Intl.NumberFormat`) — no server deps, safe in Svelte
  * components. Zero-decimal currencies (JPY/KRW/…) render without cents.
  *
+ * `locale` is pinned (never `undefined`) so server and client render identical
+ * strings; callers with a request-scoped language should pass `systemLanguage`.
+ *
  * @example formatMoney(1999, "EUR") → "€19.99" · formatMoney(1999, "JPY") → "¥1,999"
  */
-export function formatMoney(amount: number, currency = "EUR"): string {
+export function formatMoney(
+  amount: number,
+  currency = "EUR",
+  locale: string = DEFAULT_LOCALE,
+): string {
   const digits = fractionDigits(currency);
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency.toUpperCase(),
     minimumFractionDigits: digits,

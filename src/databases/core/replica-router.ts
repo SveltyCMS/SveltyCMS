@@ -514,8 +514,10 @@ export class ReplicaRouterAdapter implements IDBAdapter {
         this.executeWrite((a) => a.batch.bulkInsert(col, docs, opt), opt),
       bulkUpdate: async (col, updates, opt) =>
         this.executeWrite((a) => a.batch.bulkUpdate(col, updates, opt), opt),
-      bulkDelete: async (col, ids) => this.executeWrite((a) => a.batch.bulkDelete(col, ids)),
-      bulkUpsert: async (col, items) => this.executeWrite((a) => a.batch.bulkUpsert(col, items)),
+      bulkDelete: async (col, ids, opt) =>
+        this.executeWrite((a) => a.batch.bulkDelete(col, ids, opt), opt),
+      bulkUpsert: async (col, items, opt) =>
+        this.executeWrite((a) => a.batch.bulkUpsert(col, items, opt), opt),
       execute: async (ops) => this.executeWrite((a) => a.batch.execute(ops)),
     };
   }

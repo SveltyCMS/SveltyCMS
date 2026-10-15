@@ -197,6 +197,7 @@ export class WebhookService {
     }
 
     const current = await this.getWebhooks(tid);
+    const existing = partial.id ? current.find((w) => w.id === partial.id) : undefined;
 
     const newWebhook: Webhook = {
       id: partial.id || generateUUID(),
@@ -205,9 +206,12 @@ export class WebhookService {
       events: partial.events || [],
       active: partial.active ?? true,
       tenantId: tid,
-      secret: partial.secret,
-      headers: partial.headers,
-      failureCount: partial.failureCount ?? 0,
+      // 🛡️ SECURITY: an update that omits `secret`/`headers` must not wipe the HMAC
+      // secret (which would silently disable signature verification) or the custom
+      // auth headers — merge with the existing webhook.
+      secret: partial.secret ?? existing?.secret,
+      headers: partial.headers ?? existing?.headers,
+      failureCount: partial.failureCount ?? existing?.failureCount ?? 0,
     };
 
     let updated: Webhook[];

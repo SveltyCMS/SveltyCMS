@@ -5,6 +5,7 @@
 
 import { schema, defineRegistry } from "json-render-svelte";
 import type { WidgetDefinition } from "@widgets/types";
+import { logger } from "@utils/logger";
 
 // Import basic components
 import VerticalLayout from "./components/vertical-layout.svelte";
@@ -32,10 +33,10 @@ export const sveltyRegistry = registry as any;
 /**
  * Registers a widget into the generative catalog.
  */
-export function registerForJsonRender(widget: WidgetDefinition) {
+export async function registerForJsonRender(widget: WidgetDefinition): Promise<void> {
   if (!widget.jsonRender) return;
 
-  // 1. Add to the catalog schema so AI knows it exists
+  // 1. Add to the catalog schema so AI knows it exists (synchronous)
   (sveltyCatalog.data as any).components[widget.Name] = {
     props: {
       value: { type: "any" },
@@ -43,14 +44,19 @@ export function registerForJsonRender(widget: WidgetDefinition) {
     },
   };
 
-  // 2. Add to the registry so it can be rendered
-  // We use the displayComponent if available, or text fallback
-  const displayComp = (widget as any).displayComponent;
-  if (displayComp) {
-    sveltyRegistry[widget.Name] = displayComp;
+  // 2. Resolve the widget's actual display component lazily so it can be
+  //    rendered instead of falling back to Text. The path is a runtime string
+  //    (not statically analyzable), so the dynamic import is best-effort.
+  const displayComponentPath = widget.displayComponentPath;
+  if (displayComponentPath) {
+    try {
+      const mod = await import(/* @vite-ignore */ displayComponentPath);
+      sveltyRegistry[widget.Name] = mod.default;
+    } catch (err) {
+      logger.debug(`[JsonRender] Failed to load display component for ${widget.Name}:`, err);
+      sveltyRegistry[widget.Name] = Text;
+    }
   } else {
     sveltyRegistry[widget.Name] = Text;
   }
-
-  // console.log(`[JsonRender] Registered widget: ${widget.Name}`);
 }

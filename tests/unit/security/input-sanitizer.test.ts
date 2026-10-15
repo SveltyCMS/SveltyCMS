@@ -53,4 +53,11 @@ describe("sanitizeObject — gate behavior", () => {
     const input = { a: "hello", b: { c: "world" } };
     expect(sanitizeObject(input)).toBe(input);
   });
+
+  it("sanitizes large (>100KB) strings containing XSS vectors", () => {
+    const prefix = "a".repeat(100_000);
+    const out = sanitizeObject({ body: `${prefix}<script>alert(1)</script>` });
+    expect(out.body).not.toContain("<script");
+    expect(out.body).toContain(prefix);
+  });
 });

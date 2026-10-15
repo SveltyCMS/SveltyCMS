@@ -30,6 +30,7 @@ import {
   shouldBypassTenantCheck,
   getTenantCondition,
   applyTenantFilterToObject,
+  buildRawTenantClause,
 } from "@src/databases/core/relational-utils";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type { DatabaseId } from "@src/databases/db-interface";
@@ -283,6 +284,31 @@ describe("relational-utils unit tests", () => {
       const systemOpts = withSystemScope("testing", { tenantId: "tenant_abc" as DatabaseId });
       const bypassed = applyTenantFilterToObject(baseFilter, systemOpts);
       expect(bypassed).toEqual({ status: "active" });
+    });
+
+    it("buildRawTenantClause pins explicit global scope (null) to IS NULL, never skips it", () => {
+      // Regression: `!options?.tenantId` used to treat null (global) and undefined
+      // (unset) identically, dropping the tenant predicate on raw SQL paths and
+      // allowing cross-tenant reads/writes.
+      expect(buildRawTenantClause({ tenantId: null }, "sqlite")).toEqual({
+        sql: ' AND "tenantId" IS NULL',
+        params: [],
+      });
+      expect(buildRawTenantClause({ tenantId: null }, "mysql")).toEqual({
+        sql: " AND `tenantId` IS NULL",
+        params: [],
+      });
+      // Unset / global / bypassed still return the empty clause.
+      expect(buildRawTenantClause(undefined, "sqlite")).toEqual({ sql: "", params: [] });
+      expect(buildRawTenantClause({ tenantId: "global" as DatabaseId }, "sqlite")).toEqual({
+        sql: "",
+        params: [],
+      });
+      // A concrete tenant is bound as a parameter, never inlined.
+      expect(buildRawTenantClause({ tenantId: "tenant_1" as DatabaseId }, "sqlite")).toEqual({
+        sql: ' AND "tenantId" = ?',
+        params: ["tenant_1"],
+      });
     });
   });
 });

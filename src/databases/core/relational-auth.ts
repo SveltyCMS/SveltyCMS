@@ -701,29 +701,41 @@ export class RelationalAuthModule implements IAuthAdapter {
 
   async deleteUsers(userIds: DatabaseId[], options?: BaseQueryOptions) {
     return this.adapter.transaction(async (tx: any) => {
-      const conditions = [inArray(this.schema.authUsers._id, userIds as string[])];
+      const userConditions = [inArray(this.schema.authUsers._id, userIds as string[])];
+      // 🛡️ TENANT ISOLATION: sessions/tokens are tenant-scoped. Previously only the
+      // user row was scoped, so a tenant-scoped delete still invalidated every
+      // tenant's sessions/tokens for the matched user ids.
+      const sessionConditions = [inArray(this.schema.authSessions.user_id, userIds as string[])];
+      const tokenConditions = [inArray(this.schema.authTokens.user_id, userIds as string[])];
+
       if (options?.tenantId !== undefined) {
-        conditions.push(
+        userConditions.push(
           options.tenantId === null
             ? isNull(this.schema.authUsers.tenantId)
             : eq(this.schema.authUsers.tenantId, options.tenantId as string),
+        );
+        sessionConditions.push(
+          options.tenantId === null
+            ? isNull(this.schema.authSessions.tenantId)
+            : eq(this.schema.authSessions.tenantId, options.tenantId as string),
+        );
+        tokenConditions.push(
+          options.tenantId === null
+            ? isNull(this.schema.authTokens.tenantId)
+            : eq(this.schema.authTokens.tenantId, options.tenantId as string),
         );
       }
 
       const db = tx.db || tx;
 
       // 1. Delete associated sessions
-      await db
-        .delete(this.schema.authSessions)
-        .where(inArray(this.schema.authSessions.user_id, userIds as string[]));
+      await db.delete(this.schema.authSessions).where(and(...sessionConditions));
 
       // 2. Delete associated tokens
-      await db
-        .delete(this.schema.authTokens)
-        .where(inArray(this.schema.authTokens.user_id, userIds as string[]));
+      await db.delete(this.schema.authTokens).where(and(...tokenConditions));
 
       // 3. Delete the users themselves
-      const result = await db.delete(this.schema.authUsers).where(and(...conditions));
+      const result = await db.delete(this.schema.authUsers).where(and(...userConditions));
 
       const deletedCount = (result as any).changes || userIds.length;
       return { success: true, data: { deletedCount } };

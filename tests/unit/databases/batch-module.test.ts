@@ -185,11 +185,15 @@ describe("BatchModule unit tests", () => {
       expect(res.success).toBe(true);
       if (!res.success) throw new Error("Expected success");
       expect(insertMany).toHaveBeenCalledTimes(1);
-      expect(insertMany).toHaveBeenCalledWith("products", [
-        { sku: "A1", price: 10 },
-        { sku: "A2", price: 20 },
-        { sku: "A3", price: 30 },
-      ]);
+      expect(insertMany).toHaveBeenCalledWith(
+        "products",
+        [
+          { sku: "A1", price: 10 },
+          { sku: "A2", price: 20 },
+          { sku: "A3", price: 30 },
+        ],
+        {},
+      );
       expect(res.data.totalProcessed).toBe(3);
     });
 
@@ -214,9 +218,13 @@ describe("BatchModule unit tests", () => {
       expect(res.success).toBe(true);
       if (!res.success) throw new Error("Expected success");
       expect(deleteMany).toHaveBeenCalledTimes(1);
-      expect(deleteMany).toHaveBeenCalledWith("comments", {
-        _id: { $in: ["cmt_1", "cmt_2"] },
-      });
+      expect(deleteMany).toHaveBeenCalledWith(
+        "comments",
+        {
+          _id: { $in: ["cmt_1", "cmt_2"] },
+        },
+        {},
+      );
       expect(res.data.totalProcessed).toBe(2);
     });
 

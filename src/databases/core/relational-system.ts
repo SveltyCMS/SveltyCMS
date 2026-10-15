@@ -26,11 +26,14 @@ import { hashCredentialSha256Hex } from "@src/utils/security/credential-hash";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 import {
   applyTenantFilter,
+  assertSafeSqlIdentifier,
+  buildRawTenantClause,
   convertArrayDatesToISO,
   convertDatesToISO,
   convertISOToDates,
   convertIsoDatesForDrizzleWrite,
   generateId,
+  getTenantCondition,
 } from "./relational-utils";
 
 function looksJsonEncoded(value: string): boolean {
@@ -729,13 +732,24 @@ export class RelationalSystemModule implements ISystemAdapter {
       }, "GET_ACTIVE_THEME_FAILED");
     },
 
-    setDefault: async (themeId: DatabaseId): Promise<DatabaseResult<void>> => {
+    setDefault: async (
+      themeId: DatabaseId,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<void>> => {
+      assertTenantContext(options, "system.themes.setDefault");
       return this.adapter.wrap(async () => {
-        await this.db.update(this.schema.themes).set({ isDefault: false });
+        // 🛡️ TENANT ISOLATION: themes are tenant-scoped; resetting isDefault
+        // without a tenant predicate reverted every tenant's default theme.
+        const resetConditions: any[] = [];
+        applyTenantFilter(resetConditions, this.schema.themes.tenantId, options);
+        const resetQuery = this.db.update(this.schema.themes).set({ isDefault: false });
+        await (resetConditions.length > 0 ? resetQuery.where(and(...resetConditions)) : resetQuery);
+        const setConditions = [eq(this.schema.themes._id, themeId)];
+        applyTenantFilter(setConditions, this.schema.themes.tenantId, options);
         await this.db
           .update(this.schema.themes)
           .set({ isDefault: true, isActive: true })
-          .where(eq(this.schema.themes._id, themeId));
+          .where(and(...setConditions));
       }, "SET_DEFAULT_THEME_FAILED");
     },
 
@@ -788,9 +802,17 @@ export class RelationalSystemModule implements ISystemAdapter {
 
     getAllThemes: async (options?: BaseQueryOptions): Promise<Theme[]> => {
       try {
-        const results = await this.getDb(options)
+        // 🛡️ TENANT ISOLATION: scope to the caller's tenant when provided (soft —
+        // `getTenantCondition` returns undefined when unset so the global-default
+        // loaders keep working), instead of returning every tenant's themes.
+        const conditions: any[] = [];
+        const tenantCond = getTenantCondition(this.schema.themes.tenantId, options);
+        if (tenantCond) conditions.push(tenantCond);
+        let query = this.getDb(options)
           .select(this.adapter.getPhysicalSelection(this.schema.themes))
           .from(this.schema.themes);
+        if (conditions.length > 0) query = query.where(and(...conditions));
+        const results = await query;
         return convertArrayDatesToISO(results) as unknown as Theme[];
       } catch {
         return [];
@@ -1382,9 +1404,12 @@ export class RelationalSystemModule implements ISystemAdapter {
         } catch {
           // MariaDB: no RETURNING clause — use the raw affected-rows count.
           // Literal table/column names only (scanner-safe); values are bound.
+          // 🛡️ TENANT ISOLATION: bind the tenant predicate so a media move cannot
+          // touch another tenant's row (matches the RETURNING path above).
+          const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
           const raw = await this.adapter.raw.execute(
-            "UPDATE `media_items` SET `folderId` = ?, `updatedAt` = ? WHERE `_id` = ?",
-            [foundFolderId, new Date(), contentId],
+            `UPDATE \`${assertSafeSqlIdentifier("media_items", "table")}\` SET \`folderId\` = ?, \`updatedAt\` = ? WHERE \`${assertSafeSqlIdentifier("_id", "column")}\` = ?${tenantSql}`,
+            [foundFolderId, new Date(), contentId, ...tenantParams],
           );
           updatedRows =
             (raw as { changes?: number })?.changes ??

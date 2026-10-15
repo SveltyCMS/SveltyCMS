@@ -1352,6 +1352,7 @@ export class CollectionsNamespace {
           action: "bulkCreate",
           data: { count: entries.length },
           timestamp: nowISODateString(),
+          tenantId,
           user,
         });
       } catch {}

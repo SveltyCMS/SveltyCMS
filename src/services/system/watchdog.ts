@@ -162,7 +162,9 @@ class SystemWatchdog {
     // recovery is part of real production behavior.
     if (this.intervalId) return;
     logger.info("🛡️ Autonomous System Watchdog started");
-    this.intervalId = setInterval(() => this.check(), this.CHECK_INTERVAL);
+    this.intervalId = setInterval(() => {
+      this.check().catch((err) => logger.error("Watchdog health check failed", err));
+    }, this.CHECK_INTERVAL);
     // .unref() — consistent with JobQueue and Outbox: the watchdog timer must not
     // keep the process alive on its own when all requests have drained. This eliminates
     // event-loop pressure during idle periods and allows clean graceful shutdown.
@@ -208,8 +210,7 @@ class SystemWatchdog {
     const criticalServices: (keyof typeof services)[] = ["database", "auth"];
 
     for (const serviceName of criticalServices) {
-      const service = services[serviceName];
-      if (service.status === "unhealthy") {
+      if (services[serviceName]?.status === "unhealthy") {
         await this.attemptRecovery(serviceName, state.overallState);
       }
     }

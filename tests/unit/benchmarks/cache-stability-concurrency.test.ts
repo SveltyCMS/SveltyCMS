@@ -38,6 +38,11 @@ vi.mock("@src/services/core/settings-service", () => ({
   getAllSettings: vi.fn(async () => ({ public: {}, private: {} })),
 }));
 
+// L1-hit latency sampling is gated behind this flag, read once at module load by
+// CacheService. Enable it here so this benchmark still captures L1-hit samples and
+// exercises the p95/p99 percentile math (FIX 9 / FIX 10).
+process.env.ENABLE_HOOK_TIMING = "1";
+
 const SYNC_MAX_SIZE = 64 * 1024;
 
 describe("Cache stability / concurrency (FIX 10)", () => {

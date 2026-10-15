@@ -89,6 +89,17 @@ describe("SqlQueryBuilder operators & guards", () => {
         qb.where({ status: { $in: ["draft", "published"] } } as unknown as Partial<TestArticle>);
       }).toThrowError(/Operator\/array values in where\(\) are not supported/);
     });
+
+    it("treats prototype keys (`constructor`/`__proto__`) as JSON fields, never columns", () => {
+      const { core } = createMockBuilderCore();
+      const qb = new SqlQueryBuilder<TestArticle>(core, "articles", SQLITE_DIALECT);
+
+      // A `constructor` key is an own property of the filter but not of the table.
+      // It must not resolve to Object.prototype.constructor and be treated as a
+      // physical column.
+      qb.where({ constructor: "x" } as unknown as Partial<TestArticle>);
+      expect(core.getJsonField).toHaveBeenCalledWith("constructor");
+    });
   });
 
   describe("whereIn and whereNotIn edge cases", () => {

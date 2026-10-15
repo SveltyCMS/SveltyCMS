@@ -384,9 +384,12 @@ export class RelationalContentModule implements IContentAdapter {
           .map((v) => v?._id)
           .filter((id): id is string => typeof id === "string");
         if (staleIds.length > 0) {
-          await db
-            .delete(this.schema.contentNodes)
-            .where(inArray(this.schema.contentNodes._id, staleIds));
+          // 🛡️ TENANT ISOLATION: the pre-clean was previously `_id IN (...)` only —
+          // an unscoped DELETE that could remove (and then re-insert under the
+          // caller's tenant) rows owned by another tenant sharing the DB.
+          const staleConditions = [inArray(this.schema.contentNodes._id, staleIds)];
+          applyTenantFilter(staleConditions, this.schema.contentNodes.tenantId, options);
+          await db.delete(this.schema.contentNodes).where(and(...staleConditions));
         }
 
         const insert = db.insert(this.schema.contentNodes).values(preparedValuesList) as any;
@@ -493,10 +496,14 @@ export class RelationalContentModule implements IContentAdapter {
         async (tx: any) => {
           const db = tx.db || tx;
           for (const update of nodeUpdates) {
+            // 🛡️ TENANT ISOLATION: path is per-tenant, so a bare path match can
+            // collide across tenants sharing a DB instance.
+            const conditions = [eq(this.schema.contentNodes.path, update.path)];
+            applyTenantFilter(conditions, this.schema.contentNodes.tenantId, options);
             await db
               .update(this.schema.contentNodes)
               .set({ position: update.newOrder } as any)
-              .where(eq(this.schema.contentNodes.path, update.path));
+              .where(and(...conditions));
           }
           return { success: true, data: [] };
         },
@@ -511,7 +518,9 @@ export class RelationalContentModule implements IContentAdapter {
         order: number;
         path: string;
       }>,
+      options?: BaseQueryOptions,
     ): Promise<DatabaseResult<void>> => {
+      assertTenantContext(options, "content.nodes.reorderStructure");
       // Reparenting changes hierarchy only. `path` identifies the collection
       // schema and rewriting it can make the collection disappear on refresh.
       // Cold path (admin drag-drop structural reorder): transaction wrapping
@@ -524,6 +533,9 @@ export class RelationalContentModule implements IContentAdapter {
           // loop), but it only needs each row once: N reads + N writes become
           // 1 read + N writes.
           const ids = items.map((item) => item.id);
+          const selectConditions =
+            ids.length > 0 ? [inArray(this.schema.contentNodes._id, ids)] : [];
+          applyTenantFilter(selectConditions, this.schema.contentNodes.tenantId, options);
           const rows: Array<{ _id?: unknown; data?: unknown }> =
             ids.length > 0
               ? await db
@@ -532,7 +544,7 @@ export class RelationalContentModule implements IContentAdapter {
                     data: this.schema.contentNodes.data,
                   })
                   .from(this.schema.contentNodes)
-                  .where(inArray(this.schema.contentNodes._id, ids))
+                  .where(and(...selectConditions))
               : [];
           const dataById = new Map<string, unknown>();
           for (const row of rows) {
@@ -563,6 +575,8 @@ export class RelationalContentModule implements IContentAdapter {
               nextData = { ...(rawData as Record<string, unknown>), order: item.order };
             }
 
+            const updateConditions = [eq(this.schema.contentNodes._id, item.id)];
+            applyTenantFilter(updateConditions, this.schema.contentNodes.tenantId, options);
             await db
               .update(this.schema.contentNodes)
               .set({
@@ -570,7 +584,7 @@ export class RelationalContentModule implements IContentAdapter {
                 position: item.order,
                 ...(nextData !== undefined ? { data: nextData } : {}),
               })
-              .where(eq(this.schema.contentNodes._id, item.id));
+              .where(and(...updateConditions));
           }
           return { success: true, data: undefined };
         },

@@ -519,7 +519,7 @@ export class AutomationService {
       {
         [config.field]: config.value,
       },
-      payload.tenantId as any,
+      { tenantId: payload.tenantId as any },
     );
 
     logger.debug(
@@ -616,7 +616,7 @@ export class AutomationService {
           payload.collection,
           payload.entryId as any,
           { [config.targetField]: result },
-          payload.tenantId as any,
+          { tenantId: payload.tenantId as any },
         );
         logger.debug(`Agentic task: Wrote result to ${config.targetField} on ${payload.entryId}`);
       }

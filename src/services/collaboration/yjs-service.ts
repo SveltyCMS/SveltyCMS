@@ -11,6 +11,9 @@ import { pubSub } from "@src/services/background/pub-sub";
 import { eventBus } from "@utils/event-bus";
 import { encodeYjsToBase64 } from "@utils/tenant";
 
+/** Upper bound on in-memory Yjs documents (LRU eviction past this). */
+const MAX_YJS_DOCS = 512;
+
 class YjsService {
   private static instance: YjsService;
   // Map of DocumentID -> Y.Doc (keyed by `${tenantId}:${docId}` for isolation)
@@ -39,41 +42,65 @@ class YjsService {
    */
   private getDoc(docId: string, tenantId: string): YDoc {
     const key = `${tenantId || "global"}:${docId}`;
-    if (!this.docs.has(key)) {
-      const doc = new YDoc();
+    const existing = this.docs.get(key);
+    if (existing) {
+      // Refresh LRU order so hot documents are not evicted.
+      this.docs.delete(key);
+      this.docs.set(key, existing);
+      return existing;
+    }
 
-      // Handle persistence if needed (e.g. periodically save to DB)
-      doc.on("update", (update, origin) => {
-        if (origin === "server") return; // Don't echo back if origin is server
+    const doc = new YDoc();
 
-        // Broadcast to other clients via PubSub
-        // The SSE hook will pick this up and send to connected clients
-        pubSub.publish("yjs:sync", {
+    // Handle persistence if needed (e.g. periodically save to DB)
+    doc.on("update", (update, origin) => {
+      if (origin === "server") return; // Don't echo back if origin is server
+
+      // Broadcast to other clients via PubSub
+      // The SSE hook will pick this up and send to connected clients
+      pubSub.publish("yjs:sync", {
+        docId,
+        update,
+        origin: "server",
+        tenantId,
+      });
+
+      // 🔌 SSE BRIDGE: forward the update onto the EventBus so the
+      // /api/events SSE stream delivers it to other editors (the
+      // SseProvider listens for `yjs:sync` with origin "server").
+      // Base64 is required — Uint8Array does not survive JSON serialization.
+      try {
+        eventBus.emit("yjs:sync", {
           docId,
-          update,
+          updateBase64: encodeYjsToBase64(update),
           origin: "server",
           tenantId,
         });
+      } catch (err) {
+        logger.warn(`[Yjs] SSE bridge emit failed for ${docId}:`, err);
+      }
+    });
 
-        // 🔌 SSE BRIDGE: forward the update onto the EventBus so the
-        // /api/events SSE stream delivers it to other editors (the
-        // SseProvider listens for `yjs:sync` with origin "server").
-        // Base64 is required — Uint8Array does not survive JSON serialization.
-        try {
-          eventBus.emit("yjs:sync", {
-            docId,
-            updateBase64: encodeYjsToBase64(update),
-            origin: "server",
-            tenantId,
-          });
-        } catch (err) {
-          logger.warn(`[Yjs] SSE bridge emit failed for ${docId}:`, err);
-        }
-      });
+    this.docs.set(key, doc);
+    this.evictIfNeeded();
+    return doc;
+  }
 
-      this.docs.set(key, doc);
+  /** Evicts least-recently-used documents past the cap (bounded memory). */
+  private evictIfNeeded(): void {
+    while (this.docs.size > MAX_YJS_DOCS) {
+      const oldestKey = this.docs.keys().next().value;
+      if (oldestKey === undefined) break;
+      const doc = this.docs.get(oldestKey);
+      this.docs.delete(oldestKey);
+      doc?.destroy();
+      const awareness = this.awareness.get(oldestKey);
+      if (awareness) {
+        awareness.destroy();
+        this.awareness.delete(oldestKey);
+      }
+      logger.debug(`[Yjs] Evicted least-recently-used document: ${oldestKey}`);
     }
-    return this.docs.get(key)!;
   }
 
   /**

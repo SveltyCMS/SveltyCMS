@@ -2126,7 +2126,7 @@ export async function handleTestingRoutes(
         String(params.aggregateType || "entry"),
         String(params.aggregateId || generateUUID()),
         params.payload ?? { test: true },
-        String(params.tenantId || tenantId || "default"),
+        String(params.tenantId || tenantId || ""),
       );
       if (!result.success) {
         // Outbox may be disabled in benchmark — surface clearly
@@ -2199,7 +2199,7 @@ export async function handleTestingRoutes(
             "entry",
             aggregateId,
             { rollbackTest: true },
-            String(tenantId || "default"),
+            String(tenantId || ""),
             { transaction: tx },
           );
           if (emitRes.success && emitRes.data?._id) {

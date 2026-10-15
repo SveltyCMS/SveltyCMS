@@ -21,6 +21,7 @@ import { join, resolve, normalize } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { logger } from "@utils/logger";
+import { raise } from "@utils/error-handling";
 import type { StoredMedia } from "./media-models";
 
 function hashToken(raw: string): string {
@@ -132,7 +133,7 @@ export function validateLink(
   if (link.maxDownloads != null && link.downloadCount >= link.maxDownloads) {
     return { ok: false, reason: "limit" };
   }
-  if (link.allowedIPs?.length && ip && !link.allowedIPs.includes(ip)) {
+  if (link.allowedIPs?.length && (!ip || !link.allowedIPs.includes(ip))) {
     return { ok: false, reason: "ip" };
   }
 
@@ -225,68 +226,104 @@ function _safeResolve(storedPath: string): string | null {
   return resolved.startsWith(root) ? resolved : null;
 }
 
+/** Largest file size representable in the 11-octal-digit TAR size field (~8 GiB). */
+const TAR_MAX_SIZE = 0o77777777777;
+
+/** Build one 512-byte POSIX ustar header block. */
+function buildTarHeader(name: string, size: number, typeflag: string): Buffer {
+  const header = Buffer.alloc(512, 0);
+
+  // name — 100-byte field (zero-padded by Buffer.alloc). Truncated for the file
+  // entry of a long-name record; extractors read the preceding 'L' entry data.
+  const nameBytes = Buffer.from(name, "utf8");
+  nameBytes.copy(header, 0, 0, Math.min(nameBytes.length, 100));
+
+  // mode / uid / gid — 8 bytes each, 7 octal digits + NUL.
+  Buffer.from("0000644\0").copy(header, 100);
+  Buffer.from("0000000\0").copy(header, 108);
+  Buffer.from("0000000\0").copy(header, 116);
+
+  // size / mtime — 12 bytes each, 11 octal digits + NUL.
+  Buffer.from(`${size.toString(8).padStart(11, "0")}\0`).copy(header, 124);
+  Buffer.from(
+    `${Math.floor(Date.now() / 1000)
+      .toString(8)
+      .padStart(11, "0")}\0`,
+  ).copy(header, 136);
+
+  // typeflag (regular file '0', or 'L' for a long-name record).
+  header[156] = typeflag.charCodeAt(0);
+
+  // magic + version mark this as POSIX ustar (required for 'L' long-name support).
+  Buffer.from("ustar\0").copy(header, 257);
+  Buffer.from("00").copy(header, 263);
+
+  // Checksum — computed with the checksum field treated as spaces (POSIX).
+  for (let i = 148; i < 156; i++) header[i] = 0x20;
+  let sum = 0;
+  for (let i = 0; i < 512; i++) sum += header[i];
+  Buffer.from(`${sum.toString(8).padStart(6, "0")}\0 `).copy(header, 148);
+
+  return header;
+}
+
 /** Minimal TAR creator */
 class TarBuilder {
-  entries: { name: string; path: string; size: number }[] = [];
+  entries: { name: string; path: string }[] = [];
 
-  add(name: string, path: string, size: number) {
-    this.entries.push({ name, path, size });
+  add(name: string, path: string) {
+    this.entries.push({ name, path });
   }
 
   async write(outputPath: string): Promise<void> {
     const out = createWriteStream(outputPath);
 
+    // Surface any output-stream failure (disk full, closed stream) as a rejected
+    // write instead of an unhandled 'error' event mid-loop.
+    let outError: Error | undefined;
+    out.once("error", (err) => {
+      outError = err as Error;
+    });
+
     for (const e of this.entries) {
-      const header = Buffer.alloc(512, 0);
-      Buffer.from(e.name.slice(0, 99)).copy(header, 0);
+      if (outError) throw outError;
 
-      for (const [i, c] of "0000644 \0".split("").entries()) {
-        header.writeUInt8(c.charCodeAt(0), 100 + i);
+      // Never trust the DB-recorded size — the on-disk file may differ. Stat the
+      // actual file so the header size and padding match the bytes we stream.
+      const st = await stat(e.path);
+      if (!st.isFile()) {
+        raise(500, `Archive entry is not a regular file: ${e.path}`);
       }
-      for (const [i, c] of "0000000 \0".split("").entries()) {
-        header.writeUInt8(c.charCodeAt(0), 108 + i);
-      }
-      for (const [i, c] of "0000000 \0".split("").entries()) {
-        header.writeUInt8(c.charCodeAt(0), 116 + i);
-      }
-
-      const sizeOct = `${e.size.toString(8).padStart(11, "0")}\0`;
-      Buffer.from(sizeOct).copy(header, 124);
-
-      const mtimeOct = `${Math.floor(Date.now() / 1000)
-        .toString(8)
-        .padStart(11, "0")}\0`;
-      Buffer.from(mtimeOct).copy(header, 136);
-
-      for (const [i, c] of "        ".split("").entries()) {
-        header.writeUInt8(c.charCodeAt(0), 148 + i);
+      const size = st.size;
+      if (size > TAR_MAX_SIZE) {
+        raise(413, `Archive entry exceeds the TAR size field limit: ${e.path}`);
       }
 
-      header[156] = 48;
+      // Names longer than the 100-byte TAR name field get a POSIX 'L' long-name
+      // record (full name as entry data) preceding the truncated file entry.
+      const nameBytes = Buffer.byteLength(e.name, "utf8");
+      if (nameBytes > 100) {
+        const nameData = Buffer.from(e.name + "\0", "utf8");
+        out.write(buildTarHeader("././@LongLink", nameData.length, "L"));
+        out.write(nameData);
+        const longPad = 512 - (nameData.length % 512);
+        if (longPad < 512) out.write(Buffer.alloc(longPad));
+      }
 
-      let sum = 0;
-      for (let i = 0; i < 512; i++) sum += header[i];
-      const chksum = `${sum.toString(8).padStart(6, "0")}\0 `;
-      Buffer.from(chksum).copy(header, 148);
+      out.write(buildTarHeader(e.name, size, "0"));
 
-      out.write(header);
+      await pipeline(createReadStream(e.path), out, { end: false });
 
-      const inStream = createReadStream(e.path);
-      await new Promise((res, rej) => {
-        inStream.on("error", rej);
-        inStream.on("end", res);
-        inStream.pipe(out, { end: false });
-      });
-
-      const pad = 512 - (e.size % 512);
+      const pad = 512 - (size % 512);
       if (pad < 512) out.write(Buffer.alloc(pad));
     }
 
     out.write(Buffer.alloc(1024));
     out.end();
-    await new Promise((res, rej) => {
-      out.on("finish", res);
-      out.on("error", rej);
+    await new Promise<void>((res, rej) => {
+      if (outError) return rej(outError);
+      out.once("finish", res);
+      out.once("error", rej);
     });
   }
 }
@@ -305,6 +342,7 @@ export async function createBulkArchive(
     await mkdir(outputDir, { recursive: true });
 
     const tar = new TarBuilder();
+    const usedNames = new Set<string>();
     for (const f of files) {
       if (!(f.path && f.size)) continue;
 
@@ -315,8 +353,17 @@ export async function createBulkArchive(
         continue;
       }
 
-      const name = f.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-      tar.add(name, safePath, f.size);
+      // Sanitized names can collide (e.g. `a/b.jpg` and `a?b.jpg` both → `a_b.jpg`),
+      // so de-duplicate to prevent two entries sharing one archive path.
+      const base = f.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+      let name = base;
+      let suffix = 2;
+      while (usedNames.has(name)) {
+        name = `${base}_${suffix++}`;
+      }
+      usedNames.add(name);
+
+      tar.add(name, safePath);
     }
 
     if (tar.entries.length === 0) {

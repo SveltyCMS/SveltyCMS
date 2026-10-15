@@ -52,6 +52,14 @@ export async function bulkImportCollectionDocuments(
   if (total === 0) return result;
 
   if (mode === "replace") {
+    // 🛡️ CROSS-TENANT WIPE GUARD: replace mode with a missing/global tenant would
+    // `deleteMany` the whole collection (confirmWipe bypasses the row-filter guard)
+    // across every tenant. Fail closed instead.
+    if (!tenantId || tenantId === "global") {
+      throw new Error(
+        "Replace-mode import requires a concrete tenantId to avoid cross-tenant data loss",
+      );
+    }
     const deleteResult = await adapter.crud.deleteMany(
       collectionName,
       {},

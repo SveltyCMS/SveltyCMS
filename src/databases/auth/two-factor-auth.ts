@@ -388,7 +388,16 @@ export class TwoFactorAuthService {
             });
             return false;
           }
-        } catch {}
+        } catch {
+          // 🔴 FIX: a role-lookup failure must not skip the MFA requirement —
+          // fail closed (return false) so a trusted device cannot bypass MFA
+          // when the role policy cannot be confirmed.
+          logger.error("Trusted-device bypass: role lookup failed, requiring MFA", {
+            userId,
+            role: user.role,
+          });
+          return false;
+        }
       }
 
       const trustedDevices = user.twoFactorTrustedDevices || [];

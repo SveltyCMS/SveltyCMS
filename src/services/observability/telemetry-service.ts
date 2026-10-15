@@ -12,7 +12,7 @@
  * - Uses Hashed Secret for Unique ID (Never sends raw secret)
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import os from "node:os";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPrivateSetting } from "@src/services/core/settings-service";
@@ -132,7 +132,8 @@ export class TelemetryService {
     this.activeCheckPromise = (async () => {
       try {
         // 1. Calculate Installation ID (Specific to this config/secret)
-        const jwtSecret = (await getPrivateSetting("JWT_SECRET_KEY")) || "fallback_secret";
+        const jwtSecret =
+          (await getPrivateSetting("JWT_SECRET_KEY")) || randomBytes(32).toString("hex");
         const installationId = createHash("sha256").update(jwtSecret).digest("hex");
 
         // 2. Calculate Stable Machine ID (Survives fresh installs/config deletion)
@@ -185,8 +186,11 @@ export class TelemetryService {
         const privateEnv = getPrivateEnv();
         const dbType = privateEnv?.DB_TYPE || (await getPrivateSetting("DB_TYPE")) || "unknown";
 
-        // Collect geolocation data
-        let location = {
+        // Geolocation lookup removed: the ip-api.com free endpoint is HTTP-only,
+        // and fetching it over plain HTTP would leak the server's public IP and
+        // location to a third party in cleartext. `location` stays at its
+        // undefined default so the payload omits it entirely.
+        const location = {
           country: undefined as string | undefined,
           country_code: undefined as string | undefined,
           region: undefined as string | undefined,
@@ -196,34 +200,6 @@ export class TelemetryService {
           isp: undefined as string | undefined,
           org: undefined as string | undefined,
         };
-
-        try {
-          const geoRes = await fetch(
-            "http://ip-api.com/json/?fields=status,country,countryCode,region,regionName,city,lat,lon,isp,org",
-            {
-              headers: { "User-Agent": `SveltyCMS/${pkg.version}` },
-              signal: AbortSignal.timeout(5000),
-            },
-          );
-
-          if (geoRes.ok) {
-            const geoData = await geoRes.json();
-            if (geoData.status === "success") {
-              location = {
-                country: geoData.country,
-                country_code: geoData.countryCode,
-                region: geoData.regionName || geoData.region,
-                city: geoData.city,
-                latitude: geoData.lat,
-                longitude: geoData.lon,
-                isp: geoData.isp,
-                org: geoData.org,
-              };
-            }
-          }
-        } catch (e) {
-          logger.debug("[Telemetry] Could not resolve location:", e);
-        }
 
         // Metrics
         let userCount = 0;
@@ -335,7 +311,7 @@ export class TelemetryService {
           }
         }
 
-        const TELEMETRY_SALT = clientSecret || "sveltycms-telemetry";
+        const TELEMETRY_SALT = clientSecret || randomBytes(32).toString("hex");
 
         const cryptoMod = await import("node:crypto");
         const cryptoSignature = cryptoMod
@@ -368,7 +344,7 @@ export class TelemetryService {
         };
 
         // Application-level AES-256-GCM payload encryption
-        const cipherKey = cryptoMod.createHash("sha256").update(TELEMETRY_SALT).digest();
+        const cipherKey = cryptoMod.scryptSync(TELEMETRY_SALT, "sveltycms-telemetry-aes-key", 32);
         const iv = cryptoMod.randomBytes(12);
         const cipher = cryptoMod.createCipheriv("aes-256-gcm", cipherKey, iv);
         const encrypted = Buffer.concat([

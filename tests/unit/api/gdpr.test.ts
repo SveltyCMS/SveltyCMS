@@ -32,6 +32,7 @@ vi.mock("@src/databases/db", () => ({
 vi.mock("@src/services/security/audit-service", () => ({
   auditLogService: {
     getLogs: vi.fn().mockResolvedValue([]),
+    queryLogs: vi.fn().mockResolvedValue({ success: true, data: [] }),
     log: vi.fn().mockResolvedValue(undefined),
   },
   AuditEventType: { DATA_EXPORT: "DATA_EXPORT", DATA_DELETION: "DATA_DELETION" },

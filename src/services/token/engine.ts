@@ -354,7 +354,10 @@ export async function replaceTokens(
 
     for (const rep of replacements) {
       if (rep.resolved) {
-        result = result.replace(rep.fullMatch, rep.value);
+        // Use a function replacement so `$` in the resolved value is literal:
+        // a string replacement would interpret `$&` / `$1` / `$`` / `$'` as
+        // special patterns and corrupt values like "$5.99".
+        result = result.replace(rep.fullMatch, () => rep.value);
         hasMatches = true;
       }
     }

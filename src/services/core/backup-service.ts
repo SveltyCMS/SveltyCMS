@@ -406,6 +406,15 @@ export class BackupService {
     const storageDir = options.storageDir ?? path.resolve(process.cwd(), "storage", "backups");
     const now = nowISODateString();
     const label = options.label ?? `backup_${tenantId}_${Date.now()}`;
+    // 🛡️ PATH TRAVERSAL: label feeds path.join(storageDir, label). Reject separators
+    // and `..` so an API-supplied label cannot write outside the backups dir.
+    if (options.label !== undefined && !/^[A-Za-z0-9._-]+$/.test(options.label)) {
+      return {
+        success: false,
+        message:
+          "Invalid backup label: only letters, digits, dots, dashes, underscores are allowed.",
+      };
+    }
     const backupDir = path.join(storageDir, label);
 
     logger.info(`[BackupService] Starting backup: tenant=${tenantId}, media=${includesMedia}`);
@@ -705,6 +714,20 @@ export class BackupService {
     let versionCompatible = false;
     let adapterMatch = false;
     let manifest: BackupManifest | null = null;
+
+    // 🛡️ PATH TRAVERSAL: reject `..` segments in the supplied backup path.
+    if (backupPath.split(/[\\/]+/).includes("..")) {
+      errors.push("Invalid backup path");
+      return {
+        valid: false,
+        errors,
+        warnings,
+        checksumsValid,
+        versionCompatible,
+        adapterMatch,
+        manifest,
+      };
+    }
 
     logger.info(`[BackupService] Validating backup: ${backupPath}`);
 

@@ -803,6 +803,9 @@ export class ContentPackageService {
         message: `Tenant mismatch for import plan ${planId}`,
       };
     }
+    // 🛡️ TENANT ISOLATION: a plan built for a tenant must scope its writes even
+    // when applyImport() is called without an explicit tenantId.
+    const targetTenant = options.tenantId ?? plan.tenantId;
     if (plan.userId && options.userId && plan.userId !== options.userId) {
       return {
         success: false,
@@ -837,11 +840,11 @@ export class ContentPackageService {
         {
           planId,
           duplicateStrategy: strategy,
-          tenantId: options.tenantId,
+          tenantId: targetTenant,
           userId: options.userId,
           operations: plan.operations,
         },
-        options.tenantId,
+        targetTenant,
       );
 
       if (!jobId) {
@@ -882,11 +885,11 @@ export class ContentPackageService {
         if (op.action === "create") {
           const createData = { ...op.entry };
           delete createData._id;
-          if (options.tenantId) {
-            createData.tenantId = options.tenantId;
+          if (targetTenant) {
+            createData.tenantId = targetTenant;
           }
           const result = await adapter.crud.insert(op.collection, createData as any, {
-            tenantId: options.tenantId as any,
+            tenantId: targetTenant as any,
           });
           if (result.success) {
             imported++;
@@ -905,7 +908,7 @@ export class ContentPackageService {
             op.collection,
             op.existingId as any,
             updateData,
-            { tenantId: options.tenantId as any },
+            { tenantId: targetTenant as any },
           );
           if (result.success) {
             imported++;
@@ -1003,9 +1006,18 @@ export class ContentPackageService {
     const result: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(entry)) {
       if (SENSITIVE_FIELDS.has(key)) continue;
-      // Recursively sanitize nested objects (but not arrays)
-      if (value && typeof value === "object" && !Array.isArray(value)) {
-        result[key] = this.sanitizeEntry(value as Record<string, unknown>);
+      // Recursively sanitize nested objects AND array elements so sensitive
+      // fields (password/token/apiKey) don't leak inside arrays.
+      if (value && typeof value === "object") {
+        if (Array.isArray(value)) {
+          result[key] = value.map((item) =>
+            item && typeof item === "object" && !Array.isArray(item)
+              ? this.sanitizeEntry(item as Record<string, unknown>)
+              : item,
+          );
+        } else {
+          result[key] = this.sanitizeEntry(value as Record<string, unknown>);
+        }
       } else {
         result[key] = value;
       }

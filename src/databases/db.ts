@@ -553,9 +553,7 @@ export async function ensureFullInitialization(): Promise<any | null> {
 
       // Initialize semantic search index (fire-and-forget, NPU-accelerated)
       import("@src/services/intelligence/semantic-index")
-        .then(({ initializeSemanticIndex }) =>
-          initializeSemanticIndex((cfg as any)?.tenantId || "default"),
-        )
+        .then(({ initializeSemanticIndex }) => initializeSemanticIndex())
         .catch(() => {});
 
       // Start demo tenant cleanup scheduler (fire-and-forget, only in DEMO mode)

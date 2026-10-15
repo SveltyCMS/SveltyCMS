@@ -22,6 +22,8 @@
 import { logger } from "@utils/logger";
 import { embed, embedSingle, cosineSimilarity } from "./embedding-service";
 import { getHotCollections } from "./behavioral-learner";
+import { withSystemScope } from "@src/databases/system-tenant-scope";
+import type { DatabaseId } from "@src/databases/db-interface";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
@@ -49,6 +51,7 @@ export interface IndexedItem {
   vector: number[];
   indexedAt: number; // timestamp
   collectionId?: string; // for entries
+  tenantId?: string; // tenant scope when indexed under MULTI_TENANT
   score?: number; // search relevance score (populated during search)
 }
 
@@ -75,7 +78,7 @@ export function getLastFullIndexTime(): number | null {
  * Initialize the semantic index. Restores from cache, then performs
  * incremental update. Call once after system reaches READY state.
  */
-export async function initializeSemanticIndex(tenantId: string): Promise<void> {
+export async function initializeSemanticIndex(tenantId?: string): Promise<void> {
   if (_initialized) return;
 
   // Restore from cache
@@ -107,6 +110,7 @@ export async function initializeSemanticIndex(tenantId: string): Promise<void> {
  */
 export async function indexItem(
   item: Omit<IndexedItem, "vector" | "indexedAt" | "score">,
+  tenantId?: string,
 ): Promise<void> {
   const text = `${item.title} ${item.description} ${item.keywords.join(" ")}`;
   const result = await embedSingle(text);
@@ -115,6 +119,7 @@ export async function indexItem(
     ...item,
     vector: result.vector,
     indexedAt: Date.now(),
+    ...(tenantId !== undefined ? { tenantId } : {}),
   };
 
   _index.set(item.id, indexed);
@@ -126,6 +131,7 @@ export async function indexItem(
  */
 export async function indexBatch(
   items: Array<Omit<IndexedItem, "vector" | "indexedAt" | "score">>,
+  tenantId?: string,
 ): Promise<void> {
   if (items.length === 0) return;
 
@@ -137,6 +143,7 @@ export async function indexBatch(
       ...items[i],
       vector: results[i].vector,
       indexedAt: Date.now(),
+      ...(tenantId !== undefined ? { tenantId } : {}),
     };
     _index.set(items[i].id, indexed);
   }
@@ -161,9 +168,10 @@ export async function semanticSearch(
     minScore?: number;
     types?: IndexedItem["type"][];
     collectionId?: string;
+    tenantId?: string;
   } = {},
 ): Promise<SearchResult[]> {
-  const { limit = 10, minScore = 0.2, types, collectionId } = options;
+  const { limit = 10, minScore = 0.2, types, collectionId, tenantId } = options;
 
   if (_index.size === 0) return [];
 
@@ -179,6 +187,8 @@ export async function semanticSearch(
     if (types && !types.includes(item.type)) continue;
     // Collection filter
     if (collectionId && item.collectionId !== collectionId) continue;
+    // Tenant filter (only when the caller scopes the search)
+    if (tenantId && item.tenantId !== tenantId) continue;
 
     // Semantic score: cosine similarity
     const semanticScore = cosineSimilarity(queryVector, item.vector);
@@ -360,9 +370,9 @@ async function indexAdminPages(): Promise<void> {
   logger.info(`[SemanticIndex] Indexed ${adminPages.length} admin pages`);
 }
 
-async function indexHotContent(tenantId: string): Promise<void> {
+async function indexHotContent(tenantId?: string): Promise<void> {
   try {
-    const hotCollections = getHotCollections(tenantId, 5);
+    const hotCollections = getHotCollections(tenantId ?? "", 5);
     if (hotCollections.length === 0) return;
 
     const { dbAdapter } = await loadDbModule();
@@ -371,7 +381,14 @@ async function indexHotContent(tenantId: string): Promise<void> {
     const items: Array<Omit<IndexedItem, "vector" | "indexedAt" | "score">> = [];
 
     for (const { id: collectionId } of hotCollections) {
-      const result = await dbAdapter.crud.findMany(collectionId, {}, { limit: 20 });
+      const result = await dbAdapter.crud.findMany(
+        collectionId,
+        {},
+        {
+          limit: 20,
+          ...(tenantId ? { tenantId: tenantId as DatabaseId } : withSystemScope("scheduler")),
+        },
+      );
       if (!result.success || !result.data) continue;
 
       for (const entry of result.data as unknown[]) {
@@ -393,7 +410,7 @@ async function indexHotContent(tenantId: string): Promise<void> {
     }
 
     if (items.length > 0) {
-      await indexBatch(items);
+      await indexBatch(items, tenantId);
       logger.info(`[SemanticIndex] Indexed ${items.length} entries from hot collections`);
     }
   } catch (err) {

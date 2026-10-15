@@ -1141,7 +1141,9 @@ export const contentService = {
 
   async reorderNodes(items: any[], tenantId?: string | null): Promise<void> {
     const db = await (await loadDbModule()).getDb();
-    const result = await db!.content.nodes.reorderStructure(items);
+    const result = await db!.content.nodes.reorderStructure(items, {
+      tenantId: tenantId as any,
+    });
     // Never swallow a failed reorder: callers read the structure straight back and
     // return it to the client, so a silent failure ships a stale order as "saved".
     if (result && result.success === false) {

@@ -158,6 +158,20 @@ export function resolveSearchableFields(
 
 // ─── Compile ─────────────────────────────────────────────────────────────────
 
+/** Drop non-allowlisted / tenant / soft-delete keys from a client OR group. */
+function sanitizeOrGroup(
+  group: Record<string, unknown>,
+  filterableIds: Set<string>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(group)) {
+    if (key === "tenantId" || key === "isDeleted") continue;
+    if (!filterableIds.has(key)) continue;
+    out[key] = group[key];
+  }
+  return out;
+}
+
 function parseBoolean(raw: string): boolean | null {
   const v = raw.trim().toLowerCase();
   if (v === "true" || v === "1" || v === "yes") return true;
@@ -498,11 +512,15 @@ export function applyFiltersToQueryBuilder<T>(
     next = next.search(t.value, [t.field] as any);
   }
 
-  const extraOr = [...(compiled.orGroups ?? []), ...(orGroups ?? [])].filter(
-    (g) => g && Object.keys(g).length > 0,
-  );
+  // 🛡️ FLAC/TENANT: `orGroups` arrive from the client `filterLogic` param and are NOT
+  // validated by compileSecureFilters. Allowlist each key (and never `tenantId`/
+  // `isDeleted`) so an attacker cannot OR-in another tenant's id and bypass isolation.
+  const filterableIds = new Set(resolveFilterableFields(collection, user).map((d) => d.id));
+  const extraOr = [...(compiled.orGroups ?? []), ...(orGroups ?? [])]
+    .map((g) => sanitizeOrGroup(g as Record<string, unknown>, filterableIds))
+    .filter((g) => g && Object.keys(g).length > 0);
   if (extraOr.length > 0 && typeof next.orWhere === "function") {
-    next = next.orWhere(extraOr);
+    next = next.orWhere(extraOr as Array<Record<string, unknown>>);
   }
 
   return { qb: next, searchableFields };

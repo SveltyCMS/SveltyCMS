@@ -365,10 +365,13 @@ async function executeWarmCollectionWrite(
   marks?.set("security", performance.now() - t0);
 
   const kind = collectionWriteLaneKind(request.method, url.pathname);
-  // Non-admins on extended routes are turned back in tryCollectionWriteLane
-  // before this runs, so the body is still unread. A direct caller still
-  // fail-closes.
-  if (!turbo.isAdmin) {
+  // Extended routes require admin on the fast lane; simple routes allow
+  // collections:write (already authorized in tryCollectionWriteLane). Both
+  // re-check here as defense-in-depth for a direct caller.
+  if (kind === "extended" && !turbo.isAdmin) {
+    throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
+  }
+  if (kind === "simple" && !isSimpleWriteLaneAuthorized(turbo)) {
     throw new AppError("Forbidden: Insufficient permissions", 403, "FORBIDDEN");
   }
 

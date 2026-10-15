@@ -60,8 +60,18 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
       return;
     }
 
+    // 🔴 FIX: safeFetch RETURNS `{ success: false, error }` on network
+    // failure/timeout/abort (it never throws), so `status` is absent/0. That is a
+    // RETRYABLE transport failure, not a permanent dead-letter (previously it
+    // fell through as `PERMANENT_FAILURE: HTTP 0`).
+    if (!response.status) {
+      throw new Error(
+        `RETRYABLE_ERROR: ${response.error || "network failure"} from ${webhook.url}`,
+      );
+    }
+
     // --- STATUS-AWARE ERROR HANDLING ---
-    const status = response.status || 0;
+    const status = response.status;
 
     // 1. RETRYABLE ERRORS (5xx, 429, 408)
     if (status >= 500 || status === 429 || status === 408) {
@@ -75,7 +85,8 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
   } catch (error: any) {
     const errMessage = error.message;
 
-    // If it's a network timeout or connection refused, it's retryable
+    // Network-level failures are retryable (defense-in-depth — safeFetch usually
+    // surfaces them via `response.error`, handled above).
     if (errMessage.includes("aborted") || errMessage.includes("fetch failed")) {
       throw new Error(`RETRYABLE_ERROR: Network failure - ${errMessage}`);
     }

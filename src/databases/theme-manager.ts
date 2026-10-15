@@ -9,8 +9,8 @@
  * - Supports multi-tenant theme management
  * - Fallback to default theme if database is unavailable
  */
-import { error } from "@sveltejs/kit";
 import { nowISODateString } from "@utils/date";
+import { raise } from "@utils/error-handling";
 // System Logger
 import { logger } from "@utils/logger";
 import type { DatabaseId } from "../content/types";
@@ -74,7 +74,7 @@ export class ThemeManager {
     } catch (err) {
       const message = `Error in ThemeManager.initialize: ${(err as any)?.message || String(err)}`;
       logger.error(message);
-      throw error(500, message);
+      raise(500, message);
     }
   }
 
@@ -207,7 +207,7 @@ export class ThemeManager {
     } catch (err: any) {
       const message = `Error in ThemeManager.setTheme: ${err.message}`;
       logger.error(message, { tenantId });
-      throw error(500, message);
+      raise(500, message);
     }
   }
 

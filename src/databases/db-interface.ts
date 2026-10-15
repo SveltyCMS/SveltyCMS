@@ -1421,10 +1421,12 @@ export interface IBatchAdapter {
   bulkDelete(
     collection: string,
     ids: DatabaseId[],
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<{ deletedCount: number }>>;
   bulkUpsert<T extends BaseEntity>(
     collection: string,
     items: Array<Partial<T> & { id?: DatabaseId }>,
+    options?: BaseQueryOptions,
   ): Promise<DatabaseResult<T[]>>;
 }
 

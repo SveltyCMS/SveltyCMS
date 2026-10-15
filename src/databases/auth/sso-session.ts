@@ -323,7 +323,8 @@ export function validatePostLogoutRedirectUri(providerId: string, redirectUri: s
   }
 
   if (!redirectUri) return true; // No redirect URI is always allowed
-  if (provider.allowedRedirectUris.length === 0) return true; // No restrictions configured
+  // 🔴 FIX: an empty allowlist must reject every URI (open redirect), not allow all.
+  if (provider.allowedRedirectUris.length === 0) return false;
 
   return provider.allowedRedirectUris.some((pattern) => {
     // Convert wildcard patterns to regex
@@ -549,16 +550,17 @@ export async function verifyJwtWithProviderJwks(
       unknown
     >;
 
-    if (payload.iss && payload.iss !== provider.issuer) {
+    if (!payload.iss || payload.iss !== provider.issuer) {
       return { valid: false, reason: "iss mismatch" };
     }
 
     const discovered = await discoverOidcConfig(provider.id);
     const jwksUri = discovered?.jwksUri || provider.jwksUri;
     if (!jwksUri) {
-      // Structural validation only when JWKS not configured
-      logger.warn(`[SSO] No jwks_uri for ${provider.id} — structural claims only`);
-      return { valid: true, payload, reason: "no_jwks_structural_only" };
+      // 🔴 FIX: without a JWKS we cannot verify the signature — fail closed
+      // instead of accepting the token structurally (auth bypass).
+      logger.warn(`[SSO] No jwks_uri for ${provider.id} — rejecting token`);
+      return { valid: false, reason: "no_jwks_configured" };
     }
 
     const keys = await fetchJwks(jwksUri);

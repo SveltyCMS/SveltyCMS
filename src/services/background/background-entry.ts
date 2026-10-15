@@ -122,6 +122,9 @@ export async function startWorker(): Promise<void> {
     }
   } catch (err) {
     logger.error("[BackgroundWorker] Database initialization error in background worker:", err);
+    // 🔴 FAIL-CLOSED: a worker running against a dead/never-initialized store must
+    // stop, not proceed to start jobs/automation/scheduler against nothing.
+    process.exit(1);
   }
 
   // 1. Job Queue Poller

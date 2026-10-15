@@ -38,6 +38,7 @@ export class HistoryService {
         timestamp: new Date().toISOString(),
         affectedCollections: ["*"], // System-wide for now
         changeType: "update",
+        tenantId: tenantId || null,
       });
       logger.debug(
         `[HistoryService] Bumped version to ${newVersion} for tenant: ${tenantId || "global"}`,

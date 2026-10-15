@@ -19,6 +19,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { getPrivateSetting } from "@src/services/core/settings-service";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,6 @@ export interface EmbeddingResult {
 
 // ─── Configuration ─────────────────────────────────────────────────────────
 
-const OLLAMA_BASE = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
 const EMBEDDING_MODEL = "nomic-embed-text"; // 274MB, 768-dim, fast on NPU
 const EMBEDDING_DIMS = 768;
 const TFIDF_DIMS = 256; // smaller for fallback
@@ -44,6 +44,14 @@ const OLLAMA_TIMEOUT_MS = 5000;
 let _backend: EmbeddingBackend = "auto";
 let _ollamaAvailable: boolean | null = null;
 let _tfidfVocabulary: Map<string, number> | null = null;
+
+/** Cached lazy handle to the Ollama base URL — settings lookup happens once per process. */
+let _ollamaBasePromise: Promise<string> | undefined;
+function getOllamaBase(): Promise<string> {
+  return (_ollamaBasePromise ??= getPrivateSetting("OLLAMA_URL").then(
+    (url) => url || "http://127.0.0.1:11434",
+  ));
+}
 
 // ─── TF-IDF Fallback Engine (Zero Dependencies) ────────────────────────────
 
@@ -91,7 +99,8 @@ function tfidfEmbed(text: string, vocabulary: Map<string, number>): number[] {
 async function checkOllamaAvailable(): Promise<boolean> {
   if (_ollamaAvailable !== null) return _ollamaAvailable;
   try {
-    const res = await fetch(`${OLLAMA_BASE}/api/tags`, {
+    const base = await getOllamaBase();
+    const res = await fetch(`${base}/api/tags`, {
       signal: AbortSignal.timeout(2000),
     });
     _ollamaAvailable = res.ok;
@@ -107,13 +116,14 @@ async function checkOllamaAvailable(): Promise<boolean> {
 
 async function ollamaEmbed(texts: string[]): Promise<number[][]> {
   const vectors: number[][] = [];
+  const base = await getOllamaBase();
 
   // nomic-embed-text supports batch embedding — send all texts at once
   // Ollama handles batching internally, including NPU/GPU parallelism
   for (const text of texts) {
     // Truncate to model's context window (~8192 tokens for nomic-embed-text)
     const truncated = text.slice(0, 8000);
-    const res = await fetch(`${OLLAMA_BASE}/api/embeddings`, {
+    const res = await fetch(`${base}/api/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: EMBEDDING_MODEL, prompt: truncated }),

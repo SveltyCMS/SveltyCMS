@@ -288,39 +288,56 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       }
     }
 
-    if (url.pathname.startsWith("/api/graphql") && request.method === "POST") {
-      const bodyText = await request
-        .clone()
-        .text()
-        .catch(() => "");
+    const isGraphql = url.pathname.startsWith("/api/graphql");
+    if (isGraphql && (request.method === "POST" || request.method === "GET")) {
+      let queryText: string | undefined;
 
-      // 🛡️ Length cap BEFORE JSON.parse / AST parse — unbounded bodies let an
-      // attacker block the event loop synchronously (CPU starvation DoS).
-      if (bodyText.length > MAX_GRAPHQL_QUERY_LENGTH) {
-        metricsService.incrementSecurityViolations(tenantId);
-        return handleApiError(
-          new AppError("GraphQL Query exceeds maximum allowed length", 400),
-          event,
-        );
+      if (request.method === "POST") {
+        const bodyText = await request
+          .clone()
+          .text()
+          .catch(() => "");
+
+        // 🛡️ Length cap BEFORE JSON.parse / AST parse — unbounded bodies let an
+        // attacker block the event loop synchronously (CPU starvation DoS).
+        if (bodyText.length > MAX_GRAPHQL_QUERY_LENGTH) {
+          metricsService.incrementSecurityViolations(tenantId);
+          return handleApiError(
+            new AppError("GraphQL Query exceeds maximum allowed length", 400),
+            event,
+          );
+        }
+
+        let body: Record<string, unknown> = {};
+        try {
+          const parsed = JSON.parse(bodyText);
+          body =
+            parsed && typeof parsed === "object" && !Array.isArray(parsed)
+              ? (parsed as Record<string, unknown>)
+              : {};
+        } catch {
+          body = {};
+        }
+        payloadSnapshot = { json: body, text: bodyText };
+        (event.locals as any).__graphqlBodyText = bodyText;
+        (event.locals as any).__graphqlParsedBody = body;
+        if (typeof body.query === "string") queryText = body.query;
+      } else {
+        // GET /api/graphql?query=... — same complexity gate as POST, so a
+        // deeply nested query via GET cannot bypass the limit.
+        queryText = url.searchParams.get("query") ?? undefined;
+        if (queryText && queryText.length > MAX_GRAPHQL_QUERY_LENGTH) {
+          metricsService.incrementSecurityViolations(tenantId);
+          return handleApiError(
+            new AppError("GraphQL Query exceeds maximum allowed length", 400),
+            event,
+          );
+        }
       }
 
-      let body: Record<string, unknown> = {};
-      try {
-        const parsed = JSON.parse(bodyText);
-        body =
-          parsed && typeof parsed === "object" && !Array.isArray(parsed)
-            ? (parsed as Record<string, unknown>)
-            : {};
-      } catch {
-        body = {};
-      }
-      payloadSnapshot = { json: body, text: bodyText };
-      (event.locals as any).__graphqlBodyText = bodyText;
-      (event.locals as any).__graphqlParsedBody = body;
-
-      if (typeof body.query === "string") {
+      if (typeof queryText === "string") {
         const t0 = PROFILE_WRITE_ENABLED ? performance.now() : 0;
-        const result = await calculateGraphqlComplexity(body.query);
+        const result = await calculateGraphqlComplexity(queryText);
         if (result.ast) {
           (event.locals as any).__graphqlAst = result.ast;
         }

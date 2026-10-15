@@ -861,13 +861,15 @@ export function getColumnHelper(
     } catch {}
   }
 
-  if (cols && cols[name]) {
+  if (cols && Object.hasOwn(cols, name)) {
     lastRef.table = table;
     lastRef.cols = cols;
     return cols[name];
   }
 
-  if (table[name]) return table[name];
+  // 🛡️ PROTO-GUARD: `table[name]` must not resolve inherited properties
+  // (`constructor`, `__proto__`, `toString`, …) as columns.
+  if (Object.hasOwn(table, name)) return table[name];
 
   if (forcePhysical && FIXED_COLUMNS.has(name)) {
     // Guard: only allow safe identifiers in raw SQL (defense-in-depth beyond FIXED_COLUMNS)

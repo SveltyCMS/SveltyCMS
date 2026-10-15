@@ -3,6 +3,7 @@
 @component Payment status badge for entry list columns.
 -->
 <script lang="ts">
+	import { page } from '$app/state';
 	import { formatMoney } from '@src/services/commerce/price';
 
 	interface Props {
@@ -26,7 +27,9 @@
 		}
 	});
 
-	const formattedAmount = $derived(amount != null ? formatMoney(amount, currency) : '');
+	const formattedAmount = $derived(
+		amount != null ? formatMoney(amount, currency, page.data?.systemLanguage) : ''
+	);
 </script>
 
 {#if status}
