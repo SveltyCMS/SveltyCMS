@@ -364,7 +364,10 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     if (hitHoneypot || (isKnownBot && !isLocal)) {
       metricsService.incrementSecurityViolations(tenantId);
       // Forensics: record the probe in the incident engine (fast — no socket hold).
-      await securityResponseService.analyzeRequest(request.clone(), clientIp, tenantId);
+      // No body clone: the honeypot/bot verdict is keyed on path/UA, and we return a
+      // decoy immediately, so passing the request directly (with the bounded
+      // payloadSnapshot when available) avoids duplicating an unbounded body (OOM).
+      await securityResponseService.analyzeRequest(request, clientIp, tenantId, payloadSnapshot);
 
       // 🚨 NO TARPIT (removed Slowloris/DDoS vector): the previous 5-15s
       // setTimeout held the socket open, letting an attacker exhaust file

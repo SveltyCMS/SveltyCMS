@@ -1437,9 +1437,15 @@ function scanAdapterParity(entries: { rel: string; content: string }[]) {
       continue;
     }
     // The class name legitimately differs per adapter — drop it from the diff.
+    // `pg*` helpers (connection params, 63-byte index-name truncation) are
+    // PostgreSQL-only and correctly absent from the other three adapters.
     surfaces.set(
       db,
-      new Set(exportedRuntimeNames(entry.content).filter((n) => !n.endsWith("AdapterCore"))),
+      new Set(
+        exportedRuntimeNames(entry.content).filter(
+          (n) => !n.endsWith("AdapterCore") && !n.startsWith("pg"),
+        ),
+      ),
     );
   }
   const union = new Set<string>();
