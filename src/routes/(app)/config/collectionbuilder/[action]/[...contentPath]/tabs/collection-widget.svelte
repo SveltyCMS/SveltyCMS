@@ -67,7 +67,7 @@
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import { generateCollectionTypeScript } from '../../../collection-code-generator';
 	import { inferWidgetFromFieldName, type InferredWidgetResult } from '../../../smart-inference';
-	import { draggable, droppable } from '@thisux/sveltednd';
+	import { draggable, droppable, dndState } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 
 	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
@@ -135,6 +135,35 @@
 			{} as Record<number, string>
 		);
 	}
+
+	/** True when dropping the dragged field at `targetIndex` would leave the order unchanged. */
+	function isNoopFieldDrop(targetIndex: number): boolean {
+		const dragged = dndState.draggedItem as FieldDrag | PaletteDrag | null;
+		if (dragged?.kind !== 'field') return false;
+		const fromIndex = items.findIndex((i) => i._dragId === dragged.dragId);
+		return fromIndex === targetIndex || fromIndex + 1 === targetIndex;
+	}
+
+	/**
+	 * Where the single insertion line is drawn. Derived from dndState instead of
+	 * sveltednd's own blue indicators, which it paints on every droppable and moves
+	 * onto the next sibling for "after". Palette drops always append, so they get
+	 * no in-list line.
+	 */
+	function dropLineFor(dragId: string): 'before' | 'after' | null {
+		if (!dndState.isDragging || dndState.targetContainer !== `field:${dragId}`) return null;
+		if ((dndState.draggedItem as FieldDrag | PaletteDrag | null)?.kind !== 'field') return null;
+		const pos = dndState.dropPosition;
+		if (pos !== 'before' && pos !== 'after') return null;
+		const index = items.findIndex((i) => i._dragId === dragId) + (pos === 'after' ? 1 : 0);
+		return isNoopFieldDrop(index) ? null : pos;
+	}
+
+	const endZoneActive = $derived(
+		dndState.isDragging &&
+			dndState.targetContainer === 'widget-fields-end' &&
+			!isNoopFieldDrop(items.length)
+	);
 
 	/** Reorder existing fields (same container) */
 	function handleFieldDrop(state: DragDropState<FieldDrag | PaletteDrag>) {
@@ -741,17 +770,11 @@
 					{/if}
 				</div>
 
+				<!-- Not a droppable itself: nesting it around the row droppables lit up the whole
+				     list and let one release fire onDrop twice. The library's blue lines are
+				     hidden here; dropLineFor() draws the only insertion line. -->
 				<div
-					use:droppable={{
-						container: 'widget-fields',
-						callbacks: { onDrop: handleFieldDrop },
-						direction: 'vertical',
-						attributes: {
-							dragOverClass:
-								'ring-2 ring-tertiary-500/40 bg-tertiary-500/10 dark:ring-primary-500/40 dark:bg-primary-500/10'
-						}
-					}}
-					class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
+					class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1 [&_.drop-after]:after:hidden [&_.drop-before]:before:hidden"
 					data-testid="widget-fields-list"
 					role="list"
 					aria-label={builder_ts_fields_list_aria()}
@@ -760,6 +783,7 @@
 						{@const isDuplicate = duplicateFieldNames.has(
 							(item.db_fieldName || '').trim().toLowerCase()
 						)}
+						{@const dropLine = dropLineFor(item._dragId)}
 						<div
 							use:draggable={{
 								container: 'widget-fields',
@@ -768,12 +792,9 @@
 								handle: '.field-drag-handle'
 							}}
 							use:droppable={{
-								container: 'widget-fields',
+								container: `field:${item._dragId}`,
 								callbacks: { onDrop: handleFieldDrop },
-								direction: 'vertical',
-								attributes: {
-									dragOverClass: 'ring-2 ring-tertiary-500/50 dark:ring-primary-400/50'
-								}
+								direction: 'vertical'
 							}}
 							animate:flip={{ duration: flipDurationMs }}
 							class="group relative"
@@ -782,6 +803,15 @@
 							data-drag-id={item._dragId}
 							role="listitem"
 						>
+							{#if dropLine}
+								<span
+									aria-hidden="true"
+									class="pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded-full bg-warning-500 {dropLine ===
+									'before'
+										? '-top-2'
+										: '-bottom-2'}"
+								></span>
+							{/if}
 							<!-- Clean, simple row layout matching config/collectionbuilder -->
 							<div
 								class="group flex w-full min-h-12 items-center gap-2 sm:gap-3 cursor-pointer overflow-hidden rounded border-2 {isDuplicate
@@ -955,9 +985,36 @@
 						</div>
 					{/each}
 
+					<!-- Append target: a sibling of the rows (never wrapping them), so a release
+					     below the last row moves it to the end, and palette drags can drop here. -->
+					{#if items.length > 0}
+						<div
+							use:droppable={{
+								container: 'widget-fields-end',
+								callbacks: { onDrop: handleFieldDrop },
+								direction: 'vertical'
+							}}
+							class="relative h-10"
+							aria-hidden="true"
+						>
+							{#if endZoneActive}
+								<span
+									class="pointer-events-none absolute inset-x-0 top-1 h-0.5 rounded-full bg-warning-500"
+								></span>
+							{/if}
+						</div>
+					{/if}
+
 					{#if items.length === 0}
 						<div
-							class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-500/30 bg-surface-500/10 p-8 text-center dark:border-surface-500/40 dark:bg-surface-900/20"
+							use:droppable={{
+								container: 'widget-fields-end',
+								callbacks: { onDrop: handleFieldDrop },
+								direction: 'vertical'
+							}}
+							class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-colors {endZoneActive
+								? 'border-warning-500/40 bg-warning-500/10'
+								: 'border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900/20'}"
 						>
 							<div
 								class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-500"
