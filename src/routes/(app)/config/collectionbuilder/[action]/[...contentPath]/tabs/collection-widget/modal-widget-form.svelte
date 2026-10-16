@@ -1,17 +1,26 @@
 <!--
  @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/modal-widget-form.svelte
- @component 3-tab widget edit modal: Default, Settings, Permissions
+ @component
+ @description 3-tab widget edit modal: Default, Settings, Permissions.
+
+ Features:
+ - Single header (field label, widget type, database name) with its own close action
+ - Two-column Default tab on tablet/desktop, single column on mobile
+ - Visibility and authentication side by side above the role access table
+ - Footer stacks on mobile with Save and Cancel full width
 -->
 <script lang="ts">
 	import Tabs from '@components/ui/tabs.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import {
 		button_cancel,
+		button_close,
 		button_delete,
 		button_save,
 		widget_form_apply_aria,
@@ -49,15 +58,13 @@
 		widget_form_roles_edit,
 		widget_form_roles_role,
 		widget_form_roles_view,
-		widget_form_settings_suffix,
 		widget_form_translated,
 		widget_form_translated_aria,
 		widget_form_translated_hint,
 		widget_form_visibility,
 		widget_form_width,
 		widget_form_width_hint,
-		widget_form_width_placeholder,
-		widget_form_widget_type
+		widget_form_width_placeholder
 	} from '@src/paraglide/messages';
 	import { setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
@@ -289,35 +296,55 @@
 </script>
 
 {#if local}
-	<div class="flex flex-col w-full">
-		<!-- Header -->
-		<div class="border-b border-(--admin-border-default) px-6 py-4">
-			<h2 class="text-lg font-bold text-(--admin-text-body)">
-				{widget_form_edit_field()}{' '}<span class="text-tertiary-500 dark:text-primary-500"
-					>{local.label || 'Unnamed'}</span
-				>
-			</h2>
-			<p class="text-xs text-(--admin-text-muted) mt-0.5">
-				{widget_form_widget_type()}
-				{widgetKey || 'unknown'}
-			</p>
+	<div class="flex w-full flex-col">
+		<!-- Header: one title with the field identity beneath it -->
+		<div class="flex items-center gap-3 border-b border-(--admin-border-default) py-4 ps-6 pe-4">
+			<div
+				class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500"
+			>
+				<iconify-icon
+					icon={local.icon || widgetFn?.Icon || 'mdi:widgets'}
+					width="22"
+					aria-hidden="true"
+				></iconify-icon>
+			</div>
+			<div class="flex min-w-0 flex-1 flex-col gap-1">
+				<h2 class="truncate text-lg font-semibold leading-tight text-(--admin-text-body)">
+					{widget_form_edit_field()} · {local.label || 'Unnamed'}
+				</h2>
+				<div class="flex min-w-0 items-center gap-2 text-xs text-(--admin-text-muted)">
+					<Badge variant="surface" size="sm" class="uppercase tracking-wider"
+						>{widgetKey || 'unknown'}</Badge
+					>
+					{#if local.db_fieldName}
+						<span class="truncate font-mono">{local.db_fieldName}</span>
+					{/if}
+				</div>
+			</div>
+			<Button
+				variant="transparent"
+				type="button"
+				onclick={handleCancel}
+				aria-label={button_close()}
+				class="flex min-h-10 min-w-10 items-center justify-center p-0! text-(--admin-text-muted) hover:opacity-80"
+			>
+				<iconify-icon icon="mingcute:close-line" width="22" aria-hidden="true"></iconify-icon>
+			</Button>
 		</div>
 
 		<!-- Tabs -->
-		<div class="px-6 pt-4">
+		<div class="border-b border-(--admin-border-default) px-6">
 			<Tabs tabs={tabDefs} bind:activeTab variant="underline" />
 		</div>
 
 		<!-- Tab Content -->
-		<div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+		<div class="flex-1 overflow-y-auto p-4 sm:p-6">
 			{#if activeTab === 'default'}
-				<!-- Tab 1: Default -->
-				<div class="space-y-4">
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-label"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+				<!-- Tab 1: Default — related pairs side by side -->
+				<div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-label" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_field_label()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
@@ -338,23 +365,9 @@
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<span class="block text-sm font-medium text-(--admin-text-muted)"
-								>{widget_form_icon()}</span
-							>
-							<SystemTooltip title={widget_form_icon_hint()}
-								><HelpIcon ariaLabel="Help: Field Icon" /></SystemTooltip
-							>
-						</div>
-						<IconifyIconsPicker bind:iconselected={local.icon} bind:icon={local.icon} />
-					</div>
-
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-dbname"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-dbname" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_db_name()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
@@ -367,14 +380,13 @@
 							bind:value={local.db_fieldName}
 							placeholder={widget_form_db_name_placeholder()}
 							data-testid="widget-field-name"
+							class="font-mono"
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-placeholder"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-placeholder" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_placeholder()}</label
 							>
 							<SystemTooltip title={widget_form_placeholder_hint()}
@@ -388,11 +400,9 @@
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-default"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-default" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_default()}</label
 							>
 							<SystemTooltip title={widget_form_default_hint()}
@@ -406,50 +416,9 @@
 						/>
 					</div>
 
-					<div
-						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
-					>
-						<div>
-							<p class="text-sm font-semibold text-(--admin-text-muted)">
-								{widget_form_required()}
-							</p>
-							<p class="text-xs text-(--admin-text-muted)">
-								{widget_form_required_hint()}
-							</p>
-						</div>
-						<input
-							type="checkbox"
-							aria-label={widget_form_required_aria()}
-							bind:checked={local.required}
-							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-						/>
-					</div>
-
-					<div
-						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
-					>
-						<div>
-							<p class="text-sm font-semibold text-(--admin-text-muted)">
-								{widget_form_translated()}
-							</p>
-							<p class="text-xs text-(--admin-text-muted)">
-								{widget_form_translated_hint()}
-							</p>
-						</div>
-						<input
-							type="checkbox"
-							aria-label={widget_form_translated_aria()}
-							data-testid="widget-field-translated"
-							bind:checked={local.translated}
-							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-						/>
-					</div>
-
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-helper"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5 md:col-span-2">
+						<div class="flex items-center gap-1">
+							<label for="field-helper" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_help_text()}</label
 							>
 							<SystemTooltip title={widget_form_help_text_hint()}
@@ -463,11 +432,9 @@
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-width"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-width" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_width()}</label
 							>
 							<SystemTooltip title={widget_form_width_hint()}
@@ -480,14 +447,61 @@
 							placeholder={widget_form_width_placeholder()}
 						/>
 					</div>
+
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<span class="text-sm font-semibold text-(--admin-text-body)"
+								>{widget_form_icon()}</span
+							>
+							<SystemTooltip title={widget_form_icon_hint()}
+								><HelpIcon ariaLabel="Help: Field Icon" /></SystemTooltip
+							>
+						</div>
+						<IconifyIconsPicker bind:iconselected={local.icon} bind:icon={local.icon} />
+					</div>
+
+					<!-- Behaviour switches: one row, hint under each title -->
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:col-span-2">
+						<div
+							class="flex items-center justify-between gap-4 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) px-4 py-3"
+						>
+							<div class="flex flex-col gap-0.5">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_required()}
+								</p>
+								<p class="text-xs text-(--admin-text-muted)">{widget_form_required_hint()}</p>
+							</div>
+							<input
+								type="checkbox"
+								aria-label={widget_form_required_aria()}
+								bind:checked={local.required}
+								class="size-5 shrink-0 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+							/>
+						</div>
+
+						<div
+							class="flex items-center justify-between gap-4 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) px-4 py-3"
+						>
+							<div class="flex flex-col gap-0.5">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_translated()}
+								</p>
+								<p class="text-xs text-(--admin-text-muted)">{widget_form_translated_hint()}</p>
+							</div>
+							<input
+								type="checkbox"
+								aria-label={widget_form_translated_aria()}
+								data-testid="widget-field-translated"
+								bind:checked={local.translated}
+								class="size-5 shrink-0 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+							/>
+						</div>
+					</div>
 				</div>
 			{:else if activeTab === 'settings'}
 				<!-- Tab 2: Settings (widget-specific GuiFields) -->
 				{#if specificKeys.length > 0}
 					<div class="space-y-3">
-						<p class="text-xs font-bold uppercase tracking-widest text-(--admin-text-muted)">
-							{widget_form_settings_suffix({ widget: widgetKey })}
-						</p>
 						{#each specificKeys as key (key)}
 							<InputSwitch
 								value={local[key]}
@@ -500,9 +514,10 @@
 					</div>
 				{:else}
 					<div
-						class="flex flex-col items-center justify-center py-12 text-(--admin-text-muted) space-y-2"
+						class="flex flex-col items-center justify-center space-y-2 py-12 text-(--admin-text-muted)"
 					>
-						<iconify-icon icon="mdi:tune" width="40" class="opacity-20"></iconify-icon>
+						<iconify-icon icon="mdi:tune" width="40" class="opacity-20" aria-hidden="true"
+						></iconify-icon>
 						<p class="text-sm">{widget_form_no_settings()}</p>
 						<p class="text-xs">
 							{widget_form_no_settings_part1()}{' '}<span class="font-semibold"
@@ -514,130 +529,133 @@
 				{/if}
 			{:else if activeTab === 'permissions'}
 				<!-- Tab 3: Permissions (role-based view/edit matrix) -->
-				<div class="space-y-5">
-					<!-- Visibility toggle -->
-					<div
-						class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
-					>
-						<h4
-							class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-(--admin-text-muted)"
+				<div class="flex flex-col gap-5">
+					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+						<!-- Visibility -->
+						<div
+							class="flex flex-col gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-4"
 						>
-							{widget_form_visibility()}
-						</h4>
-						<Button
-							type="button"
-							variant="transparent"
-							class="h-auto! w-full justify-between rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) px-4! py-3! text-start hover:border-tertiary-500/50 dark:hover:border-primary-500/50"
-							onclick={() =>
-								updatePerms({
-									visibility: localPerms.visibility === 'public' ? 'private' : 'public'
-								})}
-						>
-							<span class="font-semibold text-(--admin-text-muted)">
-								{localPerms.visibility === 'public' ? 'Public' : 'Private'}
-							</span>
-							<iconify-icon
-								icon={localPerms.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'}
-								width="20"
-								class="text-(--admin-text-muted)"
-							></iconify-icon>
-						</Button>
-						<p class="mt-2 text-xs text-(--admin-text-muted)">
-							{localPerms.visibility === 'public'
-								? 'Field is visible to everyone by default.'
-								: 'Field is restricted; only allowed roles can access.'}
-						</p>
-					</div>
+							<div class="flex items-center justify-between gap-3">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_visibility()}
+								</p>
+								<Button
+									type="button"
+									variant="transparent"
+									class="h-auto! gap-2 rounded-lg border border-(--admin-border-default) px-3! py-2! hover:border-tertiary-500/40 dark:hover:border-primary-500/40"
+									onclick={() =>
+										updatePerms({
+											visibility: localPerms.visibility === 'public' ? 'private' : 'public'
+										})}
+								>
+									<iconify-icon
+										icon={localPerms.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'}
+										width="18"
+										class="text-tertiary-500 dark:text-primary-500"
+										aria-hidden="true"
+									></iconify-icon>
+									<span class="text-sm font-semibold text-(--admin-text-body)">
+										{localPerms.visibility === 'public' ? 'Public' : 'Private'}
+									</span>
+								</Button>
+							</div>
+							<p class="text-xs text-(--admin-text-muted)">
+								{localPerms.visibility === 'public'
+									? 'Field is visible to everyone by default.'
+									: 'Field is restricted; only allowed roles can access.'}
+							</p>
+						</div>
 
-					<!-- Require auth -->
-					<div
-						class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
-					>
+						<!-- Require auth -->
 						<label
-							class="flex cursor-pointer items-center gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-3"
+							class="flex cursor-pointer flex-col gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-4"
 						>
-							<input
-								type="checkbox"
-								aria-label={widget_form_require_auth_aria()}
-								class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-								checked={localPerms.requiredAuth}
-								onchange={(e) =>
-									updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
-							/>
-							<span class="text-sm font-semibold text-(--admin-text-muted)"
-								>{widget_form_require_auth()}</span
-							>
+							<span class="flex min-h-10 items-center justify-between gap-3">
+								<span class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_form_require_auth()}</span
+								>
+								<input
+									type="checkbox"
+									aria-label={widget_form_require_auth_aria()}
+									class="size-5 shrink-0 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+									checked={localPerms.requiredAuth}
+									onchange={(e) =>
+										updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
+								/>
+							</span>
+							<span class="text-xs text-(--admin-text-muted)">
+								{widget_form_require_auth_hint()}
+							</span>
 						</label>
-						<p class="mt-2 text-xs text-(--admin-text-muted)">
-							{widget_form_require_auth_hint()}
-						</p>
 					</div>
 
 					<!-- Role matrix -->
 					{#if rolesProp.length > 0}
-						<div
-							class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
-						>
-							<h4
-								class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-(--admin-text-muted)"
+						<div class="overflow-hidden rounded-lg border border-(--admin-border-default)">
+							<div
+								class="flex flex-col gap-1 border-b border-(--admin-border-default) bg-(--admin-bg-card) px-4 py-3"
 							>
-								{widget_form_role_matrix()}
-							</h4>
-							<p class="mb-4 text-xs text-(--admin-text-muted)">
-								{widget_form_role_matrix_hint()}
-							</p>
-
-							<!-- Table header -->
-							<div class="grid grid-cols-[1fr_60px_60px] gap-2 mb-2 px-2">
-								<span class="text-xs font-semibold text-(--admin-text-muted)"
-									>{widget_form_roles_role()}</span
-								>
-								<span class="text-xs font-semibold text-(--admin-text-muted) text-center"
-									>{widget_form_roles_view()}</span
-								>
-								<span class="text-xs font-semibold text-(--admin-text-muted) text-center"
-									>{widget_form_roles_edit()}</span
-								>
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_role_matrix()}
+								</p>
+								<p class="text-xs text-(--admin-text-muted)">{widget_form_role_matrix_hint()}</p>
 							</div>
-
-							<div class="space-y-1">
-								{#each rolesProp as role (role._id)}
-									<div
-										class="grid grid-cols-[1fr_60px_60px] gap-2 items-center rounded-lg px-3 py-2 hover:bg-surface-500/10 dark:hover:bg-surface-800/50 transition-colors"
-									>
-										<span class="text-sm text-(--admin-text-muted) truncate">
-											{role.name ?? role._id}
-										</span>
-										<div class="flex justify-center">
-											<input
-												type="checkbox"
-												aria-label={`View permission for ${role.name ?? role._id}`}
-												checked={localPerms.readRoles.includes(role._id)}
-												onchange={() => toggleRoleView(role._id)}
-												class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-											/>
-										</div>
-										<div class="flex justify-center">
-											<input
-												type="checkbox"
-												aria-label={`Edit permission for ${role.name ?? role._id}`}
-												checked={localPerms.writeRoles.includes(role._id)}
-												onchange={() => toggleRoleEdit(role._id)}
-												class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-											/>
-										</div>
-									</div>
-								{/each}
+							<div class="overflow-x-auto">
+								<table class="w-full text-sm">
+									<thead>
+										<tr class="text-xs font-semibold text-(--admin-text-muted)">
+											<th scope="col" class="px-4 py-2.5 text-start font-semibold"
+												>{widget_form_roles_role()}</th
+											>
+											<th scope="col" class="w-24 px-4 py-2.5 text-center font-semibold"
+												>{widget_form_roles_view()}</th
+											>
+											<th scope="col" class="w-24 px-4 py-2.5 text-center font-semibold"
+												>{widget_form_roles_edit()}</th
+											>
+										</tr>
+									</thead>
+									<tbody>
+										{#each rolesProp as role (role._id)}
+											<tr
+												class="border-t border-(--admin-border-subtle) transition-colors hover:bg-surface-500/10"
+											>
+												<td class="h-12 truncate px-4 text-(--admin-text-body)">
+													{role.name ?? role._id}
+												</td>
+												<td class="px-4 text-center">
+													<input
+														type="checkbox"
+														aria-label={`View permission for ${role.name ?? role._id}`}
+														checked={localPerms.readRoles.includes(role._id)}
+														onchange={() => toggleRoleView(role._id)}
+														class="size-5 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+													/>
+												</td>
+												<td class="px-4 text-center">
+													<input
+														type="checkbox"
+														aria-label={`Edit permission for ${role.name ?? role._id}`}
+														checked={localPerms.writeRoles.includes(role._id)}
+														onchange={() => toggleRoleEdit(role._id)}
+														class="size-5 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+													/>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
 							</div>
 						</div>
 					{:else}
 						<div
-							class="rounded-xl border border-dashed border-(--admin-border-default) bg-surface-500/30 dark:bg-surface-900/10 p-6 text-center"
+							class="rounded-lg border border-dashed border-(--admin-border-default) p-6 text-center"
 						>
 							<iconify-icon
 								icon="mdi:shield-account-outline"
 								width="32"
-								class="text-(--admin-text-muted) opacity-30 mb-2"
+								class="mb-2 text-(--admin-text-muted) opacity-30"
+								aria-hidden="true"
 							></iconify-icon>
 							<p class="text-sm text-(--admin-text-muted)">
 								{widget_form_no_roles()}
@@ -648,22 +666,27 @@
 			{/if}
 		</div>
 
-		<!-- Footer -->
+		<!-- Footer: quiet destructive/secondary actions start, decision end -->
 		<div
-			class="flex items-center justify-between border-t border-(--admin-border-default) px-6 py-4 bg-surface-500/10 dark:bg-surface-900/50"
+			class="flex flex-col-reverse gap-3 border-t border-(--admin-border-default) bg-surface-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:bg-surface-900/50"
 		>
-			<div class="flex gap-2">
-				<Button variant="error" type="button" onclick={handleDelete}>
-					<iconify-icon icon="mdi:trash-can-outline" width="18"></iconify-icon>
-					<span class="hidden sm:inline ms-1">{button_delete()}</span>
+			<div class="flex justify-center gap-1 sm:justify-start">
+				<Button
+					variant="transparent"
+					type="button"
+					onclick={handleDelete}
+					class="gap-2 text-error-500 hover:bg-error-500/10"
+				>
+					<iconify-icon icon="mdi:trash-can-outline" width="18" aria-hidden="true"></iconify-icon>
+					{button_delete()}
 				</Button>
-				<Button variant="tertiary" type="button" onclick={handleDuplicate}>
-					<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-					<span class="hidden sm:inline ms-1">{widget_form_duplicate()}</span>
+				<Button variant="ghost" type="button" onclick={handleDuplicate} class="gap-2">
+					<iconify-icon icon="mdi:content-copy" width="18" aria-hidden="true"></iconify-icon>
+					{widget_form_duplicate()}
 				</Button>
 			</div>
 
-			<div class="flex gap-3">
+			<div class="grid grid-cols-2 gap-3 sm:flex">
 				<Button variant="outline" type="button" onclick={handleCancel}>
 					{button_cancel()}
 				</Button>
@@ -676,7 +699,7 @@
 					data-testid="widget-field-apply"
 					aria-label={widget_form_apply_aria()}
 				>
-					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+					<iconify-icon icon="mdi:content-save" width="18" aria-hidden="true"></iconify-icon>
 					<span class="ms-1">{button_save()}</span>
 				</Button>
 			</div>

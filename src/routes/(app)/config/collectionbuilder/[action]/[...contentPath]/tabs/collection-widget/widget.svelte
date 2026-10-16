@@ -138,9 +138,11 @@
 		modalState.trigger(
 			ModalWidgetForm as any,
 			{
-				title: 'Define your Widget',
-				body: 'Setup your widget and then press Save.',
-				value: selectedWidget
+				// The form renders its own header; ariaLabel names the dialog instead of `title`.
+				ariaLabel: 'Edit field',
+				value: selectedWidget,
+				size: 'xl',
+				contentClass: 'p-0!'
 			},
 			(r: Field | null) => {
 				if (!r) {
