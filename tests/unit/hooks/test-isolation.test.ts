@@ -11,6 +11,8 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { createMockEvent, mockResolve } from "./test-utils";
 
 // The master secret is resolved once per process and cached at module scope, so
@@ -171,6 +173,16 @@ describe("handleTestIsolation", () => {
 
 describe("handleTestIsolation — master-secret resolution", () => {
   it("falls back to the shared e2e secret file when TEST_API_SECRET is unset", async () => {
+    // resolveMasterSecret reads tests/e2e/.auth/test-secret.txt, which is gitignored
+    // (absent on a fresh CI checkout). Seed it here so the fallback path runs
+    // deterministically instead of depending on a leftover file on the dev machine.
+    const secretPath = join(process.cwd(), "tests", "e2e", ".auth", "test-secret.txt");
+    const fileSecret = "unit-test-isolation-file-secret";
+    const existed = existsSync(secretPath);
+    const previous = existed ? readFileSync(secretPath, "utf8") : undefined;
+    mkdirSync(dirname(secretPath), { recursive: true });
+    writeFileSync(secretPath, fileSecret);
+
     // Reload the module so resolveMasterSecret re-runs with a clean cache.
     vi.resetModules();
     dbControl.initWorkerConnection = vi.fn(async () => {});
@@ -180,7 +192,7 @@ describe("handleTestIsolation — master-secret resolution", () => {
       const fresh = await import("@src/hooks/handle-test-isolation");
       const event = workerEvent("/dashboard", {
         index: "2",
-        secret: "SVELTYCMS_TEST_SECRET_2026",
+        secret: fileSecret,
       });
 
       await fresh.handleTestIsolation({ event, resolve: mockResolve });
@@ -188,6 +200,8 @@ describe("handleTestIsolation — master-secret resolution", () => {
       expect(dbControl.initWorkerConnection).toHaveBeenCalledWith("2");
     } finally {
       if (original !== undefined) process.env.TEST_API_SECRET = original;
+      if (existed && previous !== undefined) writeFileSync(secretPath, previous);
+      else rmSync(secretPath, { force: true });
       vi.resetModules();
     }
   });
