@@ -157,23 +157,21 @@ jobs:
               echo "✅ Quality gate clean"
           - task: 04-unit
             name: ⚡ Unit Tests
-            # Mirrors the local pre-commit hook exactly: the plain unit suite.
-            run: bun run test:unit
+            # --coverage runs the exact suite `bun run test:unit` (the pre-commit hook) runs
+            # AND enforces the P0 floors in vitest.config.ts (lines 48 / funcs 47 /
+            # branches 40 / statements 47), producing the json report Codecov uploads — so
+            # the suite runs once, not twice. The mutation harness is excluded from the
+            # coverage run (its temp-file dynamic import is incompatible with v8
+            # instrumentation) and runs right after in the same job.
+            run: |
+              bun run test:unit:coverage
+              bun run test:mutation
           - task: 04b-tenant-gate
             name: 🛡️ Tenant Isolation Gate
             run: |
               echo "::group::tenant lint + unit"
               bun run test:tenant
               echo "::endgroup::"
-          - task: 04c-coverage-mutation
-            name: 📊 Coverage + Mutation
-            # --coverage enforces the P0 floors in vitest.config.ts (lines 48 / funcs 47 /
-            # branches 40 / statements 47) and produces the json report Codecov uploads.
-            # The mutation harness is excluded from the coverage run (its temp-file
-            # dynamic import is incompatible with v8 instrumentation) and runs separately.
-            run: |
-              bun run test:unit:coverage
-              bun run test:mutation
           - task: 05-cve-audit
             name: 🔒 CVE Dependency Audit
             run: |
@@ -212,14 +210,14 @@ jobs:
       # developer ran all 4866 — two different suites under one name. The profile has
       # a redis-cli healthcheck, so `--wait` returns only once it answers.
       - name: Start Redis (CacheService L2 contract)
-        if: matrix.task == '04-unit' || matrix.task == '04c-coverage-mutation'
+        if: matrix.task == '04-unit'
         run: docker compose -f tests/docker-compose.yml --profile redis up -d --wait
       - name: Run Task
         run: ${{ matrix.run }}
         env:
-          # Authoritative in the unit/coverage jobs: a Redis that fails to come up must
-          # fail the suite loudly, not be swallowed as another silent skip. Empty elsewhere.
-          TEST_REDIS_URL: ${{ (matrix.task == '04-unit' || matrix.task == '04c-coverage-mutation') && 'redis://127.0.0.1:6379' || '' }}
+          # Authoritative in the unit job: a Redis that fails to come up must fail the
+          # suite loudly, not be swallowed as another silent skip. Empty elsewhere.
+          TEST_REDIS_URL: ${{ matrix.task == '04-unit' && 'redis://127.0.0.1:6379' || '' }}
       - name: CVE Audit Summary
         if: matrix.task == '05-cve-audit'
         run: |
@@ -234,7 +232,7 @@ jobs:
             echo "| bun audit | ℹ️ Audit completed |" >> $GITHUB_STEP_SUMMARY
           fi
       - name: Upload coverage
-        if: matrix.task == '04c-coverage-mutation' && success()
+        if: matrix.task == '04-unit' && success()
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
