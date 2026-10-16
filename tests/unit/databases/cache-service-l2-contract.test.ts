@@ -142,7 +142,16 @@ function runL2Contract(label: string, driver: L2Driver) {
     it("coalesces stampedes across instances via the distributed lock", async () => {
       // Instance B wins the lock on the miss; A must wait for the winner.
       const pB = serviceB.get("stampede-key", "t1");
-      await new Promise((resolve) => setTimeout(resolve, 30));
+
+      // Deterministically wait for B to acquire the distributed miss lock instead
+      // of a fixed 30ms sleep — the sleep flaked under CI load + coverage
+      // instrumentation whenever the Redis NX round-trip exceeded 30ms and A won.
+      const fullKey = serviceB.generateKey("stampede-key", "t1");
+      const lockDeadline = Date.now() + 2_000;
+      while (!serviceB.locks.hasActiveLock(fullKey) && Date.now() < lockDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      expect(serviceB.locks.hasActiveLock(fullKey), "B must acquire the stampede lock").toBe(true);
 
       const pA = serviceA.get("stampede-key", "t1");
       await new Promise((resolve) => setTimeout(resolve, 10));
