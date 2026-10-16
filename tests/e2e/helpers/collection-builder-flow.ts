@@ -279,9 +279,26 @@ export async function createPersistedCategory(page: Page, name: string): Promise
   await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
   await stableClick(saveBtn, 10_000);
 
-  await expect(page.getByText(new RegExp(`category "${name}" created`, "i"))).toBeVisible({
+  // Product change 25b65623b: categories are STAGED ("... staged. Click Save to
+  // persist.") and the board's save-structure-button is the single commit point.
+  await expect(page.getByText(new RegExp(`category "${name}" (created|staged)`, "i"))).toBeVisible({
     timeout: 20_000,
   });
+
+  const boardSave = page.getByTestId("save-structure-button");
+  await expect(boardSave).toBeEnabled({ timeout: 15_000 });
+  await stableClick(boardSave, 20_000);
+
+  await Promise.race([
+    page
+      .getByText(/organization updated/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 30_000 }),
+    page
+      .getByText(/collection saved/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 25_000 }),
+  ]);
 }
 
 export async function saveCollectionSchema(page: Page): Promise<void> {
