@@ -154,7 +154,7 @@
 {#if showWelcome && !dismissedWelcome}
 	<!-- Welcome Container -->
 	<div
-		class="welcome-container mx-auto max-w-4xl border border-surface-500/30 bg-surface-500/10 p-6 shadow-lg dark:border-surface-500/40 dark:bg-surface-800"
+		class="welcome-container mx-auto max-w-4xl border border-(--admin-border-default) bg-(--admin-bg-card) p-6 shadow-lg"
 		style="border-radius: var(--admin-radius-card, 0.75rem);"
 	>
 		<!-- Header -->
@@ -169,10 +169,10 @@
 					aria-hidden="true"
 				></iconify-icon>
 			</div>
-			<h2 class="mb-2 text-2xl font-bold text-gray-900 dark:text-white">
+			<h2 class="mb-2 text-2xl font-bold text-(--admin-text-body)">
 				Congratulations, {user?.username || 'Admin'}!
 			</h2>
-			<p class="text-gray-600 dark:text-gray-400">
+			<p class="text-(--admin-text-muted)">
 				Your SveltyCMS installation is ready. Let's get you started with the essential features.
 			</p>
 		</div>
@@ -188,7 +188,7 @@
 							? 'bg-tertiary-600'
 							: step.completed
 								? 'bg-success-500'
-								: 'bg-gray-300 dark:bg-gray-600'}"
+								: 'bg-(--admin-border-default)'}"
 						onclick={() => (currentStep = index)}
 					></Button>
 				{/each}
@@ -201,17 +201,17 @@
 			<div class="step-content">
 				<div class="mb-6 text-center">
 					<div
-						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800"
+						class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--admin-bg-chip)"
 					>
 						<iconify-icon
 							icon={step.icon}
 							width="32"
-							class="text-gray-600 dark:text-gray-400"
+							class="text-(--admin-text-muted)"
 							aria-hidden="true"
 						></iconify-icon>
 					</div>
-					<h3 class="mb-2 text-xl font-semibold text-gray-900 dark:text-white">{step.title}</h3>
-					<p class="mx-auto max-w-md text-gray-600 dark:text-gray-400">{step.description}</p>
+					<h3 class="mb-2 text-xl font-semibold text-(--admin-text-body)">{step.title}</h3>
+					<p class="mx-auto max-w-md text-(--admin-text-muted)">{step.description}</p>
 				</div>
 
 				<!-- Step Action -->
@@ -259,32 +259,32 @@
 		<!-- Quick Stats -->
 		<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 text-center"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-success-600">✓</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Setup Complete</div>
+				<div class="text-sm text-(--admin-text-muted)">Setup Complete</div>
 			</div>
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 text-center"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-tertiary-600">0</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Collections</div>
+				<div class="text-sm text-(--admin-text-muted)">Collections</div>
 			</div>
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 text-center"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-purple-600">1</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Admin User</div>
+				<div class="text-sm text-(--admin-text-muted)">Admin User</div>
 			</div>
 			<div
-				class="rounded border border-surface-500/30 bg-gray-50 p-4 text-center dark:border-surface-500/40 dark:bg-gray-800"
+				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 text-center"
 				style="border-radius: var(--admin-radius-card, 0.75rem);"
 			>
 				<div class="text-2xl font-bold text-warning-600">∞</div>
-				<div class="text-sm text-gray-600 dark:text-gray-400">Possibilities</div>
+				<div class="text-sm text-(--admin-text-muted)">Possibilities</div>
 			</div>
 		</div>
 	</div>
@@ -331,7 +331,7 @@
 {#if showImportExport}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
 		<div
-			class="max-h-[90vh] w-full max-w-6xl overflow-hidden border border-surface-500/30 bg-surface-500/10 shadow-xl dark:border-surface-500/40 dark:bg-surface-800"
+			class="max-h-[90vh] w-full max-w-6xl overflow-hidden border border-(--admin-border-default) bg-(--admin-bg-card) shadow-xl"
 			style="border-radius: var(--admin-radius-card, 0.75rem);"
 		>
 			<div class="flex items-center justify-between border-b p-6">
@@ -349,9 +349,9 @@
 			<div class="max-h-[calc(90vh-140px)] overflow-y-auto p-6"><ImportExportManager /></div>
 
 			<div
-				class="flex items-center justify-between border-t bg-surface-500/10 p-6 dark:bg-surface-700"
+				class="flex items-center justify-between border-t border-(--admin-border-default) bg-(--admin-bg-card) p-6"
 			>
-				<div class="text-sm text-gray-600 dark:text-gray-400">
+				<div class="text-sm text-(--admin-text-muted)">
 					<iconify-icon icon="mdi:shield-check" width={16} class="me-1 inline"></iconify-icon>
 					Your data is securely managed and never leaves your server
 				</div>

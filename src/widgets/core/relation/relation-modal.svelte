@@ -145,10 +145,7 @@ Optimized with Svelte 5 runes for sub-millisecond reactivity.
 		</div>
 		<div class="hidden sm:flex items-center gap-2">
 			{#if selected.size > 0}
-				<span
-					class="chip preset-tonal-tertiary"
-					transition:adminSlide={{ duration: 200, distance: 24 }}
-				>
+				<span class="preset-tonal-tertiary" transition:adminSlide={{ duration: 200, distance: 24 }}>
 					{widget_relation_selected_count({ count: selected.size })}
 				</span>
 			{/if}
