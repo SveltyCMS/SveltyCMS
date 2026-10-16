@@ -185,11 +185,12 @@
 		modalState.trigger(
 			ModalWidgetForm as any,
 			{
-				title: 'Edit Field',
-				body: 'Configure field properties and permissions.',
+				// The form renders its own header; ariaLabel names the dialog instead of `title`.
+				ariaLabel: 'Edit field',
 				value: { ...field, __fieldIndex: idx >= 0 ? idx : undefined },
 				roles,
-				size: 'lg'
+				size: 'xl',
+				contentClass: 'p-0!'
 			},
 			(r: any) => {
 				if (!r || r === false) return;
