@@ -45,11 +45,13 @@ const TIMER_KEY = Symbol.for("svelty.redirects.timer");
 
 // Cache stampede mitigation: tracks in-flight DB redirect lookups
 const inflightRedirectLookups = new Map<string, Promise<any>>();
+let isFlushing404 = false;
 
 function flush404Logs() {
-  if (logBuffer.size === 0) return;
+  if (isFlushing404 || logBuffer.size === 0) return;
   const db = getDb();
   if (!db) return;
+  isFlushing404 = true;
   // Snapshot with key + hit count so entries mutated DURING the flush window
   // are retained (their un-flushed delta stays buffered for the next interval).
   const logsToFlush = Array.from(logBuffer.entries()).map(([key, log]) => ({
@@ -114,6 +116,8 @@ function flush404Logs() {
     } catch (err) {
       logger.error("[handleRedirects] Failed to flush 404 logs:", err);
       // Buffer retained → retried on the next interval.
+    } finally {
+      isFlushing404 = false;
     }
   })();
 }
@@ -181,7 +185,6 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
 
   const tenantId =
     (event.locals as any).tenantId ||
-    event.request.headers.get("x-tenant-id") ||
     getTenantIdFromHostname(event.url.hostname, false) ||
     "global";
 

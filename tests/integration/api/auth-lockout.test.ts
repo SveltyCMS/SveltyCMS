@@ -1,6 +1,6 @@
-import { beforeAll, describe, expect, it, afterAll } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { prepareAuthenticatedContext, cleanupTestDatabase } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 import { generateUUID } from "@src/utils/native-utils";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -36,10 +36,6 @@ describe("Authentication Lockout Integration", () => {
       const text = await createUserRes.text();
       console.warn("Failed to create test user:", text);
     }
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
   });
 
   it("should lockout account after 5 failed login attempts", async () => {

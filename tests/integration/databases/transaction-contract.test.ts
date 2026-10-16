@@ -146,7 +146,7 @@ describe("Transaction Contract — All Adapters", () => {
           },
           tenantOpts,
         );
-        // Second insert uses duplicate ID to force failure
+        // Second insert uses duplicate ID to force an adapter-level failure
         await _txn.insert(
           TEST_COLLECTION,
           {
@@ -157,31 +157,39 @@ describe("Transaction Contract — All Adapters", () => {
           },
           tenantOpts,
         );
+        // Guarantee the abort regardless of whether the duplicate threw or upserted.
+        throw new Error("Intentional partial failure");
       });
     } catch {
       // Expected
     }
 
-    // Neither record should exist (all-or-nothing)
+    // All-or-nothing: the aborted transaction must leave nothing behind. The old
+    // conditional (`if (f1.data) expect(f2.data)…`) asserted nothing when id1 was
+    // absent, so a leaked id1 row passed silently.
     const f1 = await db.crud.findOne(TEST_COLLECTION, { _id: id1 }, tenantOpts);
     const f2 = await db.crud.findOne(TEST_COLLECTION, { _id: id2 }, tenantOpts);
-
-    if (f1.success && f1.data) {
-      // If id1 exists, id2 must also exist (some adapters may upsert on duplicate)
-      expect(f2.data).toBeDefined();
-    }
+    expect(f1.data ?? null).toBeNull();
+    expect(f2.data ?? null).toBeNull();
   });
 
   it("returns consistent error shape on transaction failure", async () => {
-    expect(typeof adapter.transaction).toBe("function");
-
+    let rejected = false;
+    let result: any;
     try {
-      await adapter.transaction(async () => {
+      result = await adapter.transaction(async () => {
         throw new Error("TXN_FAILURE_TEST");
       });
     } catch (err: any) {
+      rejected = true;
       expect(err).toBeDefined();
       expect(typeof err.message).toBe("string");
+    }
+    // Non-rejecting contract: the failure must surface in the envelope. The old
+    // shape-only assert only ran *if* the adapter rejected, so a resolving
+    // adapter passed without any failure assertion.
+    if (!rejected) {
+      expect(result?.success).toBe(false);
     }
   });
 
@@ -191,16 +199,19 @@ describe("Transaction Contract — All Adapters", () => {
     const failId = uid("txn-conc-fail");
 
     const [okRes, failRes] = await Promise.allSettled([
-      adapter.transaction(async () => {
-        await db.crud.insert(
+      adapter.transaction(async (txn: any) => {
+        // Insert through the transaction handle — inserting via db.crud would run
+        // outside the transaction and never roll back (the old test did exactly
+        // that, which is why the leftover row had to be downgraded to a warning).
+        await txn.insert(
           TEST_COLLECTION,
           { _id: okId, title: "Concurrent OK", status: "active", tenantId: TEST_TENANT },
           tenantOpts,
         );
         return { success: true };
       }),
-      adapter.transaction(async () => {
-        await db.crud.insert(
+      adapter.transaction(async (txn: any) => {
+        await txn.insert(
           TEST_COLLECTION,
           { _id: failId, title: "Concurrent Fail", status: "active", tenantId: TEST_TENANT },
           tenantOpts,
@@ -209,17 +220,19 @@ describe("Transaction Contract — All Adapters", () => {
       }),
     ]);
 
-    expect(okRes.status === "fulfilled" || okRes.status === "rejected").toBe(true);
-    // Failed txn must not leave the failId row (when adapters honor rollback)
-    const leftover = await db.crud.findOne(TEST_COLLECTION, { _id: failId }, tenantOpts);
-    if (leftover.success) {
-      // Prefer null after rollback; if present, document as known adapter limitation
-      if (leftover.data) {
-        console.warn(
-          `[txn-contract] concurrent fail left row ${failId} — adapter may not isolate concurrent rollbacks`,
-        );
-      }
+    // The failing leg must report failure (resolved envelope or rejection).
+    if (failRes.status === "fulfilled" && failRes.value?.success === true) {
+      throw new Error("Failed transaction reported success");
     }
-    void failRes;
+
+    // Its insert ran inside the transaction, so the row must be rolled back.
+    const leftover = await db.crud.findOne(TEST_COLLECTION, { _id: failId }, tenantOpts);
+    expect(leftover.data ?? null).toBeNull();
+
+    // A leg that reported success must be durable.
+    if (okRes.status === "fulfilled" && okRes.value?.success === true) {
+      const okRow = await db.crud.findOne(TEST_COLLECTION, { _id: okId }, tenantOpts);
+      expect(okRow.data ?? null).not.toBeNull();
+    }
   });
 });

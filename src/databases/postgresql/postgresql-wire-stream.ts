@@ -79,19 +79,23 @@ export class PostgresWireStreamEngine {
         const doc = `jsonb_build_object(${pairs.join(", ")})`;
         const selectPrefix = `SELECT ('{"success":true,"data":' || (CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)::text || '}')::text AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
+        // 🔒 Soft-delete clamp: the public wire plane must never serve rows with
+        // `isDeleted = true`, even when the caller asked for published content.
+        const del = executor.getColumn(table, "isDeleted") ? ` AND "isDeleted" = false` : "";
+
         cachedWireSql = {
           selectPrefix,
-          base: `${selectPrefix} WHERE "_id" = $1 LIMIT 1`,
-          tenant: `${selectPrefix} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
+          base: `${selectPrefix} WHERE "_id" = $1${del} LIMIT 1`,
+          tenant: `${selectPrefix} WHERE "_id" = $1 AND "tenantId" = $2${del} LIMIT 1`,
           basePub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published')${del} LIMIT 1`
             : null,
           tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" = $2 LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" = $2${del} LIMIT 1`
             : null,
-          tenantNull: `${selectPrefix} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
+          tenantNull: `${selectPrefix} WHERE "_id" = $1 AND "tenantId" IS NULL${del} LIMIT 1`,
           tenantPubNull: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" IS NULL LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = $1 AND "status" IN ('publish', 'published') AND "tenantId" IS NULL${del} LIMIT 1`
             : null,
         };
         this._pointSqlCache.set(table, cachedWireSql);
@@ -233,16 +237,21 @@ export class PostgresWireStreamEngine {
           FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause} LIMIT $${limitIdx} OFFSET $${offsetIdx}) sub
         `;
 
+        // 🔒 Soft-delete clamp (see findPointWireStream).
+        const delOnly = executor.getColumn(table, "isDeleted") ? `"isDeleted" = false` : "";
+        const delAnd = executor.getColumn(table, "isDeleted") ? ` AND "isDeleted" = false` : "";
+        const andDel = (s: string) => (s ? `${s}${delAnd}` : delOnly);
+
         cachedWireSql = {
-          base: wrap("", 1, 2),
-          tenant: wrap(`"tenantId" = $1`, 2, 3),
-          basePub: hasStatusCol ? wrap(`"status" IN ('publish', 'published')`, 1, 2) : null,
+          base: wrap(andDel(""), 1, 2),
+          tenant: wrap(andDel(`"tenantId" = $1`), 2, 3),
+          basePub: hasStatusCol ? wrap(andDel(`"status" IN ('publish', 'published')`), 1, 2) : null,
           tenantPub: hasStatusCol
-            ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = $1`, 2, 3)
+            ? wrap(andDel(`"status" IN ('publish', 'published') AND "tenantId" = $1`), 2, 3)
             : null,
-          tenantNull: wrap(`"tenantId" IS NULL`, 1, 2),
+          tenantNull: wrap(andDel(`"tenantId" IS NULL`), 1, 2),
           tenantPubNull: hasStatusCol
-            ? wrap(`"status" IN ('publish', 'published') AND "tenantId" IS NULL`, 1, 2)
+            ? wrap(andDel(`"status" IN ('publish', 'published') AND "tenantId" IS NULL`), 1, 2)
             : null,
         };
         tableCache.set(cacheKey, cachedWireSql);

@@ -62,8 +62,6 @@ describe("System Load & Resilience Benchmark", () => {
       maxDelayMs: 100,
     });
 
-    let maxStableLevel = "NONE";
-
     const runLevel = async (
       levelName: string,
       config: { total: number; batch: number; name: string },
@@ -117,20 +115,29 @@ describe("System Load & Resilience Benchmark", () => {
         ? Object.entries(LOAD_PROFILES)
         : [[TARGET_LEVEL, LOAD_PROFILES[TARGET_LEVEL]]];
 
+    let lastStableLevel = "NONE";
+    let failedLevel: string | null = null;
+
     for (const [level, config] of profilesToRun as [string, (typeof LOAD_PROFILES)["TINY"]][]) {
       try {
         await runLevel(level, config);
-        maxStableLevel = level;
+        lastStableLevel = level;
       } catch (err: any) {
         console.error(`\n❌ [${level}] FAILED: ${err.message}`);
         console.log("\n⚠️  System Limit Reached!");
-        console.log(`   The server switched off/failed at level: ${level}`);
-        console.log(`   Last Stable Level: ${maxStableLevel}`);
+        console.log(`   Last Stable Level: ${lastStableLevel}`);
+        failedLevel = level;
         break;
       }
     }
 
-    console.log(`\n🏆 BENCHMARK RESULT: Max Stable Load Level = [ ${maxStableLevel} ]`);
-    expect(true).toBe(true);
+    console.log(`\n🏆 BENCHMARK RESULT: Max Stable Load Level = [ ${lastStableLevel} ]`);
+
+    // The target level must actually complete. The old `expect(true).toBe(true)`
+    // passed even when every level threw, so a broken resilience wrapper looked green.
+    if (failedLevel) {
+      throw new Error(`Load level "${failedLevel}" failed (last stable: ${lastStableLevel})`);
+    }
+    expect(lastStableLevel).not.toBe("NONE");
   }, 300_000);
 });

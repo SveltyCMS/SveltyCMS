@@ -4,8 +4,9 @@ import { safeFetch } from "../helpers/server";
  * @file tests/bun/api/security.test.ts
  * @description Verify security enhancements
  *
- * These tests require a running server at API_BASE_URL.
- * They will be skipped if the server is not reachable.
+ * Requires a running preview server at API_BASE_URL. If the context cannot be
+ * prepared the beforeAll hook throws — a missing server must be a hard failure,
+ * never a silent green (security regressions would hide behind the skip).
  */
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -13,28 +14,14 @@ import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = process.env.API_BASE_URL || "http://localhost:4173";
 
-// Check if server is available before running tests
-let serverAvailable = false;
-
 beforeAll(async () => {
-  try {
-    await prepareAuthenticatedContext();
-    serverAvailable = true;
-  } catch (err: any) {
-    console.warn(
-      `⚠️ Failed to prepare test context: ${err.message}. Security tests will be skipped.`,
-    );
-    serverAvailable = false;
-  }
+  // Throw, don't swallow: a failed context prep means the suite cannot verify
+  // anything — passing silently would mask a real security regression.
+  await prepareAuthenticatedContext();
 });
 
 describe("Security Enhancements Verification", () => {
   it("should block requests with blocked User-Agent (Firewall)", async () => {
-    if (!serverAvailable) {
-      console.log("Skipping: Server not available");
-      return; // Skip test gracefully
-    }
-
     // HeadlessChrome is in ADVANCED_BOT_PATTERNS
     const res = await safeFetch(`${BASE_URL}/api/auth/login`, {
       method: "POST",
@@ -53,11 +40,6 @@ describe("Security Enhancements Verification", () => {
   });
 
   it("should rate limit /api/auth endpoints strictly", async () => {
-    if (!serverAvailable) {
-      console.log("Skipping: Server not available");
-      return; // Skip test gracefully
-    }
-
     // authLimiter is 10 req/min per IP.
     // We need to make > 10 requests.
     let blocked = false;
@@ -84,11 +66,6 @@ describe("Security Enhancements Verification", () => {
   }, 20000); // Higher timeout for many requests
 
   it("should have stricter CSP headers in production", async () => {
-    if (!serverAvailable) {
-      console.log("Skipping: Server not available");
-      return; // Skip test gracefully
-    }
-
     // This test checks if the server is reachable and returns a valid response.
     // CSP headers are set in hooks.server.ts
     const res = await safeFetch(`${BASE_URL}/`);

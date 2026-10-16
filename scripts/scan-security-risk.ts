@@ -273,6 +273,51 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
         severity: "error",
       });
     }
+
+    // ── Loopback hostname prefix bypass (error): startsWith("localhost") matches localhost.evil.com
+    if (/\.startsWith\s*\(\s*["'](?:localhost|127\.0\.0\.1|\[::1\])["']\s*\)/.test(line)) {
+      violations.push({
+        path: relPath,
+        line: i + 1,
+        category: "loopback-prefix-bypass",
+        message:
+          'startsWith("localhost" | "127.0.0.1" | "[::1]") matches subdomain prefixes (e.g. localhost.evil.com) — check exact equality or startsWith("localhost:")',
+        severity: "error",
+      });
+    }
+
+    // ── Tenant spoofing via raw x-tenant-id header lookup outside sanctioned tenant resolvers (error)
+    if (
+      isServerFile &&
+      !/request-tenant\.ts$|handle-local-context\.ts$|tenant-security\.ts$|test-bypass\.server\.ts$|handlers[\\/]testing\.ts$/.test(
+        relPath,
+      ) &&
+      /headers\.(?:get|has)\s*\(\s*["']x-tenant-id["']\s*\)/i.test(line)
+    ) {
+      violations.push({
+        path: relPath,
+        line: i + 1,
+        category: "tenant-spoofing-x-tenant-id",
+        message:
+          "Raw x-tenant-id header lookup detected — use event.locals.tenantId or resolveRequestTenant() so unauthenticated callers cannot spoof tenant scope",
+        severity: "error",
+      });
+    }
+
+    // ── Bare NODE_ENV === "test" gating in hooks or testing API (error, AGENTS.md §4)
+    if (
+      /[\\/](?:hooks|routes[\\/]api[\\/]testing)[\\/]/.test(relPath) &&
+      /\bNODE_ENV\s*===\s*["']test["']/.test(line)
+    ) {
+      violations.push({
+        path: relPath,
+        line: i + 1,
+        category: "test-mode-bare-node-env",
+        message:
+          'Test-mode overrides in hooks/testing API must be gated on TEST_MODE === "true" / PLAYWRIGHT_TEST === "true", never bare NODE_ENV === "test" (AGENTS.md §4)',
+        severity: "error",
+      });
+    }
   }
 
   // ── Privilege escalation: any server path that feeds request JSON into

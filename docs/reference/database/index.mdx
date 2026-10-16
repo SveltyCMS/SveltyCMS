@@ -85,6 +85,7 @@ Details and measured gains: [Performance Architecture](./performance-architectur
 - **Tenant-Scoped Bearer Lookup**: Auth passes `locals.tenantId` into credential lookups (aligned with `auth.getApiKey`) to narrow multi-tenant queries.
 
 - **MongoDB Soft-Delete Safety**: `safeQuery()` applies `isDeleted: { $ne: true }` so legacy documents without the field remain visible to active queries.
+- **SQL Soft-Delete Clamp (parity)**: `SqlAdapterCore.clampSoftDeleted` AND-s `isDeleted = false` into `findMany`/`findOne`/`count`/`exists`/`findByIds`/`streamMany`/`findPage`/`aggregate` unless the caller opts in with `includeDeleted` (or a system `bypassSafeQuery`), the table has no `isDeleted` column, or the query already pins `isDeleted` (the trash view). `findById` clamps the raw projection directly.
 - **SSRF Prevention**: Cloud storage adapters validate endpoints before connection
 - **NoSQL Injection Protection**: `sanitizeMongoQuery` blocks `$where`, `$function`, `$expr`
 - **CSPRNG-Only Tokens**: `globalThis.crypto.getRandomValues()`, no `Math.random()` fallback

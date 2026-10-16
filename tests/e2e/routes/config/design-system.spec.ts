@@ -104,21 +104,20 @@ test.describe("Design System workspace", () => {
       await page.getByTestId("appearance-save-overrides").click();
       await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
 
-      // Full reload — the preference must come back from server data, not
-      // localStorage. Retry via toPass: the save is awaited before the toast,
-      // but a fresh load re-serializes user prefs and may briefly lag.
-      await expect(async () => {
-        await page.reload({ waitUntil: "domcontentloaded" });
-        await page.goto("/config/design-system?tab=overrides", { waitUntil: "domcontentloaded" });
-        await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({
-          timeout: 10_000,
-        });
-        await expect(
-          page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i),
-        ).toHaveValue(target.value, {
-          timeout: 10_000,
-        });
-      }).toPass({ timeout: 25_000 });
+      // Full navigation — the preference must come back from server data, not
+      // localStorage. One navigation + `toHaveValue`'s own polling (below) is
+      // deterministic; the old `toPass` loop reloaded *and* re-navigated on every
+      // attempt, remounting the `{#key activeTab}` panel and re-running hydration
+      // each retry, so the assertion raced the panel instead of the server.
+      await page.goto("/config/design-system?tab=overrides", { waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(
+        page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i),
+      ).toHaveValue(target.value, {
+        timeout: 20_000,
+      });
     } finally {
       // Restore the previous preference so the seeded admin stays deterministic.
       try {

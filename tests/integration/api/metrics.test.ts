@@ -8,9 +8,9 @@
  * written defensively to accept both outcomes.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -18,10 +18,6 @@ let authCookie: string;
 beforeAll(async () => {
   await waitForServer();
   authCookie = await prepareAuthenticatedContext();
-});
-
-afterAll(async () => {
-  await cleanupTestDatabase();
 });
 
 describe("Metrics API - Performance Metrics", () => {
@@ -34,7 +30,13 @@ describe("Metrics API - Performance Metrics", () => {
     expect([200, 403]).toContain(response.status);
 
     const data = await response.json();
-    expect(typeof data).toBe("object");
+    // Assert the payload, not just `typeof data === "object"` (true for any JSON).
+    if (response.status === 200) {
+      expect(data.success).toBe(true);
+      expect(data.data).toBeDefined();
+    } else {
+      expect(data.success).toBe(false);
+    }
   });
 
   it("should include system metrics when available", async () => {
@@ -46,7 +48,12 @@ describe("Metrics API - Performance Metrics", () => {
     expect([200, 403]).toContain(response.status);
 
     const data = await response.json();
-    expect(typeof data).toBe("object");
+    if (response.status === 200) {
+      expect(data.success).toBe(true);
+      expect(data.data).toBeDefined();
+    } else {
+      expect(data.success).toBe(false);
+    }
   });
 
   it("should require authentication", async () => {

@@ -52,10 +52,10 @@ function flushAuditOutbox() {
   // Schedule microtask or next-tick drain
   queueMicrotask(() => {
     try {
+      const batch = auditOutboxQueue.splice(0);
       const hashesToAppend: string[] = [];
-      while (auditOutboxQueue.length > 0) {
-        const item = auditOutboxQueue.shift();
-        if (!item) break;
+      for (let i = 0; i < batch.length; i++) {
+        const item = batch[i];
 
         const logEntry: Record<string, unknown> = {
           timestamp: item.timestamp,

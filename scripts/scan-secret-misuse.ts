@@ -64,6 +64,12 @@ const PRIVATE_SECRETS = [
 
 const ALL_FORBIDDEN_KEYS = [...BOOTSTRAP_SECRETS, ...PRIVATE_SECRETS];
 
+/** Pre-compiled single regex for all forbidden keys (avoids one RegExp allocation per key per line). */
+const FORBIDDEN_PRIVATE_SETTING_RE = new RegExp(
+  `getPrivateSetting(?:Sync)?\\s*\\(\\s*["'\`](${ALL_FORBIDDEN_KEYS.join("|")})["'\`]`,
+  "i",
+);
+
 // ─── Known secret format patterns ───────────────────────────────────────────
 
 interface KeyPattern {
@@ -142,22 +148,29 @@ const KNOWN_KEY_PATTERNS: KeyPattern[] = [
   { name: "Hugging Face Token", regex: /\bhf_[A-Za-z0-9]{20,}/g, requireEntropy: false },
 ];
 
-// ─── Exposure patterns (console.log, hardcoded) ─────────────────────────────
+// ─── Exposure patterns (console.log / logger.*, hardcoded) ──────────────────
 
 const EXPOSURE_PATTERNS: { pattern: RegExp; name: string }[] = [
   {
-    pattern: /console\.(log|warn|error|debug|info)\([^)]*DB_PASSWORD/i,
-    name: "console with DB_PASSWORD",
+    pattern: /(?:console|logger)\.(log|warn|error|debug|info|trace)\([^)]*DB_PASSWORD/i,
+    name: "log output with DB_PASSWORD",
   },
   {
-    pattern: /console\.(log|warn|error|debug|info)\([^)]*JWT_SECRET/i,
-    name: "console with JWT_SECRET_KEY",
+    pattern: /(?:console|logger)\.(log|warn|error|debug|info|trace)\([^)]*JWT_SECRET/i,
+    name: "log output with JWT_SECRET_KEY",
   },
   {
-    pattern: /console\.(log|warn|error|debug|info)\([^)]*ENCRYPTION_KEY/i,
-    name: "console with ENCRYPTION_KEY",
+    pattern: /(?:console|logger)\.(log|warn|error|debug|info|trace)\([^)]*ENCRYPTION_KEY/i,
+    name: "log output with ENCRYPTION_KEY",
   },
-  { pattern: /console\.(log|warn|error|debug|info)\([^)]*sck_/i, name: "console with API key" },
+  {
+    pattern: /(?:console|logger)\.(log|warn|error|debug|info|trace)\([^)]*TEST_API_SECRET/i,
+    name: "log output with TEST_API_SECRET",
+  },
+  {
+    pattern: /(?:console|logger)\.(log|warn|error|debug|info|trace)\([^)]*sck_/i,
+    name: "log output with API key",
+  },
   { pattern: /['"`]sck_[A-Za-z0-9_-]{40,}['"`]/, name: "hardcoded API key (sck_)" },
 ];
 
@@ -340,16 +353,16 @@ function scanLine(
 ): void {
   // ── Rule 1: Forbidden key access in non-server files ────────────────────
   if (!isServer) {
-    for (const key of ALL_FORBIDDEN_KEYS) {
-      const regex = new RegExp(`getPrivateSetting(Sync)?\\s*\\(\\s*["'\`]${key}["'\`]`, "gi");
-      if (regex.test(line)) {
-        findings.push({
-          file: relPath,
-          line: lineNum,
-          message: `${key}: private key accessed in non-server file`,
-          confidence: "high",
-        });
-      }
+    // One pre-compiled alternation (non-global, so `.exec` never carries
+    // `lastIndex` across lines) instead of a fresh RegExp per key per line.
+    const forbidden = FORBIDDEN_PRIVATE_SETTING_RE.exec(line);
+    if (forbidden) {
+      findings.push({
+        file: relPath,
+        line: lineNum,
+        message: `${forbidden[1]}: private key accessed in non-server file`,
+        confidence: "high",
+      });
     }
   }
 

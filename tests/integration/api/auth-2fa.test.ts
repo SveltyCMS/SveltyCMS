@@ -10,13 +10,9 @@
  * - POST /api/auth/2fa/backup-codes - Generate backup codes
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import {
-  cleanupTestDatabase,
-  prepareAuthenticatedContext,
-  testFixtures,
-} from "../helpers/test-setup";
+import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -36,13 +32,10 @@ beforeAll(async () => {
     headers: { Cookie: authCookie },
   });
   const userData = await userResponse.json();
-  if (userData.data && userData.data.length > 0) {
-    userId = userData.data[0]._id;
-  }
-});
-
-afterAll(async () => {
-  await cleanupTestDatabase();
+  // A seeded install always has the admin user — its absence must fail, not
+  // leave `userId` undefined so the 2FA-verify tests quietly return.
+  expect(Array.isArray(userData.data) && userData.data.length > 0).toBe(true);
+  userId = userData.data[0]._id;
 });
 
 describe("2FA Authentication API - Setup", () => {
@@ -143,10 +136,7 @@ describe("2FA Authentication API - Verify Setup", () => {
   });
 
   it("should reject invalid verification code format", async () => {
-    if (!setupData) {
-      console.log("Skipping: setupData not available");
-      return;
-    }
+    if (!setupData) throw new Error("2FA setup did not run — cannot verify code-format rejection");
 
     const response = await safeFetch(`${BASE_URL}/api/auth/2fa/verify-setup`, {
       method: "POST",
@@ -186,10 +176,7 @@ describe("2FA Authentication API - Verify Code", () => {
   });
 
   it("should reject verification without a pending-2FA token (fail-closed)", async () => {
-    if (!userId) {
-      console.log("Skipping: userId not available");
-      return;
-    }
+    if (!userId) throw new Error("Admin user id missing — seeded install must expose a user");
 
     const response = await safeFetch(`${BASE_URL}/api/auth/2fa/verify`, {
       method: "POST",

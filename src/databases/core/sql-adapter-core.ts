@@ -75,7 +75,9 @@ import {
   convertISOToDates,
   assertFilteredDelete,
   getEffectiveTenantId,
+  getTenantCondition,
   registerTableSchema,
+  shouldBypassTenantCheck,
   validateId,
 } from "./relational-utils";
 import { RelationalAuthModule } from "./relational-auth";
@@ -188,6 +190,47 @@ export type RawPointWireStreamResult =
 export type RawListWireStreamResult =
   | { kind: "found"; wireBody: string; etag: string }
   | { kind: "declined" };
+
+/**
+ * Sentinel for the raw point-read fast path.
+ *
+ * `null` from `rawFindById` now means "the SELECT ran and matched 0 rows"
+ * (definitively absent); `RAW_DECLINED` means "the raw path could not run" (no
+ * connection handle, a transaction without a client, or a thrown error). Before
+ * this split both cases returned `null`, so a 404 `findById` ran the raw SELECT
+ * and then the identical Drizzle SELECT — two round trips on every miss.
+ */
+export const RAW_DECLINED: unique symbol = Symbol("SveltyCMS.RAW_DECLINED");
+export type RawFindResult<T> = T | null | typeof RAW_DECLINED;
+
+/**
+ * True when a raw point-read row carries the soft-delete flag set. The raw
+ * projections include `isDeleted`, so `findById` can enforce `includeDeleted`
+ * without a second query. SQLite stores it as 0/1, PG/MariaDB as a boolean.
+ */
+function isSoftDeleted(row: unknown): boolean {
+  const v = (row as { isDeleted?: unknown } | null | undefined)?.isDeleted;
+  return v === true || v === 1 || v === "1" || v === "true";
+}
+
+/**
+ * True when a filter already pins `isDeleted` — top level or inside `$and`
+ * (which `findPage`'s keyset merge wraps a base query in). An explicit filter
+ * wins over the automatic live-row clamp: the trash view queries
+ * `{ isDeleted: true }` and must keep seeing deleted rows.
+ */
+function queryHasSoftDeleteKey(query: unknown): boolean {
+  if (!query || typeof query !== "object") return false;
+  const rec = query as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(rec, "isDeleted")) return true;
+  const and = rec.$and;
+  if (Array.isArray(and)) {
+    for (let i = 0; i < and.length; i++) {
+      if (queryHasSoftDeleteKey(and[i])) return true;
+    }
+  }
+  return false;
+}
 
 const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -791,14 +834,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return (execResult as any).rows || [];
   }
 
-  /** Adapter-specific raw findById optimisation — returns null if not used. */
+  /** Adapter-specific raw findById optimisation — RAW_DECLINED when not used. */
   protected async rawFindById<T extends BaseEntity>(
     _table: any,
     _collection: string,
     _id: DatabaseId,
     _options: FindOptions<T>,
-  ): Promise<T | null> {
-    return null;
+  ): Promise<RawFindResult<T>> {
+    return RAW_DECLINED;
   }
 
   /**
@@ -883,8 +926,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     _idCol: any,
     _id: DatabaseId,
     _options: BaseQueryOptions,
-  ): Promise<T | null> {
-    return null;
+  ): Promise<RawFindResult<T>> {
+    return RAW_DECLINED;
   }
 
   /**
@@ -1360,7 +1403,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       if (!Object.hasOwn(data, k)) continue;
       if (k === "_id" || k === "id") continue;
       // createdAt is insert-only — never copy a caller-supplied value into SET.
+      // tenantId is likewise immutable after insert: a caller-supplied
+      // `data.tenantId` must never move a row into another tenant's scope
+      // (tenant hopping) unless an explicit system bypass is in effect.
       if (isUpdate && k === "createdAt") continue;
+      if (isUpdate && k === "tenantId" && !shouldBypassTenantCheck(options)) continue;
 
       const isPhysical = schemaCols?.[k] || getCol(table, k);
 
@@ -1527,6 +1574,30 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // CRUD: findOne
   // --------------------------------------------------------------------------
 
+  /**
+   * Soft-delete clamp for collection reads.
+   *
+   * `delete()` without `permanent: true` only flips `isDeleted`, so a reader
+   * that does not opt in via `includeDeleted` must not see those rows — the
+   * same boundary Mongo's CRUD layer enforces with `safeQuery`. `findById` (and
+   * every `{_id}` lookup routed through it) already clamps; this extends the
+   * clamp to the list/aggregate reads (`findMany`, `findOne`, `count`,
+   * `exists`, `streamMany`, `findPage`) that previously leaked deleted rows.
+   *
+   * No-op for tables without an `isDeleted` column, for `includeDeleted` /
+   * `bypassSafeQuery` callers, and when the query already pins `isDeleted`.
+   */
+  protected clampSoftDeleted<T extends BaseEntity>(
+    table: any,
+    query: QueryFilter<T>,
+    options: BaseQueryOptions,
+  ): QueryFilter<T> {
+    if (options?.bypassSafeQuery || options?.includeDeleted) return query;
+    if (!this.getColumn(table, "isDeleted")) return query;
+    if (queryHasSoftDeleteKey(query)) return query;
+    return { ...(query as Record<string, unknown>), isDeleted: false } as QueryFilter<T>;
+  }
+
   async findOne<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,
@@ -1591,11 +1662,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this._registeredSchemas.add(collection);
       }
 
+      // 🔒 Soft-delete clamp: a non-permanent delete only sets `isDeleted`, so
+      // the caller's filter must be AND-ed with a live-row predicate.
+      const effectiveQuery = this.clampSoftDeleted(table, q as any, options);
+
       // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters compiled once with limit=1
       if (this.executeCompiled && !options.transaction) {
         try {
           const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
-          builder.applyFilterAndOptions(q, { ...options, limit: 1 }, false);
+          builder.applyFilterAndOptions(effectiveQuery, { ...options, limit: 1 }, false);
           const compiled = builder.compile("list");
           if (compiled) {
             const rawRows = await this.executeCompiled(compiled.sql, compiled.params, options);
@@ -1619,7 +1694,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         }
       }
 
-      const where = this.mapQuery(table, q as any, options);
+      const where = this.mapQuery(table, effectiveQuery as any, options);
 
       const isDynamic =
         this.useDynamicSqlInFindMany &&
@@ -1894,11 +1969,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         this._registeredSchemas.add(collection);
       }
 
+      // 🔒 Soft-delete clamp (see findOne / clampSoftDeleted).
+      const effectiveQuery = this.clampSoftDeleted(table, q as any, options);
+
       // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters + sort + limit/offset compiled once
       if (this.executeCompiled && !options.transaction) {
         try {
           const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
-          builder.applyFilterAndOptions(q, options, false);
+          builder.applyFilterAndOptions(effectiveQuery, options, false);
           const compiled = builder.compile("list");
           if (compiled) {
             const rawRows = await this.executeCompiled(compiled.sql, compiled.params, options);
@@ -1918,7 +1996,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         }
       }
 
-      const where = this.mapQuery(table, q as any, options);
+      const where = this.mapQuery(table, effectiveQuery as any, options);
 
       const tableName = getTableName(table);
       const isDynamic =
@@ -2053,7 +2131,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           : query;
       const table = this.getTable(collection);
       if (!table) throw new Error(`Collection table not found: ${collection}`);
-      const where = this.mapQuery(table, q as any, options);
+      // 🔒 Soft-delete clamp (see clampSoftDeleted).
+      const where = this.mapQuery(
+        table,
+        this.clampSoftDeleted(table, q as any, options) as any,
+        options,
+      );
       const db = this.getDrizzleInstance(options);
       const selection = this.getPhysicalSelection(table);
       const convertOpts = { ...this.convertDatesOptions, table: collection };
@@ -2213,10 +2296,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const table = this.getTable(collection);
         if (!table) throw new Error(`Collection table not found: ${collection}`);
 
+        // Soft-delete clamp: a `delete()` without `permanent: true` only sets
+        // `isDeleted = true`, so point reads must hide those rows unless the caller
+        // opted in with `includeDeleted`. `findOne`/`findMany` route `{_id}` lookups
+        // here only when `!includeDeleted`, i.e. they assume this filter exists.
+        const clampDeleted = !options.includeDeleted && !options.bypassSafeQuery;
+
         // Adapter-specific raw SQL fast-path (SQLite / PostgreSQL / MariaDB)
         if (this.useRawFindById) {
           const rawResult = await this.rawFindById<T>(table, collection, id, options);
-          if (rawResult !== null) return rawResult;
+          // `null` = the SELECT ran and matched 0 rows → definitively absent:
+          // return it instead of re-running the identical Drizzle SELECT.
+          if (rawResult !== RAW_DECLINED) {
+            if (rawResult !== null && clampDeleted && isSoftDeleted(rawResult)) return null;
+            return rawResult as T | null;
+          }
         }
 
         const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
@@ -2225,6 +2319,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const conditions: SQL[] = [eq(idCol, id as any)];
         const tenantCol = this.getColumn(table, "tenantId");
         applyTenantFilter(conditions, tenantCol, options);
+        const isDeletedCol = clampDeleted ? this.getColumn(table, "isDeleted") : null;
+        if (isDeletedCol) conditions.push(eq(isDeletedCol, false as any));
 
         const results = await this.getDrizzleInstance(options)
           .select(this.getProjectedSelection(table, options))
@@ -2271,7 +2367,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       if (!table) return false;
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
       if (!idCol) throw new Error("ID column not found");
-      const where = this.mapQuery(table, query as any, options);
+      // 🔒 Soft-delete clamp (see clampSoftDeleted).
+      const where = this.mapQuery(
+        table,
+        this.clampSoftDeleted(table, query as any, options) as any,
+        options,
+      );
       const results = await this.getDrizzleInstance(options)
         .select({ id: idCol })
         .from(table)
@@ -2308,11 +2409,20 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           // Fall through to exact COUNT(*) if stats unavailable
         }
 
+        // 🔒 Soft-delete clamp for the exact paths. Applied AFTER the estimate
+        // branch on purpose — the estimate is a documented-approximate
+        // whole-table statistic; the exact COUNT must not include deleted rows.
+        const effectiveQuery = this.clampSoftDeleted(
+          table,
+          query || ({} as QueryFilter<T>),
+          options,
+        );
+
         // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters count compiled once
         if (this.executeCompiled && !options.transaction) {
           try {
             const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
-            builder.applyFilterAndOptions(query, options, false);
+            builder.applyFilterAndOptions(effectiveQuery, options, false);
             const compiled = builder.compile("count");
             if (compiled) {
               const rows = await this.executeCompiled(compiled.sql, compiled.params, options);
@@ -2324,7 +2434,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           }
         }
 
-        const where = this.mapQuery(table, query || {}, options);
+        const where = this.mapQuery(table, effectiveQuery as any, options);
         try {
           const result = await this.getDrizzleInstance(options)
             .select({ count: drizzleCount() })
@@ -2686,8 +2796,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     id: DatabaseId,
     values: Record<string, any>,
     options: BaseQueryOptions,
-    runSingle: () => Promise<T | null>,
-  ): Promise<T | null> {
+    runSingle: () => Promise<RawFindResult<T>>,
+  ): Promise<RawFindResult<T>> {
     return this.getUpdateCoalescer(key, collection).submit({ id, values, options }, runSingle);
   }
 
@@ -2839,25 +2949,24 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // in the response.
     const skipReturning = (options as any)?.skipReturning === true;
 
-    // 🚀 raw UPDATE fast path (SQLite): one prepared statement, one round
-    // trip — covers both RETURNING and skipReturning (no-read-back
-    // reconstruction from prepared values). Returns null when the adapter
-    // has no fast path or bailed; the Drizzle branches below fall back.
+    // 🚀 raw UPDATE fast path (SQLite / PostgreSQL): one prepared statement, one
+    // round trip — covers both RETURNING and skipReturning (no-read-back
+    // reconstruction from prepared values). Returns RAW_DECLINED when the adapter
+    // has no fast path or bailed; `null` means the UPDATE ran and matched 0 rows.
     const mRawU = PROFILE_WRITE_ENABLED ? profileMark("db:upd:raw") : null;
 
     // Phase 2 statement coalescing: concurrent updates that share a column
-    // signature (and tenant shape, and skipReturning mode) coalesce into one
-    // multi-row UPDATE…FROM UNNEST statement. Rows with JSON data patches or
-    // an explicit transaction keep the single-statement path (patch merges
-    // and tx boundaries must not be batched).
+    // signature (and tenant scope, and skipReturning mode) coalesce into one
+    // multi-row UPDATE statement. Partitioning by effective tenant prevents
+    // cross-tenant batch mixing on SQLite/MariaDB/PostgreSQL.
     const batchEligible =
       this.updateCoalescingEnabled && !(options as any)?.transaction && !jsonPatch;
-    let rawRow: T | null;
+    let rawRow: RawFindResult<T>;
     if (batchEligible) {
       const tenant = getEffectiveTenantId(options);
-      const hasTenant = tenant !== undefined && tenant !== null;
+      const tenantKey = tenant === undefined ? "u" : tenant === null ? "n" : `t:${String(tenant)}`;
       const columnsKey = Object.keys(values).sort().join(",");
-      const key = `${collection}\u0000${columnsKey}\u0000${hasTenant ? 1 : 0}\u0000${skipReturning ? 1 : 0}`;
+      const key = `${collection}\u0000${columnsKey}\u0000${tenantKey}\u0000${skipReturning ? 1 : 0}`;
       rawRow = await this.submitCoalescedUpdate<T>(collection, key, id, values, options, () =>
         this.rawUpdateReturning<T>(table, collection, values, idCol, id, options),
       );
@@ -2865,7 +2974,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       rawRow = await this.rawUpdateReturning<T>(table, collection, values, idCol, id, options);
     }
     mRawU?.();
-    if (rawRow !== null) {
+    if (rawRow !== RAW_DECLINED) {
+      if (rawRow === null) {
+        throw new Error(`Record ${id} not found in ${getTableName(table)}`);
+      }
       return this.hooks.length > 0
         ? await this.runHooks("after", "update", collection, rawRow, options)
         : rawRow;
@@ -3386,12 +3498,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     for (let i = 0; i < len; i++) {
       for (const k in batchValues[i]) cols.add(k);
     }
+    // 🛡️ TENANT ISOLATION: `tenantId` is never written by the conflict branch —
+    // ownership is immutable, so a cross-tenant PK collision can no longer
+    // reassign the row to the caller's tenant. The remaining assignments are
+    // additionally guarded (setWhere on PG/SQLite, IF() on MariaDB) so a
+    // conflict against another tenant's row leaves it untouched.
+    const tenantCol = this.getColumn(table, "tenantId");
+    const tenantColName = tenantCol?.name;
     const setObj: Record<string, unknown> = {};
     for (const k of cols) {
-      if (k === "_id" || k === "id" || k === "createdAt") continue;
+      if (k === "_id" || k === "id" || k === "createdAt" || k === "tenantId") continue;
       const phys = assertSafeSqlIdentifier(this.getColumn(table, k)?.name ?? k, "column");
       setObj[k] = mysql
-        ? sql`VALUES(${sql.identifier(phys)})`
+        ? tenantColName
+          ? sql`IF(${sql.identifier(tenantColName)} <=> VALUES(${sql.identifier(tenantColName)}), VALUES(${sql.identifier(phys)}), ${sql.identifier(phys)})`
+          : sql`VALUES(${sql.identifier(phys)})`
         : sql`excluded.${sql.identifier(phys)}`;
     }
     // 🔀 PARTIAL-UPSERT MERGE: the conflict branch MERGES the JSON `data` blob instead of
@@ -3417,7 +3538,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         }
         return out;
       }
-      setObj.data = this.jsonUpsertMergeSet(table);
+      const dataMerge = this.jsonUpsertMergeSet(table);
+      const dataColName = assertSafeSqlIdentifier(
+        this.getColumn(table, "data")?.name ?? "data",
+        "column",
+      );
+      // MySQL/MariaDB `ON DUPLICATE KEY UPDATE` has no WHERE clause, so the blob
+      // merge gets the same tenant guard as the scalar columns above — otherwise a
+      // cross-tenant PK collision still rewrote the victim's JSON payload.
+      // PG/SQLite are covered by `setWhere` on the whole DO UPDATE.
+      setObj.data =
+        mysql && tenantColName
+          ? sql`IF(${sql.identifier(tenantColName)} <=> VALUES(${sql.identifier(tenantColName)}), ${dataMerge}, ${sql.identifier(dataColName)})`
+          : dataMerge;
     }
     if (Object.keys(setObj).length === 0) {
       const idName = idCol.name || "_id";
@@ -3433,9 +3566,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       for (let start = 0; start < len; start += chunkSize) {
         const chunk = batchValues.slice(start, start + chunkSize);
         const insert = db.insert(table).values(chunk);
+        // Scope the conflict UPDATE to the caller's tenant so a PK collision with
+        // another tenant's row is a no-op instead of a cross-tenant overwrite.
+        const setWhere = tenantCol ? getTenantCondition(tenantCol, options) : undefined;
         const upserted = mysql
           ? insert.onDuplicateKeyUpdate({ set: setObj })
-          : insert.onConflictDoUpdate({ target: idCol, set: setObj });
+          : setWhere
+            ? insert.onConflictDoUpdate({ target: idCol, set: setObj, setWhere })
+            : insert.onConflictDoUpdate({ target: idCol, set: setObj });
         if (wantReturning) {
           const results = await (upserted as { returning: () => Promise<unknown[]> }).returning();
           out.push(
@@ -3532,8 +3670,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
         const conditions: SQL[] = [];
         // Tenant scope, exactly like `find*`: `mapQuery` applies `applyTenantFilter`
-        // for an empty filter, so an aggregation can never span tenants.
-        const baseCondition = this.mapQuery(table, {}, options) as SQL | undefined;
+        // for an empty filter, so an aggregation can never span tenants. The
+        // soft-delete clamp applies here too — a `$count`/`$sum` dashboard must
+        // not include deleted rows (parity with `findMany`/`count`).
+        const baseCondition = this.mapQuery(
+          table,
+          this.clampSoftDeleted(table, {} as QueryFilter<BaseEntity>, options) as any,
+          options,
+        ) as SQL | undefined;
         if (baseCondition) conditions.push(baseCondition);
         if (plan.where) conditions.push(plan.where);
         const where = conditions.length === 0 ? undefined : and(...conditions);

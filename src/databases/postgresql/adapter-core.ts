@@ -24,7 +24,9 @@ import { getHardwareProfile } from "@utils/hardware-profile";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import {
   SqlAdapterCore,
+  RAW_DECLINED,
   type ListIndexRequest,
+  type RawFindResult,
   type RawPointWireStreamResult,
   type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
@@ -63,6 +65,7 @@ import {
   convertArrayDatesToISO,
   convertDatesToISO,
   getEffectiveTenantId,
+  normalizePgTimestampText,
   registerTableSchema,
 } from "../core/relational-utils";
 import { normalizeCollectionTableName } from "../core/collection-name";
@@ -72,15 +75,17 @@ import { PG_STATEMENT_WARMUP_ENV, IMPOSSIBLE_ID } from "./statement-warmup";
 
 /**
  * Keep date/timestamp as ISO text. postgres.js default-parses timestamptz to
- * Date; convertDatesToISO then allocates another string. Skipping Date stops
- * two objects per timestamp per row on findById.
+ * Date; convertDatesToISO then allocates another string. Normalizing PG wire
+ * strings ("YYYY-MM-DD HH:mm:ss.sss+00") directly to ISO 8601 at driver parse
+ * time avoids Date/regex allocations and lets `convertDatesToISO` take its
+ * zero-work fast path on PostgreSQL reads and writes.
  */
 const PG_TEXT_DATE_TYPES = {
   date: {
     to: 1184,
     from: [1082, 1114, 1184],
     serialize: (x: unknown) => x,
-    parse: (x: unknown) => x,
+    parse: normalizePgTimestampText,
   },
 };
 
@@ -252,6 +257,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     {
       synthCols: string[];
       sqlText: string;
+      unnestSqlText: string;
       isJsonMap: boolean[];
     }
   >();
@@ -261,6 +267,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     const key = `${tableName}:${synthCols.join(",")}`;
     let tpl = this._insertTemplateCache.get(key);
     if (!tpl) {
+      const safeTableName = assertSafeSqlIdentifier(tableName, "table");
       const colList = synthCols
         .map((c) => {
           const phys = this.getColumn(table, c);
@@ -275,8 +282,28 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         isJsonMap[i] = isJson;
         return isJson ? `$${i + 1}::jsonb` : `$${i + 1}`;
       });
-      const sqlText = `INSERT INTO "${assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders.join(", ")})`;
-      tpl = { synthCols, sqlText, isJsonMap };
+      const unnestPlaceholders = synthCols.map((_, i) => `$${i + 1}::text[]`).join(", ");
+      const selectCols = synthCols
+        .map((c, i) => {
+          const phys = this.getColumn(table, c);
+          if (isJsonMap[i]) return `u.c${i}::jsonb`;
+          if (
+            phys?.dataType === "date" ||
+            String((phys as any)?.columnType).includes("Timestamp")
+          ) {
+            return `u.c${i}::timestamptz`;
+          }
+          if (phys?.dataType === "boolean") return `u.c${i}::boolean`;
+          if (phys?.dataType === "number" || String((phys as any)?.columnType).includes("Int")) {
+            return `u.c${i}::numeric`;
+          }
+          return `u.c${i}`;
+        })
+        .join(", ");
+      const uAliasCols = synthCols.map((_, i) => `c${i}`).join(", ");
+      const sqlText = `INSERT INTO "${safeTableName}" (${colList}) VALUES (${placeholders.join(", ")})`;
+      const unnestSqlText = `INSERT INTO "${safeTableName}" (${colList}) SELECT ${selectCols} FROM UNNEST(${unnestPlaceholders}) AS u(${uAliasCols})`;
+      tpl = { synthCols, sqlText, unnestSqlText, isJsonMap };
       this._insertTemplateCache.set(key, tpl);
       if (this._insertTemplateCache.size >= 256) {
         const oldest = this._insertTemplateCache.keys().next().value;
@@ -366,7 +393,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const len = batchValues.length;
       if (len === 0) return [];
       const tableName = getTableName(table);
-      const safeTableName = assertSafeSqlIdentifier(tableName, "table");
 
       const synthesizedRows: Record<string, any>[] = [];
       for (let i = 0; i < len; i++) {
@@ -380,35 +406,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const tpl = this._getInsertTemplate(table, tableName, synthesizedRows[0]);
       const numCols = tpl.synthCols.length;
 
-      // Build stable UNNEST statement: parameters are 1 text[] array per column
-      const unnestPlaceholders = tpl.synthCols.map((_, i) => `$${i + 1}::text[]`).join(", ");
-      const selectCols = tpl.synthCols
-        .map((c, i) => {
-          const phys = this.getColumn(table, c);
-          if (tpl.isJsonMap[i]) return `u.c${i}::jsonb`;
-          if (
-            phys?.dataType === "date" ||
-            String((phys as any)?.columnType).includes("Timestamp")
-          ) {
-            return `u.c${i}::timestamptz`;
-          }
-          if (phys?.dataType === "boolean") return `u.c${i}::boolean`;
-          if (phys?.dataType === "number" || String((phys as any)?.columnType).includes("Int")) {
-            return `u.c${i}::numeric`;
-          }
-          return `u.c${i}`;
-        })
-        .join(", ");
-      const uAliasCols = tpl.synthCols.map((_, i) => `c${i}`).join(", ");
-      const colList = tpl.synthCols
-        .map((c) => {
-          const phys = this.getColumn(table, c);
-          return `"${assertSafeSqlIdentifier(phys?.name ?? c, "column")}"`;
-        })
-        .join(", ");
-
-      const sqlText = `INSERT INTO "${safeTableName}" (${colList}) SELECT ${selectCols} FROM UNNEST(${unnestPlaceholders}) AS u(${uAliasCols})`;
-
       const colArrays: unknown[][] = tpl.synthCols.map(() => Array.from({ length: len }));
       for (let r = 0; r < len; r++) {
         const row = synthesizedRows[r];
@@ -421,7 +418,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
       // 🔬 Parity with the single-row `db:ins:stmt` — one mark per statement.
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:ins:stmt") : null;
-      await exec.unsafe(sqlText, colArrays, { prepare: true });
+      await exec.unsafe(tpl.unnestSqlText, colArrays, { prepare: true });
       mStmt?.();
 
       return convertArrayDatesToISO(synthesizedRows, {
@@ -622,6 +619,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       return { size, sqlText };
     });
     this._updateValuesTemplateCache.set(key, templates);
+    if (this._updateValuesTemplateCache.size >= 256) {
+      const oldest = this._updateValuesTemplateCache.keys().next().value;
+      if (oldest !== undefined) this._updateValuesTemplateCache.delete(oldest);
+    }
     return templates;
   }
 
@@ -632,7 +633,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       isJsonMap: boolean[];
       sqlWithReturning: string;
       sqlSkipReturning: string;
-      hasTenant: boolean;
     }
   >();
 
@@ -665,13 +665,13 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     tableName: string,
     columns: string[],
     idColName: string,
-    hasTenant: boolean,
+    tenantSql: string,
     mergeJsonData: boolean,
     fields?: string[] | null,
     skipJson?: boolean,
   ) {
     const fieldsKey = fields && fields.length > 0 ? fields.join(",") : skipJson ? "nojson" : "all";
-    const key = `${tableName}:${idColName}:${hasTenant ? "1" : "0"}:${mergeJsonData ? "m" : "r"}:${columns.join(",")}:${fieldsKey}`;
+    const key = `${tableName}:${idColName}:${tenantSql}:${mergeJsonData ? "m" : "r"}:${columns.join(",")}:${fieldsKey}`;
     let tpl = this._updateTemplateCache.get(key);
     if (!tpl) {
       const isJsonMap: boolean[] = [];
@@ -698,10 +698,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const safeIdCol = assertSafeSqlIdentifier(idColName, "column");
       const safeTable = assertSafeSqlIdentifier(tableName, "table");
       const setSql = setPairs.join(", ");
-      let whereSql = `"${safeIdCol}" = $${idIdx}`;
-      if (hasTenant) {
-        whereSql += ` AND "tenantId" = $${idIdx + 1}`;
-      }
+      const whereSql = `"${safeIdCol}" = $${idIdx}${tenantSql}`;
       let returningClause = "*";
       if (fields && fields.length > 0) {
         // Resolve each requested field to a PHYSICAL column; unresolvable
@@ -712,6 +709,12 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           this.getColumn(t, f),
         );
         if (resolved.length > 0) {
+          // If the caller requested a mix of physical and dynamic (JSONB) fields,
+          // include the physical `data` column so dynamic fields are hydrated.
+          const hasUnresolvedDynamic = fields.some((f) => !this.getColumn(table, f));
+          if (hasUnresolvedDynamic && !resolved.includes("data") && this.getColumn(table, "data")) {
+            resolved.push("data");
+          }
           returningClause = resolved
             .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
             .join(", ");
@@ -735,7 +738,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         isJsonMap,
         sqlWithReturning,
         sqlSkipReturning,
-        hasTenant,
       };
       this._updateTemplateCache.set(key, tpl);
       if (this._updateTemplateCache.size >= 256) {
@@ -758,20 +760,20 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     idCol: any,
     id: DatabaseId,
     options: BaseQueryOptions,
-  ): Promise<T | null> {
+  ): Promise<RawFindResult<T>> {
     const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return null;
+    if (options?.transaction && !txnSql) return RAW_DECLINED;
     const exec = txnSql ?? this.sql!;
+    if (!exec) return RAW_DECLINED;
     try {
       const columns = Object.keys(values);
-      if (columns.length === 0) return null;
+      if (columns.length === 0) return RAW_DECLINED;
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
-      const hasTenant =
-        options?.tenantId !== undefined &&
-        options.tenantId !== null &&
-        options.tenantId !== "global";
+      const tenantClause = buildRawTenantClause(options, "postgres", {
+        paramIndex: columns.length + 2,
+      });
 
       const fieldsOpt = (options as BaseQueryOptions & { fields?: string[] }).fields;
       const fields = Array.isArray(fieldsOpt) && fieldsOpt.length > 0 ? fieldsOpt : null;
@@ -782,7 +784,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         tableName,
         columns,
         idColName,
-        hasTenant,
+        tenantClause.sql,
         getJsonDataPatch(values) !== undefined,
         fields,
         skipJson,
@@ -792,10 +794,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       for (let i = 0; i < columns.length; i++) {
         boundValues.push(bindPgParam(values[columns[i]], tpl.isJsonMap[i]));
       }
-      boundValues.push(String(id));
-      if (hasTenant) {
-        boundValues.push(String(options.tenantId));
-      }
+      boundValues.push(String(id), ...tenantClause.params);
 
       const skipReturning = (options as any)?.skipReturning === true;
 
@@ -828,7 +827,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     } catch (err: any) {
       if (err?.code === "23505") throw err;
       logger.debug(`[PostgreSQL] rawUpdateReturning fallback for ${collection}:`, err);
-      return null;
+      return RAW_DECLINED;
     }
   }
 
@@ -897,11 +896,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     collection: string,
     id: DatabaseId,
     options: import("../db-interface").FindOptions<T>,
-  ): Promise<T | null> {
+  ): Promise<RawFindResult<T>> {
     const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return null;
+    if (options?.transaction && !txnSql) return RAW_DECLINED;
     const exec = txnSql ?? this.sql!;
-    if (!exec) return null;
+    if (!exec) return RAW_DECLINED;
 
     try {
       // Read-path schema registration: raw reads must normalize timestamps to
@@ -981,7 +980,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         skipJson: !wantsData,
       }) as unknown as T;
     } catch {
-      return null;
+      // Declined (SQL error) — the caller may fall back to Drizzle.
+      return RAW_DECLINED;
     }
   }
 
@@ -1276,7 +1276,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       try {
         const table = this.getTable(collection);
         if (!table) throw new Error(`Table not found: ${collection}`);
-        const now = new Date();
+        const now = this.writeNow();
         const len = data.length;
         const batchValues: Record<string, any>[] = Array.from({ length: len });
         for (let i = 0; i < len; i++) {
@@ -2508,12 +2508,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         }
 
         let rows: any[] = [];
-        for (let attempt = 0; attempt < 5 && rows.length === 0; attempt++) {
-          if (attempt > 0) await new Promise((r) => setTimeout(r, 10 * attempt));
+        for (let attempt = 0; attempt < 5; attempt++) {
           try {
             rows = (await this.raw.execute(sqlQuery, params)) || [];
+            break;
           } catch (err: any) {
-            if (err?.message?.includes("too many clients") || err?.code === "53300") {
+            if (
+              attempt < 4 &&
+              (err?.message?.includes("too many clients") || err?.code === "53300")
+            ) {
               await new Promise((r) => setTimeout(r, 20 * (attempt + 1)));
               continue;
             }

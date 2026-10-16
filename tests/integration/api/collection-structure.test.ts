@@ -7,9 +7,9 @@
  * the builder load path depends on.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 import { authGet, expectDenied } from "../helpers/config-http";
 
 describe("Collection structure HTTP (builder dependency)", () => {
@@ -19,10 +19,6 @@ describe("Collection structure HTTP (builder dependency)", () => {
     await waitForServer();
     adminCookie = await prepareAuthenticatedContext();
   }, 120_000);
-
-  afterAll(async () => {
-    await cleanupTestDatabase().catch(() => undefined);
-  });
 
   it("GET /api/collections without auth → 401", async () => {
     const { status } = await authGet("/api/collections");

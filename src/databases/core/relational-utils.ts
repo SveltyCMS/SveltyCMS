@@ -460,10 +460,36 @@ function isPgTimestampString(v: unknown): v is string {
   return PG_TS_RE.test(v);
 }
 
-function pgTimestampToIso(v: string): string {
-  // V8's Date parser requires minute-precision offsets (`+00:00`, not `+00`).
+export function pgTimestampToIso(v: string): string {
+  // Fast zero-Date/zero-regex path for UTC wire strings ("YYYY-MM-DD HH:mm:ss[.f...]+00[:00]")
+  let suffixLen = 0;
+  if (v.endsWith("+00") || v.endsWith("-00")) {
+    suffixLen = 3;
+  } else if (v.endsWith("+00:00") || v.endsWith("-00:00")) {
+    suffixLen = 6;
+  }
+  if (suffixLen > 0 && v.length >= 19 + suffixLen && v[10] === " ") {
+    const bodyLen = v.length - suffixLen;
+    const dateTime = `${v.slice(0, 10)}T${v.slice(11, 19)}`;
+    if (bodyLen === 19) return `${dateTime}.000Z`;
+    if (v[19] === ".") {
+      const fracLen = bodyLen - 20;
+      if (fracLen === 3) return `${dateTime}.${v.slice(20, 23)}Z`;
+      const frac = fracLen < 3 ? v.slice(20, bodyLen).padEnd(3, "0") : v.slice(20, 23);
+      return `${dateTime}.${frac}Z`;
+    }
+  }
+  // Fallback for non-UTC offsets: V8's Date parser requires minute-precision offsets (`+02:00`, not `+02`).
   const withMinuteOffset = v.replace(/[+-]\d{2}$/, (m) => `${m}:00`);
   return new Date(withMinuteOffset.replace(" ", "T")).toISOString();
+}
+
+/**
+ * Normalizes a postgres.js wire text value to ISO 8601 at driver parse time,
+ * allowing `convertDatesToISO` to hit its zero-work fast path on PostgreSQL.
+ */
+export function normalizePgTimestampText(v: unknown): unknown {
+  return isPgTimestampString(v) ? pgTimestampToIso(v) : v;
 }
 
 /**

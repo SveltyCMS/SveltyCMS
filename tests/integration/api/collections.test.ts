@@ -1,83 +1,58 @@
 /**
- * @file tests/bun/api/collections.test.ts
- * @description Integration tests for Collections API.
- * Refactored to use Cookie authentication and ensure test data exists.
+ * @file tests/integration/api/collections.test.ts
+ * @description Integration tests for the Collections API.
+ *
+ * Fixture strategy: the collection is created through the /api/testing
+ * `create-collection` action. The previous approach wrote a
+ * `config/collections/*.ts` file, but the sandbox guard blocks writes outside
+ * `config/test-collections`, so the file never landed and every dynamic
+ * collection test silently skipped with "No collections available".
+ *
+ * These tests hard-fail when the fixture is missing — a green run must mean the
+ * assertions actually executed.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { unlink } from "node:fs/promises";
-import { write } from "bun";
-import { getCollectionDisplayPath, getCollectionFilePath } from "../../../src/utils/tenant.server";
-import { getApiBaseUrl, safeFetch } from "../helpers/server";
-import { initializeTestEnvironment, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { beforeAll, describe, expect, it } from "vitest";
+import {
+  getApiBaseUrl,
+  prepareAuthenticatedContext,
+  safeFetch,
+  testingAction,
+  waitForServer,
+} from "../helpers/server";
 
 const API_BASE_URL = getApiBaseUrl();
 
-// We need a collection to test against. Since CI cleans config/collections,
-// we must ensure one exists.
 const TEST_COLLECTION_NAME = "test_posts";
-// Use tenant path utilities for proper path resolution (defaults to legacy mode for tests)
-const TEST_COLLECTION_PATH = getCollectionFilePath(TEST_COLLECTION_NAME, undefined);
-const TEST_COLLECTION_DISPLAY_PATH = getCollectionDisplayPath(TEST_COLLECTION_NAME, undefined);
-const TEST_COLLECTION_CONFIG = `
-/**
- * @file ${TEST_COLLECTION_DISPLAY_PATH}
- * @description AUTO-GENERATED FILE FOR TESTING PURPOSES.
- * This file is created by tests/bun/api/collections.test.ts and should be automatically removed after tests complete.
- * If found lingering, it is safe to delete.
- */
-import type { Schema } from '@src/content/types';
-export const schema: Schema = {
-	name: '${TEST_COLLECTION_NAME}',
-	slug: '${TEST_COLLECTION_NAME}',
-	fields: [
-		{ name: 'title', label: 'Title', widget: 'text' },
-		{ name: 'content', label: 'Content', widget: 'richtext' },
-		{ name: 'status', label: 'Status', widget: 'text' }
-	]
+const SCHEMA = {
+  _id: TEST_COLLECTION_NAME,
+  name: TEST_COLLECTION_NAME,
+  fields: [
+    { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+    { db_fieldName: "content", label: "Content", widget: { Name: "Input" }, type: "string" },
+    { db_fieldName: "status", label: "Status", widget: { Name: "Input" }, type: "string" },
+  ],
 };
-`;
 
 describe("Collections & Content API", () => {
   let adminCookie: string;
 
-  // 1. Global Setup
+  // Single reset + seed + login for the whole suite. The old per-test
+  // `beforeEach` wiped the DB before every test; isolation now comes from the
+  // distinct payloads below instead of ~12 redundant wipes per run.
   beforeAll(async () => {
-    await initializeTestEnvironment();
-
-    // Create a temporary collection config file so the API isn't empty
-    try {
-      await write(TEST_COLLECTION_PATH, TEST_COLLECTION_CONFIG);
-      // Wait briefly for file watcher/server to pick up the new collection
-      await new Promise((r) => setTimeout(r, 1000));
-    } catch {
-      console.warn(
-        "Could not write test collection config. Tests might fail if no collections exist.",
-      );
-    }
-  });
-
-  // 2. Global Teardown
-  afterAll(async () => {
-    try {
-      await unlink(TEST_COLLECTION_PATH);
-    } catch {
-      // Ignore if file doesn't exist
-    }
-  });
-
-  // 3. Per-Test Isolation (Fresh DB + Login)
-  beforeEach(async () => {
+    await waitForServer();
     adminCookie = await prepareAuthenticatedContext();
+    await testingAction("create-collection", { schema: SCHEMA });
 
-    // Trigger a recompile to ensure the CMS knows about our test collection
-    // This handles cases where hot-reload didn't catch the file write
+    // Ensure the CMS content structure knows about the new collection.
+    // This handles cases where hot-reload did not catch the create-collection call.
     await safeFetch(`${API_BASE_URL}/api/content-structure`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Cookie: adminCookie },
       body: JSON.stringify({ action: "recompile" }),
     });
-  });
+  }, 180_000);
 
   // --- GET ENDPOINTS ---
   const testGetEndpoint = (endpoint: string) => {
@@ -103,7 +78,6 @@ describe("Collections & Content API", () => {
 
   testGetEndpoint("/api/collections?raw=true");
   testGetEndpoint("/api/content-structure?action=getContentStructure");
-  // testGetEndpoint('/api/exportData'); // Often fails if no data exists, enable if needed
 
   // --- SEARCH ---
   describe("GET /api/search", () => {
@@ -134,33 +108,9 @@ describe("Collections & Content API", () => {
   });
 
   // --- CRUD OPERATIONS ---
-  // Note: These tests require a collection to exist in the system.
-  // In CI, collections may not exist, so we test with available collections.
   describe("RESTful Operations (dynamic collection)", () => {
-    let testCollectionId: string | null = null;
-
-    beforeAll(async () => {
-      // Get the first available collection from the system
-      const cookie = await prepareAuthenticatedContext();
-      const response = await safeFetch(`${API_BASE_URL}/api/collections`, {
-        headers: { Cookie: cookie },
-      });
-      if (response.ok) {
-        const result = await response.json();
-        const collections = result.data?.collections || [];
-        if (collections.length > 0) {
-          testCollectionId = collections[0].id;
-        }
-      }
-    });
-
-    it("should create a new entry (if collection exists)", async () => {
-      if (!testCollectionId) {
-        console.log("Skipping: No collections available in test environment");
-        return; // Skip if no collections
-      }
-
-      const response = await safeFetch(`${API_BASE_URL}/api/collections/${testCollectionId}`, {
+    it("should create a new entry", async () => {
+      const response = await safeFetch(`${API_BASE_URL}/api/collections/${TEST_COLLECTION_NAME}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Cookie: adminCookie },
         body: JSON.stringify({
@@ -175,14 +125,9 @@ describe("Collections & Content API", () => {
     });
 
     it("should handle GET on collection endpoint", async () => {
-      if (!testCollectionId) {
-        console.log("Skipping: No collections available in test environment");
-        return; // Skip if no collections
-      }
-
       // Note: GET on /api/collections/[collectionId] may return 405 as it's removed
       // The API comment says "GET removed - use +page.server.ts load()"
-      const response = await safeFetch(`${API_BASE_URL}/api/collections/${testCollectionId}`, {
+      const response = await safeFetch(`${API_BASE_URL}/api/collections/${TEST_COLLECTION_NAME}`, {
         headers: { Cookie: adminCookie },
       });
       // Accept 200, 404, or 405 (method not allowed - GET was removed per API comments)

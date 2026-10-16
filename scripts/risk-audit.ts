@@ -13,25 +13,38 @@
  *                        SvelteKit CSRF/cookie
  *                        config — over the ENTIRE src tree
  *   2. scan-secret-misuse — hardcoded credentials / comparison backdoors
- *   3. slop-scanner     — XSS, RTL, security architecture rules
- *   4. bun audit        — GitHub Advisory DB for the npm dependency tree
- *   5. scan-osv         — OSV.dev global database (GHSA + NVD + 20+ feeds)
+ *   3. slop-scanner      — XSS, RTL, security architecture rules
+ *   4. lint-tenant-api   — AST tenant-isolation hygiene & bypass allowlist
+ *   5. bun audit         — GitHub Advisory DB for the npm dependency tree
+ *   6. scan-osv          — OSV.dev global database (GHSA + NVD + 20+ feeds)
+ *
+ * ### Features:
+ * - Parallel execution across all independent scanners with deterministic output ordering
+ * - Supports `--full` to force full-repo scanning on incremental gates (`scan-secret-misuse`, `lint-tenant-api`)
  *
  * ### Usage
  *   bun run risk:audit         # full risk audit (exit 1 on findings)
+ *   bun run risk:audit --full  # force full non-incremental scans on all gates
  */
 
-import { spawnSync } from "node:child_process";
+const fullFlag = process.argv.includes("--full") || process.argv.includes("--all");
 
 const STEPS: { name: string; args: string[] }[] = [
   {
     name: "🛡️  Global security risk scan (all src)",
     args: ["run", "scripts/scan-security-risk.ts", "--strict"],
   },
-  { name: "🔑  Secret misuse scan", args: ["run", "scripts/scan-secret-misuse.ts", "--strict"] },
+  {
+    name: "🔑  Secret misuse scan",
+    args: ["run", "scripts/scan-secret-misuse.ts", "--strict", ...(fullFlag ? ["--full"] : [])],
+  },
   {
     name: "🧹  Slop scanner (XSS/RTL/security)",
     args: ["run", "scripts/slop-scanner.ts", "--strict"],
+  },
+  {
+    name: "🏢  Tenant isolation API hygiene",
+    args: ["run", "scripts/lint-tenant-api.ts", ...(fullFlag ? ["--full"] : [])],
   },
   { name: "📦  Dependency audit (GitHub Advisory DB)", args: ["audit", "--no-color"] },
   {
@@ -40,16 +53,50 @@ const STEPS: { name: string; args: string[] }[] = [
   },
 ];
 
+interface StepResult {
+  name: string;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  elapsedMs: number;
+}
+
+async function runStep(step: { name: string; args: string[] }): Promise<StepResult> {
+  const start = performance.now();
+  const proc = Bun.spawn(["bun", ...step.args], {
+    cwd: process.cwd(),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return {
+    name: step.name,
+    exitCode,
+    stdout,
+    stderr,
+    elapsedMs: Math.round(performance.now() - start),
+  };
+}
+
+const totalStart = performance.now();
+const results = await Promise.all(STEPS.map(runStep));
+const totalElapsedMs = Math.round(performance.now() - totalStart);
+
 let ok = 0;
-for (const step of STEPS) {
-  process.stdout.write(`\n━━━ ${step.name} ━━━\n\n`);
-  const res = spawnSync("bun", step.args, { stdio: "inherit", cwd: process.cwd() });
-  if (res.status === 0) {
+for (const res of results) {
+  process.stdout.write(`\n━━━ ${res.name} (${res.elapsedMs}ms) ━━━\n\n`);
+  if (res.stdout) process.stdout.write(res.stdout);
+  if (res.stderr) process.stderr.write(res.stderr);
+  if (res.exitCode === 0) {
     ok += 1;
   } else {
-    console.error(`\n❌ ${step.name} failed`);
+    console.error(`\n❌ ${res.name} failed (exit ${res.exitCode})`);
   }
 }
 
-console.log(`\nRisk audit: ${ok}/${STEPS.length} checks passed`);
+console.log(`\nRisk audit: ${ok}/${STEPS.length} checks passed in ${totalElapsedMs}ms`);
 process.exit(ok === STEPS.length ? 0 : 1);

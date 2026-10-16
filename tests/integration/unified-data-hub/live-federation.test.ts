@@ -32,38 +32,41 @@ if (!postgresDockerAvailable) {
     "PostgreSQL Docker container not detected — live federation requires external Postgres fixture";
 }
 
-async function seedHubFixture(rowCount = 100): Promise<boolean> {
-  try {
-    const res = await safeFetch(`${API_BASE_URL}/api/testing`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-test-secret": TEST_API_SECRET,
-        Origin: API_BASE_URL,
-      },
-      body: JSON.stringify({
-        action: "seed-unified-data-hub",
-        fixture: "postgres",
-        rowCount,
-      }),
-    });
+async function seedHubFixture(rowCount = 100): Promise<void> {
+  const res = await safeFetch(`${API_BASE_URL}/api/testing`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-test-secret": TEST_API_SECRET,
+      Origin: API_BASE_URL,
+    },
+    body: JSON.stringify({
+      action: "seed-unified-data-hub",
+      fixture: "postgres",
+      rowCount,
+    }),
+  });
 
-    if (res.status === 503) {
-      const body = await res.json().catch(() => ({}));
-      skipReason = body.message || "External Postgres connector fixture unavailable";
-      return false;
-    }
+  // 503 = the external Postgres fixture is genuinely unreachable (optional infra)
+  // → skip. Any other failure is a CMS-side seed bug and must fail loudly.
+  if (res.status === 503) {
+    const body = await res.json().catch(() => ({}));
+    skipReason = body.message || "External Postgres connector fixture unavailable";
+    return;
+  }
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`seed-unified-data-hub failed: HTTP ${res.status} ${text}`);
-    }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `seed-unified-data-hub (postgres) failed: HTTP ${res.status} ${text.slice(0, 400)}`,
+    );
+  }
 
-    const body = await res.json();
-    return body.success === true;
-  } catch (err) {
-    skipReason = err instanceof Error ? err.message : String(err);
-    return false;
+  const body = await res.json();
+  if (body.success !== true) {
+    throw new Error(
+      `seed-unified-data-hub (postgres) unexpected response: ${JSON.stringify(body).slice(0, 400)}`,
+    );
   }
 }
 
@@ -77,43 +80,28 @@ describe(`Unified Data Hub live federation (CMS: ${CMS_DB_TYPE})`, () => {
   beforeAll(async () => {
     // 1) Seed admin first (full reset+seed) so login never falls back to dummy sessions.
     // 2) Seed hub connectors/schemas without wipe (skipReset login path below).
-    try {
-      adminCookie = await prepareAuthenticatedContext();
-    } catch (err) {
-      fixtureAvailable = false;
-      skipReason = err instanceof Error ? err.message : String(err);
-      console.log(`⏭️ Live federation: admin seed/login failed: ${skipReason}`);
-      return;
-    }
+    adminCookie = await prepareAuthenticatedContext();
 
-    fixtureAvailable = await seedHubFixture(100);
-    if (!fixtureAvailable) {
+    await seedHubFixture(100);
+    if (skipReason) {
       console.log(`⏭️ Live federation fixture unavailable: ${skipReason}`);
       return;
     }
 
-    try {
-      // Re-login after hub seed without wiping UDH rows
-      adminCookie = await prepareAuthenticatedContext({ skipReset: true });
-      if (adminCookie.includes("test-session-")) {
-        fixtureAvailable = false;
-        skipReason = "Auth fell back to dummy test session (admin user missing after hub seed)";
-        return;
-      }
-      const probe = await safeFetch(`${API_BASE_URL}/api/virtual-collections`, {
-        headers: { Cookie: adminCookie },
-      });
-      if (!probe.ok) {
-        fixtureAvailable = false;
-        const body = await probe.text().catch(() => "");
-        skipReason = `UDH not available after seed (HTTP ${probe.status}): ${body.slice(0, 200)}`;
-        console.log(`⏭️ ${skipReason}`);
-      }
-    } catch (err) {
-      fixtureAvailable = false;
-      skipReason = err instanceof Error ? err.message : String(err);
+    // Re-login after hub seed without wiping UDH rows
+    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+    if (adminCookie.includes("test-session-")) {
+      throw new Error("Auth fell back to dummy test session (admin user missing after hub seed)");
     }
-  });
+    const probe = await safeFetch(`${API_BASE_URL}/api/virtual-collections`, {
+      headers: { Cookie: adminCookie },
+    });
+    if (!probe.ok) {
+      const body = await probe.text().catch(() => "");
+      throw new Error(`UDH not available after seed (HTTP ${probe.status}): ${body.slice(0, 200)}`);
+    }
+    fixtureAvailable = true;
+  }, 180_000);
 
   it("lists virtual collection schema after hub seed", async () => {
     if (!fixtureAvailable) {

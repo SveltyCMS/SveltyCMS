@@ -41,7 +41,14 @@ const CSRF_RESULT_TOKEN_REQUIRED = { isValid: false, error: "CSRF token required
 const CSRF_RESULT_TOKEN_INVALID = { isValid: false, error: "Invalid CSRF token" } as const;
 
 function isLoopbackHost(h: string): boolean {
-  return h.startsWith("localhost") || h.startsWith("127.0.0.1") || h.startsWith("[::1]");
+  return (
+    h === "localhost" ||
+    h.startsWith("localhost:") ||
+    h === "127.0.0.1" ||
+    h.startsWith("127.0.0.1:") ||
+    h === "[::1]" ||
+    h.startsWith("[::1]:")
+  );
 }
 
 /**

@@ -43,7 +43,9 @@ describe("Settings API - Get Settings by Group", () => {
 
     if (response.ok) {
       const data = await response.json();
-      expect(typeof data).toBe("object");
+      // GET /api/settings/[group] → { success, values }
+      expect(data.success).toBe(true);
+      expect(typeof data.values).toBe("object");
     }
   });
 
@@ -85,8 +87,9 @@ describe("Settings API - Get Settings by Group", () => {
 
     if (response.ok) {
       const data = await response.json();
-      // Settings should be key-value pairs or structured object
-      expect(typeof data).toBe("object");
+      // Settings groups are key-value pairs under `values`.
+      expect(data.success).toBe(true);
+      expect(typeof data.values).toBe("object");
     }
   });
 });
@@ -127,8 +130,8 @@ describe("Settings API - Update Settings Group", () => {
       }),
     });
 
-    // May accept or reject based on validation
-    expect(response.status).toBeGreaterThanOrEqual(200);
+    // May accept or reject based on validation — but a 5xx must not pass.
+    expect([200, 400, 403, 422]).toContain(response.status);
   });
 
   it("should require admin authentication", async () => {
@@ -177,7 +180,10 @@ describe("Settings API - Public Settings", () => {
     // Public settings endpoint is intentionally unauthenticated
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(typeof data).toBe("object");
+    // GET /api/settings/public → { success, data: <public env> }
+    expect(data.success).toBe(true);
+    expect(typeof data.data).toBe("object");
+    expect(data.data.BASE_LOCALE).toBeDefined();
   });
 
   it("should allow admin access to public settings", async () => {
@@ -188,7 +194,8 @@ describe("Settings API - Public Settings", () => {
     expect([200, 404]).toContain(response.status);
     if (response.ok) {
       const data = await response.json();
-      expect(typeof data).toBe("object");
+      expect(data.success).toBe(true);
+      expect(typeof data.data).toBe("object");
     }
   });
 
@@ -199,11 +206,22 @@ describe("Settings API - Public Settings", () => {
 
     if (response.ok) {
       const data = await response.json();
-
-      // Should not contain sensitive keys
-      expect(data.privateKey).toBeUndefined();
-      expect(data.apiSecret).toBeUndefined();
-      expect(data.databaseUrl).toBeUndefined();
+      // The old `data.privateKey` / `data.apiSecret` checks read keys that live
+      // under `data.data` now, so they were trivially undefined. Scan the whole
+      // serialized payload for secret-bearing names instead.
+      const serialized = JSON.stringify(data).toLowerCase();
+      for (const secret of [
+        "smtppassword",
+        "privatekey",
+        "apisecret",
+        "databaseurl",
+        "jwt_secret_key",
+        "encryption_key",
+        "test_api_secret",
+        "db_password",
+      ]) {
+        expect(serialized).not.toContain(secret);
+      }
     }
   });
 
@@ -214,7 +232,8 @@ describe("Settings API - Public Settings", () => {
 
     if (response.ok) {
       const data = await response.json();
-      expect(data).toBeDefined();
+      expect(data.success).toBe(true);
+      expect(data.data).toBeDefined();
     }
   });
 });
@@ -261,9 +280,9 @@ describe("Settings API - Export System Settings", () => {
 
     if (response.ok) {
       const data = await response.json();
-
-      // Should return settings data structure
-      expect(typeof data).toBe("object");
+      // POST /api/system-settings/export → { success, data: <groups> }
+      expect(data.success).toBe(true);
+      expect(data.data).toBeDefined();
     }
   });
 
@@ -290,9 +309,8 @@ describe("Settings API - Export System Settings", () => {
 
     if (response.ok) {
       const data = await response.json();
-
-      // May have multiple groups
-      expect(typeof data).toBe("object");
+      expect(data.success).toBe(true);
+      expect(data.data).toBeDefined();
     }
   });
 
@@ -429,9 +447,13 @@ describe("Settings API - User Preferences", () => {
 
     expect([200, 404]).toContain(response.status);
 
+    const data = await response.json();
+    // The not-found case is the standard error envelope, not an empty body.
     if (response.ok) {
-      const data = await response.json();
-      expect(typeof data).toBe("object");
+      expect(data.success).toBe(true);
+    } else {
+      expect(data.success).toBe(false);
+      expect(typeof data.message).toBe("string");
     }
   });
 
@@ -465,11 +487,10 @@ describe("Settings API - User Preferences", () => {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      // Should be user-specific
-      expect(typeof data).toBe("object");
-    }
+    const data = await response.json();
+    // Envelope invariant: the success flag must agree with the HTTP status.
+    expect(data.success).toBe(response.ok);
+    expect(typeof data).toBe("object");
   });
 });
 
@@ -483,13 +504,19 @@ describe("Settings API - Multi-Tenant Support", () => {
     expect([200, 404]).toContain(response.status);
   });
 
-  it("should prevent cross-tenant setting access", async () => {
-    // This would require multiple tenants to test properly
-    // Validates endpoint exists and has auth
-    const response = await safeFetch(`${BASE_URL}/api/settings/general`, {
+  it("denies unauthenticated setting access (fail-closed boundary)", async () => {
+    // A true cross-tenant probe needs a second tenant; what is testable here is the
+    // fail-closed boundary. The old `expect(status).toBeGreaterThanOrEqual(200)`
+    // passed for ANY status, including 500.
+    const unauth = await safeFetch(`${BASE_URL}/api/settings/general`, {
+      headers: { Origin: BASE_URL },
+      skipTestSecret: true,
+    });
+    expect([401, 403]).toContain(unauth.status);
+
+    const authed = await safeFetch(`${BASE_URL}/api/settings/general`, {
       headers: { Cookie: authCookie, Origin: BASE_URL },
     });
-
-    expect(response.status).toBeGreaterThanOrEqual(200);
+    expect([200, 404]).toContain(authed.status);
   });
 });

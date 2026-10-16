@@ -287,6 +287,110 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
     expect(wireParsed.data.views).toBe(42);
   });
 
+  it("soft-deleted rows are hidden by findById/findOne and the public wire plane", async () => {
+    if (!db) return;
+    const wire = requireWireMethods(db.crud, ENGINE);
+    const id = generateUUID() as any as DatabaseId;
+    await db.crud.insert(
+      COLLECTION,
+      { _id: id, title: "soft_deleted", views: 1, tenantId: TENANT } as any,
+      { tenantId: TENANT } as any,
+    );
+
+    // Soft delete (no `permanent: true`) — sets isDeleted = true, leaves status alone.
+    const del = await db.crud.delete(COLLECTION, id, { tenantId: TENANT } as any);
+    expect(del.success).toBe(true);
+
+    // Point reads must hide the row …
+    expect(
+      unwrapResult(await db.crud.findById(COLLECTION, id, { tenantId: TENANT } as any)),
+    ).toBeNull();
+    expect(
+      unwrapResult(
+        await db.crud.findOne(COLLECTION, { _id: id } as any, { tenantId: TENANT } as any),
+      ),
+    ).toBeNull();
+
+    // … the public Direct-to-Wire plane must not serve it (definitive miss).
+    const wireRes = await wire.findPointWireStream(COLLECTION, id, { tenantId: TENANT });
+    expect(wireRes.success).toBe(false);
+    if (!wireRes.success) expect(wireRes.error.code).toBe("RECORD_NOT_FOUND");
+
+    // … and `includeDeleted` is the documented opt-in.
+    const withDeleted = unwrapResult(
+      await db.crud.findById(COLLECTION, id, { tenantId: TENANT, includeDeleted: true } as any),
+    );
+    expect((withDeleted as { _id?: unknown } | null)?._id).toBe(id);
+  });
+
+  it("soft-deleted rows are hidden by findMany/findByIds/count/exists/findPage", async () => {
+    if (!db) return;
+    const tag = `soft_list_${generateUUID().slice(0, 8)}`;
+    const id = generateUUID() as any as DatabaseId;
+    await db.crud.insert(
+      COLLECTION,
+      { _id: id, title: tag, views: 3, tenantId: TENANT } as any,
+      { tenantId: TENANT } as any,
+    );
+    const del = await db.crud.delete(COLLECTION, id, { tenantId: TENANT } as any);
+    expect(del.success).toBe(true);
+
+    // List + aggregate reads must all hide the row by default.
+    const many = unwrapResult(
+      await db.crud.findMany(COLLECTION, { title: tag } as any, { tenantId: TENANT } as any),
+    ) as Array<{ _id: unknown }>;
+    expect(many).toEqual([]);
+
+    const byIds = unwrapResult(
+      await db.crud.findByIds(COLLECTION, [id] as any, { tenantId: TENANT } as any),
+    ) as Array<{ _id: unknown }>;
+    expect(byIds).toEqual([]);
+
+    const count = unwrapResult(
+      await db.crud.count(
+        COLLECTION,
+        { title: tag } as any,
+        {
+          tenantId: TENANT,
+          mode: "exact",
+        } as any,
+      ),
+    );
+    expect(count).toBe(0);
+
+    const exists = unwrapResult(
+      await db.crud.exists(COLLECTION, { title: tag } as any, { tenantId: TENANT } as any),
+    );
+    expect(exists).toBe(false);
+
+    const page = unwrapResult(
+      await db.crud.findPage(
+        COLLECTION,
+        { title: tag } as any,
+        {
+          tenantId: TENANT,
+          limit: 10,
+          total: "exact",
+        } as any,
+      ),
+    ) as { items: Array<{ _id: unknown }>; total?: number };
+    expect(page.items).toEqual([]);
+    expect(page.total).toBe(0);
+
+    // The trash view queries the deleted set explicitly — clamp must not win.
+    const trash = unwrapResult(
+      await db.crud.findMany(
+        COLLECTION,
+        { isDeleted: true, title: tag } as any,
+        {
+          tenantId: TENANT,
+          includeDeleted: true,
+        } as any,
+      ),
+    ) as Array<{ _id: unknown }>;
+    expect(trash.map((r) => r._id)).toEqual([id]);
+  });
+
   it("wire plane keeps materialized columns and explicit nulls", async () => {
     if (!db) return;
     const wire = requireWireMethods(db.crud, ENGINE);

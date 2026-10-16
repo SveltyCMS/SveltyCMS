@@ -59,6 +59,8 @@ export class SqliteWireStreamEngine {
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
+      // 🔒 Soft-delete clamp for the public wire plane (see findPointWireStream).
+      const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
       const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
 
       let cachedWireSql = this._pointSqlCache.get(table);
@@ -84,15 +86,16 @@ export class SqliteWireStreamEngine {
         const dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
         const selectPrefix = `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
 
+        const del = hasDeletedCol ? ` AND "isDeleted" = 0` : "";
         cachedWireSql = {
           selectPrefix,
-          base: `${selectPrefix} WHERE "_id" = ? LIMIT 1`,
-          tenant: `${selectPrefix} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
+          base: `${selectPrefix} WHERE "_id" = ?${del} LIMIT 1`,
+          tenant: `${selectPrefix} WHERE "_id" = ? AND "tenantId" = ?${del} LIMIT 1`,
           basePub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published')${del} LIMIT 1`
             : null,
           tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" = ? LIMIT 1`
+            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" = ?${del} LIMIT 1`
             : null,
         };
         this._pointSqlCache.set(table, cachedWireSql);
@@ -112,7 +115,8 @@ export class SqliteWireStreamEngine {
         params = [String(id)];
       } else {
         const publishedSql = wantPublished ? ` AND "status" = 'publish'` : "";
-        sqlText = `${cachedWireSql.selectPrefix} WHERE "_id" = ?${tenantSql}${publishedSql} LIMIT 1`;
+        const deletedSql = hasDeletedCol ? ` AND "isDeleted" = 0` : "";
+        sqlText = `${cachedWireSql.selectPrefix} WHERE "_id" = ?${tenantSql}${publishedSql}${deletedSql} LIMIT 1`;
         params = [String(id), ...tenantParams];
       }
 
@@ -184,6 +188,7 @@ export class SqliteWireStreamEngine {
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "0";
+      const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
       const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
 
       let tableCache = this._listSqlCache.get(table);
@@ -243,12 +248,15 @@ export class SqliteWireStreamEngine {
           FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause});
         `;
 
+        const delOnly = hasDeletedCol ? `"isDeleted" = 0` : "";
+        const delAnd = hasDeletedCol ? ` AND "isDeleted" = 0` : "";
+        const andDel = (s: string) => (s ? `${s}${delAnd}` : delOnly);
         cachedWireSql = {
-          base: wrap(""),
-          tenant: wrap(`"tenantId" = ?`),
-          basePub: hasStatusCol ? wrap(`"status" IN ('publish', 'published')`) : null,
+          base: wrap(andDel("")),
+          tenant: wrap(andDel(`"tenantId" = ?`)),
+          basePub: hasStatusCol ? wrap(andDel(`"status" IN ('publish', 'published')`)) : null,
           tenantPub: hasStatusCol
-            ? wrap(`"status" IN ('publish', 'published') AND "tenantId" = ?`)
+            ? wrap(andDel(`"status" IN ('publish', 'published') AND "tenantId" = ?`))
             : null,
         };
         tableCache.set(cacheKey, cachedWireSql);

@@ -23,7 +23,7 @@
  * build is auto-rebuilt locally (CI fails closed so artifact bugs surface).
  */
 import { spawn, execSync, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, createWriteStream, type WriteStream } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import * as v from "valibot";
@@ -43,6 +43,10 @@ import {
 
 const ROOT = join(import.meta.dirname, "..");
 const entryPoint = join(ROOT, "build", "index.js");
+/** Preview server stdout/stderr is mirrored here so CI can upload it as an artifact. */
+const PREVIEW_LOG_PATH = join(ROOT, "preview.log");
+/** Opened in phaseSetup, closed in phaseCleanup. */
+let previewLogStream: WriteStream | null = null;
 /** GitHub Actions / CI_QUIET: compact test output (failures + summary only). */
 const isCIQuiet =
   process.env.CI === "true" ||
@@ -280,22 +284,35 @@ function resolveChangedTestPaths(baseRef: string): string[] {
   let mergeBase = "";
   try {
     mergeBase = execSync("git merge-base HEAD origin/next", { encoding: "utf8", cwd: ROOT }).trim();
-  } catch {
-    /* ok */
+  } catch (err: any) {
+    // origin/next may not exist locally; fall back to the caller's base ref.
+    console.warn(
+      `ℹ️  git merge-base HEAD origin/next unavailable (${err?.message?.split("\n")[0] ?? err}); using --diff-base.`,
+    );
   }
   const base = mergeBase || baseRef;
   gitOps.push(["git", "diff", "--name-only", "--diff-filter=ACMR", `${base}...HEAD`]);
 
+  let gitErrors = 0;
   for (const [cmd, ...args] of gitOps) {
     try {
       addUnique(execSync([cmd, ...args].join(" "), { encoding: "utf8", cwd: ROOT }));
-    } catch {
-      /* ok */
+    } catch (err: any) {
+      gitErrors++;
+      console.warn(`⚠️  git ${args.join(" ")} failed: ${err?.message?.split("\n")[0] ?? err}`);
     }
   }
 
   if (changedFiles.length === 0) {
-    console.log("ℹ️  No changed files detected.");
+    if (gitErrors > 0) {
+      // A diff run that silently selects nothing reports green while testing zero
+      // files — surface it instead of pretending the tree is clean.
+      console.warn(
+        `⚠️  No changed files detected, but ${gitErrors} git command(s) failed — diff detection is unreliable. Re-run without --diff.`,
+      );
+    } else {
+      console.log("ℹ️  No changed files detected.");
+    }
     return [];
   }
 
@@ -611,8 +628,17 @@ async function phaseSetup(ctx: ValidatedContext): Promise<{
     shell: false,
   });
 
+  previewLogStream = createWriteStream(PREVIEW_LOG_PATH, { flags: "w" });
+  previewLogStream.on("error", () => {
+    previewLogStream = null;
+  });
+
   const pushLog = (chunk: Buffer | string, stream: "stdout" | "stderr") => {
     const text = typeof chunk === "string" ? chunk : chunk.toString();
+    // Mirror the real preview output to preview.log — the old in-memory ring buffer
+    // dropped everything but the last 40 lines, so the CI "Upload Logs" step had
+    // nothing to upload and a failed run lost its server-side evidence.
+    previewLogStream?.write(text);
     if (!isCIQuiet) {
       if (stream === "stderr") process.stderr.write(`[srv] ${text}`);
       else process.stdout.write(`[srv] ${text}`);
@@ -680,7 +706,8 @@ async function phaseRun(
   };
 
   if (!isCIQuiet) {
-    console.log(`   TEST_API_SECRET pinned → len=${ctx.secrets.testApiSecret.length}`);
+    // Only the length is printed — never the value.
+    console.log(`   test-api secret pinned → len=${ctx.secrets.testApiSecret.length}`);
   }
 
   // Quiet CI: hide passing tests (bun still prints failure details + final tally).
@@ -749,6 +776,10 @@ async function phaseCleanup(
   serverExit.expected = true;
   await stopChildProcessTree(null, { label: "bun test", graceMs: 400 });
   await stopChildProcessTree(server, { label: "preview", graceMs: 800 });
+  if (previewLogStream) {
+    await new Promise<void>((resolve) => previewLogStream?.end(resolve));
+    previewLogStream = null;
+  }
   await sleep(200);
   try {
     await ensurePortAvailable(ctx.port, ctx.apiBaseUrl);

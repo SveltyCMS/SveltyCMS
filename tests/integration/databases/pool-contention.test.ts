@@ -52,9 +52,10 @@ describe("Database Connection Pool & Mutex Contention", () => {
         await (db as any).provision();
       }
     } catch (err: unknown) {
+      // Rethrow: a swallowed setup failure left `db = null` so every test in the
+      // suite returned early and the run stayed green without testing anything.
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[Pool Contention Test] DB setup skipped/failed: ${msg}`);
-      db = null;
+      throw new Error(`[Pool Contention Test] DB setup failed: ${msg}`);
     }
   }, 60_000);
 
@@ -71,8 +72,7 @@ describe("Database Connection Pool & Mutex Contention", () => {
 
   it("handles concurrent background worker jobs and foreground writes without lock deadlocks or pool exhaustion", async () => {
     if (!db || !db.isConnected()) {
-      console.warn("[Pool Contention Test] Skipping: database not connected");
-      return;
+      throw new Error("[Pool Contention Test] database not connected — cannot exercise contention");
     }
 
     const testCollection = "system_preferences";

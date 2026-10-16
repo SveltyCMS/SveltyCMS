@@ -37,7 +37,7 @@ vi.mock("svelte", () => ({
 (globalThis as any).$derived = (v: any) => v;
 (globalThis as any).$effect = () => {};
 
-import type { DatabaseId, DatabaseResult, IDBAdapter } from "../../../src/databases/db-interface";
+import type { DatabaseId, IDBAdapter } from "../../../src/databases/db-interface";
 import { requireWireMethods, unwrapResult } from "./wire-contract";
 
 function normalizeStoredValue(value: any) {
@@ -361,43 +361,25 @@ describe("Database Interface Contract Tests", () => {
   });
 
   describe("DatabaseResult Contract", () => {
-    it("should return success result with data", () => {
-      const successResult: DatabaseResult<string> = {
-        success: true,
-        data: "test-data",
-      };
+    it("live adapter calls return a well-formed DatabaseResult envelope", async () => {
+      if (!db) throw new Error("Database not initialized");
 
-      expect(successResult.success).toBe(true);
-      expect(successResult.data).toBe("test-data");
-    });
+      // Previously these were literals asserted against themselves — true by
+      // construction. Assert the real envelope shape instead.
+      const ok = await db.getVersion();
+      expect(typeof ok.success).toBe("boolean");
+      if (ok.success) {
+        expect(ok.data).toBeDefined();
+      } else {
+        expect(ok.error?.code ?? ok.message).toBeTruthy();
+      }
 
-    it("should return failure result with error", () => {
-      const failureResult: DatabaseResult<string> = {
-        success: false,
-        message: "Operation failed",
-        error: {
-          code: "TEST_ERROR",
-          message: "Test error message",
-        },
-      };
-
-      expect(failureResult.success).toBe(false);
-      expect((failureResult as any).error.code).toBe("TEST_ERROR");
-      expect((failureResult as any).error.message).toBe("Test error message");
-    });
-
-    it("should include optional metadata in success result", () => {
-      const resultWithMeta: DatabaseResult<string> = {
-        success: true,
-        data: "test",
-        meta: {
-          executionTime: 100,
-          cached: false,
-        },
-      };
-
-      expect(resultWithMeta.meta?.executionTime).toBe(100);
-      expect(resultWithMeta.meta?.cached).toBe(false);
+      // A miss is still a success envelope with null data (never a thrown error).
+      const miss = await db.crud.findOne("system_preferences", {
+        _id: "__definitely_missing__" as DatabaseId,
+      });
+      expect(miss.success).toBe(true);
+      expect(miss.data ?? null).toBeNull();
     });
   });
 

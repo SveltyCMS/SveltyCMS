@@ -5,7 +5,7 @@
  * Tests focus on authentication, authorization, and request validation.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
 import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
 
@@ -27,17 +27,14 @@ function createValidPngBlob(): Blob {
 describe("Media API Endpoints", () => {
   let authCookie: string;
 
+  // Single reset + admin session for the whole suite (was a per-test wipe).
   beforeAll(async () => {
     await waitForServer();
-  });
+    authCookie = await prepareAuthenticatedContext();
+  }, 120_000);
 
   afterAll(async () => {
     await cleanupTestDatabase();
-  });
-
-  // Before each test, get a fresh admin session
-  beforeEach(async () => {
-    authCookie = await prepareAuthenticatedContext();
   });
 
   describe("GET /api/media/exists", () => {

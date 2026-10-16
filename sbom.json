@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:0408f943-d2fb-42c3-a0b7-8988696ce722",
+  "serialNumber": "urn:uuid:6aa52478-42dc-4b18-b0dd-ed906406faa7",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-16T14:17:43.540Z",
+    "timestamp": "2026-10-16T17:55:56.632Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -7679,13 +7679,13 @@
     {
       "type": "library",
       "name": "resend",
-      "version": "6.33.0",
-      "purl": "pkg:npm/resend@6.33.0",
+      "version": "6.34.1",
+      "purl": "pkg:npm/resend@6.34.1",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-sbpWLrwlaIDZuGHRYNX6101CWtXLqRNcT1S9c8BB357Ab2+IUJ7dNpYffVmGh2C11/4AfcFvM4ltURH8NJlPGw=="
+          "content": "sha512-3jo/j1WAW7CBkE6pzK4qLjZCfHRLIhY3ph3x/wzU+MN51cSw3EtReGce8S1cA1R0ipNDOdFYU5Lmt5r563lvYw=="
         }
       ]
     },

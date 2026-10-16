@@ -100,15 +100,11 @@ describe("Cache Contract — TTL Enforcement", () => {
   }, 5000);
 });
 
-describe("Cache Contract — Tags & Invalidation", () => {
-  // clearByTags is not accessible on the imported cacheService instance
-  // in the test context (likely a module-level interception). Tag behavior
-  // is validated indirectly via the benchmark sanitizer and adapter parity tests.
-  it("tag invalidation is tested at benchmark and adapter parity level", () => {
-    // Placeholder — actual tag invalidation is tested in benchmarks
-    expect(true).toBe(true);
-  });
-});
+// Cache Contract — Tags & Invalidation:
+// `clearByTags` is not reachable on the imported cacheService instance in this
+// context (module-level interception), so tag invalidation is covered by the
+// benchmark sanitizer and the adapter-parity suite instead of a placeholder test
+// here (the removed `expect(true).toBe(true)` asserted nothing).
 
 describe("Cache Contract — Tenant Isolation", () => {
   const KEY = "cache-contract:tenant-test:" + Date.now();

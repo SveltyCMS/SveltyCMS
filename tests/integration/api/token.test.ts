@@ -9,9 +9,9 @@
  * without mocking internal dependencies.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -22,11 +22,9 @@ describe("Token API Endpoints", () => {
     await waitForServer();
   });
 
-  afterAll(async () => {
-    await cleanupTestDatabase();
-  });
-
-  // Before each test, clean the DB and get a fresh admin session
+  // Per-test reset is load-bearing here: it also resets the rate limiters, and
+  // this suite deliberately creates many tokens (`create-token` is capped at
+  // 5/min). Without the wipe the later describes get 429s instead of tokens.
   beforeEach(async () => {
     authCookie = await prepareAuthenticatedContext();
   });

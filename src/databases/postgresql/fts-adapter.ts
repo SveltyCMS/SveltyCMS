@@ -150,8 +150,9 @@ export class PostgresFtsAdapter implements IFtsAdapter {
 
       // Build GIN index concurrently on existing populated tables without holding pool connections
       if (core._rawConnectionConfig && typeof postgres === "function") {
+        const { onclose: _onclose, ...baseOptions } = core._rawConnectionConfig.options ?? {};
         client = postgres(core._rawConnectionConfig.finalConnection, {
-          ...core._rawConnectionConfig.options,
+          ...baseOptions,
           max: 1,
           idle_timeout: 10,
         });
