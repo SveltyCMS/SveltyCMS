@@ -14,6 +14,8 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -102,9 +104,15 @@
 	let activeTab = $state('default');
 
 	const tabDefs = [
-		{ id: 'default', label: 'Default', icon: 'mdi:text-box-outline' },
-		{ id: 'settings', label: 'Settings', icon: 'mdi:tune' },
-		{ id: 'permissions', label: 'Permissions', icon: 'mdi:shield-lock-outline' }
+		// shortLabel keeps a visible name on phones (Tabs hides `label` below md)
+		{ id: 'default', label: 'Default', shortLabel: 'Default', icon: 'mdi:text-box-outline' },
+		{ id: 'settings', label: 'Settings', shortLabel: 'Settings', icon: 'mdi:tune' },
+		{
+			id: 'permissions',
+			label: 'Permissions',
+			shortLabel: 'Permissions',
+			icon: 'mdi:shield-lock-outline'
+		}
 	];
 
 	// --- Local working copy (seed immediately so first paint is not empty for E2E) ---
@@ -296,7 +304,8 @@
 </script>
 
 {#if local}
-	<div class="flex w-full flex-col">
+	<!-- Fixed width: the dialog sizes to its content, so tabs would otherwise resize it -->
+	<div class="flex w-full flex-col md:w-[min(56rem,calc(100vw-4rem))]">
 		<!-- Header: one title with the field identity beneath it -->
 		<div class="flex items-center gap-3 border-b border-(--admin-border-default) py-4 ps-6 pe-4">
 			<div
@@ -471,11 +480,15 @@
 								</p>
 								<p class="text-xs text-(--admin-text-muted)">{widget_form_required_hint()}</p>
 							</div>
-							<input
-								type="checkbox"
-								aria-label={widget_form_required_aria()}
-								bind:checked={local.required}
-								class="size-5 shrink-0 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+							<!-- No bind: Toggle's `value` has a fallback, so binding an unset field would throw -->
+							<Toggle
+								size="sm"
+								ariaLabel={widget_form_required_aria()}
+								value={!!local.required}
+								onToggle={(v: boolean) => {
+									local.required = v;
+								}}
+								class="shrink-0"
 							/>
 						</div>
 
@@ -488,12 +501,15 @@
 								</p>
 								<p class="text-xs text-(--admin-text-muted)">{widget_form_translated_hint()}</p>
 							</div>
-							<input
-								type="checkbox"
-								aria-label={widget_form_translated_aria()}
+							<Toggle
+								size="sm"
+								ariaLabel={widget_form_translated_aria()}
 								data-testid="widget-field-translated"
-								bind:checked={local.translated}
-								class="size-5 shrink-0 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+								value={!!local.translated}
+								onToggle={(v: boolean) => {
+									local.translated = v;
+								}}
+								class="shrink-0"
 							/>
 						</div>
 					</div>
@@ -567,26 +583,25 @@
 						</div>
 
 						<!-- Require auth -->
-						<label
-							class="flex cursor-pointer flex-col gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-4"
+						<div
+							class="flex flex-col gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-4"
 						>
-							<span class="flex min-h-10 items-center justify-between gap-3">
-								<span class="text-sm font-semibold text-(--admin-text-body)"
-									>{widget_form_require_auth()}</span
-								>
-								<input
-									type="checkbox"
-									aria-label={widget_form_require_auth_aria()}
-									class="size-5 shrink-0 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
-									checked={localPerms.requiredAuth}
-									onchange={(e) =>
-										updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
+							<div class="flex min-h-10 items-center justify-between gap-3">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_require_auth()}
+								</p>
+								<Toggle
+									size="sm"
+									ariaLabel={widget_form_require_auth_aria()}
+									value={localPerms.requiredAuth}
+									onToggle={(v: boolean) => updatePerms({ requiredAuth: v })}
+									class="shrink-0"
 								/>
-							</span>
-							<span class="text-xs text-(--admin-text-muted)">
+							</div>
+							<p class="text-xs text-(--admin-text-muted)">
 								{widget_form_require_auth_hint()}
-							</span>
-						</label>
+							</p>
+						</div>
 					</div>
 
 					<!-- Role matrix -->
@@ -623,22 +638,24 @@
 												<td class="h-12 truncate px-4 text-(--admin-text-body)">
 													{role.name ?? role._id}
 												</td>
-												<td class="px-4 text-center">
-													<input
-														type="checkbox"
-														aria-label={`View permission for ${role.name ?? role._id}`}
+												<td class="px-4">
+													<Checkbox
+														size="sm"
+														hideLabel
+														label={`View permission for ${role.name ?? role._id}`}
 														checked={localPerms.readRoles.includes(role._id)}
 														onchange={() => toggleRoleView(role._id)}
-														class="size-5 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+														class="items-center"
 													/>
 												</td>
-												<td class="px-4 text-center">
-													<input
-														type="checkbox"
-														aria-label={`Edit permission for ${role.name ?? role._id}`}
+												<td class="px-4">
+													<Checkbox
+														size="sm"
+														hideLabel
+														label={`Edit permission for ${role.name ?? role._id}`}
 														checked={localPerms.writeRoles.includes(role._id)}
 														onchange={() => toggleRoleEdit(role._id)}
-														class="size-5 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-800 dark:text-primary-500 dark:focus:ring-primary-500"
+														class="items-center"
 													/>
 												</td>
 											</tr>
