@@ -1076,7 +1076,7 @@
 											aria-label={row.blocked
 												? useradmin_click_unblock_user()
 												: useradmin_click_block_user()}
-											class="cursor-pointer"
+											class="cursor-pointer rounded focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:outline-none"
 										>
 											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
 												{row.blocked ? useradmin_blocked() : useradmin_active()}
@@ -1092,7 +1092,7 @@
 											aria-label={row.blocked
 												? useradmin_click_unblock_token()
 												: useradmin_click_block_token()}
-											class="cursor-pointer"
+											class="cursor-pointer rounded focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:outline-none"
 										>
 											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
 												{row.blocked ? useradmin_blocked() : useradmin_active()}

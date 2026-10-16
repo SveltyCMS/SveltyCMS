@@ -899,7 +899,7 @@
 	{#if showSource}
 		<textarea
 			aria-label={widget_rt_image_alt()}
-			class="w-full min-h-48 p-3 font-mono text-sm bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none"
+			class="w-full min-h-48 p-3 font-mono text-sm bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-gray-200 border-none resize-y outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
 			value={editor?.getHTML() || ''}
 			oninput={(e) => {
 				const content = (e.target as HTMLTextAreaElement).value;
