@@ -83,8 +83,9 @@
 			: ''} overflow-x-auto overflow-y-clip"
 	>
 		{#each tabs as tab, i (tab.id)}
+			<!-- Underline tabs are chrome-free; `ghost` paints a dark-mode fill behind each tab -->
 			<Button
-				variant="ghost"
+				variant={variant === 'underline' ? 'transparent' : 'ghost'}
 				role="tab"
 				aria-selected={activeTab === tab.id}
 				aria-controls="tabpanel-{tab.id}"
