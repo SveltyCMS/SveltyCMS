@@ -264,7 +264,7 @@ async loading, grouped options, configurable debounce, and clearable selection.
 
 <div class={cn('relative w-full space-y-1.5', className)}>
 	{#if label}
-		<label for={id} class="block text-sm font-bold text-surface-600 dark:text-surface-400 ms-1">
+		<label for={id} class="block text-sm font-bold text-(--admin-text-muted) ms-1">
 			{label}
 		</label>
 	{/if}
@@ -339,7 +339,7 @@ async loading, grouped options, configurable debounce, and clearable selection.
 			bind:this={listElement}
 			id={`${id}-listbox`}
 			role="listbox"
-			class="absolute z-50 w-full mt-0 border border-t-0 rounded-b-xl shadow-2xl bg-white dark:bg-surface-800 border-surface-500/30 dark:border-surface-500/40 max-h-60 overflow-y-auto"
+			class="absolute z-50 w-full mt-0 border border-t-0 rounded-b-xl shadow-2xl bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-500/40 max-h-60 overflow-y-auto"
 			transition:slide={{ duration: 150 }}
 		>
 			<!-- Loading state -->
@@ -353,7 +353,7 @@ async loading, grouped options, configurable debounce, and clearable selection.
 			{:else if groupedOptions && groupBy}
 				{#each groupedOptions as group (group.name)}
 					<div
-						class="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-surface-400 dark:text-surface-500 bg-surface-500/10 dark:bg-surface-900/50 border-b border-surface-100 dark:border-surface-500/40"
+						class="px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-(--admin-text-muted) bg-surface-500/10 dark:bg-surface-900/50 border-b border-surface-100 dark:border-surface-500/40"
 						role="presentation"
 					>
 						{group.name}

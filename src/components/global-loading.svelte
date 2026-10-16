@@ -214,7 +214,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			<!-- Top text -->
 			<p
 				id="loading-title"
-				class="text-sm font-medium uppercase tracking-wide text-gray-900 dark:text-white"
+				class="text-sm font-medium uppercase tracking-wide text-(--admin-text-body)"
 			>
 				{loadingText.top}
 			</p>
@@ -228,7 +228,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			</div>
 
 			<!-- Bottom text -->
-			<p id="loading-description" class="text-xs uppercase text-gray-700 dark:text-gray-300">
+			<p id="loading-description" class="text-xs uppercase text-(--admin-text-body)">
 				{loadingText.bottom}
 			</p>
 
@@ -236,7 +236,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			{#if hasProgress}
 				<div class="w-full" transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}>
 					<div class="mb-1 flex items-center justify-between text-xs">
-						<span class="text-gray-600 dark:text-gray-400">Progress</span>
+						<span class="text-(--admin-text-muted)">Progress</span>
 						<span class="font-medium text-tertiary-500 dark:text-primary-500"
 							>{Math.round(progress!)}%</span
 						>
@@ -259,7 +259,7 @@ Full-screen loading overlay with contextual messages, progress indication, and a
 			<!-- Elapsed time (after 3 seconds) -->
 			{#if elapsedTime > 3000}
 				<div
-					class="text-xs text-gray-500 dark:text-gray-400"
+					class="text-xs text-(--admin-text-muted)"
 					transition:fade={{ duration: prefersReducedMotion ? 0 : 200 }}
 				>
 					Elapsed: {formatElapsedTime(elapsedTime)}

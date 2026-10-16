@@ -65,7 +65,7 @@ pathname, collection, isAdmin).
 	{#each entries as entry (entry.id)}
 		<div class={inline ? 'contents' : 'admin-zone-item'}>
 			{#await componentLoader(entry)}
-				<div class="h-16 w-full animate-pulse rounded bg-surface-500/10 dark:bg-surface-800"></div>
+				<div class="h-16 w-full animate-pulse rounded bg-(--admin-bg-card)"></div>
 			{:then Component}
 				{#if 'default' in Component}
 					<Component.default {...entry.props} {...context} />

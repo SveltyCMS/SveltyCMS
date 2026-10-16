@@ -648,7 +648,7 @@
 											{#if btn.label === 'Table'}
 												<div class="p-2 w-48">
 													<div
-														class="mb-2 text-xs font-medium text-surface-500 dark:text-surface-400 text-center"
+														class="mb-2 text-xs font-medium text-(--admin-text-muted) text-center"
 													>
 														{hoverRows || 1}
 														x {hoverCols || 1}

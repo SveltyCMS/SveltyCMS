@@ -274,9 +274,7 @@
 									aria-pressed={isSelected}
 									aria-label={`Select ${file.filename}`}
 								>
-									<div
-										class="relative h-50 w-full overflow-hidden bg-surface-500/10 dark:bg-surface-800 sm:h-60"
-									>
+									<div class="relative h-50 w-full overflow-hidden bg-(--admin-bg-card) sm:h-60">
 										{#if getPreviewUrl(file)}
 											<img
 												src={getPreviewUrl(file)}
@@ -318,14 +316,12 @@
 										class="relative flex flex-1 flex-col gap-1 border-t border-surface-100 bg-white p-3 dark:border-surface-500/40 dark:bg-surface-900"
 									>
 										<div
-											class="truncate text-xs font-semibold text-surface-900 dark:text-surface-100"
+											class="truncate text-xs font-semibold text-(--admin-text-body)"
 											title={file.filename}
 										>
 											{file.filename}
 										</div>
-										<div
-											class="flex items-center gap-2 text-[10px] text-surface-500 dark:text-surface-400"
-										>
+										<div class="flex items-center gap-2 text-[10px] text-(--admin-text-muted)">
 											<span class="font-mono"
 												>{(file as any).size
 													? `${Math.round((file as any).size / 1024)} KB`

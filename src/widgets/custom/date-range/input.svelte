@@ -112,8 +112,7 @@ Part of the Three Pillars Architecture for widget system.
 		<div class="flex-1">
 			<label
 				for={`${field.db_fieldName}_start`}
-				class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1"
-				>{common_start()}</label
+				class="block text-sm font-medium text-(--admin-text-muted) mb-1">{common_start()}</label
 			>
 			<div
 				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
@@ -136,8 +135,7 @@ Part of the Three Pillars Architecture for widget system.
 		<div class="flex-1">
 			<label
 				for={`${field.db_fieldName}_end`}
-				class="block text-sm font-medium text-surface-600 dark:text-surface-400 mb-1"
-				>{common_end()}</label
+				class="block text-sm font-medium text-(--admin-text-muted) mb-1">{common_end()}</label
 			>
 			<div
 				class="flex w-full overflow-hidden bg-white dark:bg-surface-900 focus-within:ring-1 focus-within:ring-primary-500 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"

@@ -113,7 +113,7 @@
 	>
 		{#if field.prefix}
 			<span
-				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+				class="px-3 py-2 bg-(--admin-bg-card) border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
 			>
 				{field.prefix}
 			</span>
@@ -144,7 +144,7 @@
 
 		{#if field.suffix}
 			<span
-				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+				class="px-3 py-2 bg-(--admin-bg-card) border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
 			>
 				{field.suffix}
 			</span>

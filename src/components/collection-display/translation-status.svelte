@@ -469,7 +469,7 @@ FIXES:
 				variant="ghost"
 				class="w-full text-start p-2 flex items-center gap-2 rounded transition-colors {isActive
 					? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold'
-					: 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-surface-600 dark:text-surface-400'}"
+					: 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-(--admin-text-muted)'}"
 				onclick={() => handleLanguageChange(lang as Locale)}
 				aria-label="Switch language to {getLanguageName(lang)}"
 			>

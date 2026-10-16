@@ -38,7 +38,7 @@ Features:
 
 	const scoreBg = $derived.by(() => {
 		if (!score && score !== 0) {
-			return 'bg-surface-200 dark:bg-surface-700';
+			return 'bg-(--admin-bg-chip)';
 		}
 		if (score >= 90) {
 			return 'bg-success-500/10 dark:bg-success-900/20';

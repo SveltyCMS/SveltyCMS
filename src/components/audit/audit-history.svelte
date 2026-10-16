@@ -148,7 +148,7 @@
 <div class="audit-history flex flex-col gap-3">
 	<!-- Header with verify button -->
 	<div class="flex items-center justify-between">
-		<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">Audit History</h3>
+		<h3 class="text-sm font-semibold text-(--admin-text-muted)">Audit History</h3>
 		<Button
 			variant="ghost"
 			onclick={handleVerifyChain}
@@ -255,9 +255,7 @@
 							</span>
 						</div>
 
-						<div
-							class="flex flex-wrap items-center gap-1 text-[11px] text-surface-500 dark:text-surface-400"
-						>
+						<div class="flex flex-wrap items-center gap-1 text-[11px] text-(--admin-text-muted)">
 							{#if log.actorEmail}
 								<span class="font-medium">{log.actorEmail}</span>
 							{/if}
@@ -269,7 +267,7 @@
 						</div>
 
 						{#if log.details && Object.keys(log.details).length > 0}
-							<div class="mt-0.5 text-[10px] text-surface-400 dark:text-surface-500">
+							<div class="mt-0.5 text-[10px] text-(--admin-text-muted)">
 								{truncate(JSON.stringify(log.details))}
 							</div>
 						{/if}

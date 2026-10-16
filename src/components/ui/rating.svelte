@@ -184,7 +184,7 @@ configurable step size, numeric value display, and full keyboard accessibility.
 	{/each}
 
 	{#if showValue}
-		<span class="ms-2 text-sm font-medium text-surface-500 dark:text-surface-400 tabular-nums">
+		<span class="ms-2 text-sm font-medium text-(--admin-text-muted) tabular-nums">
 			{value} / {count}
 		</span>
 	{/if}

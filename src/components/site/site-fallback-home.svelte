@@ -15,10 +15,10 @@
 
 <div class="mx-auto max-w-3xl px-4 py-16 sm:px-6">
 	<Card variant="surface" class="p-8 text-center">
-		<h1 class="text-3xl font-bold text-surface-900 dark:text-surface-50">
+		<h1 class="text-3xl font-bold text-(--admin-text-body)">
 			Welcome to {siteName}
 		</h1>
-		<p class="mt-4 text-surface-600 dark:text-surface-400">
+		<p class="mt-4 text-(--admin-text-muted)">
 			The SvelteKit site starter is active. Create a <strong>Pages</strong> entry with slug
 			<code class="rounded bg-surface-500/10 px-1 dark:bg-surface-800">home</code> and a Svedit
 			layout in <strong>Page Layout</strong>, or re-run setup with the

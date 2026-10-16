@@ -192,9 +192,7 @@ aspect-preview plugin and Drupal's focal point preview.
 				</div>
 
 				<!-- Ratio label -->
-				<div
-					class="px-2 py-1.5 text-center text-xs font-semibold text-surface-600 dark:text-surface-400"
-				>
+				<div class="px-2 py-1.5 text-center text-xs font-semibold text-(--admin-text-muted)">
 					{ratio.label}
 				</div>
 			</div>
@@ -204,6 +202,6 @@ aspect-preview plugin and Drupal's focal point preview.
 	<div
 		class="flex items-center justify-center rounded-lg border-2 border-dashed border-surface-500/30 p-8 dark:border-surface-600"
 	>
-		<p class="text-sm text-surface-500 dark:text-surface-400">No image to preview</p>
+		<p class="text-sm text-(--admin-text-muted)">No image to preview</p>
 	</div>
 {/if}

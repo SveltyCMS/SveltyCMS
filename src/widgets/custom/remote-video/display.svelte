@@ -56,7 +56,7 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 			</div>
 
 			<div class="flex min-w-0 flex-col justify-center overflow-hidden">
-				<span class="truncate text-sm font-bold text-surface-900 dark:text-surface-50">
+				<span class="truncate text-sm font-bold text-(--admin-text-body)">
 					{value.title}
 				</span>
 
@@ -70,5 +70,5 @@ Renders: Thumbnail + title + duration in compact horizontal layout
 		</div>
 	{/if}
 {:else}
-	<span class="text-gray-400">–</span>
+	<span class="text-(--admin-text-muted)">–</span>
 {/if}

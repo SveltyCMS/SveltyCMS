@@ -145,13 +145,10 @@ with interactive focal point adjustment that persists to the server.
 						class="text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
 					<div>
-						<h3
-							id="aspect-preview-title"
-							class="text-lg font-semibold text-surface-900 dark:text-surface-50"
-						>
+						<h3 id="aspect-preview-title" class="text-lg font-semibold text-(--admin-text-body)">
 							Aspect Ratio Preview
 						</h3>
-						<p class="text-xs text-surface-500 dark:text-surface-400">
+						<p class="text-xs text-(--admin-text-muted)">
 							{media?.filename ?? 'Image'} — drag or use arrow keys to adjust focal point
 						</p>
 					</div>
@@ -164,7 +161,7 @@ with interactive focal point adjustment that persists to the server.
 			<!-- Scrollable preview area -->
 			<div class="flex-1 overflow-y-auto px-5 py-4">
 				<div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-					<span class="text-sm text-surface-600 dark:text-surface-400">
+					<span class="text-sm text-(--admin-text-muted)">
 						See how this image crops to different aspect ratios. The focal point ensures the
 						important area stays visible.
 					</span>

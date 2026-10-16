@@ -529,7 +529,7 @@
 			>
 				{file.filename}
 			</h2>
-			<p class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400">
+			<p class="mt-0.5 truncate font-mono text-[10px] text-(--admin-text-muted)">
 				{file._id}
 			</p>
 		</div>
@@ -589,8 +589,7 @@
 				>
 					<iconify-icon icon="mdi:file-document-outline" width="48"></iconify-icon>
 				</div>
-				<span
-					class="font-mono text-xs uppercase tracking-wide text-surface-500 dark:text-surface-400"
+				<span class="font-mono text-xs uppercase tracking-wide text-(--admin-text-muted)"
 					>{formatMime(file.mimeType)}</span
 				>
 			</div>
@@ -698,9 +697,7 @@
 						<dl class="space-y-3">
 							<!-- Asset Name -->
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-								<dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">
-									Name
-								</dt>
+								<dt class="pt-1.5 text-xs font-medium text-(--admin-text-muted)">Name</dt>
 								<dd class="min-w-0">
 									{#if isEditingName}
 										<div class="flex items-center gap-1.5">
@@ -745,9 +742,7 @@
 							<!-- Alt Text (images only) -->
 							{#if file.type === 'image'}
 								<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-									<dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">
-										Alt Text
-									</dt>
+									<dt class="pt-1.5 text-xs font-medium text-(--admin-text-muted)">Alt Text</dt>
 									<dd class="min-w-0">
 										{#if isEditingAlt}
 											<div class="flex items-center gap-1.5">
@@ -791,9 +786,7 @@
 
 							<!-- Caption -->
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-								<dt class="pt-1.5 text-xs font-medium text-surface-500 dark:text-surface-400">
-									Caption
-								</dt>
+								<dt class="pt-1.5 text-xs font-medium text-(--admin-text-muted)">Caption</dt>
 								<dd class="min-w-0">
 									{#if isEditingCaption}
 										<div class="flex items-center gap-1.5">
@@ -841,39 +834,39 @@
 					>
 						<dl class="space-y-2.5">
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-								<dt class="text-surface-500 dark:text-surface-400">Mime-Type</dt>
+								<dt class="text-(--admin-text-muted)">Mime-Type</dt>
 								<dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">
 									{file.mimeType}
 								</dd>
 							</div>
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-								<dt class="text-surface-500 dark:text-surface-400">File Size</dt>
+								<dt class="text-(--admin-text-muted)">File Size</dt>
 								<dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">
 									{formatBytes(file.size)}
 								</dd>
 							</div>
 							{#if file.width && file.height}
 								<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-									<dt class="text-surface-500 dark:text-surface-400">Dimensions</dt>
+									<dt class="text-(--admin-text-muted)">Dimensions</dt>
 									<dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">
 										{file.width} × {file.height} px
 									</dd>
 								</div>
 							{/if}
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-								<dt class="text-surface-500 dark:text-surface-400">Folder</dt>
+								<dt class="text-(--admin-text-muted)">Folder</dt>
 								<dd class="min-w-0 text-end break-all text-surface-600 dark:text-surface-100">
 									{file.folder || 'global'}
 								</dd>
 							</div>
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-								<dt class="text-surface-500 dark:text-surface-400">Created</dt>
+								<dt class="text-(--admin-text-muted)">Created</dt>
 								<dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">
 									{formatDateTime(file.createdAt)}
 								</dd>
 							</div>
 							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
-								<dt class="text-surface-500 dark:text-surface-400">Updated</dt>
+								<dt class="text-(--admin-text-muted)">Updated</dt>
 								<dd class="min-w-0 text-end text-surface-600 dark:text-surface-100">
 									{formatDateTime(file.updatedAt)}
 								</dd>
@@ -901,9 +894,7 @@
 									</Button>
 								</Badge>
 							{:else}
-								<span class="text-xs text-surface-500 dark:text-surface-400"
-									>No tags added yet.</span
-								>
+								<span class="text-xs text-(--admin-text-muted)">No tags added yet.</span>
 							{/each}
 						</div>
 
@@ -942,7 +933,7 @@
 							<h4 class="text-sm font-semibold text-surface-600 dark:text-surface-100">
 								Replace or Update File
 							</h4>
-							<p class="mt-1 text-xs text-surface-500 dark:text-surface-400">
+							<p class="mt-1 text-xs text-(--admin-text-muted)">
 								Upload a new file. The current name is preserved and the old version is stored in
 								history.
 							</p>
@@ -980,7 +971,7 @@
 							<h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">
 								Compare Versions
 							</h3>
-							<p class="mb-3 text-xs text-surface-500 dark:text-surface-400">
+							<p class="mb-3 text-xs text-(--admin-text-muted)">
 								Diff two historical versions to inspect content, metadata, and size changes.
 							</p>
 
@@ -1050,9 +1041,7 @@
 														<span class="ms-1 font-normal text-surface-500">({change.type})</span>
 													</p>
 													{#if change.oldValue !== undefined || change.newValue !== undefined}
-														<p
-															class="mt-1 font-mono text-[11px] text-surface-500 dark:text-surface-400"
-														>
+														<p class="mt-1 font-mono text-[11px] text-(--admin-text-muted)">
 															{#if change.oldValue !== undefined}
 																<span class="text-error-500 line-through"
 																	>{String(change.oldValue)}</span
@@ -1072,7 +1061,7 @@
 											{/each}
 										</div>
 									{:else}
-										<p class="text-xs text-surface-500 dark:text-surface-400">
+										<p class="text-xs text-(--admin-text-muted)">
 											No field-level differences detected.
 										</p>
 									{/if}
@@ -1097,7 +1086,7 @@
 										>
 											{file.filename}
 										</p>
-										<p class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400">
+										<p class="mt-0.5 font-mono text-[11px] text-(--admin-text-muted)">
 											Current · {formatBytes(file.size)} · {formatDateTime(file.updatedAt)}
 										</p>
 									</div>
@@ -1117,9 +1106,7 @@
 											>
 												{ver.filename}
 											</p>
-											<p
-												class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400"
-											>
+											<p class="mt-0.5 font-mono text-[11px] text-(--admin-text-muted)">
 												{formatBytes(ver.size)} · {formatDateTime(ver.createdAt)}
 												{#if ver.createdBy}
 													· {ver.createdBy}
@@ -1163,7 +1150,7 @@
 						<div class="flex flex-col items-center justify-center gap-3 p-8">
 							<iconify-icon icon="mdi:loading" class="animate-spin text-primary-500" width="28"
 							></iconify-icon>
-							<span class="text-xs text-surface-500 dark:text-surface-400"
+							<span class="text-xs text-(--admin-text-muted)"
 								>Scanning collections for usage references…</span
 							>
 						</div>
@@ -1172,7 +1159,7 @@
 							<h3 class="mb-1 text-sm font-semibold text-surface-600 dark:text-surface-100">
 								Usage Scanner
 							</h3>
-							<p class="mb-4 text-xs text-surface-500 dark:text-surface-400">
+							<p class="mb-4 text-xs text-(--admin-text-muted)">
 								Lists all content entries where this media asset is referenced.
 							</p>
 
@@ -1189,9 +1176,7 @@
 											<p class="mt-0.5 text-xs font-medium text-surface-600 dark:text-surface-100">
 												Field: <span class="font-mono">{ref.field}</span>
 											</p>
-											<p
-												class="mt-0.5 font-mono text-[11px] text-surface-500 dark:text-surface-400"
-											>
+											<p class="mt-0.5 font-mono text-[11px] text-(--admin-text-muted)">
 												Entry ID: {ref.entryId}
 											</p>
 										</div>
@@ -1214,7 +1199,7 @@
 											width="28"
 											class="mb-2 text-surface-400"
 										></iconify-icon>
-										<p class="text-xs text-surface-500 dark:text-surface-400">
+										<p class="text-xs text-(--admin-text-muted)">
 											This asset is not referenced in any collections.
 										</p>
 									</div>
@@ -1289,8 +1274,7 @@
 											<span
 												class="h-2 w-2 rounded-full {expired ? 'bg-error-500' : 'bg-success-500'}"
 											></span>
-											<span
-												class="font-mono text-[10px] uppercase text-surface-600 dark:text-surface-400"
+											<span class="font-mono text-[10px] uppercase text-(--admin-text-muted)"
 												>{expired ? 'Expired' : 'Active'}</span
 											>
 											{#if link.passwordHash}
@@ -1302,7 +1286,7 @@
 												></iconify-icon>
 											{/if}
 										</div>
-										<span class="font-mono text-[10px] text-surface-500 dark:text-surface-400"
+										<span class="font-mono text-[10px] text-(--admin-text-muted)"
 											>Downloads: {link.downloadCount || 0}</span
 										>
 									</div>
@@ -1342,13 +1326,13 @@
 									</div>
 
 									{#if link.expiry}
-										<div class="font-mono text-[10px] text-surface-500 dark:text-surface-400">
+										<div class="font-mono text-[10px] text-(--admin-text-muted)">
 											Expires: {formatDateTime(link.expiry)}
 										</div>
 									{/if}
 								</div>
 							{:else}
-								<div class="py-4 text-center text-xs text-surface-500 dark:text-surface-400">
+								<div class="py-4 text-center text-xs text-(--admin-text-muted)">
 									No active share links.
 								</div>
 							{/each}

@@ -698,7 +698,7 @@ Provides an organized interface for navigating hierarchical content structures.
 					onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
 					class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
 						? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
-						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-(--admin-text-muted)'}"
 				>
 					<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"
 					></iconify-icon>
@@ -717,7 +717,7 @@ Provides an organized interface for navigating hierarchical content structures.
 					data-testid="collections-reorder-toggle"
 					class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border p-0! transition-all {isReorderMode
 						? 'bg-tertiary-500/20 border-tertiary-500 text-tertiary-600 dark:bg-primary-500/20 dark:border-primary-500 dark:text-primary-400'
-						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-(--admin-text-muted)'}"
 				>
 					<iconify-icon icon="mdi:pencil-outline" width="14"></iconify-icon>
 				</Button>
@@ -799,7 +799,7 @@ Provides an organized interface for navigating hierarchical content structures.
 						<div
 							class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500"
 						></div>
-						<p class="text-xs text-surface-600 dark:text-surface-400">{collections_loading()}</p>
+						<p class="text-xs text-(--admin-text-muted)">{collections_loading()}</p>
 					{:else if search || showOnlyFavorites || selectedTagFilter}
 						<iconify-icon icon="bi:search" width={28} class="text-surface-400"></iconify-icon>
 						<p class="text-sm text-surface-900 dark:text-white">{collections_none_match()}</p>
@@ -872,7 +872,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			<h3 id="tag-modal-title" class="text-lg font-bold text-surface-900 dark:text-white mb-2">
 				Manage Tags
 			</h3>
-			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
+			<p class="text-xs text-(--admin-text-muted) mb-4">
 				Tags for <span class="font-semibold text-tertiary-500 dark:text-primary-500"
 					>{activeCollectionLabelForTagging}</span
 				>

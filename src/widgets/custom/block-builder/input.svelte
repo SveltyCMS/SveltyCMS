@@ -158,7 +158,7 @@
 		class="flex flex-wrap items-center justify-between gap-3 border-b border-surface-500/20 pb-3"
 	>
 		<div class="flex items-center gap-2">
-			<span class="text-sm font-semibold text-surface-900 dark:text-surface-50">
+			<span class="text-sm font-semibold text-(--admin-text-body)">
 				{widget_block_content_blocks()}
 			</span>
 			<Badge variant="surface" size="sm">
@@ -210,7 +210,7 @@
 			>
 				<iconify-icon icon="mdi:view-dashboard-outline" width="24"></iconify-icon>
 			</div>
-			<h4 class="text-base font-medium text-surface-900 dark:text-surface-100">
+			<h4 class="text-base font-medium text-(--admin-text-body)">
 				{widget_block_no_blocks()}
 			</h4>
 			<p class="mt-1 max-w-sm text-xs text-surface-500">
@@ -264,7 +264,7 @@
 						</div>
 						<div>
 							<div class="flex items-center gap-2">
-								<span class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+								<span class="text-sm font-semibold text-(--admin-text-body)">
 									{meta.label}
 								</span>
 								<span
@@ -334,7 +334,7 @@
 								<div class="space-y-1">
 									<label
 										for={`field_${block._id}_${fieldDef.name}`}
-										class="block text-xs font-medium text-surface-600 dark:text-surface-400"
+										class="block text-xs font-medium text-(--admin-text-muted)"
 									>
 										{fieldDef.label}
 										{#if fieldDef.required}
@@ -415,10 +415,7 @@
 			>
 				<div class="flex items-center justify-between pb-4 border-b border-surface-500/15">
 					<div>
-						<h3
-							id="modal-add-block-title"
-							class="text-base font-semibold text-surface-900 dark:text-surface-50"
-						>
+						<h3 id="modal-add-block-title" class="text-base font-semibold text-(--admin-text-body)">
 							{widget_block_select_type()}
 						</h3>
 						<p class="text-xs text-surface-500">
@@ -448,7 +445,7 @@
 								>
 									<iconify-icon icon={def.icon} width="18"></iconify-icon>
 								</div>
-								<span class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+								<span class="text-sm font-semibold text-(--admin-text-body)">
 									{def.label}
 								</span>
 							</div>

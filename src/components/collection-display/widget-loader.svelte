@@ -122,7 +122,7 @@ rather than bundling all widgets upfront.
 {#if loading}
 	<div class="widget-loader-placeholder animate-pulse">
 		<div class="mb-2 h-4 w-1/3 rounded bg-surface-300 dark:bg-surface-600"></div>
-		<div class="h-10 w-full rounded bg-surface-200 dark:bg-surface-700"></div>
+		<div class="h-10 w-full rounded bg-(--admin-bg-chip)"></div>
 	</div>
 {:else if error}
 	<div

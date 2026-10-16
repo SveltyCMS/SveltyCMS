@@ -121,7 +121,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 			case 'error':
 				return 'preset-filled-error-500 shadow-error-500/20';
 			case 'ghost':
-				return 'hover:bg-surface-200/50 dark:bg-white/10 dark:hover:bg-white/20 text-surface-600 dark:text-surface-400';
+				return 'hover:bg-surface-200/50 dark:bg-white/10 dark:hover:bg-white/20 text-(--admin-text-muted)';
 			case 'transparent':
 				return 'bg-transparent';
 			case 'outline':

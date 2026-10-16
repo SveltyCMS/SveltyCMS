@@ -119,7 +119,7 @@
 			</form>
 		{:else}
 			<div class="relative mt-2 flex flex-col items-center justify-center gap-4">
-				<p class="text-sm text-gray-500">{widget_rt_video_upload_unavailable()}</p>
+				<p class="text-sm text-(--admin-text-muted)">{widget_rt_video_upload_unavailable()}</p>
 				<p>{widget_rt_or()}</p>
 				<div class="flex w-full justify-center gap-2">
 					<Button variant="outline" class="w-full" disabled>{widget_rt_browse_locally()}</Button>

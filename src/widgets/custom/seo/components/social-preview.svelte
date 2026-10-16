@@ -18,7 +18,7 @@ Displays a preview of the shared link for different platforms.
 		{
 			id: 'twitter',
 			icon: 'mdi:twitter',
-			color: 'text-surface-900 dark:text-surface-50',
+			color: 'text-(--admin-text-body)',
 			label: 'X (Twitter)'
 		},
 		{
@@ -129,7 +129,7 @@ Displays a preview of the shared link for different platforms.
 						class="w-full h-full object-cover"
 					/>
 				{:else}
-					<div class="flex flex-col items-center text-gray-400">
+					<div class="flex flex-col items-center text-(--admin-text-muted)">
 						<iconify-icon icon="mdi:image-off" width="24" class="text-4xl"></iconify-icon>
 						<span class="text-xs uppercase font-bold mt-2 tracking-wider"
 							>{seo_social_no_image()}</span
@@ -140,7 +140,7 @@ Displays a preview of the shared link for different platforms.
 
 			<!-- Content Area -->
 			<div class="p-3 bg-[#f0f2f5] border-t border-gray-200">
-				<div class="text-[12px] uppercase text-gray-500 truncate font-sans mb-0.5">
+				<div class="text-[12px] uppercase text-(--admin-text-muted) truncate font-sans mb-0.5">
 					{hostUrl
 						.replace(/^https?:\/\//, '')
 						.split('/')[0]
@@ -159,7 +159,7 @@ Displays a preview of the shared link for different platforms.
 	</div>
 
 	<!-- Tips/Warnings based on active platform -->
-	<div class="mt-4 text-sm text-surface-600 dark:text-surface-400">
+	<div class="mt-4 text-sm text-(--admin-text-muted)">
 		{#if displayTitle.length > 95 && activePlatform === 'facebook'}
 			<div class="flex items-center gap-2 text-warning-600 dark:text-warning-400">
 				<iconify-icon icon="mdi:alert"></iconify-icon>

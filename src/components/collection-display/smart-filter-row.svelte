@@ -108,7 +108,7 @@ from `createSmartFilter`. Supports text, select, date, number-range, and boolean
 				aria-live="polite"
 				aria-label="{activeFilters.length} active filter{activeFilters.length === 1 ? '' : 's'}"
 			>
-				<span class="text-xs font-medium text-surface-600 dark:text-surface-400">
+				<span class="text-xs font-medium text-(--admin-text-muted)">
 					{activeFilters.length} active filter{activeFilters.length === 1 ? '' : 's'}:
 				</span>
 				{#each activeFilters as chip (chip.id)}
