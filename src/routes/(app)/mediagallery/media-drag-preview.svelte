@@ -218,13 +218,11 @@ Mount once per page that hosts media drag sources.
 							onerror={() => (imgFailed = true)}
 						/>
 					{:else}
-						<div
-							class="flex h-full w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800/80"
-						>
+						<div class="flex h-full w-full items-center justify-center bg-(--admin-bg-card)/80">
 							<iconify-icon
 								icon={fileIcon(snapPreview?.type)}
 								width="36"
-								class="text-surface-400 dark:text-surface-500"
+								class="text-(--admin-text-muted)"
 							></iconify-icon>
 						</div>
 					{/if}

@@ -910,12 +910,12 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							></iconify-icon>
 							{theme_installed_themes()}
 						</h3>
-						<p class="text-sm text-surface-500 dark:text-surface-400 mb-4">
+						<p class="text-sm text-(--admin-text-muted) mb-4">
 							{theme_intro()}
 						</p>
 
 						{#if loadingThemes}
-							<div class="text-center py-8 text-surface-400">{theme_loading_themes()}</div>
+							<div class="text-center py-8 text-(--admin-text-muted)">{theme_loading_themes()}</div>
 						{:else}
 							<div class="space-y-3 max-w-2xl" data-testid="appearance-theme-list">
 								{#each themes as t (t.id)}
@@ -930,7 +930,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 											icon={t.isActive ? 'mdi:checkbox-marked-circle' : 'mdi:theme-light-dark'}
 											class="text-xl {t.isActive
 												? 'text-tertiary-500 dark:text-primary-500'
-												: 'text-surface-400'}"
+												: 'text-(--admin-text-muted)'}"
 										></iconify-icon>
 										<div class="flex-1 min-w-0">
 											<div class="font-bold text-sm flex items-center gap-2">
@@ -945,7 +945,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 														>{theme_default()}</Badge
 													>{/if}
 											</div>
-											<div class="text-xs text-surface-500 dark:text-surface-400">
+											<div class="text-xs text-(--admin-text-muted)">
 												{t.density || 'cozy'} · {t.variant || 'bordered'}
 											</div>
 										</div>
@@ -1009,7 +1009,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										data-testid="appearance-theme-create-btn">{theme_create()}</Button
 									>
 								</div>
-								<p class="text-xs text-surface-400 mt-2">
+								<p class="text-xs text-(--admin-text-muted) mt-2">
 									{theme_create_intro()}
 								</p>
 							</AdminCard>
@@ -1027,7 +1027,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								></iconify-icon>
 								{theme_presets()}
 							</h3>
-							<p class="text-sm text-surface-500 dark:text-surface-400 mb-2">
+							<p class="text-sm text-(--admin-text-muted) mb-2">
 								{theme_presets_intro()}
 							</p>
 							<p class="text-sm mb-4">
@@ -1070,7 +1070,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
 									></iconify-icon>
 									<h4 class="font-bold text-sm">{theme_cozy_default()}</h4>
-									<p class="text-xs text-surface-500 dark:text-surface-400">
+									<p class="text-xs text-(--admin-text-muted)">
 										{theme_cozy_default_desc()}
 									</p>
 								</AdminCard>
@@ -1092,7 +1092,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
 									></iconify-icon>
 									<h4 class="font-bold text-sm">{theme_compact_pro()}</h4>
-									<p class="text-xs text-surface-500 dark:text-surface-400">
+									<p class="text-xs text-(--admin-text-muted)">
 										{theme_compact_pro_desc()}
 									</p>
 								</AdminCard>
@@ -1115,7 +1115,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										class="text-2xl text-tertiary-500 dark:text-primary-500 mb-2"
 									></iconify-icon>
 									<h4 class="font-bold text-sm">{theme_spacious_writer()}</h4>
-									<p class="text-xs text-surface-500 dark:text-surface-400">
+									<p class="text-xs text-(--admin-text-muted)">
 										{theme_spacious_writer_desc()}
 									</p>
 								</AdminCard>
@@ -1128,7 +1128,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								></iconify-icon>
 								{theme_marketplace()}
 							</h4>
-							<p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
+							<p class="text-xs text-(--admin-text-muted) mb-3">
 								{theme_browse_from()}{' '}
 								<a
 									href="https://marketplace.sveltycms.com"
@@ -1145,17 +1145,15 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							</p>
 
 							{#if loadingMarketplace}
-								<p class="text-sm text-surface-500 mb-4">{theme_loading_marketplace()}</p>
+								<p class="text-sm text-(--admin-text-muted) mb-4">{theme_loading_marketplace()}</p>
 							{:else if marketplaceThemes.length === 0}
-								<p class="text-sm text-surface-500 mb-4">{theme_no_marketplace()}</p>
+								<p class="text-sm text-(--admin-text-muted) mb-4">{theme_no_marketplace()}</p>
 							{:else}
 								<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 									{#each marketplaceThemes as item (item.id)}
 										<AdminCard class="p-4 border border-(--admin-border-default)">
 											<h5 class="font-bold text-sm">{item.name}</h5>
-											<p
-												class="text-xs text-surface-500 dark:text-surface-400 mt-1 mb-3 line-clamp-2"
-											>
+											<p class="text-xs text-(--admin-text-muted) mt-1 mb-3 line-clamp-2">
 												{item.description}
 											</p>
 											<div class="flex items-center justify-between gap-2">
@@ -1180,7 +1178,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							{/if}
 
 							<h4 class="font-bold text-sm mb-2">{theme_import_json()}</h4>
-							<p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
+							<p class="text-xs text-(--admin-text-muted) mb-3">
 								{theme_import_intro()}
 							</p>
 							<div class="space-y-3">
@@ -1208,7 +1206,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						</h3>
 						<div class="space-y-6 max-w-2xl">
 							<Select bind:value={density} label="Admin Density" options={densityOptions} />
-							<p class="text-xs text-surface-400 -mt-4">
+							<p class="text-xs text-(--admin-text-muted) -mt-4">
 								{theme_sidebar()}
 								{density === 'compact' ? '200px' : density === 'spacious' ? '300px' : '240px'} · {theme_header()}
 								{density === 'compact' ? '48px' : density === 'spacious' ? '72px' : '64px'}
@@ -1222,7 +1220,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 											: 'border-(--admin-border-default)'}"
 									>
 										<div class="text-xs font-bold mb-1">{p.label}</div>
-										<div class="text-[10px] text-surface-500">{p.desc}</div>
+										<div class="text-[10px] text-(--admin-text-muted)">{p.desc}</div>
 									</AdminCard>
 								{/each}
 							</div>
@@ -1249,7 +1247,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										: 'var(--admin-border-width, 1px)'}; box-shadow: none;"
 								>
 									<div class="text-sm font-bold mb-2">{theme_flat()}</div>
-									<div class="text-xs text-surface-500">{theme_flat_desc()}</div>
+									<div class="text-xs text-(--admin-text-muted)">{theme_flat_desc()}</div>
 								</AdminCard>
 								<AdminCard
 									class="p-6 {variant === 'bordered'
@@ -1258,7 +1256,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1));"
 								>
 									<div class="text-sm font-bold mb-2">{theme_bordered()}</div>
-									<div class="text-xs text-surface-500">{theme_bordered_desc()}</div>
+									<div class="text-xs text-(--admin-text-muted)">{theme_bordered_desc()}</div>
 								</AdminCard>
 								<AdminCard
 									class="p-6 {variant === 'elevated'
@@ -1267,7 +1265,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									style="border-width: var(--admin-border-width, 1px); box-shadow: var(--admin-shadow-elevated, 0 10px 15px -3px rgb(0 0 0 / 0.05));"
 								>
 									<div class="text-sm font-bold mb-2">{theme_elevated()}</div>
-									<div class="text-xs text-surface-500">{theme_elevated_desc()}</div>
+									<div class="text-xs text-(--admin-text-muted)">{theme_elevated_desc()}</div>
 								</AdminCard>
 							</div>
 						</div>
@@ -1287,7 +1285,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_sticky_bar()}</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{theme_sticky_bar_desc()}
 									</div>
 								</div>
@@ -1298,7 +1296,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_collapsible_sidebar()}</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{theme_collapsible_sidebar_desc()}
 									</div>
 								</div>
@@ -1309,7 +1307,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_branded_login()}</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{theme_branded_login_desc()}
 									</div>
 								</div>
@@ -1320,7 +1318,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_high_contrast()}</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{theme_high_contrast_desc()}
 									</div>
 								</div>
@@ -1331,7 +1329,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							>
 								<div>
 									<div class="font-bold text-sm">{theme_reduced_motion()}</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{theme_reduced_motion_desc()}
 									</div>
 								</div>
@@ -1342,7 +1340,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							<AdminCard class="p-4 border border-(--admin-border-default)">
 								<div class="mb-3">
 									<div class="font-bold text-sm">{theme_collections_position()}</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{theme_collections_position_desc()}
 									</div>
 								</div>
@@ -1355,7 +1353,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 							>
 								<div class="mb-3">
 									<div class="font-bold text-sm">{theme_lock_overrides()}</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{theme_lock_overrides_desc()}
 									</div>
 								</div>
@@ -1388,7 +1386,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									placeholder={'/* Custom admin styles */\n.admin-special-header { border-color: oklch(65% 0.2 260deg); }'}
 									rows={10}
 								/>
-								<p class="text-xs text-surface-500 dark:text-surface-400 mt-2">
+								<p class="text-xs text-(--admin-text-muted) mt-2">
 									{theme_css_hint()}
 								</p>
 							</div>
@@ -1400,7 +1398,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 										>{theme_export_json()}</Button
 									>
 								</div>
-								<p class="text-xs text-surface-400 mt-2">
+								<p class="text-xs text-(--admin-text-muted) mt-2">
 									{theme_export_intro()}
 								</p>
 							</AdminCard>
@@ -1411,7 +1409,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								<h4 class="font-bold text-sm text-error-600 dark:text-error-400 mb-2">
 									{theme_danger_zone()}
 								</h4>
-								<p class="text-xs text-surface-500 dark:text-surface-400 mb-3">
+								<p class="text-xs text-(--admin-text-muted) mb-3">
 									{theme_reset_intro()}
 								</p>
 								<Button variant="error" onclick={resetToDefaults} leadingIcon="mdi:restore-alert"

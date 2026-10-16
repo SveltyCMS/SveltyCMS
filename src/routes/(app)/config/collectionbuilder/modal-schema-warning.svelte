@@ -100,7 +100,7 @@ Requires user confirmation before proceeding with changes that may cause data lo
 				<h2 id="modal-title" class="text-lg font-bold text-(--admin-text-body)">
 					{hasDataLoss ? 'Data Loss Warning' : 'Breaking Changes Detected'}
 				</h2>
-				<p class="text-sm text-surface-600 dark:text-surface-50">
+				<p class="text-sm text-(--admin-text-muted) dark:text-surface-50">
 					{builder_warning_collection_label()}{' '}<span class="font-medium">{collectionName}</span>
 				</p>
 			</div>
@@ -125,9 +125,9 @@ Requires user confirmation before proceeding with changes that may cause data lo
 									class="mt-0.5 text-error-500"
 								></iconify-icon>
 								<div>
-									<p class="text-surface-600 dark:text-surface-400">{change.message}</p>
+									<p class="text-(--admin-text-muted)">{change.message}</p>
 									{#if change.suggestion}
-										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
+										<p class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 											<iconify-icon icon="mdi:lightbulb-outline" width={24}></iconify-icon>
 											{change.suggestion}
 										</p>
@@ -158,9 +158,9 @@ Requires user confirmation before proceeding with changes that may cause data lo
 									class="mt-0.5 text-warning-500"
 								></iconify-icon>
 								<div>
-									<p class="text-surface-600 dark:text-surface-400">{change.message}</p>
+									<p class="text-(--admin-text-muted)">{change.message}</p>
 									{#if change.suggestion}
-										<p class="mt-1 text-xs text-surface-600 dark:text-surface-50">
+										<p class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 											<iconify-icon icon="mdi:lightbulb-outline" width={24}></iconify-icon>
 											{change.suggestion}
 										</p>
@@ -188,7 +188,10 @@ Requires user confirmation before proceeding with changes that may cause data lo
 						<span class="font-medium text-(--admin-text-body)">
 							{builder_warning_confirm_text()}
 						</span>
-						<p id="confirm-description" class="mt-1 text-sm text-surface-600 dark:text-surface-50">
+						<p
+							id="confirm-description"
+							class="mt-1 text-sm text-(--admin-text-muted) dark:text-surface-50"
+						>
 							{builder_warning_cannot_recover()}
 						</p>
 					</div>

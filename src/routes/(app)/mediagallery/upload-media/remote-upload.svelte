@@ -71,7 +71,7 @@
 	<label
 		id="remote-urls-label"
 		for="remote-urls"
-		class="block text-sm font-medium text-surface-600 dark:text-surface-400"
+		class="block text-sm font-medium text-(--admin-text-muted)"
 	>
 		{mediagallery_remote_title()}
 	</label>
@@ -85,7 +85,7 @@
 		placeholder={mediagallery_remote_placeholder()}
 		rows="6"
 		class="textarea w-full bg-secondary-500/10 dark:bg-secondary-800"></textarea>
-	<p class="text-xs text-surface-500">
+	<p class="text-xs text-(--admin-text-muted)">
 		{mediagallery_remote_hint()}
 	</p>
 	<Button

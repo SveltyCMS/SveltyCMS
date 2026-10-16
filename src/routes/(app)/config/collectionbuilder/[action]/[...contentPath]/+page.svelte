@@ -404,7 +404,7 @@
 >
 	{#snippet subtitle()}
 		<div class="flex flex-wrap items-center gap-2 text-xs">
-			<span class="font-semibold text-surface-600 dark:text-surface-400">
+			<span class="font-semibold text-(--admin-text-muted)">
 				{builder_editor_step()}
 				{activeTab === 'define' ? '1' : activeTab === 'widgets' ? '2' : '3'}{' '}
 				{builder_editor_of_3()}
@@ -414,14 +414,14 @@
 						? 'Field Schema'
 						: 'Permissions'}
 			</span>
-			<span class="text-surface-300 dark:text-surface-600">•</span>
+			<span class="text-surface-300 dark:text-(--admin-text-muted)">•</span>
 			<span
 				class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-400"
 			>
 				{stepProgress.completedCount}/{stepProgress.total}
 				{builder_editor_steps_ready()}
 			</span>
-			<span class="text-surface-300 dark:text-surface-600">•</span>
+			<span class="text-surface-300 dark:text-(--admin-text-muted)">•</span>
 			{#if !stepProgress.allRequiredDone}
 				<span class="text-warning-500 dark:text-warning-400 font-medium flex items-center gap-1">
 					<iconify-icon icon="mdi:information" width="14"></iconify-icon>
@@ -521,7 +521,7 @@
 			<div class="flex items-center gap-3 shrink-0">
 				{#if activeTab === 'widgets'}
 					<div
-						class="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-400 me-2 border-e border-surface-500/30 pe-3 dark:border-surface-500/40"
+						class="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-muted) me-2 border-e border-surface-500/30 pe-3 dark:border-surface-500/40"
 					>
 						<iconify-icon
 							icon="mdi:widgets"
@@ -545,7 +545,7 @@
 							size="sm"
 							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'canvas'
 								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
+								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'canvas')}
 							data-testid="view-mode-canvas"
 						>
@@ -557,7 +557,7 @@
 							size="sm"
 							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'split'
 								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
+								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'split')}
 							data-testid="view-mode-split"
 						>
@@ -569,7 +569,7 @@
 							size="sm"
 							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'code'
 								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
+								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'code')}
 							data-testid="view-mode-code"
 						>
@@ -581,7 +581,7 @@
 							size="sm"
 							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'preview'
 								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100'}"
+								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
 							onclick={() => (viewMode = 'preview')}
 							data-testid="view-mode-preview"
 						>
@@ -589,7 +589,7 @@
 						</Button>
 					</div>
 				{/if}
-				<p class="text-surface-500 dark:text-surface-400 hidden lg:block text-xs text-end">
+				<p class="text-(--admin-text-muted) hidden lg:block text-xs text-end">
 					{#if activeTab === 'define'}
 						{builder_editor_define_hint()}
 					{:else if activeTab === 'widgets'}

@@ -138,12 +138,10 @@ Features:
 	<Portal>
 		<div class="fixed inset-0 pointer-events-none z-9999" aria-hidden="true">
 			<div
-				class="absolute top-0 inset-s-0 flex flex-col justify-center gap-0.5 bg-surface-500/10 dark:bg-surface-800 border border-surface-500/30 border-s-4 border-s-primary-500 px-3 py-2 rounded shadow-lg min-w-37.5 max-w-65 will-change-transform"
+				class="absolute top-0 inset-s-0 flex flex-col justify-center gap-0.5 bg-(--admin-bg-card) border border-surface-500/30 border-s-4 border-s-primary-500 px-3 py-2 rounded shadow-lg min-w-37.5 max-w-65 will-change-transform"
 				{style}
 			>
-				<span class="truncate font-medium text-sm text-surface-900 dark:text-surface-100"
-					>{snapName}</span
-				>
+				<span class="truncate font-medium text-sm text-(--admin-text-body)">{snapName}</span>
 				{#if nestTargetName}
 					<span class="truncate text-[11px] font-semibold text-warning-500 dark:text-warning-400"
 						>{builder_tree_inside({ name: nestTargetName })}</span

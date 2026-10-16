@@ -101,7 +101,7 @@
 					type="button"
 					variant="transparent"
 					size="sm"
-					class="unassigned-drag-handle h-auto! min-w-0! p-1! text-surface-500 cursor-grab active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400"
+					class="unassigned-drag-handle h-auto! min-w-0! p-1! text-(--admin-text-muted) cursor-grab active:cursor-grabbing hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
 					aria-label={unassigned_drag_aria({ name: item.name })}
 					title={builder_tip_drag_reorder()}
 				>
@@ -116,7 +116,7 @@
 				<a
 					href={`/collection/${item.name}/edit`}
 					aria-label={unassigned_edit_aria({ name: item.name })}
-					class="p-1 text-surface-900 hover:text-tertiary-500 dark:text-surface-100 dark:hover:text-primary-500"
+					class="p-1 text-(--admin-text-body) hover:text-tertiary-500 dark:text-surface-100 dark:hover:text-primary-500"
 					data-sveltekit-preload-data="hover"
 				>
 					<iconify-icon icon="mdi:pen" width={24}></iconify-icon>

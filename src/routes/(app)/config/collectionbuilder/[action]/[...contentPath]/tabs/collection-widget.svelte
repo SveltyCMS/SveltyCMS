@@ -599,11 +599,9 @@
 		<div
 			class="flex shrink-0 flex-wrap items-center gap-3 border-b border-surface-500/30 bg-surface-500/10 px-4 py-3 dark:border-surface-500/40 dark:bg-surface-900 sm:px-6"
 		>
-			<div
-				class="flex items-center gap-2 text-sm font-semibold text-surface-600 dark:text-surface-400"
-			>
+			<div class="flex items-center gap-2 text-sm font-semibold text-(--admin-text-muted)">
 				<iconify-icon icon="mdi:code-json" width="20" class="text-tertiary-500"></iconify-icon>
-				<span class="font-mono text-xs font-bold text-surface-900 dark:text-surface-100">
+				<span class="font-mono text-xs font-bold text-(--admin-text-body)">
 					{builder_ts_config_path()}{(collections.active?.name || 'collection')
 						.toLowerCase()
 						.replace(/\s+/g, '_')}{builder_ts_ts_suffix()}
@@ -631,14 +629,14 @@
 
 		<!-- Code Display Area -->
 		<div
-			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-surface-900 dark:text-surface-100 selection:bg-tertiary-500/30 dark:selection:bg-primary-500/30"
+			class="min-h-0 flex-1 overflow-auto bg-surface-500/10 p-4 font-mono text-xs text-(--admin-text-body) selection:bg-tertiary-500/30 dark:selection:bg-primary-500/30"
 		>
 			<pre class="leading-relaxed whitespace-pre font-mono"><code>{generatedCode}</code></pre>
 		</div>
 
 		<!-- Footer -->
 		<div
-			class="shrink-0 border-t border-surface-500/30 bg-surface-500/10 px-4 py-2 text-[11px] text-surface-400 dark:border-surface-500/40 dark:bg-surface-900/60 flex items-center justify-between"
+			class="shrink-0 border-t border-surface-500/30 bg-surface-500/10 px-4 py-2 text-[11px] text-(--admin-text-muted) dark:border-surface-500/40 dark:bg-surface-900/60 flex items-center justify-between"
 		>
 			<span>{builder_ts_parity_part1()} <code>{builder_ts_parity_code()}</code></span>
 			<span class="font-mono text-[10px] opacity-70"
@@ -709,7 +707,7 @@
 									}
 								}}
 								placeholder={builder_ts_quick_add_placeholder()}
-								class="w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3.5 py-2 text-xs text-(--admin-text-body) placeholder:text-surface-400 focus:border-tertiary-500 focus:bg-(--admin-bg-input-focus) focus:outline-hidden sm:text-sm dark:focus:border-primary-500"
+								class="w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3.5 py-2 text-xs text-(--admin-text-body) placeholder:text-(--admin-text-muted) focus:border-tertiary-500 focus:bg-(--admin-bg-input-focus) focus:outline-hidden sm:text-sm dark:focus:border-primary-500"
 								data-testid="quick-add-field-input"
 							/>
 						</div>
@@ -727,9 +725,7 @@
 					</div>
 					{#if inferredWidget}
 						<div class="mt-2 flex flex-wrap items-center gap-2 text-xs">
-							<span class="text-surface-500 dark:text-surface-400"
-								>{builder_ts_inferred_widget()}</span
-							>
+							<span class="text-(--admin-text-muted)">{builder_ts_inferred_widget()}</span>
 							<span
 								class="inline-flex items-center gap-1 rounded-full bg-tertiary-500/10 px-2.5 py-0.5 font-medium text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400"
 							>
@@ -737,7 +733,7 @@
 								{inferredWidget.displayName}
 								<span class="opacity-60">({inferredWidget.db_fieldName})</span>
 							</span>
-							<span class="text-surface-400 ms-auto hidden sm:inline"
+							<span class="text-(--admin-text-muted) ms-auto hidden sm:inline"
 								>{builder_ts_press_enter()}</span
 							>
 						</div>
@@ -825,12 +821,11 @@
 								<!-- Name & Metadata -->
 								<div class="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
 									<div class="flex items-center gap-2 truncate">
-										<span
-											class="truncate text-sm font-semibold text-surface-900 dark:text-surface-100"
+										<span class="truncate text-sm font-semibold text-(--admin-text-body)"
 											>{item.label || 'Unnamed Field'}</span
 										>
 										<span
-											class="shrink-0 rounded bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-surface-500 uppercase dark:bg-surface-700 dark:text-surface-400"
+											class="shrink-0 rounded bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-(--admin-text-muted) uppercase dark:bg-surface-700 dark:text-(--admin-text-muted)"
 										>
 											{(item.widget as { key?: string })?.key ||
 												(item.widget as { Name?: string })?.Name ||
@@ -838,9 +833,7 @@
 										</span>
 									</div>
 									<div class="flex items-center gap-2">
-										<span
-											class="truncate text-[11px] font-mono text-surface-500 dark:text-surface-400"
-										>
+										<span class="truncate text-[11px] font-mono text-(--admin-text-muted)">
 											{item.db_fieldName || 'unnamed_field'}
 										</span>
 										{#if isDuplicate}
@@ -970,10 +963,10 @@
 							>
 								<iconify-icon icon="mdi:widgets-outline" width="32"></iconify-icon>
 							</div>
-							<h3 class="text-base font-bold text-surface-900 dark:text-surface-100">
+							<h3 class="text-base font-bold text-(--admin-text-body)">
 								{builder_ts_empty_heading()}
 							</h3>
-							<p class="mt-1 max-w-md text-xs text-surface-500 dark:text-surface-400">
+							<p class="mt-1 max-w-md text-xs text-(--admin-text-muted)">
 								{builder_ts_empty_intro()}
 							</p>
 
@@ -1002,7 +995,7 @@
 						</div>
 					{:else}
 						<div
-							class="flex items-center justify-between px-1 text-[11px] text-surface-500 dark:text-surface-400"
+							class="flex items-center justify-between px-1 text-[11px] text-(--admin-text-muted)"
 						>
 							<span class="flex items-center gap-1">
 								<iconify-icon icon="mdi:drag" width="14"></iconify-icon>
@@ -1027,7 +1020,7 @@
 					class="shrink-0 space-y-3 border-b border-surface-500/30 p-4 dark:border-surface-500/40"
 				>
 					<h3
-						class="flex items-center gap-2 text-sm font-bold tracking-wider text-surface-600 uppercase dark:text-surface-400"
+						class="flex items-center gap-2 text-sm font-bold tracking-wider text-(--admin-text-muted) uppercase dark:text-(--admin-text-muted)"
 					>
 						<iconify-icon
 							icon="mdi:view-grid-plus-outline"
@@ -1057,8 +1050,8 @@
 								size="sm"
 								class="h-auto! rounded-full! px-2.5! py-0.5! text-[11px]! font-semibold! {selectedCategory ===
 								cat.id
-									? 'bg-tertiary-500 text-white shadow-2xs dark:bg-primary-500 dark:text-surface-900'
-									: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+									? 'bg-tertiary-500 text-white shadow-2xs dark:bg-primary-500 dark:text-(--admin-text-body)'
+									: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
 								onclick={() => (selectedCategory = cat.id as WidgetCategory)}
 								aria-pressed={selectedCategory === cat.id}
 								data-testid={`category-chip-${cat.id}`}
@@ -1067,7 +1060,7 @@
 							</Button>
 						{/each}
 					</div>
-					<p class="text-[11px] text-surface-500 dark:text-surface-400">
+					<p class="text-[11px] text-(--admin-text-muted)">
 						{builder_ts_click_to_add()}
 					</p>
 				</div>
@@ -1081,7 +1074,7 @@
 						{#if list.length > 0}
 							<div>
 								<h4
-									class="mb-2 px-1 text-[11px] font-bold tracking-wider text-surface-600 uppercase dark:text-surface-400"
+									class="mb-2 px-1 text-[11px] font-bold tracking-wider text-(--admin-text-muted) uppercase dark:text-(--admin-text-muted)"
 								>
 									{title}
 								</h4>
@@ -1112,7 +1105,7 @@
 												<iconify-icon icon={w.icon} width="22" height="22"></iconify-icon>
 											</div>
 											<span
-												class="text-xs leading-tight font-semibold text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400"
+												class="text-xs leading-tight font-semibold text-(--admin-text-body) group-hover:text-tertiary-600 dark:group-hover:text-primary-400"
 												>{w.label}</span
 											>
 										</button>
@@ -1129,11 +1122,11 @@
 					<!-- Remote marketplace catalog -->
 					<div>
 						<div class="mb-2 flex items-center justify-between px-1">
-							<h4 class="text-[10px] font-bold tracking-widest text-surface-400 uppercase">
+							<h4 class="text-[10px] font-bold tracking-widest text-(--admin-text-muted) uppercase">
 								{builder_ts_marketplace()}
 							</h4>
 							{#if remoteLoading}
-								<span class="text-[10px] text-surface-400">{builder_ts_loading()}</span>
+								<span class="text-[10px] text-(--admin-text-muted)">{builder_ts_loading()}</span>
 							{/if}
 						</div>
 
@@ -1158,7 +1151,9 @@
 											<div class="min-w-0 flex-1">
 												<p class="truncate text-xs font-semibold">{w.name}</p>
 												{#if w.description}
-													<p class="line-clamp-2 text-[10px] text-surface-500">{w.description}</p>
+													<p class="line-clamp-2 text-[10px] text-(--admin-text-muted)">
+														{w.description}
+													</p>
 												{/if}
 											</div>
 										</div>
@@ -1175,7 +1170,7 @@
 								{/each}
 							</div>
 						{:else if !remoteLoading}
-							<p class="px-1 text-[11px] text-surface-500">
+							<p class="px-1 text-[11px] text-(--admin-text-muted)">
 								{builder_ts_no_remote()}
 							</p>
 						{/if}
@@ -1198,7 +1193,7 @@
 					</a>
 					<a
 						href="/config/extensions"
-						class="flex items-center justify-center gap-2 rounded-lg border border-surface-500/30 p-2 text-xs font-medium text-surface-600 hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-surface-300 dark:hover:bg-surface-800"
+						class="flex items-center justify-center gap-2 rounded-lg border border-surface-500/30 p-2 text-xs font-medium text-(--admin-text-muted) hover:bg-surface-500/10 dark:border-surface-500/40 dark:text-surface-300 dark:hover:bg-surface-800"
 					>
 						<iconify-icon icon="mdi:puzzle-outline" width="16"></iconify-icon>
 						{builder_ts_extensions_link()}

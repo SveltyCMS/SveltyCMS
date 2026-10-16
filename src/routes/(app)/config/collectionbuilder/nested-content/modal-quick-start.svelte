@@ -73,7 +73,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 
 <div class="modal-quick-start space-y-5" role="dialog" aria-describedby="quick-start-desc">
 	<!-- Description -->
-	<p id="quick-start-desc" class="text-sm text-surface-600 dark:text-surface-400">
+	<p id="quick-start-desc" class="text-sm text-(--admin-text-muted)">
 		{builder_quickstart_intro_part1()}
 		{availablePresets.length}{' '}
 		{builder_quickstart_available_templates()}
@@ -138,7 +138,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				</div>
 
 				<!-- Description -->
-				<p class="mb-3 text-xs leading-relaxed text-surface-600 dark:text-surface-400">
+				<p class="mb-3 text-xs leading-relaxed text-(--admin-text-muted)">
 					{preset.description}
 				</p>
 
@@ -146,7 +146,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 				<div
 					class="mt-auto space-y-1.5 border-t border-surface-100 pt-3 dark:border-surface-500/40"
 				>
-					<span class="text-xs font-medium text-surface-500 dark:text-surface-400"
+					<span class="text-xs font-medium text-(--admin-text-muted)"
 						>{builder_quickstart_creates_label()}{' '}
 						{collections.length !== 1
 							? builder_quickstart_creates_plural({ count: collections.length })
@@ -155,7 +155,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 					<div class="flex flex-wrap gap-1">
 						{#each collections.slice(0, 4) as col (col.name)}
 							<span
-								class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-200"
+								class="inline-flex items-center gap-1 rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-(--admin-text-muted) dark:bg-surface-700 dark:text-surface-200"
 							>
 								<iconify-icon
 									icon={col.icon}
@@ -168,7 +168,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 						{/each}
 						{#if collections.length > 4}
 							<span
-								class="inline-flex items-center rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-surface-500 dark:bg-surface-700 dark:text-surface-400"
+								class="inline-flex items-center rounded-full bg-surface-500/10 px-2 py-0.5 text-xs text-(--admin-text-muted) dark:bg-surface-700 dark:text-(--admin-text-muted)"
 								>+{collections.length - 4} {builder_quickstart_more()}</span
 							>
 						{/if}

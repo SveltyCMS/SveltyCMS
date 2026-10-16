@@ -165,7 +165,7 @@ Features:
 			>
 			{#if isCategory}
 				<Badge variant="tertiary" size="sm" rounded={false}>{builder_badge_category()}</Badge>
-				<span class="text-xs text-surface-500 dark:text-surface-400 font-medium">
+				<span class="text-xs text-(--admin-text-muted) font-medium">
 					{childCount === 1
 						? builder_count_items_singular({ count: childCount })
 						: builder_count_items_plural({ count: childCount })}
@@ -236,7 +236,7 @@ Features:
 					width="18"
 					class={isFav
 						? 'text-warning-500'
-						: 'text-surface-400 dark:text-surface-500 opacity-40 hover:opacity-100'}
+						: 'text-(--admin-text-muted) opacity-40 hover:opacity-100'}
 				></iconify-icon>
 			</Button>
 		</SystemTooltip>
@@ -257,7 +257,7 @@ Features:
 				<iconify-icon
 					icon="bi:tag"
 					width={20}
-					class="text-surface-500 hover:text-tertiary-500 dark:text-primary-500"
+					class="text-(--admin-text-muted) hover:text-tertiary-500 dark:text-primary-500"
 				></iconify-icon>
 			</Button>
 		</SystemTooltip>

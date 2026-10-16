@@ -822,13 +822,13 @@
 				</div>
 				{#if uploadFileLabel}
 					<span
-						class="hidden max-w-40 truncate text-surface-500 sm:inline dark:text-surface-400"
+						class="hidden max-w-40 truncate text-(--admin-text-muted) sm:inline dark:text-(--admin-text-muted)"
 						title={uploadFileLabel}
 					>
 						{uploadFileLabel}
 					</span>
 				{/if}
-				<span class="shrink-0 font-medium tabular-nums text-surface-600 dark:text-surface-400"
+				<span class="shrink-0 font-medium tabular-nums text-(--admin-text-muted)"
 					>{uploadProgress}%</span
 				>
 				<Button
@@ -854,13 +854,13 @@
 					aria-live="polite"
 					data-testid="media-bulk-bar"
 				>
-					<p class="text-xs text-surface-600 dark:text-surface-400">
+					<p class="text-xs text-(--admin-text-muted)">
 						<span
-							class="font-medium text-surface-600 dark:text-surface-100"
+							class="font-medium text-(--admin-text-muted) dark:text-surface-100"
 							data-testid="media-bulk-count"
 							>{assetStats.selected}{' '}{mediagallery_selected()}</span
 						>
-						<span class="hidden text-surface-500 sm:inline dark:text-surface-400">
+						<span class="hidden text-(--admin-text-muted) sm:inline dark:text-(--admin-text-muted)">
 							{mediagallery_del_esc_hint()}</span
 						>
 					</p>
@@ -895,7 +895,7 @@
 		-->
 		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
 			<nav
-				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-base text-surface-500 sm:gap-2.5 sm:py-2.5 dark:border-surface-500/40 dark:text-surface-400"
+				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-base text-(--admin-text-muted) sm:gap-2.5 sm:py-2.5 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
 				aria-label={mediagallery_folder_drop_path()}
 			>
 				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
@@ -917,7 +917,7 @@
 						<iconify-icon
 							icon="mdi:chevron-right"
 							width="16"
-							class="shrink-0 text-surface-400 dark:text-surface-500"
+							class="shrink-0 text-(--admin-text-muted)"
 							aria-hidden="true"
 						></iconify-icon>
 					{/if}
@@ -926,7 +926,7 @@
 						<!-- Current folder: not a link, but still a droppable so the drag is
 							 told "already here" with the same error ring the sidebar uses. -->
 						<span
-							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-surface-600 sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
+							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-(--admin-text-muted) sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
 							aria-current="page"
 							data-media-drop-target={dropKey}
 							data-testid={`media-breadcrumb-${dropKey}`}
@@ -977,10 +977,7 @@
 			</nav>
 
 			{#if selectedFiles.size > 0}
-				<p
-					class="pb-2 text-[11px] leading-tight text-surface-500 dark:text-surface-400"
-					role="status"
-				>
+				<p class="pb-2 text-[11px] leading-tight text-(--admin-text-muted)" role="status">
 					<span class="sm:hidden">{mediagallery_tap_parent_hint()}</span>
 					<span class="hidden sm:inline">
 						{mediagallery_drop()}
@@ -1316,7 +1313,9 @@
 				/>
 			{:else}
 				{#await import('./media-table.svelte')}
-					<div class="flex flex-1 items-center justify-center py-16 text-sm text-surface-500">
+					<div
+						class="flex flex-1 items-center justify-center py-16 text-sm text-(--admin-text-muted)"
+					>
 						{mediagallery_loading_table()}
 					</div>
 				{:then mod}

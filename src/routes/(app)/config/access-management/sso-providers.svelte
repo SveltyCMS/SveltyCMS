@@ -349,12 +349,12 @@
 					class="text-tertiary-500 dark:text-primary-500"
 					aria-hidden="true"
 				></iconify-icon>
-				<h3 class="text-base font-semibold text-surface-900 dark:text-surface-100">
+				<h3 class="text-base font-semibold text-(--admin-text-body)">
 					{sso_heading()}
 				</h3>
 				<Badge variant="success" class="text-xs">{sso_pkce_badge()}</Badge>
 			</div>
-			<p class="text-sm text-surface-600 dark:text-surface-400">
+			<p class="text-sm text-(--admin-text-muted)">
 				{sso_intro()}
 			</p>
 		</div>
@@ -379,7 +379,7 @@
 			<div class="flex items-center justify-between border-b border-surface-500/20 pb-3">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon={formIcon} width={24} aria-hidden="true"></iconify-icon>
-					<h4 class="text-base font-bold text-surface-900 dark:text-surface-100">
+					<h4 class="text-base font-bold text-(--admin-text-body)">
 						{formId ? `Configure ${formName || formId}` : 'Add SSO Provider'}
 					</h4>
 				</div>
@@ -397,7 +397,8 @@
 
 			<!-- Preset selector -->
 			<div>
-				<span class="block text-xs font-semibold text-surface-500 uppercase tracking-wider mb-2"
+				<span
+					class="block text-xs font-semibold text-(--admin-text-muted) uppercase tracking-wider mb-2"
 					>{sso_quick_presets()}</span
 				>
 				<div class="flex flex-wrap gap-2">
@@ -408,7 +409,7 @@
 							class="px-3 py-1.5 rounded text-xs font-medium border flex items-center gap-1.5 transition-colors {formId ===
 							preset.id
 								? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-500 dark:text-primary-500'
-								: 'border-surface-500/30 hover:bg-surface-500/10 text-surface-600 dark:text-surface-400'}"
+								: 'border-surface-500/30 hover:bg-surface-500/10 text-(--admin-text-muted)'}"
 							aria-label={`Apply ${preset.name} preset`}
 						>
 							<iconify-icon icon={preset.icon} width={16} aria-hidden="true"></iconify-icon>
@@ -421,9 +422,7 @@
 			<!-- Core OIDC Settings Grid -->
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div>
-					<label
-						for="sso-id"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+					<label for="sso-id" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 						>{sso_provider_id_label()}</label
 					>
 					<Input
@@ -435,9 +434,7 @@
 				</div>
 
 				<div>
-					<label
-						for="sso-name"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+					<label for="sso-name" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 						>{sso_display_name_label()}</label
 					>
 					<Input
@@ -449,9 +446,7 @@
 				</div>
 
 				<div>
-					<label
-						for="sso-icon"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+					<label for="sso-icon" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 						>{sso_icon_label()}</label
 					>
 					<Input
@@ -465,7 +460,7 @@
 				<div>
 					<label
 						for="sso-issuer"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 					>
 						{sso_issuer_label()}
 					</label>
@@ -495,7 +490,7 @@
 				<div>
 					<label
 						for="sso-client-id"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 						>{sso_client_id_label()}</label
 					>
 					<Input
@@ -509,7 +504,7 @@
 				<div>
 					<label
 						for="sso-client-secret"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 						>{sso_client_secret_label()}</label
 					>
 					<Input
@@ -522,9 +517,7 @@
 				</div>
 
 				<div>
-					<label
-						for="sso-scopes"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+					<label for="sso-scopes" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 						>{sso_scopes_label()}</label
 					>
 					<Input
@@ -538,7 +531,7 @@
 				<div>
 					<label
 						for="sso-redirect-uris"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 						>{sso_redirects_label()}</label
 					>
 					<Input
@@ -552,7 +545,7 @@
 
 			<!-- PKCE Banner -->
 			<div
-				class="p-3 rounded border border-success-500/30 bg-success-500/10 flex items-center justify-between text-xs text-surface-600 dark:text-surface-400"
+				class="p-3 rounded border border-success-500/30 bg-success-500/10 flex items-center justify-between text-xs text-(--admin-text-muted)"
 			>
 				<div class="flex items-center gap-2">
 					<iconify-icon
@@ -572,10 +565,10 @@
 			<div class="border-t border-surface-500/20 pt-4 space-y-4">
 				<div class="flex items-center justify-between">
 					<div>
-						<h5 class="text-sm font-bold text-surface-900 dark:text-surface-100">
+						<h5 class="text-sm font-bold text-(--admin-text-body)">
 							{sso_jit_heading()}
 						</h5>
-						<p class="text-xs text-surface-500">
+						<p class="text-xs text-(--admin-text-muted)">
 							{sso_jit_intro()}
 						</p>
 					</div>
@@ -586,7 +579,7 @@
 							bind:checked={formJitProvisioning}
 							class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
 						/>
-						<span class="text-xs font-medium text-surface-600 dark:text-surface-400"
+						<span class="text-xs font-medium text-(--admin-text-muted)"
 							>{sso_jit_enable_label()}</span
 						>
 					</label>
@@ -599,7 +592,7 @@
 						<div>
 							<label
 								for="sso-default-role"
-								class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+								class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 								>{sso_default_role_label()}</label
 							>
 							<Select
@@ -619,7 +612,7 @@
 						<div>
 							<label
 								for="sso-claim-field"
-								class="block text-xs font-semibold text-surface-600 dark:text-surface-400 mb-1"
+								class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
 								>{sso_claim_field_label()}</label
 							>
 							<Input
@@ -638,9 +631,7 @@
 									bind:checked={formSyncRolesOnLogin}
 									class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
 								/>
-								<span class="text-xs text-surface-600 dark:text-surface-400"
-									>{sso_sync_roles_label()}</span
-								>
+								<span class="text-xs text-(--admin-text-muted)">{sso_sync_roles_label()}</span>
 							</label>
 						</div>
 					</div>
@@ -648,8 +639,7 @@
 					<!-- Rule Mapping Matrix -->
 					<div class="space-y-2">
 						<div class="flex items-center justify-between">
-							<span
-								class="text-xs font-semibold text-surface-600 dark:text-surface-400 uppercase tracking-wider"
+							<span class="text-xs font-semibold text-(--admin-text-muted) uppercase tracking-wider"
 								>{sso_mappings_label()}</span
 							>
 							<Button
@@ -665,7 +655,7 @@
 
 						{#if formRules.length === 0}
 							<p
-								class="text-xs text-surface-500 italic p-3 border border-dashed border-surface-500/30 rounded text-center"
+								class="text-xs text-(--admin-text-muted) italic p-3 border border-dashed border-surface-500/30 rounded text-center"
 							>
 								{sso_no_rules({ role: formDefaultRole })}
 							</p>
@@ -685,7 +675,7 @@
 										<iconify-icon
 											icon="mdi:arrow-right"
 											width={18}
-											class="text-surface-400 shrink-0"
+											class="text-(--admin-text-muted) shrink-0"
 											aria-hidden="true"
 										></iconify-icon>
 										<div class="w-44 shrink-0">
@@ -744,12 +734,16 @@
 
 	<!-- Providers List -->
 	{#if isLoading}
-		<div class="p-8 text-center text-sm text-surface-500">{sso_loading()}</div>
+		<div class="p-8 text-center text-sm text-(--admin-text-muted)">{sso_loading()}</div>
 	{:else if providers.length === 0}
 		<div
-			class="p-8 text-center rounded-lg border border-dashed border-surface-500/30 text-surface-500 space-y-3"
+			class="p-8 text-center rounded-lg border border-dashed border-surface-500/30 text-(--admin-text-muted) space-y-3"
 		>
-			<iconify-icon icon="mdi:shield-outline" width={40} class="text-surface-400" aria-hidden="true"
+			<iconify-icon
+				icon="mdi:shield-outline"
+				width={40}
+				class="text-(--admin-text-muted)"
+				aria-hidden="true"
 			></iconify-icon>
 			<p class="text-sm">{sso_none()}</p>
 			<Button
@@ -779,11 +773,11 @@
 						</div>
 						<div class="space-y-1">
 							<div class="flex items-center gap-2 flex-wrap">
-								<h4 class="font-bold text-base text-surface-900 dark:text-surface-100">
+								<h4 class="font-bold text-base text-(--admin-text-body)">
 									{provider.name || provider.id}
 								</h4>
 								<code
-									class="text-xs px-1.5 py-0.5 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400"
+									class="text-xs px-1.5 py-0.5 rounded bg-surface-500/10 text-(--admin-text-muted)"
 									>{provider.id}</code
 								>
 								<Badge variant="success" class="text-xs">{sso_pkce_s256()}</Badge>
@@ -798,7 +792,7 @@
 									<Badge variant="secondary" class="text-xs">{sso_role_sync()}</Badge>
 								{/if}
 							</div>
-							<p class="text-xs text-surface-500 truncate max-w-md">{provider.issuer}</p>
+							<p class="text-xs text-(--admin-text-muted) truncate max-w-md">{provider.issuer}</p>
 							{#if provider.roleMapping?.rules && provider.roleMapping.rules.length > 0}
 								<p class="text-xs text-tertiary-500 dark:text-primary-500">
 									{provider.roleMapping.rules.length}

@@ -490,7 +490,7 @@
 	<h3 class="mb-2 text-center text-xl font-bold" data-testid="website-tokens-title">
 		{tokens_heading()}
 	</h3>
-	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
+	<p class="mb-4 justify-center text-center text-sm text-(--admin-text-muted)">
 		{tokens_intro()}
 	</p>
 
@@ -539,7 +539,7 @@
 					role="group"
 					aria-labelledby="permissions-title"
 				>
-					<p id="permissions-title" class="text-sm text-surface-500 mb-2">
+					<p id="permissions-title" class="text-sm text-(--admin-text-muted) mb-2">
 						{tokens_permissions_hint_part1()}{' '}<strong>{tokens_read_only()}</strong>{' '}
 						{tokens_permissions_hint_part2()}
 					</p>
@@ -602,7 +602,7 @@
 
 			{#if columnShow}
 				<div class={SMART_TABLE_COLUMN_MANAGER}>
-					<div class="text-sm text-surface-600 dark:text-surface-400">
+					<div class="text-sm text-(--admin-text-muted)">
 						{tokens_drag_hint()}
 					</div>
 					<div class="my-2 flex w-full items-center justify-center gap-1">
@@ -632,12 +632,12 @@
 									data-header-id={header.id}
 									role="listitem"
 									class="inline-flex items-center rounded-lg border transition-all {header.visible
-										? 'bg-surface-500/10 dark:bg-surface-800 border-surface-500/30 dark:border-surface-600 text-surface-900 dark:text-surface-100'
-										: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-surface-400 dark:text-surface-500'}"
+										? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
+										: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
 								>
 									<button
 										type="button"
-										class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+										class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-(--admin-text-muted) hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
 										aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
 										title={common_drag_reorder()}
 									>
@@ -659,7 +659,10 @@
 											<iconify-icon icon="fa:check" width={14} class="text-success-500"
 											></iconify-icon>
 										{:else}
-											<iconify-icon icon="mdi:eye-off-outline" width={14} class="text-surface-400"
+											<iconify-icon
+												icon="mdi:eye-off-outline"
+												width={14}
+												class="text-(--admin-text-muted)"
 											></iconify-icon>
 										{/if}
 										<span class="capitalize">{header.label}</span>
@@ -748,7 +751,7 @@
 						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 							{#each tokens as token (token._id)}
 								<tr
-									class="text-surface-600 dark:text-surface-400 {smartTable.isSelected(token._id)
+									class="text-(--admin-text-muted) {smartTable.isSelected(token._id)
 										? SMART_TABLE_ROW_SELECTED
 										: SMART_TABLE_ROW_HOVER}"
 								>
@@ -764,7 +767,7 @@
 										<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(header.key)}>
 											{#if header.key === 'token'}
 												<div class="flex items-center gap-2">
-													<code class="bg-surface-500/10 dark:bg-surface-800 px-2 py-1 rounded">
+													<code class="bg-(--admin-bg-card) px-2 py-1 rounded">
 														{showSecretMap[token._id]
 															? token.token
 															: `${token.token.slice(0, 4)}••••••••${token.token.slice(-4)}`}
