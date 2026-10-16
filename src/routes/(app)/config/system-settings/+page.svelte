@@ -232,7 +232,7 @@ All dynamic CMS settings organized into logical groups
 				{syssettings_configure_heading()}
 			</h2>
 
-			<p class="text-surface-600 dark:text-surface-400 text-sm mb-6">
+			<p class="text-(--admin-text-muted) text-sm mb-6">
 				{syssettings_intro_part1()}{' '}<span
 					class="font-bold text-tertiary-500 dark:text-primary-500"
 					data-testid="system-settings-group-count">{availableGroups.length}</span
@@ -357,7 +357,7 @@ All dynamic CMS settings organized into logical groups
 								class="flex h-full flex-col items-center justify-center gap-3 p-6 text-center"
 								data-testid="system-settings-group-missing"
 							>
-								<p class="text-surface-500">
+								<p class="text-(--admin-text-muted)">
 									{syssettings_selected_group_missing_part1()} &quot;{selectedGroupId}&quot;
 									{syssettings_selected_group_missing_part2()}
 								</p>
@@ -379,7 +379,7 @@ All dynamic CMS settings organized into logical groups
 						class="flex h-full items-center justify-center p-6 text-center"
 						data-testid="system-settings-group-unselected"
 					>
-						<p class="text-surface-500">{syssettings_select_group()}</p>
+						<p class="text-(--admin-text-muted)">{syssettings_select_group()}</p>
 					</div>
 				{/if}
 			</AdminCard>
@@ -390,7 +390,7 @@ All dynamic CMS settings organized into logical groups
 			<h2 class="h2 mb-4 font-bold text-tertiary-600 dark:text-primary-500">
 				{syssettings_mt_heading()}
 			</h2>
-			<p class="text-surface-600 dark:text-surface-400 text-sm mb-4">
+			<p class="text-(--admin-text-muted) text-sm mb-4">
 				{syssettings_mt_intro()}
 			</p>
 

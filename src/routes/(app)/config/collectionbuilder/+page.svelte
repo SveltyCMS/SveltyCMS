@@ -816,7 +816,7 @@ None (TreeView has its own keyboard navigation)
 						type="button"
 						onclick={handleClearCategorySelection}
 						variant="ghost"
-						class="flex items-center gap-1 text-surface-600 dark:text-surface-400"
+						class="flex items-center gap-1 text-(--admin-text-muted)"
 						disabled={isLoading}
 						aria-label={builder_clear_category_aria()}
 					>

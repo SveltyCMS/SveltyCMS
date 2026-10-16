@@ -74,7 +74,7 @@
 			<SiteName highlight="CMS" />
 			{builder_empty_blueprint()}
 		</h2>
-		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-50">
+		<p class="text-sm leading-relaxed text-(--admin-text-muted) dark:text-surface-50">
 			{builder_empty_intro()}
 		</p>
 	</div>
@@ -142,7 +142,7 @@
 			</p>
 		{/if}
 
-		<p class="mx-auto mt-4 max-w-md text-xs text-surface-600 dark:text-surface-400" role="note">
+		<p class="mx-auto mt-4 max-w-md text-xs text-(--admin-text-muted)" role="note">
 			{builder_templates_note_part1()} <strong>{button_save()}</strong>.
 		</p>
 

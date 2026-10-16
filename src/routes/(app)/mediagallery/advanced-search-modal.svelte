@@ -325,7 +325,7 @@ Structure optimized for LLM integration and AI-powered search.
 								placeholder={mediagallery_tags_placeholder()}
 							/>
 							{#if suggestions.tags.length > 0}
-								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
+								<div class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 									{mediagallery_suggestions()}
 									{suggestions.tags.join(', ')}
 								</div>
@@ -376,7 +376,7 @@ Structure optimized for LLM integration and AI-powered search.
 					</div>
 
 					{#if suggestions.dimensions.length > 0}
-						<div class="mt-2 text-xs text-surface-600 dark:text-surface-50">
+						<div class="mt-2 text-xs text-(--admin-text-muted) dark:text-surface-50">
 							{mediagallery_common_dimensions()}
 							{suggestions.dimensions.join(', ')}
 						</div>
@@ -441,7 +441,7 @@ Structure optimized for LLM integration and AI-powered search.
 								placeholder={mediagallery_camera_placeholder()}
 							/>
 							{#if suggestions.cameras.length > 0}
-								<div class="mt-1 text-xs text-surface-600 dark:text-surface-50">
+								<div class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 									{mediagallery_found()}
 									{suggestions.cameras.join(', ')}
 								</div>

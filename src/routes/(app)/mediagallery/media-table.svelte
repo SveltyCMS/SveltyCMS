@@ -271,13 +271,13 @@
 				</div>
 				<div class="w-10 shrink-0" role="columnheader" aria-hidden="true"></div>
 				<div
-					class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-surface-500"
+					class="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 					role="columnheader"
 				>
 					{mediagallery_name()}
 				</div>
 				<div
-					class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-surface-500"
+					class="w-16 shrink-0 text-end text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 					role="columnheader"
 				>
 					<span class="sr-only">{trash_th_actions()}</span>
@@ -351,13 +351,13 @@
 								<iconify-icon
 									icon="mdi:image-off-outline"
 									width="18"
-									class="text-surface-400 dark:text-surface-500"
+									class="text-(--admin-text-muted)"
 								></iconify-icon>
 							{:else}
 								<iconify-icon
 									icon="mdi:file-document-outline"
 									width="18"
-									class="text-surface-400 dark:text-surface-500"
+									class="text-(--admin-text-muted)"
 								></iconify-icon>
 							{/if}
 						</div>
@@ -368,7 +368,7 @@
 							{file.filename}
 						</div>
 						<div
-							class="mt-0.5 truncate font-mono text-[10px] text-surface-500 dark:text-surface-400"
+							class="mt-0.5 truncate font-mono text-[10px] text-(--admin-text-muted)"
 							title={(file as MediaImage).path}
 						>
 							{formatBytes((file as MediaImage).size)} · {typeLabel(file).toUpperCase()}
@@ -572,13 +572,13 @@
 									<iconify-icon
 										icon="mdi:image-off-outline"
 										width="20"
-										class="text-surface-400 dark:text-surface-500"
+										class="text-(--admin-text-muted)"
 									></iconify-icon>
 								{:else}
 									<iconify-icon
 										icon="mdi:file-document-outline"
 										width="20"
-										class="text-surface-400 dark:text-surface-500"
+										class="text-(--admin-text-muted)"
 									></iconify-icon>
 								{/if}
 							</div>
@@ -586,21 +586,21 @@
 						<td class="media-table-name {SMART_TABLE_TD} min-w-0 overflow-hidden text-start!">
 							<div class="truncate text-sm font-medium" title={file.filename}>{file.filename}</div>
 							<div
-								class="media-table-path hidden font-mono text-[10px] text-surface-500 sm:block dark:text-surface-400"
+								class="media-table-path hidden font-mono text-[10px] text-(--admin-text-muted) sm:block dark:text-(--admin-text-muted)"
 								title={(file as MediaImage).path}
 							>
 								{(file as MediaImage).path}
 							</div>
 						</td>
 						<td
-							class="media-table-size {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! font-mono text-xs tabular-nums text-surface-500 dark:text-surface-400 sm:table-cell"
+							class="media-table-size {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! font-mono text-xs tabular-nums text-(--admin-text-muted) sm:table-cell"
 						>
 							{formatBytes((file as MediaImage).size)}
 						</td>
 						<td
 							class="media-table-type {SMART_TABLE_TD} hidden shrink-0 whitespace-nowrap text-end! md:table-cell"
 						>
-							<span class="font-mono text-[10px] uppercase text-surface-500 dark:text-surface-400"
+							<span class="font-mono text-[10px] uppercase text-(--admin-text-muted)"
 								>{typeLabel(file)}</span
 							>
 						</td>

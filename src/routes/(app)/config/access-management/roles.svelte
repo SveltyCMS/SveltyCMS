@@ -245,7 +245,7 @@ It provides the following functionality:
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">{access_roles_heading()}</h3>
 
-	<p class="mb-4 justify-center text-center text-sm text-surface-500 dark:text-surface-400">
+	<p class="mb-4 justify-center text-center text-sm text-(--admin-text-muted)">
 		{access_roles_intro()}
 	</p>
 

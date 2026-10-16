@@ -134,7 +134,7 @@ Features:
 					{/if}
 
 					<!-- Main Preview -->
-					<div class="relative flex-1 bg-surface-500/10 dark:bg-surface-800 overflow-hidden">
+					<div class="relative flex-1 bg-(--admin-bg-card) overflow-hidden">
 						{#if file.type === 'image'}
 							<img
 								src={mediaDisplayUrl(file, 'thumbnail')}

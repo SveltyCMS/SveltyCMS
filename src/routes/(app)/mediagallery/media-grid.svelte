@@ -232,14 +232,11 @@
 			transition:adminFade={{ duration: 200 }}
 			data-testid="media-grid-empty"
 		>
-			<iconify-icon
-				icon="mdi:cloud-upload-outline"
-				width="48"
-				class="text-surface-400 dark:text-surface-500"
+			<iconify-icon icon="mdi:cloud-upload-outline" width="48" class="text-(--admin-text-muted)"
 			></iconify-icon>
 			<div class="space-y-1">
 				<h3 class="text-base font-semibold">{mediagallery_no_media()}</h3>
-				<p class="max-w-xs text-sm text-surface-500 dark:text-surface-400">
+				<p class="max-w-xs text-sm text-(--admin-text-muted)">
 					{mediagallery_drop_files()}
 				</p>
 			</div>
@@ -373,13 +370,11 @@
 								/>
 							</div>
 						{:else}
-							<div
-								class="flex h-full w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800/80"
-							>
+							<div class="flex h-full w-full items-center justify-center bg-(--admin-bg-card)/80">
 								<iconify-icon
 									icon={file.type === 'image' ? 'mdi:image-off-outline' : getFileIcon(file)}
 									width={36}
-									class="text-surface-400 dark:text-surface-500"
+									class="text-(--admin-text-muted)"
 								></iconify-icon>
 							</div>
 						{/if}
@@ -419,9 +414,7 @@
 								>
 							{/snippet}
 							{#snippet content()}
-								<div
-									class="flex flex-col text-[11px] text-surface-600 dark:text-surface-400 min-w-60"
-								>
+								<div class="flex flex-col text-[11px] text-(--admin-text-muted) min-w-60">
 									<div
 										class="border-b border-(--admin-border-default) pb-2 mb-0 text-center text-[13px]"
 									>
@@ -446,7 +439,7 @@
 												>
 											</tr>
 										</thead>
-										<tbody class="text-surface-600 dark:text-surface-400">
+										<tbody class="text-(--admin-text-muted)">
 											<tr class="border-b border-(--admin-border-default)">
 												<td
 													class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
@@ -464,7 +457,7 @@
 												{@const primaryLabel = primaryFormatLabel(file.thumbnails)}
 												<tr class="border-b border-(--admin-border-default)">
 													<td
-														class="py-1 px-2 font-bold text-surface-500 dark:text-surface-400 border-e border-(--admin-border-default) text-start"
+														class="py-1 px-2 font-bold text-(--admin-text-muted) border-e border-(--admin-border-default) text-start"
 														colspan="4"
 													>
 														{mediagallery_resized_variants()}
@@ -495,7 +488,10 @@
 																{#if webpKey}
 																	{formatBytes((file.thumbnails[webpKey] as any).size)}
 																{:else}
-																	<span class="text-surface-400 dark:text-surface-600">—</span>
+																	<span
+																		class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
+																		>—</span
+																	>
 																{/if}
 															</td>
 														{:else}
@@ -571,12 +567,12 @@
 					class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-500/30 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-500/40"
 				>
 					<span
-						class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 sm:text-[11px] dark:text-surface-400"
+						class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
 					>
 						{formatMimeType((file as MediaImage).mimeType)}
 					</span>
 					<span
-						class="shrink-0 font-mono text-[10px] tabular-nums text-surface-400 sm:text-[11px] dark:text-surface-500"
+						class="shrink-0 font-mono text-[10px] tabular-nums text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
 					>
 						{formatBytes((file as MediaImage).size)}
 					</span>
@@ -587,7 +583,7 @@
 		{#if hasMore}
 			<div
 				bind:this={sentinel}
-				class="col-span-full flex items-center justify-center gap-2 py-5 font-mono text-[11px] text-surface-400 dark:text-surface-500"
+				class="col-span-full flex items-center justify-center gap-2 py-5 font-mono text-[11px] text-(--admin-text-muted)"
 				aria-hidden="true"
 			>
 				<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>

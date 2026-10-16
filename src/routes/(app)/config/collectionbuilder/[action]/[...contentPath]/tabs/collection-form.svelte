@@ -218,14 +218,14 @@
 		</div>
 		<div>
 			<div class="flex items-center gap-2">
-				<h2 class="text-xl font-bold text-surface-900 dark:text-surface-100">
+				<h2 class="text-xl font-bold text-(--admin-text-body)">
 					{collection_form_definition()}
 				</h2>
 				<SystemTooltip title={builder_tip_def_step()}>
 					<HelpIcon ariaLabel={builder_help_definition()} />
 				</SystemTooltip>
 			</div>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
+			<p class="text-sm text-(--admin-text-muted)">
 				{collection_form_intro()}
 			</p>
 		</div>
@@ -235,9 +235,7 @@
 		<!-- Left: Name & Database ID -->
 		<Card class="p-6">
 			<div class="flex items-center justify-between mb-4">
-				<h3
-					class="text-base font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
-				>
+				<h3 class="text-base font-semibold text-(--admin-text-body) flex items-center gap-2">
 					<iconify-icon icon="mdi:form-textbox" width="18" class="text-tertiary-500"></iconify-icon>
 					{collection_form_identity()}
 				</h3>
@@ -251,7 +249,7 @@
 					<div class="flex items-center gap-1.5">
 						<label
 							for="collection-name-input"
-							class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+							class="text-sm font-medium leading-none text-(--admin-text-muted)"
 						>
 							{collection_name()}
 						</label>
@@ -273,7 +271,7 @@
 				{#if name}
 					<div class="space-y-1 mt-6">
 						<div class="flex items-center gap-2">
-							<span class="text-sm font-medium text-surface-600 dark:text-surface-400">
+							<span class="text-sm font-medium text-(--admin-text-muted)">
 								{collection_form_db_name()}
 							</span>
 							<SystemTooltip title={builder_tip_def_dbname()}>
@@ -288,7 +286,7 @@
 							class="font-mono text-sm font-bold text-tertiary-600 dark:text-primary-500"
 							aria-label={collection_form_db_name_aria()}
 						/>
-						<p class="text-[11px] text-surface-500 dark:text-surface-400">
+						<p class="text-[11px] text-(--admin-text-muted)">
 							{collection_form_db_name_hint()}
 						</p>
 					</div>
@@ -299,9 +297,7 @@
 		<!-- Right: Icon & Description -->
 		<Card class="p-6">
 			<div class="flex items-center justify-between mb-4">
-				<h3
-					class="text-base font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
-				>
+				<h3 class="text-base font-semibold text-(--admin-text-body) flex items-center gap-2">
 					<iconify-icon icon="mdi:palette-outline" width="18" class="text-tertiary-500"
 					></iconify-icon>
 					{collection_form_visual()}
@@ -314,7 +310,7 @@
 			<div class="space-y-5">
 				<div class="space-y-2">
 					<div class="flex items-center gap-1.5">
-						<span class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+						<span class="text-sm font-medium leading-none text-(--admin-text-muted)"
 							>{collectionname_labelicon()}</span
 						>
 						<SystemTooltip title={builder_tip_def_icon()}>
@@ -332,7 +328,7 @@
 					<div class="flex items-center gap-1.5">
 						<label
 							for="description"
-							class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+							class="text-sm font-medium leading-none text-(--admin-text-muted)"
 							>{collectionname_description()}</label
 						>
 						<SystemTooltip title={builder_tip_def_description()}>
@@ -345,7 +341,7 @@
 						bind:value={description}
 						placeholder={collection_description_placeholder()}
 						title={collectionname_description()}
-						class="w-full min-h-32 resize-none rounded border border-(--admin-border-default) bg-(--admin-bg-input) p-3 text-sm text-(--admin-text-body) placeholder:text-surface-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500"
+						class="w-full min-h-32 resize-none rounded border border-(--admin-border-default) bg-(--admin-bg-input) p-3 text-sm text-(--admin-text-body) placeholder:text-(--admin-text-muted) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500"
 					></textarea>
 				</div>
 			</div>
@@ -354,9 +350,7 @@
 		<!-- Bottom: Organization & Tags -->
 		<Card class="p-6 md:col-span-2">
 			<div class="flex items-center justify-between mb-4">
-				<h3
-					class="text-base font-semibold text-surface-900 dark:text-surface-100 flex items-center gap-2"
-				>
+				<h3 class="text-base font-semibold text-(--admin-text-body) flex items-center gap-2">
 					<iconify-icon icon="mdi:tag-multiple-outline" width="18" class="text-tertiary-500"
 					></iconify-icon>
 					{collection_form_org_tags()}
@@ -373,7 +367,7 @@
 						<div class="flex items-center gap-1.5">
 							<label
 								for="collection-tags-input"
-								class="text-sm font-medium leading-none text-surface-500 dark:text-surface-50"
+								class="text-sm font-medium leading-none text-(--admin-text-muted) dark:text-surface-50"
 							>
 								{collection_tags_label()}
 							</label>
@@ -381,7 +375,8 @@
 								<HelpIcon ariaLabel={builder_help_collection_tags()} />
 							</SystemTooltip>
 						</div>
-						<span class="text-[11px] text-surface-400">{collection_tags_comma_hint()}</span>
+						<span class="text-[11px] text-(--admin-text-muted)">{collection_tags_comma_hint()}</span
+						>
 					</div>
 
 					<Input
@@ -422,7 +417,9 @@
 					{#if suggestedTags.length > 0}
 						<div class="pt-2">
 							<div class="flex items-center gap-1.5 mb-1.5">
-								<span class="text-[11px] font-bold uppercase tracking-wider text-surface-400 block">
+								<span
+									class="text-[11px] font-bold uppercase tracking-wider text-(--admin-text-muted) block"
+								>
 									{collection_tags_suggested()}
 								</span>
 								<SystemTooltip title={builder_tip_def_suggested_tags()}>
@@ -449,25 +446,25 @@
 
 				<!-- Favorite Quick Access -->
 				<div
-					class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3"
+					class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-4 space-y-3"
 				>
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<iconify-icon
 								icon={isFavorite ? 'bi:star-fill' : 'bi:star'}
 								width="22"
-								class={isFavorite ? 'text-warning-500' : 'text-surface-400'}
+								class={isFavorite ? 'text-warning-500' : 'text-(--admin-text-muted)'}
 							></iconify-icon>
 							<div>
 								<div class="flex items-center gap-1.5">
-									<h4 class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+									<h4 class="text-sm font-semibold text-(--admin-text-body)">
 										{collection_favorite_heading()}
 									</h4>
 									<SystemTooltip title={builder_tip_def_favorite()}>
 										<HelpIcon ariaLabel={builder_help_favorite()} />
 									</SystemTooltip>
 								</div>
-								<p class="text-xs text-surface-500 dark:text-surface-400">
+								<p class="text-xs text-(--admin-text-muted)">
 									{collection_favorite_hint()}
 								</p>
 							</div>

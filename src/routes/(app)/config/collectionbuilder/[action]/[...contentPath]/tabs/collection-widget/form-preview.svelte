@@ -150,7 +150,7 @@ before saving to the database.
 	>
 		<!-- Left: Viewport Switcher -->
 		<div class="flex items-center gap-1">
-			<span class="me-2 text-xs font-semibold text-surface-500 dark:text-surface-400"
+			<span class="me-2 text-xs font-semibold text-(--admin-text-muted)"
 				>{preview_viewport_label()}</span
 			>
 			<div
@@ -164,7 +164,7 @@ before saving to the database.
 					size="sm"
 					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'desktop'
 						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
-						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
+						: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
 					onclick={() => (viewport = 'desktop')}
 					aria-label={preview_desktop_aria()}
 				>
@@ -177,7 +177,7 @@ before saving to the database.
 					size="sm"
 					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'tablet'
 						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
-						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
+						: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
 					onclick={() => (viewport = 'tablet')}
 					aria-label={preview_tablet_aria()}
 				>
@@ -190,7 +190,7 @@ before saving to the database.
 					size="sm"
 					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'mobile'
 						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
-						: 'text-surface-600 hover:text-surface-900 dark:text-surface-400'}"
+						: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
 					onclick={() => (viewport = 'mobile')}
 					aria-label={preview_mobile_aria()}
 				>
@@ -240,11 +240,11 @@ before saving to the database.
 							<iconify-icon icon={collectionIcon || 'mdi:widgets'} width="22"></iconify-icon>
 						</div>
 						<div>
-							<h3 class="text-lg font-bold text-surface-900 dark:text-surface-100">
+							<h3 class="text-lg font-bold text-(--admin-text-body)">
 								{preview_create_new({ name: collectionName || 'Entry' })}
 							</h3>
 							{#if collectionDescription}
-								<p class="text-xs text-surface-500 dark:text-surface-400">
+								<p class="text-xs text-(--admin-text-muted)">
 									{collectionDescription}
 								</p>
 							{/if}
@@ -266,12 +266,15 @@ before saving to the database.
 			<!-- Empty State -->
 			{#if items.length === 0}
 				<div class="py-12 text-center">
-					<iconify-icon icon="mdi:playlist-remove" width="48" class="mx-auto mb-2 text-surface-400"
+					<iconify-icon
+						icon="mdi:playlist-remove"
+						width="48"
+						class="mx-auto mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<h4 class="text-base font-semibold text-surface-600 dark:text-surface-400">
+					<h4 class="text-base font-semibold text-(--admin-text-muted)">
 						{preview_no_fields()}
 					</h4>
-					<p class="text-xs text-surface-500 dark:text-surface-400 mt-1">
+					<p class="text-xs text-(--admin-text-muted) mt-1">
 						{preview_no_fields_hint()}
 					</p>
 				</div>
@@ -293,7 +296,7 @@ before saving to the database.
 								<div class="flex items-center gap-1.5">
 									<label
 										for="preview-{key}"
-										class="text-sm font-semibold text-surface-600 dark:text-surface-400"
+										class="text-sm font-semibold text-(--admin-text-muted)"
 									>
 										{item.label || 'Unnamed Field'}
 									</label>
@@ -305,13 +308,13 @@ before saving to the database.
 											<iconify-icon
 												icon="mdi:information-outline"
 												width="15"
-												class="text-surface-400 hover:text-surface-600 dark:hover:text-surface-400 cursor-help"
+												class="text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted) cursor-help"
 											></iconify-icon>
 										</SystemTooltip>
 									{/if}
 								</div>
 								<span
-									class="rounded bg-surface-500/10 px-1.5 py-0.5 text-[9px] font-mono text-surface-500 uppercase dark:text-surface-400"
+									class="rounded bg-surface-500/10 px-1.5 py-0.5 text-[9px] font-mono text-(--admin-text-muted) uppercase dark:text-(--admin-text-muted)"
 								>
 									{key}
 								</span>
@@ -327,7 +330,7 @@ before saving to the database.
 										bind:checked={sampleValues[key]}
 										class="h-4 w-4 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
 									/>
-									<span class="text-sm text-surface-600 dark:text-surface-400">
+									<span class="text-sm text-(--admin-text-muted)">
 										{item.placeholder || 'Enable this option'}
 									</span>
 								</label>
@@ -338,15 +341,15 @@ before saving to the database.
 									<iconify-icon
 										icon="mdi:cloud-upload-outline"
 										width="32"
-										class="text-surface-400 mb-2"
+										class="text-(--admin-text-muted) mb-2"
 									></iconify-icon>
-									<p class="text-xs font-medium text-surface-600 dark:text-surface-400">
+									<p class="text-xs font-medium text-(--admin-text-muted)">
 										{preview_drag_drop_part1()}{' '}<span
 											class="text-tertiary-500 dark:text-primary-500 underline"
 											>{preview_browse()}</span
 										>
 									</p>
-									<span class="text-[10px] text-surface-400 mt-1">
+									<span class="text-[10px] text-(--admin-text-muted) mt-1">
 										{preview_supports_files()}
 									</span>
 								</div>
@@ -355,7 +358,7 @@ before saving to the database.
 									class="rounded-lg border border-surface-500/30 dark:border-surface-600 overflow-hidden"
 								>
 									<div
-										class="flex items-center gap-1 border-b border-surface-500/20 bg-surface-500/10 px-2 py-1.5 text-surface-600 dark:text-surface-400"
+										class="flex items-center gap-1 border-b border-surface-500/20 bg-surface-500/10 px-2 py-1.5 text-(--admin-text-muted)"
 									>
 										<Button
 											type="button"
@@ -445,7 +448,7 @@ before saving to the database.
 							{/if}
 
 							{#if item.helper}
-								<p class="text-[11px] text-surface-500 dark:text-surface-400">
+								<p class="text-[11px] text-(--admin-text-muted)">
 									{item.helper}
 								</p>
 							{/if}

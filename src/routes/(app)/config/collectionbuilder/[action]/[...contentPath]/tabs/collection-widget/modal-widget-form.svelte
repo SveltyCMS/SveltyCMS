@@ -297,7 +297,7 @@
 					>{local.label || 'Unnamed'}</span
 				>
 			</h2>
-			<p class="text-xs text-surface-500 dark:text-surface-400 mt-0.5">
+			<p class="text-xs text-(--admin-text-muted) mt-0.5">
 				{widget_form_widget_type()}
 				{widgetKey || 'unknown'}
 			</p>
@@ -317,7 +317,7 @@
 						<div class="flex items-center gap-1.5">
 							<label
 								for="field-label"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 								>{widget_form_field_label()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
@@ -340,7 +340,7 @@
 
 					<div class="space-y-1.5">
 						<div class="flex items-center gap-1.5">
-							<span class="block text-sm font-medium text-surface-600 dark:text-surface-400"
+							<span class="block text-sm font-medium text-(--admin-text-muted)"
 								>{widget_form_icon()}</span
 							>
 							<SystemTooltip title={widget_form_icon_hint()}
@@ -354,7 +354,7 @@
 						<div class="flex items-center gap-1.5">
 							<label
 								for="field-dbname"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 								>{widget_form_db_name()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
@@ -374,7 +374,7 @@
 						<div class="flex items-center gap-1.5">
 							<label
 								for="field-placeholder"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 								>{widget_form_placeholder()}</label
 							>
 							<SystemTooltip title={widget_form_placeholder_hint()}
@@ -392,7 +392,7 @@
 						<div class="flex items-center gap-1.5">
 							<label
 								for="field-default"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 								>{widget_form_default()}</label
 							>
 							<SystemTooltip title={widget_form_default_hint()}
@@ -410,10 +410,10 @@
 						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
 					>
 						<div>
-							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+							<p class="text-sm font-semibold text-(--admin-text-muted)">
 								{widget_form_required()}
 							</p>
-							<p class="text-xs text-surface-500 dark:text-surface-400">
+							<p class="text-xs text-(--admin-text-muted)">
 								{widget_form_required_hint()}
 							</p>
 						</div>
@@ -429,10 +429,10 @@
 						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
 					>
 						<div>
-							<p class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+							<p class="text-sm font-semibold text-(--admin-text-muted)">
 								{widget_form_translated()}
 							</p>
-							<p class="text-xs text-surface-500 dark:text-surface-400">
+							<p class="text-xs text-(--admin-text-muted)">
 								{widget_form_translated_hint()}
 							</p>
 						</div>
@@ -449,7 +449,7 @@
 						<div class="flex items-center gap-1.5">
 							<label
 								for="field-helper"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 								>{widget_form_help_text()}</label
 							>
 							<SystemTooltip title={widget_form_help_text_hint()}
@@ -467,7 +467,7 @@
 						<div class="flex items-center gap-1.5">
 							<label
 								for="field-width"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 								>{widget_form_width()}</label
 							>
 							<SystemTooltip title={widget_form_width_hint()}
@@ -485,9 +485,7 @@
 				<!-- Tab 2: Settings (widget-specific GuiFields) -->
 				{#if specificKeys.length > 0}
 					<div class="space-y-3">
-						<p
-							class="text-xs font-bold uppercase tracking-widest text-surface-500 dark:text-surface-400"
-						>
+						<p class="text-xs font-bold uppercase tracking-widest text-(--admin-text-muted)">
 							{widget_form_settings_suffix({ widget: widgetKey })}
 						</p>
 						{#each specificKeys as key (key)}
@@ -502,7 +500,7 @@
 					</div>
 				{:else}
 					<div
-						class="flex flex-col items-center justify-center py-12 text-surface-400 dark:text-surface-500 space-y-2"
+						class="flex flex-col items-center justify-center py-12 text-(--admin-text-muted) space-y-2"
 					>
 						<iconify-icon icon="mdi:tune" width="40" class="opacity-20"></iconify-icon>
 						<p class="text-sm">{widget_form_no_settings()}</p>
@@ -522,7 +520,7 @@
 						class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
 					>
 						<h4
-							class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400"
+							class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-(--admin-text-muted)"
 						>
 							{widget_form_visibility()}
 						</h4>
@@ -535,16 +533,16 @@
 									visibility: localPerms.visibility === 'public' ? 'private' : 'public'
 								})}
 						>
-							<span class="font-semibold text-surface-600 dark:text-surface-400">
+							<span class="font-semibold text-(--admin-text-muted)">
 								{localPerms.visibility === 'public' ? 'Public' : 'Private'}
 							</span>
 							<iconify-icon
 								icon={localPerms.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'}
 								width="20"
-								class="text-surface-400"
+								class="text-(--admin-text-muted)"
 							></iconify-icon>
 						</Button>
-						<p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
+						<p class="mt-2 text-xs text-(--admin-text-muted)">
 							{localPerms.visibility === 'public'
 								? 'Field is visible to everyone by default.'
 								: 'Field is restricted; only allowed roles can access.'}
@@ -566,11 +564,11 @@
 								onchange={(e) =>
 									updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
 							/>
-							<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
+							<span class="text-sm font-semibold text-(--admin-text-muted)"
 								>{widget_form_require_auth()}</span
 							>
 						</label>
-						<p class="mt-2 text-xs text-surface-500 dark:text-surface-400">
+						<p class="mt-2 text-xs text-(--admin-text-muted)">
 							{widget_form_require_auth_hint()}
 						</p>
 					</div>
@@ -581,25 +579,23 @@
 							class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
 						>
 							<h4
-								class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-surface-500 dark:text-surface-400"
+								class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-(--admin-text-muted)"
 							>
 								{widget_form_role_matrix()}
 							</h4>
-							<p class="mb-4 text-xs text-surface-500 dark:text-surface-400">
+							<p class="mb-4 text-xs text-(--admin-text-muted)">
 								{widget_form_role_matrix_hint()}
 							</p>
 
 							<!-- Table header -->
 							<div class="grid grid-cols-[1fr_60px_60px] gap-2 mb-2 px-2">
-								<span class="text-xs font-semibold text-surface-600 dark:text-surface-400"
+								<span class="text-xs font-semibold text-(--admin-text-muted)"
 									>{widget_form_roles_role()}</span
 								>
-								<span
-									class="text-xs font-semibold text-surface-600 dark:text-surface-400 text-center"
+								<span class="text-xs font-semibold text-(--admin-text-muted) text-center"
 									>{widget_form_roles_view()}</span
 								>
-								<span
-									class="text-xs font-semibold text-surface-600 dark:text-surface-400 text-center"
+								<span class="text-xs font-semibold text-(--admin-text-muted) text-center"
 									>{widget_form_roles_edit()}</span
 								>
 							</div>
@@ -609,7 +605,7 @@
 									<div
 										class="grid grid-cols-[1fr_60px_60px] gap-2 items-center rounded-lg px-3 py-2 hover:bg-surface-500/10 dark:hover:bg-surface-800/50 transition-colors"
 									>
-										<span class="text-sm text-surface-600 dark:text-surface-400 truncate">
+										<span class="text-sm text-(--admin-text-muted) truncate">
 											{role.name ?? role._id}
 										</span>
 										<div class="flex justify-center">
@@ -641,9 +637,9 @@
 							<iconify-icon
 								icon="mdi:shield-account-outline"
 								width="32"
-								class="text-surface-400 opacity-30 mb-2"
+								class="text-(--admin-text-muted) opacity-30 mb-2"
 							></iconify-icon>
-							<p class="text-sm text-surface-500 dark:text-surface-400">
+							<p class="text-sm text-(--admin-text-muted)">
 								{widget_form_no_roles()}
 							</p>
 						</div>

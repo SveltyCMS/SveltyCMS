@@ -43,7 +43,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 	);
 
 	const menuItemClass =
-		'h-auto! w-full justify-start gap-2.5 rounded-md px-3! py-2! text-start text-sm! font-medium! text-surface-600 hover:bg-surface-500/10 dark:text-surface-400';
+		'h-auto! w-full justify-start gap-2.5 rounded-md px-3! py-2! text-start text-sm! font-medium! text-(--admin-text-muted) hover:bg-surface-500/10 dark:text-(--admin-text-muted)';
 
 	function updateMenuPosition() {
 		if (!triggerEl) return;
@@ -113,7 +113,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 			aria-label={mediagallery_actions_for({ name: file.filename })}
 			aria-haspopup="menu"
 			aria-expanded={open}
-			class="h-8 w-8 min-w-0 p-0! text-surface-500 hover:bg-surface-500/10 hover:text-surface-800 dark:text-surface-400 dark:hover:bg-surface-800 dark:hover:text-surface-100"
+			class="h-8 w-8 min-w-0 p-0! text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-surface-800 dark:text-(--admin-text-muted) dark:hover:bg-surface-800 dark:hover:text-surface-100"
 			onclick={toggleMenu}
 		>
 			<iconify-icon icon="mdi:dots-vertical" width="18" aria-hidden="true"></iconify-icon>
@@ -151,10 +151,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 					class={menuItemClass}
 					onclick={() => closeAndRun(onEdit)}
 				>
-					<iconify-icon
-						icon="mdi:pencil"
-						width="16"
-						class="shrink-0 text-surface-500 dark:text-surface-400"
+					<iconify-icon icon="mdi:pencil" width="16" class="shrink-0 text-(--admin-text-muted)"
 					></iconify-icon>
 					<span>{button_edit()}</span>
 				</Button>
@@ -170,7 +167,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 						<iconify-icon
 							icon={hasTags ? 'mdi:tag' : 'mdi:tag-outline'}
 							width="16"
-							class="shrink-0 text-surface-500 dark:text-surface-400"
+							class="shrink-0 text-(--admin-text-muted)"
 						></iconify-icon>
 						<span>{builder_tag_input_label()}</span>
 					</Button>

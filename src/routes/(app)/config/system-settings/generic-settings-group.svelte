@@ -719,7 +719,7 @@ Handles all field types and validation automatically
 			</span>
 			{group.name}
 		</h2>
-		<p class="text-sm text-surface-600 dark:text-surface-400">{group.description}</p>
+		<p class="text-sm text-(--admin-text-muted)">{group.description}</p>
 	</div>
 
 	<!-- Restart Warning -->
@@ -739,7 +739,7 @@ Handles all field types and validation automatically
 	<!-- Loading overlay — preserves form DOM so input bindings survive loadSettings refresh -->
 	{#if loading}
 		<div class="flex items-center justify-center p-12">
-			<p class="text-surface-500">{settings_loading()}</p>
+			<p class="text-(--admin-text-muted)">{settings_loading()}</p>
 		</div>
 	{/if}
 
@@ -860,7 +860,7 @@ Handles all field types and validation automatically
 												</Badge>
 											{/each}
 										{:else if availableLangsField.placeholder}
-											<span class="text-surface-500 dark:text-surface-50 text-xs"
+											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{availableLangsField.placeholder}</span
 											>
 										{/if}
@@ -1074,7 +1074,7 @@ Handles all field types and validation automatically
 												</Badge>
 											{/each}
 										{:else if localesField.placeholder}
-											<span class="text-surface-500 dark:text-surface-50 text-xs"
+											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{localesField.placeholder}</span
 											>
 										{/if}
@@ -1172,7 +1172,7 @@ Handles all field types and validation automatically
 													>
 														<span
 															>{lang.name} ({lang.code.toUpperCase()})
-															<span class="text-surface-500">- {lang.native}</span></span
+															<span class="text-(--admin-text-muted)">- {lang.native}</span></span
 														>
 														{#if getTextDirection(lang.code) === 'rtl'}
 															<span
@@ -1246,7 +1246,7 @@ Handles all field types and validation automatically
 										<iconify-icon
 											icon="material-symbols:info-outline"
 											width="16"
-											class="text-surface-500 dark:text-surface-50 opacity-60"
+											class="text-(--admin-text-muted) dark:text-surface-50 opacity-60"
 										></iconify-icon>
 									</span>
 								</SystemTooltip>
@@ -1284,7 +1284,7 @@ Handles all field types and validation automatically
 										class="flex-1"
 									/>
 									{#if field.unit}
-										<span class="text-sm text-surface-500 dark:text-surface-50 shrink-0">
+										<span class="text-sm text-(--admin-text-muted) dark:text-surface-50 shrink-0">
 											{field.unit}
 											{#if typeof values[field.key] === 'number' && field.unit === 'seconds'}
 												({formatDuration(values[field.key] as number)})
@@ -1308,7 +1308,7 @@ Handles all field types and validation automatically
 										inputClass={field.sensitive && field.readonly ? '' : 'pe-10'}
 									/>
 									{#if field.sensitive && field.readonly}
-										<div class="absolute inset-e-2 top-2 text-xs text-surface-500 italic">
+										<div class="absolute inset-e-2 top-2 text-xs text-(--admin-text-muted) italic">
 											{settings_configured_in_env()}
 										</div>
 									{:else if !field.readonly}
@@ -1373,7 +1373,7 @@ Handles all field types and validation automatically
 									}}
 									error={errors[field.key]}
 								/>
-								<p class="mt-1 text-xs text-surface-500 dark:text-surface-50">
+								<p class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 									{settings_array_hint()}
 								</p>
 								<!-- Language Multi-Select -->
@@ -1411,7 +1411,7 @@ Handles all field types and validation automatically
 												</Badge>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500 dark:text-surface-50 text-xs"
+											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{field.placeholder}</span
 											>
 										{/if}
@@ -1488,7 +1488,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as string[])?.length > 0}
-									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">
+									<p class="text-(--admin-text-muted) dark:text-surface-50 mt-1 text-[10px]">
 										{settings_example()}
 										{field.placeholder}
 									</p>
@@ -1525,7 +1525,7 @@ Handles all field types and validation automatically
 												</Badge>
 											{/each}
 										{:else if field.placeholder}
-											<span class="text-surface-500 dark:text-surface-50 text-xs"
+											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{field.placeholder}</span
 											>
 										{/if}
@@ -1583,7 +1583,7 @@ Handles all field types and validation automatically
 									{/if}
 								</div>
 								{#if field.placeholder && (values[field.key] as LogLevel[])?.length > 0}
-									<p class="text-surface-500 dark:text-surface-50 mt-1 text-[10px]">
+									<p class="text-(--admin-text-muted) dark:text-surface-50 mt-1 text-[10px]">
 										{settings_example()}
 										{field.placeholder}
 									</p>
@@ -1684,7 +1684,7 @@ Handles all field types and validation automatically
 							</div>
 							<span class="hidden sm:inline text-dark dark:text-white">|</span>
 							<div class="flex items-center gap-1 shrink-0">
-								<span class="text-surface-600 dark:text-surface-50"
+								<span class="text-(--admin-text-muted) dark:text-surface-50"
 									>{settings_status_settings()}</span
 								>
 								<span class="font-semibold text-tertiary-500 dark:text-primary-500"
@@ -1693,7 +1693,8 @@ Handles all field types and validation automatically
 							</div>
 							<span class="hidden sm:inline text-dark dark:text-white">|</span>
 							<div class="flex items-center gap-1 shrink-0">
-								<span class="text-surface-600 dark:text-surface-50">{settings_status_groups()}</span
+								<span class="text-(--admin-text-muted) dark:text-surface-50"
+									>{settings_status_groups()}</span
 								>
 								<span class="font-semibold text-tertiary-500 dark:text-primary-500"
 									>{group.fields?.length ?? 0}</span
@@ -1701,7 +1702,7 @@ Handles all field types and validation automatically
 							</div>
 							<span class="hidden sm:inline text-dark dark:text-white">|</span>
 							<div class="flex items-center gap-1 shrink-0">
-								<span class="text-surface-600 dark:text-surface-50"
+								<span class="text-(--admin-text-muted) dark:text-surface-50"
 									>{settings_status_environment()}</span
 								>
 								<span class="font-semibold text-tertiary-500 dark:text-primary-500"

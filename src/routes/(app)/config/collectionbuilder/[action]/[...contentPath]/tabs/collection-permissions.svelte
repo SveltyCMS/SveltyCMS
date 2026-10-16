@@ -131,7 +131,7 @@
 		</div>
 		<div>
 			<div class="flex items-center gap-2">
-				<h2 class="text-xl font-bold leading-none text-surface-900 dark:text-surface-100">
+				<h2 class="text-xl font-bold leading-none text-(--admin-text-body)">
 					{collection_permissions_heading()}
 				</h2>
 				<SystemTooltip positioning={{ placement: 'bottom' }} triggerClass="flex items-center">
@@ -162,7 +162,7 @@
 					<HelpIcon ariaLabel={collection_permissions_help_aria()} />
 				</SystemTooltip>
 			</div>
-			<p class="text-sm text-surface-500 dark:text-surface-400">
+			<p class="text-sm text-(--admin-text-muted)">
 				{collection_permissions_intro()}
 			</p>
 		</div>
@@ -177,7 +177,7 @@
 						class="border-b border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900"
 					>
 						<th
-							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider"
+							class="px-4 py-3 font-semibold text-(--admin-text-muted) text-xs uppercase tracking-wider"
 						>
 							<div class="flex items-center justify-start gap-1">
 								{collection_permissions_role()}
@@ -191,7 +191,7 @@
 							</div>
 						</th>
 						<th
-							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
+							class="px-3 py-3 font-semibold text-(--admin-text-muted) text-xs uppercase tracking-wider w-24"
 						>
 							<div class="flex items-center justify-center gap-1">
 								{collection_permissions_view()}
@@ -205,7 +205,7 @@
 							</div>
 						</th>
 						<th
-							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
+							class="px-3 py-3 font-semibold text-(--admin-text-muted) text-xs uppercase tracking-wider w-24"
 						>
 							<div class="flex items-center justify-center gap-1">
 								{collection_permissions_edit()}
@@ -219,7 +219,7 @@
 							</div>
 						</th>
 						<th
-							class="px-3 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-24"
+							class="px-3 py-3 font-semibold text-(--admin-text-muted) text-xs uppercase tracking-wider w-24"
 						>
 							<div class="flex items-center justify-center gap-1">
 								{collection_permissions_write()}
@@ -233,7 +233,7 @@
 							</div>
 						</th>
 						<th
-							class="px-4 py-3 font-semibold text-surface-500 dark:text-surface-400 text-xs uppercase tracking-wider w-32"
+							class="px-4 py-3 font-semibold text-(--admin-text-muted) text-xs uppercase tracking-wider w-32"
 						>
 							<div class="flex items-center justify-end gap-1">
 								{collection_permissions_actions()}
@@ -264,10 +264,10 @@
 										<span class="text-xs font-bold">{getRoleLabel(role).charAt(0)}</span>
 									</div>
 									<div>
-										<p class="font-semibold text-surface-900 dark:text-surface-100">
+										<p class="font-semibold text-(--admin-text-body)">
 											{getRoleLabel(role)}
 										</p>
-										<p class="text-xs text-surface-400">
+										<p class="text-xs text-(--admin-text-muted)">
 											{perm ? getPermissionSummary(perm) : '—'}
 										</p>
 									</div>
@@ -284,7 +284,7 @@
 										onclick={() => togglePermission(roleName, 'view')}
 										class="h-7! w-7! min-w-0! p-0! {perm.view
 											? 'bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-400'
-											: 'bg-surface-500/10 text-surface-400'}"
+											: 'bg-surface-500/10 text-(--admin-text-muted)'}"
 										aria-label={`Toggle view for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.view}
@@ -305,7 +305,7 @@
 										onclick={() => togglePermission(roleName, 'edit')}
 										class="h-7! w-7! min-w-0! p-0! {perm.edit
 											? 'bg-warning-500/10 text-warning-600 dark:bg-warning-900/20 dark:text-warning-400'
-											: 'bg-surface-500/10 text-surface-400'}"
+											: 'bg-surface-500/10 text-(--admin-text-muted)'}"
 										aria-label={`Toggle edit for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.edit}
@@ -326,7 +326,7 @@
 										onclick={() => togglePermission(roleName, 'write')}
 										class="h-7! w-7! min-w-0! p-0! {perm.write
 											? 'bg-success-500/10 text-success-600 dark:bg-success-900/20 dark:text-success-400'
-											: 'bg-surface-500/10 text-surface-400'}"
+											: 'bg-surface-500/10 text-(--admin-text-muted)'}"
 										aria-label={`Toggle write for ${getRoleLabel(role)}`}
 										role="checkbox"
 										aria-checked={perm.write}
@@ -374,7 +374,7 @@
 		</div>
 
 		{#if roles.length === 0}
-			<div class="flex flex-col items-center justify-center py-12 text-surface-400">
+			<div class="flex flex-col items-center justify-center py-12 text-(--admin-text-muted)">
 				<iconify-icon icon="mdi:shield-off-outline" width="48" class="mb-3 opacity-20"
 				></iconify-icon>
 				<p class="text-sm font-medium">{collection_permissions_no_roles()}</p>

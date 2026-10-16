@@ -123,7 +123,7 @@ It provides functionality to:
 	<p class="error">{error}</p>
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">{access_admin_role_heading()}</h3>
-	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="mb-4 justify-center text-center text-sm text-(--admin-text-muted)">
 		{access_admin_role_intro()}
 	</p>
 	<div class="wrapper my-4">
