@@ -408,7 +408,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 									type="button"
 									class={tokenForm.data.role === r._id
 										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white'
-										: 'border-surface-500/30 text-surface-600 dark:text-surface-400 opacity-70'}
+										: 'border-surface-500/30 text-(--admin-text-muted) opacity-70'}
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}
@@ -418,7 +418,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								</Button>
 							{/each}
 						{:else}
-							<div class="text-sm text-gray-500 italic">{usertoken_no_roles()}</div>
+							<div class="text-sm text-(--admin-text-muted) italic">{usertoken_no_roles()}</div>
 						{/if}
 					</div>
 				</div>

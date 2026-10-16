@@ -225,14 +225,14 @@ Features:
 			/>
 			<div>
 				<div class="flex items-center gap-2">
-					<h2 class="text-base font-semibold text-surface-900 dark:text-surface-50">
+					<h2 class="text-base font-semibold text-(--admin-text-body)">
 						{user.username || user.email}
 					</h2>
 					<Badge preset="tonal" color="primary" size="sm">
 						{user.role || 'user'}
 					</Badge>
 				</div>
-				<p class="text-xs text-surface-500 dark:text-surface-400">
+				<p class="text-xs text-(--admin-text-muted)">
 					{user.email} • ID: <span class="font-mono">{user._id}</span>
 				</p>
 			</div>
@@ -252,14 +252,14 @@ Features:
 	<!-- Sessions List -->
 	<div class="flex min-h-56 max-h-96 flex-col gap-2 overflow-y-auto pe-1">
 		{#if loading}
-			<div class="flex flex-1 items-center justify-center py-8 text-surface-500">
+			<div class="flex flex-1 items-center justify-center py-8 text-(--admin-text-muted)">
 				<iconify-icon icon="mdi:loading" width="28" class="animate-spin text-primary-500"
 				></iconify-icon>
 				<span class="ms-2 text-sm">{usersessions_loading()}</span>
 			</div>
 		{:else if sessions.length === 0}
 			<div
-				class="flex flex-1 flex-col items-center justify-center py-10 text-center text-surface-500"
+				class="flex flex-1 flex-col items-center justify-center py-10 text-center text-(--admin-text-muted)"
 			>
 				<iconify-icon icon="mdi:shield-check-outline" width="36" class="mb-2 text-success-500"
 				></iconify-icon>
@@ -280,7 +280,7 @@ Features:
 						</div>
 						<div class="min-w-0">
 							<div class="flex items-center gap-2">
-								<span class="truncate text-sm font-medium text-surface-900 dark:text-surface-100">
+								<span class="truncate text-sm font-medium text-(--admin-text-body)">
 									{usersessions_browser_on_device({
 										browser: info.browser,
 										device: info.device
@@ -292,9 +292,7 @@ Features:
 									>
 								{/if}
 							</div>
-							<div
-								class="flex flex-wrap items-center gap-2 text-xs text-surface-500 dark:text-surface-400"
-							>
+							<div class="flex flex-wrap items-center gap-2 text-xs text-(--admin-text-muted)">
 								<span
 									>IP: <span class="font-mono font-medium"
 										>{s.ip || s.ipAddress || '127.0.0.1'}</span

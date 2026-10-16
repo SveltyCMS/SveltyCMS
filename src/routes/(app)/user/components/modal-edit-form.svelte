@@ -265,7 +265,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
 </script>
 
-<div class="modal-example-form space-y-4 text-surface-900 dark:text-surface-100">
+<div class="modal-example-form space-y-4 text-(--admin-text-body)">
 	<form
 		class="modal-form {cForm} grid grid-cols-1 gap-4"
 		id="change_user_form"
@@ -393,7 +393,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			</div>
 
 			{#if isOwnProfile && !isCurrentPasswordValidated}
-				<div class="text-xs text-center text-surface-500 dark:text-surface-50 ps-1">
+				<div class="text-xs text-center text-(--admin-text-muted) dark:text-surface-50 ps-1">
 					<iconify-icon icon="mdi:lock" class="inline-block align-text-bottom me-1"></iconify-icon>
 					{usereditform_unlock_hint()}
 				</div>
@@ -421,7 +421,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 									tabindex={editForm.data.role === r._id ? 0 : -1}
 									class={editForm.data.role === r._id
 										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white'
-										: 'border-surface-500/30 text-surface-600 dark:text-surface-400 opacity-70'}
+										: 'border-surface-500/30 text-(--admin-text-muted) opacity-70'}
 									onclick={() => (editForm.data.role = r._id)}
 									onkeydown={(e: KeyboardEvent) => {
 										if (['ArrowRight', 'ArrowDown'].includes(e.key)) {
@@ -462,7 +462,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				</div>
 				<div class="flex-auto">
 					<div
-						class="rounded bg-gray-50 p-3 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+						class="rounded bg-gray-50 p-3 text-sm text-(--admin-text-muted) dark:bg-gray-800 dark:text-(--admin-text-muted)"
 					>
 						<div class="flex items-center">
 							<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
