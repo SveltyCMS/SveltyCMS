@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest # Ubuntu environment for CI
     timeout-minutes: 8 # Doc lint + type check only (build moved to ci.yml)
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
