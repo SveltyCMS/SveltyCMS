@@ -15,11 +15,16 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  addVaryHeader,
+  compressAsync,
   compressSync,
   compressZstd,
+  getCmsZstdDictionary,
   hasAsyncZstd,
   hasNativeCompression,
+  isCompressibleContentType,
   negotiateEncoding,
+  setCompressionHeaders,
   SYNC_MAX_SIZE,
 } from "@src/hooks/handle-compression";
 
@@ -234,4 +239,232 @@ describe("compressZstd — event-loop safety (FIX 7/8)", () => {
       zstdControl.asyncEnabled = true;
     }
   });
+});
+
+describe("isCompressibleContentType — content-type allowlist", () => {
+  it("rejects null and empty content types", () => {
+    expect(isCompressibleContentType(null)).toBe(false);
+    expect(isCompressibleContentType("")).toBe(false);
+  });
+
+  it("accepts the text/* family", () => {
+    expect(isCompressibleContentType("text/html")).toBe(true);
+    expect(isCompressibleContentType("text/plain; charset=utf-8")).toBe(true);
+  });
+
+  it("accepts json in any position or casing", () => {
+    expect(isCompressibleContentType("application/json")).toBe(true);
+    expect(isCompressibleContentType("application/json; charset=utf-8")).toBe(true);
+    expect(isCompressibleContentType("application/vnd.api+json")).toBe(true);
+    expect(isCompressibleContentType("APPLICATION/JSON")).toBe(true);
+  });
+
+  it("accepts xml, javascript and svg", () => {
+    expect(isCompressibleContentType("application/xml")).toBe(true);
+    expect(isCompressibleContentType("application/javascript")).toBe(true);
+    expect(isCompressibleContentType("text/javascript")).toBe(true);
+    expect(isCompressibleContentType("image/svg+xml")).toBe(true);
+  });
+
+  it("always excludes SSE regardless of the text/ prefix", () => {
+    expect(isCompressibleContentType("text/event-stream")).toBe(false);
+    expect(isCompressibleContentType("text/event-stream; charset=utf-8")).toBe(false);
+  });
+
+  it("rejects binary and other non-compressible types", () => {
+    expect(isCompressibleContentType("application/octet-stream")).toBe(false);
+    expect(isCompressibleContentType("image/png")).toBe(false);
+    expect(isCompressibleContentType("font/woff2")).toBe(false);
+  });
+});
+
+describe("negotiateEncoding — selection matrix", () => {
+  it("prefers deflate for tiny payloads when gzip is absent", () => {
+    expect(
+      negotiateEncoding("deflate, br", true, { zstdAvailable: false, contentLength: 1500 }),
+    ).toBe("deflate");
+  });
+
+  it("falls back to brotli for tiny payloads when gzip/deflate are absent", () => {
+    expect(negotiateEncoding("br, zstd", true, { zstdAvailable: true, contentLength: 1500 })).toBe(
+      "br",
+    );
+  });
+
+  it("falls back to zstd for tiny payloads when it is the only match", () => {
+    expect(negotiateEncoding("zstd", true, { zstdAvailable: true, contentLength: 1500 })).toBe(
+      "zstd",
+    );
+  });
+
+  it("returns null for tiny payloads with no supported encoding", () => {
+    expect(negotiateEncoding("gzip", true, { zstdAvailable: false, contentLength: 0 })).toBe(
+      "gzip",
+    );
+    expect(negotiateEncoding("identity", true, { zstdAvailable: false, contentLength: 1500 })).toBe(
+      null,
+    );
+  });
+
+  it("prefers gzip for small payloads when brotli is unavailable", () => {
+    expect(
+      negotiateEncoding("gzip, deflate, zstd", true, {
+        zstdAvailable: true,
+        contentLength: 8 * 1024,
+      }),
+    ).toBe("gzip");
+  });
+
+  it("prefers deflate for small payloads when gzip and brotli are unavailable", () => {
+    expect(
+      negotiateEncoding("deflate, zstd", true, { zstdAvailable: true, contentLength: 8 * 1024 }),
+    ).toBe("deflate");
+  });
+
+  it("prefers zstd for small payloads when nothing else matches", () => {
+    expect(negotiateEncoding("zstd", true, { zstdAvailable: true, contentLength: 8 * 1024 })).toBe(
+      "zstd",
+    );
+  });
+
+  it("returns null for small payloads with no supported encoding", () => {
+    expect(
+      negotiateEncoding("identity", true, { zstdAvailable: false, contentLength: 8 * 1024 }),
+    ).toBe(null);
+  });
+
+  it("prefers brotli over gzip for medium payloads when zstd is unavailable", () => {
+    expect(
+      negotiateEncoding("br, gzip, deflate", true, {
+        zstdAvailable: false,
+        contentLength: 64 * 1024,
+      }),
+    ).toBe("br");
+  });
+
+  it("prefers gzip for medium payloads when brotli and zstd are unavailable", () => {
+    expect(
+      negotiateEncoding("gzip, deflate", true, { zstdAvailable: false, contentLength: 64 * 1024 }),
+    ).toBe("gzip");
+  });
+
+  it("prefers deflate for medium payloads when it is the only match", () => {
+    expect(
+      negotiateEncoding("deflate", true, { zstdAvailable: false, contentLength: 64 * 1024 }),
+    ).toBe("deflate");
+  });
+
+  it("returns null (identity) for an unsupported Accept-Encoding header", () => {
+    expect(
+      negotiateEncoding("identity", true, { zstdAvailable: false, contentLength: 64 * 1024 }),
+    ).toBe(null);
+    expect(negotiateEncoding("", true, { zstdAvailable: false, contentLength: 0 })).toBe(null);
+  });
+
+  it("does not select brotli when native zlib is unavailable", () => {
+    expect(negotiateEncoding("br", false, { zstdAvailable: false, contentLength: 64 * 1024 })).toBe(
+      null,
+    );
+  });
+});
+
+describe("addVaryHeader — case-insensitive merge", () => {
+  it("sets Vary when absent", () => {
+    const headers = new Headers();
+    addVaryHeader(headers, "Accept-Encoding");
+    expect(headers.get("Vary")).toBe("Accept-Encoding");
+  });
+
+  it("appends a new token preserving existing upstream values", () => {
+    const headers = new Headers({ Vary: "Origin" });
+    addVaryHeader(headers, "Accept-Encoding");
+    expect(headers.get("Vary")).toBe("Origin, Accept-Encoding");
+  });
+
+  it("does not duplicate an existing token", () => {
+    const headers = new Headers({ Vary: "Origin, Accept-Encoding" });
+    addVaryHeader(headers, "Accept-Encoding");
+    expect(headers.get("Vary")).toBe("Origin, Accept-Encoding");
+  });
+
+  it("deduplicates case-insensitively", () => {
+    const headers = new Headers({ Vary: "origin, accept-encoding" });
+    addVaryHeader(headers, "Accept-Encoding");
+    expect(headers.get("Vary")).toBe("origin, accept-encoding");
+  });
+
+  it("keeps the caller casing when a differently-cased token is appended", () => {
+    const headers = new Headers({ Vary: "Origin" });
+    addVaryHeader(headers, "accept-encoding");
+    expect(headers.get("Vary")).toBe("Origin, accept-encoding");
+  });
+});
+
+describe("setCompressionHeaders — observability contract", () => {
+  it("sets the full header set with a computed ratio", () => {
+    const headers = new Headers();
+    setCompressionHeaders(headers, "gzip", 1000, 250);
+    expect(headers.get("Content-Encoding")).toBe("gzip");
+    expect(headers.get("X-Original-Size")).toBe("1000");
+    expect(headers.get("X-Compressed-Size")).toBe("250");
+    expect(headers.get("X-Compression-Ratio")).toBe("25.0%");
+    expect(headers.get("X-Compression-Algorithm")).toBe("gzip");
+    expect(headers.get("Vary")).toBe("Accept-Encoding");
+    expect(headers.has("X-Compression-Dictionary")).toBe(false);
+  });
+
+  it("omits size/ratio headers when the original size is unknown", () => {
+    const headers = new Headers();
+    setCompressionHeaders(headers, "gzip", 0, 0);
+    expect(headers.get("Content-Encoding")).toBe("gzip");
+    expect(headers.has("X-Original-Size")).toBe(false);
+    expect(headers.has("X-Compressed-Size")).toBe(false);
+    expect(headers.has("X-Compression-Ratio")).toBe(false);
+  });
+
+  it("reports the original size but skips the ratio when compression expanded", () => {
+    const headers = new Headers();
+    setCompressionHeaders(headers, "gzip", 1000, 0);
+    expect(headers.get("X-Original-Size")).toBe("1000");
+    expect(headers.has("X-Compressed-Size")).toBe(false);
+    expect(headers.has("X-Compression-Ratio")).toBe(false);
+  });
+
+  it("reports the compressed size but no ratio when the original size is zero", () => {
+    const headers = new Headers();
+    setCompressionHeaders(headers, "gzip", 0, 250);
+    expect(headers.get("X-Compressed-Size")).toBe("250");
+    expect(headers.has("X-Compression-Ratio")).toBe(false);
+    expect(headers.has("X-Original-Size")).toBe(false);
+  });
+
+  it("adds no zstd dictionary header when the CMS dictionary is absent", () => {
+    const headers = new Headers();
+    setCompressionHeaders(headers, "zstd", 1000, 250);
+    expect(headers.get("Content-Encoding")).toBe("zstd");
+    expect(headers.has("X-Compression-Dictionary")).toBe(false);
+  });
+});
+
+describe("getCmsZstdDictionary — graceful absence", () => {
+  it("returns null or a Buffer without throwing when no dictionary is shipped", () => {
+    const dict = getCmsZstdDictionary();
+    expect(dict === null || Buffer.isBuffer(dict)).toBe(true);
+  });
+});
+
+describe("compressAsync — off-thread gzip/deflate/brotli", () => {
+  it.each(["gzip", "deflate", "br"] as const)(
+    "compresses repetitive JSON with %s asynchronously",
+    async (algorithm) => {
+      const ready = await waitForNativeCompression();
+      if (!ready) return;
+      const json = Buffer.from(
+        JSON.stringify({ items: Array.from({ length: 80 }, (_, i) => `entry-${i}`) }),
+      );
+      const compressed = await compressAsync(json, algorithm, json.byteLength);
+      expect(compressed).not.toBeNull();
+      expect(compressed!.byteLength).toBeLessThan(json.byteLength);
+    },
+  );
 });

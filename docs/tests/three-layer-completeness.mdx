@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:layers-triple"
 author: "SveltyCMS Team"
 created: "2026-07-15"
-updated: "2026-07-18"
+updated: "2026-10-16"
 tags:
   - "testing"
   - "strategy"
@@ -155,6 +155,34 @@ await invokeGraphql("{ __typename }", {}, { user: null, bypass: false }); // 401
 **Definition of done for E2E:** every **P0 product journey** in the matrix has a non-flaky CI project — not every button in the admin.
 
 See [e2e-coverage-matrix](./e2e-coverage-matrix.mdx) for route-level gaps.
+
+---
+
+## Seam coverage — why “100%” missed real bugs
+
+A green three-layer suite can still miss a regression when a test proves a _different_ contract than the UI sends, or stops before the state is actually persisted. Real escapes that slipped through all three layers recently hardened these three non-negotiable seam rules:
+
+### Identifier / contract parity
+
+Feed the test **exactly the values the UI sends**. A unit test that passes a different identifier than the UI is proving a _phantom contract_ — it can go green while the product is broken.
+
+- Token edit/delete resolved the **hashed** token value shown in the admin list, but the API re-hashes on lookup, so the identifier could never resolve. The fix resolves by row `_id`, and delete fails loudly on `deletedCount === 0`.
+- Token validity edits sent `expiresInHours` (not a column) and silently no-op'd. The UI now sends a concrete ISO `expires`.
+
+### State persistence assertions
+
+For mutations, prove the side effect with `create → reload → assert → cleanup`. “A toast appeared” is not persistence — reload and re-assert before you call it covered.
+
+### Failure / alternate paths
+
+Every mutation endpoint and route needs its fail path, not just the happy path: `deletedCount === 0`, an invalid invite token, a stale `?edit=` id, and 500-vs-404 copy. A 500 must never render “page moved” — `resolveErrorDisplay` in `src/utils/error-display.ts` now makes “page moved” 404-only, and recovery actions are `variant="outline"`.
+
+### Route coverage is now CI-enforced
+
+`tests/route-test-coverage.ts` (`APP_ROUTE_COVERAGE` + `verifyAppRouteCoverage()`) is enforced by `tests/unit/route-test-coverage.test.ts` in `bun run test:unit`:
+
+- **Bidirectional inventory/file parity** — every `src/routes/(app)` group has a manifest row and every row maps to a real group; adding a route without a row, or deleting/emptying its covering test, fails the gate.
+- **Layer-agnostic** — a route is covered if any of unit / integration / E2E provides a test. Layer _depth_ stays with `tests/critical-test-paths.ts` and the P0 lists below.
 
 ---
 

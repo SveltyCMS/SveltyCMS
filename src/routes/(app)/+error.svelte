@@ -22,68 +22,24 @@ None (reads `page` rune from `$app/state`).
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Button from '@components/ui/button.svelte';
 	import {
-		db_error_description,
-		db_error_title,
 		error_goback,
 		error_go_dashboard,
 		error_page_moved,
-		error_pagenotfound,
 		error_reload_view,
-		error_title_suffix,
-		error_wrong
+		error_title_suffix
 	} from '@src/paraglide/messages';
+	import { resolveErrorDisplay } from '@utils/error-display';
 
 	const status = $derived(page.status || 500);
-	const msg = $derived((page.error?.message || '').toLowerCase());
-
-	const isDatabaseError = $derived(
-		status === 503 &&
-			(msg.includes('database') ||
-				msg.includes('connection') ||
-				msg.includes('failed to initialize'))
-	);
-	const isSetupMode = $derived(status === 503 && msg.includes('setup'));
-	const isRateLimited = $derived(status === 429);
-
-	const errorTitle = $derived(
-		isDatabaseError
-			? db_error_title()
-			: status === 404
-				? error_pagenotfound()
-				: status === 403
-					? 'Access Denied'
-					: status === 401
-						? 'Unauthorized'
-						: isRateLimited
-							? 'Too Many Requests'
-							: 'System Error'
-	);
-
-	const errorSummary = $derived(
-		isDatabaseError
-			? db_error_description()
-			: isSetupMode
-				? 'System in Setup Mode'
-				: status === 404
-					? error_pagenotfound()
-					: status === 403
-						? page.error?.message ||
-							'You do not have permission to access this resource (Forbidden).'
-						: status === 401
-							? page.error?.message ||
-								'Authentication is required to access this resource (Unauthorized).'
-							: isRateLimited
-								? "Slow down — you're sending requests too quickly. Please wait and try again."
-								: page.error?.message || error_wrong()
-	);
+	const errorDisplay = $derived(resolveErrorDisplay(status, page.error?.message));
 </script>
 
 <svelte:head>
-	<title>{status} - {errorTitle} {error_title_suffix()}</title>
+	<title>{status} - {errorDisplay.title} {error_title_suffix()}</title>
 </svelte:head>
 
 <AdminPageShell
-	title="{status} — {errorTitle}"
+	title="{status} — {errorDisplay.title}"
 	icon="material-symbols:error-outline"
 	description="An error occurred while processing this administrative view."
 >
@@ -99,11 +55,11 @@ None (reads `page` rune from `$app/state`).
 			</span>
 
 			<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-100 sm:text-3xl">
-				{errorTitle}
+				{errorDisplay.title}
 			</h2>
 
 			<p class="mt-3 max-w-xl text-base text-surface-600 dark:text-surface-400">
-				{errorSummary}
+				{errorDisplay.summary}
 			</p>
 
 			{#if page.url}
@@ -114,15 +70,17 @@ None (reads `page` rune from `$app/state`).
 				</div>
 			{/if}
 
-			<p class="mt-4 text-xs text-surface-500 dark:text-surface-400">
-				{error_page_moved()}
-			</p>
+			{#if errorDisplay.showPageMoved}
+				<p class="mt-4 text-xs text-surface-500 dark:text-surface-400">
+					{error_page_moved()}
+				</p>
+			{/if}
 
 			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-				<Button variant="primary" href="/dashboard">{error_go_dashboard()}</Button>
+				<Button variant="outline" href="/dashboard">{error_go_dashboard()}</Button>
 
 				<Button
-					variant="secondary"
+					variant="outline"
 					onclick={() => {
 						if (typeof window !== 'undefined') window.location.reload();
 					}}
@@ -131,7 +89,7 @@ None (reads `page` rune from `$app/state`).
 				</Button>
 
 				<Button
-					variant="ghost"
+					variant="outline"
 					onclick={() => {
 						if (typeof window !== 'undefined') window.history.back();
 					}}

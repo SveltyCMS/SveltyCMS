@@ -326,7 +326,10 @@ New Features:
 		}
 
 		const gridGap = Number.parseFloat(getComputedStyle(gridContainer).gap) || 16;
-		const gridCols = 4;
+		// Read the live column count so resize math tracks the responsive breakpoint.
+		const gridCols = getComputedStyle(gridContainer)
+			.gridTemplateColumns.split(' ')
+			.filter(Boolean).length;
 		const totalGapWidth = gridGap * (gridCols - 1);
 		const singleColumnWidth = (gridContainer.offsetWidth - totalGapWidth) / gridCols;
 		const singleRowHeight = 180;
@@ -355,7 +358,7 @@ New Features:
 			const targetColumns = Math.round(currentColumns + columnChange);
 			const targetRows = Math.round(currentRows + rowChange);
 
-			const newColumns = Math.max(1, Math.min(4, targetColumns));
+			const newColumns = Math.max(1, Math.min(gridCols, targetColumns));
 			const newRows = Math.max(1, Math.min(4, targetRows));
 
 			previewSize = { w: newColumns, h: newRows };
@@ -502,7 +505,7 @@ New Features:
 		<div aria-live="polite" class="contents">
 			{#if endpoint && loading && !internalData}
 				<div
-					class="loading-state text-text-400 absolute inset-0 flex items-center justify-center text-base"
+					class="loading-state text-(--admin-text-muted) absolute inset-0 flex items-center justify-center text-base"
 				>
 					{widget_base_loading()}
 				</div>
@@ -524,10 +527,12 @@ New Features:
 				})}
 			{:else if internalData}
 				<pre
-					class="text-text-700 dark:text-text-200 whitespace-pre-wrap break-all text-sm"
+					class="text-(--admin-text-body) whitespace-pre-wrap break-all text-sm"
 					style="width: 100%; height: 100%;">{JSON.stringify(internalData, null, 2)}</pre>
 			{:else}
-				<div class="text-text-400 absolute inset-0 flex items-center justify-center text-base">
+				<div
+					class="text-(--admin-text-muted) absolute inset-0 flex items-center justify-center text-base"
+				>
 					{widget_base_no_content()}
 				</div>
 			{/if}

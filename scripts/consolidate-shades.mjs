@@ -83,7 +83,20 @@ const TOKEN_RE = new RegExp(
   "g",
 );
 
+// Literal `"text"` used as a hue (e.g. `text-text-400`, `text-text-700 dark:text-text-200`)
+// is a nonsensical class that never resolves — hard-fail on any occurrence. Zero in src/ today.
+const TEXT_TEXT_RE = new RegExp(
+  `(^|[\\s"'(\\[{:=])((?:[\\w-]*:)*)text-text-(\\d{2,3})(?:/([0-9.]+))?(?=[\\s"'(\\[{:=)}!;]|$)`,
+  "g",
+);
+
+// `bg-surface-800` / `dark:bg-surface-800` is the codebase's de-facto dark surface,
+// used across ~40 files. Advisory only: count + note a known wider cleanup, never fail.
+const SURFACE_800_RE = /(^|[\\s"'(\\[{:=])(?:dark:)?bg-surface-800(?!\d)(?!\/)/g;
+
 const changes = [];
+const textTextViolations = [];
+let surface800Count = 0;
 let filesChanged = 0;
 
 function hasSolidFill(line, hue) {
@@ -168,7 +181,19 @@ function processFile(file) {
   if (EXCLUDED.has(base)) return;
   const original = readFileSync(file, "utf8");
   const lines = original.split("\n");
+  const rel = file.replace(ROOT, "").replace(/\\/g, "/");
   let changed = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    // Literal `"text"` hue (e.g. `text-text-400`) never resolves — hard-fail, never rewrite.
+    for (const m of lines[i].matchAll(TEXT_TEXT_RE)) {
+      textTextViolations.push(`${rel}:${i + 1}  ${m[0].trim()}`);
+    }
+    // Advisory count of the de-facto dark surface; tracked but never gated.
+    for (const m of lines[i].matchAll(SURFACE_800_RE)) {
+      if (m[0].includes("bg-surface-800")) surface800Count++;
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -241,14 +266,37 @@ function walk(dir) {
 walk(ROOT);
 
 if (CHECK) {
+  let failed = false;
+
   if (changes.length > 0) {
+    failed = true;
     console.log(
       `[check] ${changes.length} tokens violate the status-shade contract across ${filesChanged} files:`,
     );
     console.log(changes.join("\n"));
     console.log("Run `bun run scripts/consolidate-shades.mjs` to apply the fixes.");
-    process.exit(1);
   }
+
+  if (textTextViolations.length > 0) {
+    failed = true;
+    console.log(
+      `\n[check] ${textTextViolations.length} legacy \`text-text-{shade}\` class(es) — \`text\` is not a valid hue:`,
+    );
+    console.log(textTextViolations.join("\n"));
+    console.log("  → replace with the correct surface hue (e.g. text-surface-400).");
+  }
+
+  if (failed) process.exit(1);
+
+  if (surface800Count > 0) {
+    console.log(
+      `\n[advisory] ${surface800Count} \`bg-surface-800\` / \`dark:bg-surface-800\` solid surface fills detected.`,
+    );
+    console.log(
+      "  This is the accepted dark surface across the codebase (known wider cleanup) — not gated.",
+    );
+  }
+
   console.log("status shades: OK — no contract drift found");
   process.exit(0);
 }

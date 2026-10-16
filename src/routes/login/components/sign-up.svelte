@@ -193,6 +193,9 @@
 	);
 
 	// Initialize form with invite data when in invite flow
+	// Last URL invite token already seeded into the form — compared against the
+	// URL (not the live field) so user input is never overwritten.
+	let seededUrlInviteToken: string | null = null;
 	$effect(() => {
 		if (isInviteFlow && invitedEmail && signUpForm.data.email !== invitedEmail) {
 			signUpForm.data.email = invitedEmail;
@@ -200,10 +203,16 @@
 		if (isInviteFlow && token && signUpForm.data.token !== token) {
 			signUpForm.data.token = token;
 		}
-		// Handle URL parameters for invite tokens (both new and legacy formats)
+		// Handle URL parameters for invite tokens (both new and legacy formats).
+		// This runs on every form-state change, so it may only seed the token ONCE
+		// per URL value: the old `inviteToken !== signUpForm.data.token` guard
+		// compared against the live field and reset a freshly pasted token back to
+		// the stale/invalid one from the URL — the invitee then submitted a dead
+		// token and got "Invalid invitation" with no way to overwrite it.
 		if (browser && !isInviteFlow) {
 			const inviteToken = params.get('invite_token') || params.get('regToken');
-			if (inviteToken && inviteToken !== signUpForm.data.token) {
+			if (inviteToken && inviteToken !== seededUrlInviteToken) {
+				seededUrlInviteToken = inviteToken;
 				signUpForm.data.token = inviteToken;
 			}
 		}

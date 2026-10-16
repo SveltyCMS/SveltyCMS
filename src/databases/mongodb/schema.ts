@@ -297,10 +297,6 @@ draftSchema.statics = {
   },
 };
 
-export const DraftModel =
-  (mongoose.models?.Draft as Model<ContentDraft> | undefined) ||
-  mongoose.model<ContentDraft>("Draft", draftSchema);
-
 // ============================================================================
 // 5. Content Revisions Schema
 // ============================================================================
@@ -374,10 +370,6 @@ revisionSchema.statics = {
     }
   },
 };
-
-export const RevisionModel =
-  (mongoose.models?.Revision as Model<ContentRevision> | undefined) ||
-  mongoose.model<ContentRevision>("Revision", revisionSchema);
 
 // ============================================================================
 // 6. System Theme Schema

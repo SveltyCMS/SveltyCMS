@@ -284,6 +284,122 @@ describe("Token API Endpoints", () => {
   });
 
   // ============================================
+  // Row-_id resolution — admin list edit/delete contract
+  // ============================================
+
+  /**
+   * The admin token list exposes the *hashed* token value (never the raw
+   * credential) plus the row `_id`. Edit/delete must use the row `_id`: the
+   * namespace resolves it via getTokenById, while the hashed value would be
+   * re-hashed by getTokenByValue and 404. Historically the UI sent the hashed
+   * value, so "edit token" toasted "Error: Token not found" and "delete"
+   * silently no-op'd while reporting success.
+   */
+  describe("Row-_id resolution — admin list edit/delete contract", () => {
+    let rowId: string;
+    let hashedTokenValue: string;
+    let rawTokenValue: string;
+
+    beforeEach(async () => {
+      const email = `rowid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@example.com`;
+      const createResponse = await safeFetch(`${API_BASE_URL}/api/token/create-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        body: JSON.stringify({ email, role: "editor", expiresIn: "2 days" }),
+      });
+      const created = await createResponse.json();
+      rawTokenValue = created.token.value;
+
+      const listResponse = await safeFetch(`${API_BASE_URL}/api/token?limit=100`, {
+        headers: { Cookie: authCookie },
+      });
+      const list = await listResponse.json();
+      const row = (list.data as Array<Record<string, unknown>>).find(
+        (r) => String(r.email).toLowerCase() === email.toLowerCase(),
+      );
+      expect(row, `created token for ${email} must appear in the admin list`).toBeTruthy();
+      rowId = String(row?._id);
+      hashedTokenValue = String(row?.token);
+      expect(rowId.length).toBeGreaterThan(0);
+      expect(hashedTokenValue).not.toBe(rawTokenValue);
+    });
+
+    it("updates by row _id (the row handle the admin list exposes)", async () => {
+      const response = await safeFetch(`${API_BASE_URL}/api/token/${rowId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        body: JSON.stringify({ newTokenData: { role: "developer" } }),
+      });
+      expect(response.status).toBe(200);
+      const result = await response.json();
+      expect(result.success).toBe(true);
+    });
+
+    it("updates the stored validity when the lifecycle `expires` field is sent", async () => {
+      const future = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const response = await safeFetch(`${API_BASE_URL}/api/token/${rowId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        body: JSON.stringify({ newTokenData: { expires: future } }),
+      });
+      expect(response.status).toBe(200);
+
+      const listResponse = await safeFetch(`${API_BASE_URL}/api/token?limit=100`, {
+        headers: { Cookie: authCookie },
+      });
+      const list = await listResponse.json();
+      const row = (list.data as Array<Record<string, unknown>>).find(
+        (r) => String(r._id) === rowId,
+      );
+      expect(row).toBeTruthy();
+      const stored = new Date(String(row?.expires));
+      expect(Number.isNaN(stored.getTime())).toBe(false);
+      expect(stored.getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
+    });
+
+    it("rejects the hashed list value with 404 instead of pretending to save", async () => {
+      const response = await safeFetch(`${API_BASE_URL}/api/token/${hashedTokenValue}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Cookie: authCookie },
+        body: JSON.stringify({ newTokenData: { role: "developer" } }),
+      });
+      expect(response.status).toBe(404);
+    });
+
+    it("deletes by row _id, then answers 404 once the row is gone", async () => {
+      const first = await safeFetch(`${API_BASE_URL}/api/token/${rowId}`, {
+        method: "DELETE",
+        headers: { Cookie: authCookie },
+      });
+      expect(first.status).toBe(200);
+      const firstBody = await first.json();
+      expect(firstBody.success).toBe(true);
+
+      // Honest delete contract: a second delete must not answer 200 "deleted".
+      const second = await safeFetch(`${API_BASE_URL}/api/token/${rowId}`, {
+        method: "DELETE",
+        headers: { Cookie: authCookie },
+      });
+      expect(second.status).toBe(404);
+
+      // The raw credential can no longer be validated either.
+      const validate = await safeFetch(
+        `${API_BASE_URL}/api/token/validate-token/${rawTokenValue}`,
+        { headers: { Cookie: authCookie } },
+      );
+      expect(validate.status).toBe(404);
+    });
+
+    it("rejects a delete of the hashed list value with 404 (no silent no-op)", async () => {
+      const response = await safeFetch(`${API_BASE_URL}/api/token/${hashedTokenValue}`, {
+        method: "DELETE",
+        headers: { Cookie: authCookie },
+      });
+      expect(response.status).toBe(404);
+    });
+  });
+
+  // ============================================
   // NEW: Batch Operations Tests
   // ============================================
 

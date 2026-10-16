@@ -97,7 +97,7 @@ export const CRITICAL_API_DOMAINS: CriticalTestEntry[] = [
       "tests/integration/api/auth-lockout.test.ts",
       "tests/integration/api/session-page-load.test.ts",
       "tests/integration/databases/contract.test.ts",
-      "tests/unit/auth/session-cookies.test.ts",
+      "tests/unit/auth/sessions/session-cookies.test.ts",
     ],
     description:
       "Admin can login, get session cookie, reuse session on API and (app) __data page loads, wrong credentials rejected; loopback cookies never Secure/__Host-",

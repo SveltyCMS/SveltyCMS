@@ -90,6 +90,35 @@ function* walk(dir) {
 const defined = collectDefined();
 const failures = [];
 const legacy = [];
+const cardViolations = [];
+
+// `AdminCard` must omit `variant`/`preset` so the `--admin-*` token path applies
+// (see AGENTS.md). The design-system preview is the one intentional exception — it
+// exists to showcase the `Card` delegation those two props trigger.
+const ADMINCARD_EXEMPT = new Set(["design-system-preview.svelte"]);
+const ADMINCARD_RE = /<AdminCard\b[^>]*>/g;
+
+function checkAdminCardProps() {
+  for (const file of walk(path.join(root, SRC_DIR))) {
+    if (ADMINCARD_EXEMPT.has(path.basename(file))) continue;
+    const text = fs.readFileSync(file, "utf8");
+    const rel = path.relative(root, file).replace(/\\/g, "/");
+    for (const m of text.matchAll(ADMINCARD_RE)) {
+      const tag = m[0];
+      if (!/\bvariant=/.test(tag) && !/\bpreset=/.test(tag)) continue;
+      const line = text.slice(0, m.index).split("\n").length;
+      const attr = [
+        /\bvariant=["'{]?[\w-]+["'}]*/.exec(tag),
+        /\bpreset=["'{]?[\w-]+["'}]*/.exec(tag),
+      ]
+        .filter(Boolean)
+        .map((x) => x[0])
+        .join(" ");
+      cardViolations.push(`${rel}:${line}  ${attr}`);
+    }
+  }
+}
+checkAdminCardProps();
 
 for (const file of walk(path.join(root, SRC_DIR))) {
   const text = fs.readFileSync(file, "utf8");
@@ -161,6 +190,17 @@ if (missingDynamic.length) {
   );
   for (const f of missingDynamic) console.error(`    ${f}`);
   console.error("  → Alert/Badge/Card accept these colours; an undefined one renders unstyled");
+}
+
+if (cardViolations.length) {
+  failed = true;
+  console.error(
+    `\n✖ ${cardViolations.length} AdminCard element(s) pass variant=/preset= — omit both so the --admin-* token path applies:`,
+  );
+  for (const f of cardViolations) console.error(`    ${f}`);
+  console.error(
+    "  → drop variant= and preset= from the AdminCard opening tag (design-system-preview.svelte is exempt).",
+  );
 }
 
 if (failed) {

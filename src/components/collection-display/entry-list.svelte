@@ -686,12 +686,19 @@ bulk actions, and predictive preloading.
 		screenSize: screen.size
 	}));
 
-	// Initialize globalSearchValue from URL parameter on mount/navigation
+	// Sync the input FROM the URL — but only when the URL's `search` value
+	// changes (navigation, saved view, clear). Reading `globalSearchValue`
+	// inside `untrack` keeps the field out of this effect's dependencies:
+	// otherwise every keystroke re-ran the effect, compared against the
+	// not-yet-updated URL (the write is debounced 400 ms below) and reset the
+	// field to the old value — typing into the search box was impossible.
 	$effect(() => {
 		const urlSearch = page.url.searchParams.get('search') || '';
-		if (urlSearch !== globalSearchValue) {
-			globalSearchValue = urlSearch;
-		}
+		untrack(() => {
+			if (urlSearch !== globalSearchValue) {
+				globalSearchValue = urlSearch;
+			}
+		});
 	});
 
 	// Debounced search → URL (triggers server FTS via collection-service query.search)

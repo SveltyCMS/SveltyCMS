@@ -265,7 +265,13 @@ export async function handleTokenRoutes(
     if (isWebsite) {
       return successResponse(event, await cms.websiteTokens.delete(tokenId, { tenantId }));
     }
-    return successResponse(event, await cms.auth.tokens.delete(tokenId, { tenantId }));
+    const result = await cms.auth.tokens.delete(tokenId, { tenantId });
+    // Honest delete: an unresolvable id must not answer 200 "deleted" — the UI
+    // used to toast success while nothing was removed (e.g. the list's hashed
+    // token value instead of the row _id).
+    const deletedCount = (result as { data?: { deletedCount?: number } })?.data?.deletedCount;
+    if (result?.success && deletedCount === 0) raise(404, "Token not found", "NOT_FOUND");
+    return successResponse(event, result);
   }
 
   if (request.method === "PUT" && action === "update") {
@@ -317,7 +323,8 @@ export async function handleTokenRoutes(
 const TOKEN_UPDATE_LIFECYCLE_FIELDS = ["expires", "blocked", "consumed"] as const;
 const TOKEN_UPDATE_ADMIN_FIELDS = ["email", "role"] as const;
 
-function pickTokenUpdateFields(data: unknown, admin: boolean): Record<string, unknown> {
+/** Exported for the allowlist unit test (tests/unit/api/token-update-allowlist.test.ts). */
+export function pickTokenUpdateFields(data: unknown, admin: boolean): Record<string, unknown> {
   const allowed = admin
     ? [...TOKEN_UPDATE_LIFECYCLE_FIELDS, ...TOKEN_UPDATE_ADMIN_FIELDS]
     : TOKEN_UPDATE_LIFECYCLE_FIELDS;

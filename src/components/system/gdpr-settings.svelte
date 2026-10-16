@@ -135,7 +135,7 @@
 
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 		<!-- Data Export (Article 20) -->
-		<AdminCard class="p-6 rounded space-y-4" preset="tonal" variant="surface">
+		<AdminCard class="p-6 rounded space-y-4">
 			<div class="flex items-center gap-3 mb-2">
 				<div
 					class="p-2 rounded-full bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500"
@@ -166,7 +166,7 @@
 		</AdminCard>
 
 		<!-- Right to Erasure (Article 17) -->
-		<AdminCard class="p-6 rounded space-y-4" preset="tonal" variant="surface">
+		<AdminCard class="p-6 rounded space-y-4">
 			<div class="flex items-center gap-3 mb-2">
 				<div class="p-2 rounded-full bg-error-500/10 text-error-500">
 					<iconify-icon icon="mdi:account-remove" width="24"></iconify-icon>

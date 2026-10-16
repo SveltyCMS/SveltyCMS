@@ -157,8 +157,14 @@ jobs:
               echo "✅ Quality gate clean"
           - task: 04-unit
             name: ⚡ Unit Tests
-            # vitest.config.ts uses dot + github-actions + silent=passed-only when CI=true
-            run: bun run test:unit
+            # vitest.config.ts uses dot + github-actions + silent=passed-only when CI=true.
+            # --coverage enforces the P0 floors in vitest.config.ts (lines 48 / funcs 47 /
+            # branches 40 / statements 47) and produces the json report Codecov uploads.
+            # The mutation harness is excluded from the coverage run (its temp-file
+            # dynamic import is incompatible with v8 instrumentation) and runs separately.
+            run: |
+              bun run test:unit:coverage
+              bun run test:mutation
           - task: 04b-tenant-gate
             name: 🛡️ Tenant Isolation Gate
             run: |
