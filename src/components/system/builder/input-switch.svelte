@@ -82,7 +82,8 @@ Features:
 		bind:icon
 		bind:permissions
 		on:update={updateParent}
-		label={props.key}
+		label={props.label ?? props.key}
+		labelClass={props.labelClass}
 		theme="dark"
 	/>
 {/if}
