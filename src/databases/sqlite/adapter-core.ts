@@ -6,8 +6,10 @@
 import { logger } from "@utils/logger";
 import {
   SqlAdapterCore,
+  RAW_DECLINED,
   boundedSqlIndexName,
   type ListIndexRequest,
+  type RawFindResult,
   type RawPointWireStreamResult,
   type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
@@ -301,7 +303,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     collection: string,
     id: DatabaseId,
     options: FindOptions<T>,
-  ): Promise<T | null> {
+  ): Promise<RawFindResult<T>> {
     try {
       // Read-path schema registration: raw reads must normalize SQLite INTEGER
       // ms timestamps to ISODateString even on read-only workloads.
@@ -381,7 +383,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       return null;
     } catch (rawErr: any) {
       logger.debug("[SQLite raw findById prototype] falling back to Drizzle:", rawErr?.message);
-      return null;
+      return RAW_DECLINED;
     }
   }
 
@@ -555,10 +557,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     idCol: any,
     id: DatabaseId,
     options: BaseQueryOptions,
-  ): Promise<T | null> {
+  ): Promise<RawFindResult<T>> {
     try {
       const columns = Object.keys(values);
-      if (columns.length === 0) return null;
+      if (columns.length === 0) return RAW_DECLINED;
 
       const tableName = getTableName(table);
       const idColName = idCol?.name || "_id";
@@ -638,7 +640,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
       return null;
     } catch {
-      return null;
+      return RAW_DECLINED;
     }
   }
 

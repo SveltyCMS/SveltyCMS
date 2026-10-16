@@ -105,6 +105,39 @@ jobs:
           retention-days: 1
 
   # ------------------------------------------------
+  # 1b. Docker image cache — DB fixtures pulled once, not per job
+  # ------------------------------------------------
+  # Every DB/bench job starts Docker Compose profiles. On a cold runner each job
+  # re-pulled mongo (340MB) + the PostgreSQL UDH fixture (115MB), which added
+  # ~5m30s to the mongodb job alone. Save the images once and load them per job.
+  # mongo/mariadb/redis use mutable :latest tags, so the key carries a manual
+  # suffix — bump it (v1 → v2) to refresh after a security update.
+  docker-cache:
+    name: 🐳 Docker Images
+    needs: bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Restore cached DB images
+        id: cache
+        uses: actions/cache@v6
+        with:
+          path: /tmp/docker-images
+          key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
+      - name: Pull and save DB images
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p /tmp/docker-images
+          docker pull mongo:latest
+          docker pull mariadb:latest
+          docker pull postgres:18
+          docker pull redis:latest
+          docker save mongo:latest -o /tmp/docker-images/mongo.tar
+          docker save mariadb:latest -o /tmp/docker-images/mariadb.tar
+          docker save postgres:18 -o /tmp/docker-images/postgres.tar
+          docker save redis:latest -o /tmp/docker-images/redis.tar
+
+  # ------------------------------------------------
   # 2. Quality gates (parallel, no artifact deps beyond bootstrap meta)
   # ------------------------------------------------
   whitebox:
@@ -157,8 +190,15 @@ jobs:
               echo "✅ Quality gate clean"
           - task: 04-unit
             name: ⚡ Unit Tests
-            # vitest.config.ts uses dot + github-actions + silent=passed-only when CI=true
-            run: bun run test:unit
+            # --coverage runs the exact suite `bun run test:unit` (the pre-commit hook) runs
+            # AND enforces the P0 floors in vitest.config.ts (lines 48 / funcs 47 /
+            # branches 40 / statements 47), producing the json report Codecov uploads — so
+            # the suite runs once, not twice. The mutation harness is excluded from the
+            # coverage run (its temp-file dynamic import is incompatible with v8
+            # instrumentation) and runs right after in the same job.
+            run: |
+              bun run test:unit:coverage
+              bun run test:mutation
           - task: 04b-tenant-gate
             name: 🛡️ Tenant Isolation Gate
             run: |
@@ -296,7 +336,7 @@ jobs:
   # ------------------------------------------------
   db-tests:
     name: 🧪 DB (${{ matrix.db }})
-    needs: [build, db-matrix]
+    needs: [build, db-matrix, docker-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -309,8 +349,23 @@ jobs:
           bun-version: "1.3.14"
           node-version: "24"
           restore-build: "true"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+      # build/ + .svelte-kit/output/ + workspace-meta already arrive via `restore-build`
+      # in the setup action — the explicit re-download duplicated the transfer.
+
+      - name: Restore cached DB images
+        uses: actions/cache/restore@v6
+        with:
+          path: /tmp/docker-images
+          key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
+      - name: Load DB images (cache or network pull)
+        run: |
+          shopt -s nullglob
+          tars=(/tmp/docker-images/*.tar)
+          if [ ${#tars[@]} -gt 0 ]; then
+            for f in "${tars[@]}"; do docker load -i "$f" >/dev/null; done
+          else
+            echo "::warning::DB image cache empty — docker compose will pull from the network"
+          fi
 
       - name: Verify build artifact checksum
         run: |
@@ -377,7 +432,7 @@ jobs:
   # ------------------------------------------------
   bench-core:
     name: 📊 Bench (${{ matrix.db }})
-    needs: [build, db-matrix]
+    needs: [build, db-matrix, docker-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -390,8 +445,23 @@ jobs:
           bun-version: "1.3.14"
           node-version: "24"
           restore-build: "true"
-      - uses: actions/download-artifact@v8
-        with: { name: build-output }
+      # `restore-build` already downloads build-output — this re-downloaded the
+      # (large) build artifact a second time.
+
+      - name: Restore cached DB images
+        uses: actions/cache/restore@v6
+        with:
+          path: /tmp/docker-images
+          key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
+      - name: Load DB images (cache or network pull)
+        run: |
+          shopt -s nullglob
+          tars=(/tmp/docker-images/*.tar)
+          if [ ${#tars[@]} -gt 0 ]; then
+            for f in "${tars[@]}"; do docker load -i "$f" >/dev/null; done
+          else
+            echo "::warning::DB image cache empty — docker compose will pull from the network"
+          fi
 
       - name: Start Database
         if: matrix.db != 'sqlite'
@@ -528,8 +598,7 @@ jobs:
           bun-version: "1.3.14"
           node-version: "24"
           restore-build: "true"
-      - uses: actions/download-artifact@v8
-        with: { name: workspace-meta }
+      # workspace-meta arrives via `restore-build` in the setup action.
 
       - name: Restore Playwright Browsers cache
         id: cache-playwright
@@ -837,6 +906,7 @@ jobs:
     needs:
       - bootstrap
       - build
+      - docker-cache
       - whitebox
       - e2e-prep
       - e2e-matrix

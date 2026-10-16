@@ -29,6 +29,9 @@ const TENANT: DatabaseId = "global" as DatabaseId;
 const CATEGORY_NODE_TYPE = "category" as const;
 const BUILDER_SOURCE = "builder" as const;
 
+/** Tenant isolation is only observable when MULTI_TENANT is enabled. */
+const MULTI_TENANT = process.env.MULTI_TENANT === "true";
+
 function runSuffix() {
   return `${Date.now().toString(36)}-${generateUUID()}`;
 }
@@ -381,48 +384,47 @@ describe("content.nodes tenant isolation + fail-closed", () => {
   const TENANT_A = "cn-tenant-a" as DatabaseId;
   const TENANT_B = "cn-tenant-b" as DatabaseId;
 
-  it("bulkUpdate for A is not readable under tenant B getStructure", async () => {
-    const suffix = runSuffix();
-    const path = `/contract-iso-a-${suffix}`;
-    const id = shortId("contract-iso-a-");
-    cleanupPaths.push(path);
+  it.skipIf(!MULTI_TENANT)(
+    "bulkUpdate for A is not readable under tenant B getStructure",
+    async () => {
+      const suffix = runSuffix();
+      const path = `/contract-iso-a-${suffix}`;
+      const id = shortId("contract-iso-a-");
+      cleanupPaths.push(path);
 
-    const bulk = await db.content.nodes.bulkUpdate(
-      [
-        {
-          path,
-          id,
-          changes: {
-            name: `Iso A ${suffix}`,
+      const bulk = await db.content.nodes.bulkUpdate(
+        [
+          {
             path,
-            nodeType: CATEGORY_NODE_TYPE,
-            source: BUILDER_SOURCE,
-            order: 1,
+            id,
+            changes: {
+              name: `Iso A ${suffix}`,
+              path,
+              nodeType: CATEGORY_NODE_TYPE,
+              source: BUILDER_SOURCE,
+              order: 1,
+            },
           },
-        },
-      ],
-      { tenantId: TENANT_A },
-    );
-    expect(bulk.success).toBe(true);
-
-    const asB = await db.content.nodes.getStructure("flat", { tenantId: TENANT_B });
-    expect(asB.success).toBe(true);
-    if (!asB.success) return;
-    const hit = (asB.data ?? []).some((n: { path?: string }) => n.path === path);
-    expect(hit).toBe(false);
-
-    const asA = await db.content.nodes.getStructure("flat", { tenantId: TENANT_A });
-    expect(asA.success).toBe(true);
-    if (!asA.success) return;
-    // When MT is on, A should see the node; when ST, may still see depending on filter
-    const hitA = (asA.data ?? []).some((n: { path?: string }) => n.path === path);
-    if (!hitA) {
-      // path may be stored under global tenant on single-tenant installs
-      console.warn(
-        `[content-nodes] tenant A structure miss for ${path} — check MT mode / tenant stamp`,
+        ],
+        { tenantId: TENANT_A },
       );
-    }
-  });
+      expect(bulk.success).toBe(true);
+
+      const asB = await db.content.nodes.getStructure("flat", { tenantId: TENANT_B });
+      expect(asB.success).toBe(true);
+      if (!asB.success) return;
+      const hit = (asB.data ?? []).some((n: { path?: string }) => n.path === path);
+      expect(hit).toBe(false);
+
+      const asA = await db.content.nodes.getStructure("flat", { tenantId: TENANT_A });
+      expect(asA.success).toBe(true);
+      if (!asA.success) return;
+      // Under MULTI_TENANT, tenant A must read back its own node. The old warn-only
+      // branch let a genuine tenant-stamp regression pass green.
+      const hitA = (asA.data ?? []).some((n: { path?: string }) => n.path === path);
+      expect(hitA).toBe(true);
+    },
+  );
 
   it("deleteMany without tenantId fails closed under MULTI_TENANT (or succeeds when MT off)", async () => {
     try {

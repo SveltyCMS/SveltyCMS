@@ -65,7 +65,7 @@
 			<iconify-icon
 				icon="mdi:magnify"
 				width="24"
-				class="absolute inset-s-4 top-1/2 -translate-y-1/2 text-surface-400"
+				class="absolute inset-s-4 top-1/2 -translate-y-1/2 text-(--admin-text-muted)"
 			></iconify-icon>
 			<input
 				type="text"
@@ -96,7 +96,7 @@
 				{#if filteredKeys.length > 0}
 					<div class="mb-8 last:mb-0">
 						<h3
-							class="mb-4 text-xl font-bold uppercase tracking-wider text-surface-500 dark:text-surface-50"
+							class="mb-4 text-xl font-bold uppercase tracking-wider text-(--admin-text-muted) dark:text-surface-50"
 						>
 							{widget_select_category_suffix({ category })}
 						</h3>
@@ -127,7 +127,7 @@
 											>
 												{item}
 											</h3>
-											<p class="mt-1 line-clamp-2 text-xs text-surface-500 dark:text-surface-400">
+											<p class="mt-1 line-clamp-2 text-xs text-(--admin-text-muted)">
 												{availableWidgets[item]?.Description || 'No description available'}
 											</p>
 										</div>

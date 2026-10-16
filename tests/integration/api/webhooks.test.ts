@@ -10,13 +10,9 @@
  * Adapter-agnostic: real session cookies only.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import {
-  cleanupTestDatabase,
-  prepareAuthenticatedContext,
-  testFixtures,
-} from "../helpers/test-setup";
+import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -77,10 +73,6 @@ describe("Webhooks API (Testing 2026 reference — headless HTTP)", () => {
     adminCookie = await prepareAuthenticatedContext();
     await ensureEditorUser(adminCookie);
   }, 120_000);
-
-  afterAll(async () => {
-    await cleanupTestDatabase().catch(() => undefined);
-  });
 
   describe("deny paths", () => {
     it("GET /api/webhooks without auth → denied", async () => {

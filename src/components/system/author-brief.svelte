@@ -36,7 +36,7 @@ Shows authored guidance content, widget documentation, and usage tips.
 		<div
 			class="flex items-center justify-between border-b border-surface-500/30 p-3 dark:border-surface-500/40"
 		>
-			<h3 class="text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">
+			<h3 class="text-sm font-semibold capitalize text-(--admin-text-body)">
 				{context.fieldName?.replace(/_/g, ' ')}
 			</h3>
 			<Button
@@ -49,7 +49,7 @@ Shows authored guidance content, widget documentation, and usage tips.
 			</Button>
 		</div>
 
-		<div class="overflow-y-auto p-4 text-sm text-surface-600 dark:text-surface-400">
+		<div class="overflow-y-auto p-4 text-sm text-(--admin-text-muted)">
 			{#if isBeginner}
 				<div
 					class="mb-3 rounded bg-tertiary-500/10 p-2 text-xs text-tertiary-600 dark:bg-tertiary-500/10 dark:text-tertiary-400"

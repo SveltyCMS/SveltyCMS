@@ -262,19 +262,3 @@ export class BackgroundSupervisor {
     };
   }
 }
-
-// Global singleton
-let supervisorInstance: BackgroundSupervisor | null = null;
-
-export function getBackgroundSupervisor(): BackgroundSupervisor {
-  if (!supervisorInstance) {
-    supervisorInstance = new BackgroundSupervisor();
-  }
-  return supervisorInstance;
-}
-
-export function startBackgroundSupervisor(): BackgroundSupervisor {
-  const supervisor = getBackgroundSupervisor();
-  supervisor.start();
-  return supervisor;
-}

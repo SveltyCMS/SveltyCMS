@@ -533,7 +533,7 @@
 				: entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
 			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted
-				? 'border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-800/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
+				? 'border-(--admin-border-default) bg-(--admin-bg-card)/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
 				: 'border-error-500/80 bg-error-500/10 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}"
 		>
 			<iconify-icon icon={showDeleted ? 'ic:round-archive' : 'ic:round-unarchive'} width="20"

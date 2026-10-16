@@ -8,6 +8,7 @@
 import { isoDateStringToDate, nowISODateString, toISOString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
 import { normalizeEmail } from "@src/utils/normalize-email";
+import { RAW_DECLINED } from "./sql-adapter-core";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type {
   BaseQueryOptions,
@@ -359,13 +360,20 @@ export class RelationalAuthModule implements IAuthAdapter {
           .where(and(...conditions))
           .limit(1);
 
-        // Fallback: re-read by primary key only (tenant filter miss after partial match)
+        // Fallback: re-read by primary key only (NULL-tenant global admin rows in E2E)
+        // Never return a user belonging to a different non-null tenant.
         if (!result) {
-          [result] = await db
+          const [candidate] = await db
             .select(this.adapter.getPhysicalSelection(this.schema.authUsers))
             .from(this.schema.authUsers)
             .where(idCond)
             .limit(1);
+          if (
+            candidate &&
+            (!applyTenant || !candidate.tenantId || candidate.tenantId === options!.tenantId)
+          ) {
+            result = candidate;
+          }
         }
         if (!result) {
           // Explicit adapter error (avoid mapUser throw → opaque 500)
@@ -411,7 +419,7 @@ export class RelationalAuthModule implements IAuthAdapter {
             userId,
             options,
           );
-          if (rawResult) return this.mapUser(rawResult);
+          if (rawResult && rawResult !== RAW_DECLINED) return this.mapUser(rawResult);
         }
 
         const idCond = eq(this.schema.authUsers._id, String(userId));

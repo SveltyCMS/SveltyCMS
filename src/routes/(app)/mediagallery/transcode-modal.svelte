@@ -157,7 +157,7 @@
 				<span>{common_processing()}</span>
 				<span>{progress}%</span>
 			</div>
-			<div class="h-2 w-full bg-surface-200 dark:bg-surface-700 rounded-full overflow-hidden">
+			<div class="h-2 w-full bg-(--admin-bg-chip) rounded-full overflow-hidden">
 				<div
 					class="h-full bg-tertiary-500 dark:bg-primary-500 transition-all duration-500"
 					style:width="{progress}%"

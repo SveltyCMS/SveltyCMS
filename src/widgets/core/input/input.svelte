@@ -361,9 +361,8 @@
 						</Badge>
 					{/if}
 					{#if field?.suffix}
-						<span
-							class="text-surface-600 dark:text-surface-400"
-							aria-label={`${field.suffix} suffix`}>{field?.suffix}</span
+						<span class="text-(--admin-text-muted)" aria-label={`${field.suffix} suffix`}
+							>{field?.suffix}</span
 						>
 					{/if}
 				</div>

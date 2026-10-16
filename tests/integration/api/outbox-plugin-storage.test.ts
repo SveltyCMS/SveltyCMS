@@ -121,8 +121,10 @@ describe("Transactional outbox + plugin storage (integration)", () => {
 
       const batch = await testing("outbox-process-batch", { batchSize: 50 });
       expect(batch.success).toBe(true);
-      // At least one delivery attempt processed
-      expect(Number(batch.processed ?? batch.delivered ?? 0)).toBeGreaterThanOrEqual(0);
+      // processBatch() returns { processed, delivered, failed } — a pending event was
+      // emitted just above, so at least one delivery attempt must have run.
+      // (The old `>= 0` was always true.)
+      expect(batch.processed).toBeGreaterThan(0);
 
       // Event should no longer be pending (delivered or failed after processing)
       const status = await testing("outbox-get", { id: eventId });

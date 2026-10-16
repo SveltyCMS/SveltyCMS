@@ -765,7 +765,7 @@ search filtering, and RTL support.
 									isCompactRail && 'max-w-full text-center leading-tight',
 									isSelected
 										? 'font-bold text-primary-600 dark:text-primary-500'
-										: 'font-medium text-surface-900 dark:text-surface-100'
+										: 'font-medium text-(--admin-text-body)'
 								)
 					)}
 				>
@@ -933,7 +933,7 @@ search filtering, and RTL support.
 >
 	{#if filteredItems.length === 0}
 		<div
-			class="flex flex-col items-center justify-center gap-2 p-6 text-center text-surface-500 dark:text-surface-400"
+			class="flex flex-col items-center justify-center gap-2 p-6 text-center text-(--admin-text-muted)"
 		>
 			<iconify-icon icon="mdi:file-tree-outline" width="32" class="opacity-40" aria-hidden="true"
 			></iconify-icon>

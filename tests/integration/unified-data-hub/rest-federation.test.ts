@@ -19,32 +19,35 @@ let fixtureAvailable = false;
 let adminCookie = "";
 let skipReason = "";
 
-async function seedRestFixture(rowCount = 25): Promise<boolean> {
-  try {
-    const res = await safeFetch(`${API_BASE_URL}/api/testing`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-test-secret": TEST_API_SECRET,
-        Origin: API_BASE_URL,
-      },
-      body: JSON.stringify({
-        action: "seed-unified-data-hub",
-        fixture: "wordpress",
-        rowCount,
-      }),
-    });
+async function seedRestFixture(rowCount = 25): Promise<void> {
+  // The WordPress REST fixture is in-process — there is no optional infra here,
+  // so any seed failure is a real bug and must fail, never skip.
+  const res = await safeFetch(`${API_BASE_URL}/api/testing`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-test-secret": TEST_API_SECRET,
+      Origin: API_BASE_URL,
+    },
+    body: JSON.stringify({
+      action: "seed-unified-data-hub",
+      fixture: "wordpress",
+      rowCount,
+    }),
+  });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`seed-unified-data-hub failed: HTTP ${res.status} ${text}`);
-    }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(
+      `seed-unified-data-hub (wordpress) failed: HTTP ${res.status} ${text.slice(0, 400)}`,
+    );
+  }
 
-    const body = await res.json();
-    return body.success === true && body.fixture === "wordpress";
-  } catch (err) {
-    skipReason = err instanceof Error ? err.message : String(err);
-    return false;
+  const body = await res.json();
+  if (body.success !== true || body.fixture !== "wordpress") {
+    throw new Error(
+      `seed-unified-data-hub (wordpress) unexpected response: ${JSON.stringify(body).slice(0, 400)}`,
+    );
   }
 }
 
@@ -57,43 +60,24 @@ describe(`Unified Data Hub REST federation (CMS: ${CMS_DB_TYPE})`, () => {
 
   beforeAll(async () => {
     // Seed admin first so login never needs a dummy session; hub seed after.
-    try {
-      adminCookie = await prepareAuthenticatedContext();
-    } catch (err) {
-      fixtureAvailable = false;
-      skipReason = err instanceof Error ? err.message : String(err);
-      console.log(`⏭️ REST federation: admin seed/login failed: ${skipReason}`);
-      return;
-    }
+    adminCookie = await prepareAuthenticatedContext();
+    await seedRestFixture(25);
 
-    fixtureAvailable = await seedRestFixture(25);
-    if (!fixtureAvailable) {
-      console.log(`⏭️ REST federation fixture unavailable: ${skipReason}`);
-      return;
+    // Re-login after hub seed without wiping UDH rows
+    adminCookie = await prepareAuthenticatedContext({ skipReset: true });
+    if (adminCookie.includes("test-session-")) {
+      throw new Error("Auth fell back to dummy test session (admin user missing after hub seed)");
     }
-
-    try {
-      adminCookie = await prepareAuthenticatedContext({ skipReset: true });
-      if (adminCookie.includes("test-session-")) {
-        fixtureAvailable = false;
-        skipReason = "Auth fell back to dummy test session (admin user missing after hub seed)";
-        return;
-      }
-      // Seed may report success while plugin tables/state are not live yet
-      const probe = await safeFetch(`${API_BASE_URL}/api/virtual-collections`, {
-        headers: { Cookie: adminCookie },
-      });
-      if (!probe.ok) {
-        fixtureAvailable = false;
-        const body = await probe.text().catch(() => "");
-        skipReason = `UDH not available after seed (HTTP ${probe.status}): ${body.slice(0, 200)}`;
-        console.log(`⏭️ ${skipReason}`);
-      }
-    } catch (err) {
-      fixtureAvailable = false;
-      skipReason = err instanceof Error ? err.message : String(err);
+    // Seed may report success while plugin tables/state are not live yet
+    const probe = await safeFetch(`${API_BASE_URL}/api/virtual-collections`, {
+      headers: { Cookie: adminCookie },
+    });
+    if (!probe.ok) {
+      const body = await probe.text().catch(() => "");
+      throw new Error(`UDH not available after seed (HTTP ${probe.status}): ${body.slice(0, 200)}`);
     }
-  });
+    fixtureAvailable = true;
+  }, 180_000);
 
   it("lists wp-articles virtual collection after REST hub seed", async () => {
     if (!fixtureAvailable) {

@@ -72,7 +72,7 @@ describe("System Health (via /health)", () => {
 
     // uptime should be a positive number
     expect(typeof body.uptime).toBe("number");
-    expect(body.uptime).toBeGreaterThanOrEqual(0);
+    expect(body.uptime).toBeGreaterThan(0);
   });
 
   test("should return 200 for operational states", async () => {

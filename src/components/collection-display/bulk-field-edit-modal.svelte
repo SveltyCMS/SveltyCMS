@@ -171,7 +171,7 @@
 				<h3 id="bulk-edit-title" class="text-lg font-bold text-tertiary-500 dark:text-primary-500">
 					Bulk Edit Entries
 				</h3>
-				<p class="text-xs text-surface-500 dark:text-surface-400">
+				<p class="text-xs text-(--admin-text-muted)">
 					Updating <span class="font-bold text-tertiary-500 dark:text-primary-500"
 						>{selectedCount}</span
 					>

@@ -237,7 +237,7 @@
 				<div class="p-2">
 					{#if currentTab === '0'}
 						{#await import('./permissions.svelte')}
-							<p class="text-sm text-surface-500">{common_loading_permissions()}</p>
+							<p class="text-sm text-(--admin-text-muted)">{common_loading_permissions()}</p>
 						{:then mod}
 							<mod.default roleData={rolesData} {setRoleData} {updateModifiedCount} />
 						{/await}
@@ -248,7 +248,7 @@
 				<div class="p-2">
 					{#if currentTab === '1'}
 						{#await import('./roles.svelte')}
-							<p class="text-sm text-surface-500">{access_loading_roles()}</p>
+							<p class="text-sm text-(--admin-text-muted)">{access_loading_roles()}</p>
 						{:then mod}
 							<mod.default
 								roleData={rolesData}
@@ -264,7 +264,7 @@
 				<div class="p-2">
 					{#if currentTab === '2'}
 						{#await import('./admin-role.svelte')}
-							<p class="text-sm text-surface-500">{access_loading_admin_role()}</p>
+							<p class="text-sm text-(--admin-text-muted)">{access_loading_admin_role()}</p>
 						{:then mod}
 							<mod.default roleData={rolesData} {setRoleData} />
 						{/await}
@@ -275,7 +275,7 @@
 				<div class="p-2">
 					{#if currentTab === '3'}
 						{#await import('./website-tokens.svelte')}
-							<p class="text-sm text-surface-500">{access_loading_website_tokens()}</p>
+							<p class="text-sm text-(--admin-text-muted)">{access_loading_website_tokens()}</p>
 						{:then mod}
 							<mod.default permissions={page.data.permissions} />
 						{/await}
@@ -286,7 +286,7 @@
 				<div class="p-2">
 					{#if currentTab === '4'}
 						{#await import('./sso-providers.svelte')}
-							<p class="text-sm text-surface-500">{access_loading_sso()}</p>
+							<p class="text-sm text-(--admin-text-muted)">{access_loading_sso()}</p>
 						{:then mod}
 							<mod.default availableRoles={rolesData} />
 						{/await}

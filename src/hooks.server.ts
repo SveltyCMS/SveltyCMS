@@ -907,6 +907,23 @@ export const handle: Handle = async ({ event, resolve }) => {
         event.url.searchParams.has("hooks") ||
         event.url.searchParams.has("gc");
 
+      // 🔒 SECURITY: diagnostics and (especially) `?gc` are internal-only. `?gc`
+      // runs a synchronous stop-the-world GC on the main thread, so honoring it for
+      // any unauthenticated request let a flood of `GET /health?gc=true` stall the
+      // event loop (DoS); the diagnostic payload also leaked heap stats, hook
+      // timings, GraphQL metrics and hardware details. Gate on TEST_MODE, the
+      // benchmark flags, an explicit env opt-in, or the internal test secret
+      // (which the benchmark/probe harnesses already send).
+      const internalDiagnosticsAllowed =
+        process.env.NODE_ENV !== "production" ||
+        process.env.TEST_MODE === "true" ||
+        process.env.BENCHMARK === "true" ||
+        process.env.BENCHMARK_PROFILE !== undefined ||
+        process.env.HEALTH_DIAGNOSTICS === "true" ||
+        (!!process.env.TEST_API_SECRET &&
+          event.request.headers.get("x-test-secret") === process.env.TEST_API_SECRET);
+      const diagnosticsEnabled = includeDiagnostics && internalDiagnosticsAllowed;
+
       const ready = isSystemReady();
       const health: Record<string, unknown> = {
         status: isReady ? "healthy" : "unhealthy",
@@ -918,7 +935,7 @@ export const handle: Handle = async ({ event, resolve }) => {
         dbType: process.env.DB_TYPE || "unknown",
       };
 
-      if (includeDiagnostics) {
+      if (diagnosticsEnabled) {
         if (event.url.searchParams.has("gc")) {
           if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
           if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc) {
@@ -967,50 +984,65 @@ export const handle: Handle = async ({ event, resolve }) => {
     (lane === RequestLane.HYPER_TURBO || lane === RequestLane.API_READ) &&
     isSimpleCollectionRead(event)
   ) {
-    return withLane(
-      await tryCollectionReadLane({
-        event,
-        resolve: async (evt) => {
-          attachRouteSpec(evt);
-          const pipeline = await getPipeline(lane);
-          return pipeline({ event: evt, resolve });
-        },
-      }),
-      lane,
-    );
+    inFlightRequests++;
+    try {
+      return withLane(
+        await tryCollectionReadLane({
+          event,
+          resolve: async (evt) => {
+            attachRouteSpec(evt);
+            const pipeline = await getPipeline(lane);
+            return pipeline({ event: evt, resolve });
+          },
+        }),
+        lane,
+      );
+    } finally {
+      inFlightRequests--;
+    }
   }
 
   // Warm collection create/update: WAF + CSRF + rate-limit + one persist.
   // Cold sessions fall through to the full API_WRITE sequence.
   if (lane === RequestLane.API_WRITE && isCollectionWriteLanePath(event)) {
-    return withLane(
-      await tryCollectionWriteLane({
-        event,
-        resolve: async (evt) => {
-          attachRouteSpec(evt);
-          const pipeline = await getPipeline(lane);
-          return pipeline({ event: evt, resolve });
-        },
-      }),
-      lane,
-    );
+    inFlightRequests++;
+    try {
+      return withLane(
+        await tryCollectionWriteLane({
+          event,
+          resolve: async (evt) => {
+            attachRouteSpec(evt);
+            const pipeline = await getPipeline(lane);
+            return pipeline({ event: evt, resolve });
+          },
+        }),
+        lane,
+      );
+    } finally {
+      inFlightRequests--;
+    }
   }
 
   // Warm admin GraphQL POST. Same WAF, CSRF, session-risk, and rate limit as
   // the collection lane. Cold sessions and non-admins stay on API_WRITE.
   // The socket write lane stays off: this still enters through the SvelteKit handle.
   if (lane === RequestLane.API_WRITE && isGraphqlWriteLanePath(event)) {
-    return withLane(
-      await tryGraphqlWriteLane({
-        event,
-        resolve: async (evt) => {
-          attachRouteSpec(evt);
-          const pipeline = await getPipeline(lane);
-          return pipeline({ event: evt, resolve });
-        },
-      }),
-      lane,
-    );
+    inFlightRequests++;
+    try {
+      return withLane(
+        await tryGraphqlWriteLane({
+          event,
+          resolve: async (evt) => {
+            attachRouteSpec(evt);
+            const pipeline = await getPipeline(lane);
+            return pipeline({ event: evt, resolve });
+          },
+        }),
+        lane,
+      );
+    } finally {
+      inFlightRequests--;
+    }
   }
 
   // 🚀 HOT-SWAP CHECK: Dynamically synchronize setup state on every request

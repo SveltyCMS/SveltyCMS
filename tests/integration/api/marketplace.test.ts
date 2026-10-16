@@ -3,9 +3,9 @@
  * @description Integration tests for Marketplace API endpoints
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -13,10 +13,6 @@ let authCookie: string;
 beforeAll(async () => {
   await waitForServer();
   authCookie = await prepareAuthenticatedContext();
-});
-
-afterAll(async () => {
-  await cleanupTestDatabase();
 });
 
 describe("Marketplace API - Widget Marketplace", () => {
@@ -28,7 +24,10 @@ describe("Marketplace API - Widget Marketplace", () => {
     expect(response.status).toBe(200);
 
     const data = await response.json();
-    expect(Array.isArray(data) || typeof data === "object").toBe(true);
+    // Standard envelope: { success: true, data: <list> }. The old
+    // `Array.isArray(data) || typeof data === "object"` was true for any JSON body.
+    expect(data.success).toBe(true);
+    expect(data.data).toBeDefined();
   });
 
   it("should search marketplace", async () => {

@@ -54,7 +54,7 @@
 	{#each slots as slot (slot.id)}
 		<div class={inline ? 'contents' : 'slot-item mb-4 last:mb-0'}>
 			{#await componentLoader(slot)}
-				<div class="h-20 w-full animate-pulse rounded bg-surface-500/10 dark:bg-surface-800"></div>
+				<div class="h-20 w-full animate-pulse rounded bg-(--admin-bg-card)"></div>
 			{:then Component}
 				{#if 'default' in Component}
 					<Component.default {...props} {...slot.props} />

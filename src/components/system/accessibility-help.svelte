@@ -123,7 +123,7 @@
 		<h4 id="intro-heading" class="h4 font-semibold dark:text-white">
 			About Accessibility in SveltyCMS
 		</h4>
-		<p class="text-surface-600 dark:text-surface-400">
+		<p class="text-(--admin-text-muted)">
 			SveltyCMS is designed to meet <strong>WCAG 2.2 Level AA</strong> for the user interface and
 			<strong>ATAG 2.0 Level AA</strong>
 			as an authoring tool. This ensures both the CMS interface and the content it produces are accessible
@@ -143,7 +143,7 @@
 				<caption id="keyboard-table-desc" class="sr-only">
 					Keyboard shortcuts available in SveltyCMS
 				</caption>
-				<thead class="bg-surface-500/10 dark:bg-surface-800">
+				<thead class="bg-(--admin-bg-card)">
 					<tr>
 						<th scope="col" class="px-4 py-3 text-start font-semibold dark:text-white"
 							>Key / Combination</th
@@ -161,7 +161,7 @@
 									{key}
 								</kbd>
 							</td>
-							<td class="px-4 py-3 text-surface-600 dark:text-surface-400">{desc}</td>
+							<td class="px-4 py-3 text-(--admin-text-muted)">{desc}</td>
 						</tr>
 					{/each}
 				</tbody>

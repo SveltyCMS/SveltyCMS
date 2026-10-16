@@ -851,10 +851,11 @@ async function rebuildWarmCollectionRead(
         marks?.set("build", 0);
         const cacheT0 = marks ? performance.now() : 0;
         const tags = collectionResponseCacheTags(collectionId, null).tags;
+        const buffer = Buffer.from(apiBody);
         let compressedVariants: Record<string, Uint8Array> | undefined;
         const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
         if (acceptEncoding) {
-          const bodyBytes = Buffer.byteLength(apiBody, "utf8");
+          const bodyBytes = buffer.byteLength;
           if (bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
             const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
               contentLength: bodyBytes,
@@ -868,7 +869,6 @@ async function rebuildWarmCollectionRead(
             }
           }
         }
-        const buffer = Buffer.from(apiBody);
         responseCache.set(
           pathKey,
           compressedVariants

@@ -8,9 +8,9 @@ import { safeFetch } from "../helpers/server";
  * and ensures proper handling of the SVELTYCMS_TELEMETRY setting.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { checkServer, getApiBaseUrl } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { beforeAll, describe, expect, it } from "vitest";
+import { getApiBaseUrl, waitForServer } from "../helpers/server";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -18,18 +18,11 @@ describe("Telemetry API Endpoints", () => {
   let authCookie: string;
   // adminUserId removed
 
+  // Single reset + admin session for the whole suite (was a per-test wipe).
   beforeAll(async () => {
-    // Check if server is available
-    await checkServer();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
-  });
-
-  beforeEach(async () => {
+    await waitForServer();
     authCookie = await prepareAuthenticatedContext();
-  });
+  }, 120_000);
 
   describe("POST /api/telemetry/report", () => {
     it("should accept telemetry data when telemetry is enabled", async () => {

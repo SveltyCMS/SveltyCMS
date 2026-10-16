@@ -491,7 +491,7 @@ Thank you for helping us maintain a consistent and predictable release process!
 
 We welcome all kinds of contributions! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for details on how to get started.
 
-## � Sponsoring
+## 💖 Sponsoring
 
 If you find our project useful and would like to support its development, you can become a sponsor! Your sponsorship will help us cover the costs of maintaining the project and allow us to dedicate more time to its development.
 

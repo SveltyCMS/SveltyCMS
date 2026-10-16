@@ -87,7 +87,7 @@ Interactive star rating with hover states and click selection
 			/>
 
 			{#if showValue}
-				<span class="text-lg font-bold text-surface-900 dark:text-surface-50 min-w-8 text-center">
+				<span class="text-lg font-bold text-(--admin-text-body) min-w-8 text-center">
 					{value?.toFixed(step === 0.5 ? 1 : 0) || '0'}
 				</span>
 			{/if}

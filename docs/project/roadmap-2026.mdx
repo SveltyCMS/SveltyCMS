@@ -142,12 +142,13 @@ tags:
 - **Type-Checking Gate Integration**:
   - Wire `svelte-check --threshold error` into pre-commit and CI quality gates (`bun run check`).
 - **Integration Test Suite Wall-Time Optimization**:
-  - Consolidate 56 `prepareAuthenticatedContext` call sites to reduce reset cycles (~117 resets/job down to a single context per suite).
-  - Remove 24 redundant `cleanupTestDatabase()` hooks in `afterAll`.
+  - Consolidate the remaining `prepareAuthenticatedContext` call sites (the per-test `beforeEach` wipes in `collections`, `media`, `system`, `telemetry`, `theme`, `website-tokens` are now single `beforeAll` contexts; `token` keeps its per-test reset because that reset also clears the `create-token` rate limiter).
+  - Remove the remaining redundant `cleanupTestDatabase()` hooks in `afterAll` (19 removed 2026-10-16 — every suite already resets in `beforeAll`; the rest do real media/file cleanup).
   - Move 3 hermetic integration tests (`unified-data-hub/federation.test.ts`, `resilience-load.test.ts`, `setup-presets.test.ts`) to `tests/unit`.
   - Collapse SQL adapter smoke tests into a single engine-parameterized contract suite.
-  - Replace remaining soft-skips with hard assertions on control-map rows.
-  - Replace fixed sleeps with condition waits across test suites.
+  - Replace the remaining soft-skips with hard assertions — done for `security`, `security-negative`, `collections` (now provisions its fixture via `/api/testing` instead of a sandbox-blocked file write), `auth-2fa`, `theme` and both Unified-Data-Hub federation suites; the harness reset now throws instead of warn-and-proceed. Also de-vacuumed `metrics`, `search`, `marketplace`, `outbox-plugin-storage`, `settings`, `dashboard`, `website-tokens`, `graphql` (tenant-scoped query now gated on `MULTI_TENANT`), and the DB contract suites (`transaction-contract` — the concurrent test inserted via `db.crud` instead of the txn handle, so its "rollback leak" was a test bug; `pool-contention`, `health-contract`, `content-nodes-contract`, `db-interface`, `resilience-load`, `cache-contract`).
+  - Replace the remaining fixed sleeps with condition waits (the harness reset path now health-polls; several API suites still pad with fixed waits).
+- **Recently shipped (2026-10-16)**: `src/plugins/init.server.ts` merges a plugin's `index.server.ts` (hooks + migrations) with its `plugin_workspace` slot server. A workspace server no longer shadows `index.server.ts`, so `unified-data-hub` migrations run and its three collections are provisioned on all four adapters instead of failing connector writes (previously masked by a soft-skipped federation test). Verified against PostgreSQL. Integration DB jobs also load cached Docker images instead of re-pulling, and the DB-tests job now uploads a real `preview.log`.
 - **Benchmark Matrix Parallel Group Contention**:
   - Resolve contention in the parallel `Feature HTTP Read` group under SQLite (`mixed-workload`, `relational-performance`).
 - **Codebase & Documentation Cleanup**:

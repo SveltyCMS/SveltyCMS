@@ -236,8 +236,10 @@ async function waitForServerReady(maxAttempts = 60): Promise<boolean> {
               /* still settling */
             }
           }
-          console.log("⚠️ Database migrations did not settle — proceeding anyway.");
-          return true;
+          console.error(
+            "❌ Database migrations did not settle after 15s — the preview is not ready.",
+          );
+          throw new Error("Database migrations did not settle within the settle window");
         }
 
         console.log(`⏳ Server state: ${rawStatus} (${i + 1}/${maxAttempts})...`);

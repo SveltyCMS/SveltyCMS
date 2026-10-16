@@ -275,7 +275,13 @@ export class TokenAdapter {
       let found = await this.TokenModel.findOne(filter).lean();
 
       // Legacy plaintext rows (pre-hash) — accept and migrate on use.
-      if (!found && hashedToken !== token) {
+      // Skip when `token` is already a SHA-256 digest: the admin list exposes the
+      // *hashed* value, and this plaintext lookup would otherwise match the stored
+      // hash and treat it as a valid token (breaking the "hashed value → 404"
+      // contract pinned by tests/integration/api/token.test.ts). Plaintext tokens
+      // are base62 (uppercase+lowercase+digits), so a 64-char lowercase hex input
+      // is unambiguously an already-hashed value, never a legacy plaintext row.
+      if (!found && !/^[0-9a-f]{64}$/.test(token)) {
         const legacyFilter: any = { token };
         if (tenantId) legacyFilter.tenantId = tenantId;
         const legacy = await this.TokenModel.findOne(legacyFilter).lean();

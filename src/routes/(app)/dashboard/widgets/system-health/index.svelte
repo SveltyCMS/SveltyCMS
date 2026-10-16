@@ -86,7 +86,7 @@
 			case 'INITIALIZING':
 				return 'text-tertiary-600 dark:text-tertiary-400';
 			default:
-				return 'text-surface-500';
+				return 'text-(--admin-text-muted)';
 		}
 	});
 
@@ -175,7 +175,7 @@
 
 		{#if !healthData}
 			<div class="flex h-full items-center justify-center">
-				<div class="flex flex-col items-center gap-3 text-surface-500">
+				<div class="flex flex-col items-center gap-3 text-(--admin-text-muted)">
 					<div
 						class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
 					></div>
@@ -200,13 +200,13 @@
 								<span class="font-semibold capitalize {overallColor}"
 									>{healthData.overallStatus}</span
 								>
-								<span class="text-surface-500 dark:text-surface-400 ms-1"
+								<span class="text-(--admin-text-muted) ms-1"
 									>{dashboard_health_uptime()} {formatUptime(healthData.uptime)}</span
 								>
 							</div>
 						</div>
 
-						<div class="flex items-center gap-2 font-medium text-surface-600 dark:text-surface-400">
+						<div class="flex items-center gap-2 font-medium text-(--admin-text-muted)">
 							{#each Object.entries(healthData.components).slice(0, 3) as [name, service] (name)}
 								<div
 									class="flex items-center gap-1"
@@ -245,7 +245,7 @@
 									<div class="text-lg font-bold capitalize {overallColor} leading-tight">
 										{healthData.overallStatus}
 									</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{dashboard_health_system_uptime()} • {formatUptime(healthData.uptime)}
 									</div>
 								</div>
@@ -283,12 +283,12 @@
 												</span>
 											{/if}
 											<span
-												class="text-sm font-semibold truncate text-surface-600 dark:text-surface-100"
+												class="text-sm font-semibold truncate text-(--admin-text-muted) dark:text-surface-100"
 												>{formatServiceName(name)}</span
 											>
 										</div>
 										<div
-											class="text-xs text-surface-500 dark:text-surface-400 line-clamp-1 mt-0.5"
+											class="text-xs text-(--admin-text-muted) line-clamp-1 mt-0.5"
 											title={service.message}
 										>
 											{service.message}
@@ -339,7 +339,7 @@
 											</Badge>
 
 											{#if latency !== undefined}
-												<span class="text-[9px] font-mono text-surface-500 dark:text-surface-400">
+												<span class="text-[9px] font-mono text-(--admin-text-muted)">
 													{latency.toFixed(0)}ms
 												</span>
 											{/if}

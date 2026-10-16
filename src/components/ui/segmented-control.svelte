@@ -126,7 +126,7 @@
 				'flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200',
 				active
 					? 'bg-white dark:bg-surface-700 text-surface-900 dark:text-white shadow-sm'
-					: 'text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white'
+					: 'text-(--admin-text-muted) hover:text-surface-900 dark:hover:text-white'
 			)}
 			style="border-radius: {rounded}"
 			onclick={() => select(option.value)}

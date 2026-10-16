@@ -62,7 +62,7 @@ export function getFieldKeysSync(): ResolvedStaticAesKey | null {
     _fieldKeys = resolveStaticAesKey(nodeCrypto, raw, AES256_HKDF_INFO.fieldAtRest);
     return _fieldKeys;
   } catch (err) {
-    logger.error("[FieldEncryption] Failed to load ENCRYPTION_KEY", {
+    logger.error("[FieldEncryption] Failed to load the field-encryption key", {
       error: err instanceof Error ? err.message : String(err),
     });
     return null;

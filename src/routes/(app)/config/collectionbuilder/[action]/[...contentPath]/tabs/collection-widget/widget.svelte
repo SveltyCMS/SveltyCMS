@@ -281,7 +281,7 @@
 							type="button"
 							variant="transparent"
 							size="sm"
-							class="field-drag-handle h-auto! min-w-0! cursor-grab p-1! text-surface-500 active:cursor-grabbing hover:text-surface-600 dark:hover:text-surface-400"
+							class="field-drag-handle h-auto! min-w-0! cursor-grab p-1! text-(--admin-text-muted) active:cursor-grabbing hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
 							aria-label={collection_widgetfield_drag_aria({ label: field.label })}
 							title={builder_tip_drag_reorder()}
 						>
@@ -301,7 +301,7 @@
 							class="text-tertiary-500 dark:text-primary-500"
 						></iconify-icon>
 					</div>
-					<div class="font-bold text-surface-900 dark:text-primary-500" role="cell">
+					<div class="font-bold text-(--admin-text-body) dark:text-primary-500" role="cell">
 						{field.label}
 					</div>
 					<div class=" " role="cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>

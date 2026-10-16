@@ -6,38 +6,27 @@
  *
  * Uses the standard test-setup helper instead of manual bootstrapping
  * to ensure the DB is properly seeded before tests run.
+ *
+ * Context prep failures are hard failures — a negative security suite that
+ * silently skips its assertions would hide a missing guard.
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 
-let serverAvailable = false;
 let adminCookie = "";
 
 beforeAll(async () => {
-  try {
-    await waitForServer();
-    // Seed the DB and get an admin session via the standard helper
-    adminCookie = await prepareAuthenticatedContext();
-    serverAvailable = true;
-  } catch {
-    serverAvailable = false;
-  }
-});
-
-afterAll(async () => {
-  if (serverAvailable) {
-    await cleanupTestDatabase();
-  }
+  await waitForServer();
+  // Seed the DB and get an admin session via the standard helper.
+  adminCookie = await prepareAuthenticatedContext();
 });
 
 describe("Security Negative Scenarios (Black-Box)", () => {
   it("should reject unauthenticated access to admin endpoints (RBAC)", async () => {
-    if (!serverAvailable) return;
-
     // /api/settings/all is admin-only — verify unauthenticated access is blocked
     const res = await safeFetch(`${BASE_URL}/api/settings/all`);
 
@@ -46,8 +35,6 @@ describe("Security Negative Scenarios (Black-Box)", () => {
   });
 
   it("should block cross-tenant data access (Multi-Tenancy)", async () => {
-    if (!serverAvailable) return;
-
     // Attempt to access a collection with a spoofed tenantId parameter
     const res = await safeFetch(`${BASE_URL}/api/collections/posts?tenantId=other-tenant`, {
       headers: {
@@ -61,8 +48,6 @@ describe("Security Negative Scenarios (Black-Box)", () => {
   });
 
   it("should block SQL injection attempt in query params", async () => {
-    if (!serverAvailable) return;
-
     const res = await safeFetch(`${BASE_URL}/api/collections/posts?filter[title]=' OR '1'='1`, {
       headers: {
         Cookie: adminCookie,
@@ -76,8 +61,6 @@ describe("Security Negative Scenarios (Black-Box)", () => {
   });
 
   it("should block XSS payload in POST data", async () => {
-    if (!serverAvailable) return;
-
     const res = await safeFetch(`${BASE_URL}/api/collections/posts`, {
       method: "POST",
       body: JSON.stringify({
@@ -113,14 +96,12 @@ describe("Security Negative Scenarios (Black-Box)", () => {
 
     for (const path of PROTECTED) {
       it(`GET ${path} without cookie → 401/403`, async () => {
-        if (!serverAvailable) return;
         const res = await safeFetch(`${BASE_URL}${path}`);
         expect([401, 403]).toContain(res.status);
       });
     }
 
     it("POST /api/webhooks without cookie → 401/403", async () => {
-      if (!serverAvailable) return;
       const res = await safeFetch(`${BASE_URL}/api/webhooks`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Origin: BASE_URL },

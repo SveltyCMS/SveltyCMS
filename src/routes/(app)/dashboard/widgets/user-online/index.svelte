@@ -117,9 +117,9 @@
 			case 'editor':
 				return 'bg-tertiary-500/10 text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400';
 			case 'viewer':
-				return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400';
+				return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-(--admin-text-muted)';
 			default:
-				return 'bg-surface-500/10 text-surface-600 dark:bg-surface-700 dark:text-surface-400';
+				return 'bg-surface-500/10 text-(--admin-text-muted) dark:bg-surface-700 dark:text-(--admin-text-muted)';
 		}
 	}
 
@@ -138,10 +138,10 @@
 			class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg"
 		>
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+			<h3 class="text-sm font-semibold text-(--admin-text-muted)">
 				{widget_premium_extension()}
 			</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">
+			<p class="text-xs text-(--admin-text-muted) mt-1 mb-3">
 				{widget_premium_trial_expired()}
 			</p>
 			<a
@@ -179,10 +179,10 @@
 				<!-- ===== Empty State ===== -->
 				<div class="flex h-full flex-col items-center justify-center text-center px-3">
 					<div class="text-4xl opacity-30 mb-3">👥</div>
-					<div class="text-sm font-medium text-surface-500 dark:text-surface-400">
+					<div class="text-sm font-medium text-(--admin-text-muted)">
 						{widget_useronline_none()}
 					</div>
-					<div class="text-xs text-surface-400 dark:text-surface-500 mt-1">
+					<div class="text-xs text-(--admin-text-muted) mt-1">
 						{widget_useronline_appear_when_active()}
 					</div>
 				</div>
@@ -194,13 +194,11 @@
 						<span class="text-lg font-bold tabular-nums text-success-600 dark:text-success-400">
 							{totalOnline}
 						</span>
-						<span class="text-xs text-surface-500 dark:text-surface-400"
-							>{widget_useronline_online()}</span
-						>
+						<span class="text-xs text-(--admin-text-muted)">{widget_useronline_online()}</span>
 					</div>
 
 					<!-- Divider -->
-					<div class="h-6 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+					<div class="h-6 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 
 					<!-- Horizontal avatar scroll -->
 					<div class="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
@@ -221,9 +219,7 @@
 										class="absolute -bottom-0.5 -inset-e-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface-100 bg-success-500 dark:border-surface-500/40"
 									></div>
 								</div>
-								<span
-									class="max-w-20 truncate text-xs font-medium text-surface-600 dark:text-surface-400"
-								>
+								<span class="max-w-20 truncate text-xs font-medium text-(--admin-text-muted)">
 									{user.name}
 								</span>
 							</div>
@@ -241,14 +237,13 @@
 							>
 								{totalOnline}
 							</span>
-							<span class="text-sm text-surface-500 dark:text-surface-400"
-								>{widget_useronline_online_now()}</span
+							<span class="text-sm text-(--admin-text-muted)">{widget_useronline_online_now()}</span
 							>
 						</div>
 
 						{#if totalOnline > 1}
 							<div
-								class="rounded-full bg-surface-500/10 px-2.5 py-0.5 text-xs text-surface-600 dark:bg-surface-800 dark:text-surface-400"
+								class="rounded-full bg-surface-500/10 px-2.5 py-0.5 text-xs text-(--admin-text-muted) dark:bg-surface-800 dark:text-(--admin-text-muted)"
 							>
 								{totalOnline}
 								{widget_useronline_active()}
@@ -269,7 +264,7 @@
 							<iconify-icon
 								icon="mdi:magnify"
 								width="16"
-								class="absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-400 dark:text-surface-500"
+								class="absolute inset-e-3 top-1/2 -translate-y-1/2 text-(--admin-text-muted)"
 							></iconify-icon>
 						</div>
 					{/if}
@@ -302,7 +297,7 @@
 								<div class="min-w-0 flex-1">
 									<div class="flex items-center gap-2">
 										<span
-											class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
+											class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
 										>
 											{user.name}
 										</span>
@@ -314,16 +309,14 @@
 											{getRoleLabel(user.role)}
 										</span>
 									</div>
-									<div class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+									<div class="mt-0.5 text-xs text-(--admin-text-muted)">
 										{formatOnlineTime(user.onlineMinutes)}
 										{widget_useronline_online()}
 									</div>
 								</div>
 
 								<!-- Time -->
-								<div
-									class="shrink-0 text-end text-[11px] font-medium text-surface-400 dark:text-surface-500"
-								>
+								<div class="shrink-0 text-end text-[11px] font-medium text-(--admin-text-muted)">
 									{user.onlineTime
 										? formatTime(user.onlineTime, { hour: '2-digit', minute: '2-digit' })
 										: '—'}
@@ -332,9 +325,7 @@
 						{/each}
 
 						{#if filteredUsers.length === 0 && searchTerm}
-							<div
-								class="flex h-24 items-center justify-center text-sm text-surface-400 dark:text-surface-500"
-							>
+							<div class="flex h-24 items-center justify-center text-sm text-(--admin-text-muted)">
 								{widget_useronline_no_match({ term: searchTerm })}
 							</div>
 						{/if}

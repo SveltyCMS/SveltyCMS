@@ -126,7 +126,15 @@ async function waitForInitialization(timeoutMs: number = INIT_TIMEOUT_MS): Promi
 function isTrustedHost(event: RequestEvent, setupComplete: boolean): boolean {
   if (!setupComplete) return true;
   const { host } = event.url;
-  if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;
+  if (
+    host === "localhost" ||
+    host.startsWith("localhost:") ||
+    host === "127.0.0.1" ||
+    host.startsWith("127.0.0.1:") ||
+    host === "[::1]" ||
+    host.startsWith("[::1]:")
+  )
+    return true;
   if (process.env.SVELTYCMS_DEMO === "true") return true;
   const origin = process.env.ORIGIN;
   if (origin) {

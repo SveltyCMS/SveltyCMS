@@ -100,7 +100,7 @@ detection, max tag limit, and configurable Badge preset/color.
 
 <div class="flex flex-col gap-1.5 w-full">
 	{#if label}
-		<label for={id} class="block text-sm font-bold text-surface-600 dark:text-surface-400 ms-1">
+		<label for={id} class="block text-sm font-bold text-(--admin-text-muted) ms-1">
 			{label}
 		</label>
 	{/if}

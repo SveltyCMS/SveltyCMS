@@ -5,9 +5,9 @@
  * Aligned with consolidated routes: get-current-theme, update-theme, set-default.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 const DEFAULT_THEME_ID = "670e8b8c4d123456789abcde";
@@ -15,17 +15,11 @@ const DEFAULT_THEME_ID = "670e8b8c4d123456789abcde";
 describe("Theme API Endpoints", () => {
   let authCookie: string;
 
+  // Single reset + login for the whole suite (was per-test beforeEach).
   beforeAll(async () => {
     await waitForServer();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
-  });
-
-  beforeEach(async () => {
     authCookie = await prepareAuthenticatedContext();
-  });
+  }, 120_000);
 
   describe("GET /api/theme/get-current-theme", () => {
     it("should return current theme for authenticated user", async () => {
@@ -53,25 +47,10 @@ describe("Theme API Endpoints", () => {
       });
       const current = await getResponse.json();
 
-      // Only test update if we have a real theme with _id
+      // A seeded install always ships a default theme with an _id. Its absence is
+      // a real regression, not a reason to quietly skip the update assertion.
       if (!current._id) {
-        console.log("Skipping update test: No theme with _id available");
-        // Test that we can at least make the call without crashing
-        const response = await safeFetch(`${API_BASE_URL}/api/theme/update-theme`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Cookie: authCookie,
-          },
-          body: JSON.stringify({
-            themeId: "nonexistent",
-            customCss: "/* test css */",
-          }),
-        });
-        // Accept 404 (not found) or 500 (internal error due to missing theme)
-        // The endpoint should return 404, but current implementation may return 500
-        expect([404, 500]).toContain(response.status);
-        return;
+        throw new Error("Seeded install did not expose a theme _id — update contract cannot run");
       }
 
       const response = await safeFetch(`${API_BASE_URL}/api/theme/update-theme`, {

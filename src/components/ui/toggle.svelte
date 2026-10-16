@@ -165,7 +165,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 				</label>
 			{/if}
 			{#if description}
-				<p class="text-sm text-surface-500 dark:text-surface-400">
+				<p class="text-sm text-(--admin-text-muted)">
 					{description}
 				</p>
 			{/if}

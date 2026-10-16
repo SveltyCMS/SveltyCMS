@@ -201,9 +201,7 @@ Features:
 			<div class="flex flex-col gap-4 md:col-span-3">
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
-						<h3
-							class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
-						>
+						<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
 							{modalcategory_category_details()}
 						</h3>
 						<SystemTooltip title={builder_tip_cat_details()}>
@@ -215,7 +213,7 @@ Features:
 						<div class="flex items-center gap-1.5">
 							<label
 								for="category_name"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 							>
 								{modalcategory_categoryname()}
 							</label>
@@ -240,7 +238,7 @@ Features:
 						<div class="flex items-center gap-1.5">
 							<label
 								for="category_description"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 							>
 								{collectionname_description()}
 							</label>
@@ -263,7 +261,7 @@ Features:
 						<div class="flex items-center gap-1.5">
 							<label
 								for="category_slug"
-								class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+								class="text-sm font-medium leading-none text-(--admin-text-muted)"
 							>
 								{modalcategory_path_label()}
 							</label>
@@ -291,14 +289,12 @@ Features:
 			<div class="flex flex-col gap-4 md:col-span-2">
 				<!-- Icon Picker -->
 				<div class="space-y-3">
-					<h3
-						class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
-					>
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
 						{modalcategory_icon()}
 					</h3>
 
 					<div class="block">
-						<span class="mb-2 block text-sm font-medium text-surface-600 dark:text-surface-400">
+						<span class="mb-2 block text-sm font-medium text-(--admin-text-muted)">
 							{modalcategory_choose_icon()}
 						</span>
 						<div
@@ -320,9 +316,7 @@ Features:
 
 				<!-- Live Preview -->
 				<div class="space-y-3">
-					<h3
-						class="text-sm font-semibold uppercase tracking-wide text-surface-600 dark:text-surface-400"
-					>
+					<h3 class="text-sm font-semibold uppercase tracking-wide text-(--admin-text-muted)">
 						{modalcategory_preview()}
 					</h3>
 					<div
@@ -340,7 +334,7 @@ Features:
 								{formData.newCategoryName || 'Category name'}
 							</div>
 							{#if formData.newCategoryDescription}
-								<div class="truncate text-xs text-surface-500 dark:text-surface-400">
+								<div class="truncate text-xs text-(--admin-text-muted)">
 									{formData.newCategoryDescription}
 								</div>
 							{/if}

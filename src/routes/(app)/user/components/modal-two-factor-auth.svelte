@@ -321,7 +321,7 @@ This component provides a user interface for managing 2FA settings:
 				</div>
 				<div>
 					<p class="text-sm font-semibold">{twofa_title()}</p>
-					<p class="text-xs text-surface-600 dark:text-surface-400">{twofa_description()}</p>
+					<p class="text-xs text-(--admin-text-muted)">{twofa_description()}</p>
 				</div>
 			</div>
 			<!-- Status badge - aligned end -->
@@ -339,7 +339,7 @@ This component provides a user interface for managing 2FA settings:
 					<div
 						class="h-6 w-6 animate-spin rounded-full border-2 border-surface-500/30 border-t-tertiary-500 dark:border-surface-600 dark:border-t-primary-500"
 					></div>
-					<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_setting_up()}</p>
+					<p class="text-sm text-(--admin-text-muted)">{twofa_setting_up()}</p>
 				</div>
 			{:else if loadError && !setupData}
 				<!-- Error state with retry -->
@@ -350,7 +350,9 @@ This component provides a user interface for managing 2FA settings:
 						<iconify-icon icon="mdi:alert-circle" width={20}></iconify-icon>
 						<div class="alert-message">
 							<p class="text-sm font-medium">{user2fa_setup_failed_title()}</p>
-							<p class="text-xs text-surface-500" data-testid="2fa-setup-error">{loadError}</p>
+							<p class="text-xs text-(--admin-text-muted)" data-testid="2fa-setup-error">
+								{loadError}
+							</p>
 						</div>
 					</div>
 					<Button variant="surface" size="sm" onclick={() => loadSetupData()} disabled={isLoading}>
@@ -366,7 +368,7 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="primary" size="sm">1</Badge>
 							{twofa_setup_scan_title()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-400">{twofa_setup_step_1()}</p>
+						<p class="text-sm text-(--admin-text-muted)">{twofa_setup_step_1()}</p>
 
 						<!-- QR Code -->
 						<div class="flex justify-center rounded bg-white p-4 dark:bg-white">
@@ -379,7 +381,7 @@ This component provides a user interface for managing 2FA settings:
 								/>
 							{:else}
 								<div class="flex h-32 w-32 items-center justify-center bg-surface-200">
-									<p class="text-xs text-surface-600">{user2fa_qr_placeholder()}</p>
+									<p class="text-xs text-(--admin-text-muted)">{user2fa_qr_placeholder()}</p>
 								</div>
 							{/if}
 						</div>
@@ -391,7 +393,7 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="secondary" size="sm">2</Badge>
 							{twofa_show_secret()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-400">
+						<p class="text-sm text-(--admin-text-muted)">
 							{twofa_manual_entry_description()}
 						</p>
 						<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700">
@@ -405,7 +407,7 @@ This component provides a user interface for managing 2FA settings:
 							<Badge preset="tonal" color="tertiary" size="sm">3</Badge>
 							{twofa_verify_setup_title()}
 						</h4>
-						<p class="text-sm text-surface-600 dark:text-surface-400">
+						<p class="text-sm text-(--admin-text-muted)">
 							{twofa_verify_setup_description()}
 						</p>
 

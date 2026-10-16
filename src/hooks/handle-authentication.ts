@@ -146,7 +146,7 @@ function initRotationRateLimiter() {
   const secret = (getPrivateSettingSync("JWT_SECRET_KEY") as string) || process.env.JWT_SECRET_KEY;
   const isTestMode =
     process.env.TEST_MODE === "true" ||
-    process.env.NODE_ENV === "test" ||
+    process.env.PLAYWRIGHT_TEST === "true" ||
     process.env.BENCHMARK === "true" ||
     process.env.SVELTY_BENCHMARK_SUITE === "true";
   if (!secret && !dev && !isTestMode) {

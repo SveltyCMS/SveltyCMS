@@ -403,6 +403,13 @@ export class SqlQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> {
    */
   private coerceFilterValue(column: Column | undefined, value: unknown): unknown {
     if (!column || value === null || value === undefined) return value;
+    // SQLite/MariaDB store booleans as INTEGER/TINYINT and the compiled plan
+    // binds straight to the driver (mysql2 prepared statements and the raw
+    // SQLite executor are picky about JS booleans), so normalise to 1/0 here —
+    // the Drizzle fallback maps 1/0 identically. PostgreSQL keeps the boolean.
+    if (typeof value === "boolean" && this.dialect.id !== "postgresql") {
+      return value ? 1 : 0;
+    }
     return coerceDateColumnValue(column, value);
   }
 

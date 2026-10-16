@@ -583,7 +583,7 @@
 			></div>
 		</div>
 		<div
-			class="flex flex-wrap items-center justify-between gap-2 text-xs text-surface-600 dark:text-surface-50"
+			class="flex flex-wrap items-center justify-between gap-2 text-xs text-(--admin-text-muted) dark:text-surface-50"
 		>
 			<span>{mediagallery_speed()} {formatBytes(uploadSpeed)}/s</span>
 			{#if uploadFileLabel}

@@ -794,7 +794,9 @@
 										{/if}
 									</Button>
 								{:else}
-									<div class="px-4 py-2 text-sm text-gray-500">{dashboard_no_widgets()}</div>
+									<div class="px-4 py-2 text-sm text-(--admin-text-muted)">
+										{dashboard_no_widgets()}
+									</div>
 								{/each}
 							</div>
 						</div>
@@ -812,7 +814,7 @@
 			<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
 				{#if hotCollectionLinks.length > 0}
 					<div class="w-full px-1 pb-1" data-testid="dashboard-hot-collections">
-						<span class="text-[10px] font-bold uppercase tracking-wider text-surface-500"
+						<span class="text-[10px] font-bold uppercase tracking-wider text-(--admin-text-muted)"
 							>{button_Collections()}</span
 						>
 						<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -820,7 +822,7 @@
 								<a
 									href={link.href}
 									data-preload="hover"
-									class="inline-flex items-center gap-1.5 rounded-full border border-surface-500/30 bg-surface-500/10 px-3 py-1 text-xs font-semibold text-surface-600 no-underline transition-colors hover:border-tertiary-500/40 hover:text-tertiary-500 focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:border-surface-500/40 dark:text-surface-400 dark:hover:border-primary-500/40 dark:hover:text-primary-500"
+									class="inline-flex items-center gap-1.5 rounded-full border border-surface-500/30 bg-surface-500/10 px-3 py-1 text-xs font-semibold text-(--admin-text-muted) no-underline transition-colors hover:border-tertiary-500/40 hover:text-tertiary-500 focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:border-surface-500/40 dark:text-(--admin-text-muted) dark:hover:border-primary-500/40 dark:hover:text-primary-500"
 								>
 									<span class="truncate">{link.label}</span>
 								</a>
@@ -841,14 +843,14 @@
 						<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">
 							{dashboard_ai_generating_title()}
 						</p>
-						<p class="text-sm text-surface-500">{dashboard_ai_connecting()}</p>
+						<p class="text-sm text-(--admin-text-muted)">{dashboard_ai_connecting()}</p>
 					</AdminCard>
 				{:else if aiDashboardSpec && GenerativeDashboardComp}
 					<GenerativeDashboardComp spec={aiDashboardSpec} />
 				{:else if sortedPreferences.length > 0}
 					<div
 						class="responsive-dashboard-grid"
-						role="grid"
+						role="list"
 						data-testid="dashboard-widget-grid"
 						aria-label={dashboard_grid_aria()}
 					>
@@ -868,10 +870,10 @@
 							<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<div
-								role="article"
+								role="listitem"
 								aria-label={dashboard_widget_reorder_aria({ name: widgetName })}
 								tabindex="0"
-								class="widget-container group relative select-none overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+								class="widget-container group relative select-none overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-900/20 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
 								data-widget-order={item.order ?? 0}
 								data-testid="dashboard-widget"
@@ -890,11 +892,7 @@
 										<Loader variant="card" height="h-full" ariaLabel="Loading widget" />
 									</div>
 								{:else if WidgetComponent === null}
-									<AdminCard
-										preset="tonal"
-										variant="error"
-										class="flex h-full flex-col items-center justify-center p-4"
-									>
+									<AdminCard class="flex h-full flex-col items-center justify-center p-4">
 										<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"
 										></iconify-icon>
 										<h3 class="h4 mb-2">{dashboard_widget_load_error()}</h3>
@@ -950,7 +948,7 @@
 							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">
 								{dashboard_empty_title()}
 							</p>
-							<p class="mb-6 text-base text-surface-600 dark:text-surface-400">
+							<p class="mb-6 text-base text-(--admin-text-muted)">
 								{dashboard_empty_desc()}
 							</p>
 							<Button
@@ -983,5 +981,25 @@
 		grid-auto-rows: 180px;
 		grid-auto-flow: row dense;
 		gap: 1rem;
+	}
+
+	@media (max-width: 1023px) {
+		.responsive-dashboard-grid {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.widget-container {
+			grid-column: span 2 !important;
+		}
+	}
+
+	@media (max-width: 767px) {
+		.responsive-dashboard-grid {
+			grid-template-columns: repeat(1, 1fr);
+		}
+
+		.widget-container {
+			grid-column: span 1 !important;
+		}
 	}
 </style>

@@ -284,9 +284,7 @@ Features:
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:monitor-dashboard" class="text-primary-500" width="18"
 					></iconify-icon>
-					<span
-						class="text-xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
-					>
+					<span class="text-xs font-bold uppercase tracking-wider text-(--admin-text-muted)">
 						{translation_cockpit_admin_lang()}
 					</span>
 				</div>
@@ -303,9 +301,7 @@ Features:
 			<div class="space-y-1.5">
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:translate" class="text-tertiary-500" width="18"></iconify-icon>
-					<span
-						class="text-xs font-bold uppercase tracking-wider text-surface-600 dark:text-surface-400"
-					>
+					<span class="text-xs font-bold uppercase tracking-wider text-(--admin-text-muted)">
 						{translation_cockpit_source_lang()}
 					</span>
 				</div>
@@ -329,10 +325,10 @@ Features:
 					<iconify-icon icon="mdi:translate-variant" width="28"></iconify-icon>
 				</div>
 				<div>
-					<h4 class="font-bold text-base text-surface-900 dark:text-surface-100">
+					<h4 class="font-bold text-base text-(--admin-text-body)">
 						{translation_cockpit_content_readiness()}
 					</h4>
-					<p class="text-xs text-surface-600 dark:text-surface-400">
+					<p class="text-xs text-(--admin-text-muted)">
 						Tracking {summary.translatableFieldsCount} translatable fields across {activeLocales.length}
 						active languages.
 					</p>
@@ -341,7 +337,7 @@ Features:
 
 			<div class="flex items-center gap-4">
 				<div class="text-end">
-					<div class="text-2xl font-black text-surface-900 dark:text-surface-100 leading-none">
+					<div class="text-2xl font-black text-(--admin-text-body) leading-none">
 						{summary.overallProgress}%
 					</div>
 					<div class="text-[11px] font-semibold uppercase tracking-wider text-surface-500">
@@ -407,7 +403,7 @@ Features:
 								</span>
 								<div class="min-w-0">
 									<div class="flex items-center gap-2 flex-wrap">
-										<span class="font-bold text-sm text-surface-900 dark:text-surface-100 truncate">
+										<span class="font-bold text-sm text-(--admin-text-body) truncate">
 											{langName}
 										</span>
 										{#if isCurrent}
@@ -425,13 +421,13 @@ Features:
 											</span>
 										{/if}
 									</div>
-									<div class="text-xs text-surface-600 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{#if missing.length === 0}
 											<span class="text-success-500 font-medium"
 												>{translation_cockpit_all_complete()}</span
 											>
 										{:else}
-											<span class="text-surface-600 dark:text-surface-400">
+											<span class="text-(--admin-text-muted)">
 												{translation_cockpit_missing_fields({ count: missing.length })}
 											</span>
 										{/if}
@@ -483,7 +479,7 @@ Features:
 									<button
 										type="button"
 										onclick={() => handleJumpToField(locale, fieldName)}
-										class="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-surface-500/10 text-surface-600 dark:text-surface-400 border border-surface-500/30 hover:border-primary-500 hover:text-primary-500 hover:bg-primary-500/10 transition-colors flex items-center gap-1"
+										class="px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-surface-500/10 text-(--admin-text-muted) border border-surface-500/30 hover:border-primary-500 hover:text-primary-500 hover:bg-primary-500/10 transition-colors flex items-center gap-1"
 										title="{translation_cockpit_jump_field()}: {fieldName}"
 										aria-label="{translation_cockpit_jump_field()} {fieldName}"
 									>

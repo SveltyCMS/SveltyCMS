@@ -623,7 +623,7 @@ Uses the same shared TreeView as collections:
 				bind:expandedIds={folderExpanded}
 				compact={!isSidebarFull}
 				variant="media"
-				iconColorClass="text-surface-400 dark:text-surface-500"
+				iconColorClass="text-(--admin-text-muted)"
 				showBadges={false}
 				allowDragDrop={isEditMode}
 				{externalDrop}

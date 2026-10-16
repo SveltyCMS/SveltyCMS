@@ -1038,7 +1038,7 @@ offset within the row on the native `dragover` event — that event carries
 		</SystemTooltip>
 		{#if treeStats.collections > 0 || treeStats.categories > 0}
 			<div
-				class="hidden sm:flex items-center px-2 py-1 rounded bg-surface-500/10 text-xs font-medium text-surface-600 dark:text-surface-400"
+				class="hidden sm:flex items-center px-2 py-1 rounded bg-surface-500/10 text-xs font-medium text-(--admin-text-muted)"
 			>
 				<span
 					>{treeStats.collections === 1
@@ -1070,7 +1070,7 @@ offset within the row on the native `dragover` event — that event carries
 	aria-label={builder_tree_aria()}
 >
 	{#if treeRoots.length === 0}
-		<div class="text-center p-8 text-surface-500">
+		<div class="text-center p-8 text-(--admin-text-muted)">
 			<iconify-icon
 				icon={searchText ? 'mdi:magnify-close' : 'mdi:folder-outline'}
 				width="48"
@@ -1199,7 +1199,7 @@ offset within the row on the native `dragover` event — that event carries
 				variant="ghost"
 				type="button"
 				onclick={() => (showTagModal = false)}
-				class="absolute top-4 inset-e-4 p-0! min-w-0 rounded-full text-surface-500 hover:bg-surface-200 dark:hover:bg-surface-800"
+				class="absolute top-4 inset-e-4 p-0! min-w-0 rounded-full text-(--admin-text-muted) hover:bg-surface-200 dark:hover:bg-surface-800"
 				aria-label={builder_close_tag_modal()}
 			>
 				<iconify-icon icon="bi:x" width="20"></iconify-icon>
@@ -1208,7 +1208,7 @@ offset within the row on the native `dragover` event — that event carries
 			<h3 id="board-tag-modal-title" class="text-lg font-bold text-(--admin-text-body) mb-2">
 				{collections_manage_tags()}
 			</h3>
-			<p class="text-xs text-surface-500 dark:text-surface-400 mb-4">
+			<p class="text-xs text-(--admin-text-muted) mb-4">
 				{builder_tags_for()}
 				<span class="font-semibold text-tertiary-500 dark:text-primary-500"
 					>{activeItemForTagging.name}</span
@@ -1219,7 +1219,7 @@ offset within the row on the native `dragover` event — that event carries
 				<div class="flex items-center gap-1.5">
 					<label
 						for="board-tags-input"
-						class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400"
+						class="text-sm font-medium leading-none text-(--admin-text-muted)"
 					>
 						{builder_tag_input_label()}
 					</label>
@@ -1234,7 +1234,7 @@ offset within the row on the native `dragover` event — that event carries
 					aria-describedby="board-tags-help"
 					data-testid="board-tags-input"
 				/>
-				<span id="board-tags-help" class="text-[11px] text-surface-400 mt-1 block"
+				<span id="board-tags-help" class="text-[11px] text-(--admin-text-muted) mt-1 block"
 					>{builder_tag_help()}</span
 				>
 

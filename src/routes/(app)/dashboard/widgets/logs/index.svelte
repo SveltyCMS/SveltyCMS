@@ -113,7 +113,7 @@
 			case 'info':
 				return 'text-tertiary-500 dark:text-primary-400';
 			default:
-				return 'text-surface-400';
+				return 'text-(--admin-text-muted)';
 		}
 	}
 
@@ -192,7 +192,7 @@
 					<iconify-icon
 						icon="mdi:magnify"
 						width="14"
-						class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-surface-400"
+						class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-(--admin-text-muted)"
 					></iconify-icon>
 				</div>
 
@@ -203,7 +203,7 @@
 						bind:value={startDate}
 						class="rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
 					/>
-					<span class="text-xs text-surface-400">–</span>
+					<span class="text-xs text-(--admin-text-muted)">–</span>
 					<input
 						aria-label={widget_logs_date_to()}
 						type="date"
@@ -236,7 +236,7 @@
 			<div class="flex h-full flex-col items-center justify-center text-center">
 				<iconify-icon icon="mdi:text-box-remove-outline" class="text-4xl opacity-20 mb-3"
 				></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">
+				<div class="text-sm font-medium text-(--admin-text-muted)">
 					{#if searchTerm || filterLevel !== 'all' || startDate || endDate}
 						{widget_logs_no_match()}
 					{:else}
@@ -247,10 +247,10 @@
 		{:else if isCompact}
 			<!-- Compact (h:1): horizontal scroll of log chips -->
 			<div class="flex h-full items-center gap-2 overflow-hidden">
-				<span class="shrink-0 text-xs font-semibold text-surface-500"
+				<span class="shrink-0 text-xs font-semibold text-(--admin-text-muted)"
 					>{widget_logs_count({ count: filtered.length })}</span
 				>
-				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+				<div class="h-5 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each filtered.slice(0, 12) as log (log.timestamp + log.message)}
 						<Button
@@ -265,9 +265,7 @@
 						>
 							<iconify-icon icon={levelIcon(log.level)} class="text-xs {levelCls(log.level)}"
 							></iconify-icon>
-							<span
-								class="max-w-20 truncate text-[10px] font-medium text-surface-600 dark:text-surface-400"
-							>
+							<span class="max-w-20 truncate text-[10px] font-medium text-(--admin-text-muted)">
 								{log.message}
 							</span>
 						</Button>
@@ -292,9 +290,7 @@
 						></iconify-icon>
 						<div class="min-w-0 flex-1">
 							<div class="flex items-baseline gap-2">
-								<span
-									class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500"
-								>
+								<span class="shrink-0 text-[11px] tabular-nums text-(--admin-text-muted)">
 									{formatTime(log.timestamp)}
 								</span>
 								<span class="text-xs font-semibold uppercase tracking-wider {levelCls(log.level)}">
@@ -302,7 +298,7 @@
 								</span>
 							</div>
 							<p
-								class="mt-1 text-sm leading-snug text-surface-600 dark:text-surface-400 {isOpen
+								class="mt-1 text-sm leading-snug text-(--admin-text-muted) {isOpen
 									? ''
 									: 'line-clamp-2'}"
 							>
@@ -310,7 +306,7 @@
 							</p>
 							{#if isOpen && log.args && log.args.length > 0}
 								<pre
-									class="mt-2 overflow-x-auto rounded bg-surface-500/10 p-2 text-xs text-surface-600 dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(
+									class="mt-2 overflow-x-auto rounded bg-surface-500/10 p-2 text-xs text-(--admin-text-muted) dark:bg-surface-700 dark:text-surface-300">{JSON.stringify(
 										log.args,
 										null,
 										2
@@ -319,7 +315,7 @@
 						</div>
 						<iconify-icon
 							icon={isOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}
-							class="mt-1 shrink-0 text-sm text-surface-400 opacity-0 group-hover:opacity-100 transition-opacity"
+							class="mt-1 shrink-0 text-sm text-(--admin-text-muted) opacity-0 group-hover:opacity-100 transition-opacity"
 						></iconify-icon>
 					</Button>
 				{/each}

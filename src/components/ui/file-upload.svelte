@@ -127,7 +127,7 @@
 					'w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200',
 					isDragging
 						? 'bg-tertiary-500 dark:bg-primary-500 text-white'
-						: 'bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400'
+						: 'bg-surface-200 dark:bg-surface-800 text-(--admin-text-muted)'
 				)}
 			>
 				{#if icon}

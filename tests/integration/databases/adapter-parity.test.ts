@@ -502,6 +502,37 @@ describe("Adapter Parity — CRUD Operations", () => {
       expect(after.value).toBe(7);
       expect(after.tags).toEqual(["a"]);
     });
+
+    it("does not overwrite or reassign a row owned by another tenant", async () => {
+      // Regression (CRITICAL): the ON CONFLICT branch carried no tenant predicate and
+      // included `tenantId` in SET, so tenant B could hijack tenant A's row simply by
+      // upserting its `_id`. Ownership must stay with A and B's payload must not land.
+      const VICTIM_ID = uid("upsert-cross-tenant");
+      const OTHER_TENANT = "parity-other-tenant";
+
+      const seed = await db.crud.upsert(
+        TEST_COLLECTION,
+        { _id: VICTIM_ID },
+        { title: "owned-by-A", status: "active", tenantId: TEST_TENANT },
+        tenantOpts,
+      );
+      expect(seed.success).toBe(true);
+
+      // Tenant B attempts the same primary key.
+      await db.crud.upsert(
+        TEST_COLLECTION,
+        { _id: VICTIM_ID },
+        { title: "pwned-by-B", status: "active" },
+        { tenantId: OTHER_TENANT },
+      );
+
+      const asA = assertDatabaseSuccess(
+        await db.crud.findById(TEST_COLLECTION, VICTIM_ID, tenantOpts),
+        { operation: "findById (cross-tenant upsert)" },
+      ) as Record<string, unknown>;
+      expect(asA.title).toBe("owned-by-A");
+      expect(asA.tenantId).toBe(TEST_TENANT);
+    });
   });
 
   // ── WRITE ACK: skipReturning (adapter-agnostic) ──────────────────────────

@@ -145,7 +145,7 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 	{disabled}
 >
 	{#if label}
-		<legend id={legendId} class="text-sm font-semibold text-surface-900 dark:text-surface-100 mb-1">
+		<legend id={legendId} class="text-sm font-semibold text-(--admin-text-body) mb-1">
 			{label}
 			{#if required}
 				<span class="text-error-500 ms-0.5" aria-hidden="true">*</span>
@@ -154,7 +154,7 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 	{/if}
 
 	{#if description}
-		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 -mt-1.5 mb-1">
+		<p id={descriptionId} class="text-xs text-(--admin-text-muted) -mt-1.5 mb-1">
 			{description}
 		</p>
 	{/if}

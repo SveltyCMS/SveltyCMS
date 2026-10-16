@@ -208,7 +208,7 @@ and rule-of-thirds grid overlay.
 
 			<!-- Image Container -->
 			<div class="p-4">
-				<p class="text-sm text-surface-500 dark:text-surface-50 mb-3">
+				<p class="text-sm text-(--admin-text-muted) dark:text-surface-50 mb-3">
 					{mediagallery_focal_hint()}
 				</p>
 
@@ -266,7 +266,7 @@ and rule-of-thirds grid overlay.
 				{#if focalPointPluginEnabled}
 					<div class="mt-4 border-t border-surface-500/30 pt-3 dark:border-surface-600">
 						<h4
-							class="mb-2 text-xs font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"
+							class="mb-2 text-xs font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 						>
 							{mediagallery_crop_previews()}
 						</h4>
@@ -282,7 +282,7 @@ and rule-of-thirds grid overlay.
 				<div class="flex items-center gap-4">
 					<!-- Coordinate display -->
 					<div
-						class="text-sm font-mono text-surface-600 dark:text-surface-50 bg-surface-200 dark:bg-surface-700 px-2 py-1 rounded"
+						class="text-sm font-mono text-(--admin-text-muted) dark:text-surface-50 bg-(--admin-bg-chip) px-2 py-1 rounded"
 					>
 						{mediagallery_focal_xy({
 							x: focalPoint.x.toFixed(0),

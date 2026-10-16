@@ -63,14 +63,8 @@ export interface SearchResult extends IndexedItem {
 // ─── State ─────────────────────────────────────────────────────────────────
 
 const _index = new Map<string, IndexedItem>();
-let _lastFullIndex: number | null = null;
 let _initialized = false;
 const CACHE_KEY = "semantic-index:data";
-const CACHE_TTL = 24 * 60 * 60; // 24 hours
-
-export function getLastFullIndexTime(): number | null {
-  return _lastFullIndex;
-}
 
 // ─── Core API ──────────────────────────────────────────────────────────────
 
@@ -102,27 +96,6 @@ export async function initializeSemanticIndex(tenantId?: string): Promise<void> 
 
   // Background: index hot content first
   indexHotContent(tenantId).catch(() => {});
-}
-
-/**
- * Index content into the semantic store.
- * Deduplicates by ID — re-indexing an existing item updates its vector.
- */
-export async function indexItem(
-  item: Omit<IndexedItem, "vector" | "indexedAt" | "score">,
-  tenantId?: string,
-): Promise<void> {
-  const text = `${item.title} ${item.description} ${item.keywords.join(" ")}`;
-  const result = await embedSingle(text);
-
-  const indexed: IndexedItem = {
-    ...item,
-    vector: result.vector,
-    indexedAt: Date.now(),
-    ...(tenantId !== undefined ? { tenantId } : {}),
-  };
-
-  _index.set(item.id, indexed);
 }
 
 /**
@@ -219,25 +192,6 @@ export async function semanticSearch(
   // Sort by score descending, take top K
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit);
-}
-
-/**
- * Persist the index to cache layer for fast restoration on restart.
- */
-export async function persistSemanticIndex(): Promise<void> {
-  const { cacheService } = await loadCacheServiceModule();
-  const data = Array.from(_index.entries());
-  await cacheService.set(CACHE_KEY, data, CACHE_TTL);
-  _lastFullIndex = Date.now();
-}
-
-/**
- * Clear and re-index everything. Used after major content changes.
- */
-export async function rebuildSemanticIndex(tenantId: string): Promise<void> {
-  _index.clear();
-  await indexAdminPages();
-  await indexHotContent(tenantId);
 }
 
 // ─── Internal Indexers ─────────────────────────────────────────────────────

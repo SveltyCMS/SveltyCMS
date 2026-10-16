@@ -10,6 +10,9 @@ import { ensureFullInitialization, getDb } from "@src/databases/db";
 let db: any = null;
 let adapter: any = null;
 
+/** Tenant-policy methods only exist in multi-tenant installs. */
+const MULTI_TENANT = process.env.MULTI_TENANT === "true";
+
 beforeAll(async () => {
   const result = await ensureFullInitialization();
   db = getDb();
@@ -89,13 +92,13 @@ describe("Connection Health Contract — All Adapters", () => {
     expect(typeof builder.execute).toBe("function");
   });
 
-  it("clearDatabase exists (destructive — not called)", async () => {
-    if (typeof adapter.clearDatabase !== "function") return;
+  it("clearDatabase exists (destructive — not called)", () => {
+    // Previously guarded with a silent `return`, which made the assertion dead.
     expect(typeof adapter.clearDatabase).toBe("function");
   });
 
   it("cleanupExpiredData exists and runs", async () => {
-    if (typeof adapter.cleanupExpiredData !== "function") return;
+    expect(typeof adapter.cleanupExpiredData).toBe("function");
     const result = await adapter.cleanupExpiredData();
     validateDatabaseResult(result, {
       operation: "cleanupExpiredData",
@@ -106,8 +109,8 @@ describe("Connection Health Contract — All Adapters", () => {
 });
 
 describe("Tenant Policy Contract", () => {
-  it("enforceTenantPolicy exists (multi-tenant adapters)", async () => {
-    if (typeof db.enforceTenantPolicy !== "function") return;
+  it.skipIf(!MULTI_TENANT)("enforceTenantPolicy exists (multi-tenant adapters)", async () => {
+    expect(typeof db.enforceTenantPolicy).toBe("function");
 
     // Test with a non-existent collection to avoid side effects
     const result = await db.enforceTenantPolicy("nonexistent_collection", "test-tenant");
@@ -120,8 +123,8 @@ describe("Tenant Policy Contract", () => {
     }
   });
 
-  it("getTenantContext returns tenant info", async () => {
-    if (typeof db.getTenantContext !== "function") return;
+  it.skipIf(!MULTI_TENANT)("getTenantContext returns tenant info", async () => {
+    expect(typeof db.getTenantContext).toBe("function");
 
     const result = await db.getTenantContext();
     if (result && typeof result === "object") {

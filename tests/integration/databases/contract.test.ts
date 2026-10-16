@@ -23,13 +23,9 @@
  *   DB_TYPE=mariadb     bun test tests/integration/databases/contract.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
-import {
-  cleanupTestDatabase,
-  prepareAuthenticatedContext,
-  testFixtures,
-} from "../helpers/test-setup";
+import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
 
 // ---------------------------------------------------------------------------
 // Runtime configuration
@@ -59,16 +55,11 @@ function headers(
 // Suite lifecycle — single reset at start/end (gates reuse prepare with skipReset)
 // ---------------------------------------------------------------------------
 
-let suiteAdminCookie = "";
-
 beforeAll(async () => {
-  await cleanupTestDatabase();
-  suiteAdminCookie = await prepareAuthenticatedContext();
+  // Full reset + seed — the gate describes below log in with `skipReset`, so this
+  // must create the admin user (a bare reset leaves them unable to log in).
+  await prepareAuthenticatedContext();
 }, 180_000);
-
-afterAll(async () => {
-  await cleanupTestDatabase();
-});
 
 // ---------------------------------------------------------------------------
 // Gate 1 — Auth Contract
@@ -143,20 +134,21 @@ describe("Auth Contract", () => {
       .map((c) => c.trim().split(";")[0])
       .join("; ");
 
-    if (logoutCookie) {
-      // Logout using dedicated cookie
-      const logoutRes = await safeFetch(`${API_BASE}/api/user/logout`, {
-        method: "POST",
-        headers: headers({ Cookie: logoutCookie }),
-      });
-      expect(logoutRes.status).toBe(200);
+    expect(loginRes.status).toBe(200);
+    expect(logoutCookie.length).toBeGreaterThan(0);
 
-      // Old cookie should be dead
-      const checkRes = await safeFetch(`${API_BASE}/api/user?raw=true`, {
-        headers: headers({ Cookie: logoutCookie }),
-      });
-      expect(checkRes.status).toBe(401);
-    }
+    // Logout using dedicated cookie
+    const logoutRes = await safeFetch(`${API_BASE}/api/user/logout`, {
+      method: "POST",
+      headers: headers({ Cookie: logoutCookie }),
+    });
+    expect(logoutRes.status).toBe(200);
+
+    // Old cookie should be dead
+    const checkRes = await safeFetch(`${API_BASE}/api/user?raw=true`, {
+      headers: headers({ Cookie: logoutCookie }),
+    });
+    expect(checkRes.status).toBe(401);
   });
 });
 
@@ -532,6 +524,3 @@ describe("Media Permissions Contract", () => {
     expect(res.status).toBeLessThan(500);
   });
 });
-
-// Silence unused suite cookie warning if tree-shaken
-void suiteAdminCookie;

@@ -1,0 +1,117 @@
+---
+path: "docs/tests/mutation-testing.mdx"
+title: "Mutation Testing (Seam Harness)"
+description: "How SveltyCMS mutation-tests the three seam modules that caused recent regressions, and why it uses a self-contained harness instead of StrykerJS."
+order: 4
+icon: "mdi:dna"
+author: "SveltyCMS Team"
+created: "2026-10-16"
+updated: "2026-10-16"
+tags:
+  - "testing"
+  - "mutation"
+  - "seams"
+  - "regression"
+  - "unit"
+---
+
+# Mutation Testing — Seam Harness
+
+**North star:** The three "seam" modules that produced recent regressions are _proven_ against semantic mutations, not just exercised by happy-path assertions. A mutation of a protected seam **must** fail an existing invariant.
+
+This is the #1 remaining testing gap: line coverage says a seam is exercised, but only mutation testing proves a _change_ to that seam is caught. A test that never fails when the logic is flipped is a test that isn't protecting the regression.
+
+---
+
+## What it protects (the three seams)
+
+| #   | Module                                        | Pure seam                                                  | Regression it pins                                                                                                                             |
+| :-- | :-------------------------------------------- | :--------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `src/utils/error-display.ts`                  | `resolveErrorDisplay(status, errorMessage?)`               | A 500 ("System Error") must **not** render the "page doesn't exist or has been moved" helper — that copy belongs to 404 only.                  |
+| 2   | `src/routes/api/[...path]/handlers/tokens.ts` | `pickTokenUpdateFields` + the DELETE/PUT honest-404 guards | Updating/deleting must resolve the row by `_id` (not the hashed token value), and an unresolvable row must 404 — never a silent success toast. |
+| 3   | `src/utils/error-handling.ts`                 | `raise(...)` / `AppError`                                  | `raise` must throw an `AppError` carrying the exact `status`, `message`, and `code` — no dropped or swapped arguments.                         |
+
+The harness reads the **real** source at run time, extracts the pure logic, and verifies the extracted text still matches the file — so a refactor that moves or rewrites a seam fails loudly instead of silently drifting.
+
+---
+
+## How it works (self-contained, no external deps)
+
+The harness lives at `tests/mutation/seam-mutation.test.ts` and is a single Vitest file. For each seam it:
+
+1. **Reads** the source file (`readFileSync`) and LF-normalizes it.
+2. **Extracts** the pure logic — either the whole module (`error-display.ts`), a marker-delimited slice (`pickTokenUpdateFields` + its allowlists), or a brace-matched statement (`AppError` / `raise`).
+3. **Mutates** the source text with a small fixed set of _semantic_ mutations (each `find` string is asserted to match exactly once):
+   - `status === 404` → `status !== 404` (page-moved flag and title ladder)
+   - `status === 403` → `status !== 403` (title ladder)
+   - drop `"expires"` from the lifecycle allowlist
+   - `admin` → `true` (bypass the identity gate)
+   - `deletedCount === 0` → `deletedCount !== 0` (DELETE honest-404)
+   - `if (!result)` → `if (result)` (PUT honest-404)
+   - drop / swap the `raise` code argument
+4. **Loads** each mutant through a temp file (`.vitest/mutation/*.ts`) + dynamic `import()` with a cache-busting query.
+5. **Asserts** the existing invariant now **fails** — a failed invariant means the mutant is _killed_.
+
+Each seam also has an "original source passes the invariant" sanity test, so the invariant can't be accidentally too strict (which would make every mutant trivially "killed").
+
+### Why not StrykerJS?
+
+The primary approach was Stryker (`@stryker-mutator/core` + `@stryker-mutator/vitest-runner`). It was installed and run against this project (Vitest **5.0.5** / Bun) and rejected for a concrete reason:
+
+- `@stryker-mutator/vitest-runner@10.0.0` **hardcodes `pool: "threads"`** in its runner (`#getVitestPoolConfig`), with no config escape hatch (its `vitest` options only accept `dir` / `related` / `configFile`).
+- This project **requires `pool: "forks"`** (`vitest.config.ts`) because several unit tests call `process.chdir()`, which is unsupported in worker threads.
+- The dry run failed with `process.chdir() is not supported in workers` (from `tests/unit/content/sync-content-state.test.ts`), proving the incompatibility.
+
+A secondary Windows-only issue (`EPERM (unlink)` on the shared `node_modules/.vitest-cache`) was also observed. Both deps were removed cleanly, so there is no broken install left behind.
+
+---
+
+## Running it
+
+```bash
+bun run test:mutation
+# equivalent:
+node ./node_modules/vitest/vitest.mjs run tests/mutation/seam-mutation.test.ts
+```
+
+A full pass takes a few seconds (the first import of the generated `@src/paraglide/messages` barrel dominates; the mutants themselves run in single-digit milliseconds). It runs via `test:mutation` (and as a separate step in CI `04-unit`), **not** as part of `test:unit` — keeping its temp-file dynamic `import()` out of the `--coverage` run, where v8 instrumentation would otherwise make it flaky.
+
+Expected output summary line:
+
+```text
+[mutation] seam harness: 9 mutant(s), 9 killed, 0 survived (100.0% mutation score)
+```
+
+---
+
+## Interpreting the score
+
+- **Killed** — the mutant changed behavior and the invariant failed. This is the desired outcome.
+- **Survived** — the mutant changed behavior but the invariant still held. The harness **fails the test** and prints a `SURVIVED` line with the seam + mutant id. Fix the invariant (or the seam) before shipping.
+- **Mutation score** = `killed / total × 100`. The baseline is **100%** for the current 9-mutant set.
+
+A non-100% score is _not_ a silent warning — it is a failing test, so CI catches it the same way it catches any other unit regression.
+
+---
+
+## Seam rules (why these, not arbitrary mutations)
+
+The mutation set is deliberately small and _semantic_ — each maps to a real regression, not to every possible operator:
+
+- **`error-display.ts`** — the `showPageMoved` flag and the title ladder are the only places a status can be misclassified. Flipping `=== 404` / `=== 403` is exactly the class of bug that shipped.
+- **`pickTokenUpdateFields`** — the allowlist is the account-takeover boundary. Dropping `expires` or bypassing the admin gate are the two failure modes.
+- **token guards** — `deletedCount === 0` and `if (!result)` are the "honest 404" seams that previously answered a silent 200.
+- **`raise`** — the status/message/code triple is the contract every handler relies on; dropping or swapping an argument is the regression class.
+
+## Adding a seam or a mutation
+
+1. Add a `SeamSpec` to `seams` in `tests/mutation/seam-mutation.test.ts`.
+2. Provide `source` (read from the real file), `mutations` (exactly-one `find`/`replace` pairs), and `assertInvariant` (throws on violation).
+3. Keep the mutation _semantic_ and tied to a documented regression.
+4. Re-run `bun run test:mutation` and confirm the summary still shows 100% (or intentionally document a surviving mutant).
+
+## Related
+
+- `docs/tests/three-layer-completeness.mdx` — how unit / integration / E2E layers split the work.
+- `docs/tests/strategy.mdx` — the overall testing strategy.
+- `tests/unit/utils/error-display.test.ts`, `tests/unit/routes/token-routes-handler.test.ts`, `tests/unit/utils/error-handling.test.ts` — the invariant sources this harness mirrors.

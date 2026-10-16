@@ -81,7 +81,7 @@ async function getEncryptionKeys(): Promise<ResolvedStaticAesKey | null> {
   try {
     const raw = typeof process !== "undefined" ? process.env[ENV_KEY_NAME] : undefined;
     if (!raw || raw.length === 0) {
-      logger.debug("[SettingsCrypto] No SECRET_ENCRYPTION_KEY set — secret encryption disabled");
+      logger.debug("[SettingsCrypto] No secret-encryption key set — secret encryption disabled");
       cachedKeys = null;
       return null;
     }
@@ -90,7 +90,7 @@ async function getEncryptionKeys(): Promise<ResolvedStaticAesKey | null> {
     cachedKeys = resolveStaticAesKey(crypto, raw, AES256_HKDF_INFO.pluginSettings);
     if (cachedKeys.fallbacks.length > 0) {
       logger.warn(
-        "[SettingsCrypto] SECRET_ENCRYPTION_KEY is not hex/base64 — deriving key via HKDF-SHA-256. " +
+        "[SettingsCrypto] Secret-encryption key is not hex/base64 — deriving key via HKDF-SHA-256. " +
           "For production, generate a key: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
       );
     } else {

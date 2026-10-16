@@ -44,6 +44,7 @@ import {
 } from "../utils/security/constants";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
 import { getTurboAuthContext } from "./handle-turbo-get";
+import { resolveRequestTenant } from "./request-tenant";
 import { logger } from "@src/utils/logger";
 import { getHeapStatistics } from "node:v8";
 import { getHardwareProfile, hardwareDiagnostics } from "@utils/hardware-profile";
@@ -158,7 +159,10 @@ function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
   };
 
   if (includeDiagnostics) {
-    if (searchParams.has("gc")) {
+    if (
+      searchParams.has("gc") &&
+      (IS_TEST_MODE || (globalThis as any).process?.env?.NODE_ENV !== "production")
+    ) {
       if (typeof global !== "undefined" && (global as any).gc) (global as any).gc();
       if (typeof (globalThis as any).Bun !== "undefined" && (globalThis as any).Bun.gc) {
         (globalThis as any).Bun.gc(true);
@@ -248,7 +252,7 @@ const IS_TEST_MODE =
   typeof globalThis !== "undefined" &&
   (String((globalThis as any).process?.env?.TEST_MODE) === "true" ||
     String((globalThis as any).process?.env?.VITE_TEST_MODE) === "true" ||
-    (globalThis as any).process?.env?.NODE_ENV === "test");
+    String((globalThis as any).process?.env?.PLAYWRIGHT_TEST) === "true");
 const DB_TYPE =
   typeof globalThis !== "undefined" ? (globalThis as any).process?.env?.DB_TYPE : "unknown";
 const IS_STRICT_SETUP_CHECK =
@@ -359,11 +363,10 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           // already carries so RBAC-aware endpoints see the same privileges as
           // a normal request.
           (event.locals as any).user = user;
-          const testTenantHeader =
-            event.request.headers.get("x-test-tenant-id") ||
-            event.request.headers.get("x-tenant-id");
-          (event.locals as any).tenantId =
-            testTenantHeader || turboCtx?.tenantId || user.tenantId || null;
+          (event.locals as any).tenantId = resolveRequestTenant(
+            event.request,
+            (turboCtx?.tenantId ?? user.tenantId ?? null) as any,
+          );
           if (turboCtx) {
             (event.locals as any).roles = turboCtx.roles;
           }
@@ -394,12 +397,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
             email: "system@sveltycms",
           };
 
-          // 🚀 TENANT SYNC: Extract tenantId from header if provided
-          const headerTenant =
-            event.request.headers.get("x-tenant-id") ||
-            event.request.headers.get("x-test-tenant-id") ||
-            event.request.headers.get("X-Tenant-Id");
-          (event.locals as any).tenantId = headerTenant || null;
+          // 🚀 TENANT SYNC: Extract validated tenantId from header if provided in test mode
+          const headerTenant = resolveRequestTenant(event.request, null);
+          (event.locals as any).tenantId = headerTenant;
 
           logger.debug(
             `[Turbo] Fallback to SYSTEM user for ${pathname} (Tenant: ${headerTenant || "null"})`,

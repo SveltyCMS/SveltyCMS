@@ -96,7 +96,7 @@ CI runs 9 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on 
 | 🏁 Bootstrap (paraglide + codegen) | `bun run paraglide`; `bun x svelte-kit sync`                                                                                  |
 | 01-format / 02-lint                | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                                 |
 | 03-check                           | subset of `bun run check` (format + lint + lockfile) — always run full `bun run check`                                        |
-| 04-unit                            | `bun run test:unit`                                                                                                           |
+| 04-unit                            | `bun run test:unit`; CI runs `test:unit:coverage` (runs the same suite + P0 floors) then `test:mutation`                      |
 | 04b-tenant-gate                    | `bun run test:tenant`; on a dirty tree: `bun run lint:tenant -- --full`                                                       |
 | 05-cve / 06 / 07 / 08-hardware     | `bun run risk:audit`; `bun run scripts/probe-deploy-testing-api.ts`; `bun run scripts/probe-hardware-tiers.ts` (needs Docker) |
 | 🏗️ Build                           | `COMPILE_ALL_ADAPTERS=true bun run build` (keeps `/api/testing`; plain `bun run build` strips it)                             |

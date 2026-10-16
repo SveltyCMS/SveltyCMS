@@ -66,7 +66,7 @@ menu item at a specific level. Uses the standard widget loading system.
 		class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:border-surface-500/40"
 	>
 		<div class="flex flex-col">
-			<h2 class="text-2xl font-bold text-surface-900 dark:text-surface-100">
+			<h2 class="text-2xl font-bold text-(--admin-text-body)">
 				{widget_menu_item_title({ action: meta.isNew ? 'Add' : 'Edit' })}
 			</h2>
 			<span class="text-xs font-medium uppercase tracking-wider text-surface-500"
@@ -127,7 +127,7 @@ menu item at a specific level. Uses the standard widget loading system.
 					width="48"
 					class="mx-auto block text-surface-300 dark:text-surface-600"
 				></iconify-icon>
-				<p class="mt-4 text-surface-600 dark:text-surface-400 font-medium">
+				<p class="mt-4 text-(--admin-text-muted) font-medium">
 					{widget_menu_no_fields_configured()}
 				</p>
 				<p class="text-xs text-surface-500 mt-1">

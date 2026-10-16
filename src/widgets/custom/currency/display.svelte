@@ -51,10 +51,10 @@ Renders: "1.234,56 €" (German) or "$1,234.56" (US) based on system language
 </script>
 
 <div
-	class="currency-display inline-flex items-center gap-1.5 font-semibold text-surface-900 dark:text-surface-50"
+	class="currency-display inline-flex items-center gap-1.5 font-semibold text-(--admin-text-body)"
 >
 	{#if typeof value === 'number'}
-		<iconify-icon icon="mdi:currency-eur" width="16" class="text-surface-400 dark:text-surface-500"
+		<iconify-icon icon="mdi:currency-eur" width="16" class="text-(--admin-text-muted)"
 		></iconify-icon>
 
 		{#if field.prefix}

@@ -106,21 +106,25 @@
 		{#if !analytics?.total}
 			<div class="flex h-full flex-col items-center justify-center text-center">
 				<iconify-icon icon="mdi:chart-donut" class="mb-3 text-4xl opacity-20"></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">{widget_mediastorage_no_analytics()}</div>
-				<div class="mt-1 text-xs text-surface-400">{widget_mediastorage_upload_populate()}</div>
+				<div class="text-sm font-medium text-(--admin-text-muted)">
+					{widget_mediastorage_no_analytics()}
+				</div>
+				<div class="mt-1 text-xs text-(--admin-text-muted)">
+					{widget_mediastorage_upload_populate()}
+				</div>
 			</div>
 		{:else if isCompact}
 			<div class="flex h-full items-center justify-between gap-3 px-1">
 				<div class="min-w-0">
-					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
+					<div class="text-lg font-bold tabular-nums text-(--admin-text-body)">
 						{analytics.total.formattedSize}
 					</div>
-					<div class="text-xs text-surface-500">
+					<div class="text-xs text-(--admin-text-muted)">
 						{widget_media_files_count({ count: analytics.total.files })}
 					</div>
 				</div>
 				<div class="shrink-0 text-end">
-					<div class="text-xs font-semibold uppercase tracking-wide text-surface-500">
+					<div class="text-xs font-semibold uppercase tracking-wide text-(--admin-text-muted)">
 						{widget_mediastorage_quota()}
 					</div>
 					<div
@@ -138,18 +142,22 @@
 			<div class="flex h-full flex-col gap-3">
 				<div class="grid grid-cols-2 gap-3">
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+						<div
+							class="text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+						>
 							{widget_mediastorage_total()}
 						</div>
-						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
+						<div class="mt-1 text-xl font-bold tabular-nums text-(--admin-text-body)">
 							{analytics.total.formattedSize}
 						</div>
-						<div class="mt-0.5 text-xs text-surface-500">
+						<div class="mt-0.5 text-xs text-(--admin-text-muted)">
 							{widget_media_files_count({ count: analytics.total.files })}
 						</div>
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+						<div
+							class="text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+						>
 							{widget_mediastorage_quota_used()}
 						</div>
 						<div
@@ -161,7 +169,7 @@
 						>
 							{analytics.quota.percentage.toFixed(1)}%
 						</div>
-						<div class="mt-0.5 text-xs text-surface-500">
+						<div class="mt-0.5 text-xs text-(--admin-text-muted)">
 							{widget_mediastorage_free({ size: formatBytes(analytics.quota.available) })}
 						</div>
 					</div>
@@ -169,13 +177,13 @@
 
 				<div>
 					<div
-						class="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-surface-500"
+						class="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
 					>
 						<span>{widget_mediastorage_quota()}</span>
 						<span class="capitalize">{analytics.quota.status}</span>
 					</div>
 					<div
-						class="h-2 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+						class="h-2 overflow-hidden rounded-full bg-(--admin-bg-chip)"
 						role="progressbar"
 						aria-valuenow={analytics.quota.percentage}
 						aria-valuemin={0}
@@ -191,7 +199,9 @@
 
 				{#if analytics.byType.length > 0}
 					<div class="min-h-0 flex-1 overflow-y-auto">
-						<div class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+						<div
+							class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+						>
 							{widget_mediastorage_top_types()}
 						</div>
 						<div class="space-y-1.5">
@@ -201,18 +211,20 @@
 								>
 									<div class="min-w-0 flex-1">
 										<div
-											class="truncate text-sm font-medium capitalize text-surface-600 dark:text-surface-100"
+											class="truncate text-sm font-medium capitalize text-(--admin-text-muted) dark:text-surface-100"
 										>
 											{item.type}
 										</div>
-										<div class="text-[11px] text-surface-500">
+										<div class="text-[11px] text-(--admin-text-muted)">
 											{widget_mediastorage_files_size({
 												count: item.count,
 												size: formatBytes(item.size)
 											})}
 										</div>
 									</div>
-									<div class="shrink-0 text-xs font-semibold tabular-nums text-surface-500">
+									<div
+										class="shrink-0 text-xs font-semibold tabular-nums text-(--admin-text-muted)"
+									>
 										{item.pct.toFixed(0)}%
 									</div>
 								</div>
@@ -228,13 +240,13 @@
 						<div class="flex items-start gap-2">
 							<iconify-icon
 								icon={insightIcon(analytics.insights[0].type)}
-								class="mt-0.5 shrink-0 text-surface-500"
+								class="mt-0.5 shrink-0 text-(--admin-text-muted)"
 							></iconify-icon>
 							<div class="min-w-0">
-								<div class="font-semibold text-surface-600 dark:text-surface-100">
+								<div class="font-semibold text-(--admin-text-muted) dark:text-surface-100">
 									{analytics.insights[0].title}
 								</div>
-								<div class="mt-0.5 text-surface-500">{analytics.insights[0].desc}</div>
+								<div class="mt-0.5 text-(--admin-text-muted)">{analytics.insights[0].desc}</div>
 							</div>
 						</div>
 					</div>

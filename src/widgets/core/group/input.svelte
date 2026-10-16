@@ -148,7 +148,7 @@ Renders a group of fields, allowing for nested data structures.
 				{/each}
 			</div>
 		{:else}
-			<p class="text-sm italic text-gray-500">{widget_group_no_fields()}</p>
+			<p class="text-sm italic text-(--admin-text-muted)">{widget_group_no_fields()}</p>
 		{/if}
 	</div>
 </div>

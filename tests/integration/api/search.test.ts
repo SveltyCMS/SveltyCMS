@@ -3,9 +3,9 @@
  * @description Integration tests for Global Search API endpoints
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const BASE_URL = getApiBaseUrl();
 let authCookie: string;
@@ -13,10 +13,6 @@ let authCookie: string;
 beforeAll(async () => {
   await waitForServer();
   authCookie = await prepareAuthenticatedContext();
-});
-
-afterAll(async () => {
-  await cleanupTestDatabase();
 });
 
 describe("Search API - Global Search", () => {
@@ -28,7 +24,9 @@ describe("Search API - Global Search", () => {
     expect(response.status).toBe(200);
 
     const data = await response.json();
-    expect(typeof data).toBe("object");
+    // Assert the envelope, not just `typeof data === "object"` (true for any JSON).
+    expect(data).toBeTruthy();
+    if (typeof data?.success === "boolean") expect(data.success).toBe(true);
   });
 
   it("should handle empty search query", async () => {
@@ -70,6 +68,7 @@ describe("Search API - Global Search", () => {
     expect(response.status).toBe(200);
 
     const data = await response.json();
-    expect(typeof data).toBe("object");
+    expect(data).toBeTruthy();
+    if (typeof data?.success === "boolean") expect(data.success).toBe(true);
   });
 });

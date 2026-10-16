@@ -259,7 +259,9 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			endpoint: () =>
 				type === 'user'
 					? '/api/user/update-user-attributes'
-					: `/api/token/${(safeSelectedRows[0] as Token).token}`,
+					: // Use the row _id: the list exposes the *hashed* token value, which
+						// PUT/DELETE's findToken cannot resolve (getTokenByValue re-hashes).
+						`/api/token/${(safeSelectedRows[0] as Token)._id}`,
 			method: () => 'PUT',
 			toastMessage: () =>
 				type === 'user' ? usermultibutton_user_updated() : usermultibutton_token_updated(),
@@ -405,7 +407,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 				modalState.trigger(
 					ModalEditToken as any,
 					{
-						token: t.token,
+						// Row _id, never the exposed hashed token value — the update/delete
+						// handler resolves by token value (re-hashed ⇒ 404 "Token not found")
+						// then falls back to getTokenById.
+						token: t._id,
 						email: t.email,
 						role: t.role,
 						user_id: t.user_id,

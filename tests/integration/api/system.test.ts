@@ -5,26 +5,20 @@
  * Aligned with api/settings/[group] and consolidated system health endpoints.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { getApiBaseUrl, safeFetch, waitForServer } from "../helpers/server";
-import { cleanupTestDatabase, prepareAuthenticatedContext } from "../helpers/test-setup";
+import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
 describe("System Configuration API Endpoints", () => {
   let authCookie: string;
 
+  // Single reset + admin session for the whole suite (was a per-test wipe).
   beforeAll(async () => {
     await waitForServer();
-  });
-
-  afterAll(async () => {
-    await cleanupTestDatabase();
-  });
-
-  beforeEach(async () => {
     authCookie = await prepareAuthenticatedContext();
-  });
+  }, 120_000);
 
   describe("GET /api/settings/site", () => {
     it("should return site settings with authentication", async () => {

@@ -176,14 +176,11 @@
 	>
 		<!-- URL Line -->
 		<div class="mb-1 flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
-			<div
-				class="flex h-6 w-6 items-center justify-center rounded-full bg-surface-200 dark:bg-surface-700"
-			>
+			<div class="flex h-6 w-6 items-center justify-center rounded-full bg-(--admin-bg-chip)">
 				<iconify-icon icon="mdi:earth" width={24}></iconify-icon>
 			</div>
 			<div class="flex flex-col leading-none">
-				<span class="font-bold text-surface-600 dark:text-surface-400"
-					>{publicEnv.HOST_PROD || 'Your Site'}</span
+				<span class="font-bold text-(--admin-text-muted)">{publicEnv.HOST_PROD || 'Your Site'}</span
 				>
 				<span class="truncate text-[10px]">{hostUrl}</span>
 			</div>
@@ -217,7 +214,7 @@
 		<!-- Description -->
 		<div>
 			{#if heatmapMode}
-				<p class="text-sm leading-normal text-surface-600 dark:text-surface-400">
+				<p class="text-sm leading-normal text-(--admin-text-muted)">
 					{#each heatmapDataDesc as { word, color }, i (i)}
 						<span class="relative inline-block me-1">
 							<span
@@ -238,23 +235,23 @@
 
 	{#if heatmapMode}
 		<div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]" transition:fade>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
+			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
 				<div class="w-2 h-2 rounded-full bg-error-500"></div>
 				<span>{common_keyword()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
+			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
 				<div class="w-2 h-2 rounded-full bg-warning-500"></div>
 				<span>{seo_preview_power_word()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
+			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
 				<div class="w-2 h-2 rounded-full bg-warning-400"></div>
 				<span>{seo_preview_prominent()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
+			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
 				<div class="w-2 h-2 rounded-full bg-success-500"></div>
 				<span>{seo_preview_good_length()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-surface-500/10 dark:bg-surface-800">
+			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
 				<div class="w-2 h-2 rounded-full bg-tertiary-500"></div>
 				<span>{seo_preview_neutral()}</span>
 			</div>

@@ -138,7 +138,7 @@
 							</div>
 							<span class="font-bold tabular-nums text-sm">{mem.percent.toFixed(1)}%</span>
 							<span
-								class="text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider text-[10px]"
+								class="text-(--admin-text-muted) dark:text-(--admin-text-muted) font-semibold uppercase tracking-wider text-[10px]"
 								>RAM</span
 							>
 						</div>
@@ -147,9 +147,9 @@
 								>{mem.usedGB.toFixed(1)} / {mem.totalGB.toFixed(0)} GB</span
 							>
 							{#if mem.swapPercent !== null}
-								<span class="text-gray-400 dark:text-gray-500"
+								<span class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
 									>| {dashboard_memory_swap()}
-									<span class="font-semibold text-gray-600 dark:text-gray-400"
+									<span class="font-semibold text-gray-600 dark:text-(--admin-text-muted)"
 										>{mem.swapPercent.toFixed(0)}%</span
 									></span
 								>
@@ -180,18 +180,22 @@
 								<span class="text-3xl font-semibold tabular-nums tracking-tighter"
 									>{mem.percent.toFixed(1)}</span
 								>
-								<span class="text-xl font-medium text-gray-400">%</span>
+								<span class="text-xl font-medium text-(--admin-text-muted)">%</span>
 							</div>
-							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-								>{dashboard_memory_used()}</span
+							<span
+								class="text-sm {theme === 'dark'
+									? 'text-(--admin-text-muted)'
+									: 'text-(--admin-text-muted)'}">{dashboard_memory_used()}</span
 							>
 						</div>
 
 						<div class="text-end">
 							<div class="text-sm font-medium tabular-nums">
 								{mem.freeGB.toFixed(1)} GB
-								<span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-									>{dashboard_memory_free()}</span
+								<span
+									class="text-xs {theme === 'dark'
+										? 'text-(--admin-text-muted)'
+										: 'text-(--admin-text-muted)'}">{dashboard_memory_free()}</span
 								>
 							</div>
 						</div>
@@ -282,8 +286,8 @@
 								</span>
 								<span
 									class="text-[9px] font-bold tracking-widest uppercase {theme === 'dark'
-										? 'text-gray-400'
-										: 'text-gray-500'}">{dashboard_memory_ram_used()}</span
+										? 'text-(--admin-text-muted)'
+										: 'text-(--admin-text-muted)'}">{dashboard_memory_ram_used()}</span
 								>
 							</div>
 						</div>
@@ -295,13 +299,21 @@
 							class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-center text-sm"
 						>
 							<div>
-								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+								<div
+									class={theme === 'dark'
+										? 'text-(--admin-text-muted)'
+										: 'text-(--admin-text-muted)'}
+								>
 									{dashboard_memory_total()}
 								</div>
 								<div class="font-semibold tabular-nums mt-0.5">{mem.totalGB.toFixed(1)} GB</div>
 							</div>
 							<div>
-								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+								<div
+									class={theme === 'dark'
+										? 'text-(--admin-text-muted)'
+										: 'text-(--admin-text-muted)'}
+								>
 									{dashboard_memory_used()}
 								</div>
 								<div
@@ -316,7 +328,11 @@
 							</div>
 							{#if size.w > 1}
 								<div>
-									<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+									<div
+										class={theme === 'dark'
+											? 'text-(--admin-text-muted)'
+											: 'text-(--admin-text-muted)'}
+									>
 										{dashboard_memory_free()}
 									</div>
 									<div class="font-semibold tabular-nums mt-0.5">{mem.freeGB.toFixed(1)} GB</div>
@@ -330,7 +346,7 @@
 								class="border-t pt-2.5 {theme === 'dark' ? 'border-gray-800' : 'border-gray-150'}"
 							>
 								<div
-									class="flex justify-between text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 px-1"
+									class="flex justify-between text-xs font-semibold text-(--admin-text-muted) dark:text-(--admin-text-muted) mb-1.5 px-1"
 								>
 									<span>{dashboard_memory_swap_memory()}</span>
 									<span class="tabular-nums"
@@ -339,7 +355,9 @@
 								</div>
 								<div class="grid grid-cols-3 gap-2 text-center text-xs">
 									<div>
-										<div class="text-[10px] text-gray-400 dark:text-gray-500">
+										<div
+											class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted)"
+										>
 											{dashboard_memory_total()}
 										</div>
 										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">
@@ -347,7 +365,9 @@
 										</div>
 									</div>
 									<div>
-										<div class="text-[10px] text-gray-400 dark:text-gray-500">
+										<div
+											class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted)"
+										>
 											{dashboard_memory_used()}
 										</div>
 										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">
@@ -355,7 +375,9 @@
 										</div>
 									</div>
 									<div>
-										<div class="text-[10px] text-gray-400 dark:text-gray-500">
+										<div
+											class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted)"
+										>
 											{dashboard_memory_free()}
 										</div>
 										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">
@@ -381,7 +403,11 @@
 					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">
 						{dashboard_memory_loading()}
 					</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
+					<div
+						class="text-xs {theme === 'dark'
+							? 'text-(--admin-text-muted)'
+							: 'text-(--admin-text-muted)'}"
+					>
 						{dashboard_memory_please_wait()}
 					</div>
 				</div>

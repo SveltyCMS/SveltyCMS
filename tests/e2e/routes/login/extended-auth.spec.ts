@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   resetAndSeedDatabase,
   seedExpiredPasswordReset,
+  seedInviteToken,
   TEST_API_HEADERS,
 } from "../../helpers/api";
 import { ADMIN_CREDENTIALS, prepareLoginForm, enable2FAForTestUser } from "../../helpers/auth";
@@ -42,6 +43,47 @@ test.describe("Extended Authentication UI Flows", () => {
     expect(text).toMatch(
       /link expired|expired|request a new|token not found|reset failed|invalid/i,
     );
+  });
+
+  test("Invite recovery: a pasted replacement token survives the URL prefill", async ({ page }) => {
+    // A dead invite link (stale URL token) must not trap the visitor: the token
+    // field used to be re-seeded from `?invite_token=` on every form change, so
+    // the freshly pasted token was reset to the stale one and the server answered
+    // "Invalid invitation" — sign-up was blocked with no way out.
+    const stamp = Date.now().toString(36);
+    const seeded = await seedInviteToken(page, { email: `recover_${stamp}@example.com` });
+    expect(
+      seeded.token.length,
+      "seeded token must satisfy the 32-char client rule",
+    ).toBeGreaterThanOrEqual(32);
+
+    await page.goto(`/login?invite_token=stale-${stamp}-dead-token-does-not-exist`, {
+      waitUntil: "domcontentloaded",
+    });
+
+    await page.getByRole("button", { name: /Go to Sign Up/i }).click();
+    const signupForm = page.locator("#signup-form");
+    await expect(signupForm).toBeVisible({ timeout: 15_000 });
+
+    await page.locator("#usernamesignUp").fill(`recover_${stamp}`);
+    await page.locator("#emailsignUp").fill(seeded.email);
+    await page.locator("#passwordsignUp").fill("User@123!");
+    await page.locator("#confirm_passwordsignUp").fill("User@123!");
+
+    // Replace the URL-prefilled (invalid) token with the freshly copied one.
+    const tokenField = page.locator("#tokensignUp");
+    await expect(tokenField).toBeVisible({ timeout: 10_000 });
+    await tokenField.fill(seeded.token);
+    await expect(tokenField, "pasted token must not be reset by the URL sync").toHaveValue(
+      seeded.token,
+      { timeout: 5_000 },
+    );
+
+    await signupForm.getByRole("button", { name: /sign up/i }).click();
+
+    // The outcome: no "Invalid invitation" toast, session established.
+    await expect(page.getByText(/invalid invitation/i)).toHaveCount(0);
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 25_000 });
   });
 
   test("Forgot Password Flow", async ({ page }) => {

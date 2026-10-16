@@ -147,15 +147,15 @@
 		{#if messages.length === 0}
 			<div class="flex h-full flex-col items-center justify-center text-center">
 				<iconify-icon icon="mdi:chat-sleep" class="text-4xl opacity-20 mb-3"></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">{widget_sysmsg_none()}</div>
-				<div class="text-xs text-surface-400 mt-1">{widget_sysmsg_smooth()}</div>
+				<div class="text-sm font-medium text-(--admin-text-muted)">{widget_sysmsg_none()}</div>
+				<div class="text-xs text-(--admin-text-muted) mt-1">{widget_sysmsg_smooth()}</div>
 			</div>
 		{:else if isCompact}
 			<div class="flex h-full items-center gap-2 overflow-hidden">
-				<span class="shrink-0 text-xs font-semibold text-surface-500"
+				<span class="shrink-0 text-xs font-semibold text-(--admin-text-muted)"
 					>{widget_sysmsg_count({ count: messages.length })}</span
 				>
-				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+				<div class="h-5 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each messages.slice(0, 8) as msg (msg.id || msg.timestamp + msg.title)}
 						<div
@@ -165,9 +165,7 @@
 							title="{severityLabel(msg)}: {msgText(msg)}"
 						>
 							<div class="h-2 w-2 rounded-full {severityDot(msg)} shrink-0"></div>
-							<span
-								class="max-w-20 truncate text-[10px] font-medium text-surface-600 dark:text-surface-400"
-							>
+							<span class="max-w-20 truncate text-[10px] font-medium text-(--admin-text-muted)">
 								{msg.title}
 							</span>
 						</div>
@@ -202,19 +200,17 @@
 										{severityLabel(msg)}
 									</span>
 								</div>
-								<span
-									class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500"
-								>
+								<span class="shrink-0 text-[11px] tabular-nums text-(--admin-text-muted)">
 									{fmtTime(msg.timestamp)}
 								</span>
 							</div>
 
-							<div class="mt-2 font-semibold text-sm text-surface-900 dark:text-surface-100">
+							<div class="mt-2 font-semibold text-sm text-(--admin-text-body)">
 								{msg.title}
 							</div>
 
 							<p
-								class="mt-1 text-sm leading-snug text-surface-600 dark:text-surface-400 {isOpen
+								class="mt-1 text-sm leading-snug text-(--admin-text-muted) {isOpen
 									? ''
 									: 'line-clamp-2'}"
 							>

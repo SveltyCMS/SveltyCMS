@@ -69,6 +69,8 @@ export class MariadbWireStreamEngine {
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
       const updatedAtSelect = hasUpdatedAtCol ? "`updatedAt`" : "NULL";
+      // 🔒 Soft-delete clamp for the public wire plane (see findPointWireStream).
+      const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
       const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
 
       let cachedWireSql = this._pointSqlCache.get(table);
@@ -91,15 +93,16 @@ export class MariadbWireStreamEngine {
         const dataExpr = `JSON_SET(COALESCE(\`data\`, '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         const selectPrefix = `SELECT JSON_OBJECT('success', true, 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
+        const del = hasDeletedCol ? " AND `isDeleted` = 0" : "";
         cachedWireSql = {
           selectPrefix,
-          base: `${selectPrefix} WHERE \`${idColName}\` = ? LIMIT 1`,
-          tenant: `${selectPrefix} WHERE \`${idColName}\` = ? AND \`tenantId\` = ? LIMIT 1`,
+          base: `${selectPrefix} WHERE \`${idColName}\` = ?${del} LIMIT 1`,
+          tenant: `${selectPrefix} WHERE \`${idColName}\` = ? AND \`tenantId\` = ?${del} LIMIT 1`,
           basePub: hasStatusCol
-            ? `${selectPrefix} WHERE \`${idColName}\` = ? AND \`status\` IN ('publish', 'published') LIMIT 1`
+            ? `${selectPrefix} WHERE \`${idColName}\` = ? AND \`status\` IN ('publish', 'published')${del} LIMIT 1`
             : null,
           tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE \`${idColName}\` = ? AND \`status\` IN ('publish', 'published') AND \`tenantId\` = ? LIMIT 1`
+            ? `${selectPrefix} WHERE \`${idColName}\` = ? AND \`status\` IN ('publish', 'published') AND \`tenantId\` = ?${del} LIMIT 1`
             : null,
         };
         this._pointSqlCache.set(table, cachedWireSql);
@@ -119,7 +122,8 @@ export class MariadbWireStreamEngine {
         params = [String(id)];
       } else {
         const publishedSql = wantPublished ? " AND `status` IN ('publish', 'published')" : "";
-        sqlText = `${cachedWireSql.selectPrefix} WHERE \`${idColName}\` = ?${tenantSql}${publishedSql} LIMIT 1`;
+        const deletedSql = hasDeletedCol ? " AND `isDeleted` = 0" : "";
+        sqlText = `${cachedWireSql.selectPrefix} WHERE \`${idColName}\` = ?${tenantSql}${publishedSql}${deletedSql} LIMIT 1`;
         params = [String(id), ...tenantParams];
       }
 
@@ -192,6 +196,7 @@ export class MariadbWireStreamEngine {
       const updatedAtSelect = hasUpdatedAtCol
         ? "COALESCE(UNIX_TIMESTAMP(`updatedAt`) * 1000, 0)"
         : "0";
+      const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
       const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
 
       let tableCache = this._listSqlCache.get(table);
@@ -246,12 +251,15 @@ export class MariadbWireStreamEngine {
           FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause} LIMIT ? OFFSET ?) sub
         `;
 
+        const delOnly = hasDeletedCol ? "`isDeleted` = 0" : "";
+        const delAnd = hasDeletedCol ? " AND `isDeleted` = 0" : "";
+        const andDel = (s: string) => (s ? `${s}${delAnd}` : delOnly);
         cachedWireSql = {
-          base: wrap(""),
-          tenant: wrap("`tenantId` = ?"),
-          basePub: hasStatusCol ? wrap("`status` IN ('publish', 'published')") : null,
+          base: wrap(andDel("")),
+          tenant: wrap(andDel("`tenantId` = ?")),
+          basePub: hasStatusCol ? wrap(andDel("`status` IN ('publish', 'published')")) : null,
           tenantPub: hasStatusCol
-            ? wrap("`status` IN ('publish', 'published') AND `tenantId` = ?")
+            ? wrap(andDel("`status` IN ('publish', 'published') AND `tenantId` = ?"))
             : null,
           dataExpr,
           updatedAtSelect,
@@ -278,7 +286,12 @@ export class MariadbWireStreamEngine {
         params = [limit, offset];
       } else {
         const publishedSql = wantPublished ? "`status` IN ('publish', 'published')" : "";
-        const combinedWhere = [tenantSql ? tenantSql.replace(/^ AND /, "") : "", publishedSql]
+        const deletedSql = hasDeletedCol ? "`isDeleted` = 0" : "";
+        const combinedWhere = [
+          tenantSql ? tenantSql.replace(/^ AND /, "") : "",
+          publishedSql,
+          deletedSql,
+        ]
           .filter(Boolean)
           .join(" AND ");
         sqlText = `

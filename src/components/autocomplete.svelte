@@ -514,7 +514,7 @@ Advanced autocomplete component with fuzzy search, keyboard navigation, and acce
 								? 'bg-tertiary-500 dark:bg-primary-500/20'
 								: ''} {isCreateOption
 								? 'font-medium text-tertiary-500 dark:text-primary-500'
-								: 'text-surface-900 dark:text-surface-100'}"
+								: 'text-(--admin-text-body)'}"
 							onmousedown={(e) => handleOptionMouseDown(option, e)}
 							onmouseenter={() => (selectedIndex = index)}
 						>

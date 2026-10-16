@@ -51,7 +51,7 @@
 >
 	<!-- Toolbar -->
 	<div
-		class="flex items-center justify-between bg-surface-500/10 dark:bg-surface-800 p-2 border-b border-surface-500/30 dark:border-surface-500/40"
+		class="flex items-center justify-between bg-(--admin-bg-card) p-2 border-b border-surface-500/30 dark:border-surface-500/40"
 	>
 		<div class="flex gap-1">
 			<Button

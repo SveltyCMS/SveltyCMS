@@ -21,11 +21,7 @@ import type { DatabaseId } from "@src/content/types";
 const TENANT_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
 function isTestMode(): boolean {
-  return (
-    process.env.TEST_MODE === "true" ||
-    process.env.PLAYWRIGHT_TEST === "true" ||
-    process.env.NODE_ENV === "test"
-  );
+  return process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
 }
 
 /**

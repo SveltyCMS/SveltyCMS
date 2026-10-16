@@ -139,7 +139,7 @@
 								d.key
 									? 'bg-tertiary-500 text-white shadow-sm'
 									: theme === 'dark'
-										? 'bg-gray-800 text-gray-400 hover:text-gray-200 hover:bg-gray-700'
+										? 'bg-gray-800 text-(--admin-text-muted) hover:text-gray-200 hover:bg-gray-700'
 										: 'bg-gray-100 text-gray-600 hover:text-gray-900 hover:bg-gray-200'}"
 								onclick={() => (activeDiskKey = d.key)}
 							>
@@ -172,18 +172,22 @@
 							<span class="text-3xl font-semibold tabular-nums tracking-tighter"
 								>{disk.percent.toFixed(1)}</span
 							>
-							<span class="text-xl font-medium text-gray-400">%</span>
+							<span class="text-xl font-medium text-(--admin-text-muted)">%</span>
 						</div>
-						<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-							>{dashboard_disk_used()}</span
+						<span
+							class="text-sm {theme === 'dark'
+								? 'text-(--admin-text-muted)'
+								: 'text-(--admin-text-muted)'}">{dashboard_disk_used()}</span
 						>
 					</div>
 
 					<div class="text-end text-sm">
 						<div class="font-medium tabular-nums">
 							{disk.free.toFixed(1)} GB
-							<span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-								>{dashboard_disk_free()}</span
+							<span
+								class="text-xs {theme === 'dark'
+									? 'text-(--admin-text-muted)'
+									: 'text-(--admin-text-muted)'}">{dashboard_disk_free()}</span
 							>
 						</div>
 					</div>
@@ -209,7 +213,7 @@
 						{/if}
 					</div>
 					<div
-						class="absolute h-full flex items-center justify-center font-medium text-sm text-gray-500 dark:text-gray-400 transition-all duration-700 ease-out"
+						class="absolute h-full flex items-center justify-center font-medium text-sm text-(--admin-text-muted) dark:text-(--admin-text-muted) transition-all duration-700 ease-out"
 						style="left: {disk.percent}%; width: {disk.freePercent}%"
 					>
 						{#if disk.freePercent > 15}
@@ -224,13 +228,17 @@
 						class="grid {size.w === 1 ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-center text-sm"
 					>
 						<div>
-							<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+							<div
+								class={theme === 'dark' ? 'text-(--admin-text-muted)' : 'text-(--admin-text-muted)'}
+							>
 								{dashboard_disk_total()}
 							</div>
 							<div class="font-semibold tabular-nums mt-0.5">{disk.total.toFixed(1)} GB</div>
 						</div>
 						<div>
-							<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+							<div
+								class={theme === 'dark' ? 'text-(--admin-text-muted)' : 'text-(--admin-text-muted)'}
+							>
 								{dashboard_disk_used()}
 							</div>
 							<div
@@ -245,7 +253,11 @@
 						</div>
 						{#if size.w > 1}
 							<div>
-								<div class={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>
+								<div
+									class={theme === 'dark'
+										? 'text-(--admin-text-muted)'
+										: 'text-(--admin-text-muted)'}
+								>
 									{dashboard_disk_free()}
 								</div>
 								<div class="font-semibold tabular-nums mt-0.5">{disk.free.toFixed(1)} GB</div>
@@ -298,18 +310,20 @@
 				{#if size.w >= 2}
 					<div
 						class="flex justify-between text-xs pt-2 border-t {theme === 'dark'
-							? 'border-gray-700 text-gray-400'
-							: 'border-gray-200 text-gray-500'}"
+							? 'border-gray-700 text-(--admin-text-muted)'
+							: 'border-gray-200 text-(--admin-text-muted)'}"
 					>
 						<span
 							>{dashboard_disk_mount()}
-							<span class="font-mono text-gray-300 dark:text-gray-400">{disk.mountPoint}</span
+							<span class="font-mono text-gray-300 dark:text-(--admin-text-muted)"
+								>{disk.mountPoint}</span
 							></span
 						>
 						{#if disk.filesystem}
 							<span
 								>{dashboard_disk_fs()}
-								<span class="font-mono text-gray-300 dark:text-gray-400">{disk.filesystem}</span
+								<span class="font-mono text-gray-300 dark:text-(--admin-text-muted)"
+									>{disk.filesystem}</span
 								></span
 							>
 						{/if}
@@ -329,7 +343,11 @@
 					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">
 						{dashboard_disk_loading()}
 					</div>
-					<div class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
+					<div
+						class="text-xs {theme === 'dark'
+							? 'text-(--admin-text-muted)'
+							: 'text-(--admin-text-muted)'}"
+					>
 						{dashboard_disk_please_wait()}
 					</div>
 				</div>

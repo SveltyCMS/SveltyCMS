@@ -147,7 +147,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 		<h4 class="h4 mb-2">{title || twofa_verify_title()}</h4>
 
-		<p class="text-surface-600 dark:text-surface-400">
+		<p class="text-(--admin-text-muted)">
 			{description ||
 				(useBackupCode ? twofa_backup_verify_description() : twofa_verify_description())}
 		</p>
@@ -172,7 +172,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 			<!-- Character counter for backup codes -->
 			{#if useBackupCode}
-				<div class="mt-1 text-center text-xs text-surface-500">{code.length}/10</div>
+				<div class="mt-1 text-center text-xs text-(--admin-text-muted)">{code.length}/10</div>
 			{/if}
 		</div>
 
@@ -217,7 +217,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 	<!-- Help Text -->
 	<div class="mt-4 text-center">
-		<div class="space-y-1 text-xs text-surface-500">
+		<div class="space-y-1 text-xs text-(--admin-text-muted)">
 			{#if !useBackupCode}
 				<p>{twofa_help_authenticator()}</p>
 			{:else}

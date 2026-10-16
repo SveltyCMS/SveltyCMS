@@ -79,7 +79,7 @@
 		role="tablist"
 		aria-label={ariaLabel}
 		class="flex gap-2 {variant === 'pills'
-			? 'p-1 bg-surface-500/10 dark:bg-surface-800 rounded-xl'
+			? 'p-1 bg-(--admin-bg-card) rounded-xl'
 			: ''} overflow-x-auto overflow-y-clip"
 	>
 		{#each tabs as tab, i (tab.id)}
@@ -96,7 +96,7 @@
 				'pills'
 					? 'rounded-lg! ' +
 						(activeTab === tab.id
-							? 'bg-white dark:bg-surface-700 shadow-sm text-surface-900 dark:text-surface-100'
+							? 'bg-white dark:bg-surface-700 shadow-sm text-(--admin-text-body)'
 							: 'text-surface-500 hover:text-surface-600 dark:hover:text-surface-400')
 					: variant === 'underline'
 						? 'rounded-none! border-b-2 ' +
@@ -115,7 +115,7 @@
 							? 'bg-tertiary-500 text-white dark:bg-primary-500 shadow-2xs'
 							: tab.done
 								? 'bg-success-500/20 text-success-600 dark:text-success-400'
-								: 'bg-surface-500/20 text-surface-600 dark:text-surface-400'}"
+								: 'bg-surface-500/20 text-(--admin-text-muted)'}"
 					>
 						{tab.step}
 					</span>

@@ -7,13 +7,9 @@
  * - Editor deny (no config:automations / non-admin mutations)
  */
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { waitForServer } from "../helpers/server";
-import {
-  cleanupTestDatabase,
-  prepareAuthenticatedContext,
-  testFixtures,
-} from "../helpers/test-setup";
+import { prepareAuthenticatedContext, testFixtures } from "../helpers/test-setup";
 import {
   authGet,
   authJson,
@@ -32,10 +28,6 @@ describe("Automations API (headless HTTP)", () => {
     adminCookie = await prepareAuthenticatedContext();
     await ensureEditorUser(adminCookie);
   }, 120_000);
-
-  afterAll(async () => {
-    await cleanupTestDatabase().catch(() => undefined);
-  });
 
   describe("deny paths", () => {
     it("GET /api/automations without auth → 401", async () => {

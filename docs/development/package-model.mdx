@@ -139,21 +139,6 @@ Based on publicly available documentation as of July 2026, no other SvelteKit-co
 
 ---
 
-## Database adapter packages (September 2026)
-
-The four engines remain first-class in the CMS (`src/databases/db-init.ts`). Versioned npm packages re-export those same adapters (no second implementation):
-
-| Package                | In-tree source                              |
-| :--------------------- | :------------------------------------------ |
-| `sveltycms-sqlite`     | `src/databases/sqlite/sqlite-adapter`       |
-| `sveltycms-mongodb`    | `src/databases/mongodb/mongo-db-adapter`    |
-| `sveltycms-mariadb`    | `src/databases/mariadb/mariadb-adapter`     |
-| `sveltycms-postgresql` | `src/databases/postgresql/postgres-adapter` |
-
-CI publishes them on `v*` tags (`.github/workflows/publish-adapters.yml`). The CMS load path is unchanged.
-
----
-
 ## Advantages for Data Input, Management, and Output
 
 ### Input (Saving Data)

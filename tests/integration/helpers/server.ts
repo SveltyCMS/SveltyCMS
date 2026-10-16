@@ -339,27 +339,86 @@ const TEST_API_SECRET =
   (globalThis as any).process?.env?.TEST_API_SECRET ||
   "SVELTYCMS_TEST_SECRET_2026";
 
-export async function cleanupTestDatabase(): Promise<void> {
-  console.log("🧹 Cleaning up test database...");
-  try {
-    const isServerAlive = await checkServer().catch(() => false);
-    if (!isServerAlive) return;
-
-    const response = await safeFetch(`${getApiBaseUrl()}/api/testing`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-test-secret": TEST_API_SECRET,
-        Origin: getApiBaseUrl(),
-      },
-      body: JSON.stringify({ action: "reset" }),
-    });
-    if (!response.ok) {
-      const error = await response.text();
-      console.warn(`Failed to reset database: ${error}`);
+/**
+ * After a reset drops the schema, wait until the adapter reports a live DB
+ * connection again.
+ *
+ * Condition-based: it returns on the first healthy poll, so the happy path pays
+ * almost nothing. This replaces the fixed 1.5s (postgres) / 2s (mongodb) sleeps
+ * that padded *every* reset — the reset POST is already awaited, so the drops are
+ * complete before we get here, and a genuinely re-attaching pool is detected
+ * instead of guessed at.
+ */
+async function waitForDbConnectedAfterReset(maxMs = 15_000): Promise<void> {
+  const deadline = Date.now() + maxMs;
+  while (Date.now() < deadline) {
+    try {
+      const res = await safeFetch(`${getApiBaseUrl()}/api/system/health`, {
+        headers: { "x-test-secret": TEST_API_SECRET },
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const payload = data?.data && typeof data.data === "object" ? data.data : data;
+        const dbStatus = String(payload?.database ?? "").toLowerCase();
+        if (dbStatus === "connected" || dbStatus === "true") return;
+        // Some health payloads omit `database` entirely — fall back to a healthy
+        // overall status only when the field is genuinely absent.
+        if (payload?.database === undefined) {
+          const overall = String(payload?.overallStatus || payload?.status || "").toUpperCase();
+          if (HEALTHY_SYSTEM_STATES.includes(overall)) return;
+        }
+      }
+    } catch {
+      /* adapter still re-attaching — retry */
     }
-  } catch (err: any) {
-    console.warn(`[cleanupTestDatabase] Skipped cleanup: ${err?.message || err}`);
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
+/**
+ * Reset the integration database to a known baseline.
+ *
+ * `strict` (default false) controls failure handling:
+ * - setup paths pass `strict: true` so a failed reset is a hard error instead of
+ *   a warn-and-proceed that lets a suite run against stale, non-deterministic data
+ *   and still report green.
+ * - teardown paths keep the tolerant default (a reset hitch must not fail a suite).
+ */
+export async function cleanupTestDatabase(options: { strict?: boolean } = {}): Promise<void> {
+  const { strict = false } = options;
+
+  let isServerAlive = false;
+  try {
+    isServerAlive = await checkServer();
+  } catch {
+    isServerAlive = false;
+  }
+
+  let failure: string | null = null;
+  if (!isServerAlive) {
+    failure = "preview server unreachable — cannot reset the database";
+  } else {
+    try {
+      const response = await safeFetch(`${getApiBaseUrl()}/api/testing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-test-secret": TEST_API_SECRET,
+          Origin: getApiBaseUrl(),
+        },
+        body: JSON.stringify({ action: "reset" }),
+      });
+      if (!response.ok) {
+        failure = `HTTP ${response.status} ${await response.text()}`;
+      }
+    } catch (err: any) {
+      failure = err?.message || String(err);
+    }
+  }
+
+  if (failure) {
+    if (strict) throw new Error(`Test DB reset failed: ${failure}`);
+    console.warn(`[cleanupTestDatabase] reset skipped: ${failure}`);
   }
 }
 
@@ -372,24 +431,10 @@ export async function prepareAuthenticatedContext(
     const maxSeedRetries = isMongoDB ? 5 : isPostgreSQL ? 6 : 3;
     for (let attempt = 0; attempt < maxSeedRetries; attempt++) {
       try {
-        await cleanupTestDatabase();
-        if (isMongoDB) {
-          for (let w = 0; w < 30; w++) {
-            try {
-              const healthResp = await safeFetch(`${getApiBaseUrl()}/api/system/health`, {
-                headers: { "x-test-secret": TEST_API_SECRET },
-              });
-              if (healthResp.ok) break;
-            } catch {
-              /* retry */
-            }
-            await new Promise((r) => setTimeout(r, 1000));
-          }
-          await new Promise((r) => setTimeout(r, 2000));
-        }
-        if (isPostgreSQL) {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
+        await cleanupTestDatabase({ strict: true });
+        // Condition wait (see helper) — replaces the fixed postgres/mongodb
+        // sleeps that padded every reset.
+        await waitForDbConnectedAfterReset();
         const seedResp = await safeFetch(`${getApiBaseUrl()}/api/testing`, {
           method: "POST",
           headers: {
@@ -517,7 +562,8 @@ export async function testingAction(
 
 /** @deprecated Use cleanupTestDatabase */
 export async function initializeTestEnvironment(): Promise<void> {
-  await cleanupTestDatabase();
+  // Setup path — a failed reset must be loud, not a silent stale-data pass.
+  await cleanupTestDatabase({ strict: true });
 }
 /** @deprecated Use cleanupTestDatabase */
 export async function cleanupTestEnvironment(): Promise<void> {

@@ -126,29 +126,31 @@
 		{#if !analytics}
 			<div class="flex h-full flex-col items-center justify-center text-center">
 				<iconify-icon icon="mdi:chart-bar" class="mb-3 text-4xl opacity-20"></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">{widget_tenant_no_analytics()}</div>
-				<div class="mt-1 text-xs text-surface-400">{widget_tenant_data_appear()}</div>
+				<div class="text-sm font-medium text-(--admin-text-muted)">
+					{widget_tenant_no_analytics()}
+				</div>
+				<div class="mt-1 text-xs text-(--admin-text-muted)">{widget_tenant_data_appear()}</div>
 			</div>
 		{:else if isCompact}
 			<!-- ===== Compact (h:1) ===== -->
 			<div class="flex h-full items-center justify-between gap-3 px-1">
 				<div class="min-w-0">
-					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
+					<div class="text-lg font-bold tabular-nums text-(--admin-text-body)">
 						{statValue(analytics.users.total)}
 					</div>
-					<div class="text-xs text-surface-500">{widget_tenant_users_lower()}</div>
+					<div class="text-xs text-(--admin-text-muted)">{widget_tenant_users_lower()}</div>
 				</div>
 				<div class="shrink-0 text-center">
-					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
+					<div class="text-lg font-bold tabular-nums text-(--admin-text-body)">
 						{analytics.storage?.formatted ?? '0 B'}
 					</div>
-					<div class="text-xs text-surface-500">{widget_tenant_storage_lower()}</div>
+					<div class="text-xs text-(--admin-text-muted)">{widget_tenant_storage_lower()}</div>
 				</div>
 				<div class="shrink-0 text-end">
-					<div class="text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100">
+					<div class="text-lg font-bold tabular-nums text-(--admin-text-body)">
 						{statValue(analytics.recentRequests?.last24h)}
 					</div>
-					<div class="text-xs text-surface-500">{widget_tenant_24h_req()}</div>
+					<div class="text-xs text-(--admin-text-muted)">{widget_tenant_24h_req()}</div>
 				</div>
 			</div>
 		{:else}
@@ -157,26 +159,32 @@
 				<!-- Top stat cards -->
 				<div class="grid grid-cols-3 gap-2">
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+						<div
+							class="text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+						>
 							{widget_tenant_users()}
 						</div>
-						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
+						<div class="mt-1 text-xl font-bold tabular-nums text-(--admin-text-body)">
 							{statValue(analytics.users.total)}
 						</div>
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+						<div
+							class="text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+						>
 							{widget_tenant_collections()}
 						</div>
-						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
+						<div class="mt-1 text-xl font-bold tabular-nums text-(--admin-text-body)">
 							{statValue(analytics.collections)}
 						</div>
 					</div>
 					<div class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60">
-						<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+						<div
+							class="text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+						>
 							{widget_tenant_entries()}
 						</div>
-						<div class="mt-1 text-xl font-bold tabular-nums text-surface-900 dark:text-surface-100">
+						<div class="mt-1 text-xl font-bold tabular-nums text-(--admin-text-body)">
 							{statValue(analytics.contentEntries)}
 						</div>
 					</div>
@@ -189,26 +197,28 @@
 						class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between"
 					>
 						<div>
-							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							<div
+								class="text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+							>
 								{widget_tenant_storage()}
 							</div>
-							<div
-								class="mt-1 text-lg font-bold tabular-nums text-surface-900 dark:text-surface-100"
-							>
+							<div class="mt-1 text-lg font-bold tabular-nums text-(--admin-text-body)">
 								{analytics.storage?.formatted ?? '0 B'}
 							</div>
-							<div class="text-xs text-surface-500">
+							<div class="text-xs text-(--admin-text-muted)">
 								{widget_tenant_files_count({ count: statValue(analytics.media.total) })}
 							</div>
 						</div>
 						<!-- Mini quota bar -->
 						<div class="mt-2">
-							<div class="flex items-center justify-between text-[10px] text-surface-400 mb-1">
+							<div
+								class="flex items-center justify-between text-[10px] text-(--admin-text-muted) mb-1"
+							>
 								<span>{widget_tenant_quota()}</span>
 								<span>{quotaPercentage.toFixed(0)}%</span>
 							</div>
 							<div
-								class="h-1.5 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
+								class="h-1.5 overflow-hidden rounded-full bg-(--admin-bg-chip)"
 								role="progressbar"
 								aria-valuenow={quotaPercentage}
 								aria-valuemin={0}
@@ -228,20 +238,20 @@
 						class="rounded-2xl bg-surface-500/10 px-3 py-2.5 dark:bg-surface-800/60 flex flex-col justify-between"
 					>
 						<div>
-							<div class="text-[11px] font-semibold uppercase tracking-wide text-surface-500">
+							<div
+								class="text-[11px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
+							>
 								{widget_tenant_activity()}
 							</div>
 							<div class="mt-2 flex items-baseline gap-1">
-								<span
-									class="text-3xl font-bold tabular-nums text-surface-900 dark:text-surface-100"
-								>
+								<span class="text-3xl font-bold tabular-nums text-(--admin-text-body)">
 									{statValue(analytics.recentRequests?.last24h)}
 								</span>
-								<span class="text-xs text-surface-500">{widget_tenant_requests()}</span>
+								<span class="text-xs text-(--admin-text-muted)">{widget_tenant_requests()}</span>
 							</div>
-							<div class="text-xs text-surface-500">{widget_tenant_last_24h()}</div>
+							<div class="text-xs text-(--admin-text-muted)">{widget_tenant_last_24h()}</div>
 						</div>
-						<div class="mt-1 text-[10px] text-surface-400">
+						<div class="mt-1 text-[10px] text-(--admin-text-muted)">
 							{widget_tenant_updated({ time: formatTimestamp(analytics.timestamp) })}
 						</div>
 					</div>
@@ -251,9 +261,9 @@
 				<div
 					class="flex items-center gap-2 rounded-xl border border-surface-500/30 px-3 py-2 text-xs dark:border-surface-500/40"
 				>
-					<iconify-icon icon="mdi:information-outline" class="shrink-0 text-surface-400"
+					<iconify-icon icon="mdi:information-outline" class="shrink-0 text-(--admin-text-muted)"
 					></iconify-icon>
-					<span class="text-surface-600 dark:text-surface-400">
+					<span class="text-(--admin-text-muted)">
 						{widget_tenant_org_scoped()}
 					</span>
 				</div>

@@ -557,9 +557,12 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   if (!turbo || !turbo.isAdmin) {
     return resolve(event);
   }
+  const start = performance.now();
   const stamp = STAMP_SRV_DUR || STAMP_WRITE_SPLIT;
-  const srvT0 = stamp ? performance.now() : 0;
+  const srvT0 = stamp ? start : 0;
   const marks = STAMP_WRITE_SPLIT ? new Map<string, number>() : null;
+  let statusCode = 500;
+  let executionError: unknown = null;
   try {
     event.locals.user = turbo.user;
     event.locals.isAdmin = turbo.isAdmin;
@@ -575,14 +578,20 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
       },
     });
     res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+    statusCode = res.status;
     return res;
   } catch (err) {
+    executionError = err;
     if (event.url.pathname.startsWith("/api/")) {
       const errRes = handleApiError(err, event);
       errRes.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+      statusCode = errRes.status;
       return errRes;
     }
     throw err;
+  } finally {
+    const durationMs = (performance.now() - start).toFixed(1);
+    recordAuditEntry(event, statusCode, durationMs, executionError);
   }
 };
 

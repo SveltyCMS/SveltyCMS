@@ -137,8 +137,9 @@ if run "🚪  Deploy Backdoor Probe (A01)" pm_run scripts/probe-deploy-testing-a
   OK=$((OK + 1))
 fi
 
-# Step 7 — SQLite integration tests
-if run "🗄️  Integration tests (SQLite)" pm_run scripts/run-integration.ts --no-build; then
+# Step 7 — SQLite integration tests (diff-scoped; `--diff` runs only suites mapped
+# from changed files and falls back to the full suite when none are affected)
+if run "🗄️  Integration tests (SQLite, diff)" pm_run scripts/run-integration.ts --no-build --diff; then
   OK=$((OK + 1))
 fi
 

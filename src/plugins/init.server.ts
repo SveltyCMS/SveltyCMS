@@ -48,14 +48,39 @@ const pluginServerModules: Record<string, () => Promise<unknown>> = (() => {
 
 for (const [path, loader] of Object.entries(pluginServerModules)) {
   const id = path.replace(/^\.\/(.*)\/index\.server\.ts$/, "$1");
-  // Slot servers registered by `registerPluginSlots()` (index.ts) carry the
-  // plugin's `actions` for `/api/plugins/[pluginId]`; the glob loader only
-  // carries hooks/migrations. The slot registration runs first (this module
-  // imports `./index`), so never overwrite it — the API dispatcher reads
-  // `actions` from the registry entry and a glob-only loader would answer
-  // "Unknown action" for every plugin workspace.
-  if (pluginServerRegistry.has(id)) continue;
-  pluginServerRegistry.register(id, loader as () => Promise<PluginServerModule>);
+  registerServerModule(id, loader as () => Promise<PluginServerModule>);
+}
+
+/**
+ * Register a plugin's `index.server.ts` loader without clobbering a workspace
+ * server registered earlier by `registerPluginSlots()` (index.ts).
+ *
+ * The workspace slot server owns `actions` (read by the `/api/plugins/[pluginId]`
+ * dispatcher); `index.server.ts` owns `hooks` + `migrations`. The previous
+ * `if (has(id)) continue` dropped the latter for every plugin that ships a
+ * `plugin_workspace` server (e.g. unified-data-hub), so its migrations never ran
+ * and plugin-owned collections were never provisioned — the connector write then
+ * failed on SQL adapters and the suite soft-skipped it.
+ */
+function registerServerModule(id: string, globLoader: () => Promise<PluginServerModule>): void {
+  const existing = pluginServerRegistry.getLoader(id);
+  if (!existing) {
+    pluginServerRegistry.register(id, globLoader);
+    return;
+  }
+  pluginServerRegistry.register(id, async () => {
+    const [slotMod, globMod] = await Promise.all([existing(), globLoader()]);
+    return {
+      ...globMod,
+      ...slotMod,
+      actions: slotMod.actions ?? globMod.actions,
+      hooks: { ...globMod.hooks, ...slotMod.hooks },
+      migrations:
+        slotMod.migrations && slotMod.migrations.length > 0
+          ? slotMod.migrations
+          : globMod.migrations,
+    } as PluginServerModule;
+  });
 }
 
 /**
@@ -82,11 +107,13 @@ async function registerRuntimeServerModules(): Promise<void> {
     if (!existsSync(pluginsDir)) return;
 
     for (const entry of readdirSync(pluginsDir, { withFileTypes: true })) {
-      if (!entry.isDirectory() || pluginServerRegistry.has(entry.name)) continue;
+      if (!entry.isDirectory()) continue;
       if (!existsSync(join(pluginsDir, entry.name, "index.server.ts"))) continue;
       const id = entry.name;
       const specifier = "./" + id + "/index.server";
-      pluginServerRegistry.register(id, () =>
+      // Same merge as the glob path — a pre-registered workspace slot server
+      // must not hide `index.server.ts` hooks/migrations in the Bun/CLI runtime.
+      registerServerModule(id, () =>
         import(/* @vite-ignore */ specifier).then((mod) => mod as PluginServerModule),
       );
     }

@@ -12,6 +12,9 @@ import { prepareAuthenticatedContext } from "../helpers/test-setup";
 
 const API_BASE_URL = getApiBaseUrl();
 
+/** Tenant scoping is only observable when MULTI_TENANT is enabled. */
+const MULTI_TENANT = process.env.MULTI_TENANT === "true";
+
 /**
  * Helper to execute GraphQL queries
  */
@@ -428,7 +431,7 @@ describe("GraphQL API Endpoint", () => {
   });
 
   describe("Multi-Tenant Support", () => {
-    it("should scope queries to tenant context", async () => {
+    it.skipIf(!MULTI_TENANT)("should scope queries to tenant context", async () => {
       const query = `
 				query {
 					users {
@@ -442,9 +445,12 @@ describe("GraphQL API Endpoint", () => {
       expect(response.status).toBe(200);
 
       const result = await response.json();
-      // All returned users should belong to the same tenant
-      // This is enforced by the resolver
-      expect(result.data.users).toBeDefined();
+      // The resolver must return the caller's tenant-scoped rows — an array,
+      // not the previous `data.users` "defined" check that `null` also passed.
+      expect(result.errors).toBeUndefined();
+      const users = result.data?.users;
+      expect(Array.isArray(users)).toBe(true);
+      expect(users.length).toBeGreaterThan(0);
     });
   });
 

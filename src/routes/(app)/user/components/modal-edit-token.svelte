@@ -171,7 +171,12 @@ It handles token creation, updates, and deletion with proper validation and erro
 						newTokenData: {
 							email: tokenForm.data.email,
 							role: tokenForm.data.role,
-							expiresInHours: convertExpiresToHours(tokenForm.data.expiresIn)
+							// The update handler allowlists `expires` (lifecycle field);
+							// `expiresInHours` is not a token column and was dropped, so the
+							// validity selector silently no-op'd. Send a concrete ISO date.
+							expires: new Date(
+								Date.now() + convertExpiresToHours(tokenForm.data.expiresIn) * 60 * 60 * 1000
+							).toISOString()
 						}
 					}
 				: {
@@ -258,6 +263,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 			const data = await response.json();
 			if (!response.ok) {
+				throw new Error(data.message || usertoken_delete_failed());
+			}
+			if (data?.data?.deletedCount === 0) {
+				// The API can resolve by value or _id; an unknown id must not toast success.
 				throw new Error(data.message || usertoken_delete_failed());
 			}
 
@@ -408,7 +417,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 									type="button"
 									class={tokenForm.data.role === r._id
 										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white'
-										: 'border-surface-500/30 text-surface-600 dark:text-surface-400 opacity-70'}
+										: 'border-surface-500/30 text-(--admin-text-muted) opacity-70'}
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}
@@ -418,7 +427,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 								</Button>
 							{/each}
 						{:else}
-							<div class="text-sm text-gray-500 italic">{usertoken_no_roles()}</div>
+							<div class="text-sm text-(--admin-text-muted) italic">{usertoken_no_roles()}</div>
 						{/if}
 					</div>
 				</div>

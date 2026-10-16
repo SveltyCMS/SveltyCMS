@@ -93,9 +93,7 @@ Displays detailed SEO analysis results in a modal overlay.
 			<div class="flex-1 overflow-y-auto p-4 space-y-4">
 				{#if analysisResult}
 					<!-- Score Overview -->
-					<div
-						class="flex items-center justify-center p-4 bg-surface-500/10 dark:bg-surface-800 rounded-lg mb-6"
-					>
+					<div class="flex items-center justify-center p-4 bg-(--admin-bg-card) rounded-lg mb-6">
 						<div class="text-center">
 							<div
 								class="radial-progress text-4xl font-bold {analysisResult.score.overall >= 80
@@ -107,7 +105,7 @@ Displays detailed SEO analysis results in a modal overlay.
 							>
 								{analysisResult.score.overall}%
 							</div>
-							<p class="mt-2 font-bold text-surface-600 dark:text-surface-400">
+							<p class="mt-2 font-bold text-(--admin-text-muted)">
 								{seo_analysis_overall_score()}
 							</p>
 						</div>

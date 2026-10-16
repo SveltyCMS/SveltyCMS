@@ -18,8 +18,10 @@ import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import {
   SqlAdapterCore,
+  RAW_DECLINED,
   boundedSqlIndexName,
   type ListIndexRequest,
+  type RawFindResult,
   type RawPointWireStreamResult,
   type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
@@ -246,7 +248,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
     collection: string,
     id: DatabaseId,
     options: FindOptions<T>,
-  ): Promise<T | null> {
+  ): Promise<RawFindResult<T>> {
     try {
       const tableName = getTableName(table);
       const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
@@ -318,7 +320,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
       return null;
     } catch (rawErr: any) {
       logger.debug("[MariaDB raw findById] falling back to Drizzle:", rawErr?.message);
-      return null;
+      return RAW_DECLINED;
     }
   }
 
@@ -1089,9 +1091,20 @@ export abstract class AdapterCore extends SqlAdapterCore {
           assertSafeSqlIdentifier(this.getColumn(table, c)?.name ?? c, "column");
         const colList = cols.map((c) => `\`${physicalName(c)}\``).join(", ");
         const placeholders = cols.map(() => "?").join(", ");
+        // 🛡️ TENANT ISOLATION: never rewrite `tenantId` on the conflict branch, and
+        // no-op every other assignment when the existing row belongs to a different
+        // tenant. Without this, `ON DUPLICATE KEY UPDATE col = VALUES(col)` let a
+        // cross-tenant PK collision overwrite and hijack the victim's row.
+        const tenantPhys = this.getColumn(table, "tenantId") ? physicalName("tenantId") : undefined;
         const updatePairs = cols
           .filter((c) => c !== idColName)
-          .map((c) => `\`${physicalName(c)}\` = VALUES(\`${physicalName(c)}\`)`);
+          .map((c) => physicalName(c))
+          .filter((phys) => !tenantPhys || phys !== tenantPhys)
+          .map((phys) =>
+            tenantPhys
+              ? `\`${phys}\` = IF(\`${tenantPhys}\` <=> VALUES(\`${tenantPhys}\`), VALUES(\`${phys}\`), \`${phys}\`)`
+              : `\`${phys}\` = VALUES(\`${phys}\`)`,
+          );
         sqlText =
           updatePairs.length > 0
             ? `INSERT INTO \`${tableName}\` (${colList}) VALUES (${placeholders}) ON DUPLICATE KEY UPDATE ${updatePairs.join(", ")} RETURNING *`
