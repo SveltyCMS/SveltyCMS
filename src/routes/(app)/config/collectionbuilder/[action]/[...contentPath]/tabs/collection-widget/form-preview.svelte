@@ -38,6 +38,7 @@ before saving to the database.
 		preview_draft,
 		preview_drag_drop_part1,
 		preview_fill_sample,
+		preview_fill_sample_tip,
 		preview_italic,
 		preview_link,
 		preview_mobile_aria,
@@ -158,59 +159,67 @@ before saving to the database.
 				role="group"
 				aria-label={preview_responsive_aria()}
 			>
-				<Button
-					type="button"
-					variant="transparent"
-					size="sm"
-					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'desktop'
-						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
-						: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
-					onclick={() => (viewport = 'desktop')}
-					aria-label={preview_desktop_aria()}
-				>
-					<iconify-icon icon="mdi:monitor" width="16"></iconify-icon>
-					<span class="hidden sm:inline">{common_desktop()}</span>
-				</Button>
-				<Button
-					type="button"
-					variant="transparent"
-					size="sm"
-					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'tablet'
-						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
-						: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
-					onclick={() => (viewport = 'tablet')}
-					aria-label={preview_tablet_aria()}
-				>
-					<iconify-icon icon="mdi:tablet" width="16"></iconify-icon>
-					<span class="hidden sm:inline">{common_tablet()}</span>
-				</Button>
-				<Button
-					type="button"
-					variant="transparent"
-					size="sm"
-					class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'mobile'
-						? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
-						: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
-					onclick={() => (viewport = 'mobile')}
-					aria-label={preview_mobile_aria()}
-				>
-					<iconify-icon icon="mdi:cellphone" width="16"></iconify-icon>
-					<span class="hidden sm:inline">{common_mobile()}</span>
-				</Button>
+				<SystemTooltip title={preview_desktop_aria()} role={null} tabindex={null}>
+					<Button
+						type="button"
+						variant="transparent"
+						size="sm"
+						class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'desktop'
+							? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
+							: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
+						onclick={() => (viewport = 'desktop')}
+						aria-label={preview_desktop_aria()}
+					>
+						<iconify-icon icon="mdi:monitor" width="16"></iconify-icon>
+						<span class="hidden sm:inline">{common_desktop()}</span>
+					</Button>
+				</SystemTooltip>
+				<SystemTooltip title={preview_tablet_aria()} role={null} tabindex={null}>
+					<Button
+						type="button"
+						variant="transparent"
+						size="sm"
+						class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'tablet'
+							? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
+							: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
+						onclick={() => (viewport = 'tablet')}
+						aria-label={preview_tablet_aria()}
+					>
+						<iconify-icon icon="mdi:tablet" width="16"></iconify-icon>
+						<span class="hidden sm:inline">{common_tablet()}</span>
+					</Button>
+				</SystemTooltip>
+				<SystemTooltip title={preview_mobile_aria()} role={null} tabindex={null}>
+					<Button
+						type="button"
+						variant="transparent"
+						size="sm"
+						class="h-auto! gap-1.5! px-2.5! py-1! text-xs! font-medium! {viewport === 'mobile'
+							? 'bg-(--admin-bg-card) font-bold! text-tertiary-600 shadow-xs dark:text-primary-400'
+							: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted)'}"
+						onclick={() => (viewport = 'mobile')}
+						aria-label={preview_mobile_aria()}
+					>
+						<iconify-icon icon="mdi:cellphone" width="16"></iconify-icon>
+						<span class="hidden sm:inline">{common_mobile()}</span>
+					</Button>
+				</SystemTooltip>
 			</div>
 		</div>
 
 		<!-- Right: Data Generator Actions -->
 		<div class="flex items-center gap-2">
-			<Button
-				variant="secondary"
-				size="sm"
-				onclick={fillSampleData}
-				leadingIcon="mdi:auto-fix"
-				class="text-xs"
-			>
-				{preview_fill_sample()}
-			</Button>
+			<SystemTooltip title={preview_fill_sample_tip()} role={null} tabindex={null}>
+				<Button
+					variant="secondary"
+					size="sm"
+					onclick={fillSampleData}
+					leadingIcon="mdi:auto-fix"
+					class="text-xs"
+				>
+					{preview_fill_sample()}
+				</Button>
+			</SystemTooltip>
 			{#if Object.keys(sampleValues).length > 0}
 				<Button
 					variant="ghost"
