@@ -66,8 +66,16 @@
 		widget_form_visibility,
 		widget_form_width,
 		widget_form_width_hint,
-		widget_form_width_placeholder
+		widget_form_width_placeholder,
+		widget_setting_max_hint,
+		widget_setting_max_length_hint,
+		widget_setting_min_hint,
+		widget_setting_min_length_hint,
+		widget_setting_prefix_hint,
+		widget_setting_step_hint,
+		widget_setting_suffix_hint
 	} from '@src/paraglide/messages';
+	import { resolveAdminComponent } from '@src/components/system/admin-component-registry';
 	import { setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
@@ -193,6 +201,37 @@
 	]);
 
 	const specificKeys = $derived(Object.keys(guiSchema).filter((k) => !DEFAULT_KEYS.has(k)));
+	// Only keys with a registered admin control; others rendered nothing and left an empty row.
+	const settingKeys = $derived(
+		specificKeys.filter((k) => resolveAdminComponent(guiSchema[k]?.widget))
+	);
+
+	/** `minLength` → `Min Length`, `target_field` → `Target Field`. */
+	function settingLabel(key: string): string {
+		return key
+			.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+			.replace(/[_-]+/g, ' ')
+			.replace(/\b\w/g, (c) => c.toUpperCase());
+	}
+
+	const SETTING_HINTS: Record<string, () => string> = {
+		min: widget_setting_min_hint,
+		minValue: widget_setting_min_hint,
+		max: widget_setting_max_hint,
+		maxValue: widget_setting_max_hint,
+		step: widget_setting_step_hint,
+		prefix: widget_setting_prefix_hint,
+		suffix: widget_setting_suffix_hint,
+		minLength: widget_setting_min_length_hint,
+		maxLength: widget_setting_max_length_hint
+	};
+
+	/** The widget's own `helper` text wins; common keys fall back to a shared hint. */
+	function settingHint(key: string): string {
+		const helper = (guiSchema[key] as { helper?: unknown } | undefined)?.helper;
+		if (typeof helper === 'string' && helper) return helper;
+		return SETTING_HINTS[key]?.() ?? '';
+	}
 
 	// --- Auto-generate db_fieldName from label ---
 	function labelToDbName(label: string): string {
@@ -516,16 +555,33 @@
 				</div>
 			{:else if activeTab === 'settings'}
 				<!-- Tab 2: Settings (widget-specific GuiFields) -->
-				{#if specificKeys.length > 0}
-					<div class="space-y-3">
-						{#each specificKeys as key (key)}
-							<InputSwitch
-								value={local[key]}
-								icon={local.icon as string}
-								widget={guiSchema[key]?.widget}
-								{key}
-								onupdate={(e: { value: any }) => updateField(key, e.value)}
-							/>
+				{#if settingKeys.length > 0}
+					<!-- Same label row + spacing as the Default tab -->
+					<div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+						{#each settingKeys as key (key)}
+							{@const isInput = guiSchema[key]?.widget === 'Input'}
+							{@const hint = settingHint(key)}
+							<div class="flex flex-col gap-1.5 {isInput ? '' : 'md:col-span-2'}">
+								<div class="flex items-center gap-1">
+									<span class="text-sm font-semibold text-(--admin-text-body)"
+										>{settingLabel(key)}</span
+									>
+									{#if hint}
+										<SystemTooltip title={hint}
+											><HelpIcon ariaLabel={`Help: ${settingLabel(key)}`} /></SystemTooltip
+										>
+									{/if}
+								</div>
+								<InputSwitch
+									value={local[key]}
+									icon={local.icon as string}
+									widget={guiSchema[key]?.widget}
+									{key}
+									label={settingLabel(key)}
+									labelClass={isInput ? 'sr-only' : undefined}
+									onupdate={(e: { value: any }) => updateField(key, e.value)}
+								/>
+							</div>
 						{/each}
 					</div>
 				{:else}
