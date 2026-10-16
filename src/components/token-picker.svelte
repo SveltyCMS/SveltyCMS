@@ -503,7 +503,7 @@
 								variant="surface"
 								onclick={() => addModifier(m)}
 								aria-label="Add {m.label} modifier"
-								class="chip hover:bg-surface-500/10 dark:hover:bg-surface-700"
+								class="hover:bg-surface-500/10 dark:hover:bg-surface-700"
 							>
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}
