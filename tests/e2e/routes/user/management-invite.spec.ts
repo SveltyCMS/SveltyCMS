@@ -105,8 +105,8 @@ test.describe("User Management — Invite Flow", () => {
 
       const inviteUsername = `newuser_${Date.now()}`;
       await invitePage.locator("#usernamesignUp").fill(inviteUsername);
-      await invitePage.locator("#passwordsignUp").fill("user@123!");
-      await invitePage.locator("#confirm_passwordsignUp").fill("user@123!");
+      await invitePage.locator("#passwordsignUp").fill("User@123!");
+      await invitePage.locator("#confirm_passwordsignUp").fill("User@123!");
       await invitePage.getByRole("button", { name: /accept invitation/i }).click();
       await expect(invitePage).not.toHaveURL(/\/login/, { timeout: 20_000 });
     } finally {
