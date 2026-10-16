@@ -811,7 +811,7 @@
 				onclick={() => showView('users')}
 				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList
 					? 'border-primary-500 text-primary-600 dark:text-primary-500'
-					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+					: 'border-transparent text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)'}"
 			>
 				<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
 				{useradmin_users()}
@@ -825,7 +825,7 @@
 				onclick={() => showView('tokens')}
 				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken
 					? 'border-primary-500 text-primary-600 dark:text-primary-500'
-					: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+					: 'border-transparent text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)'}"
 			>
 				<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>
 				{useradmin_invitations()}
@@ -881,7 +881,7 @@
 				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
 				'all'
 					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
 			>
 				<span>{useradmin_all()}</span>
 				<span class="opacity-70">({systemUserCount})</span>
@@ -892,7 +892,7 @@
 				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
 				'admin'
 					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
 			>
 				<iconify-icon
 					icon="mdi:shield-crown-outline"
@@ -907,7 +907,7 @@
 				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
 				'user'
 					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
 			>
 				<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
 				<span>{useradmin_users()}</span>
@@ -918,7 +918,7 @@
 				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
 				'active'
 					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
 			>
 				<span class="size-1.5 rounded-full bg-success-500"></span>
 				<span>{useradmin_active()}</span>
@@ -929,7 +929,7 @@
 				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
 				'blocked'
 					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-surface-600 hover:bg-surface-500/20 dark:text-surface-400'}"
+					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
 			>
 				<span class="size-1.5 rounded-full bg-error-500"></span>
 				<span>{useradmin_blocked()}</span>

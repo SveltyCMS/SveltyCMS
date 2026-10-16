@@ -128,7 +128,7 @@
 				</div>
 				<div class="flex-1">
 					<h3 class="font-bold text-lg">{userprivacy_export_title()}</h3>
-					<p class="mt-1 text-sm text-surface-600 dark:text-surface-400">
+					<p class="mt-1 text-sm text-(--admin-text-muted)">
 						{userprivacy_export_description()}
 					</p>
 					<Button variant="secondary" onclick={handleExportData} class="mt-4 w-full sm:w-auto">
@@ -150,7 +150,7 @@
 					</div>
 					<div class="flex-1">
 						<h3 class="font-bold text-lg text-error-500">{userprivacy_delete_title()}</h3>
-						<p class="mt-1 text-sm text-surface-600 dark:text-surface-400">
+						<p class="mt-1 text-sm text-(--admin-text-muted)">
 							{userprivacy_delete_description()}
 						</p>
 						<Button variant="error" onclick={handleAnonymize} class="mt-4 w-full sm:w-auto">

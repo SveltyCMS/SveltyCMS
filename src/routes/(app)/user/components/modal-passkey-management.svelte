@@ -230,17 +230,17 @@ Features:
 				<iconify-icon icon="mdi:fingerprint" width={24} aria-hidden="true"></iconify-icon>
 			</div>
 			<div>
-				<h2 class="text-lg font-bold text-surface-900 dark:text-surface-100">
+				<h2 class="text-lg font-bold text-(--admin-text-body)">
 					{userpasskey_title()}
 				</h2>
-				<p class="text-xs text-surface-500">{userpasskey_description()}</p>
+				<p class="text-xs text-(--admin-text-muted)">{userpasskey_description()}</p>
 			</div>
 		</div>
 		<button
 			type="button"
 			onclick={() => modalState.close()}
 			aria-label={userpasskey_close_dialog()}
-			class="rounded-lg p-1.5 text-surface-400 hover:bg-surface-500/10 hover:text-surface-600 dark:hover:text-surface-400"
+			class="rounded-lg p-1.5 text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
 		>
 			<iconify-icon icon="mdi:close" width={20} aria-hidden="true"></iconify-icon>
 		</button>
@@ -249,7 +249,7 @@ Features:
 	<!-- Passkey list -->
 	<div class="space-y-3">
 		<div class="flex items-center justify-between">
-			<h3 class="text-xs font-semibold uppercase tracking-wider text-surface-500">
+			<h3 class="text-xs font-semibold uppercase tracking-wider text-(--admin-text-muted)">
 				{userpasskey_registered_authenticators()}
 			</h3>
 			<Badge variant="surface" size="sm">
@@ -261,13 +261,13 @@ Features:
 			<div
 				class="flex flex-col items-center justify-center rounded-xl border border-dashed border-surface-500/30 p-8 text-center"
 			>
-				<div class="mb-2 text-surface-400">
+				<div class="mb-2 text-(--admin-text-muted)">
 					<iconify-icon icon="mdi:key-outline" width={36} aria-hidden="true"></iconify-icon>
 				</div>
-				<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+				<p class="text-sm font-medium text-(--admin-text-muted)">
 					{userpasskey_empty_title()}
 				</p>
-				<p class="mt-1 max-w-sm text-xs text-surface-500">
+				<p class="mt-1 max-w-sm text-xs text-(--admin-text-muted)">
 					{userpasskey_empty_description()}
 				</p>
 			</div>
@@ -279,7 +279,7 @@ Features:
 					<div class="flex items-center justify-between p-3.5">
 						<div class="flex items-center gap-3">
 							<div
-								class="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-500/10 text-surface-600 dark:text-surface-400"
+								class="flex h-9 w-9 items-center justify-center rounded-lg bg-surface-500/10 text-(--admin-text-muted)"
 							>
 								<iconify-icon
 									icon={getDeviceIcon(auth.credentialDeviceType, auth.transports)}
@@ -288,10 +288,10 @@ Features:
 								></iconify-icon>
 							</div>
 							<div>
-								<p class="text-sm font-semibold text-surface-900 dark:text-surface-100">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
 									{getDeviceLabel(auth, idx)}
 								</p>
-								<div class="flex items-center gap-2 text-xs text-surface-500">
+								<div class="flex items-center gap-2 text-xs text-(--admin-text-muted)">
 									<span class="font-mono text-[11px] opacity-75"
 										>{auth.credentialID.slice(0, 12)}…</span
 									>
