@@ -110,7 +110,7 @@
 			<GroupIcon icon={group.icon} />
 			{group.name}
 		</h2>
-		<p class="text-sm text-surface-600 dark:text-surface-400">{group.description}</p>
+		<p class="text-sm text-(--admin-text-muted)">{group.description}</p>
 	</div>
 
 	<!-- Info Alert -->
@@ -125,7 +125,7 @@
 			></iconify-icon>
 			<div>
 				<h3 class="font-bold text-sm">Compliance Tools</h3>
-				<p class="text-xs text-surface-600 dark:text-surface-400 mt-1">
+				<p class="text-xs text-(--admin-text-muted) mt-1">
 					These tools perform permanent actions to comply with GDPR Articles 17 & 20. All actions
 					are strictly logged in the Audit Trail.
 				</p>

@@ -206,7 +206,7 @@ placeholders, and empty state.
 				<table class="w-full text-start border-collapse min-w-full table-fixed">
 					<thead class="sticky top-0 z-10">
 						<tr
-							class="bg-surface-500/10 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-500/30 dark:border-surface-500/40"
+							class="bg-(--admin-bg-card)/90 backdrop-blur-md border-b border-surface-500/30 dark:border-surface-500/40"
 						>
 							{#if selectable}
 								<th class="w-12 p-4">
@@ -223,7 +223,7 @@ placeholders, and empty state.
 							{#each columns as col (col.key)}
 								<th
 									class={cn(
-										'font-bold uppercase tracking-widest text-[10px] text-surface-600 dark:text-surface-400 select-none transition-colors',
+										'font-bold uppercase tracking-widest text-[10px] text-(--admin-text-muted) select-none transition-colors',
 										densityClass,
 										col.sortable && 'hover:text-tertiary-500 dark:text-primary-500',
 										col.class
@@ -289,7 +289,7 @@ placeholders, and empty state.
 									{#each columns as col (col.key)}
 										<td
 											class={cn(
-												'text-surface-600 dark:text-surface-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis',
+												'text-(--admin-text-muted) font-medium whitespace-nowrap overflow-hidden text-ellipsis',
 												densityClass,
 												col.class
 											)}
@@ -317,7 +317,7 @@ placeholders, and empty state.
 			<table class="w-full text-start border-collapse min-w-full table-fixed">
 				<thead class="sticky top-0 z-10">
 					<tr
-						class="bg-surface-500/10 dark:bg-surface-800/90 backdrop-blur-md border-b border-surface-500/30 dark:border-surface-500/40"
+						class="bg-(--admin-bg-card)/90 backdrop-blur-md border-b border-surface-500/30 dark:border-surface-500/40"
 					>
 						{#if selectable}
 							<th class="w-12 p-4">
@@ -334,7 +334,7 @@ placeholders, and empty state.
 						{#each columns as col (col.key)}
 							<th
 								class={cn(
-									'font-bold uppercase tracking-widest text-[10px] text-surface-600 dark:text-surface-400 select-none transition-colors',
+									'font-bold uppercase tracking-widest text-[10px] text-(--admin-text-muted) select-none transition-colors',
 									densityClass,
 									col.sortable && 'hover:text-tertiary-500 dark:text-primary-500',
 									col.class
@@ -367,10 +367,10 @@ placeholders, and empty state.
 						{#each Array(5) as _, i (i)}
 							<tr class="animate-pulse">
 								{#if selectable}<td class="p-4"
-										><div class="size-4 bg-surface-200 dark:bg-surface-700 rounded-sm"></div></td
+										><div class="size-4 bg-(--admin-bg-chip) rounded-sm"></div></td
 									>{/if}
 								{#each columns as _, ci (ci)}<td class={densityClass}
-										><div class="h-4 w-full bg-surface-200 dark:bg-surface-700 rounded"></div></td
+										><div class="h-4 w-full bg-(--admin-bg-chip) rounded"></div></td
 									>{/each}
 							</tr>
 						{/each}
@@ -423,7 +423,7 @@ placeholders, and empty state.
 									{#each columns as col (col.key)}
 										<td
 											class={cn(
-												'text-surface-600 dark:text-surface-400 font-medium whitespace-nowrap overflow-hidden text-ellipsis',
+												'text-(--admin-text-muted) font-medium whitespace-nowrap overflow-hidden text-ellipsis',
 												densityClass,
 												col.class
 											)}

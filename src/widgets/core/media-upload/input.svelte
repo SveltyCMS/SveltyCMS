@@ -331,9 +331,7 @@
 						{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
 							<img src={file.thumbnailUrl} alt={file.name} class="h-30 w-full object-cover" />
 						{:else}
-							<div
-								class="flex h-30 w-full items-center justify-center bg-surface-500/10 dark:bg-surface-800"
-							>
+							<div class="flex h-30 w-full items-center justify-center bg-(--admin-bg-card)">
 								<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
 							</div>
 						{/if}
@@ -382,7 +380,7 @@
 	<button
 		type="button"
 		onclick={openMediaLibrary}
-		class="w-full rounded border-none bg-surface-500/10 p-3 text-start transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:hover:bg-surface-600"
+		class="w-full rounded border-none bg-surface-500/10 p-3 text-start transition-colors hover:bg-(--admin-bg-chip) dark:hover:bg-surface-600"
 	>
 		<span class="block text-center font-medium">
 			{selectedFiles.length > 0

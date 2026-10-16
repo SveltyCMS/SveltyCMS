@@ -48,7 +48,7 @@
 	</div>
 {:else}
 	<div
-		class="flex aspect-video w-full items-center justify-center rounded bg-surface-500/10 dark:bg-surface-800 text-surface-400"
+		class="flex aspect-video w-full items-center justify-center rounded bg-(--admin-bg-card) text-surface-400"
 	>
 		<iconify-icon icon="mdi:video-off" width="48"></iconify-icon>
 		<span class="ms-2">{widget_rv_embed_unavailable()}</span>

@@ -145,7 +145,7 @@
 	<!-- Visual Feedback -->
 	{#if value}
 		<div
-			class="p-3 bg-surface-500/10 dark:bg-surface-800 border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center"
+			class="p-3 bg-(--admin-bg-card) border border-surface-500/30 dark:border-surface-500/40 text-xs font-mono text-center"
 			style="border-radius: var(--admin-radius-input, 0.25rem)"
 		>
 			{widget_geo_geojson()}

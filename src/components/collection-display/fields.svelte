@@ -593,7 +593,7 @@
 	</div>
 {:else}
 	<div
-		class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-surface-500/10 dark:bg-surface-800/70 border border-(--admin-border-default) text-sm"
+		class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-(--admin-bg-card)/70 border border-(--admin-border-default) text-sm"
 	>
 		<div class="flex items-center gap-2">
 			<iconify-icon
@@ -605,7 +605,7 @@
 				>{collections.active?.name || 'Collection'}</span
 			>
 			<span class="text-surface-400">/</span>
-			<span class="text-surface-600 dark:text-surface-400 font-medium">
+			<span class="text-(--admin-text-muted) font-medium">
 				{#if collections.activeValue?._id}
 					Edit <span class="font-mono text-xs opacity-80"
 						>({String(collections.activeValue._id).slice(0, 8)})</span
@@ -904,9 +904,7 @@
 									{#each Object.entries(diffObject) as [key, change] (key)}
 										{const ch = change as any}
 										<div>
-											<strong class="font-bold text-surface-600 dark:text-surface-400"
-												>{key}:</strong
-											>
+											<strong class="font-bold text-(--admin-text-muted)">{key}:</strong>
 											{#if ch.status === 'modified'}
 												<div class="mt-1 rounded border border-error-500/30 bg-error-500/10 p-2">
 													<span class="text-error-600 dark:text-error-400"

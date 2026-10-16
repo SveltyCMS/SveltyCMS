@@ -202,7 +202,7 @@ keyboard navigation, and motion-respecting transitions.
 					sizeTokens.gap,
 					cardActive
 						? 'border-tertiary-500/70 dark:border-primary-500 bg-tertiary-500/10 dark:bg-primary-500/10 shadow-sm'
-						: 'border-surface-500/30 dark:border-surface-500/40 hover:border-surface-500/30 dark:hover:border-surface-600 bg-white dark:bg-surface-800',
+						: 'border-surface-500/30 dark:border-surface-500/40 hover:border-surface-500/30 dark:hover:border-surface-600 bg-(--admin-bg-card)',
 					invalid && 'border-error-500! bg-error-500/10! dark:bg-error-500/10!',
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
@@ -214,7 +214,7 @@ keyboard navigation, and motion-respecting transitions.
 						sizeTokens.touch,
 						cardActive || internalChecked
 							? 'bg-tertiary-500 dark:bg-primary-500 border-tertiary-500 dark:border-primary-500 text-white'
-							: 'border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-800',
+							: 'border-surface-500/30 dark:border-surface-600 bg-(--admin-bg-card)',
 						invalid && 'border-error-500!',
 						prefersReducedMotion ? 'duration-0' : 'duration-150'
 					)}
@@ -232,7 +232,7 @@ keyboard navigation, and motion-respecting transitions.
 				</span>
 				<span class="flex flex-col gap-0.5">
 					{#if label || labelSnippet}
-						<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}>
+						<span class={cn('font-medium text-(--admin-text-body)', sizeTokens.text)}>
 							{#if labelSnippet}
 								{@render labelSnippet()}
 							{:else}
@@ -241,9 +241,7 @@ keyboard navigation, and motion-respecting transitions.
 						</span>
 					{/if}
 					{#if description}
-						<span id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400"
-							>{description}</span
-						>
+						<span id={descriptionId} class="text-xs text-(--admin-text-muted)">{description}</span>
 					{/if}
 				</span>
 			</label>
@@ -258,7 +256,7 @@ keyboard navigation, and motion-respecting transitions.
 					'focus-within:ring-2 focus-within:ring-primary-500/40 focus-within:ring-offset-2 dark:focus-within:ring-offset-surface-900',
 					internalChecked || isIndeterminate
 						? 'bg-tertiary-500 dark:bg-primary-500 border-tertiary-500 dark:border-primary-500 text-white'
-						: 'border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-800 hover:border-primary-500',
+						: 'border-surface-500/30 dark:border-surface-600 bg-(--admin-bg-card) hover:border-primary-500',
 					invalid && 'border-error-500! focus-within:ring-error-500/40!',
 					disabled && 'cursor-not-allowed',
 					prefersReducedMotion ? 'duration-0' : 'duration-150'
@@ -286,12 +284,7 @@ keyboard navigation, and motion-respecting transitions.
 					)}
 				>
 					{#if label || labelSnippet}
-						<span
-							class={cn(
-								'font-medium text-surface-900 dark:text-surface-100 leading-tight',
-								sizeTokens.text
-							)}
-						>
+						<span class={cn('font-medium text-(--admin-text-body) leading-tight', sizeTokens.text)}>
 							{#if labelSnippet}
 								{@render labelSnippet()}
 							{:else}
@@ -303,9 +296,7 @@ keyboard navigation, and motion-respecting transitions.
 						</span>
 					{/if}
 					{#if description}
-						<span id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400"
-							>{description}</span
-						>
+						<span id={descriptionId} class="text-xs text-(--admin-text-muted)">{description}</span>
 					{/if}
 				</label>
 			{/if}

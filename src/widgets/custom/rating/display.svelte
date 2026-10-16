@@ -58,7 +58,7 @@ Renders: ★★★★☆ (4 filled stars, 1 empty star)
 		</div>
 
 		{#if showValue}
-			<span class="ms-2 text-sm font-bold text-surface-600 dark:text-surface-400">
+			<span class="ms-2 text-sm font-bold text-(--admin-text-muted)">
 				{value.toFixed(value % 1 !== 0 ? 1 : 0)}
 			</span>
 		{/if}

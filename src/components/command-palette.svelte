@@ -590,7 +590,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	<div
 		class="flex items-center gap-2 border-b border-surface-500/30 px-3 dark:border-surface-500/40"
 	>
-		<span class="text-surface-500 dark:text-surface-400" aria-hidden="true">
+		<span class="text-(--admin-text-muted)" aria-hidden="true">
 			{#if isSearching}
 				<svg
 					class="h-5 w-5 animate-spin"
@@ -669,7 +669,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		{#if rankedItems.length > 0}
 			{#each displayGroups as group (group.section + group.startIndex)}
 				<div
-					class="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400"
+					class="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 					role="presentation"
 				>
 					{sectionHeading(group.section)}
@@ -716,7 +716,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 							<div
 								class="mt-0.5 truncate text-sm {selected
 									? 'text-white/85'
-									: 'text-surface-600 dark:text-surface-400'}"
+									: 'text-(--admin-text-muted)'}"
 							>
 								<HighlightedText
 									text={item.entry.description}
@@ -790,15 +790,12 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 			{/each}
 		{:else if searchQuery.trim()}
 			<div class="flex flex-col items-center justify-center px-4 py-12 text-center" role="status">
-				<iconify-icon
-					icon="mdi:magnify-close"
-					width="40"
-					class="mb-3 text-surface-400 dark:text-surface-500"
+				<iconify-icon icon="mdi:magnify-close" width="40" class="mb-3 text-(--admin-text-muted)"
 				></iconify-icon>
 				<p class="text-base font-medium text-surface-600 dark:text-surface-100">
 					{msg('global_search_no_results', 'No results found')}
 				</p>
-				<p class="mt-1 max-w-sm text-sm text-surface-600 dark:text-surface-400">
+				<p class="mt-1 max-w-sm text-sm text-(--admin-text-muted)">
 					{msg(
 						'global_search_no_results_hint',
 						'Try different keywords, or use prefixes like c, m, > for actions.'
@@ -806,7 +803,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 				</p>
 			</div>
 		{:else}
-			<div class="px-4 py-8 text-center text-sm text-surface-600 dark:text-surface-400">
+			<div class="px-4 py-8 text-center text-sm text-(--admin-text-muted)">
 				{msg('global_search_start_typing', 'Type to search the whole CMS')}
 			</div>
 		{/if}
@@ -839,7 +836,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 				{msg('global_search_close_hint', 'Close')}
 			</span>
 		</div>
-		<div class="inline-flex items-center gap-2 text-surface-500 dark:text-surface-400">
+		<div class="inline-flex items-center gap-2 text-(--admin-text-muted)">
 			<span class="inline-flex items-center gap-1">
 				<kbd
 					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"

@@ -110,7 +110,7 @@ and transparent browser indicator trick for consistent cross-browser appearance.
 	</div>
 
 	{#if description && !error}
-		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400 ps-1">
+		<p id={descriptionId} class="text-xs text-(--admin-text-muted) ps-1">
 			{description}
 		</p>
 	{/if}

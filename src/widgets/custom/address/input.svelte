@@ -479,7 +479,7 @@ Part of the Three Pillars Architecture for the widget system.
 	class="address-widget flex flex-col gap-4 rounded border p-4 border-surface-500/30 dark:border-surface-600 bg-surface-500/30 dark:bg-surface-800/20"
 >
 	<div class="flex items-center justify-between">
-		<div class="flex items-center gap-2 font-bold text-surface-900 dark:text-surface-50">
+		<div class="flex items-center gap-2 font-bold text-(--admin-text-body)">
 			<iconify-icon icon="mdi:map-marker-radius" width="20"></iconify-icon>
 			{field.label}
 		</div>
@@ -513,7 +513,7 @@ Part of the Three Pillars Architecture for the widget system.
 
 					{#if !googleMapsApiKey && showSuggestions && suggestions.length > 0}
 						<div
-							class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-500/30 dark:border-surface-600 bg-surface-500/10 dark:bg-surface-800 shadow-xl"
+							class="absolute z-50 inset-s-0 inset-e-0 mt-1 max-h-60 overflow-y-auto rounded border border-surface-500/30 dark:border-surface-600 bg-(--admin-bg-card) shadow-xl"
 						>
 							<ul class="list-none p-0 m-0">
 								{#each suggestions as sug (sug.label)}
@@ -523,12 +523,8 @@ Part of the Three Pillars Architecture for the widget system.
 											class="w-full text-start px-4 py-2 text-sm hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors flex flex-col gap-0.5 border-b border-surface-500/30 dark:border-surface-500/40"
 											onclick={() => selectSuggestion(sug)}
 										>
-											<span class="font-medium text-surface-900 dark:text-surface-50"
-												>{sug.label}</span
-											>
-											<span class="text-xs text-surface-500 dark:text-surface-400"
-												>{sug.sublabel}</span
-											>
+											<span class="font-medium text-(--admin-text-body)">{sug.label}</span>
+											<span class="text-xs text-(--admin-text-muted)">{sug.sublabel}</span>
 										</button>
 									</li>
 								{/each}
@@ -596,9 +592,7 @@ Part of the Three Pillars Architecture for the widget system.
 			</div>
 
 			{#if showCoordinates && safeValue?.latitude}
-				<div
-					class="flex items-center gap-4 p-2 bg-surface-500/10 dark:bg-surface-800 rounded text-xs font-mono"
-				>
+				<div class="flex items-center gap-4 p-2 bg-(--admin-bg-card) rounded text-xs font-mono">
 					<div class="flex items-center gap-1">
 						<span class="text-surface-400">{widget_address_lat()}</span>
 						{safeValue.latitude.toFixed(6)}

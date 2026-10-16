@@ -243,7 +243,7 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 					>
 						Advanced Filters
 					</h3>
-					<p class="text-xs text-surface-500 dark:text-surface-400">
+					<p class="text-xs text-(--admin-text-muted)">
 						Build compound multi-clause filter queries with AND / OR conjunctions.
 					</p>
 				</div>
@@ -262,9 +262,7 @@ Provides operator selection, type-specific inputs, and accessible keyboard navig
 
 			<!-- Conjunction switch -->
 			<div class="flex items-center gap-3 py-1">
-				<span class="text-xs font-semibold uppercase text-surface-600 dark:text-surface-400"
-					>Match:</span
-				>
+				<span class="text-xs font-semibold uppercase text-(--admin-text-muted)">Match:</span>
 				<div
 					class="inline-flex rounded-lg border border-surface-500/30 bg-surface-500/10 p-0.5 dark:border-surface-500/40 dark:bg-surface-900"
 				>

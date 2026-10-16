@@ -107,10 +107,10 @@ Visual password strength indicator with match validation and accessibility featu
 
 	// Color classes
 	const COLOR_CLASSES: Record<number, string> = {
-		0: 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300',
+		0: 'bg-gray-300 text-(--admin-text-body) dark:bg-gray-600 dark:text-gray-300',
 		1: 'bg-error-500 text-white',
 		2: 'bg-warning-500 text-white',
-		3: 'bg-warning-500 text-gray-900',
+		3: 'bg-warning-500 text-(--admin-text-body)',
 		4: 'bg-success-600 text-white',
 		5: 'bg-success-500 text-white'
 	};
@@ -231,7 +231,7 @@ Visual password strength indicator with match validation and accessibility featu
 			<div class="min-w-0 flex-1">
 				{#if !showMatchIndicator}
 					<div class="flex items-center gap-2">
-						<span class="text-xs text-gray-500 dark:text-gray-400"> Strength </span>
+						<span class="text-xs text-(--admin-text-muted)"> Strength </span>
 						{#if showRequirements}
 							<Button
 								variant="ghost"
@@ -282,15 +282,13 @@ Visual password strength indicator with match validation and accessibility featu
 				class="rounded border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800"
 				transition:slide={{ duration: prefersReducedMotion ? 0 : 200 }}
 			>
-				<h4 class="mb-2 text-xs font-semibold text-gray-700 dark:text-gray-300">
-					Password Requirements
-				</h4>
+				<h4 class="mb-2 text-xs font-semibold text-(--admin-text-body)">Password Requirements</h4>
 				<ul class="space-y-1 text-xs" role="list">
 					<li class="flex items-center gap-2">
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasMinLength
 								? 'bg-success-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								: 'bg-gray-300 text-(--admin-text-muted) dark:bg-gray-600 dark:text-(--admin-text-muted)'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasMinLength ? '✓' : '○'}
@@ -298,7 +296,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class={complexityChecks.hasMinLength
 								? 'text-success-600 dark:text-success-400'
-								: 'text-gray-600 dark:text-gray-400'}
+								: 'text-(--admin-text-muted)'}
 						>
 							At least {MIN_PASSWORD_LENGTH} characters
 						</span>
@@ -307,7 +305,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasUpper
 								? 'bg-success-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								: 'bg-gray-300 text-(--admin-text-muted) dark:bg-gray-600 dark:text-(--admin-text-muted)'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasUpper ? '✓' : '○'}
@@ -315,7 +313,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class={complexityChecks.hasUpper
 								? 'text-success-600 dark:text-success-400'
-								: 'text-gray-600 dark:text-gray-400'}
+								: 'text-(--admin-text-muted)'}
 						>
 							One uppercase letter
 						</span>
@@ -324,7 +322,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasLower
 								? 'bg-success-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								: 'bg-gray-300 text-(--admin-text-muted) dark:bg-gray-600 dark:text-(--admin-text-muted)'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasLower ? '✓' : '○'}
@@ -332,7 +330,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class={complexityChecks.hasLower
 								? 'text-success-600 dark:text-success-400'
-								: 'text-gray-600 dark:text-gray-400'}
+								: 'text-(--admin-text-muted)'}
 						>
 							One lowercase letter
 						</span>
@@ -341,7 +339,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasNumber
 								? 'bg-success-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								: 'bg-gray-300 text-(--admin-text-muted) dark:bg-gray-600 dark:text-(--admin-text-muted)'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasNumber ? '✓' : '○'}
@@ -349,7 +347,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class={complexityChecks.hasNumber
 								? 'text-success-600 dark:text-success-400'
-								: 'text-gray-600 dark:text-gray-400'}
+								: 'text-(--admin-text-muted)'}
 						>
 							One number
 						</span>
@@ -358,7 +356,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class="flex h-4 w-4 items-center justify-center rounded-full text-[10px] {complexityChecks.hasSpecial
 								? 'bg-success-500 text-white'
-								: 'bg-gray-300 text-gray-600 dark:bg-gray-600 dark:text-gray-400'}"
+								: 'bg-gray-300 text-(--admin-text-muted) dark:bg-gray-600 dark:text-(--admin-text-muted)'}"
 							aria-hidden="true"
 						>
 							{complexityChecks.hasSpecial ? '✓' : '○'}
@@ -366,7 +364,7 @@ Visual password strength indicator with match validation and accessibility featu
 						<span
 							class={complexityChecks.hasSpecial
 								? 'text-success-600 dark:text-success-400'
-								: 'text-gray-600 dark:text-gray-400'}
+								: 'text-(--admin-text-muted)'}
 						>
 							One special character (!@#$%^&*)
 						</span>

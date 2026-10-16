@@ -140,7 +140,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 	>
 		{#if field.prefix}
 			<span
-				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+				class="px-3 py-2 bg-(--admin-bg-card) border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
 			>
 				{field.prefix}
 			</span>
@@ -159,7 +159,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 				placeholder={typeof field.placeholder === 'string'
 					? field.placeholder
 					: formatter.format(0)}
-				class="w-full border-none bg-transparent py-2 text-sm font-semibold outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
+				class="w-full border-none bg-transparent py-2 text-sm font-semibold outline-none focus:ring-0 text-(--admin-text-body)"
 				inputmode="decimal"
 				use:tokenTarget={{
 					name: fieldName,
@@ -171,7 +171,7 @@ User types "1234.56" → displays "1.234,56 €" → stores 1234.56 as number
 
 		{#if field.suffix}
 			<span
-				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+				class="px-3 py-2 bg-(--admin-bg-card) border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
 			>
 				{field.suffix}
 			</span>

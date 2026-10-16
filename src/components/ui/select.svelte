@@ -160,7 +160,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					'peer-focus:-translate-y-3.5 peer-focus:scale-75 peer-focus:text-tertiary-500 dark:text-primary-500',
 					value
 						? '-translate-y-3.5 scale-75 text-tertiary-500 dark:text-primary-500'
-						: 'top-1/2 -translate-y-1/2 text-surface-500 dark:text-surface-400',
+						: 'top-1/2 -translate-y-1/2 text-(--admin-text-muted)',
 					sizeTokens.text,
 					invalid && 'text-error-500! peer-focus:text-error-500!'
 				)}
@@ -182,7 +182,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	{:else}
 		<!-- Default label-above variant -->
 		{#if label || labelSnippet}
-			<label for={generatedId} class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+			<label for={generatedId} class="text-sm font-semibold text-(--admin-text-muted)">
 				{#if labelSnippet}
 					{@render labelSnippet()}
 				{:else}
@@ -237,7 +237,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	{/if}
 
 	{#if description && !error}
-		<p id={descriptionId} class="text-xs text-surface-500 dark:text-surface-400">{description}</p>
+		<p id={descriptionId} class="text-xs text-(--admin-text-muted)">{description}</p>
 	{/if}
 
 	{#if error}

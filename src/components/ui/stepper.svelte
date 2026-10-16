@@ -105,23 +105,23 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 		}
 		if (done) return 'bg-success-500 text-white';
 		if (current) return 'bg-tertiary-500 dark:bg-primary-500 text-white shadow-lg scale-110';
-		return 'bg-surface-200 dark:bg-surface-700 text-surface-500';
+		return 'bg-(--admin-bg-chip) text-surface-500';
 	}
 
 	function labelClass(index: number): string {
 		if (variant === 'setup') {
-			if (index < currentStep) return 'text-surface-600 dark:text-surface-400';
+			if (index < currentStep) return 'text-(--admin-text-muted)';
 			if (index === currentStep) return 'text-surface-900 dark:text-white';
 			return 'text-surface-400 dark:text-surface-600';
 		}
 		if (index === currentStep) return 'text-tertiary-600 dark:text-primary-600';
-		return 'text-surface-900 dark:text-surface-100';
+		return 'text-(--admin-text-body)';
 	}
 
 	function descClass(index: number): string {
 		if (variant === 'setup') {
-			if (index < currentStep) return 'text-surface-500 dark:text-surface-400';
-			if (index === currentStep) return 'text-surface-600 dark:text-surface-400';
+			if (index < currentStep) return 'text-(--admin-text-muted)';
+			if (index === currentStep) return 'text-(--admin-text-muted)';
 			return 'text-surface-400 dark:text-surface-600';
 		}
 		return 'text-surface-500';
@@ -133,7 +133,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 				? orientation === 'horizontal'
 					? 'border-t-2 border-dashed border-surface-500/30 bg-transparent'
 					: 'border-s-2 border-dashed border-surface-500/30 bg-transparent'
-				: 'bg-surface-200 dark:bg-surface-700';
+				: 'bg-(--admin-bg-chip)';
 		}
 		return variant === 'setup' ? 'bg-tertiary-500 dark:bg-primary-500' : 'bg-success-500';
 	}
@@ -240,7 +240,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 							i
 						)
 							? 'bg-success-500'
-							: 'bg-surface-200 dark:bg-surface-700'}"
+							: 'bg-(--admin-bg-chip)'}"
 						aria-hidden="true"
 					></div>
 				{/if}

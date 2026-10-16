@@ -112,7 +112,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 				onkeydown={handleKeyDown}
 			>
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
+					<h4 class="m-0 text-base font-semibold text-(--admin-text-body) dark:text-gray-100">
 						{field.groupTitle}
 					</h4>
 				{/if}
@@ -128,7 +128,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 		{:else}
 			<div class="flex items-center justify-between p-3 {variant.header}">
 				{#if field.groupTitle}
-					<h4 class="m-0 text-base font-semibold text-gray-900 dark:text-gray-100">
+					<h4 class="m-0 text-base font-semibold text-(--admin-text-body) dark:text-gray-100">
 						{field.groupTitle}
 					</h4>
 				{/if}
@@ -149,8 +149,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 			<div
 				class="rounded border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900"
 			>
-				<pre
-					class="whitespace-pre-wrap font-mono text-sm text-gray-700 dark:text-gray-300">{JSON.stringify(
+				<pre class="whitespace-pre-wrap font-mono text-sm text-(--admin-text-body)">{JSON.stringify(
 						value,
 						null,
 						2
@@ -158,7 +157,7 @@ Renders grouped content in a read-only display format with collapsible functiona
 			</div>
 		{:else}
 			<div class="flex items-center justify-center px-4 py-6">
-				<p class="text-center text-sm italic text-gray-500 dark:text-gray-400">
+				<p class="text-center text-sm italic text-(--admin-text-muted)">
 					{widget_group_no_content()}
 				</p>
 			</div>

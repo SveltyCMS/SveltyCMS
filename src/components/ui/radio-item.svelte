@@ -131,12 +131,10 @@ via Svelte context. Supports default, card, and button visual variants.
 		</span>
 		<span class="flex flex-col gap-0.5">
 			{#if label}
-				<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}
-					>{label}</span
-				>
+				<span class={cn('font-medium text-(--admin-text-body)', sizeTokens.text)}>{label}</span>
 			{/if}
 			{#if description}
-				<span class="text-xs text-surface-500 dark:text-surface-400">{description}</span>
+				<span class="text-xs text-(--admin-text-muted)">{description}</span>
 			{/if}
 		</span>
 	</button>
@@ -153,7 +151,7 @@ via Svelte context. Supports default, card, and button visual variants.
 			sizeTokens.touch,
 			checked
 				? 'border-tertiary-500 dark:border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 text-primary-600 dark:text-primary-400'
-				: 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-surface-600 dark:text-surface-400 hover:border-surface-500/30 dark:hover:border-surface-600',
+				: 'border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-(--admin-text-muted) hover:border-surface-500/30 dark:hover:border-surface-600',
 			isDisabled && 'opacity-50 cursor-not-allowed',
 			!isDisabled &&
 				'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40',
@@ -211,12 +209,10 @@ via Svelte context. Supports default, card, and button visual variants.
 		</button>
 		<span class="flex flex-col gap-0.5">
 			{#if label}
-				<span class={cn('font-medium text-surface-900 dark:text-surface-100', sizeTokens.text)}
-					>{label}</span
-				>
+				<span class={cn('font-medium text-(--admin-text-body)', sizeTokens.text)}>{label}</span>
 			{/if}
 			{#if description}
-				<span class="text-xs text-surface-500 dark:text-surface-400">{description}</span>
+				<span class="text-xs text-(--admin-text-muted)">{description}</span>
 			{/if}
 		</span>
 	</label>

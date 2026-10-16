@@ -325,8 +325,8 @@
 <div class="import-export-manager">
 	<div class="mb-6 flex items-center justify-between">
 		<div>
-			<h2 class="text-2xl font-bold text-gray-900 dark:text-white">Data Import & Export</h2>
-			<p class="mt-1 text-gray-600 dark:text-gray-400">Backup and restore your collection data</p>
+			<h2 class="text-2xl font-bold text-(--admin-text-body)">Data Import & Export</h2>
+			<p class="mt-1 text-(--admin-text-muted)">Backup and restore your collection data</p>
 		</div>
 
 		<div class="flex gap-3">
@@ -361,8 +361,8 @@
 					<iconify-icon icon="mdi:database-export" width={24}></iconify-icon>
 				</div>
 				<div>
-					<h3 class="font-semibold text-gray-900 dark:text-white">Export All Data</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">Export all collections to file</p>
+					<h3 class="font-semibold text-(--admin-text-body)">Export All Data</h3>
+					<p class="text-sm text-(--admin-text-muted)">Export all collections to file</p>
 				</div>
 			</div>
 
@@ -383,8 +383,8 @@
 					<iconify-icon icon="mdi:folder-multiple" width={24}></iconify-icon>
 				</div>
 				<div>
-					<h3 class="font-semibold text-gray-900 dark:text-white">Collections</h3>
-					<p class="text-sm text-gray-600 dark:text-gray-400">
+					<h3 class="font-semibold text-(--admin-text-body)">Collections</h3>
+					<p class="text-sm text-(--admin-text-muted)">
 						<span class="font-semibold text-tertiary-500 dark:text-primary-500"
 							>{collections.length}</span
 						>
@@ -401,7 +401,7 @@
 					</div>
 				{/each}
 				{#if collections.length > 3}
-					<p class="text-xs text-surface-600 dark:text-surface-400">
+					<p class="text-xs text-(--admin-text-muted)">
 						...and {collections.length - 3} more
 					</p>
 				{/if}
@@ -486,7 +486,9 @@
 									{collection.label}
 
 									{#if collection.description}
-										<span class="ms-2 text-sm text-gray-500">{collection.description}</span>
+										<span class="ms-2 text-sm text-(--admin-text-muted)"
+											>{collection.description}</span
+										>
 									{/if}
 								</div>
 							</label>
@@ -557,9 +559,9 @@
 						type="file"
 						bind:files={importFiles}
 						accept=".json,.csv"
-						class="block w-full text-sm text-gray-500 file:me-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10"
+						class="block w-full text-sm text-(--admin-text-muted) file:me-4 file:rounded file:border-0 file:bg-tertiary-500/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-tertiary-600 hover:file:bg-tertiary-500/10"
 					/>
-					<p class="mt-1 text-xs text-gray-500">Supported formats: JSON, CSV</p>
+					<p class="mt-1 text-xs text-(--admin-text-muted)">Supported formats: JSON, CSV</p>
 				</div>
 
 				<div>
@@ -633,15 +635,15 @@
 								<div class="text-2xl font-bold text-tertiary-500 dark:text-primary-500">
 									{importResult.totalImported}
 								</div>
-								<div class="text-sm text-gray-600">Imported</div>
+								<div class="text-sm text-(--admin-text-muted)">Imported</div>
 							</div>
 							<div>
 								<div class="text-warning-500 text-2xl font-bold">{importResult.totalSkipped}</div>
-								<div class="text-sm text-gray-600">Skipped</div>
+								<div class="text-sm text-(--admin-text-muted)">Skipped</div>
 							</div>
 							<div>
 								<div class="text-2xl font-bold text-error-500">{importResult.totalErrors}</div>
-								<div class="text-sm text-gray-600">Errors</div>
+								<div class="text-sm text-(--admin-text-muted)">Errors</div>
 							</div>
 						</div>
 					</div>
@@ -669,12 +671,12 @@
 												>
 												<div class="mt-2 space-y-1">
 													{#each result.errors.slice(0, 5) as error (error.index)}
-														<div class="text-xs text-gray-600">
+														<div class="text-xs text-(--admin-text-muted)">
 															Line {error.index + 1}: {error.error}
 														</div>
 													{/each}
 													{#if result.errors.length > 5}
-														<div class="text-xs text-gray-500">
+														<div class="text-xs text-(--admin-text-muted)">
 															...and {result.errors.length - 5} more errors
 														</div>
 													{/if}

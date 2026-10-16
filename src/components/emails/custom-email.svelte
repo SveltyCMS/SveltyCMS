@@ -72,10 +72,12 @@
 			<Hr class="mx-6 border-gray-200" />
 
 			<Section class="p-6 text-center">
-				<Text class="text-gray-500 text-xs mb-2"
+				<Text class="text-(--admin-text-muted) text-xs mb-2"
 					>This is an automated notification from <strong>{sitename}</strong>.</Text
 				>
-				<Text class="text-gray-400 text-[10px] uppercase tracking-wider">Server: {hostLink}</Text>
+				<Text class="text-(--admin-text-muted) text-[10px] uppercase tracking-wider"
+					>Server: {hostLink}</Text
+				>
 			</Section>
 		</Container>
 	</Body>

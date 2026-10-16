@@ -68,10 +68,10 @@ Interactive level configuration with add/remove level capabilities
 
 <div class="space-y-6">
 	<div class="border-b border-surface-500/30 pb-4 dark:text-surface-50">
-		<h3 class="mb-2 text-lg font-semibold text-surface-900 dark:text-surface-100">
+		<h3 class="mb-2 text-lg font-semibold text-(--admin-text-body)">
 			{widget_menu_structure_config()}
 		</h3>
-		<p class="text-sm leading-relaxed text-surface-600 dark:text-surface-400">
+		<p class="text-sm leading-relaxed text-(--admin-text-muted)">
 			{widget_menu_config_desc()}
 		</p>
 	</div>
@@ -120,7 +120,7 @@ Interactive level configuration with add/remove level capabilities
 				<div class="space-y-4 p-4">
 					<div class="space-y-3">
 						<label
-							class="block text-sm font-medium text-surface-600 dark:text-surface-400"
+							class="block text-sm font-medium text-(--admin-text-muted)"
 							for={'widget-builder-' + levelIndex}
 						>
 							{widget_menu_fields_for_level({ level: levelIndex + 1 })}
@@ -143,7 +143,7 @@ Interactive level configuration with add/remove level capabilities
 						>
 							<iconify-icon icon="mdi:information" width="24" class="text-surface-400"
 							></iconify-icon>
-							<span class="text-sm font-medium text-surface-600 dark:text-surface-400"
+							<span class="text-sm font-medium text-(--admin-text-muted)"
 								>{widget_menu_no_fields_configured()}</span
 							>
 							<span class="text-xs text-surface-500 dark:text-surface-50"

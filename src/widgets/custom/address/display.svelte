@@ -68,11 +68,11 @@ Renders: "Main St 123, 12345 Berlin, Germany"
 		class="address-display flex flex-col text-sm leading-relaxed"
 		title="{safeValue.street} {safeValue.houseNumber}, {safeValue.postalCode} {safeValue.city}"
 	>
-		<div class="font-bold text-surface-900 dark:text-surface-50">
+		<div class="font-bold text-(--admin-text-body)">
 			{safeValue.street}
 			{safeValue.houseNumber}
 		</div>
-		<div class="text-surface-600 dark:text-surface-400">
+		<div class="text-(--admin-text-muted)">
 			{safeValue.postalCode}
 			{safeValue.city}
 		</div>

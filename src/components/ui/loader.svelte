@@ -64,7 +64,7 @@ Respects `prefers-reduced-motion` by disabling animation when requested.
 		return () => mq.removeEventListener('change', handler);
 	});
 
-	const baseClass = 'bg-surface-200 dark:bg-surface-700 rounded';
+	const baseClass = 'bg-(--admin-bg-chip) rounded';
 	const shimmerClass = $derived(prefersReducedMotion ? '' : 'animate-pulse');
 
 	const defaultDims = $derived.by(() => {

@@ -367,7 +367,7 @@
 
 					<div class="space-y-2">
 						{#if scheduleTimestamp}
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+							<p class="text-sm font-medium text-(--admin-text-muted)">
 								{sidebar_will_publish_on()}
 							</p>
 							<p class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">
@@ -405,7 +405,7 @@
 
 					<div class="space-y-3">
 						<div class="space-y-1">
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
+							<p class="text-sm font-medium text-(--admin-text-muted)">
 								{sidebar_createdby()}
 							</p>
 							<div
@@ -419,9 +419,7 @@
 
 						{#if currentEntry?.updatedBy}
 							<div class="space-y-1">
-								<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
-									Last updated by
-								</p>
+								<p class="text-sm font-medium text-(--admin-text-muted)">Last updated by</p>
 								<div
 									class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800"
 								>

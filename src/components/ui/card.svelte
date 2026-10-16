@@ -133,7 +133,7 @@ corner-shape angled corners.
 			// Default neutral card when no preset/color
 			!finalPreset &&
 				!isCustomColor &&
-				'border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-surface-900 dark:text-surface-50 shadow-sm',
+				'border border-surface-500/30 dark:border-surface-500/40 bg-surface-500/10 dark:bg-surface-900 text-(--admin-text-body) shadow-sm',
 			className
 		)
 	);

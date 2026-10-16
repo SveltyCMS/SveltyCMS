@@ -31,7 +31,7 @@ Renders: <a href="mailto:user@example.com">user@example.com</a>
 
 <div class="email-display inline-flex items-center gap-1.5">
 	{#if value}
-		<iconify-icon icon="mdi:email-outline" width="16" class="text-surface-400 dark:text-surface-500"
+		<iconify-icon icon="mdi:email-outline" width="16" class="text-(--admin-text-muted)"
 		></iconify-icon>
 		<a
 			href="mailto:{value}"

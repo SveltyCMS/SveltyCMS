@@ -94,7 +94,7 @@
 	>
 		{#if field.prefix}
 			<span
-				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+				class="px-3 py-2 bg-(--admin-bg-card) border-e border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
 			>
 				{field.prefix}
 			</span>
@@ -113,7 +113,7 @@
 				value={safeValue}
 				oninput={handleInput}
 				placeholder={(field.placeholder as string) || 'email@example.com'}
-				class="w-full border-none bg-transparent py-2 text-sm font-medium outline-none focus:ring-0 text-surface-900 dark:text-surface-50"
+				class="w-full border-none bg-transparent py-2 text-sm font-medium outline-none focus:ring-0 text-(--admin-text-body)"
 				disabled={field.readonly as boolean}
 				aria-invalid={!!error}
 				aria-describedby={error ? `${fieldName}-error` : undefined}
@@ -123,7 +123,7 @@
 
 		{#if field.suffix}
 			<span
-				class="px-3 py-2 bg-surface-500/10 dark:bg-surface-800 border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
+				class="px-3 py-2 bg-(--admin-bg-card) border-s border-surface-500/30 dark:border-surface-500/40 text-surface-500 text-sm font-medium"
 			>
 				{field.suffix}
 			</span>

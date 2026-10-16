@@ -75,7 +75,7 @@
 			>
 				{#if page.heroHeading}
 					<h1
-						class="text-4xl font-bold tracking-tight text-surface-900 dark:text-surface-50"
+						class="text-4xl font-bold tracking-tight text-(--admin-text-body)"
 						data-svelty-field="heroHeading"
 					>
 						{page.heroHeading}
@@ -84,7 +84,7 @@
 				{#if page.heroSubheading}
 					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 					<p
-						class="mt-4 text-lg text-surface-600 dark:text-surface-400"
+						class="mt-4 text-lg text-(--admin-text-muted)"
 						data-svelty-field="heroSubheading"
 						onclick={(e) => {
 							e.stopPropagation();
@@ -115,7 +115,7 @@
 		{#if page.title && !page.heroHeading}
 			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 			<h1
-				class="mb-6 text-3xl font-bold text-surface-900 dark:text-surface-50"
+				class="mb-6 text-3xl font-bold text-(--admin-text-body)"
 				data-svelty-field="title"
 				onclick={() => handleFieldClick('title')}
 				onkeydown={(e) => e.key === 'Enter' && handleFieldClick('title')}
@@ -144,15 +144,15 @@
 			<Card variant="surface" class="mb-6 p-6">
 				{#if block.type === 'hero' || block.type === 'section'}
 					{#if block.heading}
-						<h2 class="text-2xl font-semibold text-surface-900 dark:text-surface-50">
+						<h2 class="text-2xl font-semibold text-(--admin-text-body)">
 							{block.heading}
 						</h2>
 					{/if}
 					{#if block.subheading}
-						<p class="mt-2 text-surface-600 dark:text-surface-400">{block.subheading}</p>
+						<p class="mt-2 text-(--admin-text-muted)">{block.subheading}</p>
 					{/if}
 					{#if block.body}
-						<p class="mt-4 text-surface-600 dark:text-surface-400">{block.body}</p>
+						<p class="mt-4 text-(--admin-text-muted)">{block.body}</p>
 					{/if}
 				{:else if block.type === 'richtext'}
 					<div class="prose dark:prose-invert">{@html sanitizedBlockHtml(block.body)}</div>

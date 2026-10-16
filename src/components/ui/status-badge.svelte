@@ -57,7 +57,7 @@ common status strings (published/draft/scheduled/error/active).
 			case 'ghost':
 				return 'bg-transparent text-surface-500 border-surface-500/30 dark:border-surface-500/40';
 			default:
-				return 'bg-surface-500/10 text-surface-600 dark:text-surface-400 border-surface-500/20';
+				return 'bg-surface-500/10 text-(--admin-text-muted) border-surface-500/20';
 		}
 	});
 </script>

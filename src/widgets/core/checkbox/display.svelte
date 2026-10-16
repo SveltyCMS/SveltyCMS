@@ -57,7 +57,7 @@ Part of the CMS widget system.
 	{:else}
 		<!-- Dash for unchecked/null -->
 		<span
-			class="select-none text-lg text-surface-400 dark:text-surface-500"
+			class="select-none text-lg text-(--admin-text-muted)"
 			aria-label={checkbox_unchecked()}
 			role="img"
 		>

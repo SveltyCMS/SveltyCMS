@@ -79,20 +79,19 @@ and configurable size/rounded shape.
 		/>
 	{:else if fallback}
 		<div
-			class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium"
+			class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-(--admin-text-muted) font-medium"
 		>
 			{@render fallback()}
 		</div>
 	{:else if initials}
 		<div
-			class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-surface-600 dark:text-surface-400 font-medium uppercase"
+			class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800 text-(--admin-text-muted) font-medium uppercase"
 		>
 			{initials}
 		</div>
 	{:else}
 		<div class="flex h-full w-full items-center justify-center bg-surface-200 dark:bg-surface-800">
-			<iconify-icon icon="mdi:account" class="size-2/3 text-surface-600 dark:text-surface-400"
-			></iconify-icon>
+			<iconify-icon icon="mdi:account" class="size-2/3 text-(--admin-text-muted)"></iconify-icon>
 		</div>
 	{/if}
 </div>

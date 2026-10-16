@@ -664,7 +664,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 									rounded
 									aria-label={applayout_select_language()}
 									data-testid="language-selector-trigger"
-									class="mb-3 flex items-center justify-center uppercase bg-surface-200 dark:bg-surface-700 text-surface-900 dark:text-white hover:bg-surface-300 dark:hover:bg-surface-600 {isSidebarFull
+									class="mb-3 flex items-center justify-center uppercase bg-(--admin-bg-chip) text-surface-900 dark:text-white hover:bg-surface-300 dark:hover:bg-surface-600 {isSidebarFull
 										? 'h-12 w-12 text-xs font-bold'
 										: 'h-11 w-11 text-xs font-bold'}"
 								>

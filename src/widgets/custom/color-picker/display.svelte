@@ -36,7 +36,7 @@ Renders: color swatch or hex value
 			class="h-5 w-5 rounded-full border border-surface-500/30 dark:border-surface-500/40 shadow-sm"
 			style="background-color: {colorValue}"
 		></div>
-		<span class="font-mono text-xs text-surface-600 dark:text-surface-400 uppercase tracking-tight">
+		<span class="font-mono text-xs text-(--admin-text-muted) uppercase tracking-tight">
 			{colorValue}
 		</span>
 	</div>

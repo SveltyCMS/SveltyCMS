@@ -346,7 +346,7 @@ Part of the Three Pillars Architecture for widget system.
 							oninput={(e) => updateMetadataField('title', e.currentTarget.value)}
 						/>
 					{:else}
-						<h3 class="text-base font-bold text-surface-900 dark:text-surface-50 truncate">
+						<h3 class="text-base font-bold text-(--admin-text-body) truncate">
 							{fetchedMetadata.title}
 						</h3>
 					{/if}
@@ -377,14 +377,12 @@ Part of the Three Pillars Architecture for widget system.
 						placeholder={widget_rv_add_description()}
 					/>
 				{:else if fetchedMetadata.description}
-					<p class="text-xs text-surface-600 dark:text-surface-400 line-clamp-2">
+					<p class="text-xs text-(--admin-text-muted) line-clamp-2">
 						{fetchedMetadata.description}
 					</p>
 				{/if}
 
-				<div
-					class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-surface-500 dark:text-surface-400"
-				>
+				<div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-(--admin-text-muted)">
 					{#if fetchedMetadata.channelTitle}
 						<span class="flex items-center gap-1">
 							<iconify-icon icon="mdi:account" width="14"></iconify-icon>

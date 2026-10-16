@@ -280,9 +280,7 @@ Features:
 					/>
 				</div>
 				<div class="min-w-0 flex-1">
-					<p
-						class="text-[10px] font-bold uppercase tracking-[0.08em] text-surface-500 dark:text-surface-400"
-					>
+					<p class="text-[10px] font-bold uppercase tracking-[0.08em] text-(--admin-text-muted)">
 						Manage Tags
 					</p>
 					<p
@@ -292,11 +290,11 @@ Features:
 						{activeFile.filename}
 					</p>
 					<p
-						class="mt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400"
+						class="mt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
 					>
 						{formatMimeType(activeFile.mimeType)}
 						{#if pendingCount > 0 || savedCount > 0}
-							<span class="text-surface-400 dark:text-surface-500"> · </span>
+							<span class="text-(--admin-text-muted)"> · </span>
 							<span class="text-primary-500">{pendingCount + savedCount} tags</span>
 						{/if}
 					</p>
@@ -325,7 +323,7 @@ Features:
 									<Badge variant="primary" preset="tonal" size="sm">{pendingCount}</Badge>
 								{/if}
 							</h3>
-							<p class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+							<p class="mt-0.5 text-xs text-(--admin-text-muted)">
 								Review suggestions before saving to the asset.
 							</p>
 						</div>
@@ -388,9 +386,7 @@ Features:
 								{/if}
 							{/each}
 						{:else}
-							<span class="text-xs text-surface-500 dark:text-surface-400"
-								>No pending tags yet.</span
-							>
+							<span class="text-xs text-(--admin-text-muted)">No pending tags yet.</span>
 						{/if}
 					</div>
 
@@ -447,7 +443,7 @@ Features:
 									<Badge variant="surface" preset="tonal" size="sm">{savedCount}</Badge>
 								{/if}
 							</h3>
-							<p class="mt-0.5 text-xs text-surface-500 dark:text-surface-400">
+							<p class="mt-0.5 text-xs text-(--admin-text-muted)">
 								Published on this asset in the gallery.
 							</p>
 						</div>
@@ -493,9 +489,7 @@ Features:
 								{/if}
 							{/each}
 						{:else}
-							<span class="text-xs text-surface-500 dark:text-surface-400"
-								>No saved tags on this file.</span
-							>
+							<span class="text-xs text-(--admin-text-muted)">No saved tags on this file.</span>
 						{/if}
 					</div>
 				</section>

@@ -37,7 +37,7 @@
 	<div class="space-y-1">
 		<h3 class="text-base font-semibold text-surface-600 dark:text-surface-100">{title}</h3>
 		{#if description}
-			<p class="max-w-sm text-sm text-surface-500 dark:text-surface-400">{description}</p>
+			<p class="max-w-sm text-sm text-(--admin-text-muted)">{description}</p>
 		{/if}
 	</div>
 	{#if action}

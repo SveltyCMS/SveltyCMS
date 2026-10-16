@@ -196,15 +196,13 @@ and first/last navigation used by the admin CMS.
 		</nav>
 
 		<p
-			class="m-0 min-w-0 flex-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-surface-500 dark:text-surface-400"
+			class="m-0 min-w-0 flex-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
 			role="status"
 			aria-live="polite"
 		>
 			{#if totalItems > 0}
-				<span class="tabular-nums text-surface-600 dark:text-surface-400"
-					>{startItem}–{endItem}</span
-				>
-				<span class="text-surface-400 dark:text-surface-500"> / {totalItems}</span>
+				<span class="tabular-nums text-(--admin-text-muted)">{startItem}–{endItem}</span>
+				<span class="text-(--admin-text-muted)"> / {totalItems}</span>
 			{:else}
 				0 / 0
 			{/if}
@@ -346,11 +344,11 @@ and first/last navigation used by the admin CMS.
 		<div class="flex items-center gap-4">
 			<span class="whitespace-nowrap">
 				Showing
-				<span class="font-bold text-surface-900 dark:text-surface-100">{startItem}</span>
+				<span class="font-bold text-(--admin-text-body)">{startItem}</span>
 				to
-				<span class="font-bold text-surface-900 dark:text-surface-100">{endItem}</span>
+				<span class="font-bold text-(--admin-text-body)">{endItem}</span>
 				of
-				<span class="font-bold text-surface-900 dark:text-surface-100">{totalItems}</span>
+				<span class="font-bold text-(--admin-text-body)">{totalItems}</span>
 			</span>
 			<div class="flex items-center gap-2">
 				<span class="hidden sm:inline">Rows:</span>

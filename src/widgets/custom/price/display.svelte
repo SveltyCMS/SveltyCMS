@@ -19,11 +19,9 @@
 	});
 </script>
 
-<div
-	class="price-display inline-flex items-center gap-1.5 font-semibold text-surface-900 dark:text-surface-50"
->
+<div class="price-display inline-flex items-center gap-1.5 font-semibold text-(--admin-text-body)">
 	{#if value && typeof value.amount === 'number'}
-		<iconify-icon icon="mdi:tag-outline" width="16" class="text-surface-400 dark:text-surface-500"
+		<iconify-icon icon="mdi:tag-outline" width="16" class="text-(--admin-text-muted)"
 		></iconify-icon>
 		<span>{formattedPrice}</span>
 	{:else}

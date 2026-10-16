@@ -1292,7 +1292,7 @@ bulk actions, and predictive preloading.
 					></iconify-icon>
 					{#if currentCollection?.name}
 						<h1
-							class="text-lg md:text-xl font-bold tracking-tight text-surface-900 dark:text-surface-50 truncate"
+							class="text-lg md:text-xl font-bold tracking-tight text-(--admin-text-body) truncate"
 						>
 							{currentCollection.name}
 						</h1>
@@ -1367,7 +1367,7 @@ bulk actions, and predictive preloading.
 	<!-- Mobile Expanded Filters -->
 	{#if expand}
 		<div
-			class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-800"
+			class="mb-3 flex flex-wrap items-center justify-center gap-2 sm:hidden p-2 rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card)"
 		>
 			<TableFilter
 				bind:globalSearchValue
@@ -1452,8 +1452,8 @@ bulk actions, and predictive preloading.
 							data-header-id={header.id}
 							role="listitem"
 							class="inline-flex items-center rounded-lg border transition-all {header.visible
-								? 'bg-surface-500/10 dark:bg-surface-800 border-surface-500/30 dark:border-surface-600 text-surface-900 dark:text-surface-100'
-								: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-surface-400 dark:text-surface-500'}"
+								? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
+								: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
 						>
 							<button
 								type="button"
@@ -1592,9 +1592,7 @@ bulk actions, and predictive preloading.
 												label="Select entry {rowId}"
 												hideLabel
 											/>
-											<span
-												class="text-xs font-bold text-surface-900 dark:text-surface-100 truncate"
-											>
+											<span class="text-xs font-bold text-(--admin-text-body) truncate">
 												{String(entry[visibleTableHeaders[0]?.name as any] || entry._id || 'Entry')}
 											</span>
 										</div>
@@ -1604,16 +1602,14 @@ bulk actions, and predictive preloading.
 									</div>
 
 									<!-- Body: Key Fields -->
-									<div class="my-3 space-y-1.5 text-xs text-surface-600 dark:text-surface-400">
+									<div class="my-3 space-y-1.5 text-xs text-(--admin-text-muted)">
 										{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
 											{@const fieldName = (header as TableHeader).name || ''}
 											<div class="flex items-center justify-between gap-2">
 												<span class="font-medium text-surface-500 capitalize truncate"
 													>{header.label}:</span
 												>
-												<span
-													class="font-semibold text-surface-600 dark:text-surface-400 truncate max-w-[60%]"
-												>
+												<span class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]">
 													{String((entry as any)[fieldName] ?? '-')}
 												</span>
 											</div>
@@ -1647,9 +1643,7 @@ bulk actions, and predictive preloading.
 							{/each}
 						</div>
 					{:else}
-						<div class="p-8 text-center text-surface-500 dark:text-surface-400">
-							No results found.
-						</div>
+						<div class="p-8 text-center text-(--admin-text-muted)">No results found.</div>
 					{/if}
 				</div>
 			{:else}
@@ -1700,7 +1694,7 @@ bulk actions, and predictive preloading.
 									{@const rankInfo = smartTable.getSortRank(colKey)}
 									{@const isActiveSort = rankInfo !== null}
 									<th
-										class="relative min-w-20 overflow-hidden text-center font-semibold uppercase text-surface-600 dark:text-surface-400 {cellPaddingClass}"
+										class="relative min-w-20 overflow-hidden text-center font-semibold uppercase text-(--admin-text-muted) {cellPaddingClass}"
 										style={smartTable.getColumnWidthStyle(colKey)}
 										aria-sort={isActiveSort
 											? rankInfo.direction === 1
@@ -1788,7 +1782,7 @@ bulk actions, and predictive preloading.
 												<td
 													role="gridcell"
 													aria-colindex={colIdx + 2}
-													class="text-center {cellPaddingClass} text-xs sm:text-sm text-surface-600 dark:text-surface-400 {(
+													class="text-center {cellPaddingClass} text-xs sm:text-sm text-(--admin-text-muted) {(
 														header as TableHeader
 													).name !== 'status'
 														? 'cursor-pointer transition-colors duration-150 hover:bg-surface-200/50 dark:hover:bg-surface-700/50'
@@ -1901,7 +1895,7 @@ bulk actions, and predictive preloading.
 																		}
 																	)}
 																</div>
-																<div class="text-surface-500 dark:text-surface-400">
+																<div class="text-(--admin-text-muted)">
 																	{formatDisplayDate(
 																		(entry as any)[(header as TableHeader).name || ''] as string,
 																		undefined,

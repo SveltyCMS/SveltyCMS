@@ -227,7 +227,7 @@ Interactive menu builder with add/edit/reorder capabilities
 	<div
 		class="flex items-center justify-between border-b border-surface-500/30 pb-3 dark:text-surface-50"
 	>
-		<h3 class=" text-lg font-semibold text-surface-900 dark:text-surface-100">
+		<h3 class=" text-lg font-semibold text-(--admin-text-body)">
 			{widget_menu_structure()}
 		</h3>
 		<Button variant="tertiary" type="button" onclick={addItem}>
@@ -295,7 +295,7 @@ Interactive menu builder with add/edit/reorder capabilities
 						</div>
 
 						<div class=" min-w-0 flex-1">
-							<span class=" truncate font-medium text-surface-900 dark:text-surface-100">
+							<span class=" truncate font-medium text-(--admin-text-body)">
 								{(item._fields as any)?.title?.[lang] ||
 									(item._fields as any)?.title?.en ||
 									'Untitled Item'}
