@@ -126,10 +126,10 @@
 			class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg"
 		>
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+			<h3 class="text-sm font-semibold text-(--admin-text-muted)">
 				{dashboard_ext_premium()}
 			</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">
+			<p class="text-xs text-(--admin-text-muted) mt-1 mb-3">
 				{widget_premium_trial_expired()}
 			</p>
 			<a
@@ -158,7 +158,7 @@
 
 			{#if !metrics}
 				<div class="flex h-full items-center justify-center">
-					<div class="flex flex-col items-center gap-3 text-surface-500">
+					<div class="flex flex-col items-center gap-3 text-(--admin-text-muted)">
 						<div
 							class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
 						></div>
@@ -201,7 +201,9 @@
 							<div
 								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
 							>
-								<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">
+								<div
+									class="text-[10px] font-semibold text-(--admin-text-muted) uppercase tracking-wider"
+								>
 									{widget_perf_errors()}
 								</div>
 								<div class="text-xl font-bold tabular-nums {getErrorColor(errorRate)} mt-0.5">
@@ -211,7 +213,9 @@
 							<div
 								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
 							>
-								<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">
+								<div
+									class="text-[10px] font-semibold text-(--admin-text-muted) uppercase tracking-wider"
+								>
 									{widget_perf_cache()}
 								</div>
 								<div class="text-xl font-bold tabular-nums text-tertiary-500 mt-0.5">
@@ -221,7 +225,9 @@
 							<div
 								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
 							>
-								<div class="text-[10px] font-semibold text-surface-500 uppercase tracking-wider">
+								<div
+									class="text-[10px] font-semibold text-(--admin-text-muted) uppercase tracking-wider"
+								>
 									{widget_perf_sessions()}
 								</div>
 								<div class="text-xl font-bold tabular-nums text-violet-500 mt-0.5">
@@ -236,13 +242,13 @@
 								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800 flex justify-between items-end"
 							>
 								<div>
-									<div class="text-xs font-semibold text-surface-500 mb-1">
+									<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
 										{widget_perf_error_rate()}
 									</div>
 									<div class="text-3xl font-bold tabular-nums {getErrorColor(errorRate)}">
 										{errorRate.toFixed(1)}%
 									</div>
-									<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+									<div class="text-[10px] text-(--admin-text-muted) mt-1">
 										{widget_perf_last_10k()}
 									</div>
 								</div>
@@ -270,13 +276,13 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
 							>
-								<div class="text-xs font-semibold text-surface-500 mb-1">
+								<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
 									{widget_perf_cache_hit_rate()}
 								</div>
 								<div class="text-3xl font-bold tabular-nums text-tertiary-500">
 									{cacheHitRate.toFixed(1)}%
 								</div>
-								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+								<div class="text-[10px] text-(--admin-text-muted) mt-1">
 									{widget_perf_efficiency()}
 								</div>
 							</div>
@@ -284,13 +290,13 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
 							>
-								<div class="text-xs font-semibold text-surface-500 mb-1">
+								<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
 									{widget_perf_auth_success()}
 								</div>
 								<div class="text-3xl font-bold tabular-nums text-success-500">
 									{authSuccessRate.toFixed(1)}%
 								</div>
-								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+								<div class="text-[10px] text-(--admin-text-muted) mt-1">
 									{widget_perf_user_auths()}
 								</div>
 							</div>
@@ -298,13 +304,13 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
 							>
-								<div class="text-xs font-semibold text-surface-500 mb-1">
+								<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
 									{widget_perf_active_sessions()}
 								</div>
 								<div class="text-3xl font-bold tabular-nums text-violet-500">
 									{metrics.sessions?.active ?? 0}
 								</div>
-								<div class="text-[10px] text-surface-400 dark:text-surface-500 mt-1">
+								<div class="text-[10px] text-(--admin-text-muted) mt-1">
 									{widget_perf_active_logins()}
 								</div>
 							</div>
@@ -314,13 +320,15 @@
 						<div class="flex-1 grid grid-cols-1 gap-4 text-sm">
 							<!-- Requests -->
 							<div class="space-y-2">
-								<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">
+								<h4
+									class="text-xs font-semibold text-(--admin-text-muted) uppercase tracking-wider px-1"
+								>
 									{widget_perf_requests()}
 								</h4>
 								<div
 									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800"
 								>
-									<span class="text-surface-600 dark:text-surface-400">{widget_perf_total()}</span>
+									<span class="text-(--admin-text-muted)">{widget_perf_total()}</span>
 									<span
 										class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100"
 										>{formatNumber(metrics.requests.total)}</span
@@ -329,7 +337,7 @@
 								<div
 									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800"
 								>
-									<span class="text-surface-600 dark:text-surface-400">{widget_perf_errors()}</span>
+									<span class="text-(--admin-text-muted)">{widget_perf_errors()}</span>
 									<span class="font-mono font-semibold tabular-nums text-error-500"
 										>{metrics.requests.errors}</span
 									>
@@ -339,27 +347,25 @@
 							<!-- System Info -->
 							{#if metrics.system}
 								<div class="space-y-2">
-									<h4 class="text-xs font-semibold text-surface-500 uppercase tracking-wider px-1">
+									<h4
+										class="text-xs font-semibold text-(--admin-text-muted) uppercase tracking-wider px-1"
+									>
 										{widget_perf_system()}
 									</h4>
 									<div
 										class="rounded bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800"
 									>
 										<div class="flex justify-between">
-											<span class="text-surface-600 dark:text-surface-400"
-												>{widget_perf_memory_used()}</span
-											>
+											<span class="text-(--admin-text-muted)">{widget_perf_memory_used()}</span>
 											<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums">
 												{formatMemory(metrics.system.memory.used)}
-												<span class="text-xs text-surface-500"
+												<span class="text-xs text-(--admin-text-muted)"
 													>/ {formatMemory(metrics.system.memory.total)}</span
 												>
 											</span>
 										</div>
 										<div class="flex justify-between">
-											<span class="text-surface-600 dark:text-surface-400"
-												>{widget_perf_uptime()}</span
-											>
+											<span class="text-(--admin-text-muted)">{widget_perf_uptime()}</span>
 											<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums"
 												>{formatUptime(metrics.system.uptime)}</span
 											>
@@ -368,9 +374,7 @@
 											<div
 												class="flex justify-between border-t border-gray-200 dark:border-gray-700/60 pt-2.5 mt-1"
 											>
-												<span class="text-surface-600 dark:text-surface-400"
-													>{widget_perf_node()}</span
-												>
+												<span class="text-(--admin-text-muted)">{widget_perf_node()}</span>
 												<span class="font-mono text-xs text-gray-700 dark:text-gray-300"
 													>{metrics.system.nodeVersion}</span
 												>
@@ -384,7 +388,7 @@
 						<!-- Last Reset timestamp row -->
 						{#if metrics.lastReset}
 							<div
-								class="flex justify-between items-center text-[10px] text-surface-400 dark:text-surface-500 pt-2 border-t border-gray-150 dark:border-gray-850 px-1"
+								class="flex justify-between items-center text-[10px] text-(--admin-text-muted) pt-2 border-t border-gray-150 dark:border-gray-850 px-1"
 							>
 								<span>{widget_perf_tracked_since()}</span>
 								<span class="font-mono font-medium"

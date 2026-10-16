@@ -794,7 +794,9 @@
 										{/if}
 									</Button>
 								{:else}
-									<div class="px-4 py-2 text-sm text-gray-500">{dashboard_no_widgets()}</div>
+									<div class="px-4 py-2 text-sm text-(--admin-text-muted)">
+										{dashboard_no_widgets()}
+									</div>
 								{/each}
 							</div>
 						</div>
@@ -812,7 +814,7 @@
 			<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
 				{#if hotCollectionLinks.length > 0}
 					<div class="w-full px-1 pb-1" data-testid="dashboard-hot-collections">
-						<span class="text-[10px] font-bold uppercase tracking-wider text-surface-500"
+						<span class="text-[10px] font-bold uppercase tracking-wider text-(--admin-text-muted)"
 							>{button_Collections()}</span
 						>
 						<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -820,7 +822,7 @@
 								<a
 									href={link.href}
 									data-preload="hover"
-									class="inline-flex items-center gap-1.5 rounded-full border border-surface-500/30 bg-surface-500/10 px-3 py-1 text-xs font-semibold text-surface-600 no-underline transition-colors hover:border-tertiary-500/40 hover:text-tertiary-500 focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:border-surface-500/40 dark:text-surface-400 dark:hover:border-primary-500/40 dark:hover:text-primary-500"
+									class="inline-flex items-center gap-1.5 rounded-full border border-surface-500/30 bg-surface-500/10 px-3 py-1 text-xs font-semibold text-(--admin-text-muted) no-underline transition-colors hover:border-tertiary-500/40 hover:text-tertiary-500 focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:border-surface-500/40 dark:text-(--admin-text-muted) dark:hover:border-primary-500/40 dark:hover:text-primary-500"
 								>
 									<span class="truncate">{link.label}</span>
 								</a>
@@ -841,7 +843,7 @@
 						<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">
 							{dashboard_ai_generating_title()}
 						</p>
-						<p class="text-sm text-surface-500">{dashboard_ai_connecting()}</p>
+						<p class="text-sm text-(--admin-text-muted)">{dashboard_ai_connecting()}</p>
 					</AdminCard>
 				{:else if aiDashboardSpec && GenerativeDashboardComp}
 					<GenerativeDashboardComp spec={aiDashboardSpec} />
@@ -950,7 +952,7 @@
 							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">
 								{dashboard_empty_title()}
 							</p>
-							<p class="mb-6 text-base text-surface-600 dark:text-surface-400">
+							<p class="mb-6 text-base text-(--admin-text-muted)">
 								{dashboard_empty_desc()}
 							</p>
 							<Button

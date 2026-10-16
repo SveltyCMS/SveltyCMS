@@ -257,13 +257,13 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 		<div class="relative flex h-full flex-col justify-between overflow-hidden p-1">
 			<!-- Header action bar: Configure -->
 			<div class="flex items-center justify-between pb-1">
-				<span class="text-xs font-medium text-surface-500 uppercase tracking-wider">
+				<span class="text-xs font-medium text-(--admin-text-muted) uppercase tracking-wider">
 					{metricData?.periodLabel || selectedPeriod || 'All Time'}
 				</span>
 				<Button
 					variant="ghost"
 					size="sm"
-					class="p-1! h-auto min-w-0 text-surface-500 hover:text-surface-600 dark:hover:text-surface-400"
+					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
 					onclick={openSettings}
 					aria-label="Configure Metric"
 					title="Configure Metric"
@@ -278,11 +278,9 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 					<iconify-icon
 						icon="mdi:chart-timeline-variant-shimmer"
 						width={32}
-						class="mb-2 text-surface-400"
+						class="mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
-						No collection linked
-					</p>
+					<p class="text-sm font-medium text-(--admin-text-muted)">No collection linked</p>
 					<Button variant="outline" size="sm" class="mt-2 text-xs" onclick={openSettings}>
 						Configure Metric
 					</Button>
@@ -292,15 +290,13 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<div class="flex flex-col gap-1">
 					<div class="flex items-baseline gap-1">
 						{#if customPrefix}
-							<span class="text-lg font-semibold text-surface-500">{customPrefix}</span>
+							<span class="text-lg font-semibold text-(--admin-text-muted)">{customPrefix}</span>
 						{/if}
-						<span
-							class="font-display text-3xl font-bold tracking-tight text-surface-900 dark:text-surface-50"
-						>
+						<span class="font-display text-3xl font-bold tracking-tight text-(--admin-text-body)">
 							{formatDisplayValue(metricData.value ?? 0)}
 						</span>
 						{#if customSuffix}
-							<span class="text-sm font-medium text-surface-500">{customSuffix}</span>
+							<span class="text-sm font-medium text-(--admin-text-muted)">{customSuffix}</span>
 						{/if}
 					</div>
 
@@ -323,12 +319,12 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 								</span>
 							{:else}
 								<span
-									class="inline-flex items-center rounded px-1.5 py-0.5 text-surface-500 bg-surface-500/10"
+									class="inline-flex items-center rounded px-1.5 py-0.5 text-(--admin-text-muted) bg-surface-500/10"
 								>
 									0%
 								</span>
 							{/if}
-							<span class="text-surface-400 dark:text-surface-500">vs prev period</span>
+							<span class="text-(--admin-text-muted)">vs prev period</span>
 						</div>
 					{/if}
 				</div>
@@ -336,7 +332,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<!-- Goal Progress (if goal is set) -->
 				{#if metricData.goal && metricData.pctGoal !== undefined}
 					<div class="mt-2 flex flex-col gap-1">
-						<div class="flex justify-between text-xs text-surface-500">
+						<div class="flex justify-between text-xs text-(--admin-text-muted)">
 							<span>Goal: {formatDisplayValue(metricData.goal)}</span>
 							<span class="font-medium {accentTheme.text}">{metricData.pctGoal}%</span>
 						</div>
@@ -399,12 +395,12 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 							language: contentLanguage.value,
 							collection: selectedCollection || savedSettings.collectionId
 						})}
-						class="inline-flex items-center gap-1 font-medium text-surface-500 hover:{accentTheme.text} transition-colors"
+						class="inline-flex items-center gap-1 font-medium text-(--admin-text-muted) hover:{accentTheme.text} transition-colors"
 					>
 						<span>View collection</span>
 						<iconify-icon icon="mdi:arrow-right" width={12}></iconify-icon>
 					</a>
-					<span class="text-surface-400">Live</span>
+					<span class="text-(--admin-text-muted)">Live</span>
 				</div>
 			{/if}
 		</div>
@@ -423,7 +419,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 			<div>
 				<label
 					for="metric-title-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Widget Title
 				</label>
@@ -438,14 +434,14 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 			<div>
 				<label
 					for="metric-collection-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Collection
 				</label>
 				<select
 					id="metric-collection-{widgetId}"
 					bind:value={selectedCollection}
-					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 				>
 					{#if sources.length === 0}
 						<option value="">Loading collections...</option>
@@ -462,14 +458,14 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<div>
 					<label
 						for="metric-measure-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Measure
 					</label>
 					<select
 						id="metric-measure-{widgetId}"
 						bind:value={selectedMeasure}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="count">Count Records</option>
 						<option value="sum">Sum</option>
@@ -483,14 +479,14 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 					<div>
 						<label
 							for="metric-field-{widgetId}"
-							class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 						>
 							Number Field
 						</label>
 						<select
 							id="metric-field-{widgetId}"
 							bind:value={selectedField}
-							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 						>
 							{#if activeSource && activeSource.numberFields.length > 0}
 								{#each activeSource.numberFields as f (f.name)}
@@ -509,14 +505,14 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<div>
 					<label
 						for="metric-period-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Time Period
 					</label>
 					<select
 						id="metric-period-{widgetId}"
 						bind:value={selectedPeriod}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="all">All Time</option>
 						<option value="today">Today</option>
@@ -531,14 +527,14 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<div>
 					<label
 						for="metric-compare-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Comparison
 					</label>
 					<select
 						id="metric-compare-{widgetId}"
 						bind:value={compareMode}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="previous">Previous Period (%)</option>
 						<option value="none">None</option>
@@ -551,7 +547,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<div>
 					<label
 						for="metric-goal-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Goal Target
 					</label>
@@ -565,7 +561,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<div>
 					<label
 						for="metric-prefix-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Prefix
 					</label>
@@ -574,7 +570,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<div>
 					<label
 						for="metric-suffix-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Suffix
 					</label>
@@ -584,7 +580,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 
 			<!-- Color Accent -->
 			<div>
-				<span class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400">
+				<span class="mb-1 block text-xs font-semibold text-(--admin-text-muted)">
 					Accent Color
 				</span>
 				<div class="flex gap-2">

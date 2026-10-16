@@ -82,7 +82,7 @@ This component acts as an intercept layer. It either renders a fully dynamic JSO
 					</div>
 					<div>
 						<h3 class="font-bold text-lg leading-tight">{widget_generative_title()}</h3>
-						<p class="text-xs text-surface-500 flex items-center gap-1">
+						<p class="text-xs text-(--admin-text-muted) flex items-center gap-1">
 							<span class="inline-block w-2 h-2 rounded-full bg-success-500 animate-pulse"></span>
 							{widget_generative_connected()}
 						</p>

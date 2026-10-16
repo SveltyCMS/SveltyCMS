@@ -131,7 +131,7 @@
 			poor: 'text-warning-500',
 			critical: 'text-error-500'
 		};
-		return m[h] || 'text-surface-500';
+		return m[h] || 'text-(--admin-text-muted)';
 	}
 
 	function metricCls(v: number, lo: number, hi: number): string {
@@ -183,7 +183,7 @@
 
 		{#if !m}
 			<div class="flex h-full items-center justify-center">
-				<div class="flex flex-col items-center gap-3 text-surface-400">
+				<div class="flex flex-col items-center gap-3 text-(--admin-text-muted)">
 					<div
 						class="h-7 w-7 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
 					></div>
@@ -201,12 +201,14 @@
 						></iconify-icon>
 						<span class="text-xs font-semibold capitalize {healthCls(health)}">{health}</span>
 					</div>
-					<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+					<div class="h-5 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 					<div class="flex flex-1 items-center gap-2 overflow-x-auto scrollbar-none">
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">{widget_unified_resp()}</span>
+							<span class="text-[10px] font-medium text-(--admin-text-muted)"
+								>{widget_unified_resp()}</span
+							>
 							<span
 								class="text-xs font-bold tabular-nums {metricCls(
 									m.requests.avgResponseTime,
@@ -218,7 +220,8 @@
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">{widget_unified_errors()}</span
+							<span class="text-[10px] font-medium text-(--admin-text-muted)"
+								>{widget_unified_errors()}</span
 							>
 							<span class="text-xs font-bold tabular-nums {metricCls(m.requests.errorRate, 1, 3)}"
 								>{m.requests.errorRate.toFixed(1)}%</span
@@ -227,7 +230,9 @@
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">{widget_unified_auth()}</span>
+							<span class="text-[10px] font-medium text-(--admin-text-muted)"
+								>{widget_unified_auth()}</span
+							>
 							<span
 								class="text-xs font-bold tabular-nums {m.authentication.successRate > 95
 									? 'text-success-500'
@@ -237,7 +242,9 @@
 						<div
 							class="flex shrink-0 items-center gap-1 rounded bg-surface-500/10 px-2 py-1 dark:bg-surface-800"
 						>
-							<span class="text-[10px] font-medium text-surface-500">{widget_unified_cache()}</span>
+							<span class="text-[10px] font-medium text-(--admin-text-muted)"
+								>{widget_unified_cache()}</span
+							>
 							<span class="text-xs font-bold tabular-nums text-tertiary-500"
 								>{avgCache.toFixed(0)}%</span
 							>
@@ -252,18 +259,22 @@
 							></iconify-icon>
 							<div>
 								<div class="text-xl font-semibold capitalize {healthCls(health)}">{health}</div>
-								<div class="text-xs text-surface-500">{widget_unified_system_health()}</div>
+								<div class="text-xs text-(--admin-text-muted)">
+									{widget_unified_system_health()}
+								</div>
 							</div>
 						</div>
 						<div class="text-end">
-							<div class="text-xs text-surface-500">{widget_unified_uptime()}</div>
+							<div class="text-xs text-(--admin-text-muted)">{widget_unified_uptime()}</div>
 							<div class="font-mono text-sm tabular-nums">{fmtUptime(m.uptime)}</div>
 						</div>
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">{widget_unified_avg_response()}</div>
+							<div class="text-[11px] text-(--admin-text-muted)">
+								{widget_unified_avg_response()}
+							</div>
 							<div class="mt-1 flex items-end justify-between">
 								<span
 									class="text-2xl font-semibold tabular-nums {metricCls(
@@ -277,7 +288,7 @@
 							</div>
 						</div>
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">{widget_unified_error_rate()}</div>
+							<div class="text-[11px] text-(--admin-text-muted)">{widget_unified_error_rate()}</div>
 							<div class="mt-1">
 								<span
 									class="text-2xl font-semibold tabular-nums {metricCls(
@@ -287,12 +298,14 @@
 									)}">{m.requests.errorRate.toFixed(1)}%</span
 								>
 							</div>
-							<div class="mt-1 text-[10px] text-surface-400">
+							<div class="mt-1 text-[10px] text-(--admin-text-muted)">
 								{widget_unified_reqs_ratio({ errors: m.requests.errors, total: m.requests.total })}
 							</div>
 						</div>
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">{widget_unified_auth_success()}</div>
+							<div class="text-[11px] text-(--admin-text-muted)">
+								{widget_unified_auth_success()}
+							</div>
 							<div class="mt-1">
 								<span
 									class="text-2xl font-semibold tabular-nums {m.authentication.successRate > 95
@@ -300,7 +313,7 @@
 										: 'text-warning-500'}">{m.authentication.successRate.toFixed(1)}%</span
 								>
 							</div>
-							<div class="mt-1 text-[10px] text-surface-400">
+							<div class="mt-1 text-[10px] text-(--admin-text-muted)">
 								{widget_unified_auth_ratio({
 									ok: m.authentication.validations,
 									fail: m.authentication.failures
@@ -308,7 +321,9 @@
 							</div>
 						</div>
 						<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
-							<div class="text-[11px] text-surface-500">{widget_unified_cache_hit_rate()}</div>
+							<div class="text-[11px] text-(--admin-text-muted)">
+								{widget_unified_cache_hit_rate()}
+							</div>
 							<div class="mt-1">
 								<span class="text-2xl font-semibold tabular-nums text-tertiary-500"
 									>{avgCache.toFixed(1)}%</span
@@ -321,7 +336,7 @@
 						<div class="space-y-4 flex-1 overflow-y-auto pe-0.5 custom-scroll">
 							<div>
 								<h5
-									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
+									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 								>
 									{widget_unified_requests()}
 								</h5>
@@ -330,25 +345,29 @@
 										<div class="font-mono text-sm font-semibold tabular-nums">
 											{formatNumber(m.requests.total)}
 										</div>
-										<div class="text-[10px] text-surface-500">{widget_unified_total()}</div>
+										<div class="text-[10px] text-(--admin-text-muted)">
+											{widget_unified_total()}
+										</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-error-500">
 											{m.requests.errors}
 										</div>
-										<div class="text-[10px] text-surface-500">{widget_unified_errors()}</div>
+										<div class="text-[10px] text-(--admin-text-muted)">
+											{widget_unified_errors()}
+										</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-warning-500">
 											{m.performance.slowRequests}
 										</div>
-										<div class="text-[10px] text-surface-500">{widget_unified_slow()}</div>
+										<div class="text-[10px] text-(--admin-text-muted)">{widget_unified_slow()}</div>
 									</div>
 								</div>
 							</div>
 							<div>
 								<h5
-									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
+									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 								>
 									{widget_unified_security()}
 								</h5>
@@ -357,31 +376,36 @@
 										<div class="font-mono text-sm font-semibold tabular-nums text-warning-500">
 											{m.security.rateLimitViolations}
 										</div>
-										<div class="text-[10px] text-surface-500">{widget_unified_rate_limits()}</div>
+										<div class="text-[10px] text-(--admin-text-muted)">
+											{widget_unified_rate_limits()}
+										</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-purple-500">
 											{m.security.cspViolations}
 										</div>
-										<div class="text-[10px] text-surface-500">{widget_unified_csp()}</div>
+										<div class="text-[10px] text-(--admin-text-muted)">{widget_unified_csp()}</div>
 									</div>
 									<div class="rounded bg-surface-500/10 p-2 dark:bg-surface-800">
 										<div class="font-mono text-sm font-semibold tabular-nums text-error-500">
 											{m.security.authFailures}
 										</div>
-										<div class="text-[10px] text-surface-500">{widget_unified_auth_fails()}</div>
+										<div class="text-[10px] text-(--admin-text-muted)">
+											{widget_unified_auth_fails()}
+										</div>
 									</div>
 								</div>
 							</div>
 							<div>
 								<h5
-									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
+									class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 								>
 									{widget_unified_performance()}
 								</h5>
 								<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-800">
 									<div class="flex items-center justify-between">
-										<span class="text-xs text-surface-500">{widget_unified_avg_hook_time()}</span
+										<span class="text-xs text-(--admin-text-muted)"
+											>{widget_unified_avg_hook_time()}</span
 										><span class="font-mono text-sm font-semibold tabular-nums"
 											>{fmtMs(m.performance.avgHookExecutionTime)}</span
 										>
@@ -391,7 +415,7 @@
 							{#if m.performance.bottlenecks?.length > 0}
 								<div>
 									<h5
-										class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-surface-400"
+										class="mb-2 text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 									>
 										{widget_unified_bottlenecks()}
 									</h5>

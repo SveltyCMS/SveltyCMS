@@ -72,7 +72,7 @@
 			case 'critical':
 				return 'bg-error-500/10 text-error-600 dark:bg-error-900/20 dark:text-error-400';
 			default:
-				return 'bg-surface-500/10 text-surface-600 dark:bg-surface-700/50 dark:text-surface-400';
+				return 'bg-surface-500/10 text-(--admin-text-muted) dark:bg-surface-700/50 dark:text-(--admin-text-muted)';
 		}
 	}
 
@@ -115,7 +115,7 @@
 
 		{#if !diagnostics}
 			<div class="flex h-full items-center justify-center">
-				<div class="text-surface-400">{widget_dbpool_loading()}</div>
+				<div class="text-(--admin-text-muted)">{widget_dbpool_loading()}</div>
 			</div>
 		{:else}
 			<!-- Health Status Badge -->
@@ -134,43 +134,43 @@
 			<div class="mb-6 grid grid-cols-2 gap-4">
 				<!-- Total Connections -->
 				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">
+					<div class="mb-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 						{widget_dbpool_total()}
 					</div>
-					<div class="text-2xl font-bold text-surface-900 dark:text-white">
+					<div class="text-2xl font-bold text-(--admin-text-body) dark:text-white">
 						{diagnostics.totalConnections}
 					</div>
 				</div>
 
 				<!-- Active Connections -->
 				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">
+					<div class="mb-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 						{widget_dbpool_active()}
 					</div>
-					<div class="text-2xl font-bold text-surface-900 dark:text-white">
+					<div class="text-2xl font-bold text-(--admin-text-body) dark:text-white">
 						{diagnostics.activeConnections}
 					</div>
 				</div>
 
 				<!-- Idle Connections -->
 				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">
+					<div class="mb-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 						{widget_dbpool_idle()}
 					</div>
-					<div class="text-2xl font-bold text-surface-900 dark:text-white">
+					<div class="text-2xl font-bold text-(--admin-text-body) dark:text-white">
 						{diagnostics.idleConnections}
 					</div>
 				</div>
 
 				<!-- Waiting Requests -->
 				<div class="rounded bg-surface-500/10 p-3 dark:bg-surface-700/50">
-					<div class="mb-1 text-xs text-surface-500 dark:text-surface-50">
+					<div class="mb-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 						{widget_dbpool_waiting()}
 					</div>
 					<div
 						class="text-2xl font-bold {diagnostics.waitingRequests > 0
 							? 'text-warning-600'
-							: 'text-surface-900 dark:text-white'}"
+							: 'text-(--admin-text-body) dark:text-white'}"
 					>
 						{diagnostics.waitingRequests}
 					</div>
@@ -180,14 +180,14 @@
 			<!-- Utilization Bar -->
 			<div class="mb-6">
 				<div class="mb-2 flex items-center justify-between">
-					<span class="text-sm font-medium text-surface-600 dark:text-surface-400"
+					<span class="text-sm font-medium text-(--admin-text-muted)"
 						>{widget_dbpool_utilization()}</span
 					>
 					<span class="text-sm font-semibold {getUtilizationColor(diagnostics.poolUtilization)}">
 						{diagnostics.poolUtilization.toFixed(1)}%
 					</span>
 				</div>
-				<div class="h-3 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700">
+				<div class="h-3 w-full overflow-hidden rounded-full bg-(--admin-bg-chip)">
 					<div
 						class="h-full rounded-full transition-all duration-500 {getUtilizationBarColor(
 							diagnostics.poolUtilization
@@ -200,12 +200,14 @@
 			<!-- Recommendations -->
 			{#if diagnostics.recommendations && diagnostics.recommendations.length > 0}
 				<div class="border-t border-surface-500/30 pt-4 dark:text-surface-50">
-					<h4 class="mb-2 text-sm font-semibold text-surface-600 dark:text-surface-400">
+					<h4 class="mb-2 text-sm font-semibold text-(--admin-text-muted)">
 						{widget_dbpool_recommendations()}
 					</h4>
 					<ul class="space-y-2">
 						{#each diagnostics.recommendations as recommendation (recommendation)}
-							<li class="flex items-start gap-2 text-sm text-surface-600 dark:text-surface-50">
+							<li
+								class="flex items-start gap-2 text-sm text-(--admin-text-muted) dark:text-surface-50"
+							>
 								<svg
 									class="mt-0.5 h-4 w-4 shrink-0 {getRecommendationIconColor(recommendation)}"
 									fill="none"

@@ -103,7 +103,7 @@
 		if (a.includes('update') || a.includes('edit'))
 			return 'text-tertiary-600 dark:text-primary-400';
 		if (a.includes('login') || a.includes('auth')) return 'text-primary-600 dark:text-primary-400';
-		return 'text-surface-600 dark:text-surface-400';
+		return 'text-(--admin-text-muted)';
 	}
 
 	function actorName(email?: string): string {
@@ -139,16 +139,18 @@
 			<!-- ===== Empty ===== -->
 			<div class="flex h-full flex-col items-center justify-center text-center">
 				<iconify-icon icon="mdi:history" class="text-4xl opacity-20 mb-3"></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">{widget_audit_no_activity()}</div>
-				<div class="text-xs text-surface-400 mt-1">{widget_audit_events_appear()}</div>
+				<div class="text-sm font-medium text-(--admin-text-muted)">
+					{widget_audit_no_activity()}
+				</div>
+				<div class="text-xs text-(--admin-text-muted) mt-1">{widget_audit_events_appear()}</div>
 			</div>
 		{:else if isCompact}
 			<!-- ===== Compact (h:1) ===== -->
 			<div class="flex h-full items-center gap-2 overflow-hidden">
-				<span class="shrink-0 text-xs font-semibold text-surface-500"
+				<span class="shrink-0 text-xs font-semibold text-(--admin-text-muted)"
 					>{widget_audit_events_count({ count: logs.length })}</span
 				>
-				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+				<div class="h-5 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each logs.slice(0, 8) as log (log._id || log.timestamp)}
 						<a
@@ -162,9 +164,7 @@
 								icon={actionIcon(log.action)}
 								class="text-sm {actionColor(log.action, log.result)}"
 							></iconify-icon>
-							<span
-								class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400"
-							>
+							<span class="max-w-15 truncate text-[11px] font-medium text-(--admin-text-muted)">
 								{log.action || log.eventType}
 							</span>
 						</a>
@@ -197,19 +197,17 @@
 							<div class="min-w-0 flex-1">
 								<div class="flex items-baseline justify-between gap-2">
 									<span
-										class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
+										class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
 									>
 										{log.action || log.eventType || widget_audit_system_event()}
 									</span>
-									<span
-										class="shrink-0 text-[11px] tabular-nums text-surface-400 dark:text-surface-500"
-									>
+									<span class="shrink-0 text-[11px] tabular-nums text-(--admin-text-muted)">
 										{formatTime(log.timestamp)}
 									</span>
 								</div>
 
 								<div class="mt-1 flex items-center gap-2">
-									<span class="text-xs text-surface-500">
+									<span class="text-xs text-(--admin-text-muted)">
 										{actorName(log.actorEmail || log.userEmail)}
 									</span>
 									{#if log.result}
@@ -222,7 +220,7 @@
 										</span>
 									{/if}
 									{#if log.message}
-										<span class="truncate text-[10px] text-surface-400 dark:text-surface-500">
+										<span class="truncate text-[10px] text-(--admin-text-muted)">
 											{log.message}
 										</span>
 									{/if}

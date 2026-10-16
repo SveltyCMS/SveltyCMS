@@ -208,9 +208,12 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 			case 'scheduled':
 				return { label: 'Scheduled', cls: 'text-tertiary-500 bg-tertiary-500/10' };
 			case 'archived':
-				return { label: 'Archived', cls: 'text-surface-500 bg-surface-500/10' };
+				return { label: 'Archived', cls: 'text-(--admin-text-muted) bg-surface-500/10' };
 			default:
-				return { label: value ? String(status) : '—', cls: 'text-surface-500 bg-surface-500/10' };
+				return {
+					label: value ? String(status) : '—',
+					cls: 'text-(--admin-text-muted) bg-surface-500/10'
+				};
 		}
 	}
 </script>
@@ -230,13 +233,15 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 		<div class="relative flex h-full flex-col overflow-hidden p-1">
 			<!-- Header action bar: Configure -->
 			<div class="flex items-center justify-between pb-1">
-				<span class="truncate text-xs font-medium text-surface-500 uppercase tracking-wider">
+				<span
+					class="truncate text-xs font-medium text-(--admin-text-muted) uppercase tracking-wider"
+				>
 					{activeSource?.label || activeSource?.name || selectedCollection || 'Collection'}
 				</span>
 				<Button
 					variant="ghost"
 					size="sm"
-					class="p-1! h-auto min-w-0 text-surface-500 hover:text-surface-600 dark:hover:text-surface-400"
+					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
 					onclick={openSettings}
 					aria-label="Configure Collection List"
 					title="Configure Collection List"
@@ -248,11 +253,12 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 			{#if !selectedCollection && !savedSettings.collectionId}
 				<!-- Unconfigured state -->
 				<div class="flex flex-1 flex-col items-center justify-center p-3 text-center">
-					<iconify-icon icon="mdi:format-list-bulleted" width={32} class="mb-2 text-surface-400"
+					<iconify-icon
+						icon="mdi:format-list-bulleted"
+						width={32}
+						class="mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
-						No collection linked
-					</p>
+					<p class="text-sm font-medium text-(--admin-text-muted)">No collection linked</p>
 					<Button variant="outline" size="sm" class="mt-2 text-xs" onclick={openSettings}>
 						Configure Feed
 					</Button>
@@ -276,12 +282,12 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 							>
 								<div class="min-w-0 flex-1">
 									<div
-										class="truncate text-sm font-medium text-surface-900 group-hover:text-primary-500 dark:text-surface-50"
+										class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-primary-500 dark:text-surface-50"
 									>
 										{itemTitle(item)}
 									</div>
 									{#if date}
-										<div class="mt-0.5 text-xs tabular-nums text-surface-500">
+										<div class="mt-0.5 text-xs tabular-nums text-(--admin-text-muted)">
 											{formatRelativeDate(date)}
 										</div>
 									{/if}
@@ -292,7 +298,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 								<iconify-icon
 									icon="mdi:chevron-right"
 									width={13}
-									class="shrink-0 text-surface-400 rtl:scale-x-[-1]"
+									class="shrink-0 text-(--admin-text-muted) rtl:scale-x-[-1]"
 								></iconify-icon>
 							</a>
 						</div>
@@ -304,7 +310,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 							language: contentLanguage.value,
 							collection: selectedCollection || savedSettings.collectionId
 						})}
-						class="inline-flex items-center gap-1 text-xs font-medium text-surface-500 transition-colors hover:text-primary-500"
+						class="inline-flex items-center gap-1 text-xs font-medium text-(--admin-text-muted) transition-colors hover:text-primary-500"
 					>
 						<span>View collection</span>
 						<iconify-icon icon="mdi:arrow-right" width={12}></iconify-icon>
@@ -313,10 +319,10 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 			{:else if listData}
 				<!-- Empty state -->
 				<div class="flex flex-1 flex-col items-center justify-center p-3 text-center" role="status">
-					<iconify-icon icon="mdi:inbox-outline" width={28} class="mb-1.5 text-surface-400"
+					<iconify-icon icon="mdi:inbox-outline" width={28} class="mb-1.5 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-xs font-medium text-surface-600 dark:text-surface-400">No entries found</p>
-					<p class="mt-0.5 text-[10px] text-surface-400">They appear here once created</p>
+					<p class="text-xs font-medium text-(--admin-text-muted)">No entries found</p>
+					<p class="mt-0.5 text-[10px] text-(--admin-text-muted)">They appear here once created</p>
 				</div>
 			{/if}
 		</div>
@@ -335,7 +341,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 			<div>
 				<label
 					for="list-title-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Widget Title
 				</label>
@@ -350,14 +356,14 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 			<div>
 				<label
 					for="list-collection-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Collection
 				</label>
 				<select
 					id="list-collection-{widgetId}"
 					bind:value={selectedCollection}
-					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 				>
 					{#if sources.length === 0}
 						<option value="">Loading collections...</option>
@@ -374,14 +380,14 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 				<div>
 					<label
 						for="list-sort-field-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Sort Field
 					</label>
 					<select
 						id="list-sort-field-{widgetId}"
 						bind:value={sortField}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						{#each sortFieldOptions as option (option.value)}
 							<option value={option.value}>{option.label}</option>
@@ -392,14 +398,14 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 				<div>
 					<label
 						for="list-sort-direction-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Direction
 					</label>
 					<select
 						id="list-sort-direction-{widgetId}"
 						bind:value={sortDirection}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="desc">Newest first</option>
 						<option value="asc">Oldest first</option>
@@ -411,14 +417,14 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 			<div>
 				<label
 					for="list-limit-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Items to display
 				</label>
 				<select
 					id="list-limit-{widgetId}"
 					bind:value={itemLimit}
-					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 				>
 					<option value={3}>3</option>
 					<option value={5}>5</option>

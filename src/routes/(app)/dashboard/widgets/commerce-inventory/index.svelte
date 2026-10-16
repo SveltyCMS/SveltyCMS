@@ -120,29 +120,29 @@
 		{#snippet children({ data })}
 			{@const payload = data as InventoryPayload | null}
 			{#if !payload}
-				<div class="flex h-full items-center justify-center text-xs text-surface-500">
+				<div class="flex h-full items-center justify-center text-xs text-(--admin-text-muted)">
 					{widget_commerce_inventory_loading()}
 				</div>
 			{:else if !payload.available}
 				<div class="flex h-full flex-col items-center justify-center px-3 text-center">
 					<iconify-icon
 						icon="mdi:package-variant-closed-remove"
-						class="mb-2 text-3xl text-surface-400"
+						class="mb-2 text-3xl text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">
+					<p class="text-xs font-semibold text-(--admin-text-muted)">
 						{widget_commerce_inventory_no_collection()}
 					</p>
-					<p class="mt-1 text-[11px] text-surface-500">
+					<p class="mt-1 text-[11px] text-(--admin-text-muted)">
 						{widget_commerce_inventory_enable_preset()}
 					</p>
 				</div>
 			{:else if isCompact}
 				<div class="flex h-full items-center gap-2 overflow-hidden px-1 text-xs">
 					<span class="font-bold tabular-nums text-error-500">{payload.outOfStock}</span>
-					<span class="text-surface-500">{widget_commerce_inventory_out_of_stock()}</span>
+					<span class="text-(--admin-text-muted)">{widget_commerce_inventory_out_of_stock()}</span>
 					<span class="text-surface-300">·</span>
 					<span class="font-bold tabular-nums">{payload.lowStock.length}</span>
-					<span class="text-surface-500">{widget_commerce_inventory_low()}</span>
+					<span class="text-(--admin-text-muted)">{widget_commerce_inventory_low()}</span>
 				</div>
 			{:else}
 				<div class="flex h-full min-h-0 flex-col gap-2">
@@ -151,7 +151,7 @@
 							{widget_commerce_inventory_trial_remaining({ count: trialDays })}
 						</p>
 					{/if}
-					<div class="flex gap-3 text-[11px] text-surface-600 dark:text-surface-400">
+					<div class="flex gap-3 text-[11px] text-(--admin-text-muted)">
 						<span
 							><strong class="tabular-nums">{payload.tracked}</strong>
 							{widget_commerce_inventory_tracked()}</span
@@ -170,10 +170,10 @@
 								class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800/60"
 							>
 								<div class="min-w-0">
-									<div class="truncate font-medium text-surface-600 dark:text-surface-100">
+									<div class="truncate font-medium text-(--admin-text-muted) dark:text-surface-100">
 										{row.title}
 									</div>
-									<div class="truncate font-mono text-[10px] text-surface-500">
+									<div class="truncate font-mono text-[10px] text-(--admin-text-muted)">
 										{row.sku || widget_commerce_inventory_no_sku()}
 									</div>
 								</div>
@@ -186,7 +186,7 @@
 								</div>
 							</li>
 						{:else}
-							<li class="py-4 text-center text-[11px] text-surface-500">
+							<li class="py-4 text-center text-[11px] text-(--admin-text-muted)">
 								{widget_commerce_inventory_healthy()}
 							</li>
 						{/each}

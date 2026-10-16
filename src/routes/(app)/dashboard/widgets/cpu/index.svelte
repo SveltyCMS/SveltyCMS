@@ -122,7 +122,8 @@
 							></div>
 							<span class="font-bold tabular-nums">{cpu.current.toFixed(1)}%</span>
 						</div>
-						<span class="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums"
+						<span
+							class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted) tabular-nums"
 							>{dashboard_cpu_avg()} {cpu.average.toFixed(1)}%</span
 						>
 					</div>
@@ -147,16 +148,20 @@
 								></div>
 							</div>
 							<span class="text-xl font-semibold tabular-nums">{cpu.current.toFixed(1)}%</span>
-							<span class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-								>{dashboard_cpu_now()}</span
+							<span
+								class="text-sm {theme === 'dark'
+									? 'text-(--admin-text-muted)'
+									: 'text-(--admin-text-muted)'}">{dashboard_cpu_now()}</span
 							>
 						</div>
 
 						<div class="text-end">
 							<div class="text-sm font-medium tabular-nums">
 								{cpu.average.toFixed(1)}%
-								<span class="text-xs {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}"
-									>{dashboard_cpu_avg()}</span
+								<span
+									class="text-xs {theme === 'dark'
+										? 'text-(--admin-text-muted)'
+										: 'text-(--admin-text-muted)'}">{dashboard_cpu_avg()}</span
 								>
 							</div>
 						</div>
@@ -277,8 +282,8 @@
 				{#if size.h !== 1 && (size.w >= 2 || size.h >= 2)}
 					<div
 						class="flex justify-between text-xs pt-1 {theme === 'dark'
-							? 'text-gray-400'
-							: 'text-gray-500'} border-t border-gray-100/50 dark:border-gray-800/50"
+							? 'text-(--admin-text-muted)'
+							: 'text-(--admin-text-muted)'} border-t border-gray-100/50 dark:border-gray-800/50"
 					>
 						<span
 							>{dashboard_cpu_cores()}
@@ -300,7 +305,11 @@
 					<div
 						class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
 					></div>
-					<p class="text-sm {theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}">
+					<p
+						class="text-sm {theme === 'dark'
+							? 'text-(--admin-text-muted)'
+							: 'text-(--admin-text-muted)'}"
+					>
 						{dashboard_cpu_fetching()}
 					</p>
 				</div>

@@ -274,12 +274,12 @@ Supports time-series binning and categorical distributions with live drill-down.
 			<!-- Header Action Bar -->
 			<div class="flex items-center justify-between pb-1">
 				<div class="flex items-center gap-2">
-					<span class="text-xs font-semibold text-surface-500 uppercase tracking-wider">
+					<span class="text-xs font-semibold text-(--admin-text-muted) uppercase tracking-wider">
 						{selectedPeriod.toUpperCase()}
 					</span>
 					{#if chartData?.total !== undefined}
-						<span class="text-xs text-surface-400">
-							Total: <strong class="text-surface-600 dark:text-surface-400"
+						<span class="text-xs text-(--admin-text-muted)">
+							Total: <strong class="text-(--admin-text-muted)"
 								>{formatDisplayValue(chartData.total)}</strong
 							>
 						</span>
@@ -288,7 +288,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 				<Button
 					variant="ghost"
 					size="sm"
-					class="p-1! h-auto min-w-0 text-surface-500 hover:text-surface-600 dark:hover:text-surface-400"
+					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
 					onclick={openSettings}
 					aria-label="Configure Chart"
 					title="Configure Chart"
@@ -300,11 +300,12 @@ Supports time-series binning and categorical distributions with live drill-down.
 			{#if !selectedCollection && !savedSettings.collectionId}
 				<!-- Unconfigured state -->
 				<div class="flex flex-1 flex-col items-center justify-center p-4 text-center">
-					<iconify-icon icon="mdi:chart-box-outline" width={36} class="mb-2 text-surface-400"
+					<iconify-icon
+						icon="mdi:chart-box-outline"
+						width={36}
+						class="mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
-						No collection linked
-					</p>
+					<p class="text-sm font-medium text-(--admin-text-muted)">No collection linked</p>
 					<Button variant="outline" size="sm" class="mt-2 text-xs" onclick={openSettings}>
 						Configure Chart
 					</Button>
@@ -312,9 +313,12 @@ Supports time-series binning and categorical distributions with live drill-down.
 			{:else if !chartData || !chartData.series || chartData.series.length === 0}
 				<!-- Empty state -->
 				<div class="flex flex-1 flex-col items-center justify-center p-4 text-center">
-					<iconify-icon icon="mdi:database-remove-outline" width={32} class="mb-2 text-surface-400"
+					<iconify-icon
+						icon="mdi:database-remove-outline"
+						width={32}
+						class="mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-xs text-surface-500">No data found for this period</p>
+					<p class="text-xs text-(--admin-text-muted)">No data found for this period</p>
 				</div>
 			{:else}
 				{@const series = chartData.series}
@@ -338,7 +342,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 									<!-- Hover tooltip -->
 									{#if isHovered}
 										<div
-											class="absolute bottom-full mb-1 z-30 whitespace-nowrap rounded bg-surface-900 px-2 py-0.5 text-xs text-white shadow-md dark:bg-surface-500/10 dark:text-surface-900 pointer-events-none"
+											class="absolute bottom-full mb-1 z-30 whitespace-nowrap rounded bg-surface-900 px-2 py-0.5 text-xs text-white shadow-md dark:bg-surface-500/10 dark:text-(--admin-text-body) pointer-events-none"
 										>
 											{item.label}: {formatDisplayValue(item.value)} ({item.pct}%)
 										</div>
@@ -354,7 +358,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 
 									<!-- X-axis label -->
 									<span
-										class="absolute -bottom-5 w-full truncate text-center text-[10px] text-surface-400 group-hover:text-surface-600 dark:group-hover:text-surface-400"
+										class="absolute -bottom-5 w-full truncate text-center text-[10px] text-(--admin-text-muted) group-hover:text-(--admin-text-muted) dark:group-hover:text-(--admin-text-muted)"
 									>
 										{item.label}
 									</span>
@@ -373,16 +377,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 									onmouseleave={() => (hoveredIndex = null)}
 								>
 									<div class="flex justify-between text-xs">
-										<span
-											class="font-medium text-surface-600 dark:text-surface-400 truncate max-w-40"
-										>
+										<span class="font-medium text-(--admin-text-muted) truncate max-w-40">
 											{item.label}
 										</span>
 										<div class="flex items-center gap-1.5">
-											<span class="font-semibold text-surface-900 dark:text-surface-50">
+											<span class="font-semibold text-(--admin-text-body)">
 												{formatDisplayValue(item.value)}
 											</span>
-											<span class="text-[10px] text-surface-400">({item.pct}%)</span>
+											<span class="text-[10px] text-(--admin-text-muted)">({item.pct}%)</span>
 										</div>
 									</div>
 									<div class="h-1.5 w-full rounded-full bg-surface-500/20 overflow-hidden">
@@ -449,7 +451,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 							{#if hoveredIndex !== null && coords[hoveredIndex]}
 								{@const c = coords[hoveredIndex]}
 								<div
-									class="absolute top-0 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-surface-900 px-2 py-0.5 text-xs text-white shadow-md dark:bg-surface-500/10 dark:text-surface-900 pointer-events-none"
+									class="absolute top-0 z-30 -translate-x-1/2 whitespace-nowrap rounded bg-surface-900 px-2 py-0.5 text-xs text-white shadow-md dark:bg-surface-500/10 dark:text-(--admin-text-body) pointer-events-none"
 									style="left: {(c.x / width) * 100}%;"
 								>
 									{c.item.label}: {formatDisplayValue(c.item.value)}
@@ -465,12 +467,12 @@ Supports time-series binning and categorical distributions with live drill-down.
 				>
 					<a
 						href={bucketHref()}
-						class="inline-flex items-center gap-1 font-medium text-surface-500 hover:{accentTheme.text} transition-colors"
+						class="inline-flex items-center gap-1 font-medium text-(--admin-text-muted) hover:{accentTheme.text} transition-colors"
 					>
 						<span>Explore all records</span>
 						<iconify-icon icon="mdi:arrow-right" width={12}></iconify-icon>
 					</a>
-					<span class="text-surface-400 capitalize">{chartType} mode</span>
+					<span class="text-(--admin-text-muted) capitalize">{chartType} mode</span>
 				</div>
 			{/if}
 		</div>
@@ -489,7 +491,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 			<div>
 				<label
 					for="chart-title-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Widget Title
 				</label>
@@ -504,14 +506,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 			<div>
 				<label
 					for="chart-collection-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Collection
 				</label>
 				<select
 					id="chart-collection-{widgetId}"
 					bind:value={selectedCollection}
-					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 				>
 					{#if sources.length === 0}
 						<option value="">Loading collections...</option>
@@ -528,14 +530,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 				<div>
 					<label
 						for="chart-type-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Chart Style
 					</label>
 					<select
 						id="chart-type-{widgetId}"
 						bind:value={chartType}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="column">Vertical Column / Bar</option>
 						<option value="bar">Horizontal Bar List</option>
@@ -546,14 +548,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 				<div>
 					<label
 						for="chart-accent-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Accent Color
 					</label>
 					<select
 						id="chart-accent-{widgetId}"
 						bind:value={colorAccent}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="primary">Primary (Blue)</option>
 						<option value="tertiary">Tertiary (Cyan)</option>
@@ -569,14 +571,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 				<div>
 					<label
 						for="chart-group-by-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Group By
 					</label>
 					<select
 						id="chart-group-by-{widgetId}"
 						bind:value={groupByMode}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="time">Time Period (Bins)</option>
 						<option value="field">Categorical Field</option>
@@ -587,14 +589,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 					<div>
 						<label
 							for="chart-granularity-{widgetId}"
-							class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 						>
 							Time Granularity
 						</label>
 						<select
 							id="chart-granularity-{widgetId}"
 							bind:value={timeGranularity}
-							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 						>
 							<option value="day">By Day</option>
 							<option value="week">By Week</option>
@@ -606,14 +608,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 					<div>
 						<label
 							for="chart-group-field-{widgetId}"
-							class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 						>
 							Category Field
 						</label>
 						<select
 							id="chart-group-field-{widgetId}"
 							bind:value={selectedGroupField}
-							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 						>
 							{#if activeSource && activeSource.categoryFields.length > 0}
 								{#each activeSource.categoryFields as f (f.name)}
@@ -632,14 +634,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 				<div>
 					<label
 						for="chart-measure-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Measure
 					</label>
 					<select
 						id="chart-measure-{widgetId}"
 						bind:value={selectedMeasure}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="count">Count Records</option>
 						<option value="sum">Sum of Field</option>
@@ -650,14 +652,14 @@ Supports time-series binning and categorical distributions with live drill-down.
 				<div>
 					<label
 						for="chart-period-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
 						Filter Period
 					</label>
 					<select
 						id="chart-period-{widgetId}"
 						bind:value={selectedPeriod}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-surface-900 focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
 					>
 						<option value="last30">Last 30 Days</option>
 						<option value="month">This Month</option>
@@ -673,7 +675,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 			<div>
 				<label
 					for="chart-limit-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-surface-600 dark:text-surface-400"
+					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
 					Max Data Points / Buckets
 				</label>

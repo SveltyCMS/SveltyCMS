@@ -113,10 +113,10 @@
 			class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg"
 		>
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+			<h3 class="text-sm font-semibold text-(--admin-text-muted)">
 				{dashboard_ext_premium()}
 			</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">{dashboard_ext_trial_expired()}</p>
+			<p class="text-xs text-(--admin-text-muted) mt-1 mb-3">{dashboard_ext_trial_expired()}</p>
 			<a
 				href="https://marketplace.sveltycms.com"
 				target="_blank"
@@ -145,8 +145,10 @@
 				<!-- ===== Empty / Loading ===== -->
 				<div class="flex h-full flex-col items-center justify-center text-center">
 					<iconify-icon icon="mdi:cached" class="text-4xl opacity-20 mb-3"></iconify-icon>
-					<div class="text-sm font-medium text-surface-500">{dashboard_cache_no_data()}</div>
-					<div class="text-xs text-surface-400 mt-1">{dashboard_cache_metrics_flow()}</div>
+					<div class="text-sm font-medium text-(--admin-text-muted)">
+						{dashboard_cache_no_data()}
+					</div>
+					<div class="text-xs text-(--admin-text-muted) mt-1">{dashboard_cache_metrics_flow()}</div>
 				</div>
 			{:else if isCompact}
 				{const o = cache.overall}
@@ -157,30 +159,28 @@
 						<span class="text-lg font-bold tabular-nums {hitRateClass(o.hitRate)}">
 							{o.hitRate.toFixed(0)}%
 						</span>
-						<span class="text-xs text-surface-500">{dashboard_cache_hit_rate()}</span>
+						<span class="text-xs text-(--admin-text-muted)">{dashboard_cache_hit_rate()}</span>
 					</div>
 
-					<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+					<div class="h-5 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 
 					<!-- Mini progress bar -->
-					<div
-						class="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
-					>
+					<div class="h-2 w-16 shrink-0 overflow-hidden rounded-full bg-(--admin-bg-chip)">
 						<div
 							class="h-full rounded-full transition-all duration-700 {barColor(o.hitRate)}"
 							style="width: {Math.max(6, o.hitRate)}%"
 						></div>
 					</div>
 
-					<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+					<div class="h-5 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 
 					<!-- Inline stats -->
 					<div class="flex items-center gap-3 text-xs">
-						<span class="tabular-nums text-surface-500">
+						<span class="tabular-nums text-(--admin-text-muted)">
 							<span class="text-success-500 font-medium">{fmtNum(o.hits)}</span>
 							{dashboard_cache_hits().toLowerCase()}
 						</span>
-						<span class="tabular-nums text-surface-500">
+						<span class="tabular-nums text-(--admin-text-muted)">
 							<span class="text-error-500 font-medium">{fmtNum(o.misses)}</span>
 							{dashboard_cache_misses().toLowerCase()}
 						</span>
@@ -194,7 +194,7 @@
 					<!-- Overall Summary -->
 					<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
 						<div class="flex items-center justify-between mb-2">
-							<span class="text-xs font-semibold uppercase tracking-wider text-surface-400"
+							<span class="text-xs font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 								>{dashboard_cache_overall()}</span
 							>
 							<span class="text-xs font-medium text-tertiary-500 tabular-nums"
@@ -206,12 +206,10 @@
 							<span class="text-2xl font-semibold tabular-nums {hitRateClass(o.hitRate)}">
 								{o.hitRate.toFixed(1)}%
 							</span>
-							<span class="text-xs text-surface-400">{dashboard_cache_hit_rate()}</span>
+							<span class="text-xs text-(--admin-text-muted)">{dashboard_cache_hit_rate()}</span>
 						</div>
 
-						<div
-							class="h-2.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700 mb-3"
-						>
+						<div class="h-2.5 w-full overflow-hidden rounded-full bg-(--admin-bg-chip) mb-3">
 							<div
 								class="h-full rounded-full transition-all duration-700 {barColor(o.hitRate)}"
 								style="width: {Math.max(8, o.hitRate)}%"
@@ -223,21 +221,23 @@
 								<div class="font-mono font-semibold text-success-500 tabular-nums">
 									{fmtNum(o.hits)}
 								</div>
-								<div class="text-[10px] text-surface-500">{dashboard_cache_hits()}</div>
+								<div class="text-[10px] text-(--admin-text-muted)">{dashboard_cache_hits()}</div>
 							</div>
 							<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
 								<div class="font-mono font-semibold text-error-500 tabular-nums">
 									{fmtNum(o.misses)}
 								</div>
-								<div class="text-[10px] text-surface-500">{dashboard_cache_misses()}</div>
+								<div class="text-[10px] text-(--admin-text-muted)">{dashboard_cache_misses()}</div>
 							</div>
 							<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
 								<div class="font-mono font-semibold tabular-nums">{fmtNum(o.sets ?? 0)}</div>
-								<div class="text-[10px] text-surface-500">{dashboard_cache_sets()}</div>
+								<div class="text-[10px] text-(--admin-text-muted)">{dashboard_cache_sets()}</div>
 							</div>
 							<div class="rounded bg-surface-500/10 p-1.5 dark:bg-surface-700/50">
 								<div class="font-mono font-semibold tabular-nums">{fmtNum(o.deletes ?? 0)}</div>
-								<div class="text-[10px] text-surface-500">{dashboard_cache_evictions()}</div>
+								<div class="text-[10px] text-(--admin-text-muted)">
+									{dashboard_cache_evictions()}
+								</div>
 							</div>
 						</div>
 					</div>
@@ -248,8 +248,7 @@
 							{#each Object.entries(cache.byCategory) as [cat, s] (cat)}
 								<div class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800">
 									<div class="flex items-center justify-between mb-2">
-										<span
-											class="text-xs font-semibold capitalize text-surface-600 dark:text-surface-400"
+										<span class="text-xs font-semibold capitalize text-(--admin-text-muted)"
 											>{cat}</span
 										>
 										<span class="text-xs tabular-nums text-tertiary-500">{fmtSize(s.size)}</span>
@@ -259,15 +258,13 @@
 										<span class="text-lg font-semibold tabular-nums {hitRateClass(s.hitRate)}">
 											{s.hitRate.toFixed(1)}%
 										</span>
-										<div class="flex gap-3 text-[11px] text-surface-500">
+										<div class="flex gap-3 text-[11px] text-(--admin-text-muted)">
 											<span>{fmtNum(s.hits)} {dashboard_cache_hits().toLowerCase()}</span>
 											<span>{fmtNum(s.misses)} {dashboard_cache_misses().toLowerCase()}</span>
 										</div>
 									</div>
 
-									<div
-										class="h-1.5 w-full overflow-hidden rounded-full bg-surface-200 dark:bg-surface-700"
-									>
+									<div class="h-1.5 w-full overflow-hidden rounded-full bg-(--admin-bg-chip)">
 										<div
 											class="h-full rounded-full transition-all duration-700 {barColor(s.hitRate)}"
 											style="width: {Math.max(6, s.hitRate)}%"
