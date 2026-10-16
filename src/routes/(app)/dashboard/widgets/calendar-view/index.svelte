@@ -77,7 +77,9 @@
 		<div class="flex items-center gap-2">
 			<iconify-icon icon="mdi:calendar-month-outline" width="20" class="text-warning-500"
 			></iconify-icon>
-			<h3 class="font-bold text-sm text-surface-900 dark:text-white">{widget_calendar_title()}</h3>
+			<h3 class="font-bold text-sm text-(--admin-text-body) dark:text-white">
+				{widget_calendar_title()}
+			</h3>
 		</div>
 		<div class="flex items-center gap-1">
 			<Button
@@ -89,7 +91,7 @@
 			>
 				<iconify-icon icon="mdi:chevron-left" width="18"></iconify-icon>
 			</Button>
-			<span class="text-xs font-bold text-surface-900 dark:text-white px-1"
+			<span class="text-xs font-bold text-(--admin-text-body) dark:text-white px-1"
 				>{monthName} {currentYear}</span
 			>
 			<Button
@@ -105,7 +107,7 @@
 	</div>
 
 	<!-- Calendar Grid -->
-	<div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-surface-400">
+	<div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-(--admin-text-muted)">
 		{#each daysOfWeek as day (day)}
 			<div class="py-1">{day}</div>
 		{/each}

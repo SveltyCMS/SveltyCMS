@@ -92,10 +92,10 @@
 			class="flex h-full flex-col items-center justify-center text-center px-4 bg-surface-500/10 dark:bg-surface-800/50 rounded-lg"
 		>
 			<iconify-icon icon="mdi:lock-outline" class="text-4xl text-warning-500 mb-2"></iconify-icon>
-			<h3 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+			<h3 class="text-sm font-semibold text-(--admin-text-muted)">
 				{widget_premium_extension()}
 			</h3>
-			<p class="text-xs text-surface-500 mt-1 mb-3">{widget_premium_trial_expired()}</p>
+			<p class="text-xs text-(--admin-text-muted) mt-1 mb-3">{widget_premium_trial_expired()}</p>
 			<a
 				href="https://marketplace.sveltycms.com"
 				target="_blank"
@@ -122,7 +122,7 @@
 
 			{#if !scim}
 				<div class="flex h-full items-center justify-center">
-					<div class="flex flex-col items-center gap-3 text-surface-500">
+					<div class="flex flex-col items-center gap-3 text-(--admin-text-muted)">
 						<div
 							class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
 						></div>
@@ -180,7 +180,7 @@
 									>{scim.activeUsers} {widget_scim_active_users()}</span
 								>
 								{#if scim.syncedToday > 0}
-									<span class="text-gray-400 dark:text-gray-500"
+									<span class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
 										>{widget_scim_today({ count: scim.syncedToday })}</span
 									>
 								{/if}
@@ -215,7 +215,7 @@
 								>
 									{scim.status}
 								</div>
-								<div class="text-xs text-surface-500 dark:text-surface-400">
+								<div class="text-xs text-(--admin-text-muted)">
 									{widget_scim_sync_status()}
 								</div>
 							</div>
@@ -226,11 +226,13 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-gray-800"
 							>
-								<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
+								<div
+									class="text-3xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
+								>
 									{scim.activeUsers}
 								</div>
 								<div
-									class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1"
+									class="text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted) mt-1"
 								>
 									{widget_scim_active_users()}
 								</div>
@@ -239,11 +241,13 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 border border-transparent dark:border-gray-800 flex flex-col justify-between items-center relative overflow-hidden"
 							>
-								<div class="text-3xl font-bold tabular-nums text-surface-900 dark:text-white">
+								<div
+									class="text-3xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
+								>
 									{scim.syncedToday}
 								</div>
 								<div
-									class="text-[10px] font-semibold uppercase tracking-wider text-surface-500 dark:text-surface-400 mt-1"
+									class="text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted) mt-1"
 								>
 									{widget_scim_synced_today()}
 								</div>
@@ -271,17 +275,15 @@
 						<!-- Details -->
 						<div class="space-y-2 text-sm pt-2">
 							<div class="flex justify-between items-center py-1">
-								<span class="text-surface-500 dark:text-surface-400">{widget_scim_last_sync()}</span
-								>
-								<span
-									class="font-medium font-mono text-surface-600 dark:text-surface-400 tabular-nums"
+								<span class="text-(--admin-text-muted)">{widget_scim_last_sync()}</span>
+								<span class="font-medium font-mono text-(--admin-text-muted) tabular-nums"
 									>{scim.lastSync}</span
 								>
 							</div>
 							<div
 								class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2"
 							>
-								<span class="text-surface-500 dark:text-surface-400">{widget_scim_provider()}</span>
+								<span class="text-(--admin-text-muted)">{widget_scim_provider()}</span>
 								<span class="font-mono text-tertiary-600 dark:text-primary-500 font-semibold"
 									>{scim.provider}</span
 								>

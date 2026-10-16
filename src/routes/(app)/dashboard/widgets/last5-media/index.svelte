@@ -107,7 +107,7 @@
 	function fileColor(f: MediaFile): string {
 		if (isImage(f)) return 'text-purple-500 dark:text-purple-400';
 		if (isVideo(f)) return 'text-error-500 dark:text-error-400';
-		return 'text-surface-500 dark:text-surface-400';
+		return 'text-(--admin-text-muted)';
 	}
 </script>
 
@@ -129,15 +129,15 @@
 			<div class="flex h-full flex-col items-center justify-center text-center">
 				<iconify-icon icon="mdi:file-image-remove-outline" class="text-4xl opacity-20 mb-3"
 				></iconify-icon>
-				<div class="text-sm font-medium text-surface-500">{widget_media_no_files()}</div>
-				<div class="text-xs text-surface-400 mt-1">{widget_media_files_appear()}</div>
+				<div class="text-sm font-medium text-(--admin-text-muted)">{widget_media_no_files()}</div>
+				<div class="text-xs text-(--admin-text-muted) mt-1">{widget_media_files_appear()}</div>
 			</div>
 		{:else if isCompact}
 			<div class="flex h-full items-center gap-2 overflow-hidden">
-				<span class="shrink-0 text-xs font-semibold text-surface-500"
+				<span class="shrink-0 text-xs font-semibold text-(--admin-text-muted)"
 					>{widget_media_files_count({ count: files.length })}</span
 				>
-				<div class="h-5 w-px shrink-0 bg-surface-200 dark:bg-surface-700"></div>
+				<div class="h-5 w-px shrink-0 bg-(--admin-bg-chip)"></div>
 				<div class="flex flex-1 items-center gap-1.5 overflow-x-auto scrollbar-none">
 					{#each files.slice(0, 8) as f (f.id)}
 						<a
@@ -155,9 +155,7 @@
 							{:else}
 								<iconify-icon icon={fileIcon(f)} class="text-sm {fileColor(f)}"></iconify-icon>
 							{/if}
-							<span
-								class="max-w-15 truncate text-[11px] font-medium text-surface-600 dark:text-surface-400"
-							>
+							<span class="max-w-15 truncate text-[11px] font-medium text-(--admin-text-muted)">
 								{fileName(f)}
 							</span>
 						</a>
@@ -203,11 +201,11 @@
 							<!-- Info -->
 							<div class="min-w-0 flex-1">
 								<div
-									class="truncate text-sm font-medium text-surface-900 dark:text-surface-100 group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
+									class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
 								>
 									{fileName(f)}
 								</div>
-								<div class="mt-0.5 flex items-center gap-2 text-xs text-surface-500">
+								<div class="mt-0.5 flex items-center gap-2 text-xs text-(--admin-text-muted)">
 									<span>{fmtSize(f.size)}</span>
 									<span class="opacity-40">·</span>
 									<span class="uppercase">{f.type || 'file'}</span>
@@ -215,9 +213,7 @@
 							</div>
 
 							<!-- Date -->
-							<div
-								class="shrink-0 text-end text-[11px] tabular-nums text-surface-400 dark:text-surface-500"
-							>
+							<div class="shrink-0 text-end text-[11px] tabular-nums text-(--admin-text-muted)">
 								{fileDate(f)}
 							</div>
 						</a>

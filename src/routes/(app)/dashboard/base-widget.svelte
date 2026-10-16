@@ -422,7 +422,7 @@ New Features:
 			</h2>
 
 			{#if endpoint && lastFetchTime && showRefreshButton}
-				<div class="flex items-center gap-2 text-xs text-surface-500 dark:text-surface-50">
+				<div class="flex items-center gap-2 text-xs text-(--admin-text-muted) dark:text-surface-50">
 					<span>{getLastUpdateText()}</span>
 					{#if loading}
 						<span class="flex items-center gap-1">
@@ -554,7 +554,7 @@ New Features:
 					<iconify-icon
 						icon="mdi:drag-vertical"
 						width={12}
-						class="text-gray-900 drop-shadow-sm dark:text-surface-400"
+						class="text-gray-900 drop-shadow-sm dark:text-(--admin-text-muted)"
 					></iconify-icon>
 				</div>
 			{/each}

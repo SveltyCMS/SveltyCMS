@@ -155,7 +155,7 @@
 
 		{#if !statsData}
 			<div class="flex h-full items-center justify-center">
-				<div class="flex flex-col items-center gap-3 text-surface-500">
+				<div class="flex flex-col items-center gap-3 text-(--admin-text-muted)">
 					<div
 						class="h-8 w-8 animate-spin rounded-full border-2 border-tertiary-500 border-t-transparent"
 					></div>
@@ -192,7 +192,7 @@
 							</div>
 							<div>
 								<span class="font-semibold capitalize {threatColor}">{overallThreatLevel}</span>
-								<span class="text-surface-500 dark:text-surface-400 ms-1"
+								<span class="text-(--admin-text-muted) ms-1"
 									>{widget_security_active_count({ count: statsData.activeIncidents })}</span
 								>
 							</div>
@@ -222,7 +222,7 @@
 							</div>
 						{/if}
 
-						<div class="flex items-center gap-3 font-medium text-surface-600 dark:text-surface-400">
+						<div class="flex items-center gap-3 font-medium text-(--admin-text-muted)">
 							<div class="flex items-center gap-1">
 								<iconify-icon icon="mdi:shield-remove" class="text-error-500"></iconify-icon>
 								<span>{statsData.blockedIPs}</span>
@@ -269,7 +269,7 @@
 									<div class="text-lg font-bold capitalize {threatColor} leading-tight">
 										{widget_security_threat_level({ level: overallThreatLevel })}
 									</div>
-									<div class="text-xs text-surface-500 dark:text-surface-400">
+									<div class="text-xs text-(--admin-text-muted)">
 										{widget_security_incidents_count({ count: statsData.activeIncidents })}
 									</div>
 								</div>
@@ -322,7 +322,7 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">
+								<div class="text-xs text-(--admin-text-muted)">
 									{widget_security_blocked_ips()}
 								</div>
 								<div class="text-2xl font-bold tabular-nums mt-1 text-error-500">
@@ -332,7 +332,7 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">
+								<div class="text-xs text-(--admin-text-muted)">
 									{widget_security_throttled()}
 								</div>
 								<div class="text-2xl font-bold tabular-nums mt-1 text-warning-500">
@@ -342,7 +342,7 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">
+								<div class="text-xs text-(--admin-text-muted)">
 									{widget_security_csp_violations()}
 								</div>
 								<div
@@ -354,7 +354,7 @@
 							<div
 								class="rounded-2xl bg-surface-500/10 p-3 dark:bg-surface-800/40 border border-(--admin-border-default) flex flex-col justify-between"
 							>
-								<div class="text-xs text-surface-500 dark:text-surface-400">
+								<div class="text-xs text-(--admin-text-muted)">
 									{widget_security_rate_limits()}
 								</div>
 								<div
@@ -369,7 +369,7 @@
 						{#if isLicensed && size.h >= 3}
 							<div class="flex-1 flex flex-col min-h-0">
 								<h4
-									class="mb-2 text-xs font-semibold text-surface-500 dark:text-surface-400 flex items-center gap-1.5 tracking-wider"
+									class="mb-2 text-xs font-semibold text-(--admin-text-muted) flex items-center gap-1.5 tracking-wider"
 								>
 									<iconify-icon icon="mdi:alert-circle" class="text-warning-500"></iconify-icon>
 									{widget_security_active_incidents()} ({activeIncidents.length})
@@ -389,7 +389,7 @@
 															: 'border-s-tertiary-500'}"
 											>
 												<div class="flex justify-between items-center">
-													<div class="font-mono font-medium text-surface-600 dark:text-surface-400">
+													<div class="font-mono font-medium text-(--admin-text-muted)">
 														{incident.clientIp}
 													</div>
 													<div
@@ -406,7 +406,7 @@
 													</div>
 												</div>
 												<div
-													class="text-[10px] text-surface-500 dark:text-surface-400 mt-1 flex justify-between"
+													class="text-[10px] text-(--admin-text-muted) mt-1 flex justify-between"
 												>
 													<span
 														>{widget_security_indicators({ count: incident.indicatorCount })}</span
@@ -425,7 +425,7 @@
 												icon="mdi:shield-check"
 												class="text-4xl text-tertiary-500 dark:text-primary-500/80 animate-pulse"
 											></iconify-icon>
-											<p class="text-xs text-surface-500 dark:text-surface-400 mt-2 font-medium">
+											<p class="text-xs text-(--admin-text-muted) mt-2 font-medium">
 												{widget_security_all_secure()}
 											</p>
 										</div>

@@ -138,23 +138,29 @@
 		{#snippet children({ data })}
 			{@const payload = data as OrdersPayload | null}
 			{#if !payload}
-				<div class="flex h-full items-center justify-center text-xs text-surface-500">
+				<div class="flex h-full items-center justify-center text-xs text-(--admin-text-muted)">
 					{widget_commerce_orders_loading()}
 				</div>
 			{:else if !payload.available}
 				<div class="flex h-full flex-col items-center justify-center px-3 text-center">
-					<iconify-icon icon="mdi:cart-off" class="mb-2 text-3xl text-surface-400"></iconify-icon>
-					<p class="text-xs font-semibold text-surface-600 dark:text-surface-400">
+					<iconify-icon icon="mdi:cart-off" class="mb-2 text-3xl text-(--admin-text-muted)"
+					></iconify-icon>
+					<p class="text-xs font-semibold text-(--admin-text-muted)">
 						{widget_commerce_orders_no_collection()}
 					</p>
-					<p class="mt-1 text-[11px] text-surface-500">{widget_commerce_orders_enable_preset()}</p>
+					<p class="mt-1 text-[11px] text-(--admin-text-muted)">
+						{widget_commerce_orders_enable_preset()}
+					</p>
 				</div>
 			{:else if isCompact}
 				<div class="flex h-full items-center gap-3 overflow-hidden px-1">
-					<span class="text-lg font-bold tabular-nums text-surface-600 dark:text-surface-100"
+					<span
+						class="text-lg font-bold tabular-nums text-(--admin-text-muted) dark:text-surface-100"
 						>{payload.total}</span
 					>
-					<span class="text-xs text-surface-500">{widget_commerce_orders_recent_orders()}</span>
+					<span class="text-xs text-(--admin-text-muted)"
+						>{widget_commerce_orders_recent_orders()}</span
+					>
 				</div>
 			{:else}
 				<div class="flex h-full min-h-0 flex-col gap-2">
@@ -183,10 +189,10 @@
 								class="flex items-center justify-between gap-2 rounded px-2 py-1.5 text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800/60"
 							>
 								<div class="min-w-0">
-									<div class="truncate font-medium text-surface-600 dark:text-surface-100">
+									<div class="truncate font-medium text-(--admin-text-muted) dark:text-surface-100">
 										{order.orderNumber}
 									</div>
-									<div class="truncate text-[10px] text-surface-500">
+									<div class="truncate text-[10px] text-(--admin-text-muted)">
 										{order.customerEmail || widget_commerce_orders_guest()} · {order.createdAt
 											? formatRelativeDate(order.createdAt)
 											: '—'}
@@ -194,11 +200,11 @@
 								</div>
 								<div class="shrink-0 text-end">
 									<div class="tabular-nums font-semibold">{formatTotal(order.total)}</div>
-									<div class="text-[10px] capitalize text-surface-500">{order.status}</div>
+									<div class="text-[10px] capitalize text-(--admin-text-muted)">{order.status}</div>
 								</div>
 							</li>
 						{:else}
-							<li class="py-4 text-center text-[11px] text-surface-500">
+							<li class="py-4 text-center text-[11px] text-(--admin-text-muted)">
 								{widget_commerce_orders_none()}
 							</li>
 						{/each}

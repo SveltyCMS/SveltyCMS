@@ -132,10 +132,10 @@
 										{item.title}
 									</div>
 									<div
-										class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5"
+										class="text-xs text-(--admin-text-muted) dark:text-(--admin-text-muted) mt-0.5 flex items-center gap-1.5"
 									>
 										<span
-											class="font-mono text-[10px] bg-gray-100 dark:bg-gray-800 px-1 py-0.2 rounded-sm text-gray-600 dark:text-gray-400"
+											class="font-mono text-[10px] bg-gray-100 dark:bg-gray-800 px-1 py-0.2 rounded-sm text-gray-600 dark:text-(--admin-text-muted)"
 											>{item.collection}</span
 										>
 										<span class="opacity-40">•</span>
@@ -146,7 +146,7 @@
 								<!-- Creator email abbreviation -->
 								{#if size.w >= 2 || size.h >= 2}
 									<div
-										class="text-end text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap shrink-0 pt-0.5"
+										class="text-end text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted) whitespace-nowrap shrink-0 pt-0.5"
 										title={`${widget_last5_author()}: ${item.createdBy}`}
 									>
 										{item.createdBy?.split('@')[0] || '—'}
@@ -162,10 +162,10 @@
 				<div class="text-4xl text-gray-300 dark:text-gray-600 mb-2">
 					<iconify-icon icon="mdi:file-remove-outline" width={32}></iconify-icon>
 				</div>
-				<div class="text-xs font-semibold text-gray-600 dark:text-gray-400">
+				<div class="text-xs font-semibold text-gray-600 dark:text-(--admin-text-muted)">
 					{widget_last5_no_content()}
 				</div>
-				<div class="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+				<div class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted) mt-0.5">
 					{widget_last5_items_appear()}
 				</div>
 			</div>

@@ -73,7 +73,9 @@
 		<div class="flex items-center gap-2">
 			<iconify-icon icon="mdi:checkbox-marked-outline" width="20" class="text-primary-500"
 			></iconify-icon>
-			<h3 class="font-bold text-sm text-surface-900 dark:text-white">{widget_todo_title()}</h3>
+			<h3 class="font-bold text-sm text-(--admin-text-body) dark:text-white">
+				{widget_todo_title()}
+			</h3>
 		</div>
 		<Badge variant="primary" size="sm"
 			>{widget_todo_open_count({ count: todos.filter((t) => !t.done).length })}</Badge
@@ -90,7 +92,7 @@
 		<Input
 			bind:value={newTodoText}
 			placeholder={widget_todo_placeholder()}
-			inputClass="w-full px-3 py-1.5 rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900 text-xs text-surface-900 dark:text-white"
+			inputClass="w-full px-3 py-1.5 rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900 text-xs text-(--admin-text-body) dark:text-white"
 			aria-label={widget_todo_new_task()}
 		/>
 		<Button type="submit" variant="primary" size="sm" class="shrink-0"
@@ -116,12 +118,12 @@
 					<iconify-icon
 						icon={todo.done ? 'mdi:check-circle' : 'mdi:checkbox-blank-circle-outline'}
 						width="16"
-						class={todo.done ? 'text-success-500' : 'text-surface-400'}
+						class={todo.done ? 'text-success-500' : 'text-(--admin-text-muted)'}
 					></iconify-icon>
 					<span
 						class={todo.done
-							? 'line-through text-surface-400'
-							: 'text-surface-600 dark:text-surface-400 font-medium'}>{todo.text}</span
+							? 'line-through text-(--admin-text-muted)'
+							: 'text-(--admin-text-muted) font-medium'}>{todo.text}</span
 					>
 				</Button>
 				<Button
@@ -129,7 +131,7 @@
 					variant="ghost"
 					size="sm"
 					onclick={() => deleteTodo(todo.id)}
-					class="text-surface-400 hover:text-error-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+					class="text-(--admin-text-muted) hover:text-error-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
 					aria-label={widget_todo_delete_task({ text: todo.text })}
 				>
 					<iconify-icon icon="mdi:trash-can-outline" width="14"></iconify-icon>
