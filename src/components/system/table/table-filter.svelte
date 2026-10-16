@@ -156,7 +156,7 @@ It includes search, filter toggles, column visibility, and density controls, opt
 <!-- Expanding Search -->
 {#if searchShow}
 	<div
-		class="input-group input-group-divider grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50"
+		class="grid grid-cols-[1fr_auto] h-10 w-full max-w-xs sm:max-w-sm transition-all duration-300 z-50"
 	>
 		<FloatingInput
 			autofocus={searchShow}
