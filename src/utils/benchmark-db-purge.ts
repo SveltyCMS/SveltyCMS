@@ -135,7 +135,19 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
 
     if (!existsSync(dbPath)) continue;
 
-    const db = new Database(dbPath);
+    // Best-effort cleanup: a locked/unreadable database (another test or a
+    // lingering server still holds it) must skip this file, never abort the
+    // whole purge. `new Database` throws SQLITE_BUSY/ENOENT/CANTOPEN synchronously.
+    let db: any;
+    try {
+      db = new Database(dbPath);
+    } catch (err) {
+      logger.debug(
+        `[DB Purge] Skipped ${fileName} — open failed:`,
+        err instanceof Error ? err.message : String(err),
+      );
+      continue;
+    }
     try {
       db.exec("BEGIN TRANSACTION");
 
@@ -180,10 +192,18 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
       db.exec("COMMIT");
       result.databasesProcessed++;
     } catch (err) {
-      db.exec("ROLLBACK");
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        /* transaction never started / already rolled back */
+      }
       logger.error(`[DB Purge] Failed to purge ${fileName}, transaction rolled back:`, err);
     } finally {
-      db.close();
+      try {
+        db.close();
+      } catch {
+        /* already closed / lock held by another process */
+      }
     }
   }
 
