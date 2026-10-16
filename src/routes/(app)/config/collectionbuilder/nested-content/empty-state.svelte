@@ -12,6 +12,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import SiteName from '@src/components/site-name.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		builder_collection_required_part1,
 		builder_collection_required_part2,
@@ -22,6 +23,9 @@
 		builder_quick_start_aria,
 		builder_quick_start_recommended,
 		builder_templates_note_part1,
+		builder_tip_add_category,
+		builder_tip_add_collection,
+		builder_tip_quick_start,
 		button_save,
 		collection_add,
 		collection_addcategory
@@ -83,54 +87,60 @@
 	<div class="mt-6 w-full max-w-2xl" in:adminStagger={{ index: 2, step: 200, duration: 400 }}>
 		<div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
 			{#if onQuickStart}
-				<Button
-					onclick={onQuickStart}
-					variant="warning"
-					size="md"
-					class="group w-full min-w-0 justify-center"
-					aria-label={builder_quick_start_aria()}
-				>
-					<iconify-icon
-						icon="mdi:magic-staff"
-						width="22"
-						class="transition-transform group-hover:rotate-12"
-					></iconify-icon>
-					<span>{builder_quick_start()}</span>
-				</Button>
+				<SystemTooltip title={builder_tip_quick_start()} role={null} tabindex={null} wFull>
+					<Button
+						onclick={onQuickStart}
+						variant="warning"
+						size="md"
+						class="group w-full min-w-0 justify-center"
+						aria-label={builder_quick_start_aria()}
+					>
+						<iconify-icon
+							icon="mdi:magic-staff"
+							width="22"
+							class="transition-transform group-hover:rotate-12"
+						></iconify-icon>
+						<span>{builder_quick_start()}</span>
+					</Button>
+				</SystemTooltip>
 			{/if}
 
-			<Button
-				onclick={onAddCategory}
-				variant="tertiary"
-				size="md"
-				class="group w-full min-w-0 justify-center"
-				data-testid="add-category-button"
-			>
-				<iconify-icon
-					icon="mdi:folder-plus"
-					width="22"
-					class="transition-transform group-hover:scale-110"
-				></iconify-icon>
-				<span>{collection_addcategory()}</span>
-			</Button>
+			<SystemTooltip title={builder_tip_add_category()} role={null} tabindex={null} wFull>
+				<Button
+					onclick={onAddCategory}
+					variant="tertiary"
+					size="md"
+					class="group w-full min-w-0 justify-center"
+					data-testid="add-category-button"
+				>
+					<iconify-icon
+						icon="mdi:folder-plus"
+						width="22"
+						class="transition-transform group-hover:scale-110"
+					></iconify-icon>
+					<span>{collection_addcategory()}</span>
+				</Button>
+			</SystemTooltip>
 
-			<Button
-				href={newCollectionHref}
-				data-preload="hover"
-				onclick={onAddCollection}
-				variant="error"
-				size="md"
-				class="group w-full min-w-0 justify-center"
-				data-testid="add-collection-button"
-				aria-keyshortcuts="Mod+N"
-			>
-				<iconify-icon
-					icon="ic:round-plus"
-					width="22"
-					class="transition-transform group-hover:rotate-90"
-				></iconify-icon>
-				<span>{collection_add()}</span>
-			</Button>
+			<SystemTooltip title={builder_tip_add_collection()} role={null} tabindex={null} wFull>
+				<Button
+					href={newCollectionHref}
+					data-preload="hover"
+					onclick={onAddCollection}
+					variant="error"
+					size="md"
+					class="group w-full min-w-0 justify-center"
+					data-testid="add-collection-button"
+					aria-keyshortcuts="Mod+N"
+				>
+					<iconify-icon
+						icon="ic:round-plus"
+						width="22"
+						class="transition-transform group-hover:rotate-90"
+					></iconify-icon>
+					<span>{collection_add()}</span>
+				</Button>
+			</SystemTooltip>
 		</div>
 
 		{#if onQuickStart}

@@ -51,6 +51,10 @@ None (TreeView has its own keyboard navigation)
 		builder_note_layout,
 		builder_quick_start,
 		builder_tip_save_changes,
+		builder_tip_quick_start,
+		builder_tip_introspect,
+		builder_tip_add_category,
+		builder_tip_add_collection,
 		builder_tip_save_no_changes,
 		builder_unsaved_changes_part1,
 		builder_unsaved_changes_part2,
@@ -75,6 +79,7 @@ None (TreeView has its own keyboard navigation)
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
 	import Button from '@components/ui/button.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Slot from '@components/system/slot.svelte';
 	import AdminCard from '@components/admin-card.svelte';
@@ -745,71 +750,79 @@ None (TreeView has its own keyboard navigation)
 	{#if currentConfig.length > 0}
 		<AdminCard class="p-6 border border-(--admin-border-default) backdrop-blur-md shadow-xs">
 			<div class="mb-4 flex flex-wrap justify-center gap-2" in:fade={{ duration: 300 }}>
-				<Button
-					onclick={() => modalQuickStart()}
-					variant="warning"
-					size="lg"
-					class="group whitespace-nowrap"
-					disabled={isLoading}
-				>
-					<iconify-icon
-						icon="mdi:magic-staff"
-						width="24"
-						class="transition-transform group-hover:rotate-12"
-					></iconify-icon>
-					<span>{builder_quick_start()}</span>
-				</Button>
+				<SystemTooltip title={builder_tip_quick_start()} role={null} tabindex={null}>
+					<Button
+						onclick={() => modalQuickStart()}
+						variant="warning"
+						size="lg"
+						class="group whitespace-nowrap"
+						disabled={isLoading}
+					>
+						<iconify-icon
+							icon="mdi:magic-staff"
+							width="24"
+							class="transition-transform group-hover:rotate-12"
+						></iconify-icon>
+						<span>{builder_quick_start()}</span>
+					</Button>
+				</SystemTooltip>
 
-				<Button
-					onclick={() => modalIntrospectSchema()}
-					variant="success"
-					size="lg"
-					class="group whitespace-nowrap"
-					disabled={isLoading}
-					data-testid="introspect-schema-button"
-				>
-					<iconify-icon
-						icon="mdi:database-arrow-right"
-						width="24"
-						class="transition-transform group-hover:scale-110"
-					></iconify-icon>
-					<span>{builder_introspect_ingest()}</span>
-				</Button>
+				<SystemTooltip title={builder_tip_introspect()} role={null} tabindex={null}>
+					<Button
+						onclick={() => modalIntrospectSchema()}
+						variant="success"
+						size="lg"
+						class="group whitespace-nowrap"
+						disabled={isLoading}
+						data-testid="introspect-schema-button"
+					>
+						<iconify-icon
+							icon="mdi:database-arrow-right"
+							width="24"
+							class="transition-transform group-hover:scale-110"
+						></iconify-icon>
+						<span>{builder_introspect_ingest()}</span>
+					</Button>
+				</SystemTooltip>
 
-				<Button
-					onclick={() => modalAddCategory()}
-					variant="tertiary"
-					size="lg"
-					class="group whitespace-nowrap"
-					disabled={isLoading}
-					data-testid="add-category-button"
-				>
-					<iconify-icon
-						icon="mdi:folder-plus"
-						width="24"
-						class="transition-transform group-hover:scale-110"
-					></iconify-icon>
-					<span>{collection_addcategory()}</span>
-				</Button>
+				<SystemTooltip title={builder_tip_add_category()} role={null} tabindex={null}>
+					<Button
+						onclick={() => modalAddCategory()}
+						variant="tertiary"
+						size="lg"
+						class="group whitespace-nowrap"
+						disabled={isLoading}
+						data-testid="add-category-button"
+					>
+						<iconify-icon
+							icon="mdi:folder-plus"
+							width="24"
+							class="transition-transform group-hover:scale-110"
+						></iconify-icon>
+						<span>{collection_addcategory()}</span>
+					</Button>
+				</SystemTooltip>
 
-				<Button
-					href={newCollectionHref}
-					data-preload="hover"
-					onclick={setupNewCollection}
-					variant="error"
-					size="lg"
-					class="group whitespace-nowrap"
-					disabled={isLoading}
-					data-testid="add-collection-button"
-					aria-keyshortcuts="Mod+N"
-				>
-					<iconify-icon
-						icon="ic:round-plus"
-						width="24"
-						class="transition-transform group-hover:rotate-90"
-					></iconify-icon>
-					<span>{collection_add()}</span>
-				</Button>
+				<SystemTooltip title={builder_tip_add_collection()} role={null} tabindex={null}>
+					<Button
+						href={newCollectionHref}
+						data-preload="hover"
+						onclick={setupNewCollection}
+						variant="error"
+						size="lg"
+						class="group whitespace-nowrap"
+						disabled={isLoading}
+						data-testid="add-collection-button"
+						aria-keyshortcuts="Mod+N"
+					>
+						<iconify-icon
+							icon="ic:round-plus"
+							width="24"
+							class="transition-transform group-hover:rotate-90"
+						></iconify-icon>
+						<span>{collection_add()}</span>
+					</Button>
+				</SystemTooltip>
 
 				{#if selectedCategoryId}
 					<Button
