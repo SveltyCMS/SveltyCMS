@@ -268,7 +268,7 @@ jobs:
       # from the commit range since the last tag.
       - name: Create GitHub Release
         if: steps.version.outputs.skip != 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.value }}
           name: v${{ steps.version.outputs.value }}
