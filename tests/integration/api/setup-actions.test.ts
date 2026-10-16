@@ -8,46 +8,9 @@ import { beforeEach, describe, expect, it } from "vitest";
 // Increase default timeout for database-heavy setup tests
 const TEST_TIMEOUT = 60_000;
 
-/**
- * Helper to parse SvelteKit Server Action "devalue" serialization.
- * SvelteKit returns data as a JSON string with indexed values.
- */
-function parseActionResult(result: { type: string; data?: any }): any {
-  if (result.type === "success" && typeof result.data === "string") {
-    try {
-      const parsed = JSON.parse(result.data);
-      if (Array.isArray(parsed)) {
-        const [structure, ...values] = parsed;
-        if (typeof structure === "object" && structure !== null) {
-          const unmarshaler = (val: any): any => {
-            if (typeof val === "number") {
-              return values[val - 1];
-            }
-            if (Array.isArray(val)) {
-              return val.map(unmarshaler);
-            }
-            if (typeof val === "object" && val !== null) {
-              const obj: Record<string, any> = {};
-              for (const [k, v] of Object.entries(val)) {
-                obj[k] = unmarshaler(v);
-              }
-              return obj;
-            }
-            return val;
-          };
-          return unmarshaler(structure);
-        }
-        return values[0]; // Fallback for primitive returns
-      }
-    } catch (e) {
-      console.warn("[parseActionResult] Failed to parse data:", e);
-    }
-  }
-  return result.data;
-}
-
 import { SESSION_COOKIE_NAME } from "@src/databases/auth/constants";
 import type { DatabaseConfig } from "@src/databases/schemas";
+import { parseActionResult } from "../helpers/action-result";
 import { getApiBaseUrl, safeFetch } from "../helpers/server";
 import { cleanupTestDatabase } from "../helpers/test-setup";
 
@@ -110,7 +73,11 @@ describe("Setup Actions - Database Connection", () => {
     async () => {
       const formData = new FormData();
       formData.append("config", JSON.stringify(testDbConfig));
-      formData.append("allowOverwrite", "true");
+      // Non-destructive probe: `allowOverwrite=true` DROPs the database — which is
+      // the same `sveltycms_test` the preview server is connected to — then
+      // recreates it, racing the server's pool (flaked on the postgres CI matrix).
+      // `beforeEach` already resets the DB, so a plain connect is the real probe.
+      formData.append("allowOverwrite", "false");
 
       const res = await postAction("testDatabase", formData);
       expect(res.status).toBe(200);

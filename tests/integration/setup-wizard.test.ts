@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it, beforeAll } from "vitest";
+import { parseActionResult } from "./helpers/action-result";
 import { getApiBaseUrl, safeFetch } from "./helpers/server";
 import fs from "node:fs";
 import path from "node:path";
@@ -56,12 +57,8 @@ describe("Setup Wizard Integration (Black-Box)", () => {
     // SvelteKit actions return JSON with "type" and "data"
     expect(response.ok).toBe(true);
 
-    // Support both direct data and SvelteKit wrapper format
-    let finalResult: any = result;
-    if (result.data) {
-      const data = typeof result.data === "string" ? JSON.parse(result.data) : result.data;
-      finalResult = Array.isArray(data) ? data[1] : data;
-    }
+    // Recover the action's return value from the devalue wire format.
+    const finalResult: any = parseActionResult(result);
 
     // Log for debugging if needed
     if (!finalResult || (finalResult.success === undefined && finalResult.valid === undefined)) {
