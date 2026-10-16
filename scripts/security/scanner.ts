@@ -144,9 +144,9 @@ async function setupAuth(): Promise<boolean> {
 
   const testSecret = process.env.TEST_API_SECRET;
   if (!testSecret || testSecret === "test-secret-dev") {
-    console.warn("  ⚠️  TEST_API_SECRET not set or using dev default — set in CI!");
+    console.warn("  ⚠️  Test API secret not set or using dev default — set in CI!");
     if (IS_CI && !testSecret) {
-      console.log("  ❌ CI requires TEST_API_SECRET — skipping auth setup");
+      console.log("  ❌ CI requires a test API secret — skipping auth setup");
       return false;
     }
   }
