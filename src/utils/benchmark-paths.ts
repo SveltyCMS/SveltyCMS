@@ -75,12 +75,22 @@ export async function cleanupBenchmarkCompiledWorkspace(name: string): Promise<v
 
 export async function cleanupAllBenchmarkWorkspaces(): Promise<number> {
   let removed = 0;
+  // Windows holds transient locks on files a concurrent worker (or a lingering
+  // server/probe process) is still touching: `fs.rm` then throws
+  // EBUSY/EPERM/ENOTEMPTY. Purge is best-effort cleanup, so retry briefly
+  // before giving up — otherwise a shared benchmark tree is left behind.
+  const TRANSIENT_RM_CODES = new Set(["EBUSY", "EPERM", "ENOTEMPTY", "EACCES"]);
   async function safeRemove(target: string): Promise<void> {
-    try {
-      await fs.rm(target, { recursive: true, force: true });
-      removed++;
-    } catch {
-      /* absent */
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fs.rm(target, { recursive: true, force: true });
+        removed++;
+        return;
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException)?.code ?? "";
+        if (attempt >= 4 || !TRANSIENT_RM_CODES.has(code)) return;
+        await new Promise((resolve) => setTimeout(resolve, 20 * (attempt + 1)));
+      }
     }
   }
   if (
