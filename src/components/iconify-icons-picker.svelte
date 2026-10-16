@@ -74,7 +74,9 @@ Advanced icon picker with search, pagination, and favorites.
 
 	let {
 		iconselected = $bindable(),
-		icon = $bindable(''),
+		// No fallback: a fallback makes `bind:icon={undefined}` throw (props_invalid_value)
+		// for fields that have no icon yet.
+		icon = $bindable(),
 		searchQuery = $bindable(''),
 		showFavorites = true,
 		hideSearchInput = true
