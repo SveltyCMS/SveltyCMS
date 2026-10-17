@@ -343,10 +343,14 @@
 </script>
 
 {#if local}
-	<!-- Fixed width: the dialog sizes to its content, so tabs would otherwise resize it -->
-	<div class="flex w-full flex-col md:w-[min(56rem,calc(100vw-4rem))]">
+	<!-- Fixed width: the dialog sizes to its content, so tabs would otherwise resize it.
+	     Height matches the Modal body cap (80vh) so only the tab content scrolls and the
+	     header and footer stay in view. -->
+	<div class="flex max-h-[80vh] w-full flex-col md:w-[min(56rem,calc(100vw-4rem))]">
 		<!-- Header: one title with the field identity beneath it -->
-		<div class="flex items-center gap-3 border-b border-(--admin-border-default) py-4 ps-6 pe-4">
+		<div
+			class="flex shrink-0 items-center gap-3 border-b border-(--admin-border-default) py-4 ps-6 pe-4"
+		>
 			<div
 				class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500"
 			>
@@ -381,12 +385,12 @@
 		</div>
 
 		<!-- Tabs -->
-		<div class="border-b border-(--admin-border-default) px-6">
+		<div class="shrink-0 border-b border-(--admin-border-default) px-6">
 			<Tabs tabs={tabDefs} bind:activeTab variant="underline" />
 		</div>
 
 		<!-- Tab Content -->
-		<div class="flex-1 overflow-y-auto p-4 sm:p-6">
+		<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 			{#if activeTab === 'default'}
 				<!-- Tab 1: Default — related pairs side by side -->
 				<div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
@@ -741,7 +745,7 @@
 
 		<!-- Footer: quiet destructive/secondary actions start, decision end -->
 		<div
-			class="flex flex-col-reverse gap-3 border-t border-(--admin-border-default) bg-surface-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:bg-surface-900/50"
+			class="flex shrink-0 flex-col-reverse gap-3 border-t border-(--admin-border-default) bg-surface-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:bg-surface-900/50"
 		>
 			<div class="flex justify-center gap-1 sm:justify-start">
 				<Button
