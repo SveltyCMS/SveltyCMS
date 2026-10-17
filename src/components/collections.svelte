@@ -674,7 +674,8 @@ Provides an organized interface for navigating hierarchical content structures.
 		<div class="flex items-center justify-between gap-2 px-1">
 			<div class="flex min-w-0 items-center gap-2">
 				{#if allTags.length > 0}
-					<div class="relative min-w-35">
+					<!-- Fixed width so Favorites and the reorder toggle stay inside the sidebar -->
+					<div class="relative w-28 shrink-0">
 						<Select
 							bind:value={selectedTagFilter}
 							options={tagFilterOptions}
