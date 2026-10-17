@@ -55,7 +55,8 @@
 		builder_ts_search_placeholder,
 		builder_ts_ts_suffix,
 		builder_ts_widget_category_aria,
-		button_edit
+		button_edit,
+		widget_form_edit_field
 	} from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
@@ -215,7 +216,7 @@
 			ModalWidgetForm as any,
 			{
 				// The form renders its own header; ariaLabel names the dialog instead of `title`.
-				ariaLabel: 'Edit field',
+				ariaLabel: widget_form_edit_field(),
 				value: { ...field, __fieldIndex: idx >= 0 ? idx : undefined },
 				roles,
 				size: 'xl',

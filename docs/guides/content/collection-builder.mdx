@@ -8,7 +8,7 @@ order: 5
 status: "beta"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-05"
+updated: "2026-10-17"
 tags:
   - "collection"
   - "builder"
@@ -125,6 +125,7 @@ The Collection Builder has two main views:
    - **Unified Favorites & Tagging**: 1-click star toggle (★) and colorful tag pills directly on tree items
    - **Dual Filter Toolbar**: Instant filtering by search text, `[★ Favorites]`, and `[All Tags ▼]` dropdown
    - Create, duplicate, edit, and delete categories and collections
+   - Click a collection row (or press `Enter` on it) to open it in the Collection Editor; clicking a category row selects it as the target for a new collection
 
 2. **Collection Editor View** (`/config/collectionbuilder/[action]/[collectionPath]`)
    - Edit or create individual collections
@@ -249,6 +250,7 @@ This tab manages the fields (widgets) that make up your collection's content str
 - **Duplicate Database Column Guard**: Real-time detection of duplicate `db_fieldName` collisions with top-level alert banners, row badges, and save blocking.
 - **Accessible Field Reordering (WCAG 2.2 AA)**: Reorder fields via drag handles, dedicated Move Up/Down buttons, or `Alt + ArrowUp`/`Alt + ArrowDown` keyboard navigation.
 - **Widget Palette Category Filters**: Filter available widgets with fast category chips: `[All]`, `[Inputs]`, `[Media]`, `[Structure]`, and `[Advanced]`.
+- **Drag From the Palette**: Click a widget to append it, or drag it onto the field list to insert it at any position — a single insertion line marks the slot before you release.
 - **Global Keyboard Shortcuts**: Power-user navigation for rapid editing (`Ctrl+S`, `Ctrl+1/2/3`, `Ctrl+K`).
 
 ### Editor View Modes
@@ -457,15 +459,15 @@ Field-level access control:
 
 **Reorder fields**:
 
-1. Drag field up or down in the list
-2. Drop in desired position
+1. Drag field up or down in the list by its handle
+2. An insertion line shows where it will land; drop in the desired position
 3. Click **"Save"** to persist order
 
 **Edit Field**:
 
-1. Click field card in the list
-2. Widget configuration modal opens
-3. Modify settings
+1. Click the field card (or its pencil icon) in the list
+2. The field editor opens with **Default**, **Settings**, and **Permissions** tabs
+3. Modify settings — the help icon next to a setting explains what it does
 4. Click **"Save"**
 
 **Delete Field**:

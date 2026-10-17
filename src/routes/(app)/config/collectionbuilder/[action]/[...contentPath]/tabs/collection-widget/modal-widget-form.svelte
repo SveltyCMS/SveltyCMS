@@ -579,7 +579,7 @@
 									{key}
 									label={settingLabel(key)}
 									labelClass={isInput ? 'sr-only' : undefined}
-									onupdate={(e: { value: any }) => updateField(key, e.value)}
+									onupdate={(e: { value: unknown }) => updateField(key, e.value)}
 								/>
 							</div>
 						{/each}
