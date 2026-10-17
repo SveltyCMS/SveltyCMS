@@ -51,7 +51,6 @@ offset within the row on the native `dragover` event — that event carries
 	import TreeViewNode from './tree-view-node.svelte';
 	import TreeDragPreview from './tree-drag-preview.svelte';
 	import Button from '@components/ui/button.svelte';
-	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
@@ -86,6 +85,7 @@ offset within the row on the native `dragover` event — that event carries
 		button_save,
 		collections_all_tags,
 		collections_clear_filters,
+		collections_clear_search,
 		collections_favorites,
 		collections_manage_tags,
 		collections_search,
@@ -962,19 +962,33 @@ offset within the row on the native `dragover` event — that event carries
 
 <!-- Toolbar -->
 <div class="mb-4 flex flex-wrap items-center gap-2">
+	<!-- Plain Input + placeholder (as in the sidebar search): a floating label pads the
+	     top of the field, which pushed the caret below centre when focused. -->
 	<div class="relative flex-1 min-w-50">
-		<FloatingInput
-			size="md"
-			clearable
+		<Input
+			type="search"
 			bind:value={searchText}
-			onClear={clearSearch}
-			label={collections_search()}
-			icon="mdi:magnify"
+			placeholder={collections_search()}
 			aria-label={collections_search_aria()}
-			labelClass="w-full text-center start-0! origin-center!"
-			inputClass="w-full rounded border! border-surface-500/30 dark:border-surface-600"
+			pre={searchIcon}
+			post={searchText ? searchClear : undefined}
+			inputClass="w-full"
 		/>
 	</div>
+	{#snippet searchIcon()}
+		<iconify-icon icon="mdi:magnify" width="20" aria-hidden="true"></iconify-icon>
+	{/snippet}
+	{#snippet searchClear()}
+		<Button
+			variant="transparent"
+			type="button"
+			onclick={clearSearch}
+			aria-label={collections_clear_search()}
+			class="size-6! min-w-0! rounded-full! p-0! text-(--admin-text-muted) hover:text-(--admin-text-body)"
+		>
+			<iconify-icon icon="mdi:close" width="16" aria-hidden="true"></iconify-icon>
+		</Button>
+	{/snippet}
 	<!-- Favorites Filter Chip -->
 	<SystemTooltip title={builder_filter_fav_tip()}>
 		<Button
@@ -991,14 +1005,15 @@ offset within the row on the native `dragover` event — that event carries
 
 	<!-- Tag Filter Dropdown -->
 	{#if allTags.length > 0}
-		<div class="relative min-w-36">
-			<SystemTooltip title={builder_filter_tags_tip()}>
+		<!-- Same 40px height as the Favorites / Expand / Collapse buttons beside it -->
+		<div class="relative w-44">
+			<SystemTooltip title={builder_filter_tags_tip()} wFull>
 				<Select
 					bind:value={selectedTagFilter}
 					options={tagFilterOptions}
 					placeholder={collections_all_tags()}
 					allowEmptySelection
-					size="sm"
+					size="md"
 				/>
 			</SystemTooltip>
 		</div>
