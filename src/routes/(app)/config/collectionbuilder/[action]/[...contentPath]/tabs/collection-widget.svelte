@@ -147,12 +147,11 @@
 	/**
 	 * Where the single insertion line is drawn. Derived from dndState instead of
 	 * sveltednd's own blue indicators, which it paints on every droppable and moves
-	 * onto the next sibling for "after". Palette drops always append, so they get
-	 * no in-list line.
+	 * onto the next sibling for "after". Covers field reorders and palette widgets,
+	 * which are inserted at the same slot.
 	 */
 	function dropLineFor(dragId: string): 'before' | 'after' | null {
 		if (!dndState.isDragging || dndState.targetContainer !== `field:${dragId}`) return null;
-		if ((dndState.draggedItem as FieldDrag | PaletteDrag | null)?.kind !== 'field') return null;
 		const pos = dndState.dropPosition;
 		if (pos !== 'before' && pos !== 'after') return null;
 		const index = items.findIndex((i) => i._dragId === dragId) + (pos === 'after' ? 1 : 0);
@@ -165,22 +164,12 @@
 			!isNoopFieldDrop(items.length)
 	);
 
-	/** Reorder existing fields (same container) */
+	/** Reorder existing fields, or insert a palette widget at the drop slot */
 	function handleFieldDrop(state: DragDropState<FieldDrag | PaletteDrag>) {
 		const dragged = state.draggedItem;
 		if (!dragged) return;
 
-		// Palette widget dropped onto canvas
-		if (dragged.kind === 'palette') {
-			void addSidebarWidget(dragged.widgetKey);
-			return;
-		}
-
-		if (dragged.kind !== 'field') return;
-
-		const fromIndex = items.findIndex((i) => i._dragId === dragged.dragId);
-		if (fromIndex < 0) return;
-
+		// Row → its slot (before/after); end zone or empty state → append.
 		const targetEl = state.targetElement?.closest('[data-drag-id]') as HTMLElement | null;
 		const targetDragId = targetEl?.dataset?.dragId;
 
@@ -192,6 +181,17 @@
 			targetIndex = items.length;
 		}
 		targetIndex = Math.max(0, Math.min(targetIndex, items.length));
+
+		// Palette widget dropped onto canvas: same add flow as a click, at this slot
+		if (dragged.kind === 'palette') {
+			void addSidebarWidget(dragged.widgetKey, true, targetIndex);
+			return;
+		}
+
+		if (dragged.kind !== 'field') return;
+
+		const fromIndex = items.findIndex((i) => i._dragId === dragged.dragId);
+		if (fromIndex < 0) return;
 		if (fromIndex === targetIndex || fromIndex + 1 === targetIndex) return;
 
 		const moving = items[fromIndex];
@@ -324,7 +324,8 @@
 		toast.success('Field duplicated');
 	}
 
-	async function addSidebarWidget(key: string, openEditor = true) {
+	/** Add a widget field; `atIndex` inserts at a drop slot, otherwise it is appended. */
+	async function addSidebarWidget(key: string, openEditor = true, atIndex?: number) {
 		await widgets.initialize();
 		// Resolve case-insensitive so "input" / "Input" both work from E2E + palette
 		const resolvedKey = getWidgetFunction(key)
@@ -350,11 +351,11 @@
 		while (existing.has(dbName)) dbName = `new_${base}_${++n}`;
 
 		const newDragId = generateUUID();
-		const newIndex = items.length;
-		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+		const insertAt =
+			atIndex === undefined ? items.length : Math.max(0, Math.min(atIndex, items.length));
 
 		const newWidget = {
-			id: newIndex + 1,
+			id: insertAt + 1,
 			_dragId: newDragId,
 			label: `New ${key}`,
 			db_fieldName: dbName,
@@ -364,7 +365,11 @@
 			permissions: {}
 		} as unknown as WidgetListItem;
 
-		items = [...items, newWidget];
+		items = [...items.slice(0, insertAt), newWidget, ...items.slice(insertAt)].map((it, i) => ({
+			...it,
+			id: i + 1
+		}));
+		reindexDragIds();
 		updateStore();
 		toast.success(`Added ${key} field`);
 
