@@ -687,31 +687,43 @@ Provides an organized interface for navigating hierarchical content structures.
 					</div>
 				{/if}
 
+				<!-- Icon-only 32px controls (same as the reorder toggle) so the tag filter
+				     keeps a usable width in the narrow sidebar; names via tooltip + aria-label. -->
 				{#if search || showOnlyFavorites || selectedTagFilter}
-					<Button
-						variant="ghost"
-						type="button"
-						size="sm"
-						onclick={clearAllFilters}
-						class="shrink-0 text-xs"
-					>
-						{collections_clear_filters()}
-					</Button>
+					<SystemTooltip title={collections_clear_filters()} role={null} tabindex={null}>
+						<Button
+							variant="outline"
+							type="button"
+							size="sm"
+							onclick={clearAllFilters}
+							aria-label={collections_clear_filters()}
+							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-surface-500/10 p-0! text-(--admin-text-muted) transition-all hover:bg-surface-500/20"
+						>
+							<iconify-icon icon="mdi:filter-remove-outline" width="16" aria-hidden="true"
+							></iconify-icon>
+						</Button>
+					</SystemTooltip>
 				{/if}
 
-				<Button
-					variant="outline"
-					type="button"
-					size="sm"
-					onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
-					class="flex shrink-0 items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
-						? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
-						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-(--admin-text-muted)'}"
-				>
-					<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"
-					></iconify-icon>
-					<span>{collections_favorites()}</span>
-				</Button>
+				<SystemTooltip title={collections_favorites()} role={null} tabindex={null}>
+					<Button
+						variant="outline"
+						type="button"
+						size="sm"
+						onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
+						aria-label={collections_favorites()}
+						aria-pressed={showOnlyFavorites}
+						class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border p-0! transition-all {showOnlyFavorites
+							? 'bg-warning-500/20 border-warning-500 text-warning-500'
+							: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-(--admin-text-muted)'}"
+					>
+						<iconify-icon
+							icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'}
+							width="14"
+							aria-hidden="true"
+						></iconify-icon>
+					</Button>
+				</SystemTooltip>
 			</div>
 
 			<SystemTooltip title={collections_reorder()} positioning={{ placement: 'right' }}>
