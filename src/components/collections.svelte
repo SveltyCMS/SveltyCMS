@@ -672,10 +672,11 @@ Provides an organized interface for navigating hierarchical content structures.
 	<!-- Filters Row (no section header — Favorites left, edit/reorder right) -->
 	{#if isFullSidebar}
 		<div class="flex items-center justify-between gap-2 px-1">
-			<div class="flex min-w-0 items-center gap-2">
+			<div class="flex min-w-0 flex-1 items-center gap-2">
 				{#if allTags.length > 0}
-					<!-- Fixed width so Favorites and the reorder toggle stay inside the sidebar -->
-					<div class="relative w-28 shrink-0">
+					<!-- Takes the space left after Favorites and the reorder toggle (which keep
+					     their natural size), so nothing overflows or overlaps in the sidebar -->
+					<div class="relative min-w-0 flex-1">
 						<Select
 							bind:value={selectedTagFilter}
 							options={tagFilterOptions}
@@ -687,7 +688,13 @@ Provides an organized interface for navigating hierarchical content structures.
 				{/if}
 
 				{#if search || showOnlyFavorites || selectedTagFilter}
-					<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="text-xs">
+					<Button
+						variant="ghost"
+						type="button"
+						size="sm"
+						onclick={clearAllFilters}
+						class="shrink-0 text-xs"
+					>
 						{collections_clear_filters()}
 					</Button>
 				{/if}
@@ -697,7 +704,7 @@ Provides an organized interface for navigating hierarchical content structures.
 					type="button"
 					size="sm"
 					onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
-					class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
+					class="flex shrink-0 items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
 						? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
 						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-(--admin-text-muted)'}"
 				>
@@ -761,7 +768,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			placeholder={collections_search()}
 			pre={isFullSidebar ? (searchIcon as Snippet) : undefined}
 			post={isFullSidebar ? (clearIcon as Snippet) : undefined}
-			inputClass="w-full text-xs"
+			inputClass="w-full text-xs [&::-webkit-search-cancel-button]:hidden"
 			aria-label={collections_search_aria()}
 		/>
 	</div>
