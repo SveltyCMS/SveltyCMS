@@ -578,7 +578,11 @@ search filtering, and RTL support.
 	{@const isSelected = selectedId === node.id}
 	{@const isFocused = focusedNodeId === node.id}
 	{@const nodeLabel = getNodeLabel(node)}
-	{@const showBadge = shouldShowBadge(node)}
+	<!-- Pinned-visible actions sit where the badge is (the badge only hides on hover
+	     otherwise), so drop the badge while they are shown to avoid the overlap. -->
+	{@const showBadge =
+		shouldShowBadge(node) &&
+		!(showActionsAlways && !!node.actions?.length && computedDensity !== 'compact')}
 	{@const isMedia = variant === 'media'}
 	{@const isRoot = depth === 0 && node.id === 'root'}
 	{@const isCompactRail = computedDensity === 'compact' && !isMedia}
@@ -833,7 +837,7 @@ search filtering, and RTL support.
 	                         `title` browser hover. -->
 						<SystemTooltip title={act.label} positioning={{ placement: 'top' }}>
 							<Button
-								variant="ghost"
+								variant="transparent"
 								size="sm"
 								type="button"
 								onclick={(e: MouseEvent) => {
