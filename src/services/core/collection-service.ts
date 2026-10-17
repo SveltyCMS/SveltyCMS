@@ -317,23 +317,26 @@ export class CollectionService {
     }
 
     // Platform filter engine: schema + FLAC → portable QueryBuilder IR
-    const compiled = compileSecureFilters(filter, collection, user);
+    // When loading a single entry for edit mode (editEntryId), ignore list-level filters/search/page offset
+    const compiled = editEntryId
+      ? compileSecureFilters({}, collection, user)
+      : compileSecureFilters(filter, collection, user);
     logger.debug(`[CollectionService] Querying table: ${collectionTable}`, {
       equality: compiled.equality,
       ranges: compiled.ranges,
       textSearch: compiled.textSearch,
       rejected: compiled.rejected,
       tenantId,
-      search: search || undefined,
+      search: (!editEntryId && search) || undefined,
     });
 
     let query = dbAdapter.queryBuilder(collectionTable);
     const applied = applyFiltersToQueryBuilder(query, compiled, {
       baseWhere,
-      globalSearch: search,
+      globalSearch: editEntryId ? "" : search,
       collection,
       user,
-      orGroups,
+      orGroups: editEntryId ? undefined : orGroups,
     });
     query = applied.qb;
 
@@ -347,14 +350,17 @@ export class CollectionService {
     } else {
       query = query.sort(sortList[0].field as any, sortList[0].direction);
     }
-    query = query.paginate({ page, pageSize: pageSize + 1 });
+    const effectivePage = editEntryId ? 1 : page;
+    const effectivePageSize = editEntryId ? 1 : pageSize;
+    query = query.paginate({ page: effectivePage, pageSize: effectivePageSize + 1 });
 
     const simpleCountEligible =
-      !search &&
-      compiled.ranges.length === 0 &&
-      compiled.inLists.length === 0 &&
-      compiled.nullChecks.length === 0 &&
-      compiled.textSearch.length === 0 &&
+      (Boolean(editEntryId) ||
+        (!search &&
+          compiled.ranges.length === 0 &&
+          compiled.inLists.length === 0 &&
+          compiled.nullChecks.length === 0 &&
+          compiled.textSearch.length === 0)) &&
       typeof dbAdapter.crud?.count === "function";
 
     const countFilter = simpleCountEligible

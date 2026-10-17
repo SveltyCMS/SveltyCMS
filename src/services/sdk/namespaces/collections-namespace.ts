@@ -499,28 +499,29 @@ export class CollectionsNamespace {
    * revealed. A missing row returns so the adapter's own update/delete 404
    * stays the single response.
    */
-  private async assertEntryOwnership(
+  private assertEntryOwnership(
     schema: Schema,
     entryId: string,
     tenantId: DatabaseId | null | undefined,
     user: unknown,
     system?: boolean,
-  ): Promise<void> {
+  ): void | Promise<void> {
     const scope = ownershipFilter(schema, user, system);
     if (scope === false) return;
     if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
     const field = Object.keys(scope)[0];
     if (!field) return;
-    const existing = await this._dbAdapter.crud.findOne(
-      this.getCollectionName(schema._id as string),
-      { _id: entryId } as any,
-      { tenantId: tenantId as DatabaseId },
-    );
-    if (!existing?.success || !existing.data) return;
-    const value = ownerValue(existing.data, field);
-    if (value === undefined || value === null || String(value) !== String(scope[field])) {
-      throw new AppError("Entry not found", 404, "NOT_FOUND");
-    }
+    return this._dbAdapter.crud
+      .findOne(this.getCollectionName(schema._id as string), { _id: entryId } as any, {
+        tenantId: tenantId as DatabaseId,
+      })
+      .then((existing) => {
+        if (!existing?.success || !existing.data) return;
+        const value = ownerValue(existing.data, field);
+        if (value === undefined || value === null || String(value) !== String(scope[field])) {
+          throw new AppError("Entry not found", 404, "NOT_FOUND");
+        }
+      });
   }
 
   /**
@@ -1267,6 +1268,30 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
+    if (
+      !system &&
+      !isAdmin(user) &&
+      (hot._hasGuardedFields ?? true) &&
+      schema.fields &&
+      schema.fields.length > 0
+    ) {
+      const { assertWriteAllowed } =
+        await import("@src/services/security/field-permission-service");
+      for (const item of data) {
+        if (item && typeof item === "object") {
+          await assertWriteAllowed(
+            schema.fields as FieldInstance[],
+            item as Record<string, unknown>,
+            user,
+            {
+              collectionName: schema.name,
+              tenantId: tenantId ?? undefined,
+            },
+          );
+        }
+      }
+    }
+
     const now = nowISODateString();
     const createdBy = effectiveUser?._id;
 
@@ -1371,9 +1396,33 @@ export class CollectionsNamespace {
     const schema = await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
+    // 🛡️ Row ownership check across all target IDs (mirrors bulkDelete)
+    const scope = ownershipFilter(schema, user, system);
+    if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
+    if (scope && updates.length > 0) {
+      const field = Object.keys(scope)[0];
+      const ownerId = field ? String(scope[field]) : "";
+      const targetIds = updates.map((u) => u.id as DatabaseId);
+      const found = await this._dbAdapter.crud.findByIds(
+        this.getCollectionName(schema._id as string),
+        targetIds,
+        { tenantId: tenantId as DatabaseId, limit: targetIds.length },
+      );
+      const rows = found?.success && Array.isArray(found.data) ? found.data : [];
+      const wanted = new Set(updates.map((u) => String(u.id)));
+      let owned = 0;
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i] as { _id?: unknown };
+        if (!wanted.has(String(row?._id ?? ""))) continue;
+        const value = field ? ownerValue(row, field) : undefined;
+        if (value !== undefined && value !== null && String(value) === ownerId) owned++;
+      }
+      if (owned !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
+    }
+
     if (
       !system &&
-      !user?.isAdmin &&
+      !isAdmin(user) &&
       (hot._hasGuardedFields ?? true) &&
       schema.fields &&
       schema.fields.length > 0
@@ -1406,8 +1455,12 @@ export class CollectionsNamespace {
     for (const u of updates) {
       const raw = (u.data ?? {}) as Record<string, unknown>;
       const patched = isShallowPatch(raw)
-        ? raw
+        ? { ...raw }
         : (copyDataWithFreshRowIds(raw) as Record<string, unknown>);
+      // Strip system-controlled ownership / tenant fields from client patch
+      delete patched.tenantId;
+      delete patched.createdBy;
+      delete patched._scheduledBy;
       // Same schema-gated stamp as the single-update path: an undeclared
       // `updatedBy` would merge into the JSON `data` blob and rewrite it on
       // every bulk update (write amplification on all SQL engines).
@@ -1941,7 +1994,8 @@ export class CollectionsNamespace {
     }
     markWritePhase(options, "schema", tSchema);
     if (!system) {
-      await this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+      const ownP = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+      if (ownP) await ownP;
     }
 
     const tPrep = writePhaseT0(options);
@@ -2280,7 +2334,8 @@ export class CollectionsNamespace {
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.schemaOf(collectionId, tenantId);
     if (!system) {
-      await this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+      const ownP = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+      if (ownP) await ownP;
     }
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;

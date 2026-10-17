@@ -349,10 +349,8 @@ function flattenDataColumn(
     } else {
       // Row-store hybrid: columns are authoritative — data fills only gaps.
       const src = value as Record<string, unknown>;
-      const keys = Object.keys(src);
-      for (let i = 0; i < keys.length; i++) {
-        const k = keys[i];
-        if (!skipMerge.has(k)) {
+      for (const k in src) {
+        if (Object.hasOwn(src, k) && !skipMerge.has(k)) {
           result[k] = src[k];
         }
       }
@@ -547,7 +545,6 @@ export function convertDatesToISO(
       // arrives as an object, not a string) still needs its fields flattened
       // into the row; skipping it left blob fields invisible on PG reads.
       if (!skipJson && jsonCols && jsonCols.length > 0) {
-        const skipMerge = table ? getTableMergeSkipKeys(table) : null;
         for (let i = 0; i < jsonCols.length; i++) {
           const k = jsonCols[i];
           const v = row[k];
@@ -556,7 +553,7 @@ export function convertDatesToISO(
           }
         }
       }
-      coerceBooleanCols(row, table);
+      coerceBooleanCols(row, table, bools);
       return row;
     }
 

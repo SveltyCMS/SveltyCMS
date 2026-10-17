@@ -70,6 +70,11 @@ and first/last navigation used by the admin CMS.
 			? pagesCount
 			: Math.max(1, Math.ceil((totalItems || 0) / Math.max(1, rowsPerPage)))
 	);
+	const minPageSize = $derived(
+		rowsPerPageOptions.length > 0 ? Math.min(...rowsPerPageOptions) : 10
+	);
+	const canPaginate = $derived(computedPagesCount > 1 || currentPage > 1);
+	const canChangePageSize = $derived(totalItems > minPageSize || rowsPerPage > minPageSize);
 	const startItem = $derived(totalItems === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1);
 	const endItem = $derived(Math.min(currentPage * rowsPerPage, totalItems));
 	const isFirstPage = $derived(currentPage <= 1);
@@ -165,35 +170,37 @@ and first/last navigation used by the admin CMS.
 
 	<!-- Mobile -->
 	<div class="flex w-full items-center gap-2 md:hidden">
-		<nav
-			class="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
-			aria-label="Table pagination"
-		>
-			{@render pagerLink({
-				pageNumber: currentPage - 1,
-				label: 'Go to previous page',
-				icon: 'mdi:chevron-left',
-				disabled: isFirstPage,
-				size: 'sm',
-				cls: 'table-pagination-mobile-nav-btn',
-				viewport: true
-			})}
-			<span
-				class="flex min-w-12 items-center justify-center border-x border-surface-500/30 px-2 font-mono text-xs font-semibold tabular-nums text-surface-600 dark:border-surface-500/40 dark:text-surface-100"
-				aria-hidden="true"
+		{#if canPaginate}
+			<nav
+				class="inline-flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg border border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900"
+				aria-label="Table pagination"
 			>
-				{currentPage}/{computedPagesCount}
-			</span>
-			{@render pagerLink({
-				pageNumber: currentPage + 1,
-				label: 'Go to next page',
-				icon: 'mdi:chevron-right',
-				disabled: isLastPage,
-				size: 'sm',
-				cls: 'table-pagination-mobile-nav-btn',
-				viewport: true
-			})}
-		</nav>
+				{@render pagerLink({
+					pageNumber: currentPage - 1,
+					label: 'Go to previous page',
+					icon: 'mdi:chevron-left',
+					disabled: isFirstPage,
+					size: 'sm',
+					cls: 'table-pagination-mobile-nav-btn',
+					viewport: true
+				})}
+				<span
+					class="flex min-w-12 items-center justify-center border-x border-surface-500/30 px-2 font-mono text-xs font-semibold tabular-nums text-surface-600 dark:border-surface-500/40 dark:text-surface-100"
+					aria-hidden="true"
+				>
+					{currentPage}/{computedPagesCount}
+				</span>
+				{@render pagerLink({
+					pageNumber: currentPage + 1,
+					label: 'Go to next page',
+					icon: 'mdi:chevron-right',
+					disabled: isLastPage,
+					size: 'sm',
+					cls: 'table-pagination-mobile-nav-btn',
+					viewport: true
+				})}
+			</nav>
+		{/if}
 
 		<p
 			class="m-0 min-w-0 flex-1 text-center font-mono text-[10px] font-semibold uppercase tracking-wide text-(--admin-text-muted)"
@@ -208,25 +215,27 @@ and first/last navigation used by the admin CMS.
 			{/if}
 		</p>
 
-		<label class="relative inline-flex h-9 shrink-0 items-center">
-			<span class="sr-only">{entrylist_rows()}</span>
-			<select
-				aria-label="Items per page"
-				bind:value={rowsPerPage}
-				onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
-				class="h-full cursor-pointer appearance-none rounded-lg border border-surface-500/30 bg-surface-500/10 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-400"
-			>
-				{#each rowsPerPageOptions as pageSize (pageSize)}
-					<option value={pageSize}>{pageSize} {entrylist_rows()}</option>
-				{/each}
-			</select>
-			<iconify-icon
-				icon="mdi:chevron-down"
-				width="14"
-				class="pointer-events-none absolute inset-e-2 text-surface-400"
-				aria-hidden="true"
-			></iconify-icon>
-		</label>
+		{#if canChangePageSize}
+			<label class="relative inline-flex h-9 shrink-0 items-center">
+				<span class="sr-only">{entrylist_rows()}</span>
+				<select
+					aria-label="Items per page"
+					bind:value={rowsPerPage}
+					onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
+					class="h-full cursor-pointer appearance-none rounded-lg border border-surface-500/30 bg-surface-500/10 pe-7 ps-3 font-mono text-[11px] font-semibold uppercase tracking-wide text-surface-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-surface-400"
+				>
+					{#each rowsPerPageOptions as pageSize (pageSize)}
+						<option value={pageSize}>{pageSize} {entrylist_rows()}</option>
+					{/each}
+				</select>
+				<iconify-icon
+					icon="mdi:chevron-down"
+					width="14"
+					class="pointer-events-none absolute inset-e-2 text-surface-400"
+					aria-hidden="true"
+				></iconify-icon>
+			</label>
+		{/if}
 	</div>
 
 	<!-- Desktop -->
@@ -235,17 +244,20 @@ and first/last navigation used by the admin CMS.
 		role="status"
 		aria-live="polite"
 	>
-		<span>
-			{entrylist_page()}
-			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-			{entrylist_of()}
-			<span class="font-semibold text-tertiary-500 dark:text-primary-500">{computedPagesCount}</span
-			>
-		</span>
-		<span
-			class="hidden h-3 w-px bg-surface-300 sm:inline-block dark:bg-surface-600"
-			aria-hidden="true"
-		></span>
+		{#if canPaginate}
+			<span>
+				{entrylist_page()}
+				<span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+				{entrylist_of()}
+				<span class="font-semibold text-tertiary-500 dark:text-primary-500"
+					>{computedPagesCount}</span
+				>
+			</span>
+			<span
+				class="hidden h-3 w-px bg-surface-300 sm:inline-block dark:bg-surface-600"
+				aria-hidden="true"
+			></span>
+		{/if}
 		<span aria-label="Current items shown">
 			{#if totalItems > 0}
 				{entrylist_showing()}
@@ -261,68 +273,78 @@ and first/last navigation used by the admin CMS.
 		</span>
 	</div>
 
-	<nav class="hidden items-center md:flex" aria-label="Table pagination">
-		<div
-			class="inline-flex items-center overflow-hidden rounded-md border border-surface-500/30 dark:border-surface-600"
-		>
-			<SystemTooltip title="First Page">
-				{@render pagerLink({
-					pageNumber: 1,
-					label: 'Go to first page',
-					icon: 'material-symbols:first-page',
-					disabled: isFirstPage,
-					cls: '{navBtn} border-e border-surface-500/30 dark:border-surface-600'
-				})}
-			</SystemTooltip>
-			<SystemTooltip title="Previous Page">
-				{@render pagerLink({
-					pageNumber: currentPage - 1,
-					label: 'Go to previous page',
-					icon: 'material-symbols:chevron-left',
-					disabled: isFirstPage,
-					cls: '{navBtn} border-e border-surface-500/30 dark:border-surface-600',
-					viewport: true
-				})}
-			</SystemTooltip>
-			<SystemTooltip title="Rows per page">
-				<select
-					aria-label="Rows per page"
-					bind:value={rowsPerPage}
-					onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
-					class="h-8 cursor-pointer appearance-none border-e border-surface-500/30 bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:border-surface-600 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
-				>
-					{#each rowsPerPageOptions as pageSize (pageSize)}
-						<option
-							class="bg-surface-500/10 text-black dark:bg-surface-700 dark:text-white"
-							value={pageSize}
+	{#if canPaginate || canChangePageSize}
+		<nav class="hidden items-center md:flex" aria-label="Table pagination">
+			<div
+				class="inline-flex items-center overflow-hidden rounded-md border border-surface-500/30 dark:border-surface-600"
+			>
+				{#if canPaginate}
+					<SystemTooltip title="First Page">
+						{@render pagerLink({
+							pageNumber: 1,
+							label: 'Go to first page',
+							icon: 'material-symbols:first-page',
+							disabled: isFirstPage,
+							cls: `${navBtn} border-e border-surface-500/30 dark:border-surface-600`
+						})}
+					</SystemTooltip>
+					<SystemTooltip title="Previous Page">
+						{@render pagerLink({
+							pageNumber: currentPage - 1,
+							label: 'Go to previous page',
+							icon: 'material-symbols:chevron-left',
+							disabled: isFirstPage,
+							cls: `${navBtn} border-e border-surface-500/30 dark:border-surface-600`,
+							viewport: true
+						})}
+					</SystemTooltip>
+				{/if}
+				{#if canChangePageSize}
+					<SystemTooltip title="Rows per page">
+						<select
+							aria-label="Rows per page"
+							bind:value={rowsPerPage}
+							onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
+							class="h-8 cursor-pointer appearance-none {canPaginate
+								? 'border-e border-surface-500/30 dark:border-surface-600'
+								: ''} bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
 						>
-							{pageSize}
-							{entrylist_rows()}
-						</option>
-					{/each}
-				</select>
-			</SystemTooltip>
-			<SystemTooltip title="Next Page">
-				{@render pagerLink({
-					pageNumber: currentPage + 1,
-					label: 'Go to next page',
-					icon: 'material-symbols:chevron-right',
-					disabled: isLastPage,
-					cls: '{navBtn} border-e border-surface-500/30 dark:border-surface-600',
-					viewport: true
-				})}
-			</SystemTooltip>
-			<SystemTooltip title="Last Page">
-				{@render pagerLink({
-					pageNumber: computedPagesCount,
-					label: 'Go to last page',
-					icon: 'material-symbols:last-page',
-					disabled: isLastPage,
-					cls: navBtn
-				})}
-			</SystemTooltip>
-		</div>
-	</nav>
+							{#each rowsPerPageOptions as pageSize (pageSize)}
+								<option
+									class="bg-surface-500/10 text-black dark:bg-surface-700 dark:text-white"
+									value={pageSize}
+								>
+									{pageSize}
+									{entrylist_rows()}
+								</option>
+							{/each}
+						</select>
+					</SystemTooltip>
+				{/if}
+				{#if canPaginate}
+					<SystemTooltip title="Next Page">
+						{@render pagerLink({
+							pageNumber: currentPage + 1,
+							label: 'Go to next page',
+							icon: 'material-symbols:chevron-right',
+							disabled: isLastPage,
+							cls: `${navBtn} border-e border-surface-500/30 dark:border-surface-600`,
+							viewport: true
+						})}
+					</SystemTooltip>
+					<SystemTooltip title="Last Page">
+						{@render pagerLink({
+							pageNumber: computedPagesCount,
+							label: 'Go to last page',
+							icon: 'material-symbols:last-page',
+							disabled: isLastPage,
+							cls: navBtn
+						})}
+					</SystemTooltip>
+				{/if}
+			</div>
+		</nav>
+	{/if}
 
 	<style>
 		:global(.table-pagination-mobile-nav-btn) {

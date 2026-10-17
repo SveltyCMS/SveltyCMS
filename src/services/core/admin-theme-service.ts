@@ -22,6 +22,7 @@ import { auditPresetJson, type ContrastWarning } from "@utils/theme-contrast";
 import type { DatabaseId } from "@src/content/types";
 import type { Theme } from "@src/databases/db-interface";
 import { stripHtml } from "@utils/sanitize-html";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -138,7 +139,7 @@ function buildDefaults(name: string): StoredAdminTheme {
         mediaGalleries: "left",
       },
     },
-    updatedAt: new Date().toISOString(),
+    updatedAt: nowISODateString(),
   };
 }
 
@@ -230,7 +231,7 @@ export class AdminThemeService {
       ...existing,
       ...settings,
       name: settings.name || existing?.name || theme.name,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowISODateString(),
     } as StoredAdminTheme;
 
     const updatedConfig = {
@@ -278,7 +279,7 @@ export class AdminThemeService {
       ...buildDefaults(name),
       ...settings,
       name,
-      updatedAt: new Date().toISOString(),
+      updatedAt: nowISODateString(),
     };
 
     const result = await db.system.themes.install({

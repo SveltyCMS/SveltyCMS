@@ -112,13 +112,15 @@ export async function indexBatch(
   const results = await embed(texts);
 
   for (let i = 0; i < items.length; i++) {
+    const effectiveTenant = tenantId ?? items[i].tenantId;
     const indexed: IndexedItem = {
       ...items[i],
       vector: results[i].vector,
       indexedAt: Date.now(),
-      ...(tenantId !== undefined ? { tenantId } : {}),
+      ...(effectiveTenant !== undefined ? { tenantId: effectiveTenant } : {}),
     };
-    _index.set(items[i].id, indexed);
+    const key = effectiveTenant ? `${effectiveTenant}:${items[i].id}` : items[i].id;
+    _index.set(key, indexed);
   }
 
   logger.info(`[SemanticIndex] Batch-indexed ${items.length} items (${results[0].backend})`);
@@ -160,8 +162,9 @@ export async function semanticSearch(
     if (types && !types.includes(item.type)) continue;
     // Collection filter
     if (collectionId && item.collectionId !== collectionId) continue;
-    // Tenant filter (only when the caller scopes the search)
-    if (tenantId && item.tenantId !== tenantId) continue;
+    // Tenant filter: global admin-page items are shared; tenant-scoped items must match
+    if (tenantId && item.type !== "admin-page" && item.tenantId !== tenantId) continue;
+    if (!tenantId && item.tenantId) continue;
 
     // Semantic score: cosine similarity
     const semanticScore = cosineSimilarity(queryVector, item.vector);

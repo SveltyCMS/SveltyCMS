@@ -158,36 +158,84 @@ function splitPathSegments(pathname: string): string[] {
   return raw;
 }
 
-/** True for GET/HEAD of a collection list or single entry. */
-export function isSimpleCollectionRead(event: RequestEvent): boolean {
+export interface ReadLaneTarget {
+  collectionId: string;
+  entryId: string | null;
+}
+
+function resolveReadLaneTarget(event: RequestEvent): ReadLaneTarget | null {
   const method = event.request.method;
-  if (method !== "GET" && method !== "HEAD") return false;
   const pathname = event.url.pathname;
-  if (!pathname.startsWith("/api/collections/")) return false;
+  const rawSearch = event.url.search || "";
+  const locals = event.locals as
+    | {
+        __readTarget?: ReadLaneTarget | null;
+        __readTargetMethod?: string;
+        __readTargetPath?: string;
+        __readTargetSearch?: string;
+      }
+    | undefined;
+  if (
+    locals &&
+    locals.__readTarget !== undefined &&
+    locals.__readTargetMethod === method &&
+    locals.__readTargetPath === pathname &&
+    locals.__readTargetSearch === rawSearch
+  ) {
+    return locals.__readTarget;
+  }
+
+  const remember = (val: ReadLaneTarget | null): ReadLaneTarget | null => {
+    if (locals) {
+      locals.__readTarget = val;
+      locals.__readTargetMethod = method;
+      locals.__readTargetPath = pathname;
+      locals.__readTargetSearch = rawSearch;
+    }
+    return val;
+  };
+
+  if (method !== "GET" && method !== "HEAD") {
+    return remember(null);
+  }
+  if (!pathname.startsWith("/api/collections/")) {
+    return remember(null);
+  }
   const parts = splitPathSegments(pathname);
   // ["api", "collections", collectionId] or ["api", "collections", collectionId, entryId]
-  if (parts.length !== 3 && parts.length !== 4) return false;
+  if (parts.length !== 3 && parts.length !== 4) {
+    return remember(null);
+  }
   const collectionId = parts[2];
   if (!collectionId || COLLECTION_ACTION_SEGMENTS.has(collectionId)) {
-    return false;
+    return remember(null);
   }
   if (parts.length === 4) {
     const entryId = parts[3];
     if (
+      !entryId ||
       COLLECTION_ACTION_SEGMENTS.has(entryId) ||
       entryId === "revisions" ||
       entryId === "export"
     ) {
-      return false;
+      return remember(null);
     }
-  } else if (parts.length === 3) {
-    // Exclude export, count-only, and explicit streaming
+    return remember({ collectionId, entryId });
+  }
+  // Exclude export, count-only, and explicit streaming without materializing
+  // URLSearchParams on normal list queries (e.g. `?limit=20`).
+  if (rawSearch.length > 1 && (rawSearch.includes("export") || rawSearch.includes("stream=true"))) {
     const search = event.url.searchParams;
     if (search.has("export") || search.get("stream") === "true") {
-      return false;
+      return remember(null);
     }
   }
-  return true;
+  return remember({ collectionId, entryId: null });
+}
+
+/** True for GET/HEAD of a collection list or single entry. */
+export function isSimpleCollectionRead(event: RequestEvent): boolean {
+  return resolveReadLaneTarget(event) !== null;
 }
 
 export interface CollectionWireMeta {
@@ -592,9 +640,9 @@ async function executeWarmCollectionRead(
     ? `${turbo.userSegment}:${url.pathname}${url.search}`
     : buildUserResponseCacheKey(url.pathname, url.search, userId);
   const cacheTenant = (locals.tenantId as string | null) ?? null;
-  const parts = splitPathSegments(url.pathname);
-  const collectionId = parts[2];
-  const entryId = parts.length === 4 ? parts[3] : null;
+  const target = resolveReadLaneTarget(event);
+  if (!target) return null;
+  const { collectionId, entryId } = target;
 
   // 🔐 FLAC gate — before any cache lookup, so a body stored before a policy
   // change can never outlive it. Non-exempt callers use the full pipeline, which
@@ -602,20 +650,18 @@ async function executeWarmCollectionRead(
   if (!admin && !isLaneFlacExempt(collectionId, cacheTenant, turbo.role ?? roleOf(turbo.user))) {
     return null;
   }
-  const listParams = !entryId ? parseCollectionQueryParams(url.searchParams) : null;
-  if (listParams && (listParams.stream || listParams.limit >= MAX_PAGE_SIZE)) {
-    return null;
-  }
 
-  const bypass =
-    url.searchParams.get("refresh") === "true" ||
-    url.searchParams.get("nocache") === "true" ||
-    url.searchParams.get("bypassCache") === "true" ||
-    listParams?.bypassCache === true;
+  const rawSearch = url.search;
+  const maybeBypass =
+    rawSearch.length > 0 &&
+    (rawSearch.includes("refresh=true") ||
+      rawSearch.includes("nocache=true") ||
+      rawSearch.includes("bypassCache=true") ||
+      rawSearch.includes("stream=true"));
 
   const srvT0 = STAMP_SRV_DUR || STAMP_SRV_SPLIT ? performance.now() : 0;
   const marks = STAMP_SRV_SPLIT ? new Map<string, number>() : null;
-  const cached = bypass ? null : responseCache.get(pathKey, cacheTenant);
+  const cached = maybeBypass ? null : responseCache.get(pathKey, cacheTenant);
   marks?.set("lookup", performance.now() - srvT0);
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
@@ -643,6 +689,18 @@ async function executeWarmCollectionRead(
     }
     return res;
   }
+
+  const listParams = !entryId ? parseCollectionQueryParams(url.searchParams) : null;
+  if (listParams && (listParams.stream || listParams.limit >= MAX_PAGE_SIZE)) {
+    return null;
+  }
+
+  const bypass =
+    maybeBypass &&
+    (url.searchParams.get("refresh") === "true" ||
+      url.searchParams.get("nocache") === "true" ||
+      url.searchParams.get("bypassCache") === "true" ||
+      listParams?.bypassCache === true);
 
   const rebuilt = await coalesceCollectionRefill(
     event,

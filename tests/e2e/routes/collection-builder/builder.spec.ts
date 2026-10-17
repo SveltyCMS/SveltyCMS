@@ -117,6 +117,16 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     expect(mark, "Expected in-page mark after schema save (soft invalidate, not hard reload)").toBe(
       42,
     );
+
+    // Regression: a full reload of the edit URL must resolve the collection
+    // again. A stale in-memory registry used to leave the editor on
+    // "Collection not found" until the next write.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("collection-name-input")).toHaveValue(fixture.name, {
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/collection not found|collection not loaded/i)).toHaveCount(0);
   });
 
   /**

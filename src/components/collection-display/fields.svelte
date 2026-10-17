@@ -106,14 +106,18 @@
 
 	// --- 1. RECEIVE DATA AS PROPS ---
 	let {
+		collection: propCollection = null,
 		fields,
 		revisions = []
 		// contentLanguage prop received but not directly used - widgets access contentLanguage store
-	} = $props<{
+	}: {
+		collection?: Schema | null;
 		fields?: Schema['fields'];
 		revisions?: any[];
 		contentLanguage?: string; // Passed for documentation, widgets use store directly
-	}>();
+	} = $props();
+
+	const activeCollection = $derived(propCollection ?? collections.active);
 
 	// --- 2. SIMPLIFIED STATE ---
 	let localTabSet = $state('0');
@@ -191,7 +195,7 @@
 					sourceLang: sourceLocale,
 					targetLang: targetLocale,
 					field: field.label || fieldName,
-					collection: collections.active?.name || 'unknown'
+					collection: activeCollection?.name || 'unknown'
 				})
 			});
 			if (!res.ok) {
@@ -212,7 +216,7 @@
 				currentCollectionValue[fieldName] = fieldValue;
 				// Update store and track translation progress
 				setCollectionValue({ ...currentCollectionValue });
-				const fieldPath = `${collections.active?.name}.${fieldName}`;
+				const fieldPath = `${activeCollection?.name}.${fieldName}`;
 				translationProgress.markFieldTranslated(targetLocale, fieldPath);
 				toast.success(`Translated to ${targetLocale.toUpperCase()}`);
 			} else {
@@ -307,14 +311,14 @@
 		const globalId = (global as any)?._id;
 
 		if (globalId && globalId !== lastEntryId) {
-			currentCollectionValue = applyTranslatedDefaults({ ...global } as Record<string, any>);
+			currentCollectionValue = applyFieldDefaults({ ...global } as Record<string, any>, false);
 			lastEntryId = globalId;
 			collections.setInitialSnapshot(global as Record<string, any>);
 			return;
 		}
 
 		if (!(globalId || lastEntryId) && global && Object.keys(global).length > 0) {
-			currentCollectionValue = applyTranslatedDefaults({ ...global } as Record<string, any>);
+			currentCollectionValue = applyFieldDefaults({ ...global } as Record<string, any>, true);
 			collections.setInitialSnapshot(global as Record<string, any>);
 		}
 	});
@@ -330,19 +334,30 @@
 
 	/**
 	 * Migrate legacy plain-string values for translated fields into locale
-	 * records ({ [locale]: value }). Runs outside the render path so the writes
-	 * cannot re-trigger a render (see state_unsafe_mutation docs). Idempotent:
-	 * only fills missing records, never touches existing ones.
+	 * records ({ [locale]: value }) and, for a new entry, seed schema defaults
+	 * (e.g. Select `default: "static"`). Runs outside the render path so the
+	 * writes cannot re-trigger a render (see state_unsafe_mutation docs).
+	 * Idempotent: only fills missing values, never overwrites user input.
 	 */
-	function applyTranslatedDefaults(data: Record<string, any>): Record<string, any> {
+	function applyFieldDefaults(data: Record<string, any>, isNewEntry: boolean): Record<string, any> {
 		for (const field of filteredFields) {
-			if (!field?.translated) continue;
 			const fieldName = getFieldName(field, false);
 			const value = data[fieldName];
-			if (typeof value === 'string') {
-				data[fieldName] = { [currentContentLanguage]: value };
-			} else if (value === null || value === undefined) {
-				data[fieldName] = { [currentContentLanguage]: '' };
+			const defaultValue = (field as { default?: unknown }).default;
+
+			if (field.translated) {
+				if (typeof value === 'string') {
+					data[fieldName] = { [currentContentLanguage]: value };
+				} else if (value === null || value === undefined) {
+					data[fieldName] = {
+						[currentContentLanguage]: isNewEntry && defaultValue !== undefined ? defaultValue : ''
+					};
+				}
+				continue;
+			}
+
+			if (isNewEntry && (value === null || value === undefined) && defaultValue !== undefined) {
+				data[fieldName] = defaultValue;
 			}
 		}
 		return data;
@@ -350,7 +365,7 @@
 
 	function normalizeTranslatedValues() {
 		untrack(() => {
-			applyTranslatedDefaults(currentCollectionValue);
+			applyFieldDefaults(currentCollectionValue, !currentCollectionValue?._id);
 		});
 	}
 
@@ -403,7 +418,7 @@
 			}
 			return;
 		}
-		const coll = collections.active;
+		const coll = activeCollection;
 		const entryId = collections.activeValue?._id ?? 'new';
 		const key = `${coll?._id ?? ''}:${entryId}`;
 		if (key === collabSessionKey) return;
@@ -491,7 +506,7 @@
 
 	$effect(() => {
 		if (collections.activeValue?._id) {
-			apiUrl = `${location.origin}/api/collection/${collections.active?._id}/${collections.activeValue._id}`;
+			apiUrl = `${location.origin}/api/collection/${activeCollection?._id}/${collections.activeValue._id}`;
 		}
 	});
 
@@ -555,7 +570,7 @@
 			(slot) =>
 				!slot.condition ||
 				slot.condition({
-					collection: collections.active,
+					collection: activeCollection,
 					entry: collections.activeValue
 				})
 		);
@@ -563,7 +578,7 @@
 </script>
 
 <h1 class="sr-only">
-	{collections.active?.name ? `Edit ${collections.active.name} Entry` : 'Edit Entry'}
+	{activeCollection?.name ? `Edit ${activeCollection.name} Entry` : 'Edit Entry'}
 </h1>
 
 {#if collaborationService.isCollaborative && collaborationService.activeUsers.length > 0}
@@ -592,31 +607,6 @@
 		<p class="text-surface-500">Initializing widgets...</p>
 	</div>
 {:else}
-	<div
-		class="mb-2 flex items-center justify-between w-full px-4 py-2 rounded-t-container bg-(--admin-bg-card)/70 border border-(--admin-border-default) text-sm"
-	>
-		<div class="flex items-center gap-2">
-			<iconify-icon
-				icon={collections.active?.icon || 'mdi:folder-outline'}
-				width="18"
-				class="text-primary-500"
-			></iconify-icon>
-			<span class="font-semibold text-primary-600 dark:text-primary-400"
-				>{collections.active?.name || 'Collection'}</span
-			>
-			<span class="text-surface-400">/</span>
-			<span class="text-(--admin-text-muted) font-medium">
-				{#if collections.activeValue?._id}
-					Edit <span class="font-mono text-xs opacity-80"
-						>({String(collections.activeValue._id).slice(0, 8)})</span
-					>
-				{:else}
-					New Entry
-				{/if}
-			</span>
-		</div>
-	</div>
-
 	<Tabs
 		value={localTabSet}
 		onValueChange={(e) => (localTabSet = e.value)}
@@ -628,7 +618,7 @@
 				{button_edit()}
 			</Tabs.Trigger>
 
-			{#if collections.active?.revision}
+			{#if activeCollection?.revision}
 				<Tabs.Trigger value="1" class="flex-1">
 					<iconify-icon icon="mdi:history" width="18" height="18" aria-hidden="true"></iconify-icon>
 					{applayout_version()}
@@ -660,56 +650,54 @@
 		</Tabs.List>
 
 		<Tabs.Content value="0" class="w-full">
-			<div class="mb-2 text-center text-xs text-error-500">
+			<div class="mb-1 text-center text-xs text-error-500">
 				{form_required()}
 			</div>
 			<div
-				class="rounded border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900"
+				class="rounded border bg-white px-3 py-4 drop-shadow-2xl sm:px-4 dark:border-surface-500 dark:bg-surface-900"
 			>
-				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
+				<div class="flex w-full flex-col gap-1">
 					{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
 						{#if field.widget}
 							{@const fieldIcon = resolveFieldIcon(field)}
 							{@const fieldName = getFieldName(field, false)}
 							<div
-								class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:w-full!'}"
+								class="w-full min-w-0 text-start"
 								id="field-container-{fieldName}"
 								data-field-name={fieldName}
-								style={'min-width:min(300px,100%);' +
-									(field.width ? `width:calc(${(field.width / 12) * 100}% - 0.5rem)` : '')}
 							>
-								<div class="flex items-center justify-between gap-2 px-1.25 text-start field-label">
-									<!-- Field label -->
-									<div class="flex items-center gap-2">
-										<p class="inline-block font-semibold capitalize">
+								<div
+									class="mb-1 flex items-center justify-between gap-2 px-0.5 text-start field-label"
+								>
+									<!-- Field label: widget icon → label → tooltip → required marker -->
+									<div class="flex min-w-0 items-center gap-1.5">
+										{#if fieldIcon}
+											<iconify-icon
+												icon={fieldIcon}
+												width="18"
+												class="shrink-0 text-tertiary-500 dark:text-primary-500"
+												aria-hidden="true"
+											></iconify-icon>
+										{/if}
+										<p class="inline-block truncate font-semibold capitalize">
 											{field.label || field.db_fieldName}
-											{#if field.required}
-												<span class="text-error-500">*</span>
-											{/if}
 										</p>
 										{#if field.helper}
-											<SystemTooltip title={field.helper} positioning={{ placement: 'top' }}>
+											<SystemTooltip
+												title={field.helper}
+												ariaLabel={field.helper}
+												positioning={{ placement: 'top' }}
+											>
 												<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"
 												></iconify-icon>
 											</SystemTooltip>
 										{/if}
+										{#if field.required}
+											<span class="text-error-500" aria-hidden="true">*</span>
+										{/if}
 									</div>
-									<div class="flex items-center gap-2">
-										<SystemTooltip title="Insert Token">
-											<Button
-												variant="outline"
-												type="button"
-												onclick={(e: MouseEvent) => openTokenPicker(field, e)}
-												aria-label="Insert token into {field.label}"
-											>
-												<iconify-icon
-													icon="mdi:code-braces"
-													width="16"
-													class="font-bold text-tertiary-500 dark:text-primary-500"
-												></iconify-icon>
-											</Button>
-										</SystemTooltip>
-										<!-- Per-Field Locale Badge + AI Translate -->
+									<div class="flex shrink-0 items-center gap-1">
+										<!-- Per-Field Locale Badge + AI Translate (language first, then token) -->
 										{#if field.translated}
 											{@const fieldName = getFieldName(field, false)}
 											{@const currentFieldLocale = (() => {
@@ -764,15 +752,22 @@
 												{/if}
 											</div>
 										{/if}
-										<!-- Icon: field override → widget definition Icon → registry Icon -->
-										{#if fieldIcon}
-											<iconify-icon
-												icon={fieldIcon}
-												width="20"
-												class="text-tertiary-500 dark:text-primary-500"
-												aria-hidden="true"
-											></iconify-icon>
-										{/if}
+										<SystemTooltip title="Insert Token">
+											<Button
+												variant="transparent"
+												size="sm"
+												type="button"
+												class="h-7 w-7 p-0"
+												onclick={(e: MouseEvent) => openTokenPicker(field, e)}
+												aria-label="Insert token into {field.label}"
+											>
+												<iconify-icon
+													icon="mdi:code-braces"
+													width="16"
+													class="font-bold text-tertiary-500 dark:text-primary-500"
+												></iconify-icon>
+											</Button>
+										</SystemTooltip>
 									</div>
 								</div>
 
@@ -809,7 +804,7 @@
 														bind:value={currentCollectionValue[fieldName][fieldLocale]}
 														onFieldSync={() => syncFieldToStore(fieldName)}
 														{tenantId}
-														collectionName={collections.active?.name}
+														collectionName={activeCollection?.name}
 													/>
 												{/if}
 											{/key}
@@ -821,7 +816,7 @@
 												bind:value={currentCollectionValue[fieldName]}
 												onFieldSync={() => syncFieldToStore(fieldName)}
 												{tenantId}
-												collectionName={collections.active?.name}
+												collectionName={activeCollection?.name}
 											/>
 										{/if}
 									{:else if widgets.loading}
@@ -884,7 +879,7 @@
 									<RevisionDiffModal
 										oldData={selectedRevision.data}
 										newData={currentCollectionValue}
-										fields={derivedFields}
+										fields={filteredFields}
 										oldLabel={`Revision (${formatDate(selectedRevision.revision_at)})`}
 										newLabel="Current Content"
 										close={() => (isDiffModalOpen = false)}
@@ -986,7 +981,7 @@
 					{:then Component}
 						{#if 'default' in Component}
 							<Component.default
-								collection={collections.active}
+								collection={activeCollection}
 								{currentCollectionValue}
 								{user}
 								{tenantId}
@@ -996,7 +991,7 @@
 							/>
 						{:else}
 							<Component
-								collection={collections.active}
+								collection={activeCollection}
 								{currentCollectionValue}
 								{user}
 								{tenantId}

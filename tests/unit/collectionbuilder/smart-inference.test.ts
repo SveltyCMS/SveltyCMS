@@ -8,6 +8,7 @@ import {
   humanizeLabel,
   inferWidgetFromFieldName,
   sanitizeDbFieldName,
+  generateSchemaFromPrompt,
 } from "@src/routes/(app)/config/collectionbuilder/smart-inference";
 
 describe("smart-inference", () => {
@@ -113,6 +114,71 @@ describe("smart-inference", () => {
       expect(res.displayName).toBe("Text Input");
       expect(res.label).toBe("Subtitle");
       expect(res.db_fieldName).toBe("subtitle");
+    });
+  });
+
+  describe("generateSchemaFromPrompt", () => {
+    it("parses prompt into complete collection schema with fields, tabs, and widgets", () => {
+      const prompt =
+        "Create a Blog Post with title, slug, cover image, content markdown, published date, tags, and SEO metadata";
+      const schema = generateSchemaFromPrompt(prompt);
+
+      expect(schema.name).toBe("Blog Post");
+      expect(schema.icon).toBe("mdi:post-outline");
+      expect(schema.fields.length).toBeGreaterThanOrEqual(7);
+
+      const fieldNames = schema.fields.map((f) => f.db_fieldName);
+      expect(fieldNames).toContain("title");
+      expect(fieldNames).toContain("slug");
+      expect(fieldNames).toContain("cover_image");
+      expect(fieldNames).toContain("content");
+      expect(fieldNames).toContain("published_date");
+      expect(fieldNames).toContain("tags");
+      expect(fieldNames).toContain("seo");
+
+      // Verify tabs & sections are assigned intelligently
+      const seoField = schema.fields.find((f) => f.db_fieldName === "seo");
+      expect(seoField?.tab).toBe("SEO");
+      expect(seoField?.section).toBe("Search Engine Optimization");
+
+      const imageField = schema.fields.find((f) => f.db_fieldName === "cover_image");
+      expect(imageField?.tab).toBe("Media");
+
+      const contentField = schema.fields.find((f) => f.db_fieldName === "content");
+      expect(contentField?.tab).toBe("Content");
+    });
+
+    it("parses conditional logic and required modifiers from prompt", () => {
+      const prompt =
+        "E-commerce Product with required name, price, description, and discount_percent if on_sale";
+      const schema = generateSchemaFromPrompt(prompt);
+
+      expect(schema.name).toBe("E Commerce Product");
+      expect(schema.icon).toBe("mdi:shopping-outline");
+
+      const nameField = schema.fields.find((f) => f.db_fieldName === "name");
+      expect(nameField?.required).toBe(true);
+
+      const discountField = schema.fields.find((f) => f.db_fieldName === "discount_percent");
+      expect(discountField?.showIf).toEqual({
+        field: "on_sale",
+        operator: "equals",
+        value: true,
+      });
+    });
+
+    it("handles relational linking against existing collections", () => {
+      const prompt = "Article with title, author, and categories";
+      const schema = generateSchemaFromPrompt(prompt, ["author", "category"]);
+
+      const authorField = schema.fields.find((f) => f.db_fieldName === "author");
+      expect((authorField?.widget as any)?.key).toBe("relation");
+    });
+
+    it("gracefully falls back on empty or minimal prompt", () => {
+      const schema = generateSchemaFromPrompt("");
+      expect(schema.name).toBe("New Collection");
+      expect(schema.fields).toHaveLength(0);
     });
   });
 });

@@ -78,7 +78,16 @@ empty/loading, and pagination stay consistent.
 		emptyAction?: Snippet;
 	} = $props();
 
-	const showFooter = $derived(showPagination && !loading && !empty && totalItems > 0);
+	const minPageSize = $derived(
+		rowsPerPageOptions.length > 0 ? Math.min(...rowsPerPageOptions) : 10
+	);
+	const showFooter = $derived(
+		showPagination &&
+			!loading &&
+			!empty &&
+			totalItems > 0 &&
+			(totalItems >= minPageSize || pagesCount > 1 || currentPage > 1)
+	);
 </script>
 
 <div class={cn(SMART_TABLE_SHELL, className)}>

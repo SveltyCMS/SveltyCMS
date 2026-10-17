@@ -780,7 +780,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			placeholder={collections_search()}
 			pre={isFullSidebar ? (searchIcon as Snippet) : undefined}
 			post={isFullSidebar ? (clearIcon as Snippet) : undefined}
-			inputClass="w-full text-xs [&::-webkit-search-cancel-button]:hidden"
+			inputClass="w-full text-xs [&::-webkit-search-cancel-button]:hidden [&::-moz-search-clear-button]:hidden"
 			aria-label={collections_search_aria()}
 		/>
 	</div>

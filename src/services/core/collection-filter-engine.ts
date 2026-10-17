@@ -389,11 +389,13 @@ export function compileSecureFilters(
           // Date day bounds if both are YYYY-MM-DD
           let rangeMin = minRaw as string | number;
           let rangeMax = maxRaw as string | number;
-          if (typeof minRaw === "string" && dayBoundsFromDateInput(minRaw)) {
-            rangeMin = dayBoundsFromDateInput(minRaw)!.min;
+          const minBounds = typeof minRaw === "string" ? dayBoundsFromDateInput(minRaw) : null;
+          if (minBounds) {
+            rangeMin = minBounds.min;
           }
-          if (typeof maxRaw === "string" && dayBoundsFromDateInput(maxRaw)) {
-            rangeMax = dayBoundsFromDateInput(maxRaw)!.max;
+          const maxBounds = typeof maxRaw === "string" ? dayBoundsFromDateInput(maxRaw) : null;
+          if (maxBounds) {
+            rangeMax = maxBounds.max;
           }
           ranges.push({ field: key, min: rangeMin, max: rangeMax });
           continue;
@@ -468,13 +470,15 @@ export function applyFiltersToQueryBuilder<T>(
 ): { qb: QueryBuilder<T>; searchableFields: string[] } {
   const { baseWhere = {}, globalSearch = "", collection = null, user = null, orGroups } = options;
 
-  // 1. Equality + base (tenantId, edit id, …)
-  const whereMap: Record<string, unknown> = { ...baseWhere, ...compiled.equality };
+  // 1. Equality + base (tenantId, edit id, …) — baseWhere wins over client filters
+  const whereMap: Record<string, unknown> = { ...compiled.equality, ...baseWhere };
 
   // Multiple text filters: portable AND via exact equality (partial match is multi-field ambiguous)
   if (compiled.textSearch.length > 1) {
     for (const t of compiled.textSearch) {
-      whereMap[t.field] = t.value;
+      if (!Object.hasOwn(baseWhere, t.field)) {
+        whereMap[t.field] = t.value;
+      }
     }
   }
 
@@ -515,12 +519,18 @@ export function applyFiltersToQueryBuilder<T>(
   // 🛡️ FLAC/TENANT: `orGroups` arrive from the client `filterLogic` param and are NOT
   // validated by compileSecureFilters. Allowlist each key (and never `tenantId`/
   // `isDeleted`) so an attacker cannot OR-in another tenant's id and bypass isolation.
-  const filterableIds = new Set(resolveFilterableFields(collection, user).map((d) => d.id));
-  const extraOr = [...(compiled.orGroups ?? []), ...(orGroups ?? [])]
-    .map((g) => sanitizeOrGroup(g as Record<string, unknown>, filterableIds))
-    .filter((g) => g && Object.keys(g).length > 0);
-  if (extraOr.length > 0 && typeof next.orWhere === "function") {
-    next = next.orWhere(extraOr as Array<Record<string, unknown>>);
+  const rawOrGroups = [...(compiled.orGroups ?? []), ...(orGroups ?? [])];
+  if (rawOrGroups.length > 0 && typeof next.orWhere === "function") {
+    const filterableIds =
+      compiled.allowedFieldIds?.length > 0
+        ? new Set(compiled.allowedFieldIds)
+        : new Set(resolveFilterableFields(collection, user).map((d) => d.id));
+    const extraOr = rawOrGroups
+      .map((g) => sanitizeOrGroup(g as Record<string, unknown>, filterableIds))
+      .filter((g) => g && Object.keys(g).length > 0);
+    if (extraOr.length > 0) {
+      next = next.orWhere(extraOr as Array<Record<string, unknown>>);
+    }
   }
 
   return { qb: next, searchableFields };

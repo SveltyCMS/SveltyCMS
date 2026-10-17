@@ -306,7 +306,7 @@ export function scanGlobalRisk(relPath: string, content: string): RiskViolation[
 
     // ── Bare NODE_ENV === "test" gating in hooks or testing API (error, AGENTS.md §4)
     if (
-      /[\\/](?:hooks|routes[\\/]api[\\/]testing)[\\/]/.test(relPath) &&
+      /(?:^|[\\/])(?:hooks|routes[\\/]api[\\/]testing)[\\/]/.test(relPath) &&
       /\bNODE_ENV\s*===\s*["']test["']/.test(line)
     ) {
       violations.push({

@@ -378,25 +378,58 @@ function apiOnlyRouteStubPlugin(): Plugin {
   return {
     name: "api-only-route-stub",
     enforce: "pre",
-    async resolveId(id, importer, options) {
-      const resolved = await this.resolve(id, importer, { ...options, skipSelf: true });
-      const nid = (resolved?.id || id).replace(/\\/g, "/");
-      if (nid.includes("/routes/(app)/") || nid.includes("/routes/(admin)/")) {
-        return "\0virtual:api-only-route";
+    load(id) {
+      const nid = id.replace(/\\/g, "/");
+      if (!nid.includes("/routes/(app)/") && !nid.includes("/routes/(admin)/")) {
+        return null;
+      }
+      const match = nid.match(/\/\+(page|layout|error)(?:\.server)?\.(svelte|ts|js)$/);
+      if (!match) return null;
+
+      const [, type, ext] = match;
+      if (ext === "svelte") {
+        if (type === "layout") {
+          return {
+            code: `<script>\nlet { children } = $props();\n</script>\n{@render children?.()}`,
+            map: null,
+          };
+        }
+        return {
+          code: `<script>\n</script>\n`,
+          map: null,
+        };
+      }
+      if (ext === "ts" || ext === "js") {
+        if (nid.endsWith("+server.ts") || nid.endsWith("+server.js")) {
+          return {
+            code: [
+              "function gone() { return new Response('API-only build', { status: 404 }); }",
+              "export { gone as GET, gone as POST, gone as PUT, gone as PATCH, gone as DELETE };",
+            ].join("\n"),
+            map: null,
+          };
+        }
+        if (nid.endsWith("+page.server.ts") || nid.endsWith("+page.server.js")) {
+          return {
+            code: [
+              "export function load() { return { status: 404 }; }",
+              "export const actions = {};",
+            ].join("\n"),
+            map: null,
+          };
+        }
+        if (type === "page") {
+          return {
+            code: "export function load() { return { status: 404 }; }",
+            map: null,
+          };
+        }
+        return {
+          code: "export function load() { return {}; }",
+          map: null,
+        };
       }
       return null;
-    },
-    load(id) {
-      if (id !== "\0virtual:api-only-route") return null;
-      return {
-        code: [
-          "export function load() { return { status: 404 }; }",
-          "function gone() { return new Response('API-only build', { status: 404 }); }",
-          "export { gone as GET, gone as POST, gone as PUT, gone as PATCH, gone as DELETE };",
-          "export default function ApiOnlyOmitted() { return null; }",
-        ].join("\n"),
-        map: null,
-      };
     },
   };
 }

@@ -973,7 +973,7 @@ offset within the row on the native `dragover` event — that event carries
 			aria-label={collections_search_aria()}
 			pre={searchIcon}
 			post={searchText ? searchClear : undefined}
-			inputClass="w-full [&::-webkit-search-cancel-button]:hidden"
+			inputClass="w-full [&::-webkit-search-cancel-button]:hidden [&::-moz-search-clear-button]:hidden"
 		/>
 	</div>
 	{#snippet searchIcon()}

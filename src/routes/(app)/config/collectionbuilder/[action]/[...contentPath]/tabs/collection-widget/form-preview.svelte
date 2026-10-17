@@ -44,6 +44,7 @@ before saving to the database.
 		preview_mobile_aria,
 		preview_no_fields,
 		preview_no_fields_hint,
+		preview_required_if_badge,
 		preview_responsive_aria,
 		preview_save_entry,
 		preview_supports_files,
@@ -51,6 +52,8 @@ before saving to the database.
 		preview_viewport_label
 	} from '@src/paraglide/messages';
 	import type { FieldInstance } from '@src/content/types';
+	import { evaluateCondition } from '@src/widgets/desugar-field';
+	import { nowISODateString } from '@utils/date';
 
 	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
@@ -69,6 +72,39 @@ before saving to the database.
 	type ViewportSize = 'desktop' | 'tablet' | 'mobile';
 	let viewport = $state<ViewportSize>('desktop');
 	let sampleValues = $state<Record<string, any>>({});
+	let activePreviewTab = $state<string>('');
+
+	// Extract unique tabs across configured fields
+	const formTabs = $derived.by(() => {
+		const tabs: string[] = [];
+		for (const item of items) {
+			const t = ((item as { tab?: string }).tab || '').trim();
+			if (t && !tabs.includes(t)) {
+				tabs.push(t);
+			}
+		}
+		return tabs;
+	});
+
+	// Keep activePreviewTab synchronized
+	$effect(() => {
+		if (formTabs.length > 0) {
+			if (!activePreviewTab || !formTabs.includes(activePreviewTab)) {
+				activePreviewTab = formTabs[0];
+			}
+		} else {
+			activePreviewTab = '';
+		}
+	});
+
+	// Filter items by active tab (if any tabs defined)
+	const displayedItems = $derived.by(() => {
+		if (formTabs.length === 0) return items;
+		return items.filter((item) => {
+			const itemTab = ((item as { tab?: string }).tab || '').trim();
+			return itemTab === activePreviewTab || (!itemTab && activePreviewTab === formTabs[0]);
+		});
+	});
 
 	const viewportWidthClass = $derived.by(() => {
 		switch (viewport) {
@@ -117,7 +153,7 @@ before saving to the database.
 			) {
 				mock[key] = true;
 			} else if (widgetKey.includes('date')) {
-				mock[key] = new Date().toISOString().slice(0, 10);
+				mock[key] = nowISODateString().slice(0, 10);
 			} else if (widgetKey.includes('slug')) {
 				mock[key] = 'sample-entry-slug';
 			} else if (widgetKey.includes('email')) {
@@ -272,6 +308,30 @@ before saving to the database.
 				</div>
 			</div>
 
+			<!-- Tab Switcher (if multiple tabs exist) -->
+			{#if formTabs.length > 0}
+				<div
+					class="mb-6 flex items-center gap-1.5 border-b border-surface-500/20 pb-3 overflow-x-auto"
+					role="tablist"
+				>
+					{#each formTabs as tabName (tabName)}
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activePreviewTab === tabName}
+							class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {activePreviewTab ===
+							tabName
+								? 'bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-500/10 dark:text-primary-400 border border-tertiary-500/30 dark:border-primary-500/40'
+								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) hover:bg-surface-500/10'}"
+							onclick={() => (activePreviewTab = tabName)}
+						>
+							<iconify-icon icon="mdi:tab" width="14" class="inline me-1"></iconify-icon>
+							{tabName}
+						</button>
+					{/each}
+				</div>
+			{/if}
+
 			<!-- Empty State -->
 			{#if items.length === 0}
 				<div class="py-12 text-center">
@@ -290,179 +350,210 @@ before saving to the database.
 			{:else}
 				<!-- Simulated Fields Form Grid -->
 				<form onsubmit={(e) => e.preventDefault()} class="grid grid-cols-12 gap-5">
-					{#each items as item (item._dragId)}
-						{const colSpan = getColSpanClass(item.width)}
-						{const key = item.db_fieldName || `field_${item.id}`}
-						{const placeholder = typeof item.placeholder === 'string' ? item.placeholder : ''}
-						{const widgetKey = (
-							(item.widget as { key?: string })?.key ||
-							(item.widget as { Name?: string })?.Name ||
-							'input'
-						).toLowerCase()}
+					{#each displayedItems as item, idx (item._dragId)}
+						{@const isVisible = evaluateCondition((item as any).showIf, sampleValues)}
+						{#if isVisible}
+							{@const colSpan = getColSpanClass(item.width)}
+							{@const key = item.db_fieldName || `field_${item.id}`}
+							{@const placeholder = typeof item.placeholder === 'string' ? item.placeholder : ''}
+							{@const isRequired =
+								item.required || evaluateCondition((item as any).requiredIf, sampleValues)}
+							{@const currentSection = ((item as { section?: string }).section || '').trim()}
+							{@const prevSection =
+								idx > 0
+									? ((displayedItems[idx - 1] as { section?: string }).section || '').trim()
+									: ''}
+							{@const isNewSection = currentSection && currentSection !== prevSection}
+							{@const widgetKey = (
+								(item.widget as { key?: string })?.key ||
+								(item.widget as { Name?: string })?.Name ||
+								'input'
+							).toLowerCase()}
 
-						<div class="{colSpan} space-y-1.5">
-							<!-- Field Label Row -->
-							<div class="flex items-center justify-between">
-								<div class="flex items-center gap-1.5">
-									<label
-										for="preview-{key}"
-										class="text-sm font-semibold text-(--admin-text-muted)"
-									>
-										{item.label || 'Unnamed Field'}
-									</label>
-									{#if item.required}
-										<span class="text-error-500" title={builder_required()}>*</span>
-									{/if}
-									{#if item.helper}
-										<SystemTooltip title={item.helper}>
-											<iconify-icon
-												icon="mdi:information-outline"
-												width="15"
-												class="text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted) cursor-help"
-											></iconify-icon>
-										</SystemTooltip>
-									{/if}
-								</div>
-								<span
-									class="rounded bg-surface-500/10 px-1.5 py-0.5 text-[9px] font-mono text-(--admin-text-muted) uppercase dark:text-(--admin-text-muted)"
+							{#if isNewSection}
+								<div
+									class="col-span-12 mt-2 pt-3 border-t border-(--admin-border-default) first:mt-0 first:pt-0 first:border-0"
 								>
-									{key}
-								</span>
-							</div>
+									<h4
+										class="text-xs font-bold uppercase tracking-wider text-tertiary-600 dark:text-primary-400 flex items-center gap-1.5"
+									>
+										<iconify-icon icon="mdi:bookmark-outline" width="15"></iconify-icon>
+										{currentSection}
+									</h4>
+								</div>
+							{/if}
 
-							<!-- Interactive Widget Input Simulation -->
-							{#if widgetKey.includes('checkbox') || widgetKey.includes('switch')}
-								<label class="flex items-center gap-2 cursor-pointer pt-1">
-									<input
-										id="preview-{key}"
-										type="checkbox"
-										aria-label={item.label || key}
-										bind:checked={sampleValues[key]}
-										class="h-4 w-4 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
-									/>
-									<span class="text-sm text-(--admin-text-muted)">
-										{item.placeholder || 'Enable this option'}
-									</span>
-								</label>
-							{:else if widgetKey.includes('media') || widgetKey.includes('image')}
-								<div
-									class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-surface-500/30 bg-surface-500/10 p-6 text-center hover:border-tertiary-500/50 transition-colors"
-								>
-									<iconify-icon
-										icon="mdi:cloud-upload-outline"
-										width="32"
-										class="text-(--admin-text-muted) mb-2"
-									></iconify-icon>
-									<p class="text-xs font-medium text-(--admin-text-muted)">
-										{preview_drag_drop_part1()}{' '}<span
-											class="text-tertiary-500 dark:text-primary-500 underline"
-											>{preview_browse()}</span
+							<div class="{colSpan} space-y-1.5">
+								<!-- Field Label Row -->
+								<div class="flex items-center justify-between">
+									<div class="flex items-center gap-1.5">
+										<label
+											for="preview-{key}"
+											class="text-sm font-semibold text-(--admin-text-muted)"
 										>
-									</p>
-									<span class="text-[10px] text-(--admin-text-muted) mt-1">
-										{preview_supports_files()}
-									</span>
-								</div>
-							{:else if widgetKey.includes('rich') || widgetKey.includes('markdown')}
-								<div
-									class="rounded-lg border border-surface-500/30 dark:border-surface-600 overflow-hidden"
-								>
-									<div
-										class="flex items-center gap-1 border-b border-surface-500/20 bg-surface-500/10 px-2 py-1.5 text-(--admin-text-muted)"
-									>
-										<Button
-											type="button"
-											variant="transparent"
-											size="sm"
-											class="h-auto! min-w-0! p-1!"
-											title={preview_bold()}
-											aria-label={preview_bold()}
-										>
-											<iconify-icon icon="mdi:format-bold" width="16"></iconify-icon>
-										</Button>
-										<Button
-											type="button"
-											variant="transparent"
-											size="sm"
-											class="h-auto! min-w-0! p-1!"
-											title={preview_italic()}
-											aria-label={preview_italic()}
-										>
-											<iconify-icon icon="mdi:format-italic" width="16"></iconify-icon>
-										</Button>
-										<Button
-											type="button"
-											variant="transparent"
-											size="sm"
-											class="h-auto! min-w-0! p-1!"
-											title={preview_link()}
-											aria-label={preview_link()}
-										>
-											<iconify-icon icon="mdi:link" width="16"></iconify-icon>
-										</Button>
-										<Button
-											type="button"
-											variant="transparent"
-											size="sm"
-											class="h-auto! min-w-0! p-1!"
-											title={preview_bullet_list()}
-											aria-label={preview_bullet_list()}
-										>
-											<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
-										</Button>
+											{item.label || 'Unnamed Field'}
+										</label>
+										{#if isRequired}
+											<span class="text-error-500" title={builder_required()}>*</span>
+										{/if}
+										{#if (item as any).requiredIf && !item.required}
+											<span
+												class="rounded bg-error-500/10 px-1 py-0.5 text-[9px] font-mono text-error-500"
+											>
+												{preview_required_if_badge()}
+											</span>
+										{/if}
+										{#if item.helper}
+											<SystemTooltip title={item.helper}>
+												<iconify-icon
+													icon="mdi:information-outline"
+													width="15"
+													class="text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted) cursor-help"
+												></iconify-icon>
+											</SystemTooltip>
+										{/if}
 									</div>
+									<span
+										class="rounded bg-surface-500/10 px-1.5 py-0.5 text-[9px] font-mono text-(--admin-text-muted) uppercase dark:text-(--admin-text-muted)"
+									>
+										{key}
+									</span>
+								</div>
+
+								<!-- Interactive Widget Input Simulation -->
+								{#if widgetKey.includes('checkbox') || widgetKey.includes('switch')}
+									<label class="flex items-center gap-2 cursor-pointer pt-1">
+										<input
+											id="preview-{key}"
+											type="checkbox"
+											aria-label={item.label || key}
+											bind:checked={sampleValues[key]}
+											class="h-4 w-4 rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
+										/>
+										<span class="text-sm text-(--admin-text-muted)">
+											{item.placeholder || 'Enable this option'}
+										</span>
+									</label>
+								{:else if widgetKey.includes('media') || widgetKey.includes('image')}
+									<div
+										class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-surface-500/30 bg-surface-500/10 p-6 text-center hover:border-tertiary-500/50 transition-colors"
+									>
+										<iconify-icon
+											icon="mdi:cloud-upload-outline"
+											width="32"
+											class="text-(--admin-text-muted) mb-2"
+										></iconify-icon>
+										<p class="text-xs font-medium text-(--admin-text-muted)">
+											{preview_drag_drop_part1()}{' '}<span
+												class="text-tertiary-500 dark:text-primary-500 underline"
+												>{preview_browse()}</span
+											>
+										</p>
+										<span class="text-[10px] text-(--admin-text-muted) mt-1">
+											{preview_supports_files()}
+										</span>
+									</div>
+								{:else if widgetKey.includes('rich') || widgetKey.includes('markdown')}
+									<div
+										class="rounded-lg border border-surface-500/30 dark:border-surface-600 overflow-hidden"
+									>
+										<div
+											class="flex items-center gap-1 border-b border-surface-500/20 bg-surface-500/10 px-2 py-1.5 text-(--admin-text-muted)"
+										>
+											<Button
+												type="button"
+												variant="transparent"
+												size="sm"
+												class="h-auto! min-w-0! p-1!"
+												title={preview_bold()}
+												aria-label={preview_bold()}
+											>
+												<iconify-icon icon="mdi:format-bold" width="16"></iconify-icon>
+											</Button>
+											<Button
+												type="button"
+												variant="transparent"
+												size="sm"
+												class="h-auto! min-w-0! p-1!"
+												title={preview_italic()}
+												aria-label={preview_italic()}
+											>
+												<iconify-icon icon="mdi:format-italic" width="16"></iconify-icon>
+											</Button>
+											<Button
+												type="button"
+												variant="transparent"
+												size="sm"
+												class="h-auto! min-w-0! p-1!"
+												title={preview_link()}
+												aria-label={preview_link()}
+											>
+												<iconify-icon icon="mdi:link" width="16"></iconify-icon>
+											</Button>
+											<Button
+												type="button"
+												variant="transparent"
+												size="sm"
+												class="h-auto! min-w-0! p-1!"
+												title={preview_bullet_list()}
+												aria-label={preview_bullet_list()}
+											>
+												<iconify-icon icon="mdi:format-list-bulleted" width="16"></iconify-icon>
+											</Button>
+										</div>
+										<textarea
+											id="preview-{key}"
+											rows="4"
+											aria-label={item.label || key}
+											bind:value={sampleValues[key]}
+											placeholder={placeholder || 'Enter formatted content...'}
+											class="w-full bg-transparent p-3 text-sm focus:outline-none dark:text-(--admin-text-body)"
+										></textarea>
+									</div>
+								{:else if widgetKey.includes('textarea')}
 									<textarea
 										id="preview-{key}"
-										rows="4"
+										rows="3"
 										aria-label={item.label || key}
 										bind:value={sampleValues[key]}
-										placeholder={placeholder || 'Enter formatted content...'}
-										class="w-full bg-transparent p-3 text-sm focus:outline-none dark:text-(--admin-text-body)"
+										placeholder={placeholder || 'Enter text...'}
+										class="w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 py-2 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 									></textarea>
-								</div>
-							{:else if widgetKey.includes('textarea')}
-								<textarea
-									id="preview-{key}"
-									rows="3"
-									aria-label={item.label || key}
-									bind:value={sampleValues[key]}
-									placeholder={placeholder || 'Enter text...'}
-									class="w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 py-2 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
-								></textarea>
-							{:else if widgetKey.includes('date')}
-								<input
-									id="preview-{key}"
-									type="date"
-									aria-label={item.label || key}
-									bind:value={sampleValues[key]}
-									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
-								/>
-							{:else if widgetKey.includes('number') || widgetKey.includes('currency')}
-								<input
-									id="preview-{key}"
-									type="number"
-									aria-label={item.label || key}
-									bind:value={sampleValues[key]}
-									placeholder={placeholder || '0'}
-									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
-								/>
-							{:else}
-								<input
-									id="preview-{key}"
-									type="text"
-									aria-label={item.label || key}
-									bind:value={sampleValues[key]}
-									placeholder={placeholder || `Enter ${item.label || 'value'}...`}
-									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
-								/>
-							{/if}
+								{:else if widgetKey.includes('date')}
+									<input
+										id="preview-{key}"
+										type="date"
+										aria-label={item.label || key}
+										bind:value={sampleValues[key]}
+										class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
+									/>
+								{:else if widgetKey.includes('number') || widgetKey.includes('currency')}
+									<input
+										id="preview-{key}"
+										type="number"
+										aria-label={item.label || key}
+										bind:value={sampleValues[key]}
+										placeholder={placeholder || '0'}
+										class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
+									/>
+								{:else}
+									<input
+										id="preview-{key}"
+										type="text"
+										aria-label={item.label || key}
+										bind:value={sampleValues[key]}
+										placeholder={placeholder || `Enter ${item.label || 'value'}...`}
+										class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
+									/>
+								{/if}
 
-							{#if item.helper}
-								<p class="text-[11px] text-(--admin-text-muted)">
-									{item.helper}
-								</p>
-							{/if}
-						</div>
+								{#if item.helper}
+									<p class="text-[11px] text-(--admin-text-muted)">
+										{item.helper}
+									</p>
+								{/if}
+							</div>
+						{/if}
 					{/each}
 				</form>
 			{/if}

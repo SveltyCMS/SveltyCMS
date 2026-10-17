@@ -16,19 +16,16 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { widget_slug_placeholder, widget_slug_from_title } from '@src/paraglide/messages';
 	import type { FieldInstance } from '@src/content/types';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
-	import { validationStore } from '@src/stores/validation-store.svelte';
-	import { getFieldName } from '@utils/schema/field-utils';
 	import { slugify, slugifyTyping } from './slugify';
 
 	let { field, value = $bindable() }: { field: FieldInstance; value?: string | null } = $props();
 
 	const inputId = $props.id();
-	const fieldName = $derived(getFieldName(field));
-	const validationError = $derived(validationStore.getError(fieldName));
 
 	let locked = $state(false);
 	let generated = '';
@@ -93,27 +90,74 @@
 		generated = next;
 		value = next;
 	}
+
+	function toggleLock() {
+		if (locked) {
+			fillFromTitle();
+		} else {
+			locked = true;
+		}
+	}
 </script>
 
-<div class="mb-4 flex items-end gap-2">
-	<div class="min-w-0 flex-1">
-		<Input
-			id={inputId}
-			type="text"
-			name={field.db_fieldName}
-			aria-label={field.label || 'Slug'}
-			placeholder={widget_slug_placeholder()}
-			value={value ?? ''}
-			oninput={onInput}
-			onblur={onBlur}
-			error={validationError || ''}
-			required={field.required}
-			autocomplete="off"
-			spellcheck={false}
-			data-testid="slug-input"
-		/>
+<div class="mb-4 flex flex-col gap-1.5">
+	<div class="flex items-center justify-between">
+		<label for={inputId} class="text-sm font-semibold text-(--admin-text-body)">
+			{field.label || 'Slug'}
+		</label>
+		{#if !locked}
+			<span
+				class="inline-flex items-center gap-1 rounded border border-success-500/30 bg-success-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-500"
+			>
+				<iconify-icon icon="mdi:link-variant" width="12" aria-hidden="true"></iconify-icon>
+				Auto-Linked
+			</span>
+		{:else}
+			<span
+				class="inline-flex items-center gap-1 rounded border border-surface-500/30 bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-(--admin-text-muted)"
+			>
+				<iconify-icon icon="mdi:lock-outline" width="12" aria-hidden="true"></iconify-icon>
+				Manual
+			</span>
+		{/if}
 	</div>
-	<Button type="button" variant="ghost" class="min-h-10" onclick={fillFromTitle}
-		>{widget_slug_from_title()}</Button
-	>
+
+	<div class="flex items-center gap-2">
+		<div class="min-w-0 flex-1">
+			<Input
+				id={inputId}
+				type="text"
+				name={field.db_fieldName}
+				aria-label={field.label || 'Slug'}
+				placeholder={widget_slug_placeholder()}
+				value={value ?? ''}
+				oninput={onInput}
+				onblur={onBlur}
+				required={field.required}
+				autocomplete="off"
+				spellcheck={false}
+				data-testid="slug-input"
+			/>
+		</div>
+		<SystemTooltip
+			title={!locked
+				? 'Auto-linking active. Click to unlock and edit manually.'
+				: 'Manual override active. Click to re-link with title/source.'}
+		>
+			<Button
+				type="button"
+				variant={!locked ? 'secondary' : 'ghost'}
+				class="min-h-10 shrink-0 gap-1.5 px-3!"
+				onclick={toggleLock}
+				aria-label={!locked ? 'Unlink slug from source' : 'Link slug to source'}
+			>
+				<iconify-icon
+					icon={!locked ? 'mdi:link-variant' : 'mdi:link-variant-off'}
+					width="18"
+					aria-hidden="true"
+				></iconify-icon>
+				<span class="hidden sm:inline">{!locked ? 'Linked' : widget_slug_from_title()}</span>
+			</Button>
+		</SystemTooltip>
+	</div>
 </div>

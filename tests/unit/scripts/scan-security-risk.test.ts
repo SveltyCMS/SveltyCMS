@@ -579,3 +579,54 @@ describe("scanAstRisk — AST batch size upper bound check", () => {
     expect(violations.some((v) => v.category === "batch-size-unbounded")).toBe(false);
   });
 });
+
+describe("scanGlobalRisk — loopback prefix, tenant spoofing, and bare NODE_ENV guards", () => {
+  it("flags startsWith('localhost') or startsWith('127.0.0.1') without port separator", () => {
+    const vulnerable =
+      'if (host.startsWith("localhost") || host.startsWith("127.0.0.1")) return true;';
+    const violations = scanGlobalRisk("hooks/handle-system-state.ts", vulnerable);
+    expect(
+      violations.some((v) => v.category === "loopback-prefix-bypass" && v.severity === "error"),
+    ).toBe(true);
+  });
+
+  it("passes exact or port-delimited loopback checks", () => {
+    const fixed = 'if (host === "localhost" || host.startsWith("localhost:")) return true;';
+    const violations = scanGlobalRisk("hooks/handle-system-state.ts", fixed);
+    expect(violations.some((v) => v.category === "loopback-prefix-bypass")).toBe(false);
+  });
+
+  it("flags raw x-tenant-id header reads outside request-tenant.ts", () => {
+    const vulnerable = 'const tenantId = event.request.headers.get("x-tenant-id");';
+    const violations = scanGlobalRisk("hooks/handle-redirects.ts", vulnerable);
+    expect(
+      violations.some(
+        (v) => v.category === "tenant-spoofing-x-tenant-id" && v.severity === "error",
+      ),
+    ).toBe(true);
+  });
+
+  it("passes resolveRequestTenant usage and allows request-tenant.ts implementation", () => {
+    const fixed = "const tenantId = resolveRequestTenant(event.request, false);";
+    expect(
+      scanGlobalRisk("hooks/handle-redirects.ts", fixed).some(
+        (v) => v.category === "tenant-spoofing-x-tenant-id",
+      ),
+    ).toBe(false);
+    expect(
+      scanGlobalRisk(
+        "hooks/request-tenant.ts",
+        'const tenantId = request.headers.get("x-tenant-id");',
+      ).some((v) => v.category === "tenant-spoofing-x-tenant-id"),
+    ).toBe(false);
+  });
+
+  it("flags bare process.env.NODE_ENV === 'test' in security hooks", () => {
+    const vulnerable =
+      'const IS_TEST = process.env.TEST_MODE === "true" || process.env.NODE_ENV === "test";';
+    const violations = scanGlobalRisk("hooks/handle-authentication.ts", vulnerable);
+    expect(
+      violations.some((v) => v.category === "test-mode-bare-node-env" && v.severity === "error"),
+    ).toBe(true);
+  });
+});

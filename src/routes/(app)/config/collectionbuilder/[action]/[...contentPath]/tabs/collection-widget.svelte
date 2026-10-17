@@ -15,6 +15,10 @@
 	import { logger } from '@utils/logger';
 	import {
 		builder_duplicate,
+		builder_field_required_if,
+		builder_field_section,
+		builder_field_show_if,
+		builder_field_tab,
 		builder_remove,
 		builder_required,
 		builder_ts_add_field,
@@ -152,12 +156,16 @@
 	 * which are inserted at the same slot. Computed once per drag update; rows only
 	 * compare their id against it.
 	 */
+	/** Single source for the per-row droppable container id parsed below. */
+	const FIELD_DROP_PREFIX = 'field:';
+	const fieldDropContainer = (dragId: string) => `${FIELD_DROP_PREFIX}${dragId}`;
+
 	const activeDropLine = $derived.by((): { dragId: string; pos: 'before' | 'after' } | null => {
 		const target = dndState.isDragging ? dndState.targetContainer : null;
-		if (!target?.startsWith('field:')) return null;
+		if (!target?.startsWith(FIELD_DROP_PREFIX)) return null;
 		const pos = dndState.dropPosition;
 		if (pos !== 'before' && pos !== 'after') return null;
-		const dragId = target.slice('field:'.length);
+		const dragId = target.slice(FIELD_DROP_PREFIX.length);
 		const index = items.findIndex((i) => i._dragId === dragId) + (pos === 'after' ? 1 : 0);
 		return isNoopFieldDrop(index) ? null : { dragId, pos };
 	});
@@ -801,7 +809,7 @@
 								handle: '.field-drag-handle'
 							}}
 							use:droppable={{
-								container: `field:${item._dragId}`,
+								container: fieldDropContainer(item._dragId),
 								callbacks: { onDrop: handleFieldDrop },
 								direction: 'vertical'
 							}}
@@ -890,6 +898,38 @@
 										{#if item.required}
 											<span class="flex items-center text-error-500" title={builder_required()}>
 												<iconify-icon icon="mdi:asterisk" width="10"></iconify-icon>
+											</span>
+										{/if}
+										{#if (item as any).tab}
+											<span
+												class="shrink-0 rounded bg-tertiary-500/10 dark:bg-primary-500/10 border border-tertiary-500/30 dark:border-primary-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-tertiary-600 dark:text-primary-400"
+												title={builder_field_tab({ tab: (item as any).tab })}
+											>
+												{builder_field_tab({ tab: (item as any).tab })}
+											</span>
+										{/if}
+										{#if (item as any).section}
+											<span
+												class="shrink-0 rounded bg-surface-500/10 border border-surface-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-(--admin-text-muted)"
+												title={builder_field_section({ section: (item as any).section })}
+											>
+												{builder_field_section({ section: (item as any).section })}
+											</span>
+										{/if}
+										{#if (item as any).showIf}
+											<span
+												class="shrink-0 rounded bg-surface-500/10 border border-surface-500/30 px-1.5 py-0.5 text-[9px] font-mono text-tertiary-600 dark:text-primary-400"
+												title="{builder_field_show_if()}: {(item as any).showIf?.field}"
+											>
+												{builder_field_show_if()}
+											</span>
+										{/if}
+										{#if (item as any).requiredIf}
+											<span
+												class="shrink-0 rounded bg-error-500/10 border border-error-500/30 px-1.5 py-0.5 text-[9px] font-mono text-error-500"
+												title="{builder_field_required_if()}: {(item as any).requiredIf?.field}"
+											>
+												{builder_field_required_if()}
 											</span>
 										{/if}
 									</div>

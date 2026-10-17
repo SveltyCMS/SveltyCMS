@@ -61,6 +61,7 @@ This page dynamically switches between List views and Field editors based on the
 
 	// Use $derived for reactivity from server-loaded data
 	const collectionSchema = $derived(data?.collectionSchema);
+	const activeCollection = $derived(collectionSchema ?? collections.active);
 	const entries = $derived(data?.entries || []);
 	const pagination = $derived(
 		data?.pagination || {
@@ -89,36 +90,9 @@ This page dynamically switches between List views and Field editors based on the
 	// Track if we've initialized validation for the current create session
 	let validationInitialized = $state(false);
 
-	// Initialize validation IMMEDIATELY for create mode using $effect.pre()
-	// This runs synchronously BEFORE DOM updates, ensuring button state is correct on first render
+	// Sync contentLanguage, collection schema, and initial validation IMMEDIATELY
+	// using $effect.pre() so collections.active is populated BEFORE the first DOM render
 	$effect.pre(() => {
-		const createParam = page.url.searchParams.get('create');
-
-		if (createParam === 'true' && collectionSchema && !validationInitialized) {
-			// Clear all errors first to start fresh
-			validationStore.clearAllErrors();
-
-			// Initialize validation for all required fields
-			const fields = collectionSchema.fields || [];
-			for (const field of fields) {
-				const fieldDef = field as any;
-				if (fieldDef.required) {
-					const fieldName = getFieldName(fieldDef, false);
-					validationStore.setError(fieldName, `${fieldDef.label || fieldName} is required`);
-				}
-			}
-
-			validationInitialized = true;
-		} else if (createParam !== 'true') {
-			// Reset flag when leaving create mode
-			if (validationInitialized) {
-				validationInitialized = false;
-			}
-		}
-	});
-
-	// Sync contentLanguage and collection schema from server data in a single effect
-	$effect(() => {
 		if (serverContentLanguage) {
 			untrack(() => {
 				if (serverContentLanguage !== lastServerLanguage) {
@@ -139,6 +113,36 @@ This page dynamically switches between List views and Field editors based on the
 					collections.setCollection(collectionSchema);
 				}
 			});
+		}
+
+		const createParam = page.url.searchParams.get('create');
+
+		if (createParam === 'true' && collectionSchema && !validationInitialized) {
+			untrack(() => {
+				// Clear all errors first to start fresh
+				validationStore.clearAllErrors();
+
+				// Initialize validation for all required fields
+				const fields = collectionSchema.fields || [];
+				for (const field of fields) {
+					const fieldDef = field as any;
+					if (fieldDef.required) {
+						const fieldName = getFieldName(fieldDef, false);
+						const defaultValue = fieldDef.default;
+						// A field with a default is already populated on create.
+						if (defaultValue === undefined || defaultValue === null || defaultValue === '') {
+							validationStore.setError(fieldName, `${fieldDef.label || fieldName} is required`);
+						}
+					}
+				}
+
+				validationInitialized = true;
+			});
+		} else if (createParam !== 'true') {
+			// Reset flag when leaving create mode
+			if (validationInitialized) {
+				validationInitialized = false;
+			}
 		}
 	});
 
@@ -191,169 +195,193 @@ This page dynamically switches between List views and Field editors based on the
 	let hasInitiallyLoaded = $state(false);
 	let lastCollectionId: string | null = $state(null);
 
+	const urlEditParam = $derived(page.url.searchParams.get('edit'));
+	const urlCreateParam = $derived(page.url.searchParams.get('create'));
+	const effectiveMode = $derived(
+		hasInitiallyLoaded
+			? collections.mode
+			: urlEditParam
+				? 'edit'
+				: urlCreateParam === 'true'
+					? 'create'
+					: collections.mode
+	);
+
 	// Track collection changes - when navigating to a different collection, reset state
 	// Track collection changes for mode resetting
-	$effect(() => {
+	$effect.pre(() => {
 		const currentCollectionId = collectionSchema?._id as string | undefined;
 		if (currentCollectionId && currentCollectionId !== lastCollectionId) {
-			// Reset state tracking for the new collection
-			hasInitiallyLoaded = false;
-			lastEditParam = null;
-			lastUrlString = '';
-			lastCollectionId = currentCollectionId;
+			untrack(() => {
+				// Reset state tracking for the new collection
+				hasInitiallyLoaded = false;
+				lastEditParam = null;
+				lastUrlString = '';
+				lastCollectionId = currentCollectionId;
 
-			// Set mode to view for new collection (unless URL says otherwise)
-			const editParam = page.url.searchParams.get('edit');
-			const createParam = page.url.searchParams.get('create');
-			if (!(editParam || createParam)) {
-				collections.setMode('view');
-			}
+				// Set mode to view for new collection (unless URL says otherwise)
+				const editParam = page.url.searchParams.get('edit');
+				const createParam = page.url.searchParams.get('create');
+				if (!(editParam || createParam)) {
+					collections.setMode('view');
+				}
+			});
 		}
 	});
 
-	$effect(() => {
+	$effect.pre(() => {
 		const currentUrl = page.url.toString();
 		const editParam = page.url.searchParams.get('edit');
 		const createParam = page.url.searchParams.get('create');
 
 		// CASE 1: Initial page load with ?edit=id
-		if (!hasInitiallyLoaded && editParam && entries && entries.length === 1) {
-			hasInitiallyLoaded = true;
-			lastEditParam = editParam;
-			const entryData = entries[0];
-			logger.debug('[Initial Load] Edit mode detected, loading entry:', entryData._id);
+		if (!hasInitiallyLoaded && editParam && entries && entries.length >= 1) {
+			untrack(() => {
+				hasInitiallyLoaded = true;
+				lastEditParam = editParam;
+				const entryData =
+					entries.find((e: any) => String(e?._id) === String(editParam)) ?? entries[0];
+				logger.debug('[Initial Load] Edit mode detected, loading entry:', entryData._id);
 
-			collections.setMode('edit');
-			collections.setCollectionValue(entryData);
-			initialCollectionValue = JSON.stringify(entryData);
-			lastUrlString = currentUrl;
+				collections.setMode('edit');
+				collections.setCollectionValue(entryData);
+				initialCollectionValue = JSON.stringify(entryData);
+				lastUrlString = currentUrl;
+			});
 			return; // Exit early to avoid triggering URL change logic
 		}
 
 		// CASE 1b: Initial page load with ?create=true
 		if (!hasInitiallyLoaded && createParam === 'true') {
-			hasInitiallyLoaded = true;
-			lastUrlString = currentUrl;
+			untrack(() => {
+				hasInitiallyLoaded = true;
+				lastUrlString = currentUrl;
 
-			collections.setMode('create');
-			const newEntry: Record<string, any | null> = {};
-			const fields = collections.active?.fields || [];
+				collections.setMode('create');
+				const newEntry: Record<string, any | null> = {};
+				const fields = (collectionSchema ?? collections.active)?.fields || [];
 
-			// Initialize empty entry
-			for (const field of fields) {
-				const fieldName = getFieldName(field as any, false);
-				newEntry[fieldName] = null;
-			}
-			collections.setCollectionValue(newEntry);
+				// Initialize entry values, honoring schema defaults (e.g. Select defaults).
+				for (const field of fields) {
+					const fieldDef = field as any;
+					const fieldName = getFieldName(fieldDef, false);
+					newEntry[fieldName] = fieldDef.default ?? null;
+				}
+				collections.setCollectionValue(newEntry);
 
-			// ✅ Validation is now handled by $effect.pre() above
-			// No need to duplicate validation logic here
+				// Initialize change tracking
+				initialCollectionValue = JSON.stringify(newEntry);
 
-			// Initialize change tracking
-			initialCollectionValue = JSON.stringify(newEntry);
-
-			logger.debug('[Initial Load] Create mode detected, entry initialized');
+				logger.debug('[Initial Load] Create mode detected, entry initialized');
+			});
 			return; // Exit early to avoid triggering URL change logic
 		}
 
 		// CASE 2: URL changed (manual navigation)
 		if (currentUrl !== lastUrlString && hasInitiallyLoaded) {
-			// Check if only language changed (URL language prefix) but params stayed the same
-			const editParamChanged = editParam !== lastEditParam;
-			const wasInCreateMode = lastUrlString.includes('create=true');
-			const isInCreateMode = createParam === 'true';
+			untrack(() => {
+				// Check if only language changed (URL language prefix) but params stayed the same
+				const editParamChanged = editParam !== lastEditParam;
+				const wasInCreateMode = lastUrlString.includes('create=true');
+				const isInCreateMode = createParam === 'true';
 
-			// If we're in edit/create mode and only URL language changed, ignore the URL change
-			// This happens when user changes language in TranslationStatus dropdown
-			if (
-				(collections.mode === 'edit' || collections.mode === 'create') &&
-				editParam === lastEditParam &&
-				isInCreateMode === wasInCreateMode
-			) {
-				logger.debug(
-					'[URL Change] Language prefix changed, but staying in',
-					collections.mode,
-					'mode (no reload needed)'
-				);
+				// If we're in edit/create mode and only URL language changed, ignore the URL change
+				// This happens when user changes language in TranslationStatus dropdown
+				if (
+					(collections.mode === 'edit' || collections.mode === 'create') &&
+					editParam === lastEditParam &&
+					isInCreateMode === wasInCreateMode
+				) {
+					logger.debug(
+						'[URL Change] Language prefix changed, but staying in',
+						collections.mode,
+						'mode (no reload needed)'
+					);
+					lastUrlString = currentUrl;
+					return; // Don't reload data, just update URL tracking
+				}
+
 				lastUrlString = currentUrl;
-				return; // Don't reload data, just update URL tracking
-			}
+				lastEditParam = editParam;
+				const parsed = parseURLToMode(page.url);
 
-			lastUrlString = currentUrl;
-			lastEditParam = editParam;
-			const parsed = parseURLToMode(page.url);
+				logger.debug(`[URL Change] ${collections.mode} → ${parsed.mode}`, {
+					entryId: parsed.entryId,
+					hasEntries: entries.length,
+					editParamChanged
+				});
 
-			logger.debug(`[URL Change] ${collections.mode} → ${parsed.mode}`, {
-				entryId: parsed.entryId,
-				hasEntries: entries.length,
-				editParamChanged
-			});
-
-			// Edit mode from URL change
-			if (parsed.mode === 'edit' && parsed.entryId && editParamChanged) {
-				// Clear errors from the previous entry — a stale key for a field the
-				// new entry lacks would otherwise block Save (isFormValid sums all keys).
-				validationStore.clearAllErrors();
-				if (entries && entries.length === 1) {
-					// Data already loaded by server
-					const entryData = entries[0];
-					collections.setMode('edit');
-					collections.setCollectionValue(entryData);
-					initialCollectionValue = JSON.stringify(entryData);
-				} else {
-					// Need to reload data
-					refreshAll().then(() => {
+				// Edit mode from URL change
+				if (parsed.mode === 'edit' && parsed.entryId && editParamChanged) {
+					// Clear errors from the previous entry — a stale key for a field the
+					// new entry lacks would otherwise block Save (isFormValid sums all keys).
+					validationStore.clearAllErrors();
+					const matchedEntry =
+						entries?.find((e: any) => String(e?._id) === String(parsed.entryId)) ??
+						(entries && entries.length === 1 ? entries[0] : null);
+					if (matchedEntry) {
+						// Data already loaded by server
 						collections.setMode('edit');
-						logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
-					});
-				}
-			} else if (parsed.mode === 'view' && collections.mode === 'edit') {
-				// Exiting edit mode
-				collections.setMode('view');
-			} else if (parsed.mode === 'create') {
-				// Create mode (URL change while already loaded)
-				collections.setMode('create');
-				const newEntry: Record<string, any | null> = {};
-				const fields = collections.active?.fields || [];
+						collections.setCollectionValue(matchedEntry);
+						initialCollectionValue = JSON.stringify(matchedEntry);
+					} else {
+						// Need to reload data
+						refreshAll().then(() => {
+							collections.setMode('edit');
+							logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
+						});
+					}
+				} else if (parsed.mode === 'view' && collections.mode === 'edit') {
+					// Exiting edit mode
+					collections.setMode('view');
+				} else if (parsed.mode === 'create') {
+					// Create mode (URL change while already loaded)
+					collections.setMode('create');
+					const newEntry: Record<string, any | null> = {};
+					const fields = (collectionSchema ?? collections.active)?.fields || [];
 
-				// Initialize empty entry with null values
-				for (const field of fields) {
-					const fieldName = getFieldName(field as any, false);
-					newEntry[fieldName] = null;
-				}
-				collections.setCollectionValue(newEntry);
-
-				// Perform initial validation for required fields
-				validationStore.clearAllErrors();
-
-				// Initialize change tracking
-				initialCollectionValue = JSON.stringify(newEntry);
-
-				for (const field of fields) {
-					const fieldDef = field as any;
-					if (fieldDef.required) {
+					// Initialize entry values, honoring schema defaults (e.g. Select defaults).
+					for (const field of fields) {
+						const fieldDef = field as any;
 						const fieldName = getFieldName(fieldDef, false);
-						const value = newEntry[fieldName];
+						newEntry[fieldName] = fieldDef.default ?? null;
+					}
+					collections.setCollectionValue(newEntry);
 
-						// Validate required field
-						if (value === null || value === undefined || value === '') {
-							validationStore.setError(fieldName, `${fieldDef.label || fieldName} is required`);
+					// Perform initial validation for required fields
+					validationStore.clearAllErrors();
+
+					// Initialize change tracking
+					initialCollectionValue = JSON.stringify(newEntry);
+
+					for (const field of fields) {
+						const fieldDef = field as any;
+						if (fieldDef.required) {
+							const fieldName = getFieldName(fieldDef, false);
+							const value = newEntry[fieldName];
+
+							// Validate required field
+							if (value === null || value === undefined || value === '') {
+								validationStore.setError(fieldName, `${fieldDef.label || fieldName} is required`);
+							}
 						}
 					}
-				}
 
-				logger.debug('[URL Change] Create mode validation initialized');
-			} else if (collections.mode !== parsed.mode) {
-				// Other mode changes
-				collections.setMode(parsed.mode);
-			}
+					logger.debug('[URL Change] Create mode validation initialized');
+				} else if (collections.mode !== parsed.mode) {
+					// Other mode changes
+					collections.setMode(parsed.mode);
+				}
+			});
 		}
 
 		// CASE 3: Mark as loaded after first render (for view mode)
 		if (!(hasInitiallyLoaded || editParam)) {
-			hasInitiallyLoaded = true;
-			lastEditParam = editParam;
-			lastUrlString = currentUrl;
+			untrack(() => {
+				hasInitiallyLoaded = true;
+				lastEditParam = editParam;
+				lastUrlString = currentUrl;
+			});
 		}
 	});
 
@@ -380,7 +408,7 @@ This page dynamically switches between List views and Field editors based on the
 		isSavingDraft = true;
 		try {
 			const entryData = collections.activeValue as Record<string, unknown>;
-			const collectionId = collections.active?._id;
+			const collectionId = activeCollection?._id;
 
 			if (!(collectionId && entryData)) {
 				return false;
@@ -485,7 +513,7 @@ This page dynamically switches between List views and Field editors based on the
 </script>
 
 <svelte:head
-	><title>{collectionSchema?.name ?? 'Collection'} {page_title_suffix()}</title></svelte:head
+	><title>{activeCollection?.name ?? 'Collection'} {page_title_suffix()}</title></svelte:head
 >
 
 <div class="content flex min-h-0 flex-1 flex-col">
@@ -501,7 +529,7 @@ This page dynamically switches between List views and Field editors based on the
 		</div>
 	{/if}
 
-	{#if !collections.active}
+	{#if !activeCollection}
 		<!-- Collection data should be available from SSR, if not show error -->
 		<div
 			class="dark:bg-error-500/10 flex h-64 flex-col items-center justify-center rounded border border-error-500 bg-error-500/10 p-8"
@@ -525,9 +553,9 @@ This page dynamically switches between List views and Field editors based on the
 			</h3>
 			<p class="text-center text-error-600 dark:text-error-500">{collection_unable_to_load()}</p>
 		</div>
-	{:else if collections.mode === 'view' || collections.mode === 'modify'}
+	{:else if effectiveMode === 'view' || effectiveMode === 'modify'}
 		<!-- Key block forces EntryList to remount when collection changes -->
-		{#key collectionSchema?._id}
+		{#key activeCollection?._id}
 			{@const listMetrics =
 				(data?.listMetrics as {
 					count: number;
@@ -537,6 +565,7 @@ This page dynamically switches between List views and Field editors based on the
 					avgMs: number;
 				} | null) ?? null}
 			<EntryList
+				collection={activeCollection}
 				{entries}
 				{pagination}
 				contentLanguage={serverContentLanguage}
@@ -544,20 +573,19 @@ This page dynamically switches between List views and Field editors based on the
 				{listMetrics}
 			/>
 		{/key}
-	{:else if ['edit', 'create'].includes(collections.mode)}
+	{:else if ['edit', 'create'].includes(effectiveMode)}
+		{@const activeEntryId = String(collections.activeValue?._id || urlEditParam || '')}
 		<div
 			id="fields_container"
 			class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-6"
 		>
-			{#if collections.mode === 'edit' && collections.activeValue?._id}
-				<WorkflowActions
-					collectionId={collections.active._id!}
-					entryId={String(collections.activeValue?._id || '')}
-				/>
+			{#if effectiveMode === 'edit' && activeEntryId}
+				<WorkflowActions collectionId={activeCollection._id!} entryId={activeEntryId} />
 			{/if}
 			<!-- Pass the server-loaded data directly as props -->
 			<Fields
-				fields={collections.active.fields}
+				collection={activeCollection}
+				fields={activeCollection.fields}
 				{revisions}
 				contentLanguage={serverContentLanguage}
 			/>

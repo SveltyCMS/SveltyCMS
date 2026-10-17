@@ -138,6 +138,7 @@ bulk actions, and predictive preloading.
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
 	// =================================================================
 	const {
+		collection: propCollection = null,
 		entries: serverEntries = [],
 		pagination: serverPagination = { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
 		contentLanguage: propContentLanguage,
@@ -742,7 +743,7 @@ bulk actions, and predictive preloading.
 	// Destructure for easier access
 	const currentLanguage = $derived(propContentLanguage || currentStates.language);
 	const currentMode = $derived(currentStates.mode);
-	const currentCollection = $derived(currentStates.collection);
+	const currentCollection = $derived(propCollection ?? currentStates.collection);
 	// Collection header icon (widget default if the collection has no custom icon)
 	const collectionIcon = $derived(currentCollection?.icon || 'bi:collection');
 

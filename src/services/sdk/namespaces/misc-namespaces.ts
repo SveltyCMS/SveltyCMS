@@ -307,7 +307,14 @@ export class ImporterNamespace {
       sourceData = await fetchWordPressData(sourceUrl, sourceTypeIdentifier, apiKey);
     else throw new AppError("Unsupported source", 400);
     const schema = await scaffoldCollectionSchema(collectionName, sourceData.schema);
-    const collectionPath = path.join(process.cwd(), "config", "collections", `${schema.slug}.ts`);
+    if (!schema.slug || !/^[a-z0-9_-]+$/i.test(String(schema.slug))) {
+      throw new AppError("Invalid collection slug", 400);
+    }
+    const collectionsDir = path.resolve(process.cwd(), "config", "collections");
+    const collectionPath = path.resolve(collectionsDir, `${schema.slug}.ts`);
+    if (!collectionPath.startsWith(collectionsDir + path.sep)) {
+      throw new AppError("Invalid collection path", 400);
+    }
     const fileContent = `import { widgets } from '@widgets';\nimport type { Schema } from '@src/content/types';\n\nexport const schema: Schema = ${JSON.stringify(schema, null, 2).replace(/"widget":\s*"(\w+)"/g, '"widget": widgets.$1')};\n`;
     await fs.mkdir(path.dirname(collectionPath), { recursive: true });
     await fs.writeFile(collectionPath, fileContent);

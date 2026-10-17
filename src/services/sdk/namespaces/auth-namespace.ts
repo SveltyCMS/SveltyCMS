@@ -154,14 +154,15 @@ export class AuthNamespace {
       if (!auth) throw new AppError("Authentication system not initialized", 500);
 
       const filter: Record<string, any> = {};
-      if (tenantId) filter.tenantId = tenantId as DatabaseId;
       if (options.filter && typeof options.filter === "object") {
         Object.assign(filter, options.filter);
       }
+      if (tenantId) filter.tenantId = tenantId as DatabaseId;
       if (search) {
+        const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         filter.$or = [
-          { email: { $regex: search, $options: "i" } },
-          { username: { $regex: search, $options: "i" } },
+          { email: { $regex: escapedSearch, $options: "i" } },
+          { username: { $regex: escapedSearch, $options: "i" } },
         ];
       }
 

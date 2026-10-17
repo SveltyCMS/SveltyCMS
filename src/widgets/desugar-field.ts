@@ -38,11 +38,15 @@ export interface BaseField {
   title?: string;
   description?: string;
   group?: string | string[];
+  tab?: string;
+  section?: string;
+  showIf?: ConditionExpression;
+  requiredIf?: ConditionExpression;
   access?: FieldAccess;
   validation?: FieldValidation;
   required?: boolean;
   translated?: boolean;
-  width?: number;
+  width?: number | string;
   helper?: string;
   placeholder?: string;
   default?: unknown;
@@ -65,8 +69,220 @@ export interface FieldValidation {
   minLength?: number;
   maxLength?: number;
   pattern?: string;
+  patternMessage?: string;
   message?: string;
   [key: string]: unknown;
+}
+
+/**
+ * Comparison operators for field conditional logic.
+ */
+export type ConditionOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "not_contains"
+  | "empty"
+  | "not_empty"
+  | "gt"
+  | "gte"
+  | "lt"
+  | "lte"
+  | "in"
+  | "not_in";
+
+/** A single field condition rule. */
+export interface ConditionRule {
+  field: string;
+  operator: ConditionOperator;
+  value?: unknown;
+}
+
+/** A conditional expression supporting nested AND/OR groups. */
+export type ConditionExpression =
+  | ConditionRule
+  | {
+      and?: (ConditionRule | ConditionExpression)[];
+      or?: (ConditionRule | ConditionExpression)[];
+    };
+
+/**
+ * Safely resolves a nested dot-delimited path from an object.
+ */
+export function getFieldValueByPath(
+  data: Record<string, unknown> | null | undefined,
+  path: string,
+): unknown {
+  if (!data || typeof data !== "object" || !path) return undefined;
+  if (path in data) return data[path];
+
+  const segments = path.split(".");
+  let current: unknown = data;
+  for (const segment of segments) {
+    if (current === null || current === undefined || typeof current !== "object") {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+/**
+ * Check if a value is considered "empty" in form contexts.
+ */
+function isValueEmpty(val: unknown): boolean {
+  if (val === undefined || val === null) return true;
+  if (typeof val === "string") return val.trim().length === 0;
+  if (Array.isArray(val)) return val.length === 0;
+  if (typeof val === "object") return Object.keys(val as object).length === 0;
+  return false;
+}
+
+/**
+ * Evaluate a single ConditionRule against provided form data.
+ */
+function evaluateSingleRule(rule: ConditionRule, data: Record<string, unknown>): boolean {
+  if (!rule || !rule.field) return true;
+  const actualValue = getFieldValueByPath(data, rule.field);
+  const targetValue = rule.value;
+
+  switch (rule.operator) {
+    case "empty":
+      return isValueEmpty(actualValue);
+
+    case "not_empty":
+      return !isValueEmpty(actualValue);
+
+    case "equals": {
+      if (typeof actualValue === "boolean") {
+        return (
+          actualValue ===
+          (targetValue === true ||
+            targetValue === "true" ||
+            targetValue === 1 ||
+            targetValue === "1")
+        );
+      }
+      if (typeof actualValue === "number") {
+        return actualValue === Number(targetValue);
+      }
+      return String(actualValue ?? "").trim() === String(targetValue ?? "").trim();
+    }
+
+    case "not_equals": {
+      if (typeof actualValue === "boolean") {
+        return (
+          actualValue !==
+          (targetValue === true ||
+            targetValue === "true" ||
+            targetValue === 1 ||
+            targetValue === "1")
+        );
+      }
+      if (typeof actualValue === "number") {
+        return actualValue !== Number(targetValue);
+      }
+      return String(actualValue ?? "").trim() !== String(targetValue ?? "").trim();
+    }
+
+    case "contains": {
+      if (Array.isArray(actualValue)) {
+        return actualValue.some((item) => String(item) === String(targetValue));
+      }
+      return String(actualValue ?? "")
+        .toLowerCase()
+        .includes(String(targetValue ?? "").toLowerCase());
+    }
+
+    case "not_contains": {
+      if (Array.isArray(actualValue)) {
+        return !actualValue.some((item) => String(item) === String(targetValue));
+      }
+      return !String(actualValue ?? "")
+        .toLowerCase()
+        .includes(String(targetValue ?? "").toLowerCase());
+    }
+
+    case "gt": {
+      const numActual = Number(actualValue);
+      const numTarget = Number(targetValue);
+      return !Number.isNaN(numActual) && !Number.isNaN(numTarget) && numActual > numTarget;
+    }
+
+    case "gte": {
+      const numActual = Number(actualValue);
+      const numTarget = Number(targetValue);
+      return !Number.isNaN(numActual) && !Number.isNaN(numTarget) && numActual >= numTarget;
+    }
+
+    case "lt": {
+      const numActual = Number(actualValue);
+      const numTarget = Number(targetValue);
+      return !Number.isNaN(numActual) && !Number.isNaN(numTarget) && numActual < numTarget;
+    }
+
+    case "lte": {
+      const numActual = Number(actualValue);
+      const numTarget = Number(targetValue);
+      return !Number.isNaN(numActual) && !Number.isNaN(numTarget) && numActual <= numTarget;
+    }
+
+    case "in": {
+      if (Array.isArray(targetValue)) {
+        return targetValue.some((item) => String(item) === String(actualValue));
+      }
+      if (typeof targetValue === "string") {
+        const set = targetValue.split(",").map((s) => s.trim().toLowerCase());
+        return set.includes(String(actualValue ?? "").toLowerCase());
+      }
+      return false;
+    }
+
+    case "not_in": {
+      if (Array.isArray(targetValue)) {
+        return !targetValue.some((item) => String(item) === String(actualValue));
+      }
+      if (typeof targetValue === "string") {
+        const set = targetValue.split(",").map((s) => s.trim().toLowerCase());
+        return !set.includes(String(actualValue ?? "").toLowerCase());
+      }
+      return true;
+    }
+
+    default:
+      return true;
+  }
+}
+
+/**
+ * Evaluates whether a conditional expression is satisfied given current form / record data.
+ * Returns true if condition is undefined/empty (defaults to visible/not-conditional).
+ */
+export function evaluateCondition(
+  condition?: ConditionExpression | null,
+  data?: Record<string, unknown> | null,
+): boolean {
+  if (!condition) return true;
+  const safeData = data ?? {};
+
+  // Check if it's an AND expression
+  if ("and" in condition && Array.isArray(condition.and)) {
+    if (condition.and.length === 0) return true;
+    return condition.and.every((sub) => evaluateCondition(sub, safeData));
+  }
+
+  // Check if it's an OR expression
+  if ("or" in condition && Array.isArray(condition.or)) {
+    if (condition.or.length === 0) return true;
+    return condition.or.some((sub) => evaluateCondition(sub, safeData));
+  }
+
+  // Single rule
+  if ("field" in condition && "operator" in condition) {
+    return evaluateSingleRule(condition as ConditionRule, safeData);
+  }
+
+  return true;
 }
 
 /**

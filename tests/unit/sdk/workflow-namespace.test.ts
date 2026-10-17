@@ -60,7 +60,7 @@ const ACTOR: User = {
   role: "reviewer",
   isAdmin: false,
   email: "rev@test.dev",
-  permissions: [],
+  permissions: ["workflow:transition"],
   createdAt: nowISODateString(),
   updatedAt: nowISODateString(),
 };

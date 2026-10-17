@@ -136,6 +136,8 @@ export type WidgetTypes = widgets[WidgetKeys];
 import type { WidgetDefinition } from "@widgets/types";
 
 export interface EntryListProps {
+  /** Collection schema for the current list (header icon/name, field metadata). */
+  collection?: Schema | null;
   contentLanguage?: string;
   entries?: CollectionEntry[];
   pagination?: {

@@ -171,7 +171,7 @@ class MarketplaceClient {
     });
 
     if (!res.ok) {
-      return { valid: true, tier: "free", pluginId };
+      return { valid: false, tier: "free", pluginId };
     }
 
     return res.json();

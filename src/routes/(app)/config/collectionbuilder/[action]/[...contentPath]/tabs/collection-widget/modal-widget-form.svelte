@@ -16,6 +16,7 @@
 	import Badge from '@components/ui/badge.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Select from '@components/ui/select.svelte';
 	import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -86,7 +87,40 @@
 		widget_setting_min_length_hint,
 		widget_setting_prefix_hint,
 		widget_setting_step_hint,
-		widget_setting_suffix_hint
+		widget_setting_suffix_hint,
+		widget_form_tab_validation,
+		widget_form_tab_conditions,
+		widget_form_tab_assignment,
+		widget_form_tab_assignment_placeholder,
+		widget_form_section_heading,
+		widget_form_section_heading_placeholder,
+		widget_validation_pattern_title,
+		widget_validation_pattern_subtitle,
+		widget_validation_rule_preset,
+		widget_validation_regex,
+		widget_validation_regex_placeholder,
+		widget_validation_error_message,
+		widget_validation_error_placeholder,
+		widget_validation_limits_title,
+		widget_validation_limits_subtitle,
+		widget_validation_min_length,
+		widget_validation_max_length,
+		widget_validation_min_value,
+		widget_validation_max_value,
+		widget_conditions_visibility_title,
+		widget_conditions_visibility_subtitle,
+		widget_conditions_visibility_aria,
+		widget_conditions_target_field,
+		widget_conditions_target_field_placeholder,
+		widget_conditions_operator,
+		widget_conditions_match_value,
+		widget_conditions_match_value_placeholder,
+		widget_conditions_visibility_always,
+		widget_conditions_requirement_title,
+		widget_conditions_requirement_subtitle,
+		widget_conditions_requirement_aria,
+		widget_conditions_req_field_placeholder,
+		widget_conditions_requirement_fallback
 	} from '@src/paraglide/messages';
 	import { resolveAdminComponent } from '@src/components/system/admin-component-registry';
 	import { setTargetWidget } from '@src/stores/collection-store.svelte';
@@ -139,12 +173,92 @@
 			icon: 'mdi:tune'
 		},
 		{
+			id: 'validation',
+			label: widget_form_tab_validation(),
+			shortLabel: widget_form_tab_validation(),
+			icon: 'mdi:checkbox-marked-circle-outline'
+		},
+		{
+			id: 'conditions',
+			label: widget_form_tab_conditions(),
+			shortLabel: widget_form_tab_conditions(),
+			icon: 'mdi:code-braces'
+		},
+		{
 			id: 'permissions',
 			label: widget_form_tab_permissions(),
 			shortLabel: widget_form_tab_permissions(),
 			icon: 'mdi:shield-lock-outline'
 		}
 	];
+
+	// --- Validation & Conditional Presets ---
+	const REGEX_PRESETS = [
+		{ value: 'custom', label: 'Custom Pattern' },
+		{ value: 'email', label: 'Email Address' },
+		{ value: 'url', label: 'URL / Web Link' },
+		{ value: 'alphanumeric', label: 'Alphanumeric Only' },
+		{ value: 'slug', label: 'Kebab-case Slug' },
+		{ value: 'numeric', label: 'Digits Only' },
+		{ value: 'phone', label: 'International Phone' },
+		{ value: 'hex_color', label: 'Hex Color Code' }
+	];
+
+	const PRESET_PATTERNS: Record<string, { pattern: string; message: string }> = {
+		email: {
+			pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
+			message: 'Must be a valid email address'
+		},
+		url: {
+			pattern: '^https?:\\/\\/.+',
+			message: 'Must be a valid URL starting with http:// or https://'
+		},
+		alphanumeric: {
+			pattern: '^[a-zA-Z0-9_-]+$',
+			message: 'Only letters, numbers, hyphens, and underscores are allowed'
+		},
+		slug: {
+			pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
+			message: 'Must be lowercase kebab-case (e.g. blog-post-title)'
+		},
+		numeric: {
+			pattern: '^\\d+$',
+			message: 'Only digits (0-9) allowed'
+		},
+		phone: {
+			pattern: '^\\+?[0-9\\s\\-()]{7,20}$',
+			message: 'Must be a valid phone number'
+		},
+		hex_color: {
+			pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$',
+			message: 'Must be a valid hex color code (e.g. #3b82f6)'
+		}
+	};
+
+	const CONDITION_OPERATORS = [
+		{ value: 'equals', label: 'Equals (=)' },
+		{ value: 'not_equals', label: 'Not Equals (≠)' },
+		{ value: 'contains', label: 'Contains' },
+		{ value: 'not_contains', label: 'Does Not Contain' },
+		{ value: 'empty', label: 'Is Empty' },
+		{ value: 'not_empty', label: 'Is Not Empty' },
+		{ value: 'gt', label: 'Greater Than (>)' },
+		{ value: 'gte', label: 'Greater Than or Equal (≥)' },
+		{ value: 'lt', label: 'Less Than (<)' },
+		{ value: 'lte', label: 'Less Than or Equal (≤)' },
+		{ value: 'in', label: 'In Comma-separated List' }
+	];
+
+	let showIfEnabled = $state(false);
+	let showIfField = $state('');
+	let showIfOperator = $state('equals');
+	let showIfValue = $state('');
+
+	let requiredIfEnabled = $state(false);
+	let requiredIfField = $state('');
+	let requiredIfOperator = $state('equals');
+	let requiredIfValue = $state('');
+	let selectedPreset = $state('custom');
 
 	// --- Local working copy (seed immediately so first paint is not empty for E2E) ---
 	function cloneValue(v: any) {
@@ -153,6 +267,13 @@
 				label: '',
 				db_fieldName: '',
 				icon: '',
+				tab: '',
+				section: '',
+				showIf: undefined,
+				requiredIf: undefined,
+				validation: {},
+				pattern: '',
+				patternMessage: '',
 				required: false,
 				translated: false,
 				permissions: {},
@@ -184,7 +305,47 @@
 		local = next;
 		originalDbName = typeof next?.db_fieldName === 'string' ? next.db_fieldName : '';
 		incomingRenamedFrom = typeof next?.renamedFrom === 'string' ? next.renamedFrom : '';
+
+		showIfEnabled = !!next?.showIf;
+		if (next?.showIf && typeof next.showIf === 'object' && 'field' in next.showIf) {
+			showIfField = String(next.showIf.field ?? '');
+			showIfOperator = String(next.showIf.operator ?? 'equals');
+			showIfValue = String(next.showIf.value ?? '');
+		} else {
+			showIfField = '';
+			showIfOperator = 'equals';
+			showIfValue = '';
+		}
+
+		requiredIfEnabled = !!next?.requiredIf;
+		if (next?.requiredIf && typeof next.requiredIf === 'object' && 'field' in next.requiredIf) {
+			requiredIfField = String(next.requiredIf.field ?? '');
+			requiredIfOperator = String(next.requiredIf.operator ?? 'equals');
+			requiredIfValue = String(next.requiredIf.value ?? '');
+		} else {
+			requiredIfField = '';
+			requiredIfOperator = 'equals';
+			requiredIfValue = '';
+		}
+
+		selectedPreset = 'custom';
+		if (next?.pattern) {
+			for (const [k, v] of Object.entries(PRESET_PATTERNS)) {
+				if (v.pattern === next.pattern) {
+					selectedPreset = k;
+					break;
+				}
+			}
+		}
 	});
+
+	function handlePresetChange(preset: string) {
+		selectedPreset = preset;
+		if (preset in PRESET_PATTERNS) {
+			local.pattern = PRESET_PATTERNS[preset].pattern;
+			local.patternMessage = PRESET_PATTERNS[preset].message;
+		}
+	}
 
 	// Remember the previous column name so a save can move values once.
 	// A marker that arrived with the field stays until the name changes;
@@ -294,6 +455,31 @@
 	// --- Save ---
 	function handleSave() {
 		if (!local) return;
+		if (showIfEnabled && showIfField.trim()) {
+			local.showIf = {
+				field: showIfField.trim(),
+				operator: showIfOperator as any,
+				value: showIfValue
+			};
+		} else {
+			delete local.showIf;
+		}
+		if (requiredIfEnabled && requiredIfField.trim()) {
+			local.requiredIf = {
+				field: requiredIfField.trim(),
+				operator: requiredIfOperator as any,
+				value: requiredIfValue
+			};
+		} else {
+			delete local.requiredIf;
+		}
+		if (local.pattern || local.patternMessage) {
+			local.validation = {
+				...local.validation,
+				pattern: local.pattern,
+				patternMessage: local.patternMessage
+			};
+		}
 		setTargetWidget(local);
 		resolve(local);
 	}
@@ -558,7 +744,32 @@
 								/></SystemTooltip
 							>
 						</div>
-						<IconifyIconsPicker bind:iconselected={local.icon} bind:icon={local.icon} />
+						<!-- One source of truth: the picker writes `iconselected`; `icon` is only
+						     needed by InputSwitch's bind for widget-specific controls. -->
+						<IconifyIconsPicker bind:iconselected={local.icon} />
+					</div>
+
+					<!-- Layout Organization: Tabs & Sections -->
+					<div class="flex flex-col gap-1.5">
+						<label for="field-tab" class="text-sm font-semibold text-(--admin-text-body)"
+							>{widget_form_tab_assignment()}</label
+						>
+						<Input
+							id="field-tab"
+							bind:value={local.tab}
+							placeholder={widget_form_tab_assignment_placeholder()}
+						/>
+					</div>
+
+					<div class="flex flex-col gap-1.5">
+						<label for="field-section" class="text-sm font-semibold text-(--admin-text-body)"
+							>{widget_form_section_heading()}</label
+						>
+						<Input
+							id="field-section"
+							bind:value={local.section}
+							placeholder={widget_form_section_heading_placeholder()}
+						/>
 					</div>
 
 					<!-- Behaviour switches: one row, hint under each title -->
@@ -656,6 +867,287 @@
 						</p>
 					</div>
 				{/if}
+			{:else if activeTab === 'validation'}
+				<!-- Tab: Validation (Regex & Dynamic Constraints) -->
+				<div class="flex flex-col gap-6">
+					<div
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
+					>
+						<div
+							class="flex items-center justify-between border-b border-(--admin-border-subtle) pb-3"
+						>
+							<div class="flex items-center gap-2">
+								<iconify-icon
+									icon="mdi:regex"
+									width="22"
+									class="text-tertiary-500 dark:text-primary-400"
+								></iconify-icon>
+								<div>
+									<h4 class="text-sm font-bold text-(--admin-text-body)">
+										{widget_validation_pattern_title()}
+									</h4>
+									<p class="text-xs text-(--admin-text-muted)">
+										{widget_validation_pattern_subtitle()}
+									</p>
+								</div>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<div class="flex flex-col gap-1.5">
+								<label
+									for="validation-preset"
+									class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_rule_preset()}</label
+								>
+								<Select
+									id="validation-preset"
+									value={selectedPreset}
+									options={REGEX_PRESETS}
+									onchange={(v) => handlePresetChange(v)}
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label
+									for="validation-pattern"
+									class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_regex()}</label
+								>
+								<Input
+									id="validation-pattern"
+									bind:value={local.pattern}
+									placeholder={widget_validation_regex_placeholder({
+										example: '^[A-Z]{3}-\\d{4}$'
+									})}
+									class="font-mono text-xs"
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5 sm:col-span-2">
+								<label
+									for="validation-message"
+									class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_error_message()}</label
+								>
+								<Input
+									id="validation-message"
+									bind:value={local.patternMessage}
+									placeholder={widget_validation_error_placeholder()}
+								/>
+							</div>
+						</div>
+					</div>
+
+					<div
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
+					>
+						<div class="flex items-center gap-2 border-b border-(--admin-border-subtle) pb-3">
+							<iconify-icon
+								icon="mdi:ruler"
+								width="22"
+								class="text-tertiary-500 dark:text-primary-400"
+							></iconify-icon>
+							<div>
+								<h4 class="text-sm font-bold text-(--admin-text-body)">
+									{widget_validation_limits_title()}
+								</h4>
+								<p class="text-xs text-(--admin-text-muted)">
+									{widget_validation_limits_subtitle()}
+								</p>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<div class="flex flex-col gap-1.5">
+								<label for="val-min-len" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_min_length()}</label
+								>
+								<Input
+									id="val-min-len"
+									type="number"
+									bind:value={local.minLength}
+									placeholder="3"
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label for="val-max-len" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_max_length()}</label
+								>
+								<Input
+									id="val-max-len"
+									type="number"
+									bind:value={local.maxLength}
+									placeholder="100"
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label for="val-min-val" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_min_value()}</label
+								>
+								<Input id="val-min-val" type="number" bind:value={local.min} placeholder="0" />
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label for="val-max-val" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_max_value()}</label
+								>
+								<Input id="val-max-val" type="number" bind:value={local.max} placeholder="9999" />
+							</div>
+						</div>
+					</div>
+				</div>
+			{:else if activeTab === 'conditions'}
+				<!-- Tab: Conditions (showIf / requiredIf) -->
+				<div class="flex flex-col gap-6">
+					<!-- Visibility Logic: showIf -->
+					<div
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
+					>
+						<div
+							class="flex items-center justify-between border-b border-(--admin-border-subtle) pb-3"
+						>
+							<div class="flex items-center gap-2">
+								<iconify-icon
+									icon="mdi:eye-outline"
+									width="22"
+									class="text-tertiary-500 dark:text-primary-400"
+								></iconify-icon>
+								<div>
+									<h4 class="text-sm font-bold text-(--admin-text-body)">
+										{widget_conditions_visibility_title()}
+									</h4>
+									<p class="text-xs text-(--admin-text-muted)">
+										{widget_conditions_visibility_subtitle()}
+									</p>
+								</div>
+							</div>
+							<Toggle
+								size="sm"
+								ariaLabel={widget_conditions_visibility_aria()}
+								value={showIfEnabled}
+								onToggle={(v) => {
+									showIfEnabled = v;
+								}}
+							/>
+						</div>
+
+						{#if showIfEnabled}
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+								<div class="flex flex-col gap-1.5">
+									<label
+										for="cond-show-field"
+										class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_target_field()}</label
+									>
+									<Input
+										id="cond-show-field"
+										bind:value={showIfField}
+										placeholder={widget_conditions_target_field_placeholder()}
+										class="font-mono text-xs"
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-show-op" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_operator()}</label
+									>
+									<Select
+										id="cond-show-op"
+										value={showIfOperator}
+										options={CONDITION_OPERATORS}
+										onchange={(v) => (showIfOperator = v)}
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-show-val" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_match_value()}</label
+									>
+									<Input
+										id="cond-show-val"
+										bind:value={showIfValue}
+										placeholder={widget_conditions_match_value_placeholder()}
+									/>
+								</div>
+							</div>
+						{:else}
+							<p class="text-xs text-(--admin-text-muted) italic">
+								{widget_conditions_visibility_always()}
+							</p>
+						{/if}
+					</div>
+
+					<!-- Dynamic Requirement: requiredIf -->
+					<div
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
+					>
+						<div
+							class="flex items-center justify-between border-b border-(--admin-border-subtle) pb-3"
+						>
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:asterisk" width="20" class="text-error-500"></iconify-icon>
+								<div>
+									<h4 class="text-sm font-bold text-(--admin-text-body)">
+										{widget_conditions_requirement_title()}
+									</h4>
+									<p class="text-xs text-(--admin-text-muted)">
+										{widget_conditions_requirement_subtitle()}
+									</p>
+								</div>
+							</div>
+							<Toggle
+								size="sm"
+								ariaLabel={widget_conditions_requirement_aria()}
+								value={requiredIfEnabled}
+								onToggle={(v) => {
+									requiredIfEnabled = v;
+								}}
+							/>
+						</div>
+
+						{#if requiredIfEnabled}
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-req-field" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_target_field()}</label
+									>
+									<Input
+										id="cond-req-field"
+										bind:value={requiredIfField}
+										placeholder={widget_conditions_req_field_placeholder()}
+										class="font-mono text-xs"
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-req-op" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_operator()}</label
+									>
+									<Select
+										id="cond-req-op"
+										value={requiredIfOperator}
+										options={CONDITION_OPERATORS}
+										onchange={(v) => (requiredIfOperator = v)}
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-req-val" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_match_value()}</label
+									>
+									<Input id="cond-req-val" bind:value={requiredIfValue} placeholder="true" />
+								</div>
+							</div>
+						{:else}
+							<p class="text-xs text-(--admin-text-muted) italic">
+								{widget_conditions_requirement_fallback()}
+							</p>
+						{/if}
+					</div>
+				</div>
 			{:else if activeTab === 'permissions'}
 				<!-- Tab 3: Permissions (role-based view/edit matrix) -->
 				<div class="flex flex-col gap-5">

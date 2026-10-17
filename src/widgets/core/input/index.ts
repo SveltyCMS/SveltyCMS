@@ -32,6 +32,7 @@ import {
   optional,
   pipe,
   record,
+  regex,
   string,
   transform,
   type InferInput as ValibotInput,
@@ -42,7 +43,20 @@ import type { InputProps } from "./types";
 // Param typed from the widget props (never `ReturnType<typeof InputWidget>`: that
 // made the schema and the widget infer each other, so both collapsed to `any`).
 export const createValidationSchema = (
-  field: InputProps & { required?: boolean; translated?: boolean },
+  field: InputProps & {
+    required?: boolean;
+    translated?: boolean;
+    pattern?: string;
+    patternMessage?: string;
+    validation?: {
+      pattern?: string;
+      patternMessage?: string;
+      minLength?: number;
+      maxLength?: number;
+      message?: string;
+      [key: string]: unknown;
+    };
+  },
 ): BaseSchema<unknown, unknown, BaseIssue<unknown>> => {
   // Build a string schema with text-specific rules
   const stringRules: unknown[] = [transform((s: string) => (typeof s === "string" ? s.trim() : s))];
@@ -50,15 +64,29 @@ export const createValidationSchema = (
   if (field.required) {
     stringRules.push(minLength(1, "This field is required."));
   }
-  if (field.minLength) {
-    stringRules.push(
-      minLength(field.minLength as number, `Must be at least ${field.minLength} characters.`),
-    );
+  const minL = field.validation?.minLength ?? field.minLength;
+  if (minL !== undefined && minL !== null) {
+    stringRules.push(minLength(Number(minL), `Must be at least ${minL} characters.`));
   }
-  if (field.maxLength) {
-    stringRules.push(
-      maxLength(field.maxLength as number, `Must be no more than ${field.maxLength} characters.`),
-    );
+  const maxL = field.validation?.maxLength ?? field.maxLength;
+  if (maxL !== undefined && maxL !== null) {
+    stringRules.push(maxLength(Number(maxL), `Must be no more than ${maxL} characters.`));
+  }
+
+  // Dynamic regex / pattern validation
+  const pattern = field.validation?.pattern ?? field.pattern;
+  if (typeof pattern === "string" && pattern.trim()) {
+    try {
+      const reg = new RegExp(pattern);
+      const msg =
+        field.validation?.patternMessage ??
+        field.patternMessage ??
+        field.validation?.message ??
+        "Invalid format.";
+      stringRules.push(regex(reg, msg));
+    } catch {
+      // Ignore invalid regex patterns safely
+    }
   }
 
   // Build the base string schema

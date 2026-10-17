@@ -15,7 +15,7 @@ import type { SchemaHooks } from "@src/content/schema-hooks";
 import { registerForJsonRender } from "@src/services/json-render/catalog";
 import type { WidgetDefinition, WidgetFactory } from "@widgets/types";
 import { validateWidgetImport } from "@widgets/widget-compatibility";
-import type { BaseIssue, BaseSchema } from "valibot";
+import { type BaseIssue, type BaseSchema, regex } from "valibot";
 import { FastLRU } from "@utils/native-utils";
 
 /**
@@ -60,6 +60,17 @@ export function invalidateSchemaCache(widgetDef: WidgetDefinition): void {
 // A base constraint for widget-specific properties.
 type WidgetProps = Record<string, unknown>;
 
+export interface DynamicValidationConfig {
+  pattern?: string;
+  patternMessage?: string;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  message?: string;
+  [key: string]: unknown;
+}
+
 export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
   widget?: WidgetDefinition;
   label?: string;
@@ -67,8 +78,30 @@ export type FieldConfig<TProps extends WidgetProps = WidgetProps> = {
   permissions?: Partial<Record<"read" | "write", string[]>>;
   /** Persist this field as AES-256-GCM ciphertext at rest. */
   encrypt?: boolean;
+  pattern?: string;
+  patternMessage?: string;
+  validation?: DynamicValidationConfig;
+  tab?: string;
+  section?: string;
+  showIf?: unknown;
+  requiredIf?: unknown;
   [key: string]: unknown;
 } & TProps;
+
+/**
+ * Compiles a dynamic regex validation rule for use with Valibot schema pipes.
+ * Returns null if no pattern is supplied or if pattern is invalid.
+ */
+export function compileDynamicRegex(pattern?: string, message = "Invalid format.") {
+  if (!pattern || typeof pattern !== "string" || !pattern.trim()) return null;
+  try {
+    const reg = new RegExp(pattern);
+    return regex(reg, message);
+  } catch (err) {
+    logger.warn(`[compileDynamicRegex] Invalid regular expression pattern "${pattern}":`, err);
+    return null;
+  }
+}
 
 /**
  * The configuration for DEFINING a widget's blueprint.

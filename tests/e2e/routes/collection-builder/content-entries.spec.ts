@@ -199,6 +199,15 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     const titleBox = entryTitleBox(page);
     await expect(titleBox).toBeVisible({ timeout: 15_000 });
     await expect(titleBox).toHaveValue("Edit Me", { timeout: 15_000 });
+
+    // Regression: a full document reload while in ?edit= must rehydrate the
+    // collection store from SSR data. Before this guard the page fell back to
+    // the "Collection Not Loaded" error block on reload.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByText(/collection not loaded/i)).toHaveCount(0, { timeout: 10_000 });
+    await expect(entryTitleBox(page)).toBeVisible({ timeout: 15_000 });
+    await expect(entryTitleBox(page)).toHaveValue("Edit Me", { timeout: 15_000 });
+
     await titleBox.click();
     await titleBox.fill("Edited Entry");
     await titleBox.blur();

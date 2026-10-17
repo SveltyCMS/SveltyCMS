@@ -32,9 +32,11 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
 
 // ─── O(1) Template Registry ────────────────────────────────────────────
 
-const svelteEmailModules = (import.meta as any).glob
-  ? (import.meta as any).glob("../components/emails/*.svelte")
-  : {};
+// Must be a literal `import.meta.glob(...)` call: Vite only rewrites that
+// exact syntax. Guarding it with `(import.meta as any).glob ? ... : {}` leaves
+// the ternary in the Node build, where `import.meta.glob` is undefined — the
+// registry then becomes empty and every template lookup fails at runtime.
+const svelteEmailModules = import.meta.glob("../components/emails/*.svelte");
 
 const templateRegistry = new Map<string, () => Promise<{ default: ComponentType }>>();
 for (const [path, importer] of Object.entries(svelteEmailModules)) {

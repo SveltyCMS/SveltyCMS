@@ -215,8 +215,13 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "website-tokens": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   webhooks: "config:webhooks",
   "system-webhooks": "config:webhooks",
-  "system-virtual-folder": "system:settings",
-  systemVirtualFolder: "system:settings",
+  // Virtual folders are part of the media system (sidebar tree, folder CRUD,
+  // drag-drop targets) — gate them with the media capabilities the media
+  // endpoints use, not the admin-only `system:settings` capability.
+  "system-virtual-folder": (method: string) =>
+    method === "DELETE" ? "media:delete" : isReadMethod(method) ? "media:read" : "media:write",
+  systemVirtualFolder: (method: string) =>
+    method === "DELETE" ? "media:delete" : isReadMethod(method) ? "media:read" : "media:write",
   version: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   "version-check": (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   permission: "system:admin",
