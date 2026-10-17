@@ -702,15 +702,25 @@ async function executeWarmCollectionRead(
       url.searchParams.get("bypassCache") === "true" ||
       listParams?.bypassCache === true);
 
-  const rebuilt = await coalesceCollectionRefill(
-    event,
-    pathKey,
-    cacheTenant,
-    collectionId,
-    entryId,
-    listParams,
-    marks,
-  );
+  const rebuilt = entryId
+    ? await rebuildWarmCollectionRead(
+        event,
+        pathKey,
+        cacheTenant,
+        collectionId,
+        entryId,
+        listParams,
+        marks,
+      )
+    : await coalesceCollectionRefill(
+        event,
+        pathKey,
+        cacheTenant,
+        collectionId,
+        entryId,
+        listParams,
+        marks,
+      );
   if (rebuilt) {
     // The leader is a miss. Waiters share the body the leader just cached
     // and are labelled as hits. Both use the prebuilt security headers.

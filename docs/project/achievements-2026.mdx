@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-15"
+updated: "2026-10-17"
 tags:
   - "achievements"
   - "log"
@@ -119,6 +119,12 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Zero-Allocation Nursery/Mature Sets**: Replaced FIFO iterator eviction on the point-read admission filter with double-buffered generational sets (`pointAdmissionNursery`, `pointAdmissionMature`, and list counterparts). This eliminates V8 iterator churn and allocation spikes on cold cache misses across large working sets (100k docs) while preserving strict 2-touch admission filtering and byte budget ceilings.
   - **Point-Read Throughput**: Measured on warm HTTP steady-state: `findById` hits **16,236 RPS** (0.07 ms avg), and `findByIdRandom` hits **14,737 RPS** (0.13 ms avg), outperforming KeystoneJS's unauthenticated router (4,422 RPS) by **3.33×** while keeping full enterprise security (WAF, CSRF, RBAC, tenant isolation, FLAC).
   - **Concurrent Write Throughput**: Warm concurrent 8c `update` hits **6,745 RPS** (0.51 ms avg), beating KeystoneJS (1,807 RPS) by **3.73×**; `create` hits **5,266 RPS** (0.52 ms avg). Tests: `tests/benchmarks/competitive-workload-replica.test.ts`.
+
+- **Point-Read Fast Lane & Wire-Stream Optimization (October 2026, self-measured):**
+  - **`__isFastLane` Context Activation**: Wired `__isFastLane: true` into `collectionReadLane` and `collectionWriteLane` events, enabling `serveTurboCacheEntry` to return synchronous cached payloads directly instead of allocating WHATWG `Headers`, `Response`, and `ReadableStream` instances that required asynchronous `arrayBuffer()` decoding.
+  - **Zero-Allocation Fast Headers**: Attached `__fastHeaders` directly to `fastSuccessResponse` and read them in `responseToLaneResult`, bypassing `out.headers.forEach()` iteration on hot API read paths.
+  - **Point-Read Coalescing Bypass**: Short-circuited `coalesceCollectionRefill` on single-entry point reads (`entryId != null`), executing `rebuildWarmCollectionRead` directly to eliminate Promise closure allocations and `inflightCollectionReads` map churn during high-concurrency random lookups.
+  - **Database Envelope Offload (`findPointWireStream`)**: Shifted the `{"success":true,"data":...}` JSON envelope wrapping from PostgreSQL SQL string concatenation (`||`) to Node.js V8 string interpolation, avoiding Postgres server-side memory context allocations and text casting while preserving identical byte wire output.
 
 - **Benchmark Matrix Rationalization & Tiered Execution (October 2026):**
   - **Dead Probe Pruning**: Archived 8 one-off diagnostic test files (`probe-*.test.ts`, `write-matrix-cliff-repro.test.ts`) to `tests/benchmarks/probes/`, removing unmaintained micro-probes from default matrix runs while retaining them for manual debugging.

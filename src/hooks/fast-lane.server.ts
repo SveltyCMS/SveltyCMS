@@ -223,10 +223,14 @@ function responseToLaneResult(
   extraSetCookies?: string[],
   lane?: RequestLane,
 ): FastLaneResult | Promise<FastLaneResult> {
-  const headers: Record<string, string | string[]> = {};
-  out.headers.forEach((value, name) => {
-    headers[name] = value;
-  });
+  const fastHeaders = (out as unknown as { __fastHeaders?: Record<string, string | string[]> })
+    .__fastHeaders;
+  const headers: Record<string, string | string[]> = fastHeaders ? { ...fastHeaders } : {};
+  if (!fastHeaders) {
+    out.headers.forEach((value, name) => {
+      headers[name] = value;
+    });
+  }
   if (lane && !headers["x-svelty-lane"]) {
     headers["x-svelty-lane"] = lane;
   }
@@ -265,7 +269,7 @@ const collectionReadLane: FastLane = async (input) => {
     url,
     request,
     cookies: cookieLookup(getHeader("cookie")),
-    locals: {},
+    locals: { __isFastLane: true },
   } as unknown as RequestEvent;
 
   if (!isSimpleCollectionRead(event)) return null;
@@ -325,7 +329,7 @@ const collectionWriteLane: FastLane = async (input) => {
     url,
     request,
     cookies,
-    locals: {},
+    locals: { __isFastLane: true },
     // Parity with adapter-node: when an address header is configured but absent
     // it throws, and `getClientIp` fails closed to 0.0.0.0. Reproduce that here
     // so rate-limit bucketing cannot be weakened on the lane.
