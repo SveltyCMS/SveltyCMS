@@ -37,6 +37,7 @@
 		widget_form_field_label,
 		widget_form_field_label_hint,
 		widget_form_field_label_placeholder,
+		widget_form_help_aria,
 		widget_form_help_text,
 		widget_form_help_text_hint,
 		widget_form_help_text_placeholder,
@@ -55,15 +56,27 @@
 		widget_form_required,
 		widget_form_required_aria,
 		widget_form_required_hint,
+		widget_form_role_edit_aria,
 		widget_form_role_matrix,
 		widget_form_role_matrix_hint,
+		widget_form_role_view_aria,
 		widget_form_roles_edit,
 		widget_form_roles_role,
 		widget_form_roles_view,
+		widget_form_tab_default,
+		widget_form_tab_permissions,
+		widget_form_tab_settings,
 		widget_form_translated,
 		widget_form_translated_aria,
 		widget_form_translated_hint,
+		widget_form_unknown,
+		widget_form_unnamed,
+		widget_form_selected,
 		widget_form_visibility,
+		widget_form_visibility_private,
+		widget_form_visibility_private_hint,
+		widget_form_visibility_public,
+		widget_form_visibility_public_hint,
 		widget_form_width,
 		widget_form_width_hint,
 		widget_form_width_placeholder,
@@ -113,12 +126,22 @@
 
 	const tabDefs = [
 		// shortLabel keeps a visible name on phones (Tabs hides `label` below md)
-		{ id: 'default', label: 'Default', shortLabel: 'Default', icon: 'mdi:text-box-outline' },
-		{ id: 'settings', label: 'Settings', shortLabel: 'Settings', icon: 'mdi:tune' },
+		{
+			id: 'default',
+			label: widget_form_tab_default(),
+			shortLabel: widget_form_tab_default(),
+			icon: 'mdi:text-box-outline'
+		},
+		{
+			id: 'settings',
+			label: widget_form_tab_settings(),
+			shortLabel: widget_form_tab_settings(),
+			icon: 'mdi:tune'
+		},
 		{
 			id: 'permissions',
-			label: 'Permissions',
-			shortLabel: 'Permissions',
+			label: widget_form_tab_permissions(),
+			shortLabel: widget_form_tab_permissions(),
 			icon: 'mdi:shield-lock-outline'
 		}
 	];
@@ -183,7 +206,19 @@
 		local?.widget?.key || (local?.widget?.Name?.toLowerCase() as string) || ''
 	);
 	const widgetFn = $derived(widgets.widgetFunctions?.[widgetKey]);
-	const guiSchema = $derived((widgetFn?.GuiSchema as Record<string, { widget: any }>) || {});
+	type GuiEntry = {
+		widget?: string;
+		label?: string;
+		helper?: string;
+		placeholder?: string;
+		type?: string;
+		rows?: number;
+		options?: { value: string; label: string; disabled?: boolean }[];
+		fields?: Record<string, GuiEntry>;
+	};
+	const guiSchema = $derived((widgetFn?.GuiSchema as Record<string, GuiEntry>) || {});
+	/** Settings that need both columns (long text / nested groups). */
+	const WIDE_SETTINGS = new Set(['textarea', 'Textarea', 'Json', 'group']);
 
 	// --- Filter default vs specific fields from GuiSchema ---
 	const DEFAULT_KEYS = new Set([
@@ -228,8 +263,8 @@
 
 	/** The widget's own `helper` text wins; common keys fall back to a shared hint. */
 	function settingHint(key: string): string {
-		const helper = (guiSchema[key] as { helper?: unknown } | undefined)?.helper;
-		if (typeof helper === 'string' && helper) return helper;
+		const helper = guiSchema[key]?.helper;
+		if (helper) return helper;
 		return SETTING_HINTS[key]?.() ?? '';
 	}
 
@@ -362,11 +397,11 @@
 			</div>
 			<div class="flex min-w-0 flex-1 flex-col gap-1">
 				<h2 class="truncate text-lg font-semibold leading-tight text-(--admin-text-body)">
-					{widget_form_edit_field()} · {local.label || 'Unnamed'}
+					{widget_form_edit_field()} · {local.label || widget_form_unnamed()}
 				</h2>
 				<div class="flex min-w-0 items-center gap-2 text-xs text-(--admin-text-muted)">
 					<Badge variant="surface" size="sm" class="uppercase tracking-wider"
-						>{widgetKey || 'unknown'}</Badge
+						>{widgetKey || widget_form_unknown()}</Badge
 					>
 					{#if local.db_fieldName}
 						<span class="truncate font-mono">{local.db_fieldName}</span>
@@ -401,7 +436,9 @@
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
 							<SystemTooltip title={widget_form_field_label_hint()}
-								><HelpIcon ariaLabel="Help: Field Label" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_field_label() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -424,7 +461,9 @@
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
 							<SystemTooltip title={widget_form_db_name_hint()}
-								><HelpIcon ariaLabel="Help: Database Field Name" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_db_name() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -442,7 +481,9 @@
 								>{widget_form_placeholder()}</label
 							>
 							<SystemTooltip title={widget_form_placeholder_hint()}
-								><HelpIcon ariaLabel="Help: Placeholder" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_placeholder() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -458,7 +499,9 @@
 								>{widget_form_default()}</label
 							>
 							<SystemTooltip title={widget_form_default_hint()}
-								><HelpIcon ariaLabel="Help: Default Value" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_default() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -474,7 +517,9 @@
 								>{widget_form_help_text()}</label
 							>
 							<SystemTooltip title={widget_form_help_text_hint()}
-								><HelpIcon ariaLabel="Help: Help Text" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_help_text() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -490,7 +535,9 @@
 								>{widget_form_width()}</label
 							>
 							<SystemTooltip title={widget_form_width_hint()}
-								><HelpIcon ariaLabel="Help: Width" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_width() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -506,7 +553,9 @@
 								>{widget_form_icon()}</span
 							>
 							<SystemTooltip title={widget_form_icon_hint()}
-								><HelpIcon ariaLabel="Help: Field Icon" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_icon() })}
+								/></SystemTooltip
 							>
 						</div>
 						<IconifyIconsPicker bind:iconselected={local.icon} bind:icon={local.icon} />
@@ -563,26 +612,30 @@
 					<!-- Same label row + spacing as the Default tab -->
 					<div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
 						{#each settingKeys as key (key)}
-							{@const isInput = guiSchema[key]?.widget === 'Input'}
+							{@const entry = guiSchema[key] ?? {}}
+							{@const title = entry.label || settingLabel(key)}
 							{@const hint = settingHint(key)}
-							<div class="flex flex-col gap-1.5 {isInput ? '' : 'md:col-span-2'}">
+							{@const isWide = WIDE_SETTINGS.has(entry.widget ?? '')}
+							<div class="flex flex-col gap-1.5 {isWide ? 'md:col-span-2' : ''}">
 								<div class="flex items-center gap-1">
-									<span class="text-sm font-semibold text-(--admin-text-body)"
-										>{settingLabel(key)}</span
-									>
+									<span class="text-sm font-semibold text-(--admin-text-body)">{title}</span>
 									{#if hint}
 										<SystemTooltip title={hint}
-											><HelpIcon ariaLabel={`Help: ${settingLabel(key)}`} /></SystemTooltip
+											><HelpIcon
+												ariaLabel={widget_form_help_aria({ field: title })}
+											/></SystemTooltip
 										>
 									{/if}
 								</div>
 								<InputSwitch
 									value={local[key]}
 									icon={local.icon as string}
-									widget={guiSchema[key]?.widget}
+									widget={entry.widget}
 									{key}
-									label={settingLabel(key)}
-									labelClass={isInput ? 'sr-only' : undefined}
+									schema={entry}
+									label={title}
+									labelClass="sr-only"
+									hideLabel
 									onupdate={(e: { value: unknown }) => updateField(key, e.value)}
 								/>
 							</div>
@@ -597,7 +650,7 @@
 						<p class="text-sm">{widget_form_no_settings()}</p>
 						<p class="text-xs">
 							{widget_form_no_settings_part1()}{' '}<span class="font-semibold"
-								>{widgetKey || 'selected'}</span
+								>{widgetKey || widget_form_selected()}</span
 							>{' '}
 							{widget_form_no_settings_part2()}
 						</p>
@@ -631,14 +684,16 @@
 										aria-hidden="true"
 									></iconify-icon>
 									<span class="text-sm font-semibold text-(--admin-text-body)">
-										{localPerms.visibility === 'public' ? 'Public' : 'Private'}
+										{localPerms.visibility === 'public'
+											? widget_form_visibility_public()
+											: widget_form_visibility_private()}
 									</span>
 								</Button>
 							</div>
 							<p class="text-xs text-(--admin-text-muted)">
 								{localPerms.visibility === 'public'
-									? 'Field is visible to everyone by default.'
-									: 'Field is restricted; only allowed roles can access.'}
+									? widget_form_visibility_public_hint()
+									: widget_form_visibility_private_hint()}
 							</p>
 						</div>
 
@@ -702,7 +757,7 @@
 													<Checkbox
 														size="sm"
 														hideLabel
-														label={`View permission for ${role.name ?? role._id}`}
+														label={widget_form_role_view_aria({ role: role.name ?? role._id })}
 														checked={localPerms.readRoles.includes(role._id)}
 														onchange={() => toggleRoleView(role._id)}
 														class="items-center"
@@ -712,7 +767,7 @@
 													<Checkbox
 														size="sm"
 														hideLabel
-														label={`Edit permission for ${role.name ?? role._id}`}
+														label={widget_form_role_edit_aria({ role: role.name ?? role._id })}
 														checked={localPerms.writeRoles.includes(role._id)}
 														onchange={() => toggleRoleEdit(role._id)}
 														class="items-center"

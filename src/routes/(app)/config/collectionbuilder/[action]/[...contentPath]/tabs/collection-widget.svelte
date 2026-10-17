@@ -82,11 +82,11 @@
 		fields = [],
 		roles = [],
 		viewMode = $bindable('canvas')
-	} = $props<{
+	}: {
 		fields: FieldInstance[];
 		roles?: Role[];
 		viewMode?: 'canvas' | 'split' | 'code' | 'preview';
-	}>();
+	} = $props();
 
 	let dragIdsByIndex = $state<Record<number, string>>({});
 
@@ -815,6 +815,7 @@
 							{#if dropLine}
 								<span
 									aria-hidden="true"
+									data-testid="field-drop-line"
 									class="pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded-full bg-warning-500 {dropLine ===
 									'before'
 										? '-top-px'
@@ -1008,6 +1009,7 @@
 						>
 							{#if endZoneActive}
 								<span
+									data-testid="field-drop-line"
 									class="pointer-events-none absolute inset-x-0 -top-px h-0.5 rounded-full bg-warning-500"
 								></span>
 							{/if}

@@ -50,6 +50,13 @@ export const defaultRoles: Role[] = [
       "api:user",
       "api:userActivity",
       "api:media",
+      // Granular media capabilities: the `/api/media` and
+      // `/api/system-virtual-folder` dispatcher gates require these, not the
+      // coarse `api:media` name. Without them the media gallery silently 403s
+      // (folder tree, folder create, image editor save).
+      "media:read",
+      "media:write",
+      "media:delete",
       "api:widgets",
       "api:send-mail",
       "collections:read",
@@ -85,6 +92,9 @@ export const defaultRoles: Role[] = [
       "api:user",
       "api:userActivity",
       "api:media",
+      "media:read",
+      "media:write",
+      "media:delete",
       "user:manage",
     ],
     icon: "material-symbols:edit",

@@ -34,6 +34,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 		label?: string;
 		/** Accessible name for the switch when no visible `label` is rendered. */
 		ariaLabel?: string;
+		labelClass?: string;
 		labelColor?: string;
 		description?: string;
 		disabled?: boolean;
@@ -48,6 +49,7 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 		value = $bindable(false),
 		label,
 		ariaLabel,
+		labelClass,
 		labelColor = 'text-tertiary-500 dark:text-primary-500',
 		description,
 		disabled = false,
@@ -158,7 +160,8 @@ and `role="switch"` with `aria-checked` for maximum screen reader support.
 					for={id}
 					class={cn(
 						'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
-						value ? 'text-tertiary-500 dark:text-primary-500' : labelColor
+						value ? 'text-tertiary-500 dark:text-primary-500' : labelColor,
+						labelClass
 					)}
 				>
 					{label}

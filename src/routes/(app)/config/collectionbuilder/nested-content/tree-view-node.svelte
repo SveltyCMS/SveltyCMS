@@ -128,23 +128,25 @@ Features:
 		activate();
 	}
 
-	// Enter/Space activate the row the same way a click does. Navigation and
-	// reordering keys are owned by the tree container, so they must bubble.
+	// Enter activates the row the same way a click does; categories are buttons and
+	// also accept Space. Navigation and reordering keys are owned by the tree container,
+	// so they must bubble.
 	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key !== 'Enter' && e.key !== ' ') return;
+		if (e.key !== 'Enter' && !(isCategory && e.key === ' ')) return;
 		if ((e.target as HTMLElement).closest('button, a[href]')) return;
 		e.preventDefault();
 		activate();
 	}
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex — roving-tabindex tree row (button or link) -->
 <div
 	bind:this={rowEl}
 	class={containerClass}
 	onpointerdown={handlePointerDown}
 	onclick={handleClick}
 	onkeydown={handleKeyDown}
-	role="button"
+	role={isCategory ? 'button' : 'link'}
 	{tabindex}
 	aria-label={isCategory
 		? `${name}, category. Press Enter to ${isSelectedCategory ? 'deselect' : 'select'} as target for new collection. Alt plus arrow keys to move.`
@@ -369,12 +371,14 @@ Features:
 </div>
 
 <style>
-	div[role='button']:focus-visible {
+	div[role='button']:focus-visible,
+	div[role='link']:focus-visible {
 		outline: 3px solid var(--color-tertiary-500);
 		outline-offset: 2px;
 		border-radius: 0.25rem;
 	}
-	:global(.dark) div[role='button']:focus-visible {
+	:global(.dark) div[role='button']:focus-visible,
+	:global(.dark) div[role='link']:focus-visible {
 		outline-color: var(--color-primary-500);
 	}
 </style>

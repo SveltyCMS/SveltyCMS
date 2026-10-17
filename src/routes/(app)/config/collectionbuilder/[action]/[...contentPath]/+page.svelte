@@ -56,7 +56,7 @@
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	const action = $derived(page.params.action);
-	const { data } = $props<{ data: { collection?: Schema; user: User; roles?: Role[] } }>();
+	const { data }: { data: { collection?: Schema; user: User; roles?: Role[] } } = $props();
 	useContent();
 
 	let originalName = $state('');

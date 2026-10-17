@@ -82,14 +82,19 @@ Used by `mediagallery/+page.svelte` and `upload-media/local-upload.svelte`.
 
 Virtual folders organize the asset library **without** relocating physical files on disk or object storage. Each media row stores an optional `folderId` pointing at a system virtual folder (or `null` for media root).
 
-| Concern            | Mechanism                                                            |
-| :----------------- | :------------------------------------------------------------------- |
-| **Folder CRUD**    | `GET/POST/PATCH/DELETE /api/system-virtual-folder`                   |
-| **List by folder** | `GET /api/media?folderId={id}&recursive=true\|false`                 |
-| **Upload into**    | Multipart field `folder` (virtual folder ID, or `"global"` for root) |
-| **Move into**      | `POST /api/media/move` (updates `folderId` only — virtual move)      |
+| Concern            | Mechanism                                                                                          |
+| :----------------- | :------------------------------------------------------------------------------------------------- |
+| **Folder CRUD**    | `GET/POST/PATCH/DELETE /api/system-virtual-folder` (`media:read` / `media:write` / `media:delete`) |
+| **List by folder** | `GET /api/media?folderId={id}&recursive=true\|false`                                               |
+| **Upload into**    | Multipart field `folder` (virtual folder ID, or `"global"` for root)                               |
+| **Move into**      | `POST /api/media/move` (updates `folderId` only — virtual move)                                    |
 
 Folder context on upload is resolved server-side by `MediaService.saveMedia()`.
+
+The folder endpoints are part of the media capability surface: `media:read` for reads,
+`media:write` for create/reorder/rename, and `media:delete` for deletion. The built-in
+`Editor` and `Developer` roles carry all three; a role with only `media:read` can browse
+folders but not mutate them.
 
 ### Move Media (Virtual Folder)
 

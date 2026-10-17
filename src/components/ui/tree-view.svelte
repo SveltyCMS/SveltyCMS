@@ -711,7 +711,7 @@ search filtering, and RTL support.
 							></div>
 						</div>
 					{:else}
-						><iconify-icon
+						<iconify-icon
 							icon="mdi:chevron-right"
 							width={isMedia ? '16' : densityTokens.chevron}
 							class={cn(

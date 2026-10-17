@@ -52,19 +52,19 @@ before saving to the database.
 	} from '@src/paraglide/messages';
 	import type { FieldInstance } from '@src/content/types';
 
-	export type WidgetListItem = FieldInstance & { id: number; _dragId: string };
+	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
 
 	let {
 		items = [],
 		collectionName = 'Collection',
 		collectionIcon = 'mdi:widgets',
 		collectionDescription = ''
-	} = $props<{
+	}: {
 		items: WidgetListItem[];
 		collectionName?: string;
 		collectionIcon?: string;
 		collectionDescription?: string;
-	}>();
+	} = $props();
 
 	type ViewportSize = 'desktop' | 'tablet' | 'mobile';
 	let viewport = $state<ViewportSize>('desktop');
@@ -82,8 +82,8 @@ before saving to the database.
 		}
 	});
 
-	function getColSpanClass(width?: string): string {
-		switch (width) {
+	function getColSpanClass(width?: string | number): string {
+		switch (String(width ?? '')) {
 			case '1/2':
 				return 'col-span-12 sm:col-span-6';
 			case '1/3':
@@ -293,6 +293,7 @@ before saving to the database.
 					{#each items as item (item._dragId)}
 						{const colSpan = getColSpanClass(item.width)}
 						{const key = item.db_fieldName || `field_${item.id}`}
+						{const placeholder = typeof item.placeholder === 'string' ? item.placeholder : ''}
 						{const widgetKey = (
 							(item.widget as { key?: string })?.key ||
 							(item.widget as { Name?: string })?.Name ||
@@ -415,7 +416,7 @@ before saving to the database.
 										rows="4"
 										aria-label={item.label || key}
 										bind:value={sampleValues[key]}
-										placeholder={item.placeholder || 'Enter formatted content...'}
+										placeholder={placeholder || 'Enter formatted content...'}
 										class="w-full bg-transparent p-3 text-sm focus:outline-none dark:text-(--admin-text-body)"
 									></textarea>
 								</div>
@@ -425,7 +426,7 @@ before saving to the database.
 									rows="3"
 									aria-label={item.label || key}
 									bind:value={sampleValues[key]}
-									placeholder={item.placeholder || 'Enter text...'}
+									placeholder={placeholder || 'Enter text...'}
 									class="w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 py-2 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 								></textarea>
 							{:else if widgetKey.includes('date')}
@@ -442,7 +443,7 @@ before saving to the database.
 									type="number"
 									aria-label={item.label || key}
 									bind:value={sampleValues[key]}
-									placeholder={item.placeholder || '0'}
+									placeholder={placeholder || '0'}
 									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 								/>
 							{:else}
@@ -451,7 +452,7 @@ before saving to the database.
 									type="text"
 									aria-label={item.label || key}
 									bind:value={sampleValues[key]}
-									placeholder={item.placeholder || `Enter ${item.label || 'value'}...`}
+									placeholder={placeholder || `Enter ${item.label || 'value'}...`}
 									class="h-10 w-full rounded-lg border border-(--admin-border-default) bg-(--admin-bg-input) px-3 text-sm text-(--admin-text-body) focus:border-tertiary-500 focus:outline-none"
 								/>
 							{/if}

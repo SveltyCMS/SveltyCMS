@@ -1,11 +1,15 @@
-<!-- 
-@files src/components/system/builder/input-switch.svelte
+<!--
+@file src/components/system/builder/input-switch.svelte
 @component
 **InputSwitch component**
 
-Features:
-- Dynamic rendering of input fields based on provided widget
+Renders the admin control declared by a widget GuiSchema entry.
 
+Features:
+- Resolves string widget names through the admin component registry (incl. aliases)
+- Forwards schema props such as `options`, `type`, `placeholder` and `rows`
+- Handles Checkbox's `checked` contract and Select's label-less `ariaLabel`
+- Reports value/icon changes to the parent exactly once per change
 -->
 
 <script lang="ts">
@@ -74,16 +78,65 @@ Features:
 	import { resolveAdminComponent } from '@src/components/system/admin-component-registry';
 
 	const WidgetComponent = $derived(resolveAdminComponent(props.widget));
+	const widgetName = $derived(typeof props.widget === 'string' ? props.widget : '');
+	const isCheckbox = $derived(widgetName === 'Checkbox');
+	const isSelect = $derived(widgetName === 'Select' || widgetName === 'select');
+	const isInput = $derived(widgetName === 'Input' || widgetName === 'input');
+	const isTextarea = $derived(widgetName === 'textarea' || widgetName === 'Textarea');
+	const label = $derived(props.label ?? props.key);
+
+	/** Props declared by the GuiSchema entry that the control should receive. */
+	const schemaProps = $derived(
+		(props.schema ?? {}) as {
+			placeholder?: unknown;
+			type?: unknown;
+			rows?: unknown;
+			options?: unknown;
+		}
+	);
+
+	/**
+	 * Select has no labelClass: give it an aria-label and let the caller render the
+	 * visible label. The other controls accept a hidden (sr-only) label.
+	 */
+	const controlProps = $derived.by(() => {
+		const extra: Record<string, unknown> = {};
+		if (isSelect) {
+			extra.ariaLabel = label;
+			if (schemaProps.options !== undefined) extra.options = schemaProps.options;
+			if (schemaProps.placeholder !== undefined) extra.placeholder = schemaProps.placeholder;
+			return extra;
+		}
+
+		extra.label = label;
+		if (props.labelClass !== undefined) extra.labelClass = props.labelClass;
+		if (isInput) {
+			if (schemaProps.type !== undefined) extra.type = schemaProps.type;
+			if (schemaProps.placeholder !== undefined) extra.placeholder = schemaProps.placeholder;
+		} else if (isTextarea) {
+			if (schemaProps.placeholder !== undefined) extra.placeholder = schemaProps.placeholder;
+			if (schemaProps.rows !== undefined) extra.rows = schemaProps.rows;
+		}
+		return extra;
+	});
 </script>
 
 {#if WidgetComponent}
-	<WidgetComponent
-		bind:value
-		bind:icon
-		bind:permissions
-		on:update={updateParent}
-		label={props.label ?? props.key}
-		labelClass={props.labelClass}
-		theme="dark"
-	/>
+	{#if isCheckbox}
+		<!-- Checkbox uses `checked`, not `value`; the shared $effect reports the change. -->
+		<WidgetComponent
+			checked={!!value}
+			onchange={(checked: boolean) => (value = checked)}
+			{label}
+			hideLabel={props.hideLabel ?? false}
+		/>
+	{:else}
+		<WidgetComponent
+			bind:value
+			bind:icon
+			bind:permissions
+			on:update={updateParent}
+			{...controlProps}
+		/>
+	{/if}
 {/if}

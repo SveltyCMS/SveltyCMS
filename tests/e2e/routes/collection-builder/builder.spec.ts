@@ -449,4 +449,118 @@ test.describe("Collection Builder (Testing 2026 — shell + golden)", () => {
     // Favorited item remains visible
     await expect(firstItem).toBeVisible({ timeout: 5_000 });
   });
+
+  /**
+   * Drag & tooltip — palette widgets insert at the hovered slot, and tooltips opened
+   * inside `showModal()` render in the dialog's top layer. Row reordering stays out of
+   * E2E per the demotion note at the top of this file.
+   */
+  test("widgets: palette drag inserts at the slot and modal tooltips render in the dialog", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/config/collectionbuilder", { waitUntil: "domcontentloaded" });
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+
+    const fixture = uniqueCollectionFixture("Drag");
+    await openNewCollectionEditor(page);
+    const nameInput = page.getByTestId("collection-name-input");
+    await nameInput.click();
+    await nameInput.fill(fixture.name);
+    await nameInput.blur();
+
+    await addInputField(page, { label: "Alpha", fieldName: "alpha" });
+    await addInputField(page, { label: "Beta", fieldName: "beta" });
+
+    const rows = page.getByTestId("widget-field-row");
+    await expect(rows).toHaveCount(2, { timeout: 15_000 });
+
+    const tile = page.getByTestId("widget-palette").getByTestId("quick-add-input");
+    await expect(tile).toBeVisible({ timeout: 10_000 });
+    await tile.scrollIntoViewIfNeeded();
+    await rows.first().scrollIntoViewIfNeeded();
+
+    const fromBox = await tile.boundingBox();
+    const toBox = await rows.first().boundingBox();
+    expect(fromBox, "palette tile must have a box").not.toBeNull();
+    expect(toBox, "first field row must have a box").not.toBeNull();
+    const from = fromBox!;
+    const to = toBox!;
+
+    // Playwright's mouse API cannot drive the library's native HTML5 drag path,
+    // so drive the pointer fallback it uses on touch devices: real DOM hit-testing
+    // and the real drop handler, without the browser's drag session.
+    await page.evaluate(
+      ({ from, to }) => {
+        const tile = document.querySelector<HTMLElement>(
+          '[data-testid="widget-palette"] [data-testid="quick-add-input"]',
+        );
+        if (!tile) throw new Error("palette tile not found");
+        const fire = (type: string, x: number, y: number, buttons: number) =>
+          new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+            button: 0,
+            buttons,
+            clientX: x,
+            clientY: y,
+          });
+        tile.dispatchEvent(
+          fire("pointerdown", from.x + from.width / 2, from.y + from.height / 2, 1),
+        );
+        // Cross the drag threshold away from the tile before targeting the row.
+        document.dispatchEvent(fire("pointermove", from.x + 14, from.y + 14, 1));
+        // Top half of the first row => insert before it.
+        document.dispatchEvent(fire("pointermove", to.x + to.width / 2, to.y + 6, 1));
+      },
+      { from, to },
+    );
+
+    await expect(
+      page.getByTestId("field-drop-line"),
+      "insertion line during palette drag",
+    ).toBeVisible({ timeout: 5_000 });
+
+    await page.evaluate(
+      ({ x, y }) => {
+        document.dispatchEvent(
+          new PointerEvent("pointerup", {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            pointerId: 1,
+            pointerType: "mouse",
+            isPrimary: true,
+            button: 0,
+            buttons: 0,
+            clientX: x,
+            clientY: y,
+          }),
+        );
+      },
+      { x: to.x + to.width / 2, y: to.y + 6 },
+    );
+
+    // Dropping opens the editor for the inserted widget.
+    const dialog = page.locator("dialog[open]");
+    await expect(dialog.getByTestId("widget-field-label")).toBeVisible({ timeout: 15_000 });
+
+    // The tooltip must be portalled into the top-layer <dialog>, not behind it.
+    // The icon-only help trigger can be zero-sized when the Iconify glyph has not
+    // loaded, so dispatch the focusin event it listens for instead of hovering.
+    const help = dialog.locator('button[aria-label="Help: Field Label"]');
+    await expect(help).toHaveCount(1, { timeout: 5_000 });
+    await help.evaluate((el) => el.dispatchEvent(new FocusEvent("focusin", { bubbles: true })));
+    await expect(dialog.locator('[role="tooltip"]')).toBeVisible({ timeout: 5_000 });
+
+    await dialog.getByTestId("widget-field-apply").click({ timeout: 10_000 });
+    await expect(dialog).toBeHidden({ timeout: 10_000 });
+
+    await expect(rows).toHaveCount(3, { timeout: 10_000 });
+    await expect(rows.first()).toContainText(/new input/i);
+  });
 });

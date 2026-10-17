@@ -315,6 +315,15 @@ export const actions: Actions = {
         throw new Error(errorMessage);
       }
 
+      // Invalidate the media list caches so API consumers see the new rows
+      // immediately (the delete action already does this; uploads were missing it).
+      try {
+        const { cacheService } = await loadCacheServiceModule();
+        await cacheService.invalidateByCategory("media" as any, locals.tenantId);
+      } catch {
+        // Non-critical: cache invalidation best-effort
+      }
+
       return { success: true };
     } catch (err) {
       let userMessage = "Error uploading file";

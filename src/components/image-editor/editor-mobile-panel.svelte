@@ -203,7 +203,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 </script>
 
 <div
-	class="flex shrink-0 flex-col gap-0 w-full max-h-[min(36dvh,16.5rem)] min-h-0 z-30 bg-[--editor-chrome-bg]"
+	class="flex shrink-0 flex-col gap-0 w-full max-h-[min(36dvh,16.5rem)] min-h-0 z-30 bg-(--editor-chrome-bg)"
 >
 	<div
 		class="flex-[0_1_auto] min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-none] [&::-webkit-scrollbar]:hidden"
@@ -220,11 +220,11 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 							class="absolute top-[42%] inset-s-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
 							aria-hidden="true"
 						>
-							<div class="w-[1.5px] h-3.5 bg-[rgba(255,255,255,0.72)] rounded-[1px]"></div>
+							<div class="w-[1.5px] h-3.5 bg-(--editor-chrome-border) rounded-[1px]"></div>
 						</div>
 					{/if}
 					<div
-						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-white rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
+						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-(--editor-chrome-text) rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
 						style="--slider-progress: {sliderProgress}; left: calc(0.75rem + (100% - 1.5rem) * var(--slider-progress, 0.5))"
 						aria-hidden="true"
 					></div>
@@ -245,13 +245,13 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 				</div>
 				{#if useRotationSlider}
 					<div
-						class="text-[11px] font-medium leading-none text-center text-[rgba(255,255,255,0.72)] tabular-nums"
+						class="text-[11px] font-medium leading-none text-center text-(--editor-chrome-text) tabular-nums"
 					>
 						{rotationDisplay}°
 					</div>
 				{:else}
 					<div
-						class="text-[11px] font-medium leading-none text-center text-[rgba(255,255,255,0.72)] tabular-nums"
+						class="text-[11px] font-medium leading-none text-center text-(--editor-chrome-text) tabular-nums"
 					>
 						{zoomPercent}%
 					</div>
@@ -264,14 +264,16 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					role="tablist"
 					aria-label="Adjust mode"
 				>
-					<div class="inline-flex items-center gap-0.5 p-0.75 bg-white/6 rounded-full">
+					<div
+						class="inline-flex items-center gap-0.5 p-0.75 bg-(--editor-chrome-elevated) rounded-full"
+					>
 						<button
 							type="button"
-							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-[rgba(255,255,255,0.88)] cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
+							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
 							'rotation'
-								? 'bg-white/14'
+								? 'bg-(--editor-chrome-elevated)'
 								: ''}"
-							class:text-white={adjustMode === 'rotation'}
+							class:editor-pill-active={adjustMode === 'rotation'}
 							role="tab"
 							aria-selected={adjustMode === 'rotation'}
 							onclick={() => (adjustMode = 'rotation')}
@@ -280,11 +282,11 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						</button>
 						<button
 							type="button"
-							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-[rgba(255,255,255,0.88)] cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
+							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
 							'scale'
-								? 'bg-white/14'
+								? 'bg-(--editor-chrome-elevated)'
 								: ''}"
-							class:text-white={adjustMode === 'scale'}
+							class:editor-pill-active={adjustMode === 'scale'}
 							role="tab"
 							aria-selected={adjustMode === 'scale'}
 							onclick={() => (adjustMode = 'scale')}
@@ -307,10 +309,10 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						class="absolute top-[42%] inset-s-1/2 z-0 flex flex-col items-center pointer-events-none -translate-x-1/2 -translate-y-1/2"
 						aria-hidden="true"
 					>
-						<div class="w-[1.5px] h-3.5 bg-[rgba(255,255,255,0.72)] rounded-[1px]"></div>
+						<div class="w-[1.5px] h-3.5 bg-(--editor-chrome-border) rounded-[1px]"></div>
 					</div>
 					<div
-						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-white rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
+						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-(--editor-chrome-text) rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
 						style="--slider-progress: {finetuneSliderProgress}; left: calc(0.75rem + (100% - 1.5rem) * var(--slider-progress, 0.5))"
 						aria-hidden="true"
 					></div>
@@ -328,7 +330,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					/>
 				</div>
 				<div
-					class="text-[11px] font-medium leading-none text-center text-[rgba(255,255,255,0.72)] tabular-nums"
+					class="text-[11px] font-medium leading-none text-center text-(--editor-chrome-text) tabular-nums"
 				>
 					{finetuneValueLabel}
 				</div>
@@ -350,7 +352,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						aria-hidden="true"
 					></div>
 					<div
-						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-white rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
+						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-(--editor-chrome-text) rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
 						style="--slider-progress: {blurSliderProgress}; left: calc(0.75rem + (100% - 1.5rem) * var(--slider-progress, 0.5))"
 						aria-hidden="true"
 					></div>
@@ -368,7 +370,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					/>
 				</div>
 				<div
-					class="text-[11px] font-medium leading-none text-center text-[rgba(255,255,255,0.72)] tabular-nums"
+					class="text-[11px] font-medium leading-none text-center text-(--editor-chrome-text) tabular-nums"
 				>
 					{blurStrength}
 				</div>
@@ -386,13 +388,13 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 			{#if showAnnotateTextInput}
 				<div class="flex items-center w-full min-w-0 max-w-full py-0.5 px-2.5 pb-1 box-border">
 					<div
-						class="flex flex-[1_1_auto] gap-1 items-center min-w-0 h-9 py-0.75 ps-3 pe-0.75 bg-[rgba(255,255,255,0.08)] border border-[rgba(255,255,255,0.1)] rounded-full focus-within:border-[rgba(255,255,255,0.22)] focus-within:shadow-[0_0_0_2px_rgba(255,255,255,0.08)]"
+						class="flex flex-[1_1_auto] gap-1 items-center min-w-0 h-9 py-0.75 ps-3 pe-0.75 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full focus-within:border-(--editor-chrome-border) focus-within:shadow-[0_0_0_2px_var(--editor-chrome-border)]"
 					>
 						<input
 							aria-label="Annotation text"
 							bind:this={annotateTextInputRef}
 							id="annotate-mobile-text"
-							class="flex-[1_1_auto] min-w-0 h-full p-0 text-[13px] text-[rgba(255,255,255,0.92)] bg-transparent border-none outline-none placeholder:text-[rgba(255,255,255,0.38)] focus-visible:outline-none"
+							class="flex-[1_1_auto] min-w-0 h-full p-0 text-[13px] text-(--editor-chrome-text) bg-transparent border-none outline-none placeholder:text-(--editor-chrome-text) opacity-50 focus-visible:outline-none"
 							type="text"
 							value={annotateProps?.textDraft ?? 'Text'}
 							placeholder="Enter text"
@@ -401,7 +403,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						/>
 						<button
 							type="button"
-							class="inline-flex flex-[0_0_auto] items-center justify-center w-7 h-7 p-0 text-[#0a0a0a] cursor-pointer bg-[--editor-accent] border-none rounded-full transition-[background,transform] duration-150 active:scale-[0.94] active:bg-[--editor-accent-hover]"
+							class="inline-flex flex-[0_0_auto] items-center justify-center w-7 h-7 p-0 text-[#0a0a0a] cursor-pointer bg-(--editor-accent) border-none rounded-full transition-[background,transform] duration-150 active:scale-[0.94] active:bg-(--editor-accent-hover)"
 							onclick={handleAnnotateTextCommit}
 							aria-label={annotateProps?.hasSelection && annotateProps?.selectedType === 'text'
 								? 'Done editing text'
@@ -430,7 +432,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 							aria-hidden="true"
 						></div>
 						<div
-							class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-white rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
+							class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-(--editor-chrome-text) rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
 							style="--slider-progress: {watermarkOpacityProgress}; left: calc(0.75rem + (100% - 1.5rem) * var(--slider-progress, 0.5))"
 							aria-hidden="true"
 						></div>
@@ -448,7 +450,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						/>
 					</div>
 					<div
-						class="text-[11px] font-medium leading-none text-center text-[rgba(255,255,255,0.72)] tabular-nums"
+						class="text-[11px] font-medium leading-none text-center text-(--editor-chrome-text) tabular-nums"
 					>
 						{watermarkOpacity}%
 					</div>
@@ -460,13 +462,13 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					class="flex items-center gap-1.5 w-full min-w-0 max-w-full py-0.5 px-2.5 pb-1 box-border"
 				>
 					<label
-						class="flex-[0_0_auto] text-[11px] font-medium uppercase tracking-[0.04em] text-[rgba(255,255,255,0.52)]"
+						class="flex-[0_0_auto] text-[11px] font-medium uppercase tracking-[0.04em] text-(--editor-chrome-text) opacity-70"
 						for="watermark-mobile-text">Text</label
 					>
 					<input
 						aria-label="Watermark text"
 						id="watermark-mobile-text"
-						class="flex-[1_1_auto] min-w-0 h-8 px-3 text-[13px] text-[rgba(255,255,255,0.92)] bg-[rgba(255,255,255,0.08)] border border-[rgba(255,255,255,0.1)] rounded-full outline-none focus-visible:border-[rgba(255,255,255,0.28)] focus-visible:shadow-[0_0_0_2px_rgba(255,255,255,0.12)]"
+						class="flex-[1_1_auto] min-w-0 h-8 px-3 text-[13px] text-(--editor-chrome-text) bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full outline-none focus-visible:border-(--editor-chrome-border) focus-visible:shadow-[0_0_0_2px_var(--editor-chrome-border)]"
 						type="text"
 						value={watermarkProps?.textDraft ?? 'Watermark'}
 						placeholder="Watermark text"
@@ -474,7 +476,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					/>
 					<button
 						type="button"
-						class="flex-[0_0_auto] h-8 px-3 text-xs font-medium text-[rgba(255,255,255,0.92)] cursor-pointer bg-[rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.12)] rounded-full transition-[background] duration-150 active:bg-[rgba(255,255,255,0.18)]"
+						class="flex-[0_0_auto] h-8 px-3 text-xs font-medium text-(--editor-chrome-text) cursor-pointer bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full transition-[background] duration-150 active:bg-(--editor-chrome-elevated)"
 						onclick={() => watermarkProps?.onApplyText?.()}
 						aria-label="Apply watermark text"
 					>
@@ -494,7 +496,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		{#if showFocalMobile}
 			<div class="flex flex-col gap-1 py-1 px-4 pb-px">
 				<div
-					class="text-[11px] font-semibold leading-none text-center uppercase tracking-[0.06em] text-[rgba(255,255,255,0.52)]"
+					class="text-[11px] font-semibold leading-none text-center uppercase tracking-[0.06em] text-(--editor-chrome-text) opacity-70"
 				>
 					X
 				</div>
@@ -504,7 +506,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						aria-hidden="true"
 					></div>
 					<div
-						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-white rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
+						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-(--editor-chrome-text) rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
 						style="--slider-progress: {focalXProgress}; left: calc(0.75rem + (100% - 1.5rem) * var(--slider-progress, 0.5))"
 						aria-hidden="true"
 					></div>
@@ -522,7 +524,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					/>
 				</div>
 				<div
-					class="text-[11px] font-medium leading-none text-center text-[rgba(255,255,255,0.72)] tabular-nums"
+					class="text-[11px] font-medium leading-none text-center text-(--editor-chrome-text) tabular-nums"
 				>
 					{focalX}%
 				</div>
@@ -530,7 +532,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 
 			<div class="flex flex-col gap-1 py-1 px-4 pb-px">
 				<div
-					class="text-[11px] font-semibold leading-none text-center uppercase tracking-[0.06em] text-[rgba(255,255,255,0.52)]"
+					class="text-[11px] font-semibold leading-none text-center uppercase tracking-[0.06em] text-(--editor-chrome-text) opacity-70"
 				>
 					Y
 				</div>
@@ -540,7 +542,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						aria-hidden="true"
 					></div>
 					<div
-						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-white rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
+						class="absolute top-[42%] z-2 w-3.5 h-3.5 pointer-events-none bg-(--editor-chrome-text) rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.35)] -translate-x-1/2 -translate-y-1/2"
 						style="--slider-progress: {focalYProgress}; left: calc(0.75rem + (100% - 1.5rem) * var(--slider-progress, 0.5))"
 						aria-hidden="true"
 					></div>
@@ -558,7 +560,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					/>
 				</div>
 				<div
-					class="text-[11px] font-medium leading-none text-center text-[rgba(255,255,255,0.72)] tabular-nums"
+					class="text-[11px] font-medium leading-none text-center text-(--editor-chrome-text) tabular-nums"
 				>
 					{focalY}%
 				</div>
@@ -608,13 +610,39 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		--editor-chrome-text-hover: rgba(255, 255, 255, 0.92);
 		--editor-chrome-elevated: var(--mc-chip);
 		--editor-chrome-border: transparent;
+		color: var(--mc-chip-text);
+	}
+
+	/* Light mode: the chip palette above is dark-chrome tuned. Derive the same
+	   roles from the admin tokens so labels/icons stay readable on light glass. */
+	:global(html.light) .editor-mobile-tool-sheet {
+		--mc-chip: color-mix(in oklch, var(--admin-text-body, #0f172a) 8%, transparent);
+		--mc-chip-active: var(--admin-text-body, #0f172a);
+		--mc-chip-text: var(--admin-text-body, #0f172a);
+		--mc-chip-text-active: var(--admin-bg-card, #fff);
+		--mc-label: var(--admin-text-muted, #64748b);
+		--mc-field: color-mix(in oklch, var(--admin-text-body, #0f172a) 6%, transparent);
+		--mc-field-focus: color-mix(in oklch, var(--admin-text-body, #0f172a) 10%, transparent);
+		--editor-chrome-text: var(--mc-chip-text);
+		--editor-chrome-text-active: var(--admin-text-body, #0f172a);
+		--editor-chrome-text-hover: var(--admin-text-body, #0f172a);
+		--editor-chrome-elevated: var(--mc-chip);
+		--editor-chrome-border: color-mix(in oklch, var(--admin-text-body, #0f172a) 14%, transparent);
 	}
 
 	/* ── Slider visual dots background (can't inline gradient) ── */
 	.editor-mobile-slider-dots {
 		background-image:
-			radial-gradient(circle, rgba(255, 255, 255, 0.55) 1.5px, transparent 1.5px),
-			radial-gradient(circle, rgba(255, 255, 255, 0.22) 1px, transparent 1px);
+			radial-gradient(
+				circle,
+				color-mix(in oklch, var(--editor-chrome-text) 55%, transparent) 1.5px,
+				transparent 1.5px
+			),
+			radial-gradient(
+				circle,
+				color-mix(in oklch, var(--editor-chrome-text) 22%, transparent) 1px,
+				transparent 1px
+			);
 		background-repeat: repeat-x, repeat-x;
 		background-position:
 			center,
@@ -687,7 +715,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 	/* Pill group containers: remove chrome background/border, use gap */
 	.editor-mobile-tool-sheet :global([role='group'].inline-flex),
 	.editor-mobile-tool-sheet :global([role='tablist'].flex.flex-wrap + .inline-flex),
-	.editor-mobile-tool-sheet :global(.inline-flex.rounded-full.bg-\[--editor-chrome-elevated\]) {
+	.editor-mobile-tool-sheet :global(.inline-flex.rounded-full.bg-\(--editor-chrome-elevated\)) {
 		display: inline-flex;
 		flex-shrink: 0;
 		gap: 0.375rem;
@@ -730,21 +758,20 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		transform: scale(0.96);
 	}
 
-	/* Active pill (text-white bg-white/10 etc.) → mobile active */
-	.editor-mobile-tool-sheet :global([role='toolbar'] button.bg-white\/\[0\.1\]),
-	.editor-mobile-tool-sheet :global([role='group'] button.bg-white\/\[0\.1\]),
-	.editor-mobile-tool-sheet :global([role='toolbar'] button.bg-white\/8) {
+	/* Active pill */
+	.editor-mobile-tool-sheet :global([role='toolbar'] button[aria-pressed='true']),
+	.editor-mobile-tool-sheet :global([role='group'] button[aria-pressed='true']),
+	.editor-mobile-tool-sheet :global([role='toolbar'] button.editor-pill-active),
+	.editor-mobile-tool-sheet :global([role='group'] button.editor-pill-active) {
 		color: var(--mc-chip-text-active);
 		background: var(--mc-chip-active);
 	}
 
 	/* Changed (non-active) pill */
-	.editor-mobile-tool-sheet
-		:global([role='toolbar'] button.text-\[rgba\(255\,255\,255\,0\.85\)\]:not(.bg-white\/\[0\.1\])),
-	.editor-mobile-tool-sheet
-		:global([role='group'] button.text-\[rgba\(255\,255\,255\,0\.85\)\]:not(.bg-white\/\[0\.1\])) {
-		color: rgba(255, 255, 255, 0.88);
-		background: rgba(255, 255, 255, 0.12);
+	.editor-mobile-tool-sheet :global([role='toolbar'] button.editor-pill-changed),
+	.editor-mobile-tool-sheet :global([role='group'] button.editor-pill-changed) {
+		color: var(--mc-chip-text-active);
+		background: var(--mc-chip);
 	}
 
 	.editor-mobile-tool-sheet :global([role='toolbar'] button iconify-icon),
@@ -762,16 +789,15 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 	}
 
 	/* Primary CTA (apply button) */
-	.editor-mobile-tool-sheet
-		:global([role='toolbar'] button.text-\[rgba\(255\,255\,255\,0\.92\)\].bg-white\/8) {
-		color: #111 !important;
+	.editor-mobile-tool-sheet :global([role='toolbar'] button.editor-cta) {
+		color: var(--admin-bg-card, #fff) !important;
 		background: var(--editor-accent, #f4c430) !important;
 	}
 
 	.editor-mobile-tool-sheet
 		:global([role='group'][aria-label='Blur actions'] button:nth-last-child(2)) {
-		color: rgba(255, 255, 255, 0.48);
-		background: rgba(255, 255, 255, 0.06);
+		color: var(--mc-label);
+		background: var(--mc-chip);
 	}
 
 	/* ── Sliders (mobile overrides) ── */
@@ -789,8 +815,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 	}
 
 	/* Slider label */
-	.editor-mobile-tool-sheet
-		:global(.lowercase.text-\[11px\].font-normal.text-\[rgba\(255\,255\,255\,0\.45\)\]) {
+	.editor-mobile-tool-sheet :global(.lowercase) {
 		font-size: 0.75rem;
 		font-weight: 500;
 		color: var(--mc-label);
@@ -807,7 +832,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		flex: 1;
 		min-width: 0;
 		height: 3px !important;
-		background: rgba(255, 255, 255, 0.12);
+		background: var(--mc-chip);
 		border-radius: 9999px;
 	}
 
@@ -815,7 +840,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		width: 18px;
 		height: 18px;
 		appearance: none;
-		background: #fff;
+		background: var(--mc-chip-active);
 		border: none;
 		border-radius: 50%;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
@@ -824,7 +849,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 	.editor-mobile-tool-sheet :global(input[type='range']::-moz-range-thumb) {
 		width: 18px;
 		height: 18px;
-		background: #fff;
+		background: var(--mc-chip-active);
 		border: none;
 		border-radius: 50%;
 		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
@@ -839,10 +864,6 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		color: var(--mc-label);
 	}
 
-	.editor-mobile-tool-sheet :global(.text-white.min-w-8) {
-		color: #fff;
-	}
-
 	/* Icon buttons */
 	.editor-mobile-tool-sheet :global(.size-6.inline-flex.items-center.justify-center) {
 		width: 2rem;
@@ -854,20 +875,20 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 	}
 
 	/* Dock inputs */
-	.editor-mobile-tool-sheet :global(input[type='text'].bg-white\/\[0\.06\]),
-	.editor-mobile-tool-sheet :global(input[type='number'].bg-white\/\[0\.06\]) {
+	.editor-mobile-tool-sheet :global(input[type='text']),
+	.editor-mobile-tool-sheet :global(input[type='number']) {
 		height: 2.125rem;
 		padding-inline: 0.625rem;
 		font-size: 0.8125rem;
-		color: #fff;
+		color: var(--editor-chrome-text);
 		background: var(--mc-field);
 		border: none;
 		border-radius: 0.625rem;
 		outline: none;
 	}
 
-	.editor-mobile-tool-sheet :global(input[type='text'].bg-white\/\[0\.06\]:focus),
-	.editor-mobile-tool-sheet :global(input[type='number'].bg-white\/\[0\.06\]:focus) {
+	.editor-mobile-tool-sheet :global(input[type='text']:focus),
+	.editor-mobile-tool-sheet :global(input[type='number']:focus) {
 		background: var(--mc-field-focus);
 	}
 

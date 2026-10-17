@@ -109,7 +109,7 @@ Active tool uses a soft rounded square highlight only.
 
 <div
 	bind:this={sidebarRef}
-	class="editor-sidebar editor-glass-sidebar flex h-auto min-h-0 w-16 shrink-0 flex-col items-center self-stretch overflow-x-hidden overflow-y-auto py-2 bg-[--editor-chrome-bg] border-e border-[--editor-chrome-border]"
+	class="editor-sidebar editor-glass-sidebar flex h-auto min-h-0 w-16 shrink-0 flex-col items-center self-stretch overflow-x-hidden overflow-y-auto py-2 bg-(--editor-chrome-bg) border-e border-(--editor-chrome-border)"
 	role="tablist"
 	aria-label="Image editing tools"
 	aria-orientation="vertical"
@@ -123,7 +123,7 @@ Active tool uses a soft rounded square highlight only.
 	<div class="sidebar-tools flex w-full flex-col items-center gap-1 px-1">
 		{#each tools as tool, idx (tool.id)}
 			<button
-				class="tool-item flex flex-col gap-[0.3rem] items-center justify-center w-12 h-12 p-0 cursor-pointer bg-transparent border border-transparent rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] enabled:hover:text-[--editor-chrome-text-hover] enabled:hover:bg-[--editor-chrome-elevated] enabled:hover:border-[--editor-chrome-border] focus-visible:outline-2 focus-visible:outline-white/30 focus-visible:outline-offset-2"
+				class="tool-item flex flex-col gap-[0.3rem] items-center justify-center w-12 h-12 p-0 cursor-pointer bg-transparent border border-transparent rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) enabled:hover:text-(--editor-chrome-text-hover) enabled:hover:bg-(--editor-chrome-elevated) enabled:hover:border-(--editor-chrome-border) focus-visible:outline-2 focus-visible:outline-(--editor-accent) focus-visible:outline-offset-2"
 				class:tool-active={selectedToolId === tool.id}
 				class:cursor-not-allowed={!hasImage}
 				class:opacity-40={!hasImage}
