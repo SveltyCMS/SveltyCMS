@@ -132,7 +132,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 			isFullscreen
 				? 'open:flex m-0 h-dvh max-h-dvh w-full max-w-none overflow-hidden p-0'
 				: isEditorShell
-					? 'open:flex m-auto max-md:m-0 max-md:h-dvh max-md:max-h-dvh max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-hidden p-0 max-md:p-0'
+					? 'open:flex m-auto max-md:m-0 max-md:h-dvh max-md:max-h-dvh max-md:w-full max-md:max-w-none max-md:items-stretch max-md:justify-stretch items-center justify-center overflow-visible p-0 max-md:p-0'
 					: 'open:flex m-auto items-center justify-center overflow-visible p-4 sm:p-6 lg:p-8',
 			dialogClass
 		)}

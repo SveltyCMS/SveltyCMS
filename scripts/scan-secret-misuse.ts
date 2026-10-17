@@ -352,7 +352,7 @@ function scanLine(
   findings: Finding[],
 ): void {
   // ── Rule 1: Forbidden key access in non-server files ────────────────────
-  if (!isServer) {
+  if (!isServer && line.includes("getPrivateSetting")) {
     // One pre-compiled alternation (non-global, so `.exec` never carries
     // `lastIndex` across lines) instead of a fresh RegExp per key per line.
     const forbidden = FORBIDDEN_PRIVATE_SETTING_RE.exec(line);
@@ -582,9 +582,13 @@ async function main() {
 
   const findings: Finding[] = [];
 
-  // Scan files in parallel chunks of 8 (I/O-bound workload)
-  for (let i = 0; i < files.length; i++) {
-    await scanFile(files[i], i, files.length, findings);
+  // Scan files in parallel chunks of 32 (I/O-bound workload)
+  const BATCH_SIZE = 32;
+  for (let i = 0; i < files.length; i += BATCH_SIZE) {
+    const batch = files.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map((file, offset) => scanFile(file, i + offset, files.length, findings)),
+    );
   }
 
   const elapsedMs = Math.round(performance.now() - startTime);

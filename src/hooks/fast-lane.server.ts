@@ -125,16 +125,23 @@ function headerLookup(headers: FastLaneInput["headers"]) {
   };
 }
 
+const EMPTY_COOKIE_JAR = { get: (_name: string): string | undefined => undefined };
+let lastCookieHeader: string | null = null;
+let lastCookieJar: { get: (name: string) => string | undefined } = EMPTY_COOKIE_JAR;
+
 function cookieLookup(cookieHeader: string | null) {
+  if (!cookieHeader) return EMPTY_COOKIE_JAR;
+  if (cookieHeader === lastCookieHeader) return lastCookieJar;
   const jar = new Map<string, string>();
-  if (cookieHeader) {
-    for (const part of cookieHeader.split(";")) {
-      const eq = part.indexOf("=");
-      if (eq <= 0) continue;
-      jar.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim());
-    }
+  for (const part of cookieHeader.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq <= 0) continue;
+    jar.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim());
   }
-  return { get: (name: string) => jar.get(name) };
+  const lookup = { get: (name: string) => jar.get(name) };
+  lastCookieHeader = cookieHeader;
+  lastCookieJar = lookup;
+  return lookup;
 }
 
 /**
@@ -153,6 +160,8 @@ function serializeCookie(name: string, value: string, opts: Record<string, unkno
   return cookie;
 }
 
+const EMPTY_SEARCH_PARAMS = new URLSearchParams();
+
 /**
  * Minimal URL facade for the lane — `new URL()` pays a full WHATWG parse
  * (~10-15µs) per request on the hot path, but the lane only ever reads
@@ -170,14 +179,20 @@ function fastLaneUrl(input: FastLaneInput): URL {
   const schemeEnd = input.origin.indexOf("://");
   const protocol = schemeEnd >= 0 ? input.origin.slice(0, schemeEnd + 1) : "http:";
   const hostname = schemeEnd >= 0 ? input.origin.slice(schemeEnd + 3) : input.origin;
+  let parsedParams: URLSearchParams | null = search ? null : EMPTY_SEARCH_PARAMS;
   return {
     pathname,
     search,
-    searchParams: new URLSearchParams(search),
+    get searchParams(): URLSearchParams {
+      if (!parsedParams) parsedParams = new URLSearchParams(search);
+      return parsedParams;
+    },
     protocol,
     hostname,
   } as unknown as URL;
 }
+
+const utf8Decoder = new TextDecoder();
 
 /**
  * Convert a pipeline `Response` into the entry's prebuilt shape.
@@ -188,11 +203,26 @@ function fastLaneUrl(input: FastLaneInput): URL {
  * response. Measured: listLarge TURBO-HIT 2.6 ms bridged → 4.8 ms through the
  * decode/re-encode, back to parity once the bytes are written through.
  */
-async function responseToLaneResult(
+function finalizeLaneResult(
+  status: number,
+  headers: Record<string, string | string[]>,
+  body: string | Uint8Array,
+): FastLaneResult {
+  // Node would otherwise fall back to chunked encoding for a body without a
+  // declared length — the lane's own writer emits one computed chunk.
+  if (!headers["content-length"] && status !== 204 && status !== 304) {
+    headers["content-length"] = String(
+      typeof body === "string" ? Buffer.byteLength(body) : body.byteLength,
+    );
+  }
+  return { status, headers, body };
+}
+
+function responseToLaneResult(
   out: Response,
   extraSetCookies?: string[],
   lane?: RequestLane,
-): Promise<FastLaneResult> {
+): FastLaneResult | Promise<FastLaneResult> {
   const headers: Record<string, string | string[]> = {};
   out.headers.forEach((value, name) => {
     headers[name] = value;
@@ -208,21 +238,16 @@ async function responseToLaneResult(
   // lane never served). Gated on the verification env, so production responses
   // carry no transport fingerprint.
   if (process.env.BENCH_VERIFY_RAW === "1") headers["x-fast-lane-served"] = "1";
-  const fastBody = (out as unknown as { __fastBody?: string | Uint8Array }).__fastBody;
-  const body: string | Uint8Array =
-    out.status === 204 || out.status === 304
-      ? ""
-      : fastBody !== undefined
-        ? fastBody
-        : new Uint8Array(await out.arrayBuffer());
-  // Node would otherwise fall back to chunked encoding for a body without a
-  // declared length — the lane's own writer emits one computed chunk.
-  if (!headers["content-length"] && out.status !== 204 && out.status !== 304) {
-    headers["content-length"] = String(
-      typeof body === "string" ? Buffer.byteLength(body) : body.byteLength,
-    );
+  if (out.status === 204 || out.status === 304) {
+    return finalizeLaneResult(out.status, headers, "");
   }
-  return { status: out.status, headers, body };
+  const fastBody = (out as unknown as { __fastBody?: string | Uint8Array }).__fastBody;
+  if (fastBody !== undefined) {
+    return finalizeLaneResult(out.status, headers, fastBody);
+  }
+  return out
+    .arrayBuffer()
+    .then((buf) => finalizeLaneResult(out.status, headers, new Uint8Array(buf)));
 }
 
 /**
@@ -282,7 +307,7 @@ const collectionWriteLane: FastLane = async (input) => {
       bodyRead = true;
       if (!bodyPromise) bodyPromise = readBody();
       const bytes = await bodyPromise;
-      return JSON.parse(Buffer.from(bytes).toString("utf8"));
+      return JSON.parse(utf8Decoder.decode(bytes));
     },
   } as unknown as Request;
 
@@ -318,7 +343,8 @@ const collectionWriteLane: FastLane = async (input) => {
       resolve: async () => FALL_THROUGH as unknown as Response,
     });
     if (!out || (out as unknown) === FALL_THROUGH) return null;
-    return await responseToLaneResult(out, setCookies, RequestLane.API_WRITE);
+    const laneRes = responseToLaneResult(out, setCookies, RequestLane.API_WRITE);
+    return laneRes instanceof Promise ? await laneRes : laneRes;
   } catch (err) {
     // A consumed body cannot be replayed, so once `bodyRead` is set the lane must
     // answer rather than hand a half-read stream to the pipeline. Before that the

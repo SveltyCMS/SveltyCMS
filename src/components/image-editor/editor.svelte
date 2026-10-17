@@ -437,7 +437,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 			{#if toolbarControls?.component && !isMobileEditor}
 				<div
 					bind:this={bottomDockRef}
-					class="editor-bottom-dock editor-desktop-dock editor-glass-dock absolute inset-x-0 bottom-0 z-20 overflow-x-auto px-2 py-1.5 md:px-3 w-full h-fit max-h-fit bg-[--editor-chrome-bg] border-t border-[--editor-chrome-border]"
+					class="editor-bottom-dock editor-desktop-dock editor-glass-dock absolute inset-x-0 bottom-0 z-20 overflow-x-auto px-2 py-1.5 md:px-3 w-full h-fit max-h-fit bg-(--editor-chrome-bg) border-t border-(--editor-chrome-border)"
 				>
 					{#key toolbarControls.component}
 						{const Component = toolbarControls.component}

@@ -123,33 +123,40 @@ bun run slop --strict          # CI mode (fail on findings)
 | Fast hash for secrets | `createHash("sha256")` used on API keys/tokens instead of HMAC     |
 | System user backdoor  | `user._id === "system" && password === "hardcoded"` patterns       |
 
+### 8. Global Security Risk & Tenant Isolation Scanners — 20+ rules ✅
+
+Executed in parallel via `bun run risk:audit` (`scripts/scan-security-risk.ts --strict` + `scripts/lint-tenant-api.ts`). Enforces SQL/NoSQL injection guards (line-scoped `assertSafeSqlIdentifier`), loopback hostname prefix boundaries (`.startsWith("localhost:")`), centralized `resolveRequestTenant()` header gating, `TEST_MODE` vs bare `NODE_ENV === "test"` separation, `getClientIp()` proxy spoofing defense, AST batch-size bounds, and `systemScope` tenant brands.
+
 ---
 
 ## Running Security Tests
 
 ```
-bun run test:unit -- security     # Encryption, auth, lockout
+bun run risk:audit                 # Parallel 6-gate commit audit (risk, secrets, slop, tenant, npm, OSV)
+bun run test:unit -- security      # Encryption, auth, lockout
 bun run slop --strict              # XSS, RTL, button variants + 5 security architecture rules
 bun run test:security              # Hooks defense-in-depth / auth / RBAC / file-server
-bun run scripts/scan-secret-misuse.ts --strict  # 6-rule hardcoded secret detection
+bun run scripts/scan-secret-misuse.ts --strict --full  # 6-rule hardcoded secret detection
 bun run security                   # Endpoint probing (needs running server)
 bun run test:smart                 # Smart orchestrator
 ```
 
-| Category                       | Tests              | Pass Rate  | Enforcement                                      |
-| ------------------------------ | ------------------ | ---------- | ------------------------------------------------ |
-| Encryption & Crypto            | 32                 | 100%       | Unit tests                                       |
-| XSS Prevention                 | 27 + property fuzz | 100%       | Pre-commit slop + mutation                       |
-| Account Lockout                | 22                 | 100%       | Unit + edge cases                                |
-| Fail-Closed API 2.0            | 45                 | 100%       | Contract tests (4 DBs)                           |
-| Defense-in-Depth               | 51                 | 100%       | Unit tests                                       |
-| Endpoint Audit                 | 6 categories       | Active     | `bun run security`                               |
-| Session Persistence            | 22                 | 100%       | Unit tests                                       |
-| **Secret Misuse Scan**         | **6 rules**        | **Active** | `bun run scripts/scan-secret-misuse.ts --strict` |
-| **Security Architecture Scan** | **5 rules**        | **Active** | `bun run slop --strict`                          |
-| **Cache Integrity**            | **6**              | **100%**   | HMAC signing, tamper detection                   |
-| **Audit Chain Verification**   | **7**              | **100%**   | SHA-256 chaining, replay detection               |
-| **Total Security**             | **212+**           | **100%**   | **4-gate pre-commit + CI**                       |
+| Category                       | Tests              | Pass Rate  | Enforcement                                        |
+| ------------------------------ | ------------------ | ---------- | -------------------------------------------------- |
+| Encryption & Crypto            | 32                 | 100%       | Unit tests                                         |
+| XSS Prevention                 | 27 + property fuzz | 100%       | Pre-commit slop + mutation                         |
+| Account Lockout                | 22                 | 100%       | Unit + edge cases                                  |
+| Fail-Closed API 2.0            | 45                 | 100%       | Contract tests (4 DBs)                             |
+| Defense-in-Depth               | 51                 | 100%       | Unit tests                                         |
+| Endpoint Audit                 | 6 categories       | Active     | `bun run security`                                 |
+| Session Persistence            | 22                 | 100%       | Unit tests                                         |
+| **Global Security Risk Scan**  | **20+ rules**      | **Active** | `bun run scripts/scan-security-risk.ts --strict`   |
+| **Tenant API Hygiene**         | **4 AST rules**    | **Active** | `bun run scripts/lint-tenant-api.ts --full`        |
+| **Secret Misuse Scan**         | **6 rules**        | **Active** | `bun run scripts/scan-secret-misuse.ts --strict`   |
+| **Security Architecture Scan** | **5 rules**        | **Active** | `bun run slop --strict`                            |
+| **Cache Integrity**            | **6**              | **100%**   | HMAC signing, tamper detection                     |
+| **Audit Chain Verification**   | **7**              | **100%**   | SHA-256 chaining, replay detection                 |
+| **Total Security**             | **230+**           | **100%**   | **6-gate parallel pre-commit (`risk:audit`) + CI** |
 
 ## Related Documentation
 

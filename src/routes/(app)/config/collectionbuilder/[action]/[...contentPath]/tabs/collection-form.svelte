@@ -398,17 +398,20 @@
 							{#each currentTags as tag (tag)}
 								{@const color = getTagColor(tag)}
 								<span
-									class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full {color.bg} {color.text} border {color.border}"
+									class="inline-flex items-center gap-1 py-0.5 ps-2.5 pe-1 text-xs font-semibold rounded-full {color.bg} {color.text} border {color.border}"
 								>
 									{tag}
+									<!-- 24px round target (WCAG 2.2 AA minimum); inherits the pill colour -->
 									<Button
-										variant="ghost"
+										variant="transparent"
 										size="sm"
 										type="button"
 										onclick={() => removeTag(tag)}
-										class="rounded-full p-0.5 hover:text-error-500 transition-colors"
-										aria-label={collection_tags_remove_aria({ tag })}>&times;</Button
+										class="size-6! min-w-0! rounded-full! p-0! opacity-70 transition-colors hover:bg-error-500/10 hover:text-error-500 hover:opacity-100"
+										aria-label={collection_tags_remove_aria({ tag })}
 									>
+										<iconify-icon icon="mdi:close" width="14" aria-hidden="true"></iconify-icon>
+									</Button>
 								</span>
 							{/each}
 						</div>

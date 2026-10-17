@@ -44,11 +44,59 @@ Supports time-series binning and categorical distributions with live drill-down.
 	import Input from '@components/ui/input.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	import { buildCollectionDrilldownHref, isFilterableBucket } from '@utils/dashboard-drilldown';
-	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import type {
 		CollectionSourceInfo,
 		ChartQueryResult
 	} from '@src/services/analytics/collection-analytics-service';
+	import {
+		widget_chart_total,
+		widget_chart_configure_label,
+		widget_chart_configure_title,
+		widget_chart_no_collection,
+		widget_chart_configure_chart,
+		widget_chart_no_data,
+		widget_chart_explore_records,
+		widget_chart_mode,
+		widget_chart_modal_title,
+		widget_chart_setting_title,
+		widget_chart_title_placeholder,
+		widget_chart_collection_label,
+		widget_chart_loading_collections,
+		widget_chart_style,
+		widget_chart_column_style,
+		widget_chart_bar_style,
+		widget_chart_area_style,
+		widget_chart_accent_color,
+		widget_chart_color_primary,
+		widget_chart_color_tertiary,
+		widget_chart_color_secondary,
+		widget_chart_color_success,
+		widget_chart_color_warning,
+		widget_chart_group_by,
+		widget_chart_time_period_bins,
+		widget_chart_categorical_field,
+		widget_chart_time_granularity,
+		widget_chart_by_day,
+		widget_chart_by_week,
+		widget_chart_by_month,
+		widget_chart_by_year,
+		widget_chart_category_field,
+		widget_chart_measure,
+		widget_chart_count_records,
+		widget_chart_sum_field,
+		widget_chart_avg_field,
+		widget_chart_filter_period,
+		widget_chart_last_30_days,
+		widget_chart_this_month,
+		widget_chart_this_week,
+		widget_chart_this_year,
+		widget_chart_last_12_months,
+		widget_chart_all_time,
+		widget_chart_max_data_points,
+		widget_chart_cancel,
+		widget_chart_save,
+		collection_status
+	} from '@src/paraglide/messages';
 
 	const {
 		config = undefined,
@@ -279,7 +327,8 @@ Supports time-series binning and categorical distributions with live drill-down.
 					</span>
 					{#if chartData?.total !== undefined}
 						<span class="text-xs text-(--admin-text-muted)">
-							Total: <strong class="text-(--admin-text-muted)"
+							{widget_chart_total()}
+							<strong class="text-(--admin-text-muted)"
 								>{formatDisplayValue(chartData.total)}</strong
 							>
 						</span>
@@ -288,10 +337,10 @@ Supports time-series binning and categorical distributions with live drill-down.
 				<Button
 					variant="ghost"
 					size="sm"
-					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
+					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
 					onclick={openSettings}
-					aria-label="Configure Chart"
-					title="Configure Chart"
+					aria-label={widget_chart_configure_label()}
+					title={widget_chart_configure_title()}
 				>
 					<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
 				</Button>
@@ -305,9 +354,11 @@ Supports time-series binning and categorical distributions with live drill-down.
 						width={36}
 						class="mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-sm font-medium text-(--admin-text-muted)">No collection linked</p>
+					<p class="text-sm font-medium text-(--admin-text-muted)">
+						{widget_chart_no_collection()}
+					</p>
 					<Button variant="outline" size="sm" class="mt-2 text-xs" onclick={openSettings}>
-						Configure Chart
+						{widget_chart_configure_chart()}
 					</Button>
 				</div>
 			{:else if !chartData || !chartData.series || chartData.series.length === 0}
@@ -318,7 +369,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 						width={32}
 						class="mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-xs text-(--admin-text-muted)">No data found for this period</p>
+					<p class="text-xs text-(--admin-text-muted)">{widget_chart_no_data()}</p>
 				</div>
 			{:else}
 				{@const series = chartData.series}
@@ -358,7 +409,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 
 									<!-- X-axis label -->
 									<span
-										class="absolute -bottom-5 w-full truncate text-center text-[10px] text-(--admin-text-muted) group-hover:text-(--admin-text-muted) dark:group-hover:text-(--admin-text-muted)"
+										class="absolute -bottom-5 w-full truncate text-center text-[10px] text-(--admin-text-muted) group-hover:text-(--admin-text-muted)"
 									>
 										{item.label}
 									</span>
@@ -469,10 +520,12 @@ Supports time-series binning and categorical distributions with live drill-down.
 						href={bucketHref()}
 						class="inline-flex items-center gap-1 font-medium text-(--admin-text-muted) hover:{accentTheme.text} transition-colors"
 					>
-						<span>Explore all records</span>
+						<span>{widget_chart_explore_records()}</span>
 						<iconify-icon icon="mdi:arrow-right" width={12}></iconify-icon>
 					</a>
-					<span class="text-(--admin-text-muted) capitalize">{chartType} mode</span>
+					<span class="text-(--admin-text-muted) capitalize"
+						>{widget_chart_mode({ mode: chartType })}</span
+					>
 				</div>
 			{/if}
 		</div>
@@ -483,7 +536,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 {#if showSettingsModal}
 	<Modal
 		open={showSettingsModal}
-		title="Configure Collection Chart"
+		title={widget_chart_modal_title()}
 		onclose={() => (showSettingsModal = false)}
 	>
 		<div class="flex flex-col gap-4 p-4">
@@ -493,12 +546,12 @@ Supports time-series binning and categorical distributions with live drill-down.
 					for="chart-title-{widgetId}"
 					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
-					Widget Title
+					{widget_chart_setting_title()}
 				</label>
 				<Input
 					id="chart-title-{widgetId}"
 					bind:value={customTitle}
-					placeholder="e.g. Lead Conversion Distribution"
+					placeholder={widget_chart_title_placeholder()}
 				/>
 			</div>
 
@@ -508,15 +561,15 @@ Supports time-series binning and categorical distributions with live drill-down.
 					for="chart-collection-{widgetId}"
 					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
-					Collection
+					{widget_chart_collection_label()}
 				</label>
 				<select
 					id="chart-collection-{widgetId}"
 					bind:value={selectedCollection}
-					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+					class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 				>
 					{#if sources.length === 0}
-						<option value="">Loading collections...</option>
+						<option value="">{widget_chart_loading_collections()}</option>
 					{:else}
 						{#each sources as src (src.id)}
 							<option value={src.id}>{src.label || src.name}</option>
@@ -532,16 +585,16 @@ Supports time-series binning and categorical distributions with live drill-down.
 						for="chart-type-{widgetId}"
 						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
-						Chart Style
+						{widget_chart_style()}
 					</label>
 					<select
 						id="chart-type-{widgetId}"
 						bind:value={chartType}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 					>
-						<option value="column">Vertical Column / Bar</option>
-						<option value="bar">Horizontal Bar List</option>
-						<option value="area">Area / Trend Line</option>
+						<option value="column">{widget_chart_column_style()}</option>
+						<option value="bar">{widget_chart_bar_style()}</option>
+						<option value="area">{widget_chart_area_style()}</option>
 					</select>
 				</div>
 
@@ -550,18 +603,18 @@ Supports time-series binning and categorical distributions with live drill-down.
 						for="chart-accent-{widgetId}"
 						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
-						Accent Color
+						{widget_chart_accent_color()}
 					</label>
 					<select
 						id="chart-accent-{widgetId}"
 						bind:value={colorAccent}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 					>
-						<option value="primary">Primary (Blue)</option>
-						<option value="tertiary">Tertiary (Cyan)</option>
-						<option value="secondary">Secondary (Purple)</option>
-						<option value="success">Success (Emerald)</option>
-						<option value="warning">Warning (Amber)</option>
+						<option value="primary">{widget_chart_color_primary()}</option>
+						<option value="tertiary">{widget_chart_color_tertiary()}</option>
+						<option value="secondary">{widget_chart_color_secondary()}</option>
+						<option value="success">{widget_chart_color_success()}</option>
+						<option value="warning">{widget_chart_color_warning()}</option>
 					</select>
 				</div>
 			</div>
@@ -573,15 +626,15 @@ Supports time-series binning and categorical distributions with live drill-down.
 						for="chart-group-by-{widgetId}"
 						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
-						Group By
+						{widget_chart_group_by()}
 					</label>
 					<select
 						id="chart-group-by-{widgetId}"
 						bind:value={groupByMode}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 					>
-						<option value="time">Time Period (Bins)</option>
-						<option value="field">Categorical Field</option>
+						<option value="time">{widget_chart_time_period_bins()}</option>
+						<option value="field">{widget_chart_categorical_field()}</option>
 					</select>
 				</div>
 
@@ -591,17 +644,17 @@ Supports time-series binning and categorical distributions with live drill-down.
 							for="chart-granularity-{widgetId}"
 							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 						>
-							Time Granularity
+							{widget_chart_time_granularity()}
 						</label>
 						<select
 							id="chart-granularity-{widgetId}"
 							bind:value={timeGranularity}
-							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+							class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 						>
-							<option value="day">By Day</option>
-							<option value="week">By Week</option>
-							<option value="month">By Month</option>
-							<option value="year">By Year</option>
+							<option value="day">{widget_chart_by_day()}</option>
+							<option value="week">{widget_chart_by_week()}</option>
+							<option value="month">{widget_chart_by_month()}</option>
+							<option value="year">{widget_chart_by_year()}</option>
 						</select>
 					</div>
 				{:else}
@@ -610,19 +663,19 @@ Supports time-series binning and categorical distributions with live drill-down.
 							for="chart-group-field-{widgetId}"
 							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 						>
-							Category Field
+							{widget_chart_category_field()}
 						</label>
 						<select
 							id="chart-group-field-{widgetId}"
 							bind:value={selectedGroupField}
-							class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+							class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 						>
 							{#if activeSource && activeSource.categoryFields.length > 0}
 								{#each activeSource.categoryFields as f (f.name)}
 									<option value={f.name}>{f.label || f.name}</option>
 								{/each}
 							{:else}
-								<option value="status">status</option>
+								<option value="status">{collection_status()}</option>
 							{/if}
 						</select>
 					</div>
@@ -636,16 +689,16 @@ Supports time-series binning and categorical distributions with live drill-down.
 						for="chart-measure-{widgetId}"
 						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
-						Measure
+						{widget_chart_measure()}
 					</label>
 					<select
 						id="chart-measure-{widgetId}"
 						bind:value={selectedMeasure}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 					>
-						<option value="count">Count Records</option>
-						<option value="sum">Sum of Field</option>
-						<option value="avg">Average of Field</option>
+						<option value="count">{widget_chart_count_records()}</option>
+						<option value="sum">{widget_chart_sum_field()}</option>
+						<option value="avg">{widget_chart_avg_field()}</option>
 					</select>
 				</div>
 
@@ -654,19 +707,19 @@ Supports time-series binning and categorical distributions with live drill-down.
 						for="chart-period-{widgetId}"
 						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
-						Filter Period
+						{widget_chart_filter_period()}
 					</label>
 					<select
 						id="chart-period-{widgetId}"
 						bind:value={selectedPeriod}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 					>
-						<option value="last30">Last 30 Days</option>
-						<option value="month">This Month</option>
-						<option value="week">This Week</option>
-						<option value="year">This Year</option>
-						<option value="last12m">Last 12 Months</option>
-						<option value="all">All Time</option>
+						<option value="last30">{widget_chart_last_30_days()}</option>
+						<option value="month">{widget_chart_this_month()}</option>
+						<option value="week">{widget_chart_this_week()}</option>
+						<option value="year">{widget_chart_this_year()}</option>
+						<option value="last12m">{widget_chart_last_12_months()}</option>
+						<option value="all">{widget_chart_all_time()}</option>
 					</select>
 				</div>
 			</div>
@@ -677,15 +730,17 @@ Supports time-series binning and categorical distributions with live drill-down.
 					for="chart-limit-{widgetId}"
 					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
-					Max Data Points / Buckets
+					{widget_chart_max_data_points()}
 				</label>
 				<Input id="chart-limit-{widgetId}" bind:value={itemLimit} type="number" min="3" max="24" />
 			</div>
 
 			<!-- Modal Actions -->
 			<div class="mt-4 flex justify-end gap-2 border-t border-surface-500/20 pt-3">
-				<Button variant="outline" onclick={() => (showSettingsModal = false)}>Cancel</Button>
-				<Button variant="primary" onclick={saveSettings}>Save Configuration</Button>
+				<Button variant="outline" onclick={() => (showSettingsModal = false)}
+					>{widget_chart_cancel()}</Button
+				>
+				<Button variant="primary" onclick={saveSettings}>{widget_chart_save()}</Button>
 			</div>
 		</div>
 	</Modal>

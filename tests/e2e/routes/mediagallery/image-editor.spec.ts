@@ -4,15 +4,16 @@
  * Hard-fails on upload/open (no soft-skip) so CI cannot green-pass empty paths.
  */
 
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { test, expect, type Page } from "@playwright/test";
+import sharp from "sharp";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 const ACTION_TIMEOUT = 25_000;
+
+// The editor previously assumed dark chrome; run the suite in light mode so
+// white-on-white regressions fail here instead of in the field.
+test.use({ colorScheme: "light" });
 
 async function openGallery(page: Page) {
   await loginAsAdmin(page);
@@ -30,26 +31,39 @@ async function openGallery(page: Page) {
   await dismissCookieConsent(page);
 }
 
-async function uploadTestImage(page: Page) {
+async function uploadTestImage(page: Page): Promise<string> {
   await openGallery(page);
 
   const uploadInput = page.getByTestId("media-upload-input");
   await expect(uploadInput).toBeAttached({ timeout: 10_000 });
-  await uploadInput.setInputFiles(TEST_IMAGE);
 
-  const cell = page
-    .getByRole("gridcell")
-    .filter({ hasText: /testthumb\.png/i })
-    .first();
-  await expect(cell).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await cell.scrollIntoViewIfNeeded();
+  // Unique name AND unique pixels: the upload pipeline dedupes by content hash,
+  // so a fixed fixture would reuse the first row and its (possibly deleted) URL.
+  const filename = `testthumb-${Date.now().toString(36)}.png`;
+  const seed = Math.floor(Math.random() * 200) + 20;
+  const buffer = await sharp({
+    create: {
+      width: 800,
+      height: 600,
+      channels: 3,
+      background: { r: seed, g: (seed * 7) % 255, b: (seed * 13) % 255 },
+    },
+  })
+    .png()
+    .toBuffer();
+  await uploadInput.setInputFiles({ name: filename, mimeType: "image/png", buffer });
+
+  await expect(mediaCell(page, filename)).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await mediaCell(page, filename).scrollIntoViewIfNeeded();
+  return filename;
 }
 
-async function openImageEditor(page: Page) {
-  const cell = page
-    .getByRole("gridcell")
-    .filter({ hasText: /testthumb\.png/i })
-    .first();
+function mediaCell(page: Page, filename: string) {
+  return page.getByRole("gridcell").filter({ hasText: filename }).first();
+}
+
+async function openImageEditor(page: Page, filename: string) {
+  const cell = mediaCell(page, filename);
   await cell.scrollIntoViewIfNeeded();
   await cell.hover();
 
@@ -78,8 +92,8 @@ test.describe("Image Editor", () => {
   test.setTimeout(120_000);
 
   test("opens editor modal after upload", async ({ page }) => {
-    await uploadTestImage(page);
-    await openImageEditor(page);
+    const filename = await uploadTestImage(page);
+    await openImageEditor(page, filename);
     await waitForEditorReady(page);
 
     const dialog = page.getByRole("dialog", { name: /image editor/i });
@@ -93,8 +107,8 @@ test.describe("Image Editor", () => {
   });
 
   test("activates crop and focal point tools", async ({ page }) => {
-    await uploadTestImage(page);
-    await openImageEditor(page);
+    const filename = await uploadTestImage(page);
+    await openImageEditor(page, filename);
     await waitForEditorReady(page);
 
     const dialog = page.getByRole("dialog", { name: /image editor/i });
@@ -113,8 +127,8 @@ test.describe("Image Editor", () => {
   });
 
   test("saves edits via manipulate API and shows success toast", async ({ page }) => {
-    await uploadTestImage(page);
-    await openImageEditor(page);
+    const filename = await uploadTestImage(page);
+    await openImageEditor(page, filename);
     await waitForEditorReady(page);
 
     const dialog = page.getByRole("dialog", { name: /image editor/i });
@@ -152,8 +166,8 @@ test.describe("Image Editor", () => {
   });
 
   test("opens every tool, compare, zoom, and the discard confirm", async ({ page }) => {
-    await uploadTestImage(page);
-    await openImageEditor(page);
+    const filename = await uploadTestImage(page);
+    await openImageEditor(page, filename);
     await waitForEditorReady(page);
 
     const dialog = page.getByRole("dialog", { name: /image editor/i });
@@ -214,5 +228,53 @@ test.describe("Image Editor", () => {
     page.once("dialog", (confirm) => confirm.accept());
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden({ timeout: ACTION_TIMEOUT });
+  });
+
+  test("light-mode chrome keeps icons readable", async ({ page }) => {
+    const filename = await uploadTestImage(page);
+    await openImageEditor(page, filename);
+    await waitForEditorReady(page);
+
+    const contrast = await page.evaluate(() => {
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const ctx = canvas.getContext("2d")!;
+      const rgb = (color: string): [number, number, number] => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+        return [r!, g!, b!];
+      };
+      const luminance = ([r, g, b]: [number, number, number]) => {
+        const channel = (v: number) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      };
+      const ratio = (a: string, b: string) => {
+        const [la, lb] = [luminance(rgb(a)), luminance(rgb(b))].sort((x, y) => y - x);
+        return (la! + 0.05) / (lb! + 0.05);
+      };
+
+      const sidebar = document.querySelector(".editor-sidebar") as HTMLElement;
+      const tool = document.querySelector(".editor-sidebar .tool-item") as HTMLElement;
+      const dock = document.querySelector(".editor-bottom-dock") as HTMLElement;
+      const dockButton = ([...dock.querySelectorAll("button")].find(
+        (button) => button.getAttribute("aria-pressed") !== "true",
+      ) ?? dock.querySelector("button")) as HTMLButtonElement;
+
+      return {
+        sidebar: ratio(getComputedStyle(tool).color, getComputedStyle(sidebar).backgroundColor),
+        dock: ratio(getComputedStyle(dockButton).color, getComputedStyle(dock).backgroundColor),
+        toolColor: getComputedStyle(tool).color,
+        dockColor: getComputedStyle(dockButton).color,
+      };
+    });
+
+    // WCAG AA normal text (labels are 9–11px, so use the 4.5 floor).
+    expect(contrast.sidebar, `tool label ${contrast.toolColor}`).toBeGreaterThanOrEqual(4.5);
+    expect(contrast.dock, `dock control ${contrast.dockColor}`).toBeGreaterThanOrEqual(4.5);
   });
 });

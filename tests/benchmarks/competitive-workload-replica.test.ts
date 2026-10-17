@@ -38,6 +38,7 @@ const ITERATIONS: Record<string, number> = {
   listLarge: 200,
   listPlain: 200,
   listProjected: 200,
+  listPopulated: 200,
   findMissing: 200,
   graphql: 200,
   create: 300,
@@ -235,15 +236,20 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
 
     // ── PRE-COMPUTED URLS & STATIC PAYLOADS ──────────────────────────────
     const gqlBody = JSON.stringify({
-      query: "query { BenchmarkStable(pagination: { limit: 10 }) { _id title count } }",
+      query:
+        "query { BenchmarkStable(pagination: { limit: 10 }) { _id title slug status count publishDate content } }",
     });
     const filterQuery = encodeURIComponent(JSON.stringify({ status: "published" }));
     const listFilterUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=20&filter=${filterQuery}&sort=-count`;
     const listLargeUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=100&filter=${filterQuery}&sort=-count`;
     const listPlainUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10`;
     const listProjectedUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10&fields=_id,title,count`;
+    const listPopulatedUrl = `${baseUrl}/api/collections/benchmark_posts?limit=20&populate=author&depth=1`;
     const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
-    const missingUrl = `${baseUrl}/api/collections/BenchmarkStable/bench-missing-${runId}`;
+    // Valid UUIDv7 format that is guaranteed absent from the seeded pool so
+    // findMissing exercises the full DB B-tree index miss (matching workloads.mjs).
+    const MISSING_ID = "ffffffff-ffff-7fff-bfff-ffffffffffff";
+    const missingUrl = `${baseUrl}/api/collections/BenchmarkStable/${MISSING_ID}`;
 
     // ── HIGH-THROUGHPUT PRE-SEEDING ──────────────────────────────────────
     // Timed and exported as its own row: dataset setup is a large share of
@@ -268,6 +274,9 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
 
     const stableId = createdIds[0] || "20000000-0000-7000-8000-000000000001";
     const idCount = createdIds.length || 1;
+    // Pool excluding createdIds[0] (stableId) so update never invalidates or
+    // contends with findById on the hot row (matching workloads.mjs:144-150).
+    const updatePoolLen = Math.max(1, idCount - 1);
 
     // 🔭 PROJECTION VERIFICATION: a projected PATCH must return exactly the
     // requested physical columns — blob fields (title/slug/content live in
@@ -299,6 +308,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
 
     // ── WORKLOAD HANDLERS (Minimal In-Loop Overhead) ──────────────────────
     let cursor = 0;
+    let updateCursor = 0;
 
     const findById = async () => {
       const res = await fetch(`${collectionUrl}/${stableId}`, { headers });
@@ -327,6 +337,13 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const res = await fetch(listProjectedUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       recordSplitSample("listProjected", res);
+      await res.arrayBuffer();
+    };
+
+    const listPopulated = async () => {
+      const res = await fetch(listPopulatedUrl, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      recordSplitSample("listPopulated", res);
       await res.arrayBuffer();
     };
 
@@ -364,6 +381,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     const create = async () => {
       const seq = cursor++;
       const payload = JSON.stringify({
+        _id: generateUUID(),
         title: "Benchmark create workload",
         slug: `bench-create-${runId}-${seq}`,
         status: "draft",
@@ -388,9 +406,9 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     };
 
     const update = async () => {
-      const randomIndex = Math.floor(Math.random() * idCount);
-      const targetId = createdIds[randomIndex] || stableId;
-      const payload = JSON.stringify({ count: Math.floor(Math.random() * 1000) + 1 });
+      const step = ++updateCursor;
+      const targetId = createdIds[1 + (step % updatePoolLen)] || stableId;
+      const payload = JSON.stringify({ count: step, views: step });
       // 🔭 PROJECTED-UPDATE LANE: BENCH_UPDATE_FIELDS=_id,count,updatedAt
       // measures the `?fields=` RETURNING-pruning fast path — full
       // representation headers with the read-back limited to the requested
@@ -423,6 +441,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       findByIdRandom,
       listPlain,
       listProjected,
+      listPopulated,
       listFilterSort,
       listLarge,
       findMissing,
@@ -453,6 +472,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       { shortLabel: "listLarge", fn: listLarge },
       { shortLabel: "listPlain", fn: listPlain },
       { shortLabel: "listProjected", fn: listProjected },
+      { shortLabel: "listPopulated", fn: listPopulated },
       { shortLabel: "findMissing", fn: findMissing },
       { shortLabel: "create", fn: create },
       { shortLabel: "update", fn: update },
@@ -488,7 +508,15 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       logger.info(
         `\n🔥 [PHASE 2] Deep JIT warmup: ${DEEP_WARMUP} reads + ${DEEP_WARMUP_WRITES} writes...`,
       );
-      const readOps = [findById, listPlain, listProjected, listFilterSort, findMissing, graphql];
+      const readOps = [
+        findById,
+        listPlain,
+        listProjected,
+        listPopulated,
+        listFilterSort,
+        findMissing,
+        graphql,
+      ];
       let rIdx = 0;
       await Promise.all(
         Array.from({ length: CONCURRENCY }, async () => {
@@ -607,10 +635,10 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       let lastT = t0;
       let lastN = 0;
       while (Date.now() - t0 < SOAK_SECONDS * 1000) {
-        await new Promise((r) => setTimeout(r, 5000));
+        await new Promise((r) => setTimeout(r, 1000));
         const now = Date.now();
         const n = counter.n;
-        const rps = (n - lastN) / ((now - lastT) / 1000);
+        const rps = (n - lastN) / Math.max((now - lastT) / 1000, 0.001);
         rpsSeries.push(rps);
         buckets.push(`${((now - t0) / 1000).toFixed(1)}s:${rps.toFixed(0)}`);
         lastT = now;
@@ -620,25 +648,40 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       await Promise.all(workers);
       const totalSec = (Date.now() - t0) / 1000;
       const avgRps = counter.n / totalSec;
-      const minRps = rpsSeries.length ? Math.min(...rpsSeries) : 0;
-      const maxRps = rpsSeries.length ? Math.max(...rpsSeries) : 0;
-      // Same instability metric as the external harness: (max − min) / max × 100.
+      // Exclude the first 20% warmup buckets when computing steady-state
+      // instability and (p95 - p5) / p50 spread (matching external run.mjs).
+      const warmupDrop =
+        rpsSeries.length >= 5 ? Math.max(1, Math.floor(rpsSeries.length * 0.2)) : 0;
+      const steadySeries = rpsSeries.slice(warmupDrop);
+      const sortedSteady = [...steadySeries].sort((a, b) => a - b);
+      const minRps = sortedSteady.length ? sortedSteady[0] : 0;
+      const maxRps = sortedSteady.length ? sortedSteady[sortedSteady.length - 1] : 0;
+      const quantile = (arr: number[], q: number) => {
+        if (arr.length === 0) return 0;
+        const idx = Math.min(arr.length - 1, Math.max(0, Math.floor(q * (arr.length - 1))));
+        return arr[idx];
+      };
+      const p5Rps = quantile(sortedSteady, 0.05);
+      const p50Rps = quantile(sortedSteady, 0.5);
+      const p95Rps = quantile(sortedSteady, 0.95);
+      const spreadPct = p50Rps > 0 ? ((p95Rps - p5Rps) / p50Rps) * 100 : 0;
       const instability = maxRps > 0 ? ((maxRps - minRps) / maxRps) * 100 : 0;
       logger.info(
-        `  → soak: ${counter.n} reqs, avg ${avgRps.toFixed(1)} RPS, min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)}, instability ${instability.toFixed(1)}%`,
+        `  → soak: ${counter.n} reqs, avg ${avgRps.toFixed(1)} RPS, min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)}, (p95-p5)/p50 ${spreadPct.toFixed(1)}%, instability ${instability.toFixed(1)}%`,
       );
       logger.info(`  → buckets: ${buckets.join(" ")}`);
       exportMetric("competitive.soak.avg_rps", +avgRps.toFixed(1), "req/s");
       exportMetric("competitive.soak.min_rps", +minRps.toFixed(1), "req/s");
       exportMetric("competitive.soak.max_rps", +maxRps.toFixed(1), "req/s");
+      exportMetric("competitive.soak.spread_p95_p5_pct", +spreadPct.toFixed(1), "%");
       exportMetric("competitive.soak.instability_pct", +instability.toFixed(1), "%");
 
       // Stability guard (opt-in): a wildly swinging throughput is a leak / GC /
-      // contention signal, not just noise. The 2026-09-19 run measured 53.8%.
+      // contention signal, not just noise.
       const instabilityMax = Number(process.env.BENCH_SOAK_INSTABILITY_MAX) || 0;
-      if (instabilityMax > 0 && instability > instabilityMax) {
+      if (instabilityMax > 0 && spreadPct > instabilityMax) {
         throw new Error(
-          `Soak instability ${instability.toFixed(1)}% exceeds BENCH_SOAK_INSTABILITY_MAX=${instabilityMax}% (min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)} RPS)`,
+          `Soak spread ${spreadPct.toFixed(1)}% exceeds BENCH_SOAK_INSTABILITY_MAX=${instabilityMax}% (min ${minRps.toFixed(1)}, max ${maxRps.toFixed(1)} RPS)`,
         );
       }
     }

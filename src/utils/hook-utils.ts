@@ -329,13 +329,27 @@ export function withMutableHeaders(
   response: Response,
   mutate: (headers: Headers) => void,
 ): Response {
-  const headers = new Headers(response.headers);
-  mutate(headers);
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
+  try {
+    mutate(response.headers);
+    return response;
+  } catch {
+    const headers = new Headers(response.headers);
+    mutate(headers);
+    const fastBody = (response as unknown as { __fastBody?: string | Uint8Array }).__fastBody;
+    // Uint8Array is a valid BodyInit at runtime; the DOM lib's generic
+    // ArrayBufferLike (which can be SharedArrayBuffer) is what makes the
+    // direct assignment fail type-checking.
+    const bodyInit = (fastBody ?? response.body) as BodyInit | null;
+    const cloned = new Response(bodyInit, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+    if (fastBody !== undefined) {
+      (cloned as unknown as { __fastBody?: string | Uint8Array }).__fastBody = fastBody;
+    }
+    return cloned;
+  }
 }
 
 /**

@@ -254,7 +254,12 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
  * (https, origin, api kind) and copied into each response. CSP, COEP, and the
  * CORS allowlist stay identical to `applyAllSecurityHeaders`.
  */
-const HIT_HEADER_TEMPLATES = new Map<string, [string, string][]>();
+interface HitHeaderTemplateEntry {
+  pairs: [string, string][];
+  record: Record<string, string>;
+}
+
+const HIT_HEADER_TEMPLATES = new Map<string, HitHeaderTemplateEntry>();
 const HIT_HEADER_TEMPLATE_MAX = 32;
 
 function hitHeaderKind(pathname: string): "graphql" | "media" | "api" {
@@ -267,7 +272,7 @@ function hitHeaderTemplate(
   https: boolean,
   origin: string | null,
   pathname: string,
-): [string, string][] {
+): HitHeaderTemplateEntry {
   const kind = hitHeaderKind(pathname);
   const key = `${https ? 1 : 0}|${origin ?? ""}|${kind}`;
   const cached = HIT_HEADER_TEMPLATES.get(key);
@@ -282,12 +287,15 @@ function hitHeaderTemplate(
   });
   applyAllSecurityHeaders(headers, https, origin, samplePath);
   const pairs: [string, string][] = [];
+  const record: Record<string, string> = {};
   headers.forEach((value, name) => {
     pairs.push([name, value]);
+    record[name] = value;
   });
+  const entry = { pairs, record };
   if (HIT_HEADER_TEMPLATES.size >= HIT_HEADER_TEMPLATE_MAX) HIT_HEADER_TEMPLATES.clear();
-  HIT_HEADER_TEMPLATES.set(key, pairs);
-  return pairs;
+  HIT_HEADER_TEMPLATES.set(key, entry);
+  return entry;
 }
 
 /**
@@ -298,15 +306,88 @@ function hitHeaderTemplate(
  * (inspect-mixed-cycle). It is not part of the security response.
  */
 export function serveTurboCacheEntry(
-  event: { request: Request; url: URL },
+  event: { request: Request; url: URL; locals?: unknown },
   resEntry: CachedResponseEntry,
 ): Response {
   const { request, url } = event;
   const method = request.method;
   const origin = request.headers.get("Origin") || request.headers.get("origin");
-  const responseHeaders = new Headers(
-    hitHeaderTemplate(url.protocol === "https:", origin, url.pathname),
-  );
+  const tpl = hitHeaderTemplate(url.protocol === "https:", origin, url.pathname);
+  const isFastLane =
+    (event.locals as { __isFastLane?: boolean } | undefined)?.__isFastLane === true;
+
+  if (isFastLane) {
+    const fastRecord: Record<string, string | string[]> = { ...tpl.record };
+    const fastHeadersFacade = {
+      set(k: string, v: string) {
+        fastRecord[k.toLowerCase()] = v;
+      },
+      get(k: string): string | null {
+        const val = fastRecord[k.toLowerCase()];
+        return typeof val === "string" ? val : null;
+      },
+    };
+
+    if (resEntry.etag) {
+      fastRecord["etag"] = resEntry.etag;
+      const ifNoneMatch =
+        request.headers.get("If-None-Match") || request.headers.get("if-none-match");
+      if (
+        ifNoneMatch &&
+        (ifNoneMatch === resEntry.etag ||
+          ifNoneMatch === `W/${resEntry.etag}` ||
+          collectionEtagMatches(ifNoneMatch, resEntry.etag))
+      ) {
+        return {
+          status: 304,
+          headers: fastHeadersFacade,
+          __fastHeaders: fastRecord,
+          __fastBody: "",
+        } as unknown as Response;
+      }
+    }
+
+    const rawBody = resEntry.body;
+    let bodyToSend: string | Uint8Array | null = resEntry.buffer ?? rawBody;
+
+    const compressed = resEntry.compressed;
+    if (compressed) {
+      const payloadSize = resEntry.buffer
+        ? resEntry.buffer.byteLength
+        : Buffer.byteLength(rawBody, "utf-8");
+      if (payloadSize > 1024) {
+        const acceptEncoding = request.headers.get("Accept-Encoding") || "";
+        const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+          contentLength: payloadSize,
+        });
+        if (algo) {
+          const variant = compressed[algo];
+          if (variant && variant.length < payloadSize) {
+            bodyToSend = variant;
+            setCompressionHeaders(
+              fastHeadersFacade as unknown as Headers,
+              algo,
+              payloadSize,
+              variant.length,
+            );
+          }
+        }
+      }
+    }
+
+    if (method === "HEAD" || method === "OPTIONS") {
+      bodyToSend = "";
+    }
+
+    return {
+      status: 200,
+      headers: fastHeadersFacade,
+      __fastHeaders: fastRecord,
+      __fastBody: bodyToSend ?? "",
+    } as unknown as Response;
+  }
+
+  const responseHeaders = new Headers(tpl.pairs);
 
   if (resEntry.etag) {
     responseHeaders.set("ETag", resEntry.etag);

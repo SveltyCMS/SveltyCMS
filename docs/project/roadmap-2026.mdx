@@ -49,7 +49,9 @@ tags:
 - **Multi-Core Cluster Worker Pub/Sub Bridge**:
   - Bridge in-process `graphql-yoga` pub/sub (`entryUpdated`, `yjs:*`, SSE) across workers via Redis Pub/Sub when running under `SVELTY_CLUSTER_WORKERS`.
 - **API-Only Build Profile (`bun run build:api`)**:
-  - Ship a dedicated headless build profile (`SVELTY_API_ONLY=1`) that stubs `(app)` and `(admin)` UI route modules, eliminating admin bundle overhead for pure API deployments.
+  - [x] Shipped dedicated headless build profile (`SVELTY_API_ONLY=1`) that stubs `(app)` and `(admin)` UI route modules with zero runtime UI bundle overhead, leaving API, GraphQL, setup, and auth endpoints fully intact.
+- **System Copy & i18n Chrome Completion**:
+  - [x] Reached 100% localization across all 110 `(app)` files (`bun run check:copy` reporting 0 offenses) across 8 locales (en, de, fr, es, it, nl, pl, ar).
 - **Multi-Day Memory Soak**:
   - Execute a 24h+ multi-worker soak row measuring `heapTotal`, `external`, and `arrayBuffers`.
   - Add long-horizon memory profiles for non-SQLite engines (PostgreSQL, MariaDB).

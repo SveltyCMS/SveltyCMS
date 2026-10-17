@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     5 | 🟢     | +34%    | 0      |
+| **Core**       |    25 | 🟢     | +3448%  | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,13 +62,33 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario       | Latency | Trend                                    | Budget | Result |
-| -------------- | ------- | ---------------------------------------- | ------ | ------ |
-| **Middleware** | 0.646ms | ⚪ stable at 0.532ms (±0.110ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.383ms | ⚪ stable at 0.285ms (±0.070ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.248ms | ⚪ stable at 0.219ms (±0.032ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.240ms | ⚪ stable at 0.233ms (±0.061ms) (7 runs) | < 5ms  | 🟢     |
-| **Middleware** | 0.559ms | ⚪ stable at 0.725ms (±0.274ms) (7 runs) | < 5ms  | 🟢     |
+| Scenario                         | Latency | Trend                                         | Budget | Result |
+| -------------------------------- | ------- | --------------------------------------------- | ------ | ------ |
+| **Competitive Workload Replica** | 0.330ms | 🔴 slower: 0.160ms → 0.330ms (+106%) (7 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.785ms | 🔴 slower: 0.488ms → 0.785ms (+61%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.328ms | ⚪ stable at 0.171ms (±0.123ms) (7 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.718ms | ⚪ stable at 0.538ms (±0.673ms) (7 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.551ms | 🔴 slower: 0.236ms → 0.551ms (+133%) (7 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.034ms | 🔴 slower: 0.618ms → 1.03ms (+67%) (7 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.686ms | 🔴 slower: 0.382ms → 0.686ms (+80%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.980ms | 🔴 slower: 1.03ms → 1.98ms (+92%) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.663ms | 🔴 slower: 0.195ms → 0.663ms (+240%) (7 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.869ms | 🔴 slower: 0.516ms → 0.869ms (+68%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.394ms | 🔴 slower: 0.179ms → 0.394ms (+120%) (2 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.947ms | 🔴 slower: 0.532ms → 0.947ms (+78%) (2 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.514ms | ⚪ established at 0.514ms (1 run)             | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.000ms | ⚪ established at 1.00ms (1 run)              | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.572ms | 🔴 slower: 0.133ms → 0.572ms (+330%) (7 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.748ms | 🔴 slower: 0.416ms → 0.748ms (+80%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.858ms | 🔴 slower: 0.550ms → 0.858ms (+56%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 3.562ms | 🔴 slower: 1.82ms → 3.56ms (+95%) (7 runs)    | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.926ms | 🔴 slower: 0.498ms → 0.926ms (+86%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 2.717ms | ⚪ stable at 1.69ms (±1.02ms) (7 runs)        | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.760ms | ⚪ stable at 0.726ms (±0.603ms) (7 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 4.406ms | 🔴 slower: 1.41ms → 4.41ms (+212%) (7 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.262ms | 🔴 slower: 0.472ms → 1.26ms (+167%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 6.057ms | 🔴 slower: 1.45ms → 6.06ms (+317%) (7 runs)   | < 5ms  | 🟢     |
+| **Ingestion**                    | 2.035ms | 🔴 slower: 0.057ms → 2.04ms (+3448%) (7 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -105,10 +125,14 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Middleware: [0.65, 0.62]
-    Middleware: [0.38, 0.95]
-    Middleware: [0.25, 0.39]
-    Middleware: [0.56, 0.67]
+    Competitive Workload Replica: [0.05, 0.05]
+    Competitive Workload Replica: [0.13, 0.05]
+    Competitive Workload Replica: [0.05, 0.05]
+    Competitive Workload Replica: [0.12, 0.05]
+    Competitive Workload Replica: [0.09, 0.05]
+    Competitive Workload Replica: [0.17, 0.05]
+    Competitive Workload Replica: [0.11, 0.05]
+    Competitive Workload Replica: [0.33, 0.05]
 ```
 
 </details>
@@ -123,27 +147,47 @@ quadrantChart
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-10-15)
+### Current Run Summary (2026-10-17)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a14057-ae56-727d-9449-4a5cf78ec561` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** sqlite
+**Run ID:** `01a149b7-eb89-7709-aa54-718260f71741` · **Tests invoked:** 1 · **Metrics:** 25 · **DB:** sqlite
 
-| Test              | Metric                            | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                                       |
-| ----------------- | --------------------------------- | -------- | -------- | ---- | ----- | -------------------------------------------- |
-| Hooks Performance | Static Asset (No Middleware)      | 0.646    | 0.776    | 1516 | 🟢    | ⚪ stable at 0.578ms (±0.056ms) (2 runs)     |
-| Hooks Performance | Full Security + Auth Pipeline     | 0.248    | 0.353    | 3910 | 🟢    | ⚪ stable at 0.271ms (±0.104ms) (2 runs)     |
-| Hooks Performance | REST with API Caching             | 0.240    | 0.327    | 4019 | 🟢    | ⚪ stable at 0.232ms (±0.088ms) (2 runs)     |
-| Hooks Performance | Mutation (audit logging disabled) | 0.559    | 0.680    | 1762 | 🟢    | ⚪ stable at 0.587ms (±0.148ms) (2 runs)     |
-| Hooks Performance | Turbo Pipeline (Light)            | 0.383    | 0.498    | 2557 | ⚪    | 🔴 slower: 0.293ms → 0.383ms (+31%) (2 runs) |
+| Test                         | Metric                              | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                        |
+| ---------------------------- | ----------------------------------- | -------- | -------- | ----- | ----- | --------------------------------------------- |
+| Competitive Workload Replica | findById (Warm Concurrent 8c)       | 0.785    | 1.158    | 10080 | 🟢    | ⚪ stable at 0.522ms (±0.319ms) (7 runs)      |
+| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c) | 0.718    | 0.990    | 11040 | 🟢    | ⚪ stable at 0.628ms (±0.329ms) (7 runs)      |
+| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c) | 1.034    | 1.861    | 7595  | 🟢    | ⚪ stable at 0.843ms (±0.337ms) (7 runs)      |
+| Competitive Workload Replica | listPlain (Warm Concurrent 8c)      | 0.869    | 1.158    | 9015  | 🟢    | ⚪ stable at 0.638ms (±0.308ms) (7 runs)      |
+| Competitive Workload Replica | listPopulated (Warm Sequential)     | 0.514    | 0.666    | 1937  | 🟢    | ⚪ established at 0.514ms (1 run)             |
+| Competitive Workload Replica | listPopulated (Warm Concurrent 8c)  | 1.000    | 1.393    | 7843  | 🟢    | ⚪ established at 1.00ms (1 run)              |
+| Competitive Workload Replica | findMissing (Warm Concurrent 8c)    | 0.748    | 0.917    | 10459 | 🟢    | ⚪ stable at 0.416ms (±0.295ms) (7 runs)      |
+| Competitive Workload Replica | update (Warm Sequential)            | 0.926    | 1.200    | 1076  | 🟢    | ⚪ stable at 0.592ms (±0.271ms) (7 runs)      |
+| Competitive Workload Replica | update (Warm Concurrent 8c)         | 2.717    | 4.232    | 2922  | 🟢    | ⚪ stable at 1.39ms (±0.975ms) (7 runs)       |
+| Competitive Workload Replica | findById (Warm Sequential)          | 0.330    | 0.425    | 3013  | ⚪    | 🔴 slower: 0.168ms → 0.330ms (+96%) (7 runs)  |
+| Competitive Workload Replica | findByIdRandom (Warm Sequential)    | 0.328    | 0.424    | 3030  | ⚪    | 🔴 slower: 0.193ms → 0.328ms (+70%) (7 runs)  |
+| Competitive Workload Replica | listFilterSort (Warm Sequential)    | 0.551    | 0.698    | 1802  | ⚪    | 🔴 slower: 0.267ms → 0.551ms (+106%) (7 runs) |
+| Competitive Workload Replica | listLarge (Warm Sequential)         | 0.686    | 0.955    | 1452  | ⚪    | 🔴 slower: 0.440ms → 0.686ms (+56%) (7 runs)  |
+| Competitive Workload Replica | listLarge (Warm Concurrent 8c)      | 1.980    | 3.167    | 3984  | ⚪    | 🔴 slower: 1.10ms → 1.98ms (+80%) (7 runs)    |
+| Competitive Workload Replica | listPlain (Warm Sequential)         | 0.663    | 0.808    | 1501  | ⚪    | 🔴 slower: 0.206ms → 0.663ms (+222%) (7 runs) |
+| Competitive Workload Replica | listProjected (Warm Sequential)     | 0.394    | 0.513    | 2521  | ⚪    | 🔴 slower: 0.179ms → 0.394ms (+120%) (2 runs) |
+| Competitive Workload Replica | listProjected (Warm Concurrent 8c)  | 0.947    | 1.572    | 8295  | ⚪    | 🔴 slower: 0.532ms → 0.947ms (+78%) (2 runs)  |
+| Competitive Workload Replica | findMissing (Warm Sequential)       | 0.572    | 0.771    | 1739  | ⚪    | 🔴 slower: 0.168ms → 0.572ms (+240%) (7 runs) |
+| Competitive Workload Replica | create (Warm Sequential)            | 0.858    | 1.167    | 1163  | ⚪    | 🔴 slower: 0.508ms → 0.858ms (+69%) (7 runs)  |
+| Competitive Workload Replica | create (Warm Concurrent 8c)         | 3.562    | 6.055    | 2230  | ⚪    | 🔴 slower: 1.60ms → 3.56ms (+123%) (7 runs)   |
+| Competitive Workload Replica | graphql (Warm Sequential)           | 0.760    | 0.986    | 1311  | ⚪    | 🔴 slower: 0.363ms → 0.760ms (+109%) (7 runs) |
+| Competitive Workload Replica | graphql (Warm Concurrent 8c)        | 4.406    | 6.625    | 1778  | ⚪    | 🔴 slower: 1.28ms → 4.41ms (+244%) (7 runs)   |
+| Competitive Workload Replica | mixed (Warm Sequential)             | 1.262    | 2.283    | 789   | ⚪    | 🔴 slower: 0.383ms → 1.26ms (+230%) (7 runs)  |
+| Competitive Workload Replica | mixed (Warm Concurrent 8c)          | 6.057    | 10.362   | 1302  | ⚪    | 🔴 slower: 1.39ms → 6.06ms (+336%) (7 runs)   |
+| Competitive Workload Replica | Seed Burst (500 docs, HTTP)         | 2.035    | 2.035    | 491   | ⚪    | 🔴 slower: 0.054ms → 2.04ms (+3654%) (7 runs) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-10-15)
+### Historical Trends (2026-10-17)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -422,20 +466,20 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:HOOKS_TRACE:START -->
 <details id="section-hooks_trace">
-<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 2.740ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Middleware & Hooks Performance</strong> · 🟢 6.410ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/hooks-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — MIDDLEWARE & HOOKS AUDIT                                  ║
 ║                           File: tests/benchmarks/hooks-performance.test.ts                            ║
-║                                       Ran: 2026-10-15 16:14:16                                        ║
+║                                       Ran: 2026-10-17 11:57:49                                        ║
 ║Measures the cost of the full middleware chain including Turbo, Security, Auth, and Audit via HTTP E2E.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Static Asset (No Middleware) │ Cold:     2.74 ms │ Warm:     0.646 ms │ p95:     0.776 ms │   1,516 RPS ║
-║ Turbo Pipeline (Light)       │ Cold:     0.77 ms │ Warm:     0.383 ms │ p95:     0.498 ms │   2,557 RPS ║
-║ Full Security + Auth Pipeline │ Cold:     2.21 ms │ Warm:     0.248 ms │ p95:     0.353 ms │   3,910 RPS ║
-║ REST with API Caching        │ Cold:     1.95 ms │ Warm:     0.240 ms │ p95:     0.327 ms │   4,019 RPS ║
-║ Mutation (audit logging disabled) │ Cold:     2.21 ms │ Warm:     0.559 ms │ p95:     0.680 ms │   1,762 RPS ║
+║ Static Asset (No Middleware) │ Cold:     6.41 ms │ Warm:     2.039 ms │ p95:     2.863 ms │     461 RPS ║
+║ Turbo Pipeline (Light)       │ Cold:     1.84 ms │ Warm:     1.030 ms │ p95:     1.495 ms │     920 RPS ║
+║ Full Security + Auth Pipeline │ Cold:     7.41 ms │ Warm:     0.755 ms │ p95:     1.025 ms │   1,277 RPS ║
+║ REST with API Caching        │ Cold:     4.62 ms │ Warm:     0.739 ms │ p95:     0.899 ms │   1,346 RPS ║
+║ Mutation (audit logging disabled) │ Cold:     7.57 ms │ Warm:     1.395 ms │ p95:     2.217 ms │     673 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->
@@ -522,7 +566,7 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ Database Adapter Raw CRUD</strong> · ⚪ 0.025ms · ↘️ — · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Database Adapter Raw CRUD</strong> · 🟢 0.790ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
@@ -534,28 +578,28 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                           SVELTYCMS — DATABASE ADAPTER PERFORMANCE (SQLITE)                           ║
 ║                          File: tests/benchmarks/database-performance.test.ts                          ║
-║                                       Ran: 2026-10-09 18:57:27                                        ║
+║                                       Ran: 2026-10-17 11:54:12                                        ║
 ║          Measures raw CRUD performance, indexing efficiency, and connection pool resilience.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ INSERT                       │ Cold:     0.48 ms │ Warm:     0.089 ms │ p95:     0.188 ms │   9,650 RPS ║
-║ FIND ONE                     │ Cold:     0.33 ms │ Warm:     0.006 ms │ p95:     0.008 ms │ 158,685 RPS ║
-║ FIND MANY (limit 50)         │ Cold:     0.56 ms │ Warm:     0.054 ms │ p95:     0.069 ms │  17,122 RPS ║
-║ FILTER (blob field, 1 match) │ Cold:     1.50 ms │ Warm:     0.289 ms │ p95:     0.331 ms │   3,328 RPS ║
-║ QUERY BUILDER LIST (50)      │ Cold:     0.96 ms │ Warm:     0.061 ms │ p95:     0.075 ms │  15,644 RPS ║
-║ FIND PAGE (50 hasMore)       │ Cold:     1.44 ms │ Warm:     0.059 ms │ p95:     0.071 ms │  15,847 RPS ║
-║ FIND PAGE keyset             │ Cold:     1.39 ms │ Warm:     0.047 ms │ p95:     0.060 ms │  19,237 RPS ║
-║ FIND MANY offset 50          │ Cold:     0.59 ms │ Warm:     0.047 ms │ p95:     0.082 ms │  18,420 RPS ║
-║ LIST+COUNT (legacy)          │ Cold:     0.76 ms │ Warm:     0.092 ms │ p95:     0.122 ms │   9,766 RPS ║
-║ UPDATE                       │ Cold:     7.54 ms │ Warm:     0.029 ms │ p95:     0.071 ms │  27,689 RPS ║
-║ UPDATE (no-returning)        │ Cold:     0.88 ms │ Warm:     0.025 ms │ p95:     0.038 ms │  36,227 RPS ║
-║ NATIVE UPSERT                │ Cold:     1.23 ms │ Warm:     0.047 ms │ p95:     0.061 ms │  19,492 RPS ║
-║ COUNT                        │ Cold:     1.32 ms │ Warm:     0.278 ms │ p95:     0.330 ms │   3,446 RPS ║
-║ COUNT ESTIMATE               │ Cold:     0.40 ms │ Warm:     0.042 ms │ p95:     0.048 ms │  22,926 RPS ║
-║ COUNT CACHED                 │ Cold:     0.79 ms │ Warm:     0.001 ms │ p95:     0.002 ms │ 646,204 RPS ║
-║ DELETE (Active Rows)         │ Cold:     3.82 ms │ Warm:     0.043 ms │ p95:     0.090 ms │  15,984 RPS ║
-║ BULK INSERT (100)            │ Cold:     3.07 ms │ Warm:     1.007 ms │ p95:     1.380 ms │     919 RPS ║
-║ BULK UPDATE (100 heterogeneous) │ Cold:     5.69 ms │ Warm:     0.739 ms │ p95:     0.922 ms │   1,257 RPS ║
-║ BULK UPDATE (100 homogeneous) │ Cold:     3.30 ms │ Warm:     0.497 ms │ p95:     0.677 ms │   1,866 RPS ║
+║ INSERT                       │ Cold:     0.79 ms │ Warm:     0.152 ms │ p95:     0.350 ms │   5,936 RPS ║
+║ FIND ONE                     │ Cold:     0.43 ms │ Warm:     0.007 ms │ p95:     0.009 ms │ 131,653 RPS ║
+║ FIND MANY (limit 50)         │ Cold:     1.80 ms │ Warm:     0.080 ms │ p95:     0.112 ms │  11,555 RPS ║
+║ FILTER (blob field, 1 match) │ Cold:     2.62 ms │ Warm:     0.284 ms │ p95:     0.412 ms │   3,239 RPS ║
+║ QUERY BUILDER LIST (50)      │ Cold:     2.71 ms │ Warm:     0.100 ms │ p95:     0.129 ms │   9,465 RPS ║
+║ FIND PAGE (50 hasMore)       │ Cold:     1.95 ms │ Warm:     0.119 ms │ p95:     0.143 ms │   7,688 RPS ║
+║ FIND PAGE keyset             │ Cold:     2.95 ms │ Warm:     0.087 ms │ p95:     0.106 ms │  11,139 RPS ║
+║ FIND MANY offset 50          │ Cold:     0.68 ms │ Warm:     0.061 ms │ p95:     0.075 ms │  15,995 RPS ║
+║ LIST+COUNT (legacy)          │ Cold:     1.50 ms │ Warm:     0.270 ms │ p95:     0.325 ms │   3,543 RPS ║
+║ UPDATE                       │ Cold:     5.21 ms │ Warm:     0.043 ms │ p95:     0.058 ms │  21,732 RPS ║
+║ UPDATE (no-returning)        │ Cold:     1.26 ms │ Warm:     0.053 ms │ p95:     0.090 ms │  17,426 RPS ║
+║ NATIVE UPSERT                │ Cold:     2.32 ms │ Warm:     0.077 ms │ p95:     0.125 ms │  11,309 RPS ║
+║ COUNT                        │ Cold:     1.11 ms │ Warm:     0.412 ms │ p95:     0.516 ms │   2,356 RPS ║
+║ COUNT ESTIMATE               │ Cold:     1.18 ms │ Warm:     0.348 ms │ p95:     0.468 ms │   2,769 RPS ║
+║ COUNT CACHED                 │ Cold:     1.20 ms │ Warm:     0.002 ms │ p95:     0.004 ms │ 389,211 RPS ║
+║ DELETE (Active Rows)         │ Cold:    10.35 ms │ Warm:     0.073 ms │ p95:     0.147 ms │  10,358 RPS ║
+║ BULK INSERT (100)            │ Cold:     2.96 ms │ Warm:     1.573 ms │ p95:     2.566 ms │     591 RPS ║
+║ BULK UPDATE (100 heterogeneous) │ Cold:     8.59 ms │ Warm:     1.025 ms │ p95:     1.373 ms │     912 RPS ║
+║ BULK UPDATE (100 homogeneous) │ Cold:     5.24 ms │ Warm:     0.662 ms │ p95:     0.872 ms │   1,447 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -595,26 +639,25 @@ Throughput dropped 90% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ System Cache Efficiency</strong> · ⚪ 0.268ms · ↗️ — · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache</strong> · 🟢 0.232ms · ↗️ ⚪ stable at 0.180ms (±0.068ms) (3 runs) (2026-10-17 11:53:43) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 31% — check connection pool saturation or lock contention.  
-**Severe degradation** (+60%) — review recent commits immediately.
+**Severe degradation** (+29%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
 
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
-║                      File: tests/benchmarks/negative-cache.test.ts                      ║
-║                                Ran: 2026-08-24 13:05:48                                 ║
-║        Measures Bloom-filter style missing-key cache speedup for repeated misses        ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │        0.126 ms │ p95:        0.206 ms │ RPS:      7,727 ║
-║ Cached Miss (Negative Cache)   │        0.001 ms │ p95:        0.003 ms │ RPS:    659,800 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                  SVELTYCMS — CACHE EFFICIENCY AUDIT                                   ║
+║                           File: tests/benchmarks/cache-performance.test.ts                            ║
+║                                       Ran: 2026-10-17 11:53:43                                        ║
+║         Measures cache hit vs miss latency and efficiency via real HTTP end-to-end requests.          ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Cache Miss (Bypass)          │ Cold:     2.32 ms │ Warm:     0.385 ms │ p95:     0.641 ms │   2,561 RPS ║
+║ Cache Hit (L1 Warm)          │ Cold:     1.17 ms │ Warm:     0.232 ms │ p95:     0.341 ms │   4,080 RPS ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 <!-- LEDGER_TRUTH_END -->
@@ -1450,12 +1493,12 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- SECTION:INGESTION:START -->
 <details id="section-ingestion">
-<summary><strong>🏷️ Ingestion</strong> · 🟢 0.081ms · ↗️ ⚪ stable at 0.054ms (±0.062ms) (7 runs) (2026-10-12 17:48:55) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ Ingestion</strong> · ⚪ 2.035ms · ↗️ 🔴 slower: 0.054ms → 2.04ms (+3654%) (7 runs) (2026-10-17 11:57:19) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
-Throughput dropped 17% — check connection pool saturation or lock contention.  
-**Severe degradation** (+49%) — review recent commits immediately.
+> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+Throughput dropped 97% — check connection pool saturation or lock contention.  
+**Severe degradation** (+3654%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -1820,10 +1863,12 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ competitive workload replica</strong> · 🟢 1.290ms · ↘️ ⚪ stable at 1.89ms (±0.947ms) (7 runs) (2026-10-12 17:48:55) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ competitive workload replica</strong> · ⚪ 6.057ms · ↗️ 🔴 slower: 1.39ms → 6.06ms (+336%) (7 runs) (2026-10-17 11:57:19) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+Throughput dropped 74% — check connection pool saturation or lock contention.  
+**Severe degradation** (+336%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
@@ -1832,10 +1877,10 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                SVELTYCMS — SEED BURST (DATASET SETUP)                                 ║
 ║                      File: tests/benchmarks/competitive-workload-replica.test.ts                      ║
-║                                       Ran: 2026-10-12 17:48:55                                        ║
+║                                       Ran: 2026-10-17 11:57:19                                        ║
 ║              Seq + concurrent (8 workers), harness iteration counts, median of N rounds.              ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Seed Burst (500 docs, HTTP)    │        0.081 ms │ p95:        0.081 ms │ RPS:     12,406 ║
+║ Seed Burst (500 docs, HTTP)    │        2.035 ms │ p95:        2.035 ms │ RPS:        491 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -2238,7 +2283,7 @@ Throughput dropped 97% — check connection pool saturation or lock contention.
 
 <!-- SECTION:REST:START -->
 <details id="section-rest">
-<summary><strong>🏷️ REST API Performance</strong> · ⚪ 0.635ms · ↗️ — · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ REST API Performance</strong> · 🟢 3.400ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/rest-api-performance.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
@@ -2252,14 +2297,14 @@ Throughput dropped 34% — check connection pool saturation or lock contention.
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                 SVELTYCMS — ENTERPRISE REST API AUDIT                                 ║
 ║                          File: tests/benchmarks/rest-api-performance.test.ts                          ║
-║                                       Ran: 2026-10-06 17:49:45                                        ║
+║                                       Ran: 2026-10-17 11:57:57                                        ║
 ║Measures latency, throughput, and correctness of core REST endpoints: health check, schema, single read, list, and search.║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ System Health Check          │ Cold:     1.05 ms │ Warm:     0.635 ms │ p95:     1.614 ms │   5,364 RPS ║
-║ Collection Schema Metadata   │ Cold:     1.59 ms │ Warm:     0.474 ms │ p95:     0.700 ms │   8,001 RPS ║
-║ Single Document Read         │ Cold:     0.96 ms │ Warm:     0.447 ms │ p95:     0.685 ms │   8,334 RPS ║
-║ Collection Find (List Limit 20) │ Cold:     1.69 ms │ Warm:     0.430 ms │ p95:     0.674 ms │   8,384 RPS ║
-║ Collection Search Query      │ Cold:     1.76 ms │ Warm:     0.432 ms │ p95:     0.668 ms │   8,532 RPS ║
+║ System Health Check          │ Cold:     3.40 ms │ Warm:     1.919 ms │ p95:     3.768 ms │   1,930 RPS ║
+║ Collection Schema Metadata   │ Cold:     7.58 ms │ Warm:     1.384 ms │ p95:     2.125 ms │   2,849 RPS ║
+║ Single Document Read         │ Cold:     2.63 ms │ Warm:     1.393 ms │ p95:     2.320 ms │   2,762 RPS ║
+║ Collection Find (List Limit 20) │ Cold:     6.89 ms │ Warm:     0.981 ms │ p95:     1.512 ms │   4,040 RPS ║
+║ Collection Search Query      │ Cold:    12.89 ms │ Warm:     1.111 ms │ p95:     1.790 ms │   3,507 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 

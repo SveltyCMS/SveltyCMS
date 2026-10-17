@@ -44,13 +44,13 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 	aria-label="Annotate controls"
 >
 	<div
-		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:var(--editor-chrome-border)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--editor-chrome-border) [&::-webkit-scrollbar-thumb]:rounded-full"
 	>
 		<div
-			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full gap-1.5 px-2"
+			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full gap-1.5 px-2"
 		>
 			<span
-				class="text-[10px] font-normal text-[rgba(255,255,255,0.45)] lowercase whitespace-nowrap"
+				class="text-[10px] font-normal text-(--editor-chrome-text) opacity-60 lowercase whitespace-nowrap"
 				>line</span
 			>
 			<label class="relative block size-5.5 shrink-0 cursor-pointer" title="Stroke color">
@@ -62,17 +62,17 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 					oninput={(e) => onStrokeColorChange(e.currentTarget.value)}
 				/>
 				<span
-					class="block size-full border-2 border-white/25 rounded-full [box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.2)]"
+					class="block size-full border-2 border-(--editor-chrome-border) rounded-full [box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.2)]"
 					style:background-color={strokeColor}
 				></span>
 			</label>
 		</div>
 
 		<div
-			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full gap-1.5 px-2"
+			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full gap-1.5 px-2"
 		>
 			<span
-				class="text-[10px] font-normal text-[rgba(255,255,255,0.45)] lowercase whitespace-nowrap"
+				class="text-[10px] font-normal text-(--editor-chrome-text) opacity-60 lowercase whitespace-nowrap"
 				>fill</span
 			>
 			<label class="relative block size-5.5 shrink-0 cursor-pointer" title="Fill color">
@@ -84,7 +84,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 					oninput={(e) => onFillColorChange(e.currentTarget.value)}
 				/>
 				<span
-					class="block size-full border-2 border-white/25 rounded-full [box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.2)]"
+					class="block size-full border-2 border-(--editor-chrome-border) rounded-full [box-shadow:inset_0_0_0_1px_rgba(0,0,0,0.2)]"
 					style:background-color={fillColor}
 				></span>
 			</label>
@@ -92,16 +92,16 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 
 		{#if currentTool === 'text' && onTextDraftChange}
 			<div
-				class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full gap-1.5 px-2"
+				class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full gap-1.5 px-2"
 			>
 				<span
-					class="text-[10px] font-normal text-[rgba(255,255,255,0.45)] lowercase whitespace-nowrap"
+					class="text-[10px] font-normal text-(--editor-chrome-text) opacity-60 lowercase whitespace-nowrap"
 					>text</span
 				>
 				<input
 					aria-label="Stroke width"
 					id="annotation-text"
-					class="h-7 px-2 text-[11px] font-medium text-white bg-white/6 border border-white/10 rounded-md outline-none focus:border-white/25 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [[type=number]]:[-moz-appearance:textfield] [[type=number]]:[appearance:textfield] min-w-28 max-sm:min-w-22"
+					class="h-7 px-2 text-[11px] font-medium text-(--editor-chrome-text) bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-md outline-none focus:border-(--editor-chrome-border) [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [[type=number]]:[-moz-appearance:textfield] [[type=number]]:[appearance:textfield] min-w-28 max-sm:min-w-22"
 					type="text"
 					value={textDraft}
 					placeholder="Enter text"
@@ -113,7 +113,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 		{#if hasSelection && onDeleteAnnotation}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onDeleteAnnotation}
 				title="Delete selected annotation (Delete)"
 				aria-label="Delete annotation"
@@ -124,13 +124,13 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 		{/if}
 
 		<div
-			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full gap-1.5 px-2 [&_button]:h-6.5 [&_button]:px-[0.55rem]"
+			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full gap-1.5 px-2 [&_button]:h-6.5 [&_button]:px-[0.55rem]"
 		>
 			{#each annotateTools as tool (tool.id)}
 				<button
 					type="button"
-					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-					class:text-white={currentTool === tool.id}
+					class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+					class:editor-pill-active={currentTool === tool.id}
 					onclick={() => onSetTool(tool.id)}
 					title="{tool.label} ({tool.shortcut})"
 					aria-pressed={currentTool === tool.id}

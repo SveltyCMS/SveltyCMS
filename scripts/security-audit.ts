@@ -13,10 +13,11 @@
  *   bun run security --base=http://localhost:3000  # Custom target
  *   bun run security --auth --ci  # Full CI authenticated audit
  *   bun run security --secret-scan  # Also run secret misuse scanner
+ *   bun run security --risk        # Also run global security risk + tenant API scanners
  *   bun run security --slop        # Also run code quality slop scanner
- *   bun run security --cve          # Also run dependency CVE audit (SBOM + bun audit)
+ *   bun run security --cve          # Also run dependency CVE audit (SBOM + bun audit + OSV.dev)
  *   bun run security --fuzz        # Also run API payload fuzzer
- *   bun run security --full        # Run ALL scanners (auth + secret + slop + cve + fuzz)
+ *   bun run security --full        # Run ALL scanners (auth + risk + secret + slop + cve + fuzz)
  */
 
 // Mark as ES module so top-level await is valid under tsc (TS1375).
@@ -25,6 +26,7 @@ export {};
 const args = process.argv.slice(2);
 const RUN_AUTH = args.includes("--auth");
 const IS_CI = args.includes("--ci");
+const RUN_RISK_SCAN = args.includes("--risk") || args.includes("--full");
 const RUN_SECRET_SCAN = args.includes("--secret-scan") || args.includes("--full");
 const RUN_SLOP_SCAN = args.includes("--slop") || args.includes("--full");
 const RUN_CVE_SCAN = args.includes("--cve") || args.includes("--full");
@@ -80,15 +82,44 @@ if (!RUN_AUTH) {
   }
 }
 
+// ── Global Security Risk + Tenant Isolation Scanners ──────────────
+if (RUN_RISK_SCAN) {
+  console.log("\n━━━ Global Security Risk & Tenant Isolation Scan ━━━\n");
+  try {
+    const { spawnSync } = await import("node:child_process");
+    const riskRes = spawnSync("bun", ["run", "scripts/scan-security-risk.ts", "--strict"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    const tenantRes = spawnSync("bun", ["run", "scripts/lint-tenant-api.ts", "--full"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    if (riskRes.status !== 0 || tenantRes.status !== 0) {
+      console.error("\n❌ Security risk / tenant isolation scan found issues\n");
+      exitCode = 1;
+    } else {
+      console.log("✅ Security risk & tenant isolation scan passed\n");
+    }
+  } catch {
+    console.error("\n❌ Security risk scan failed to run\n");
+    exitCode = 1;
+  }
+}
+
 // ── Secret Misuse Scanner ─────────────────────────────────────────
 if (RUN_SECRET_SCAN) {
   console.log("\n━━━ Secret Misuse Scan ━━━\n");
   try {
     const { spawnSync } = await import("node:child_process");
-    const result = spawnSync("bun", ["run", "scripts/scan-secret-misuse.ts", "--strict"], {
-      stdio: "inherit",
-      cwd: process.cwd(),
-    });
+    const result = spawnSync(
+      "bun",
+      ["run", "scripts/scan-secret-misuse.ts", "--strict", "--full"],
+      {
+        stdio: "inherit",
+        cwd: process.cwd(),
+      },
+    );
     if (result.status !== 0) {
       console.error("\n❌ Secret scan found issues\n");
       exitCode = 1;
@@ -101,7 +132,7 @@ if (RUN_SECRET_SCAN) {
   }
 }
 
-// ── Dependency CVE Audit (SBOM refresh + bun audit) ───────────────
+// ── Dependency CVE Audit (SBOM refresh + bun audit + OSV.dev) ─────
 if (RUN_CVE_SCAN) {
   console.log("\n━━━ Dependency CVE Audit ━━━\n");
   try {
@@ -118,7 +149,11 @@ if (RUN_CVE_SCAN) {
       stdio: "inherit",
       cwd: process.cwd(),
     });
-    if (audit.status !== 0) {
+    const osv = spawnSync("bun", ["run", "scripts/scan-osv.ts", "--strict"], {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    if (audit.status !== 0 || osv.status !== 0) {
       console.error("\n❌ Dependency audit found vulnerabilities\n");
       exitCode = 1;
     } else {

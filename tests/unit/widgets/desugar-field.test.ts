@@ -20,6 +20,7 @@ import {
   isSugarType,
   listSugarTypes,
   getAllSugarKeys,
+  evaluateCondition,
 } from "@src/widgets/desugar-field";
 import type { FieldDefinition } from "@src/content/types";
 
@@ -245,5 +246,157 @@ describe("Schema Desugaring — Sugar Type Registry", () => {
     expect(keys).toContain("alpha");
     expect(keys).toContain("preset");
     expect(keys).toContain("ogImageField");
+  });
+});
+
+describe("Field Conditional Logic — evaluateCondition", () => {
+  it("should return true when no condition is provided", () => {
+    expect(evaluateCondition(null, { status: "published" })).toBe(true);
+    expect(evaluateCondition(undefined, { status: "published" })).toBe(true);
+  });
+
+  it("should evaluate equals and not_equals correctly", () => {
+    expect(
+      evaluateCondition(
+        { field: "status", operator: "equals", value: "active" },
+        { status: "active" },
+      ),
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { field: "status", operator: "equals", value: "active" },
+        { status: "archived" },
+      ),
+    ).toBe(false);
+    expect(
+      evaluateCondition(
+        { field: "status", operator: "not_equals", value: "draft" },
+        { status: "published" },
+      ),
+    ).toBe(true);
+  });
+
+  it("should evaluate boolean values correctly", () => {
+    expect(
+      evaluateCondition(
+        { field: "isFeatured", operator: "equals", value: true },
+        { isFeatured: true },
+      ),
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { field: "isFeatured", operator: "equals", value: false },
+        { isFeatured: true },
+      ),
+    ).toBe(false);
+  });
+
+  it("should evaluate empty and not_empty correctly", () => {
+    expect(evaluateCondition({ field: "bio", operator: "empty" }, { bio: "" })).toBe(true);
+    expect(evaluateCondition({ field: "bio", operator: "empty" }, { bio: "Hello" })).toBe(false);
+    expect(evaluateCondition({ field: "bio", operator: "not_empty" }, { bio: "Hello" })).toBe(true);
+    expect(evaluateCondition({ field: "tags", operator: "empty" }, { tags: [] })).toBe(true);
+    expect(evaluateCondition({ field: "tags", operator: "not_empty" }, { tags: ["tech"] })).toBe(
+      true,
+    );
+  });
+
+  it("should evaluate numeric comparisons (gt, gte, lt, lte)", () => {
+    expect(evaluateCondition({ field: "age", operator: "gte", value: 18 }, { age: 20 })).toBe(true);
+    expect(evaluateCondition({ field: "age", operator: "lt", value: 18 }, { age: 20 })).toBe(false);
+    expect(
+      evaluateCondition({ field: "price", operator: "lte", value: 100 }, { price: 99.5 }),
+    ).toBe(true);
+  });
+
+  it("should evaluate contains and not_contains", () => {
+    expect(
+      evaluateCondition(
+        { field: "role", operator: "contains", value: "admin" },
+        { role: "super_admin" },
+      ),
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { field: "categories", operator: "contains", value: "news" },
+        { categories: ["news", "tech"] },
+      ),
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { field: "role", operator: "not_contains", value: "guest" },
+        { role: "editor" },
+      ),
+    ).toBe(true);
+  });
+
+  it("should evaluate in and not_in", () => {
+    expect(
+      evaluateCondition(
+        { field: "plan", operator: "in", value: "pro, enterprise" },
+        { plan: "pro" },
+      ),
+    ).toBe(true);
+    expect(
+      evaluateCondition(
+        { field: "plan", operator: "not_in", value: ["free", "trial"] },
+        { plan: "enterprise" },
+      ),
+    ).toBe(true);
+  });
+
+  it("should evaluate AND/OR composite expressions", () => {
+    const andExpr = {
+      and: [
+        { field: "role", operator: "equals" as const, value: "editor" },
+        { field: "status", operator: "equals" as const, value: "active" },
+      ],
+    };
+    expect(evaluateCondition(andExpr, { role: "editor", status: "active" })).toBe(true);
+    expect(evaluateCondition(andExpr, { role: "editor", status: "inactive" })).toBe(false);
+
+    const orExpr = {
+      or: [
+        { field: "isVip", operator: "equals" as const, value: true },
+        { field: "points", operator: "gte" as const, value: 1000 },
+      ],
+    };
+    expect(evaluateCondition(orExpr, { isVip: false, points: 1500 })).toBe(true);
+    expect(evaluateCondition(orExpr, { isVip: false, points: 500 })).toBe(false);
+  });
+
+  it("should support nested dot-notation paths", () => {
+    const data = { author: { profile: { verified: true } } };
+    expect(
+      evaluateCondition(
+        { field: "author.profile.verified", operator: "equals", value: true },
+        data,
+      ),
+    ).toBe(true);
+  });
+
+  it("should preserve showIf, requiredIf, tab, and section during desugaring", () => {
+    const authored = {
+      type: "color",
+      name: "brandColor",
+      tab: "Design",
+      section: "Color Palette",
+      showIf: { field: "customTheme", operator: "equals" as const, value: true },
+      requiredIf: { field: "themeType", operator: "equals" as const, value: "custom" },
+    };
+
+    const desugared = desugarFieldType(authored);
+    expect(desugared.tab).toBe("Design");
+    expect(desugared.section).toBe("Color Palette");
+    expect(desugared.showIf).toEqual({
+      field: "customTheme",
+      operator: "equals",
+      value: true,
+    });
+    expect(desugared.requiredIf).toEqual({
+      field: "themeType",
+      operator: "equals",
+      value: "custom",
+    });
   });
 });

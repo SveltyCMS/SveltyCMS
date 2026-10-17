@@ -59,14 +59,14 @@ Pintura-style zoom bottom dock controls.
 	aria-label="Zoom controls"
 >
 	<div
-		class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+		class="flex gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none flex-nowrap overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:var(--editor-chrome-border)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--editor-chrome-border) [&::-webkit-scrollbar-thumb]:rounded-full"
 	>
 		<div
-			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full"
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full"
 		>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onZoomOut}
 				disabled={zoomLevel <= minZoom}
 				title="Zoom out"
@@ -76,7 +76,7 @@ Pintura-style zoom bottom dock controls.
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onZoomIn}
 				disabled={zoomLevel >= maxZoom}
 				title="Zoom in"
@@ -96,10 +96,10 @@ Pintura-style zoom bottom dock controls.
 					step="5"
 					value={sliderValue.value}
 					oninput={handleSliderChange}
-					class="flex-1 h-1 m-0 appearance-none cursor-pointer bg-white/18 rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-transparent [&::-moz-range-thumb]:rounded-full"
+					class="flex-1 h-1 m-0 appearance-none cursor-pointer bg-(--editor-chrome-border) rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-(--editor-accent) [&::-webkit-slider-thumb]:rounded-full [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-(--editor-accent) [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-transparent [&::-moz-range-thumb]:rounded-full"
 				/>
 				<div
-					class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 px-0.5"
+					class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full shrink-0 px-0.5"
 				>
 					<label
 						class="inline-flex gap-0 items-center justify-center h-7 min-w-11 px-2 cursor-text"
@@ -111,10 +111,10 @@ Pintura-style zoom bottom dock controls.
 							max={maxZoom}
 							value={sliderValue.value}
 							onchange={handleInputChange}
-							class="w-auto min-w-0 max-w-[3.25ch] p-0 text-[11px] font-medium tabular-nums leading-none text-[rgba(255,255,255,0.92)] text-center bg-transparent border-none outline-none field-sizing-content [-moz-appearance:textfield] [appearance:textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none"
+							class="w-auto min-w-0 max-w-[3.25ch] p-0 text-[11px] font-medium tabular-nums leading-none text-(--editor-chrome-text) text-center bg-transparent border-none outline-none field-sizing-content [-moz-appearance:textfield] [appearance:textfield] [&::-webkit-outer-spin-button]:m-0 [&::-webkit-inner-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none"
 						/>
 						<span
-							class="shrink-0 text-[11px] font-medium leading-none text-[rgba(255,255,255,0.92)]"
+							class="shrink-0 text-[11px] font-medium leading-none text-(--editor-chrome-text)"
 							aria-hidden="true">%</span
 						>
 					</label>
@@ -123,11 +123,11 @@ Pintura-style zoom bottom dock controls.
 		</div>
 
 		<div
-			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full"
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full"
 		>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onFitToScreen}
 				title="Fit to screen (Mod+0)"
 				aria-label="Fit image to screen"
@@ -137,7 +137,7 @@ Pintura-style zoom bottom dock controls.
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onFillScreen}
 				title="Fill screen"
 				aria-label="Fill screen with image"
@@ -147,7 +147,7 @@ Pintura-style zoom bottom dock controls.
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onActualSize}
 				title="Actual size (Mod+1)"
 				aria-label="View at actual size"

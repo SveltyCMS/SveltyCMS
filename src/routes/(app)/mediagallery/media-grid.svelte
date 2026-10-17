@@ -406,7 +406,10 @@
 							theme="light"
 							ariaLabel="Details for {file.filename}"
 							class="{actionBtnClass} hidden sm:flex"
-							onclick={(e) => e.stopPropagation()}
+							onclick={(e) => {
+								e.stopPropagation();
+								onOpenFileDetails(file);
+							}}
 						>
 							{#snippet children()}
 								<span class="font-serif text-sm font-semibold italic leading-none text-primary-500"

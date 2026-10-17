@@ -37,7 +37,7 @@
 	import type { Role } from '@src/databases/auth/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 
-	let { roles = [] } = $props<{ roles?: Role[] }>();
+	let { roles = [] }: { roles?: Role[] } = $props();
 
 	// ── Collection-level permission state ──
 	// Permissions are stored as: { [roleName]: { view: bool, edit: bool, write: bool } }

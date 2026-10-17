@@ -353,6 +353,14 @@ export const handleAuthorization: Handle = async ({ event, resolve }) => {
   const isApi = pathname.startsWith("/api/");
   if (IS_TEST_MODE && (pathname.startsWith("/api/testing") || isApi)) {
     locals.isAdmin = isAdmin(user);
+    // The dispatcher still runs `_checkEndpointPermission` for non-testing API
+    // calls in TEST_MODE. Empty `locals.roles` would fail-close every non-admin
+    // request (a false 403 that also hides real RBAC regressions from E2E).
+    // Hydrate roles from the 60 s L1 cache; `/api/testing` stays zero-cost.
+    if (isApi && user && !pathname.startsWith("/api/testing")) {
+      const roles = await getCachedRoles(event.locals.tenantId as DatabaseId);
+      if (roles.length > 0) locals.roles = roles;
+    }
     return await resolve(event);
   }
 

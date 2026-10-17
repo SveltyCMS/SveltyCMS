@@ -672,9 +672,11 @@ Provides an organized interface for navigating hierarchical content structures.
 	<!-- Filters Row (no section header — Favorites left, edit/reorder right) -->
 	{#if isFullSidebar}
 		<div class="flex items-center justify-between gap-2 px-1">
-			<div class="flex min-w-0 items-center gap-2">
+			<div class="flex min-w-0 flex-1 items-center gap-2">
 				{#if allTags.length > 0}
-					<div class="relative min-w-35">
+					<!-- Takes the space left after Favorites and the reorder toggle (which keep
+					     their natural size), so nothing overflows or overlaps in the sidebar -->
+					<div class="relative min-w-0 flex-1">
 						<Select
 							bind:value={selectedTagFilter}
 							options={tagFilterOptions}
@@ -685,25 +687,43 @@ Provides an organized interface for navigating hierarchical content structures.
 					</div>
 				{/if}
 
+				<!-- Icon-only 32px controls (same as the reorder toggle) so the tag filter
+				     keeps a usable width in the narrow sidebar; names via tooltip + aria-label. -->
 				{#if search || showOnlyFavorites || selectedTagFilter}
-					<Button variant="ghost" type="button" size="sm" onclick={clearAllFilters} class="text-xs">
-						{collections_clear_filters()}
-					</Button>
+					<SystemTooltip title={collections_clear_filters()} role={null} tabindex={null}>
+						<Button
+							variant="outline"
+							type="button"
+							size="sm"
+							onclick={clearAllFilters}
+							aria-label={collections_clear_filters()}
+							class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-transparent bg-surface-500/10 p-0! text-(--admin-text-muted) transition-all hover:bg-surface-500/20"
+						>
+							<iconify-icon icon="mdi:filter-remove-outline" width="16" aria-hidden="true"
+							></iconify-icon>
+						</Button>
+					</SystemTooltip>
 				{/if}
 
-				<Button
-					variant="outline"
-					type="button"
-					size="sm"
-					onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
-					class="flex items-center gap-1.5 rounded-full border text-xs font-semibold py-1 px-3 transition-all {showOnlyFavorites
-						? 'bg-warning-500/20 border-warning-500 text-warning-600 dark:text-warning-400'
-						: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-(--admin-text-muted)'}"
-				>
-					<iconify-icon icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'} width="14"
-					></iconify-icon>
-					<span>{collections_favorites()}</span>
-				</Button>
+				<SystemTooltip title={collections_favorites()} role={null} tabindex={null}>
+					<Button
+						variant="outline"
+						type="button"
+						size="sm"
+						onclick={() => (showOnlyFavorites = !showOnlyFavorites)}
+						aria-label={collections_favorites()}
+						aria-pressed={showOnlyFavorites}
+						class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border p-0! transition-all {showOnlyFavorites
+							? 'bg-warning-500/20 border-warning-500 text-warning-500'
+							: 'bg-surface-500/10 border-transparent hover:bg-surface-500/20 text-(--admin-text-muted)'}"
+					>
+						<iconify-icon
+							icon={showOnlyFavorites ? 'bi:star-fill' : 'bi:star'}
+							width="14"
+							aria-hidden="true"
+						></iconify-icon>
+					</Button>
+				</SystemTooltip>
 			</div>
 
 			<SystemTooltip title={collections_reorder()} positioning={{ placement: 'right' }}>
@@ -760,7 +780,7 @@ Provides an organized interface for navigating hierarchical content structures.
 			placeholder={collections_search()}
 			pre={isFullSidebar ? (searchIcon as Snippet) : undefined}
 			post={isFullSidebar ? (clearIcon as Snippet) : undefined}
-			inputClass="w-full text-xs"
+			inputClass="w-full text-xs [&::-webkit-search-cancel-button]:hidden [&::-moz-search-clear-button]:hidden"
 			aria-label={collections_search_aria()}
 		/>
 	</div>

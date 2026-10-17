@@ -322,10 +322,11 @@ jobs:
         with:
           sparse-checkout: |
             .github/workflows
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - name: Generate DB Matrix
+
+      - name: Generate E2E Matrix
         id: generate
         run: |
           matrix=$(node .github/workflows/db-matrix.ts)
@@ -551,7 +552,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Download all benchmark reports
@@ -763,7 +764,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/workflows
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: Generate E2E Matrix

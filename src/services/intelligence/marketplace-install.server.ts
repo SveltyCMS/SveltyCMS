@@ -123,7 +123,14 @@ async function downloadPackage(pluginSlug: string): Promise<MarketplacePlugin> {
       files?: Record<string, string>;
     };
     if (parsed.files && typeof parsed.files === "object") {
-      return { ...pkg, ...parsed, files: parsed.files };
+      return {
+        ...parsed,
+        ...pkg,
+        files: parsed.files,
+        checksum: pkg.checksum || parsed.checksum,
+        sha256: pkg.sha256 || parsed.sha256,
+        installPath: pkg.installPath || parsed.installPath,
+      };
     }
   } catch {
     // Non-JSON archive: keep metadata; installPlugin requires `files`.

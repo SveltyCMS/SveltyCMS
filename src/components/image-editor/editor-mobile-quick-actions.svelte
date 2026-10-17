@@ -36,7 +36,7 @@ Contextual transform shortcuts — sits below top toolbar, above canvas (mobile 
 	>
 		<button
 			type="button"
-			class="inline-flex items-center justify-center size-8 p-0 text-[rgba(255,255,255,0.94)] cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-white active:opacity-72"
+			class="inline-flex items-center justify-center size-8 p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-(--editor-chrome-text-hover) active:opacity-72"
 			onclick={handleRotateLeft}
 			aria-label="Rotate left"
 		>
@@ -44,7 +44,7 @@ Contextual transform shortcuts — sits below top toolbar, above canvas (mobile 
 		</button>
 		<button
 			type="button"
-			class="inline-flex items-center justify-center size-8 p-0 text-[rgba(255,255,255,0.94)] cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-white active:opacity-72"
+			class="inline-flex items-center justify-center size-8 p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-(--editor-chrome-text-hover) active:opacity-72"
 			onclick={handleFlipHorizontal}
 			aria-label="Flip horizontal"
 		>
@@ -52,7 +52,7 @@ Contextual transform shortcuts — sits below top toolbar, above canvas (mobile 
 		</button>
 		<button
 			type="button"
-			class="inline-flex items-center justify-center size-8 p-0 text-[rgba(255,255,255,0.94)] cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-white active:opacity-72"
+			class="inline-flex items-center justify-center size-8 p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[color,opacity] duration-150 hover:text-(--editor-chrome-text-hover) active:opacity-72"
 			onclick={handleFlipVertical}
 			aria-label="Flip vertical"
 		>

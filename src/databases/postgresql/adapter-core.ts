@@ -49,7 +49,7 @@ import {
   hasDeclaredFieldRename,
   materializedSqlType,
 } from "@src/databases/core/collection-module";
-import { getTableColumns, getTableName } from "drizzle-orm";
+import { eq, getTableColumns, getTableName } from "drizzle-orm";
 // Namespace import on purpose: the whole module is exposed as `adapter.schema` (public surface).
 // Not dead — removing it breaks adapter construction (verified 2026-09-27).
 import * as schema from "./schema";
@@ -802,15 +802,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
         await exec.unsafe(tpl.sqlSkipReturning, boundValues, { prepare: true });
         mStmt?.();
-        const reconstructed = {
-          ...values,
-          [idColName]: id,
-        } as Record<string, unknown>;
-        return convertDatesToISO(reconstructed, {
-          ...this.convertDatesOptions,
-          table: collection,
-          inPlace: true,
-        }) as unknown as T;
+        return { [idColName]: id } as unknown as T;
       }
 
       const mStmt = PROFILE_WRITE_ENABLED ? profileMark("db:upd:stmt") : null;
@@ -2427,9 +2419,15 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         const cleanValues = Object.fromEntries(
           Object.entries(values).filter(([, v]) => v !== undefined),
         );
+        const tenantCol = this.getColumn(resolvedTable, "tenantId");
+        const setWhere =
+          tenantCol && cleanValues.tenantId !== undefined && cleanValues.tenantId !== null
+            ? eq(tenantCol, cleanValues.tenantId as string)
+            : undefined;
         await (db.insert(resolvedTable).values(cleanValues) as any).onConflictDoUpdate({
           target: conflictTarget,
           set: cleanValues,
+          ...(setWhere ? { setWhere } : {}),
         });
       },
       "UPSERT_NATIVE_FAILED",
@@ -2847,19 +2845,20 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
         } catch {
           /* safe */
         }
-        // 🚀 PARTIAL INDEX FOR PUBLIC/ACTIVE READS:
-        // Reads on public collections filter by `WHERE "tenantId"=? AND status='published' AND "isDeleted"=false ORDER BY "updatedAt" DESC, "_id" DESC`.
-        // A partial index excludes drafts, archived, and soft-deleted rows, shrinking the index size significantly and accelerating active reads.
+        // 🔻 REDUNDANT PARTIAL INDEX REMOVED: `..._pub_active_idx` duplicated
+        // `..._tenant_status_updated_id` ("tenantId", status, "updatedAt" DESC, "_id" DESC)
+        // while adding a 3rd B-tree index maintenance + WAL cost on every UPDATE of a published row.
         try {
-          const pubActiveIndex = assertSafeSqlIdentifier(
-            pgSafeIndexName(`${physicalName}_pub_active_idx`),
-            "index",
-          );
-          await this.raw.execute(
-            `CREATE INDEX IF NOT EXISTS "${pubActiveIndex}" ON "${physicalName}" ("tenantId", "updatedAt" DESC, "_id" DESC) WHERE status = 'published' AND "isDeleted" = false`,
-          );
+          const rawPubActive = `${physicalName}_pub_active_idx`;
+          const pubActiveIndex = assertSafeSqlIdentifier(pgSafeIndexName(rawPubActive), "index");
+          await this.raw.execute(`DROP INDEX IF EXISTS "${pubActiveIndex}"`);
+          if (rawPubActive.length > 63) {
+            await this.raw.execute(
+              `DROP INDEX IF EXISTS "${assertSafeSqlIdentifier(rawPubActive.slice(0, 63), "index")}"`,
+            );
+          }
         } catch {
-          /* safe — table might lack status or isDeleted */
+          /* safe */
         }
         // 🌐 DYNAMIC-FIELD FILTER INDEX (PostgreSQL-native): equality filters on
         // fields that were NOT materialized into columns are translated to

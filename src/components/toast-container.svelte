@@ -106,7 +106,8 @@
 					success: 'bg-primary-500 text-white',
 					error: 'bg-error-500 text-white',
 					warning: 'bg-warning-500 text-white',
-					info: 'bg-info-500 text-white',
+					// The theme has no `info` ramp; tertiary keeps info distinct from warning.
+					info: 'bg-tertiary-500 text-white',
 					loading: 'bg-slate-500 text-white'
 				}
 	);

@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 import { _checkEndpointPermission } from "@src/routes/api/[...path]/+server";
+import { defaultRoles } from "@src/databases/auth/default-roles";
 import type { Role, User } from "@src/databases/auth/types";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 
@@ -108,6 +109,85 @@ describe("RBAC Endpoint Pipeline Integration", () => {
       ["media", "upload"],
     );
     expect(canUploadMedia).toBe(true);
+  });
+
+  // ── Media capability mapping: virtual folders + image editor ──
+  // Regression: `/api/system-virtual-folder` required the admin-only
+  // `system:settings` capability and the built-in editor/developer roles never
+  // received the granular media capabilities. Result in a real (non-test) run:
+  // folder tree "Failed to load folders", folder create fails, image editor
+  // save fails — while the SSR gallery shell still renders.
+  describe("media capability mapping (virtual folders + image editor)", () => {
+    const mediaEditorRole: Role = {
+      _id: "editor" as DatabaseId,
+      name: "Editor",
+      permissions: ["collections:read", "media:read", "media:write", "media:delete"],
+      isAdmin: false,
+    };
+
+    const mediaEditor: User = {
+      _id: "user_media_editor" as DatabaseId,
+      email: "media-editor@example.com",
+      role: "editor",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    const readOnlyRole: Role = {
+      _id: "read-only" as DatabaseId,
+      name: "Read Only",
+      permissions: ["media:read"],
+      isAdmin: false,
+    };
+
+    const readOnlyUser: User = {
+      _id: "user_read_only" as DatabaseId,
+      email: "read-only@example.com",
+      role: "read-only",
+      permissions: [],
+      createdAt: "2024-01-01T00:00:00Z" as ISODateString,
+      updatedAt: "2024-01-01T00:00:00Z" as ISODateString,
+    };
+
+    const check = (
+      user: User,
+      roles: Role[],
+      method: string,
+      namespace = "system-virtual-folder",
+    ) => _checkEndpointPermission(user, roles, method, namespace, [namespace]);
+
+    it("lets an editor read and mutate virtual folders", () => {
+      for (const method of ["GET", "POST", "PATCH"]) {
+        expect(check(mediaEditor, [mediaEditorRole], method), `${method} folder`).toBe(true);
+      }
+      expect(check(mediaEditor, [mediaEditorRole], "DELETE"), "DELETE folder").toBe(true);
+    });
+
+    it("lets an editor use the media endpoints (list + image-editor save)", () => {
+      expect(check(mediaEditor, [mediaEditorRole], "GET", "media")).toBe(true);
+      expect(check(mediaEditor, [mediaEditorRole], "POST", "media")).toBe(true);
+    });
+
+    it("keeps read-only roles read-only on folders", () => {
+      expect(check(readOnlyUser, [readOnlyRole], "GET")).toBe(true);
+      expect(check(readOnlyUser, [readOnlyRole], "POST")).toBe(false);
+      expect(check(readOnlyUser, [readOnlyRole], "PATCH")).toBe(false);
+      expect(check(readOnlyUser, [readOnlyRole], "DELETE")).toBe(false);
+    });
+
+    it("keeps unknown namespaces fail-closed", () => {
+      expect(check(readOnlyUser, [readOnlyRole], "GET", "not-a-namespace")).toBe(false);
+    });
+
+    it("ships media capabilities on the built-in editor and developer roles", () => {
+      for (const id of ["editor", "developer"]) {
+        const permissions = defaultRoles.find((role) => String(role._id) === id)?.permissions ?? [];
+        expect(permissions, `${id} must read media`).toContain("media:read");
+        expect(permissions, `${id} must write media`).toContain("media:write");
+        expect(permissions, `${id} must delete media`).toContain("media:delete");
+      }
+    });
   });
 
   // ── Regression: authorization bypass on POST /api/user (account creation) ──

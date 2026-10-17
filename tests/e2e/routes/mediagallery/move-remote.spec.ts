@@ -9,14 +9,11 @@
  * has to be driven with the mouse API, not with a pre-resolved target element.
  */
 
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
+import sharp from "sharp";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TEST_IMAGE = path.join(__dirname, "..", "..", "testthumb.png");
 const ACTION_TIMEOUT = 25_000;
 
 async function openGallery(page: Page) {
@@ -61,61 +58,67 @@ async function visibleMediaIds(page: Page): Promise<string[]> {
 }
 
 /**
- * Upload the fixture into the current gallery level and return the record's id.
+ * Upload a fresh, unguessable asset into the current gallery level and return
+ * the record's id.
  *
- * Two things this helper must respect:
+ * The upload API deduplicates by content hash per tenant, so every call needs
+ * unique bytes: reusing a fixture resolves to an existing row (possibly moved
+ * into another folder) and the "new" asset never appears at this level. The id
+ * is resolved by diff first (fresh upload) and by the generated filename
+ * second, so the assertion stays exact either way.
  *
- * 1. The upload API DEDUPLICATES BY CONTENT HASH per tenant (`getByHash` in
- *    media-service.server.ts): a second upload of the same fixture reuses the
- *    existing record (and re-points its folderId at the upload level) instead of
- *    creating a new one. "A brand new id must appear" is therefore not a valid
- *    assertion — the fixture is resolved by id diff first and by its rendered
- *    name second, which is unambiguous because dedupe collapses all uploads of
- *    the fixture into ONE record per tenant.
- * 2. The grid is waited for as "empty state OR items", never as "empty": a
- *    sibling spec in the same worker may already have assets at this level.
+ * The grid is waited for as "empty state OR items", never as "empty": a
+ * sibling spec in the same worker may already have assets at this level.
  */
 async function uploadImage(page: Page): Promise<string> {
   // Settle gate: entering a virtual folder is a client-side navigation that
-  // re-renders the page (grid + header actions). Driving the file input while the
-  // view is still swapping silently drops the change event.
+  // re-renders the page (grid + header actions).
   await expect(
     page.getByTestId("media-grid-empty").or(page.getByTestId("media-item").first()).first(),
   ).toBeVisible({ timeout: ACTION_TIMEOUT });
 
   const existingIds = new Set(await visibleMediaIds(page));
 
-  // Assert the API round-trip instead of polling blindly: a swallowed response
-  // turned a handler that never ran into an opaque 25 s "no media item" timeout.
+  // Unique name AND pixels: uploads dedupe by content hash per tenant, so a
+  // shared fixture can resolve to a row another spec already moved into a
+  // folder — the fresh upload would then not appear at this level at all.
+  const filename = `e2e-move-${Date.now().toString(36)}.png`;
+  const seed = Math.floor(Math.random() * 200) + 20;
+  const buffer = await sharp({
+    create: {
+      width: 64,
+      height: 48,
+      channels: 3,
+      background: { r: seed, g: (seed * 7) % 255, b: (seed * 13) % 255 },
+    },
+  })
+    .png()
+    .toBuffer();
+
+  // Drive the real user path: the header button calls `fileUploadInput.click()`.
+  // A `filechooser` event only fires once the input's handler is attached, so it
+  // doubles as a hydration gate after the client-side folder navigation — the
+  // bare `setInputFiles()` could land on a not-yet-hydrated node and silently
+  // drop the change (previously papered over with a synthetic re-dispatch).
   const uploadResponse = page.waitForResponse(
     (res) =>
       res.request().method() === "POST" &&
       (res.url().includes("?/upload") || res.url().includes("/api/media")),
     { timeout: ACTION_TIMEOUT },
   );
-  const uploadInput = page.getByTestId("media-upload-input");
-  await uploadInput.setInputFiles(TEST_IMAGE);
-
-  // KNOWN GAP (2026-09-21): after the client-side navigation into a folder,
-  // Playwright's CDP file selection reaches the input (files land, a `change`
-  // event is even observed on the node) but never reaches the component's
-  // upload path, while the same file at the gallery root uploads fine. The
-  // header "Upload" button and its `bind:this` still work, so this is not
-  // reachable through the UI alone. Until the wiring is understood, re-dispatch
-  // one `change` when the app did not react — the upload itself is still
-  // asserted end-to-end (POST + grid item), so nothing is skipped silently.
-  const reacted = await Promise.race([
-    uploadResponse.then(() => true),
-    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 3_000)),
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: ACTION_TIMEOUT }),
+    page
+      .getByRole("button", { name: /^upload$/i })
+      .first()
+      .click(),
   ]);
-  if (!reacted) {
-    await uploadInput.evaluate((el) => el.dispatchEvent(new Event("change", { bubbles: true })));
-  }
+  await chooser.setFiles({ name: filename, mimeType: "image/png", buffer });
   const response = await uploadResponse;
   expect(response.ok(), `upload POST ${response.status()} ${response.url()}`).toBe(true);
 
-  // Resolve the fixture's record: the diff catches a fresh upload, the rendered
-  // name catches the dedupe path (stats: exactly one record per fixture + tenant).
+  // Resolve the upload: the id diff catches it; the generated filename is a
+  // deterministic fallback for a delayed grid refresh.
   let uploadedId = "";
   await expect(async () => {
     const ids = await visibleMediaIds(page);
@@ -124,7 +127,7 @@ async function uploadImage(page: Page): Promise<string> {
       uploadedId =
         (await page
           .getByTestId("media-item")
-          .filter({ hasText: /testthumb/i })
+          .filter({ hasText: filename })
           .first()
           .getAttribute("data-media-id")) ?? "";
     }
@@ -152,6 +155,12 @@ test.describe("Media move to folder", () => {
     await expect(page.getByTestId("media-gallery-breadcrumbs").getByText(folderName)).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
+    // Folder links currently trigger a full document load (Vite re-connects and
+    // `data-hydrated` resets), so the header upload button's handler does not
+    // exist yet. Waiting on the breadcrumb alone raced the fresh hydration and
+    // made the upload click a no-op.
+    await waitForHydration(page);
+    await dismissCookieConsent(page);
 
     // Upload inside folder
     const mediaId = await uploadImage(page);

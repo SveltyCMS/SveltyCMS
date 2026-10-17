@@ -45,6 +45,8 @@ This component provides a tooltip for any element.
 			gutter?: number;
 		};
 		title?: string;
+		/** Accessible name for the trigger when its child is decorative (e.g. a help icon). */
+		ariaLabel?: string;
 		triggerClass?: string;
 		triggerStyle?: string;
 		wFull?: boolean;
@@ -54,6 +56,7 @@ This component provides a tooltip for any element.
 
 	let {
 		title = '',
+		ariaLabel,
 		content: contentProp,
 		contentClass = '',
 		triggerClass = '',
@@ -84,6 +87,7 @@ This component provides a tooltip for any element.
 	style={triggerStyle}
 	{role}
 	{tabindex}
+	aria-label={ariaLabel}
 >
 	{#snippet children()}
 		{@render childrenProp?.()}

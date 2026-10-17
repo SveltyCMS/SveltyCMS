@@ -73,7 +73,7 @@ const EDITOR: User = {
   role: "editor",
   isAdmin: false,
   email: "editor@test.dev",
-  permissions: [],
+  permissions: ["workflow:transition"],
   createdAt: nowISODateString(),
   updatedAt: nowISODateString(),
 };
@@ -82,7 +82,7 @@ const REVIEWER: User = {
   role: "reviewer",
   isAdmin: false,
   email: "rev@test.dev",
-  permissions: [],
+  permissions: ["workflow:transition"],
   createdAt: nowISODateString(),
   updatedAt: nowISODateString(),
 };

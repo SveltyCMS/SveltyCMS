@@ -48,6 +48,8 @@
 	const modalClasses = $derived(modalState.active?.props?.modalClasses ?? '');
 	const dialogClass = $derived(modalState.active?.props?.dialogClass ?? '');
 	const contentClass = $derived(modalState.active?.props?.contentClass ?? '');
+	// Accessible name for content that renders its own header instead of `title`.
+	const ariaLabel = $derived(modalState.active?.props?.ariaLabel);
 	const ActiveComponent = $derived(modalState.active?.component);
 	const componentProps = $derived.by(() => {
 		if (!modalState.active?.props) return {};
@@ -57,6 +59,7 @@
 			modalClasses: _modalClasses,
 			dialogClass: _dialogClass,
 			contentClass: _contentClass,
+			ariaLabel: _ariaLabel,
 			...rest
 		} = modalState.active.props;
 		return rest;
@@ -68,7 +71,15 @@
 	}
 </script>
 
-<Modal bind:open {title} {size} class={modalClasses} {dialogClass} {contentClass}>
+<Modal
+	bind:open
+	{title}
+	{size}
+	class={modalClasses}
+	{dialogClass}
+	{contentClass}
+	{...!title && ariaLabel ? { 'aria-label': ariaLabel } : {}}
+>
 	{#if ActiveComponent}
 		<div
 			class="modal-body min-h-0 overflow-hidden {size === 'fullscreen' || size === 'editor'

@@ -40,16 +40,16 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 	aria-label="Blur controls"
 >
 	<div
-		class="flex flex-nowrap gap-2 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 px-0.5 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full max-lg:justify-start"
+		class="flex flex-nowrap gap-2 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 px-0.5 scrollbar-thin [scrollbar-color:var(--editor-chrome-border)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--editor-chrome-border) [&::-webkit-scrollbar-thumb]:rounded-full max-lg:justify-start"
 		role="group"
 		aria-label="Blur regions"
 	>
 		<div
-			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full"
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full"
 		>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-white/90 hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onAddRegion}
 				title="Add blur region"
 				aria-label="Add blur region"
@@ -60,7 +60,10 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 		</div>
 
 		{#if regionCount > 0}
-			<span class="text-[9px] font-semibold text-white/45" aria-live="polite">
+			<span
+				class="text-[9px] font-semibold text-(--editor-chrome-text) opacity-60"
+				aria-live="polite"
+			>
 				{regionCount}
 				{regionCount === 1 ? 'region' : 'regions'}
 			</span>
@@ -80,7 +83,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 					step="1"
 					value={blurStrength}
 					oninput={handleStrengthInput}
-					class="flex-1 h-1 m-0 appearance-none cursor-pointer rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
+					class="flex-1 h-1 m-0 appearance-none cursor-pointer rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-(--editor-accent-hover,var(--color-warning-400,#ffd43b)) [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-(--editor-accent-hover,var(--color-warning-400,#ffd43b)) [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
 					style:background="linear-gradient(to right, var(--editor-accent, #f5c518) 0%,
 					var(--editor-accent, #f5c518) {sliderProgress * 100}%, rgba(255, 255, 255, 0.16) {sliderProgress *
 						100}%, rgba(255, 255, 255, 0.16) 100%)"
@@ -92,13 +95,13 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 		</div>
 
 		<div
-			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0"
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full shrink-0"
 			role="group"
 			aria-label="Blur actions"
 		>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-white/90 hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onReset}
 				disabled={regionCount === 0}
 				title="Reset all regions"
@@ -109,7 +112,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-error-400 hover:not-disabled:bg-error-500/10 hover:not-disabled:border-error-500/30 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-error-400 hover:not-disabled:bg-error-500/10 hover:not-disabled:border-error-500/30 disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onDeleteRegion}
 				disabled={!hasActiveRegion}
 				title="Delete selected region (Delete)"
@@ -120,7 +123,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-white/90 hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onCancel}
 				title="Cancel blur"
 				aria-label="Cancel blur"
@@ -132,7 +135,7 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 
 		<button
 			type="button"
-			class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium whitespace-nowrap cursor-pointer rounded-full transition-[background,color,border-color] duration-150 disabled:cursor-not-allowed disabled:opacity-35 text-white/92 bg-white/8 border-white/14 hover:not-disabled:text-[#141414] hover:not-disabled:bg-[--editor-accent] hover:not-disabled:border-transparent shrink-0"
+			class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium whitespace-nowrap cursor-pointer rounded-full transition-[background,color,border-color] duration-150 disabled:cursor-not-allowed disabled:opacity-35 text-(--editor-chrome-text) bg-(--editor-chrome-elevated) border-(--editor-chrome-border) hover:not-disabled:text-[#141414] hover:not-disabled:bg-(--editor-accent) hover:not-disabled:border-transparent shrink-0 editor-cta"
 			onclick={onApply}
 			title="Apply blur"
 			aria-label="Apply blur"

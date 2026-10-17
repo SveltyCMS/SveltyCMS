@@ -307,6 +307,19 @@ export async function initializeDatabase(adapter: IDBAdapter): Promise<void> {
     },
   });
 
+  // 3b. Built-in role permission upgrade (non-critical, idempotent).
+  // seedRoles() skips roles that already exist, so permission fixes in
+  // default-roles.ts never reach an existing installation. This upgrades only
+  // pristine (uncustomised) built-in roles; see the module header.
+  dbPluginRegistry.register({
+    id: "role-permissions",
+    dependencies: ["base"],
+    initialize: async (adapter) => {
+      const { reconcileBuiltinRolePermissions } = await import("./auth/role-permissions-reconcile");
+      await reconcileBuiltinRolePermissions(adapter.auth);
+    },
+  });
+
   // 4. Content System
   dbPluginRegistry.register({
     id: "content",

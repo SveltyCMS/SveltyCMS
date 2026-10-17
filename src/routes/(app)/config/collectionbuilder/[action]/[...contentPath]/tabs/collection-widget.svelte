@@ -15,6 +15,10 @@
 	import { logger } from '@utils/logger';
 	import {
 		builder_duplicate,
+		builder_field_required_if,
+		builder_field_section,
+		builder_field_show_if,
+		builder_field_tab,
 		builder_remove,
 		builder_required,
 		builder_ts_add_field,
@@ -55,7 +59,8 @@
 		builder_ts_search_placeholder,
 		builder_ts_ts_suffix,
 		builder_ts_widget_category_aria,
-		button_edit
+		button_edit,
+		widget_form_edit_field
 	} from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { flip } from 'svelte/animate';
@@ -67,7 +72,7 @@
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import { generateCollectionTypeScript } from '../../../collection-code-generator';
 	import { inferWidgetFromFieldName, type InferredWidgetResult } from '../../../smart-inference';
-	import { draggable, droppable } from '@thisux/sveltednd';
+	import { draggable, droppable, dndState } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 
 	type WidgetListItem = FieldInstance & { id: number; _dragId: string };
@@ -81,11 +86,11 @@
 		fields = [],
 		roles = [],
 		viewMode = $bindable('canvas')
-	} = $props<{
+	}: {
 		fields: FieldInstance[];
 		roles?: Role[];
 		viewMode?: 'canvas' | 'split' | 'code' | 'preview';
-	}>();
+	} = $props();
 
 	let dragIdsByIndex = $state<Record<number, string>>({});
 
@@ -136,22 +141,47 @@
 		);
 	}
 
-	/** Reorder existing fields (same container) */
+	/** True when dropping the dragged field at `targetIndex` would leave the order unchanged. */
+	function isNoopFieldDrop(targetIndex: number): boolean {
+		const dragged = dndState.draggedItem as FieldDrag | PaletteDrag | null;
+		if (dragged?.kind !== 'field') return false;
+		const fromIndex = items.findIndex((i) => i._dragId === dragged.dragId);
+		return fromIndex === targetIndex || fromIndex + 1 === targetIndex;
+	}
+
+	/**
+	 * Where the single insertion line is drawn. Derived from dndState instead of
+	 * sveltednd's own blue indicators, which it paints on every droppable and moves
+	 * onto the next sibling for "after". Covers field reorders and palette widgets,
+	 * which are inserted at the same slot. Computed once per drag update; rows only
+	 * compare their id against it.
+	 */
+	/** Single source for the per-row droppable container id parsed below. */
+	const FIELD_DROP_PREFIX = 'field:';
+	const fieldDropContainer = (dragId: string) => `${FIELD_DROP_PREFIX}${dragId}`;
+
+	const activeDropLine = $derived.by((): { dragId: string; pos: 'before' | 'after' } | null => {
+		const target = dndState.isDragging ? dndState.targetContainer : null;
+		if (!target?.startsWith(FIELD_DROP_PREFIX)) return null;
+		const pos = dndState.dropPosition;
+		if (pos !== 'before' && pos !== 'after') return null;
+		const dragId = target.slice(FIELD_DROP_PREFIX.length);
+		const index = items.findIndex((i) => i._dragId === dragId) + (pos === 'after' ? 1 : 0);
+		return isNoopFieldDrop(index) ? null : { dragId, pos };
+	});
+
+	const endZoneActive = $derived(
+		dndState.isDragging &&
+			dndState.targetContainer === 'widget-fields-end' &&
+			!isNoopFieldDrop(items.length)
+	);
+
+	/** Reorder existing fields, or insert a palette widget at the drop slot */
 	function handleFieldDrop(state: DragDropState<FieldDrag | PaletteDrag>) {
 		const dragged = state.draggedItem;
 		if (!dragged) return;
 
-		// Palette widget dropped onto canvas
-		if (dragged.kind === 'palette') {
-			void addSidebarWidget(dragged.widgetKey);
-			return;
-		}
-
-		if (dragged.kind !== 'field') return;
-
-		const fromIndex = items.findIndex((i) => i._dragId === dragged.dragId);
-		if (fromIndex < 0) return;
-
+		// Row → its slot (before/after); end zone or empty state → append.
 		const targetEl = state.targetElement?.closest('[data-drag-id]') as HTMLElement | null;
 		const targetDragId = targetEl?.dataset?.dragId;
 
@@ -163,6 +193,17 @@
 			targetIndex = items.length;
 		}
 		targetIndex = Math.max(0, Math.min(targetIndex, items.length));
+
+		// Palette widget dropped onto canvas: same add flow as a click, at this slot
+		if (dragged.kind === 'palette') {
+			void addSidebarWidget(dragged.widgetKey, true, targetIndex);
+			return;
+		}
+
+		if (dragged.kind !== 'field') return;
+
+		const fromIndex = items.findIndex((i) => i._dragId === dragged.dragId);
+		if (fromIndex < 0) return;
 		if (fromIndex === targetIndex || fromIndex + 1 === targetIndex) return;
 
 		const moving = items[fromIndex];
@@ -185,11 +226,12 @@
 		modalState.trigger(
 			ModalWidgetForm as any,
 			{
-				title: 'Edit Field',
-				body: 'Configure field properties and permissions.',
+				// The form renders its own header; ariaLabel names the dialog instead of `title`.
+				ariaLabel: widget_form_edit_field(),
 				value: { ...field, __fieldIndex: idx >= 0 ? idx : undefined },
 				roles,
-				size: 'lg'
+				size: 'xl',
+				contentClass: 'p-0!'
 			},
 			(r: any) => {
 				if (!r || r === false) return;
@@ -294,7 +336,8 @@
 		toast.success('Field duplicated');
 	}
 
-	async function addSidebarWidget(key: string, openEditor = true) {
+	/** Add a widget field; `atIndex` inserts at a drop slot, otherwise it is appended. */
+	async function addSidebarWidget(key: string, openEditor = true, atIndex?: number) {
 		await widgets.initialize();
 		// Resolve case-insensitive so "input" / "Input" both work from E2E + palette
 		const resolvedKey = getWidgetFunction(key)
@@ -320,11 +363,11 @@
 		while (existing.has(dbName)) dbName = `new_${base}_${++n}`;
 
 		const newDragId = generateUUID();
-		const newIndex = items.length;
-		dragIdsByIndex = { ...dragIdsByIndex, [newIndex]: newDragId };
+		const insertAt =
+			atIndex === undefined ? items.length : Math.max(0, Math.min(atIndex, items.length));
 
 		const newWidget = {
-			id: newIndex + 1,
+			id: insertAt + 1,
 			_dragId: newDragId,
 			label: `New ${key}`,
 			db_fieldName: dbName,
@@ -334,7 +377,11 @@
 			permissions: {}
 		} as unknown as WidgetListItem;
 
-		items = [...items, newWidget];
+		items = [...items.slice(0, insertAt), newWidget, ...items.slice(insertAt)].map((it, i) => ({
+			...it,
+			id: i + 1
+		}));
+		reindexDragIds();
 		updateStore();
 		toast.success(`Added ${key} field`);
 
@@ -740,17 +787,11 @@
 					{/if}
 				</div>
 
+				<!-- Not a droppable itself: nesting it around the row droppables lit up the whole
+				     list and let one release fire onDrop twice. The library's blue lines are
+				     hidden here; activeDropLine draws the only insertion line. -->
 				<div
-					use:droppable={{
-						container: 'widget-fields',
-						callbacks: { onDrop: handleFieldDrop },
-						direction: 'vertical',
-						attributes: {
-							dragOverClass:
-								'ring-2 ring-tertiary-500/40 bg-tertiary-500/10 dark:ring-primary-500/40 dark:bg-primary-500/10'
-						}
-					}}
-					class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1"
+					class="mx-auto min-h-50 max-w-4xl rounded-xl p-1 [&_.drop-after]:after:hidden [&_.drop-before]:before:hidden"
 					data-testid="widget-fields-list"
 					role="list"
 					aria-label={builder_ts_fields_list_aria()}
@@ -759,6 +800,7 @@
 						{@const isDuplicate = duplicateFieldNames.has(
 							(item.db_fieldName || '').trim().toLowerCase()
 						)}
+						{@const dropLine = activeDropLine?.dragId === item._dragId ? activeDropLine.pos : null}
 						<div
 							use:draggable={{
 								container: 'widget-fields',
@@ -767,20 +809,27 @@
 								handle: '.field-drag-handle'
 							}}
 							use:droppable={{
-								container: 'widget-fields',
+								container: fieldDropContainer(item._dragId),
 								callbacks: { onDrop: handleFieldDrop },
-								direction: 'vertical',
-								attributes: {
-									dragOverClass: 'ring-2 ring-tertiary-500/50 dark:ring-primary-400/50'
-								}
+								direction: 'vertical'
 							}}
 							animate:flip={{ duration: flipDurationMs }}
-							class="group relative"
+							class="group relative py-1.5"
 							data-testid="widget-field-row"
 							data-field-name={item.db_fieldName || ''}
 							data-drag-id={item._dragId}
 							role="listitem"
 						>
+							{#if dropLine}
+								<span
+									aria-hidden="true"
+									data-testid="field-drop-line"
+									class="pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded-full bg-warning-500 {dropLine ===
+									'before'
+										? '-top-px'
+										: '-bottom-px'}"
+								></span>
+							{/if}
 							<!-- Clean, simple row layout matching config/collectionbuilder -->
 							<div
 								class="group flex w-full min-h-12 items-center gap-2 sm:gap-3 cursor-pointer overflow-hidden rounded border-2 {isDuplicate
@@ -849,6 +898,38 @@
 										{#if item.required}
 											<span class="flex items-center text-error-500" title={builder_required()}>
 												<iconify-icon icon="mdi:asterisk" width="10"></iconify-icon>
+											</span>
+										{/if}
+										{#if (item as any).tab}
+											<span
+												class="shrink-0 rounded bg-tertiary-500/10 dark:bg-primary-500/10 border border-tertiary-500/30 dark:border-primary-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-tertiary-600 dark:text-primary-400"
+												title={builder_field_tab({ tab: (item as any).tab })}
+											>
+												{builder_field_tab({ tab: (item as any).tab })}
+											</span>
+										{/if}
+										{#if (item as any).section}
+											<span
+												class="shrink-0 rounded bg-surface-500/10 border border-surface-500/30 px-1.5 py-0.5 text-[9px] font-semibold text-(--admin-text-muted)"
+												title={builder_field_section({ section: (item as any).section })}
+											>
+												{builder_field_section({ section: (item as any).section })}
+											</span>
+										{/if}
+										{#if (item as any).showIf}
+											<span
+												class="shrink-0 rounded bg-surface-500/10 border border-surface-500/30 px-1.5 py-0.5 text-[9px] font-mono text-tertiary-600 dark:text-primary-400"
+												title="{builder_field_show_if()}: {(item as any).showIf?.field}"
+											>
+												{builder_field_show_if()}
+											</span>
+										{/if}
+										{#if (item as any).requiredIf}
+											<span
+												class="shrink-0 rounded bg-error-500/10 border border-error-500/30 px-1.5 py-0.5 text-[9px] font-mono text-error-500"
+												title="{builder_field_required_if()}: {(item as any).requiredIf?.field}"
+											>
+												{builder_field_required_if()}
 											</span>
 										{/if}
 									</div>
@@ -954,9 +1035,37 @@
 						</div>
 					{/each}
 
+					<!-- Append target: a sibling of the rows (never wrapping them), so a release
+					     below the last row moves it to the end, and palette drags can drop here. -->
+					{#if items.length > 0}
+						<div
+							use:droppable={{
+								container: 'widget-fields-end',
+								callbacks: { onDrop: handleFieldDrop },
+								direction: 'vertical'
+							}}
+							class="relative h-10"
+							aria-hidden="true"
+						>
+							{#if endZoneActive}
+								<span
+									data-testid="field-drop-line"
+									class="pointer-events-none absolute inset-x-0 -top-px h-0.5 rounded-full bg-warning-500"
+								></span>
+							{/if}
+						</div>
+					{/if}
+
 					{#if items.length === 0}
 						<div
-							class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-surface-500/30 bg-surface-500/10 p-8 text-center dark:border-surface-500/40 dark:bg-surface-900/20"
+							use:droppable={{
+								container: 'widget-fields-end',
+								callbacks: { onDrop: handleFieldDrop },
+								direction: 'vertical'
+							}}
+							class="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-colors {endZoneActive
+								? 'border-warning-500/40 bg-warning-500/10'
+								: 'border-surface-500/30 bg-surface-500/10 dark:border-surface-500/40 dark:bg-surface-900/20'}"
 						>
 							<div
 								class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-500"
@@ -1080,12 +1189,16 @@
 								</h4>
 								<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
 									{#each list as w (w.key)}
-										<!-- Native button: use:draggable must attach to the DOM node. -->
+										<!-- Native button: use:draggable must attach to the DOM node. sveltednd never
+										     starts a drag on a <button> unless a `handle` is set (it skips its
+										     interactive-element guard then), so the tile is its own handle. -->
 										<button
 											type="button"
+											data-palette-tile
 											use:draggable={{
 												container: 'widget-palette',
 												dragData: { kind: 'palette', widgetKey: w.key } satisfies PaletteDrag,
+												handle: '[data-palette-tile]',
 												keyboard: true
 											}}
 											onclick={() => addSidebarWidget(w.key)}

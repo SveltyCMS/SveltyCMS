@@ -311,7 +311,8 @@ export class WorkflowService {
 
     // 4. RBAC Check (Enterprise Grade) — admins/super-admins keep an explicit
     // override, mirroring the assignee-lock and publication-gate semantics.
-    if (transition.requiredRole && !isAdminActor(user)) {
+    const actorIsAdmin = isAdminActor(user);
+    if (!actorIsAdmin) {
       // 1. Check if user has general permission to transition
       const hasBasePerm = hasPermissionWithRoles(user as any, "workflow:transition", roles);
       if (!hasBasePerm) {
@@ -322,20 +323,20 @@ export class WorkflowService {
         );
       }
 
-      // 2. Check for specific transition role
-      const hasRole = roles.some(
-        (r) => r._id === transition.requiredRole || r.name === transition.requiredRole,
-      );
-      if (!hasRole) {
-        throw new AppError(
-          `This transition specifically requires the role: ${transition.requiredRole}`,
-          403,
-          "FORBIDDEN",
+      // 2. Check for specific transition role when configured
+      if (transition.requiredRole) {
+        const hasRole = roles.some(
+          (r) => r._id === transition.requiredRole || r.name === transition.requiredRole,
         );
+        if (!hasRole) {
+          throw new AppError(
+            `This transition specifically requires the role: ${transition.requiredRole}`,
+            403,
+            "FORBIDDEN",
+          );
+        }
       }
     }
-
-    const actorIsAdmin = isAdminActor(user);
     const currentStateDef = workflow.states.find((s) => s.id === instance!.currentState);
     const targetStateDef = workflow.states.find((s) => s.id === targetStateId);
 

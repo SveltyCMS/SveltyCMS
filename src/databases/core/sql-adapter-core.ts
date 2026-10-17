@@ -1315,7 +1315,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // prepareValues (shared logic, dialect hooks for JSON serialization)
   // --------------------------------------------------------------------------
 
-  /** Stamp update flags without mutating the caller's options object. */
+  /** Stamp update flags without mutating or cloning the caller's options object. */
   protected prepareUpdateValues(
     table: any,
     data: any,
@@ -1323,11 +1323,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     now: Date | string,
     options: any,
   ): any {
-    if (options?.isUpdate === true) return this.prepareValues(table, data, id, now, options);
-    const updateOpts = options
-      ? { ...options, isUpdate: true, operation: "update" }
-      : { isUpdate: true, operation: "update" };
-    return this.prepareValues(table, data, id, now, updateOpts);
+    return this.prepareValues(table, data, id, now, options, true);
   }
 
   /**
@@ -1369,14 +1365,20 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return keys;
   }
 
-  public prepareValues(table: any, data: any, id: any, now: Date | string, options: any): any {
+  public prepareValues(
+    table: any,
+    data: any,
+    id: any,
+    now: Date | string,
+    options: any,
+    isUpdateOverride = false,
+  ): any {
+    const isUpdate =
+      isUpdateOverride || options?.isUpdate === true || options?.operation === "update";
     const values: any = {};
-    if (id) {
+    if (id && !isUpdate) {
       values._id = id;
     }
-    const isUpdate = options?.isUpdate === true || options?.operation === "update";
-    const getCol = (t: any, n: string) =>
-      getColumnHelper(t, n, this._tableColumnsCache, this._lastTableRef, false);
 
     let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
     if (!schemaCols) {
@@ -1395,8 +1397,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // key per write. Null when schemaCols is unavailable → original fallback.
     const dateKeys = schemaCols ? this.getDateColumnKeys(schemaCols) : null;
 
-    const hasDataCol = schemaCols?.["data"] || getCol(table, "data");
-    const dynamicData: Record<string, unknown> = {};
+    const hasDataCol = schemaCols ? schemaCols["data"] : this.getColumn(table, "data");
+    let dynamicData: Record<string, unknown> | null = null;
     let hasDynamicKeys = false;
 
     for (const k in data) {
@@ -1409,7 +1411,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       if (isUpdate && k === "createdAt") continue;
       if (isUpdate && k === "tenantId" && !shouldBypassTenantCheck(options)) continue;
 
-      const isPhysical = schemaCols?.[k] || getCol(table, k);
+      const isPhysical = schemaCols ? schemaCols[k] : this.getColumn(table, k);
 
       if (isPhysical) {
         if (data[k] !== undefined) {
@@ -1470,14 +1472,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           values[k] = val;
         }
       } else if (hasDataCol && k !== "tenantId" && k !== "createdAt" && k !== "updatedAt") {
+        if (!dynamicData) dynamicData = {};
         dynamicData[k] = data[k];
         hasDynamicKeys = true;
       }
     }
 
-    if (id) {
-      const idCol =
-        schemaCols?.["_id"] || getCol(table, "_id") || schemaCols?.["id"] || getCol(table, "id");
+    if (id && !isUpdate) {
+      const idCol = schemaCols
+        ? schemaCols["_id"] || schemaCols["id"]
+        : this.getColumn(table, "_id") || this.getColumn(table, "id");
       if (idCol) {
         values[idCol.name] = id;
       }
@@ -1489,7 +1493,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // disables HOT updates — measured write amplification on the competitive
     // update lane. A caller that legitimately passes tenantId in `data` still
     // reaches SET through the physical-column loop above.
-    if (!isUpdate && options?.tenantId && (schemaCols?.["tenantId"] || getCol(table, "tenantId"))) {
+    if (
+      !isUpdate &&
+      options?.tenantId &&
+      (schemaCols ? schemaCols["tenantId"] : this.getColumn(table, "tenantId"))
+    ) {
       values.tenantId = options.tenantId;
     }
 
@@ -1497,39 +1505,43 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     // On UPDATE, never set or overwrite createdAt.
     if (
       !isUpdate &&
-      (schemaCols?.["createdAt"] || getCol(table, "createdAt")) &&
+      (schemaCols ? schemaCols["createdAt"] : this.getColumn(table, "createdAt")) &&
       values.createdAt === undefined
     ) {
       values.createdAt = now;
     }
-    if (schemaCols?.["updatedAt"] || getCol(table, "updatedAt")) {
+    if (schemaCols ? schemaCols["updatedAt"] : this.getColumn(table, "updatedAt")) {
       values.updatedAt = now;
     }
 
     // Map common fields explicitly
-    if ((schemaCols?.["collection"] || getCol(table, "collection")) && "collection" in data) {
+    if (
+      (schemaCols ? schemaCols["collection"] : this.getColumn(table, "collection")) &&
+      "collection" in data
+    ) {
       values.collection = data.collection;
     }
 
-    if (schemaCols?.["publishedAt"] || getCol(table, "publishedAt")) {
+    if (schemaCols ? schemaCols["publishedAt"] : this.getColumn(table, "publishedAt")) {
       const pubAt = data.publishedAt || data.metadata?.publishedAt;
       if (pubAt !== undefined) {
         values.publishedAt = pubAt;
       }
     }
 
-    if ((schemaCols?.["slug"] || getCol(table, "slug")) && "slug" in data) {
+    if ((schemaCols ? schemaCols["slug"] : this.getColumn(table, "slug")) && "slug" in data) {
       values.slug = data.slug;
     }
-    if ((schemaCols?.["locale"] || getCol(table, "locale")) && "locale" in data) {
+    if ((schemaCols ? schemaCols["locale"] : this.getColumn(table, "locale")) && "locale" in data) {
       values.locale = data.locale;
     }
 
     if (hasDataCol && (!isUpdate || hasDynamicKeys || "data" in data)) {
+      const resolvedDynamic = dynamicData ?? {};
       if (this.shouldJsonSerializeInPrepare) {
-        values.data = JSON.stringify(dynamicData) || "{}";
+        values.data = hasDynamicKeys ? JSON.stringify(resolvedDynamic) || "{}" : "{}";
       } else {
-        values.data = dynamicData;
+        values.data = resolvedDynamic;
       }
       // Partial updates merge into the stored blob instead of replacing it. Only an
       // explicit `replaceData: true` opts out — a partial payload must never delete the
@@ -1546,7 +1558,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         hasDynamicKeys &&
         (options as { replaceData?: boolean })?.replaceData !== true
       ) {
-        setJsonDataPatch(values, dynamicData);
+        setJsonDataPatch(values, resolvedDynamic);
       }
     }
 
@@ -2915,6 +2927,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         : data;
     const table = this.getTable(collection);
     if (!table) throw new Error(`Collection table not found: ${collection}`);
+    if (!this._registeredSchemas.has(collection)) {
+      this.ensureTableSchemaRegistered(table, collection);
+      this._registeredSchemas.add(collection);
+    }
     const now = this.writeNow();
     const mPrepValuesU = PROFILE_WRITE_ENABLED ? profileMark("db:upd:prepare-values") : null;
     const values = this.prepareUpdateValues(table, d, id, now, options);
@@ -2924,8 +2940,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     if (!idCol) throw new Error("ID column not found");
 
     // Never write the PK back in the SET clause — it's the WHERE key
-    delete values[idCol.name];
-    delete values["id"];
+    if (idCol.name in values) delete values[idCol.name];
+    if ("id" in values) delete values["id"];
 
     // 🔀 PARTIAL-UPDATE MERGE: when this payload patches the JSON `data` blob, the
     // dialect merge operator handles it inside the UPDATE (no read). Dialects whose

@@ -23,6 +23,10 @@
 		builder_editor_step,
 		builder_editor_steps_ready,
 		builder_editor_typescript,
+		builder_tip_view_canvas,
+		builder_tip_view_code,
+		builder_tip_view_preview,
+		builder_tip_view_split,
 		builder_editor_view_mode_aria,
 		builder_editor_widgets_hint,
 		builder_tip_save_need_name,
@@ -49,9 +53,10 @@
 	import { validateMinimumCollectionFields } from '../../collectionbuilder-utils';
 	import Tabs from '@src/components/ui/tabs.svelte';
 	import Button from '@components/ui/button.svelte';
+	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	const action = $derived(page.params.action);
-	const { data } = $props<{ data: { collection?: Schema; user: User; roles?: Role[] } }>();
+	const { data }: { data: { collection?: Schema; user: User; roles?: Role[] } } = $props();
 	useContent();
 
 	let originalName = $state('');
@@ -438,29 +443,43 @@
 	{#snippet actions()}
 		<div class="flex flex-wrap items-center gap-2">
 			{#if action === 'edit'}
-				<Button
-					variant="error"
-					onclick={handleCollectionDelete}
-					disabled={isLoading}
-					aria-label={builder_editor_delete_aria()}
-					class="flex items-center gap-1"
+				<SystemTooltip
+					title={builder_editor_delete_aria()}
+					role={null}
+					tabindex={null}
+					positioning={{ placement: 'bottom', gutter: 8 }}
 				>
-					<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
-					<span class="hidden sm:inline">{button_delete()}</span>
-				</Button>
+					<Button
+						variant="error"
+						onclick={handleCollectionDelete}
+						disabled={isLoading}
+						aria-label={builder_editor_delete_aria()}
+						class="flex items-center gap-1"
+					>
+						<iconify-icon icon="mdi:delete" width="20"></iconify-icon>
+						<span class="hidden sm:inline">{button_delete()}</span>
+					</Button>
+				</SystemTooltip>
 			{/if}
 
 			{#if activeTab !== 'define'}
-				<Button
-					variant="outline"
-					onclick={goBack}
-					aria-label={builder_editor_previous_aria()}
-					data-testid="collection-step-back"
-					class="flex items-center gap-1"
+				<SystemTooltip
+					title={builder_editor_previous_aria()}
+					role={null}
+					tabindex={null}
+					positioning={{ placement: 'bottom', gutter: 8 }}
 				>
-					<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
-					<span class="hidden sm:inline">{builder_editor_back()}</span>
-				</Button>
+					<Button
+						variant="outline"
+						onclick={goBack}
+						aria-label={builder_editor_previous_aria()}
+						data-testid="collection-step-back"
+						class="flex items-center gap-1"
+					>
+						<iconify-icon icon="mdi:arrow-left" width="18"></iconify-icon>
+						<span class="hidden sm:inline">{builder_editor_back()}</span>
+					</Button>
+				</SystemTooltip>
 			{/if}
 
 			{#if activeTab !== 'permissions'}
@@ -539,54 +558,82 @@
 						role="group"
 						aria-label={builder_editor_view_mode_aria()}
 					>
-						<Button
-							type="button"
-							variant="transparent"
-							size="sm"
-							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'canvas'
-								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
-							onclick={() => (viewMode = 'canvas')}
-							data-testid="view-mode-canvas"
+						<SystemTooltip
+							title={builder_tip_view_canvas()}
+							role={null}
+							tabindex={null}
+							positioning={{ placement: 'bottom', gutter: 8 }}
 						>
-							{builder_editor_canvas()}
-						</Button>
-						<Button
-							type="button"
-							variant="transparent"
-							size="sm"
-							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'split'
-								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
-							onclick={() => (viewMode = 'split')}
-							data-testid="view-mode-split"
+							<Button
+								type="button"
+								variant="transparent"
+								size="sm"
+								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'canvas'
+									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
+									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
+								onclick={() => (viewMode = 'canvas')}
+								data-testid="view-mode-canvas"
+							>
+								{builder_editor_canvas()}
+							</Button>
+						</SystemTooltip>
+						<SystemTooltip
+							title={builder_tip_view_split()}
+							role={null}
+							tabindex={null}
+							positioning={{ placement: 'bottom', gutter: 8 }}
 						>
-							{builder_editor_split_view()}
-						</Button>
-						<Button
-							type="button"
-							variant="transparent"
-							size="sm"
-							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'code'
-								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
-							onclick={() => (viewMode = 'code')}
-							data-testid="view-mode-code"
+							<Button
+								type="button"
+								variant="transparent"
+								size="sm"
+								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'split'
+									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
+									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
+								onclick={() => (viewMode = 'split')}
+								data-testid="view-mode-split"
+							>
+								{builder_editor_split_view()}
+							</Button>
+						</SystemTooltip>
+						<SystemTooltip
+							title={builder_tip_view_code()}
+							role={null}
+							tabindex={null}
+							positioning={{ placement: 'bottom', gutter: 8 }}
 						>
-							{builder_editor_typescript()}
-						</Button>
-						<Button
-							type="button"
-							variant="transparent"
-							size="sm"
-							class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'preview'
-								? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
-								: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
-							onclick={() => (viewMode = 'preview')}
-							data-testid="view-mode-preview"
+							<Button
+								type="button"
+								variant="transparent"
+								size="sm"
+								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'code'
+									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
+									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
+								onclick={() => (viewMode = 'code')}
+								data-testid="view-mode-code"
+							>
+								{builder_editor_typescript()}
+							</Button>
+						</SystemTooltip>
+						<SystemTooltip
+							title={builder_tip_view_preview()}
+							role={null}
+							tabindex={null}
+							positioning={{ placement: 'bottom', gutter: 8 }}
 						>
-							{builder_editor_preview()}
-						</Button>
+							<Button
+								type="button"
+								variant="transparent"
+								size="sm"
+								class="h-auto! px-2.5! py-1! text-xs! font-medium! {viewMode === 'preview'
+									? 'bg-(--admin-bg-card) shadow-xs text-tertiary-500 dark:text-primary-400 font-bold!'
+									: 'text-(--admin-text-muted) hover:text-(--admin-text-body) dark:text-(--admin-text-muted) dark:hover:text-surface-100'}"
+								onclick={() => (viewMode = 'preview')}
+								data-testid="view-mode-preview"
+							>
+								{builder_editor_preview()}
+							</Button>
+						</SystemTooltip>
 					</div>
 				{/if}
 				<p class="text-(--admin-text-muted) hidden lg:block text-xs text-end">

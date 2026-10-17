@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-01-27"
-updated: "2026-08-06"
+updated: "2026-10-17"
 tags:
   - "validation"
   - "ci-cd"
@@ -28,7 +28,7 @@ Hook: `.githooks/pre-commit` · Manual: `bun run precommit`
 1. `scripts/check-test-db-safety.ts` — never point tests at a live DB name
 2. `bun run check` — format (oxfmt) + lint (oxlint)
 3. `bun run gate:fast` — lint-staged
-4. **`bun run risk:audit`** — security-risk scan (all adapters) + secret misuse + slop + `bun audit` + OSV (skipped if only docs changed)
+4. **`bun run risk:audit`** — 6 parallel gates: global security-risk scan (all 4 adapters + loopback/tenant/test-mode/AST batch guards) + secret misuse + slop + tenant-isolation API hygiene (`lint-tenant-api`) + `bun audit` + OSV.dev (skipped if only docs changed; pass `--full` to force non-incremental scanning)
 5. `bun run test:unit` — full Vitest suite (skipped if only docs changed)
 6. **SBOM sync** — `bun run audit:sbom` when `bun.lock` / `package.json` changed
 

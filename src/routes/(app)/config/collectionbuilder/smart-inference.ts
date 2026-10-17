@@ -9,6 +9,8 @@
  * - Zero external dependencies; safe for both client and server execution
  */
 
+import type { FieldInstance } from "@src/content/types";
+
 export interface InferredWidgetResult {
   widgetKey: string;
   displayName: string;
@@ -326,5 +328,280 @@ export function inferWidgetFromFieldName(
     db_fieldName,
     icon: "mdi:form-textbox",
     defaults: {},
+  };
+}
+
+export interface GeneratedSchemaResult {
+  name: string;
+  icon: string;
+  description: string;
+  fields: FieldInstance[];
+}
+
+/**
+ * Common icon mappings based on collection theme keywords
+ */
+const THEME_ICONS: Record<string, string> = {
+  blog: "mdi:post-outline",
+  post: "mdi:post-outline",
+  article: "mdi:newspaper",
+  news: "mdi:newspaper-variant-outline",
+  product: "mdi:shopping-outline",
+  commerce: "mdi:cart-outline",
+  shop: "mdi:storefront-outline",
+  order: "mdi:receipt-text-outline",
+  customer: "mdi:account-group-outline",
+  user: "mdi:account-outline",
+  profile: "mdi:account-circle-outline",
+  member: "mdi:card-account-details-outline",
+  event: "mdi:calendar-star",
+  webinar: "mdi:video-vintage",
+  conference: "mdi:account-voice",
+  recipe: "mdi:silverware-fork-knife",
+  food: "mdi:food-apple-outline",
+  dish: "mdi:pot-steam-outline",
+  property: "mdi:home-city-outline",
+  estate: "mdi:office-building",
+  hotel: "mdi:bed-outline",
+  course: "mdi:school-outline",
+  lesson: "mdi:book-open-page-variant-outline",
+  tutorial: "mdi:teach",
+  podcast: "mdi:podcast",
+  video: "mdi:video-outline",
+  movie: "mdi:filmstrip",
+  track: "mdi:music",
+  album: "mdi:album",
+  review: "mdi:comment-quote-outline",
+  testimonial: "mdi:format-quote-close",
+  faq: "mdi:help-circle-outline",
+  ticket: "mdi:ticket-outline",
+  task: "mdi:checkbox-marked-circle-outline",
+  project: "mdi:briefcase-outline",
+  portfolio: "mdi:palette-outline",
+  author: "mdi:feather",
+  category: "mdi:shape-outline",
+  tag: "mdi:tag-multiple-outline",
+};
+
+/**
+ * Determine a clean collection icon from name or prompt
+ */
+function inferCollectionIcon(text: string): string {
+  const lower = text.toLowerCase();
+  for (const [key, icon] of Object.entries(THEME_ICONS)) {
+    if (lower.includes(key)) {
+      return icon;
+    }
+  }
+  return "mdi:folder-outline";
+}
+
+/**
+ * Parses a natural language prompt into a complete SveltyCMS collection schema,
+ * including inferring widgets, tab grouping, section division, and validation flags.
+ *
+ * @param prompt - Natural language instructions
+ * @param existingCollections - Known existing collections for relational auto-linking
+ */
+export function generateSchemaFromPrompt(
+  prompt: string,
+  existingCollections: string[] = [],
+): GeneratedSchemaResult {
+  const raw = prompt.trim();
+  if (!raw) {
+    return {
+      name: "New Collection",
+      icon: "mdi:folder-outline",
+      description: "A newly created collection in SveltyCMS.",
+      fields: [],
+    };
+  }
+
+  // 1. Separate collection name from fields
+  let collectionName = "New Collection";
+  let fieldsText = raw;
+
+  // Patterns like: "Create a Blog Post with ...", "Products collection including ..."
+  const match = raw.match(
+    /^(?:create|build|make|generate|define|add)?\s*(?:a|an)?\s*([a-zA-Z0-9_\s-]+?)\s*(?:collection|schema|model|table)?\s*(?:with|having|including|containing|composed of|:)\s*(.+)$/i,
+  );
+
+  if (match) {
+    collectionName = humanizeLabel(match[1].trim());
+    fieldsText = match[2].trim();
+  } else {
+    // If no explicit separator, check if first sentence or clause names it
+    const parts = raw.split(/\bwith\b|\bincluding\b|:/i);
+    if (parts.length > 1) {
+      collectionName = humanizeLabel(
+        parts[0].replace(/create|build|make|a|an|collection|schema/gi, "").trim(),
+      );
+      fieldsText = parts.slice(1).join(" ");
+    }
+  }
+
+  if (!collectionName || collectionName === "Field") {
+    collectionName = "Collection";
+  }
+
+  const icon = inferCollectionIcon(`${collectionName} ${fieldsText}`);
+  const description = `Collection for managing ${collectionName.toLowerCase()} entries in SveltyCMS.`;
+
+  // 2. Tokenize field specifications
+  // Split on commas, semicolons, newlines, "and", bullet points
+  const rawTokens = fieldsText
+    .split(/[,;\n\r]|(?:\band\b)/i)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
+
+  const seenDbNames = new Set<string>();
+  const fields: FieldInstance[] = [];
+
+  for (const rawToken of rawTokens) {
+    // Ignore pure conjunctions or filler words
+    const stripped = rawToken.replace(/^[-*•\s]+/, "").trim();
+    if (
+      !stripped ||
+      /^(and|with|etc|some|field|fields|optional|attributes|properties)$/i.test(stripped)
+    ) {
+      continue;
+    }
+
+    // Check for "required" indicator
+    const isRequired = /\b(required|mandatory|must have|non-empty)\b/i.test(stripped);
+
+    // Clean token from modifier keywords
+    let cleanToken = stripped
+      .replace(/\b(required|mandatory|must have|non-empty|optional)\b/gi, "")
+      .replace(/[()[\]]/g, "")
+      .trim();
+
+    if (!cleanToken) continue;
+
+    // Check if token specifies a widget descriptor suffix, e.g. "content markdown" -> name "content", explicitWidget "markdown"
+    let explicitWidget: string | undefined;
+    const descMatch = cleanToken.match(
+      /^(.+?)\s+(markdown|rich-text|richtext|relation|switch|boolean|metadata|dropdown|select)$/i,
+    );
+    if (descMatch) {
+      cleanToken = descMatch[1].trim();
+      const rawDesc = descMatch[2].toLowerCase();
+      if (rawDesc === "markdown" || rawDesc === "richtext" || rawDesc === "rich-text") {
+        explicitWidget = "markdown";
+      } else if (rawDesc === "relation") {
+        explicitWidget = "relation";
+      } else if (rawDesc === "switch" || rawDesc === "boolean") {
+        explicitWidget = "boolean";
+      } else if (rawDesc === "metadata") {
+        explicitWidget = "seo";
+      } else if (rawDesc === "dropdown" || rawDesc === "select") {
+        explicitWidget = "select";
+      }
+    }
+
+    // Check for conditional mentions like "discount_percent showIf on_sale"
+    let conditionRule: { field: string; operator: "equals"; value: unknown } | undefined;
+    const condMatch = cleanToken.match(
+      /^(.+?)\s+(?:if|when|only if|show if)\s+([a-zA-Z0-9_]+)(?:\s*=\s*([a-zA-Z0-9_]+))?$/i,
+    );
+    if (condMatch) {
+      cleanToken = condMatch[1].trim();
+      const targetField = sanitizeDbFieldName(condMatch[2]);
+      const targetVal = condMatch[3] !== undefined ? condMatch[3] : true;
+      conditionRule = {
+        field: targetField,
+        operator: "equals",
+        value: targetVal === "true" ? true : targetVal === "false" ? false : targetVal,
+      };
+    }
+
+    const inferred = inferWidgetFromFieldName(cleanToken, existingCollections);
+    if (explicitWidget) {
+      inferred.widgetKey = explicitWidget;
+    }
+
+    // De-duplicate db_fieldName
+    let dbName = inferred.db_fieldName;
+    let counter = 1;
+    while (seenDbNames.has(dbName)) {
+      dbName = `${inferred.db_fieldName}_${++counter}`;
+    }
+    seenDbNames.add(dbName);
+
+    // Determine smart tab and section
+    let tab = "General";
+    let section = "Basic Information";
+
+    const wKey = inferred.widgetKey;
+    const lowerToken = cleanToken.toLowerCase();
+
+    if (wKey === "seo" || lowerToken.includes("seo") || lowerToken.includes("meta")) {
+      tab = "SEO";
+      section = "Search Engine Optimization";
+    } else if (
+      wKey === "media" ||
+      lowerToken.includes("image") ||
+      lowerToken.includes("photo") ||
+      lowerToken.includes("gallery") ||
+      lowerToken.includes("cover") ||
+      lowerToken.includes("avatar")
+    ) {
+      tab = "Media";
+      section = "Visual Assets";
+    } else if (
+      wKey === "markdown" ||
+      wKey === "rich-text" ||
+      lowerToken.includes("content") ||
+      lowerToken.includes("body") ||
+      lowerToken.includes("description") ||
+      lowerToken.includes("article")
+    ) {
+      tab = "Content";
+      section = "Main Content";
+    } else if (
+      wKey === "boolean" ||
+      lowerToken.startsWith("is_") ||
+      lowerToken.startsWith("has_") ||
+      lowerToken.includes("published") ||
+      lowerToken.includes("status")
+    ) {
+      tab = "Settings";
+      section = "Publication & Status";
+    } else if (
+      wKey === "currency" ||
+      lowerToken.includes("price") ||
+      lowerToken.includes("cost") ||
+      lowerToken.includes("inventory") ||
+      lowerToken.includes("stock") ||
+      lowerToken.includes("sku")
+    ) {
+      tab = "Commerce";
+      section = "Pricing & Inventory";
+    }
+
+    const fieldInstance = {
+      label: inferred.label,
+      db_fieldName: dbName,
+      required: isRequired || dbName === "title" || dbName === "name",
+      tab,
+      section,
+      showIf: conditionRule,
+      widget: {
+        Name: inferred.widgetKey.charAt(0).toUpperCase() + inferred.widgetKey.slice(1),
+        key: inferred.widgetKey,
+        Icon: inferred.icon,
+      },
+      icon: inferred.icon,
+      ...inferred.defaults,
+    } as unknown as FieldInstance;
+
+    fields.push(fieldInstance);
+  }
+
+  return {
+    name: collectionName,
+    icon,
+    description,
+    fields,
   };
 }

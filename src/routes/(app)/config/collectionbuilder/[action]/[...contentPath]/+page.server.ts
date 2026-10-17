@@ -160,6 +160,25 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       );
     }
 
+    // Self-heal a stale in-memory registry on a full reload (e.g. after a rename
+    // save or when another request/process refreshed the structure). The entry
+    // page does the same before 404ing; without it a browser refresh of the
+    // editor URL can land on "Collection not found" until the next write.
+    if (!currentCollection) {
+      logger.warn(
+        `Collection not found at path: ${collectionIdentifier}. Refreshing content registry...`,
+        { identifier: collectionIdentifier },
+      );
+      await contentSystem.refresh(locals.tenantId);
+      currentCollection = await contentSystem.getCollection(collectionIdentifier, locals.tenantId);
+      if (!currentCollection && !collectionIdentifier.startsWith("/")) {
+        currentCollection = await contentSystem.getCollection(
+          `/${collectionIdentifier}`,
+          locals.tenantId,
+        );
+      }
+    }
+
     if (!currentCollection) {
       logger.warn(`Collection not found at path: ${collectionIdentifier}`, {
         identifier: collectionIdentifier,

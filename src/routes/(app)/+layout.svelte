@@ -360,7 +360,7 @@ This layout provides the administrative shell, including sidebars and header con
 	// Sync mode from URL (helps UI store show/hide sidebars even on error pages)
 	$effect(() => {
 		const isCreate = page.url.searchParams.get('create') === 'true';
-		const isEdit = page.url.searchParams.get('edit') === 'true';
+		const isEdit = Boolean(page.url.searchParams.get('edit'));
 
 		if (isCreate) {
 			setMode('create');

@@ -325,7 +325,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 
 		{#if isMobileEditor}
 			<div
-				class="flex shrink-0 flex-col gap-1.5 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-1.5 bg-[--editor-chrome-bg]"
+				class="flex shrink-0 flex-col gap-1.5 px-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] pb-1.5 bg-(--editor-chrome-bg)"
 			>
 				<EditorMobileToolbar onclose={handleCancelClick} onsave={handleSaveClick} {isSaving} />
 				<EditorMobileQuickActions />
@@ -383,7 +383,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 			--admin-border-subtle,
 			color-mix(in oklch, var(--admin-text-body, #0f172a) 8%, transparent)
 		);
-		--editor-chrome-text: var(--admin-text-muted, #64748b);
+		--editor-chrome-text: var(--admin-text-body, #0f172a);
 		--editor-chrome-text-hover: var(--admin-text-body, #0f172a);
 		--editor-chrome-text-active: var(--admin-text-body, #0f172a);
 		--editor-accent: var(--color-primary-500, #3b82f6);
@@ -402,6 +402,19 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chrome-text: var(--admin-text-muted, #94a3b8);
 		--editor-chrome-text-hover: var(--admin-text-body, #f8fafc);
 		--editor-chrome-text-active: var(--admin-text-body, #f8fafc);
+	}
+
+	/* Shared active-state classes for widget pills (Svelte class directives cannot
+	   carry Tailwind arbitrary values like `text-(--var)`). */
+	:global(.editor-pill-active) {
+		color: var(--editor-chrome-text-active);
+		background: var(--editor-chrome-elevated);
+		border-color: var(--editor-chrome-border);
+	}
+
+	:global(.editor-pill-changed) {
+		color: var(--editor-chrome-text-active);
+		opacity: 0.85;
 	}
 
 	.image-editor-panel--mobile {

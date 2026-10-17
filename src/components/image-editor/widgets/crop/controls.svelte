@@ -80,13 +80,13 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 	aria-label="Crop controls"
 >
 	<div
-		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full"
+		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:var(--editor-chrome-border)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--editor-chrome-border) [&::-webkit-scrollbar-thumb]:rounded-full"
 	>
 		{#each aspectPresets as preset, i (preset.label)}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-				class:text-white={activePreset === i}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+				class:editor-pill-active={activePreset === i}
 				onclick={() => selectPreset(preset, i)}
 				title="{preset.label}{preset.shortcut ? ` (${preset.shortcut})` : ''}"
 				aria-label="Aspect ratio {preset.label}"
@@ -97,13 +97,13 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 			</button>
 		{/each}
 
-		<div class="shrink-0 w-px h-5 mx-1 bg-[--editor-chrome-border]" aria-hidden="true"></div>
+		<div class="shrink-0 w-px h-5 mx-1 bg-(--editor-chrome-border)" aria-hidden="true"></div>
 
 		{#each shapes as shape (shape.id)}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-				class:text-white={cropShape === shape.id}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center h-7 px-2.5 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+				class:editor-pill-active={cropShape === shape.id}
 				onclick={() => onCropShapeChange(shape.id)}
 				title={shape.label}
 				aria-label={shape.label}
@@ -123,7 +123,9 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 		>
 			{#each [{ key: 'x', field: 'x', value: crop.x, min: 0 }, { key: 'y', field: 'y', value: crop.y, min: 0 }, { key: 'w', field: 'width', value: crop.width, min: 1 }, { key: 'h', field: 'height', value: crop.height, min: 1 }] as field (field.key)}
 				<label class="flex items-center gap-1" for="{fieldId}-{field.key}">
-					<span class="text-[10px] font-normal text-white/45 lowercase">{field.key}</span>
+					<span class="text-[10px] font-normal text-(--editor-chrome-text) opacity-60 lowercase"
+						>{field.key}</span
+					>
 					<input
 						id="{fieldId}-{field.key}"
 						type="number"
@@ -134,7 +136,7 @@ Pintura-style crop bottom dock — pill buttons, horizontal scroll, no card chro
 								field.field as 'x' | 'y' | 'width' | 'height',
 								(e.currentTarget as HTMLInputElement).value
 							)}
-						class="w-14 h-7 px-1 text-[11px] text-white text-center bg-white/6 border border-transparent rounded-md outline-none focus-visible:border-white/30 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+						class="w-14 h-7 px-1 text-[11px] text-(--editor-chrome-text) text-center bg-(--editor-chrome-elevated) border border-transparent rounded-md outline-none focus-visible:border-(--editor-chrome-border) [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
 					/>
 				</label>
 			{/each}

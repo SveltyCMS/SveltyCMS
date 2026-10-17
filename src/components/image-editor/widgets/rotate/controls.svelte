@@ -76,16 +76,16 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 	aria-label="Rotate controls"
 >
 	<div
-		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:rgba(255,255,255,0.2)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full px-0.5 max-lg:justify-start"
+		class="flex flex-nowrap gap-1.5 items-center justify-center w-full min-w-0 min-h-0 leading-none overflow-x-auto overflow-y-hidden pb-0 scrollbar-thin [scrollbar-color:var(--editor-chrome-border)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-thumb]:bg-(--editor-chrome-border) [&::-webkit-scrollbar-thumb]:rounded-full px-0.5 max-lg:justify-start"
 		role="group"
 		aria-label="Rotate and flip"
 	>
 		<div
-			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full"
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full"
 		>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onRotateLeft}
 				title="Rotate left 90° (Mod+Left)"
 				aria-label="Rotate left 90°"
@@ -94,7 +94,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onRotateRight}
 				title="Rotate right 90° (Mod+Right)"
 				aria-label="Rotate right 90°"
@@ -103,8 +103,8 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-				class:text-white={isFlippedH}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+				class:editor-pill-active={isFlippedH}
 				onclick={onFlipHorizontal}
 				title="Flip horizontal (H)"
 				aria-label="Flip horizontal"
@@ -114,8 +114,8 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 			</button>
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-				class:text-white={isFlippedV}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center justify-center h-7 w-7 px-0 text-[11px] font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+				class:editor-pill-active={isFlippedV}
 				onclick={onFlipVertical}
 				title="Flip vertical (V)"
 				aria-label="Flip vertical"
@@ -126,15 +126,15 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		</div>
 
 		<div
-			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full"
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full"
 			role="group"
 			aria-label="Rotation presets"
 		>
 			{#each presetAngles as angle (angle)}
 				<button
 					type="button"
-					class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-					class:text-white={Math.abs(displayAngle - angle) < 0.5}
+					class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+					class:editor-pill-active={Math.abs(displayAngle - angle) < 0.5}
 					onclick={() => onRotationChange(angle)}
 					title={angle === 0 ? 'Reset rotation (0)' : `Rotate to ${angle} degrees`}
 					aria-label="Rotate to {angle} degrees"
@@ -147,8 +147,8 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		{#if onGridToggle}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-				class:text-white={showGrid}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+				class:editor-pill-active={showGrid}
 				onclick={onGridToggle}
 				title="Toggle grid (G)"
 				aria-label="Toggle grid"
@@ -161,8 +161,8 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		{#if onSnapToggle}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
-				class:text-white={snapToAngles}
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
+				class:editor-pill-active={snapToAngles}
 				onclick={onSnapToggle}
 				title="Snap to angles"
 				aria-label="Snap to angles"
@@ -175,7 +175,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		{#if onStraighten}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onStraighten}
 				title="Straighten (S)"
 				aria-label="Straighten"
@@ -188,7 +188,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		{#if onAutoStraighten}
 			<button
 				type="button"
-				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-[--editor-chrome-text] whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-[rgba(255,255,255,0.9)] hover:not-disabled:bg-white/9 hover:not-disabled:border-white/12 disabled:cursor-not-allowed disabled:opacity-35"
+				class="inline-flex flex-[0_0_auto] gap-1.5 items-center px-1.75 text-[10px] tabular-nums h-7 font-medium text-(--editor-chrome-text) whitespace-nowrap cursor-pointer bg-transparent border border-transparent rounded-full transition-[background,color,border-color] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) hover:not-disabled:border-(--editor-chrome-border) disabled:cursor-not-allowed disabled:opacity-35"
 				onclick={onAutoStraighten}
 				title="Auto-straighten"
 				aria-label="Auto-straighten"
@@ -202,7 +202,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		>
 			<div class="relative w-full">
 				<div
-					class="absolute top-1/2 inset-s-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-white/45 rounded-[1px] -translate-x-1/2 -translate-y-1/2"
+					class="absolute top-1/2 inset-s-1/2 z-1 w-[1.5px] h-2.5 pointer-events-none bg-(--editor-chrome-border) rounded-[1px] -translate-x-1/2 -translate-y-1/2"
 					aria-hidden="true"
 				></div>
 				<input
@@ -215,7 +215,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 					step={snapToAngles ? '15' : '0.1'}
 					value={rotationAngle}
 					oninput={handleAngleInput}
-					class="relative z-2 w-full flex-1 h-1 m-0 appearance-none cursor-pointer bg-white/18 rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-[--editor-accent-hover,var(--color-warning-400,#ffd43b)] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
+					class="relative z-2 w-full flex-1 h-1 m-0 appearance-none cursor-pointer bg-(--editor-chrome-border) rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-(--editor-accent-hover,var(--color-warning-400,#ffd43b)) [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-(--editor-accent-hover,var(--color-warning-400,#ffd43b)) [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
 					style:background={sliderFillStyle}
 					aria-valuemin={-180}
 					aria-valuemax={180}
@@ -225,10 +225,10 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		</div>
 
 		<div
-			class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-2 bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-full shrink-0 max-lg:order-5"
+			class="inline-flex flex-[0_0_auto] gap-0.5 items-center justify-center h-auto min-h-0 p-0.5 px-2 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full shrink-0 max-lg:order-5"
 		>
 			<span
-				class="min-w-9 text-[11px] font-medium tabular-nums leading-7 text-[rgba(255,255,255,0.92)] text-center"
+				class="min-w-9 text-[11px] font-medium tabular-nums leading-7 text-(--editor-chrome-text) text-center"
 				aria-live="polite">{displayAngle}°</span
 			>
 		</div>

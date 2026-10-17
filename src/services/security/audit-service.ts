@@ -26,16 +26,24 @@ export type AuditSeverity = "low" | "medium" | "high" | "critical";
 
 const SENSITIVE_KEY_RE = /password|secret|token|authorization|credential|api[_-]?key/i;
 
+function redactValue(v: unknown): unknown {
+  if (Array.isArray(v)) {
+    return v.map(redactValue);
+  }
+  if (v && typeof v === "object") {
+    return redactSensitiveDetails(v as Record<string, unknown>);
+  }
+  return v;
+}
+
 export function redactSensitiveDetails(details: Record<string, unknown>): Record<string, unknown> {
   if (!details || typeof details !== "object") return details;
   const clean: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(details)) {
     if (SENSITIVE_KEY_RE.test(k)) {
       clean[k] = "[REDACTED]";
-    } else if (v && typeof v === "object" && !Array.isArray(v)) {
-      clean[k] = redactSensitiveDetails(v as Record<string, unknown>);
     } else {
-      clean[k] = v;
+      clean[k] = redactValue(v);
     }
   }
   return clean;

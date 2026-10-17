@@ -185,9 +185,9 @@ export function prepareWritePayload(
       entryData.updatedBy = system ? "system" : user?._id;
     }
     // Client display names must not overwrite the id stamped at create.
-    delete entryData.createdBy;
+    if ("createdBy" in entryData) delete entryData.createdBy;
     // The scheduler refuses a publish that has no actor. Trust only this stamp.
-    delete entryData._scheduledBy;
+    if ("_scheduledBy" in entryData) delete entryData._scheduledBy;
     if (entryData.status === "schedule") {
       const actor = system ? "system" : user?._id;
       if (actor) entryData._scheduledBy = actor;

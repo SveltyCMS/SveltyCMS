@@ -38,16 +38,16 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 </script>
 
 <header
-	class="editor-toolbar editor-glass-bar relative z-30 shrink-0 px-4 py-2 bg-[--editor-chrome-bg] border-b border-[--editor-chrome-border]"
+	class="editor-toolbar editor-glass-bar relative z-30 shrink-0 px-4 py-2 bg-(--editor-chrome-bg) border-b border-(--editor-chrome-border)"
 	role="toolbar"
 	aria-label="Image editor"
 >
-	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-[--editor-control-h]">
+	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-(--editor-control-h)">
 		<div class="flex gap-1.5 items-center justify-self-start">
 			<Slot name="image_editor_tool" inline />
 			<button
 				type="button"
-				class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
+				class="editor-toolbar-solo-btn inline-flex items-center justify-center size-(--editor-control-h) cursor-pointer bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated)"
 				class:editor-toolbar-solo-btn-active={isComparing}
 				onclick={toggleCompare}
 				title="Compare before / after (\)"
@@ -61,11 +61,11 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 		<div class="flex gap-1.5 items-center justify-self-center">
 			<div
-				class="inline-flex gap-0.5 items-center px-0.75 py-0.5 rounded-full border border-[--editor-chrome-border] bg-[--editor-chrome-elevated]"
+				class="inline-flex gap-0.5 items-center px-0.75 py-0.5 rounded-full border border-(--editor-chrome-border) bg-(--editor-chrome-elevated)"
 			>
 				<button
 					type="button"
-					class="inline-flex items-center justify-center size-[--editor-control-h] p-0 text-[--editor-chrome-text] cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-[--editor-chrome-text-hover] hover:not-disabled:bg-white/8 disabled:cursor-not-allowed disabled:opacity-28"
+					class="inline-flex items-center justify-center size-(--editor-control-h) p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) disabled:cursor-not-allowed disabled:opacity-28"
 					onclick={() => imageEditorStore.handleUndo()}
 					disabled={!canUndo}
 					title="Undo (Mod+Z)"
@@ -76,7 +76,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				</button>
 				<button
 					type="button"
-					class="inline-flex items-center justify-center size-[--editor-control-h] p-0 text-[--editor-chrome-text] cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-[--editor-chrome-text-hover] hover:not-disabled:bg-white/8 disabled:cursor-not-allowed disabled:opacity-28"
+					class="inline-flex items-center justify-center size-(--editor-control-h) p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) disabled:cursor-not-allowed disabled:opacity-28"
 					onclick={() => imageEditorStore.handleRedo()}
 					disabled={!canRedo}
 					title="Redo (Mod+Shift+Z)"
@@ -87,7 +87,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				</button>
 
 				<div
-					class="editor-toolbar-divider shrink-0 w-px h-5 mx-0.5 bg-[--editor-chrome-border]"
+					class="editor-toolbar-divider shrink-0 w-px h-5 mx-0.5 bg-(--editor-chrome-border)"
 					aria-hidden="true"
 				></div>
 
@@ -99,7 +99,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				>
 					<button
 						type="button"
-						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-active] hover:bg-white/8 hover:rounded-full"
+						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-active) hover:bg-(--editor-chrome-elevated) hover:rounded-full"
 						onclick={onZoomOut}
 						title="Zoom out (-)"
 						aria-label="Zoom out"
@@ -109,7 +109,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 					</button>
 					<button
 						type="button"
-						class="zoom-pill-value min-w-12 px-1 text-xs font-medium tabular-nums text-center cursor-pointer bg-transparent border-none border-x border-[--editor-chrome-border-subtle] text-[--editor-chrome-text-hover] hover:bg-white/5 hover:rounded"
+						class="zoom-pill-value min-w-12 px-1 text-xs font-medium tabular-nums text-center cursor-pointer bg-transparent border-none border-x border-(--editor-chrome-border-subtle) text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated) hover:rounded"
 						onclick={onZoomReset}
 						title="Fit image (Mod+0). Actual size is Mod+1"
 						aria-label="Fit image in view"
@@ -119,7 +119,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 					</button>
 					<button
 						type="button"
-						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-active] hover:bg-white/8 hover:rounded-full"
+						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-active) hover:bg-(--editor-chrome-elevated) hover:rounded-full"
 						onclick={onZoomIn}
 						title="Zoom in (+)"
 						aria-label="Zoom in"
@@ -135,7 +135,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 			{#if onclose}
 				<button
 					type="button"
-					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-[--editor-control-h] cursor-pointer bg-[--editor-chrome-elevated] border border-[--editor-chrome-border] rounded-[--editor-radius-control] transition-[background,color,border-color] duration-150 text-[--editor-chrome-text] hover:text-[--editor-chrome-text-hover] hover:bg-white/10"
+					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-(--editor-control-h) cursor-pointer bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated)"
 					onclick={onclose}
 					title="Close editor (Esc)"
 					aria-label="Close image editor"
@@ -149,7 +149,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 				type="button"
 				class="inline-flex gap-1.5 items-center justify-center min-w-20 h-(--editor-control-h) px-4 text-[13px] font-semibold tracking-[0.01em] cursor-pointer rounded-(--editor-radius-control) shadow-xs transition-[background,color,transform,opacity] duration-150 active:not-disabled:scale-[0.98] disabled:cursor-not-allowed {isDirty
 					? 'bg-(--editor-accent) text-white hover:bg-(--editor-accent-hover)'
-					: 'bg-[--editor-chrome-elevated] text-[--editor-chrome-text] border border-[--editor-chrome-border] opacity-50'}"
+					: 'bg-(--editor-chrome-elevated) text-(--editor-chrome-text) border border-(--editor-chrome-border) opacity-50'}"
 				onclick={onsave}
 				disabled={isSaving || !isDirty}
 				title={isDirty ? 'Save changes (Mod+S)' : 'No changes to save'}

@@ -162,45 +162,55 @@ bun run security                        # Scanner against localhost:4173
 bun run security --auth                 # Build + start server + seed + authenticated scan
 bun run security --ci                   # CI mode (exit 1 on findings)
 bun run security --base=http://localhost:3000
-bun run security --secret-scan          # Also run secret misuse scanner
+bun run security --risk                 # Also run global security risk + tenant API scanners
+bun run security --secret-scan          # Also run secret misuse scanner (--full)
 bun run security --slop                 # Also run code quality slop scanner
-bun run security --cve                  # Also run dependency CVE audit (SBOM refresh + bun audit)
-bun run security --full                 # Run ALL scanners (auth + secret + slop + cve)
+bun run security --cve                  # Also run dependency CVE audit (SBOM refresh + bun audit + OSV.dev)
+bun run security --full                 # Run ALL scanners (auth + risk + secret + slop + cve + fuzz)
 ```
 
 **Engines**:
 
 - `scripts/security/auth.ts` — Authenticated audit (builds, starts production server, seeds admin, runs scanner with `--auth`)
 - `scripts/security/scanner.ts` — OWASP A01-A07 probes (auth bypass, injection, headers, rate limiting, info leakage)
-- `bun audit` (via `--cve`/`--full`) — dependency CVE check across the full lockfile tree, after refreshing `sbom.json`
+- `bun audit` + `scripts/scan-osv.ts` (via `--cve`/`--full`) — dependency CVE check across GitHub Advisory DB and OSV.dev (20+ feeds), after refreshing `sbom.json`
 
 ### `scripts/scan-secret-misuse.ts` — Secret Misuse Scanner
 
-Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files. 6 detection rules including **comparison-based backdoor detection** (Rule 6: catches `password === "hardcoded"` patterns that assignment-based scanners miss). Known key formats cover AWS, GitHub, Stripe, Google, OpenAI/Anthropic (`sk-`), Slack (`xox*-`), Hugging Face (`hf_`), JWTs, and private key blocks.
+Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files. Uses a single pre-compiled forbidden-key regex and 32-way parallel file batching. 6 detection rules including **comparison-based backdoor detection** (Rule 6: catches `password === "hardcoded"` patterns that assignment-based scanners miss) and `console.*`/`logger.*` secret exposure checks. Known key formats cover AWS, GitHub, Stripe, Google, OpenAI/Anthropic (`sk-`), Slack (`xox*-`), Hugging Face (`hf_`), JWTs, and private key blocks.
 
 ```bash
-bun run scripts/scan-secret-misuse.ts          # scan all files
-bun run scripts/scan-secret-misuse.ts --strict # CI mode (exit 1 on findings)
+bun run scripts/scan-secret-misuse.ts               # incremental scan (changed files)
+bun run scripts/scan-secret-misuse.ts --full        # scan all files
+bun run scripts/scan-secret-misuse.ts --strict      # CI mode (exit 1 on findings)
 ```
 
 ### `scripts/scan-security-risk.ts` — Global Security Risk Scanner (entire `src/`)
 
-Static scanner for vulnerability classes in OUR code — the layer no external database can cover. Scans all files under `src/` (vendored `src/types/`, `node_modules`, generated `src/paraglide/` excluded):
+Static + AST scanner for vulnerability classes in OUR code — the layer no external database can cover. Scans all files under `src/` (vendored `src/types/`, `node_modules`, generated `src/paraglide/` excluded):
 
-| Rule                         | Severity | Detects                                                                                                                |
-| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
-| SQL value interpolation      | error    | `'${value}'` inside SQL strings — the `author__not_in` SQLi class; values must be bound parameters or tagged templates |
-| SQL string concatenation     | error    | `"..." + value + "..."` SQL assembly                                                                                   |
-| MongoDB JS execution         | error    | `$where` / `$function` / `$accumulator` — server-side JS (RCE class)                                                   |
-| Dynamic code execution       | error    | `eval(` / `new Function(` (RCE sinks; `bun:sqlite` import workaround allowlisted)                                      |
-| SvelteKit CSRF disabled      | error    | `csrf: { checkOrigin: false }` / `csrf: false`                                                                         |
-| Non-httpOnly cookie          | error    | `httpOnly: false` (double-submit CSRF cookie exempted by design)                                                       |
-| Shell command interpolation  | warning  | `exec(\`...${...}\`)` — use execFile/spawn with an args array (`.exec()` DB methods, WAF regex literals excluded)      |
-| Path interpolation           | warning  | `fs.*` with member-access `${x.y}` paths or quote-concat — path-traversal class; guarded files + bare locals pass      |
-| SSRF                         | warning  | `fetch()` with request-derived URL (configured endpoints like `ollamaUrl`/`this.baseUrl` pass)                         |
-| XSS sinks                    | warning  | `innerHTML=`, `outerHTML=`, `insertAdjacentHTML(`, `document.write(`                                                   |
-| Regex interpolation          | warning  | `new RegExp(\`...${x}...\`)` without escaping (escape helpers, `\$&` idiom, constants, `\\${` pass)                    |
-| SQL identifier interpolation | warning  | Unescaped identifiers (skipped in files with `assertSafeSqlIdentifier`-style guards)                                   |
+| Rule                         | Severity | Detects                                                                                                                      |
+| ---------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| SQL value interpolation      | error    | `'${value}'` inside SQL strings — the `author__not_in` SQLi class; line-scoped identifier guard (`assertSafeSqlIdentifier`)  |
+| SQL string concatenation     | error    | `"..." + value + "..."` SQL assembly                                                                                         |
+| MongoDB JS execution         | error    | `$where` / `$function` / `$accumulator` — server-side JS (RCE class)                                                         |
+| Dynamic code execution       | error    | `eval(` / `new Function(` (RCE sinks)                                                                                        |
+| SvelteKit CSRF disabled      | error    | `csrf: { checkOrigin: false }` / `csrf: false`                                                                               |
+| Non-httpOnly cookie          | error    | `httpOnly: false` (double-submit CSRF cookie exempted by design)                                                             |
+| Loopback prefix bypass       | error    | `.startsWith("localhost")` / `.startsWith("127.0.0.1")` without `:` port boundary (matches `localhost.evil.com`)             |
+| Tenant header spoofing       | error    | Raw `headers.get("x-tenant-id" \| "x-test-tenant-id")` outside `request-tenant.ts` — must use `resolveRequestTenant()`       |
+| Bare `NODE_ENV === "test"`   | error    | Security/auth hooks gating test bypasses on bare `NODE_ENV === "test"` instead of `TEST_MODE` / `PLAYWRIGHT_TEST`            |
+| Reverse-proxy IP spoofing    | error    | Raw `headers.get("x-forwarded-for")` in server routes/hooks — must use `getClientIp(event)`                                  |
+| Blocking `redis.keys()`      | error    | Synchronous `redis.keys(...)` calls — must use `redis.scanIterator()`                                                        |
+| Unbounded batch size (AST)   | error    | API `batch` handlers iterating request arrays without an explicit upper-bound (`<= 100`) guard                               |
+| Privilege field / escalation | error    | `updateUserAttributes` without `sanitizeClientUserAttributePatch` / `stripPrivilegeEscalationFields`                         |
+| Setup API / complete gating  | error    | `/api/setup` public classification or `handleCompleteSetup` missing `isSetupComplete()` lock                                 |
+| Shell command interpolation  | warning  | `exec(\`...${...}\`)` — use execFile/spawn with an args array (`.exec()` DB methods, WAF regex literals excluded)            |
+| Path interpolation           | warning  | `fs.*` with member-access `${x.y}` paths or quote-concat — path-traversal class; guarded files + bare locals pass            |
+| SSRF                         | warning  | `fetch()` with request-derived URL (configured endpoints like `ollamaUrl`/`this.baseUrl` pass; remote upload requires guard) |
+| XSS sinks                    | warning  | `innerHTML=`, `outerHTML=`, `insertAdjacentHTML(`, `document.write(`                                                         |
+| Regex interpolation          | warning  | `new RegExp(\`...${x}...\`)` without escaping (escape helpers, `\$&` idiom, constants, `\\${` pass)                          |
+| SQL identifier interpolation | warning  | Unescaped identifiers (skipped in files with `assertSafeSqlIdentifier`-style guards)                                         |
 
 ```bash
 bun run scripts/scan-security-risk.ts          # scan (warnings tolerated)
@@ -217,18 +227,20 @@ bun run scripts/scan-osv.ts --strict # exit 1 on any vulnerability
 bun run scripts/scan-osv.ts --fresh  # ignore cache
 ```
 
-### `scripts/risk-audit.ts` — Full Commit Risk Audit
+### `scripts/risk-audit.ts` — Full Commit Risk Audit (Parallel 6-Gate Runner)
 
-Runs all fast, stateless security checks in one gate (wired into `.githooks/pre-commit`):
+Runs all 6 fast, stateless security checks **in parallel** in one gate (wired into `.githooks/pre-commit`) with deterministic buffered output and per-step timing:
 
-1. `scan-security-risk --strict` — global scan: DB (4 adapters) + command injection, eval, paths, SSRF, XSS + SvelteKit config
-2. `scan-secret-misuse --strict` — hardcoded credentials
+1. `scan-security-risk --strict` — global scan: DB (4 adapters) + loopback/tenant/test-mode/IP-spoof/AST batch guards + command injection, eval, paths, SSRF, XSS + SvelteKit config
+2. `scan-secret-misuse --strict` — hardcoded credentials, comparison backdoors, and `console`/`logger` secret leaks
 3. `slop-scanner --strict` — XSS/RTL/security architecture
-4. `bun audit` — GitHub Advisory DB (npm tree)
-5. `scan-osv --strict` — OSV.dev global database
+4. `lint-tenant-api` — AST tenant-isolation API hygiene, `systemScope` brands, and `bypassTenantCheck` allowlist
+5. `bun audit` — GitHub Advisory DB (npm tree)
+6. `scan-osv --strict` — OSV.dev global database
 
 ```bash
-bun run risk:audit
+bun run risk:audit          # parallel commit gate
+bun run risk:audit --full   # force full non-incremental scan on all gates
 ```
 
 ### `scripts/verify-prod-build-backdoor.ts` — Build Backdoor Verification

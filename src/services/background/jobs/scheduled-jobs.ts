@@ -50,25 +50,17 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
 
   logger.info(`[ScheduledJob] Found ${nodesToPublish.length} items ready for publishing`);
 
-  // 4a. Validate relation fields — ensure no referenced entries are still draft
-  const allNodesResult = await db.content.nodes.getStructure("flat", {
-    ...systemOpts,
-  });
-  const nodeStatusById = new Map<string, string>();
-  if (allNodesResult.success && allNodesResult.data) {
-    for (const n of allNodesResult.data) {
-      nodeStatusById.set((n as any)._id, (n as any).status || StatusTypes.draft);
-    }
-  }
-
+  // 4a. Validate relation fields — ensure no referenced entries are still draft.
+  // Pre-collect relation IDs first so we skip the full-table structure scan when
+  // none of the scheduled items reference any relations.
   const NODE_ID_REGEX = /^[0-9a-fA-F]{24}$/;
-  const validNodes: typeof nodesToPublish = [];
+  const relationIdsByNode = new Map<(typeof nodesToPublish)[number], Set<string>>();
+  let hasAnyRelations = false;
 
   for (const node of nodesToPublish) {
     const nodeData = (node as any).data || {};
     const relationIds = new Set<string>();
 
-    // Collect potential relation IDs from the node's data fields
     for (const value of Object.values(nodeData)) {
       if (typeof value === "string" && NODE_ID_REGEX.test(value)) {
         relationIds.add(value);
@@ -81,17 +73,40 @@ export const scheduledPublishHandler: JobHandler = async (_payload, _job) => {
       }
     }
 
-    // Check if any related entry is still in draft status
+    if (relationIds.size > 0) {
+      hasAnyRelations = true;
+    }
+    relationIdsByNode.set(node, relationIds);
+  }
+
+  const nodeStatusById = new Map<string, string>();
+  if (hasAnyRelations) {
+    const allNodesResult = await db.content.nodes.getStructure("flat", {
+      ...systemOpts,
+    });
+    if (allNodesResult.success && allNodesResult.data) {
+      for (const n of allNodesResult.data) {
+        nodeStatusById.set((n as any)._id, (n as any).status || StatusTypes.draft);
+      }
+    }
+  }
+
+  const validNodes: typeof nodesToPublish = [];
+
+  for (const node of nodesToPublish) {
+    const relationIds = relationIdsByNode.get(node);
     let hasDraftRelation = false;
-    for (const relId of relationIds) {
-      const relStatus = nodeStatusById.get(relId);
-      if (relStatus === StatusTypes.draft) {
-        logger.warn(
-          `[ScheduledJob] Skipping publish of "${node.name}" (${node._id}) — ` +
-            `related entry ${relId} is still in draft status`,
-        );
-        hasDraftRelation = true;
-        break;
+    if (relationIds && relationIds.size > 0) {
+      for (const relId of relationIds) {
+        const relStatus = nodeStatusById.get(relId);
+        if (relStatus === StatusTypes.draft) {
+          logger.warn(
+            `[ScheduledJob] Skipping publish of "${node.name}" (${node._id}) — ` +
+              `related entry ${relId} is still in draft status`,
+          );
+          hasDraftRelation = true;
+          break;
+        }
       }
     }
 

@@ -34,6 +34,7 @@ const _requestCache = new FastLRU<string, CacheEntry>({
 });
 
 const _requestCacheKeys = new Map<string, Set<string>>();
+const MAX_LIST_KEYS_PER_COLLECTION = 512;
 
 /** Collection → generation epoch. Bounded by the number of collections ever written. */
 const _collectionEpochs = new Map<string, number>();
@@ -69,6 +70,12 @@ export function setRequestCache(
     if (!set) {
       set = new Set<string>();
       _requestCacheKeys.set(ck, set);
+    } else if (!set.has(key) && set.size >= MAX_LIST_KEYS_PER_COLLECTION) {
+      const oldest = set.values().next().value;
+      if (oldest !== undefined) {
+        set.delete(oldest);
+        _requestCache.delete(oldest);
+      }
     }
     set.add(key);
   }

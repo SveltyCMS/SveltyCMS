@@ -92,19 +92,17 @@ const SKIP_COLLECTION_IDS = new Set(["search", "reorder", "warm-cache", "list"])
 
 export type CollectionWriteLaneKind = "simple" | "extended";
 
-/**
- * Which warm-lane shape a collection mutation is, or null when the full
- * API_WRITE pipeline must own it (cold-only routes, reads, reorder).
- *
- * Simple: POST /api/collections/:id and PATCH|PUT /api/collections/:id/:entryId.
- * Extended: batch, bulk create/update, atomic increment, and status. Those
- * keep the same WAF, CSRF, session-risk, and rate-limit checks. A non-admin
- * falls through so the pipeline's permission map still decides.
- */
-export function collectionWriteLaneKind(
+export interface WriteLaneTarget {
+  kind: CollectionWriteLaneKind;
+  collectionId: string;
+  entryId: string;
+  subAction: string;
+}
+
+export function parseCollectionWriteLaneTarget(
   method: string,
   pathname: string,
-): CollectionWriteLaneKind | null {
+): WriteLaneTarget | null {
   if (!pathname.startsWith("/api/collections/")) return null;
   const len = pathname.length;
   let pos = 17;
@@ -117,7 +115,7 @@ export function collectionWriteLaneKind(
   if (!collectionId || SKIP_COLLECTION_IDS.has(collectionId)) return null;
 
   if (segEnd === len) {
-    return method === "POST" ? "simple" : null;
+    return method === "POST" ? { kind: "simple", collectionId, entryId: "", subAction: "" } : null;
   }
 
   pos = segEnd + 1;
@@ -132,12 +130,16 @@ export function collectionWriteLaneKind(
   if (segEnd === len) {
     if (method === "POST") {
       return entryId === "batch" || entryId === "batch-clone" || entryId === "bulk"
-        ? "extended"
+        ? { kind: "extended", collectionId, entryId, subAction: "" }
         : null;
     }
     if (method === "PATCH" || method === "PUT") {
-      if (entryId === "bulk") return "extended";
-      if (entryId !== "batch" && entryId !== "batch-clone") return "simple";
+      if (entryId === "bulk") {
+        return { kind: "extended", collectionId, entryId, subAction: "" };
+      }
+      if (entryId !== "batch" && entryId !== "batch-clone") {
+        return { kind: "simple", collectionId, entryId, subAction: "" };
+      }
     }
     return null;
   }
@@ -155,14 +157,61 @@ export function collectionWriteLaneKind(
     if (next < len) return null;
   }
 
-  if (method === "POST" && subAction === "increment") return "extended";
-  if ((method === "PATCH" || method === "PUT") && subAction === "status") return "extended";
+  if (method === "POST" && subAction === "increment") {
+    return { kind: "extended", collectionId, entryId, subAction };
+  }
+  if ((method === "PATCH" || method === "PUT") && subAction === "status") {
+    return { kind: "extended", collectionId, entryId, subAction };
+  }
   return null;
+}
+
+function resolveWriteLaneTarget(event: RequestEvent): WriteLaneTarget | null {
+  const method = event.request.method;
+  const pathname = event.url.pathname;
+  const locals = event.locals as
+    | {
+        __writeTarget?: WriteLaneTarget | null;
+        __writeTargetPath?: string;
+        __writeTargetMethod?: string;
+      }
+    | undefined;
+  if (
+    locals &&
+    locals.__writeTarget !== undefined &&
+    locals.__writeTargetMethod === method &&
+    locals.__writeTargetPath === pathname
+  ) {
+    return locals.__writeTarget;
+  }
+  const parsed = parseCollectionWriteLaneTarget(method, pathname);
+  if (locals) {
+    locals.__writeTarget = parsed;
+    locals.__writeTargetMethod = method;
+    locals.__writeTargetPath = pathname;
+  }
+  return parsed;
+}
+
+/**
+ * Which warm-lane shape a collection mutation is, or null when the full
+ * API_WRITE pipeline must own it (cold-only routes, reads, reorder).
+ *
+ * Simple: POST /api/collections/:id and PATCH|PUT /api/collections/:id/:entryId.
+ * Extended: batch, bulk create/update, atomic increment, and status. Those
+ * keep the same WAF, CSRF, session-risk, and rate-limit checks. A non-admin
+ * falls through so the pipeline's permission map still decides.
+ */
+export function collectionWriteLaneKind(
+  method: string,
+  pathname: string,
+): CollectionWriteLaneKind | null {
+  return parseCollectionWriteLaneTarget(method, pathname)?.kind ?? null;
 }
 
 /** True for any collection mutation the warm lane is allowed to admit. */
 export function isCollectionWriteLanePath(event: RequestEvent): boolean {
-  return collectionWriteLaneKind(event.request.method, event.url.pathname) !== null;
+  return resolveWriteLaneTarget(event) !== null;
 }
 
 /** Warm admin GraphQL mutation. Queries and non-admins stay on the full pipeline. */
@@ -198,20 +247,54 @@ function loadGraphqlPost(): Promise<(event: RequestEvent) => Promise<Response>> 
   return graphqlPostPromise;
 }
 
+const WRITE_HEADER_TEMPLATES = new Map<string, Record<string, string>>();
+const WRITE_HEADER_TEMPLATE_MAX = 32;
+
+function getWriteHeaderTemplate(
+  https: boolean,
+  origin: string | null,
+  isGraphql: boolean,
+): Record<string, string> {
+  const key = `${https ? 1 : 0}|${origin ?? ""}|${isGraphql ? 1 : 0}`;
+  const cached = WRITE_HEADER_TEMPLATES.get(key);
+  if (cached) return cached;
+  const headers = new Headers({
+    "x-svelty-lane": RequestLane.API_WRITE,
+  });
+  applyAllSecurityHeaders(
+    headers,
+    https,
+    origin,
+    isGraphql ? "/api/graphql" : "/api/collections/x",
+  );
+  const record: Record<string, string> = {};
+  headers.forEach((value, name) => {
+    record[name] = value;
+  });
+  if (WRITE_HEADER_TEMPLATES.size >= WRITE_HEADER_TEMPLATE_MAX) {
+    WRITE_HEADER_TEMPLATES.clear();
+  }
+  WRITE_HEADER_TEMPLATES.set(key, record);
+  return record;
+}
+
 function finishWarmWrite(
   event: RequestEvent,
   res: Response,
   marks: Map<string, number> | null,
   srvT0: number,
   t0: number,
+  headersPreapplied = false,
 ): Response {
-  res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
-  applyAllSecurityHeaders(
-    res.headers,
-    event.url.protocol === "https:",
-    event.request.headers.get("Origin"),
-    event.url.pathname,
-  );
+  if (!headersPreapplied) {
+    res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+    applyAllSecurityHeaders(
+      res.headers,
+      event.url.protocol === "https:",
+      event.request.headers.get("Origin"),
+      event.url.pathname,
+    );
+  }
   marks?.set("serve", performance.now() - t0);
   if (marks) stampWriteSplit(res.headers, marks);
   stampSrvDur(res.headers, srvT0);
@@ -219,10 +302,10 @@ function finishWarmWrite(
 }
 
 /** WAF, CSRF, session-risk, and tenant bind. Throws on a security reject. */
-async function openWarmMutation(
+function openWarmMutation(
   event: RequestEvent,
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
-): Promise<void> {
+): Promise<void> | void {
   const { request, url, cookies, locals } = event;
   const wafCheck = wafGuard.inspectEvent(event);
   if (wafCheck.blocked) {
@@ -265,8 +348,7 @@ async function openWarmMutation(
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
   locals.dbAdapter = dbAdapter as typeof locals.dbAdapter;
   (locals as { dbAdapterUnscoped?: unknown }).dbAdapterUnscoped = dbAdapter;
-  const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
-  if (tenantP) await tenantP;
+  return applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
 }
 
 async function dispatchExtendedCollectionWrite(
@@ -361,10 +443,13 @@ async function executeWarmCollectionWrite(
     return null;
   }
 
-  await openWarmMutation(event, turbo);
+  const mutP = openWarmMutation(event, turbo);
+  if (mutP) await mutP;
   marks?.set("security", performance.now() - t0);
 
-  const kind = collectionWriteLaneKind(request.method, url.pathname);
+  const target = resolveWriteLaneTarget(event);
+  if (!target) return null;
+  const { kind, collectionId, entryId } = target;
   // Extended routes require admin on the fast lane; simple routes allow
   // collections:write (already authorized in tryCollectionWriteLane). Both
   // re-check here as defense-in-depth for a direct caller.
@@ -376,22 +461,6 @@ async function executeWarmCollectionWrite(
   }
 
   const pathname = url.pathname;
-  let collectionId = "";
-  let entryId = "";
-  let p = 17;
-  const len = pathname.length;
-  while (p < len && pathname.charCodeAt(p) === 47) p++;
-  let slash = pathname.indexOf("/", p);
-  if (slash < 0) {
-    collectionId = pathname.slice(p);
-  } else {
-    collectionId = pathname.slice(p, slash);
-    p = slash + 1;
-    while (p < len && pathname.charCodeAt(p) === 47) p++;
-    slash = pathname.indexOf("/", p);
-    entryId = slash < 0 ? pathname.slice(p) : pathname.slice(p, slash);
-  }
-
   if (kind === "extended") {
     const parts = pathname.split("/").filter(Boolean);
     const extendedCms = getLaneCms();
@@ -448,6 +517,11 @@ async function executeWarmCollectionWrite(
   // representation per write). The write above already skipped its read-back, so all that
   // is left is the envelope. Same read on the dispatcher side (`handlers/collections.ts`),
   // so both paths behave identically.
+  const precompiledHeaders = getWriteHeaderTemplate(
+    url.protocol === "https:",
+    request.headers.get("Origin"),
+    false,
+  );
   if (minimal) {
     const isPost = request.method === "POST";
     const resId = isPost
@@ -461,8 +535,9 @@ async function executeWarmCollectionWrite(
       `{"_id":${JSON.stringify(resId)}}`,
       { _id: resId },
       isPost ? 201 : 200,
+      precompiledHeaders,
     );
-    return finishWarmWrite(event, res, marks, srvT0, t0);
+    return finishWarmWrite(event, res, marks, srvT0, t0, true);
   }
 
   if ((result as any)?.success !== false && (result as any)?.meta === undefined) {
@@ -472,12 +547,18 @@ async function executeWarmCollectionWrite(
       JSON.stringify(resData),
       resData,
       request.method === "POST" ? 201 : 200,
+      precompiledHeaders,
     );
-    return finishWarmWrite(event, res, marks, srvT0, t0);
+    return finishWarmWrite(event, res, marks, srvT0, t0, true);
   }
 
-  const res = successResponse(event, result, request.method === "POST" ? 201 : 200);
-  return finishWarmWrite(event, res, marks, srvT0, t0);
+  const res = successResponse(
+    event,
+    result,
+    request.method === "POST" ? 201 : 200,
+    precompiledHeaders,
+  );
+  return finishWarmWrite(event, res, marks, srvT0, t0, true);
 }
 
 /**
@@ -513,16 +594,15 @@ export async function serveWarmCollectionWrite(
         const written = await executeWarmCollectionWrite(event, turbo);
         // Unreachable while `turbo` is supplied and the adapter exists, but the
         // body may already be consumed here, so answer rather than fall through.
-        return (
-          written ??
-          handleApiError(
-            new AppError("Write lane unavailable", 503, "WRITE_LANE_UNAVAILABLE"),
-            event,
-          )
+        if (written) return written;
+        const errRes = handleApiError(
+          new AppError("Write lane unavailable", 503, "WRITE_LANE_UNAVAILABLE"),
+          event,
         );
+        errRes.headers.set("x-svelty-lane", RequestLane.API_WRITE);
+        return errRes;
       },
     });
-    res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
     statusCode = res.status;
     return res;
   } catch (err) {
@@ -570,14 +650,14 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
       event,
       resolve: async () => {
         const tSec = STAMP_WRITE_SPLIT ? performance.now() : 0;
-        await openWarmMutation(event, turbo);
+        const mutP = openWarmMutation(event, turbo);
+        if (mutP) await mutP;
         marks?.set("security", performance.now() - tSec);
         const post = await loadGraphqlPost();
         const res = await post(event);
         return finishWarmWrite(event, res, marks, srvT0, srvT0);
       },
     });
-    res.headers.set("x-svelty-lane", RequestLane.API_WRITE);
     statusCode = res.status;
     return res;
   } catch (err) {
@@ -596,7 +676,8 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
 };
 
 export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
-  if (!isCollectionWriteLanePath(event) || !dbAdapter) {
+  const target = resolveWriteLaneTarget(event);
+  if (!target || !dbAdapter) {
     return resolve(event);
   }
   // 🛡️ Operational-state gate: the write lane never runs `handle-system-state`,
@@ -604,7 +685,7 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   if (!isLaneServingAllowed()) return resolve(event);
   const turbo = resolveWarmWriteSession(event);
   if (!turbo) return resolve(event);
-  const kind = collectionWriteLaneKind(event.request.method, event.url.pathname);
+  const kind = target.kind;
   // Batch, bulk, increment, and status are valid for non-admins who hold
   // collections:write. Leave those on the full pipeline. The body is unread.
   if (kind === "extended" && !turbo.isAdmin) {

@@ -50,4 +50,39 @@ describe("Input Widget", () => {
     expect(safeParse(schema, "").success).toBe(false);
     expect(safeParse(schema, null).success).toBe(false);
   });
+
+  it("should handle dynamic regex pattern validation", () => {
+    // Custom SKU format: ABC-1234
+    const field = InputWidget({
+      label: "SKU",
+      translated: false,
+      pattern: "^[A-Z]{3}-\\d{4}$",
+      patternMessage: "SKU must match format ABC-1234",
+    });
+    const schema = (field.widget.validationSchema as any)(field);
+
+    const validRes = safeParse(schema, "PRD-9021");
+    expect(validRes.success).toBe(true);
+
+    const invalidRes = safeParse(schema, "invalid-sku");
+    expect(invalidRes.success).toBe(false);
+    if (!invalidRes.success) {
+      expect(invalidRes.issues[0].message).toBe("SKU must match format ABC-1234");
+    }
+  });
+
+  it("should handle nested validation.pattern configuration", () => {
+    const field = InputWidget({
+      label: "PostalCode",
+      translated: false,
+      validation: {
+        pattern: "^\\d{5}$",
+        patternMessage: "Zip code must be 5 digits",
+      },
+    });
+    const schema = (field.widget.validationSchema as any)(field);
+
+    expect(safeParse(schema, "90210").success).toBe(true);
+    expect(safeParse(schema, "9021").success).toBe(false);
+  });
 });

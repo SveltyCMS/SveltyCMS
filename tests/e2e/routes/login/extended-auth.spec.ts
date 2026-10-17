@@ -103,6 +103,45 @@ test.describe("Extended Authentication UI Flows", () => {
     await expect(toast).toBeVisible({ timeout: 10000 });
   });
 
+  test("Password reset: forgot → new password → sign in with it", async ({ page }) => {
+    test.setTimeout(120_000);
+    const stamp = Date.now().toString(36);
+    const email = `reset_${stamp}@test.de`;
+    const newPassword = "ResetNew456!";
+
+    // Dedicated throwaway user — never reset the shared admin password.
+    const seeded = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: { action: "seed", email, password: "ResetOld123!" },
+    });
+    expect(seeded.ok(), `seed user failed: ${seeded.status()}`).toBeTruthy();
+
+    // Forgot password → no SMTP in the harness returns the reset link, and the
+    // client opens the reset form with its token/email already filled in.
+    await page.click('button[data-testid="signin-forgot-password"]');
+    const forgotForm = page.locator("form").first();
+    await forgotForm.locator('input[type="email"]').fill(email);
+    await forgotForm.locator('button[type="submit"]').click();
+
+    const resetForm = page.locator('form[aria-label="Reset password"]');
+    await expect(resetForm).toBeVisible({ timeout: 15_000 });
+
+    await page.locator("#passwordreset").fill(newPassword);
+    await page.locator("#confirm_passwordreset").fill(newPassword);
+    await resetForm.locator('button[type="submit"]').click();
+
+    await expect(page.getByText(/password reset successful/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // The old session is invalidated and the new password must work.
+    await prepareLoginForm(page);
+    await page.getByTestId("signin-email").fill(email);
+    await page.getByTestId("signin-password").fill(newPassword);
+    await page.getByTestId("signin-submit").click();
+    await expect(page).not.toHaveURL(/\/login/, { timeout: 25_000 });
+  });
+
   test("Account Lockout Flow after repeated failures", async ({ page }) => {
     test.setTimeout(120_000); // Higher timeout for repeated requests
 

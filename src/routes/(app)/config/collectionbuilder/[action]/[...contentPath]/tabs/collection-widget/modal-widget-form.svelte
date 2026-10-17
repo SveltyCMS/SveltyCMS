@@ -1,17 +1,29 @@
 <!--
  @file src/routes/(app)/config/collectionbuilder/[action]/[...contentPath]/tabs/collection-widget/modal-widget-form.svelte
- @component 3-tab widget edit modal: Default, Settings, Permissions
+ @component
+ @description 3-tab widget edit modal: Default, Settings, Permissions.
+
+ Features:
+ - Single header (field label, widget type, database name) with its own close action
+ - Two-column Default tab on tablet/desktop, single column on mobile
+ - Visibility and authentication side by side above the role access table
+ - Footer stacks on mobile with Save and Cancel full width
 -->
 <script lang="ts">
 	import Tabs from '@components/ui/tabs.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Badge from '@components/ui/badge.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
+	import Select from '@components/ui/select.svelte';
 	import IconifyIconsPicker from '@components/iconify-icons-picker.svelte';
 	import InputSwitch from '@src/components/system/builder/input-switch.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import {
 		button_cancel,
+		button_close,
 		button_delete,
 		button_save,
 		widget_form_apply_aria,
@@ -26,6 +38,7 @@
 		widget_form_field_label,
 		widget_form_field_label_hint,
 		widget_form_field_label_placeholder,
+		widget_form_help_aria,
 		widget_form_help_text,
 		widget_form_help_text_hint,
 		widget_form_help_text_placeholder,
@@ -44,21 +57,72 @@
 		widget_form_required,
 		widget_form_required_aria,
 		widget_form_required_hint,
+		widget_form_role_edit_aria,
 		widget_form_role_matrix,
 		widget_form_role_matrix_hint,
+		widget_form_role_view_aria,
 		widget_form_roles_edit,
 		widget_form_roles_role,
 		widget_form_roles_view,
-		widget_form_settings_suffix,
+		widget_form_tab_default,
+		widget_form_tab_permissions,
+		widget_form_tab_settings,
 		widget_form_translated,
 		widget_form_translated_aria,
 		widget_form_translated_hint,
+		widget_form_unknown,
+		widget_form_unnamed,
+		widget_form_selected,
 		widget_form_visibility,
+		widget_form_visibility_private,
+		widget_form_visibility_private_hint,
+		widget_form_visibility_public,
+		widget_form_visibility_public_hint,
 		widget_form_width,
 		widget_form_width_hint,
 		widget_form_width_placeholder,
-		widget_form_widget_type
+		widget_setting_max_hint,
+		widget_setting_max_length_hint,
+		widget_setting_min_hint,
+		widget_setting_min_length_hint,
+		widget_setting_prefix_hint,
+		widget_setting_step_hint,
+		widget_setting_suffix_hint,
+		widget_form_tab_validation,
+		widget_form_tab_conditions,
+		widget_form_tab_assignment,
+		widget_form_tab_assignment_placeholder,
+		widget_form_section_heading,
+		widget_form_section_heading_placeholder,
+		widget_validation_pattern_title,
+		widget_validation_pattern_subtitle,
+		widget_validation_rule_preset,
+		widget_validation_regex,
+		widget_validation_regex_placeholder,
+		widget_validation_error_message,
+		widget_validation_error_placeholder,
+		widget_validation_limits_title,
+		widget_validation_limits_subtitle,
+		widget_validation_min_length,
+		widget_validation_max_length,
+		widget_validation_min_value,
+		widget_validation_max_value,
+		widget_conditions_visibility_title,
+		widget_conditions_visibility_subtitle,
+		widget_conditions_visibility_aria,
+		widget_conditions_target_field,
+		widget_conditions_target_field_placeholder,
+		widget_conditions_operator,
+		widget_conditions_match_value,
+		widget_conditions_match_value_placeholder,
+		widget_conditions_visibility_always,
+		widget_conditions_requirement_title,
+		widget_conditions_requirement_subtitle,
+		widget_conditions_requirement_aria,
+		widget_conditions_req_field_placeholder,
+		widget_conditions_requirement_fallback
 	} from '@src/paraglide/messages';
+	import { resolveAdminComponent } from '@src/components/system/admin-component-registry';
 	import { setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { widgets } from '@src/stores/widget-store.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
@@ -95,10 +159,106 @@
 	let activeTab = $state('default');
 
 	const tabDefs = [
-		{ id: 'default', label: 'Default', icon: 'mdi:text-box-outline' },
-		{ id: 'settings', label: 'Settings', icon: 'mdi:tune' },
-		{ id: 'permissions', label: 'Permissions', icon: 'mdi:shield-lock-outline' }
+		// shortLabel keeps a visible name on phones (Tabs hides `label` below md)
+		{
+			id: 'default',
+			label: widget_form_tab_default(),
+			shortLabel: widget_form_tab_default(),
+			icon: 'mdi:text-box-outline'
+		},
+		{
+			id: 'settings',
+			label: widget_form_tab_settings(),
+			shortLabel: widget_form_tab_settings(),
+			icon: 'mdi:tune'
+		},
+		{
+			id: 'validation',
+			label: widget_form_tab_validation(),
+			shortLabel: widget_form_tab_validation(),
+			icon: 'mdi:checkbox-marked-circle-outline'
+		},
+		{
+			id: 'conditions',
+			label: widget_form_tab_conditions(),
+			shortLabel: widget_form_tab_conditions(),
+			icon: 'mdi:code-braces'
+		},
+		{
+			id: 'permissions',
+			label: widget_form_tab_permissions(),
+			shortLabel: widget_form_tab_permissions(),
+			icon: 'mdi:shield-lock-outline'
+		}
 	];
+
+	// --- Validation & Conditional Presets ---
+	const REGEX_PRESETS = [
+		{ value: 'custom', label: 'Custom Pattern' },
+		{ value: 'email', label: 'Email Address' },
+		{ value: 'url', label: 'URL / Web Link' },
+		{ value: 'alphanumeric', label: 'Alphanumeric Only' },
+		{ value: 'slug', label: 'Kebab-case Slug' },
+		{ value: 'numeric', label: 'Digits Only' },
+		{ value: 'phone', label: 'International Phone' },
+		{ value: 'hex_color', label: 'Hex Color Code' }
+	];
+
+	const PRESET_PATTERNS: Record<string, { pattern: string; message: string }> = {
+		email: {
+			pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$',
+			message: 'Must be a valid email address'
+		},
+		url: {
+			pattern: '^https?:\\/\\/.+',
+			message: 'Must be a valid URL starting with http:// or https://'
+		},
+		alphanumeric: {
+			pattern: '^[a-zA-Z0-9_-]+$',
+			message: 'Only letters, numbers, hyphens, and underscores are allowed'
+		},
+		slug: {
+			pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$',
+			message: 'Must be lowercase kebab-case (e.g. blog-post-title)'
+		},
+		numeric: {
+			pattern: '^\\d+$',
+			message: 'Only digits (0-9) allowed'
+		},
+		phone: {
+			pattern: '^\\+?[0-9\\s\\-()]{7,20}$',
+			message: 'Must be a valid phone number'
+		},
+		hex_color: {
+			pattern: '^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$',
+			message: 'Must be a valid hex color code (e.g. #3b82f6)'
+		}
+	};
+
+	const CONDITION_OPERATORS = [
+		{ value: 'equals', label: 'Equals (=)' },
+		{ value: 'not_equals', label: 'Not Equals (≠)' },
+		{ value: 'contains', label: 'Contains' },
+		{ value: 'not_contains', label: 'Does Not Contain' },
+		{ value: 'empty', label: 'Is Empty' },
+		{ value: 'not_empty', label: 'Is Not Empty' },
+		{ value: 'gt', label: 'Greater Than (>)' },
+		{ value: 'gte', label: 'Greater Than or Equal (≥)' },
+		{ value: 'lt', label: 'Less Than (<)' },
+		{ value: 'lte', label: 'Less Than or Equal (≤)' },
+		{ value: 'in', label: 'In Comma-separated List' }
+	];
+
+	let showIfEnabled = $state(false);
+	let showIfField = $state('');
+	let showIfOperator = $state('equals');
+	let showIfValue = $state('');
+
+	let requiredIfEnabled = $state(false);
+	let requiredIfField = $state('');
+	let requiredIfOperator = $state('equals');
+	let requiredIfValue = $state('');
+	let selectedPreset = $state('custom');
 
 	// --- Local working copy (seed immediately so first paint is not empty for E2E) ---
 	function cloneValue(v: any) {
@@ -107,6 +267,13 @@
 				label: '',
 				db_fieldName: '',
 				icon: '',
+				tab: '',
+				section: '',
+				showIf: undefined,
+				requiredIf: undefined,
+				validation: {},
+				pattern: '',
+				patternMessage: '',
 				required: false,
 				translated: false,
 				permissions: {},
@@ -138,7 +305,47 @@
 		local = next;
 		originalDbName = typeof next?.db_fieldName === 'string' ? next.db_fieldName : '';
 		incomingRenamedFrom = typeof next?.renamedFrom === 'string' ? next.renamedFrom : '';
+
+		showIfEnabled = !!next?.showIf;
+		if (next?.showIf && typeof next.showIf === 'object' && 'field' in next.showIf) {
+			showIfField = String(next.showIf.field ?? '');
+			showIfOperator = String(next.showIf.operator ?? 'equals');
+			showIfValue = String(next.showIf.value ?? '');
+		} else {
+			showIfField = '';
+			showIfOperator = 'equals';
+			showIfValue = '';
+		}
+
+		requiredIfEnabled = !!next?.requiredIf;
+		if (next?.requiredIf && typeof next.requiredIf === 'object' && 'field' in next.requiredIf) {
+			requiredIfField = String(next.requiredIf.field ?? '');
+			requiredIfOperator = String(next.requiredIf.operator ?? 'equals');
+			requiredIfValue = String(next.requiredIf.value ?? '');
+		} else {
+			requiredIfField = '';
+			requiredIfOperator = 'equals';
+			requiredIfValue = '';
+		}
+
+		selectedPreset = 'custom';
+		if (next?.pattern) {
+			for (const [k, v] of Object.entries(PRESET_PATTERNS)) {
+				if (v.pattern === next.pattern) {
+					selectedPreset = k;
+					break;
+				}
+			}
+		}
 	});
+
+	function handlePresetChange(preset: string) {
+		selectedPreset = preset;
+		if (preset in PRESET_PATTERNS) {
+			local.pattern = PRESET_PATTERNS[preset].pattern;
+			local.patternMessage = PRESET_PATTERNS[preset].message;
+		}
+	}
 
 	// Remember the previous column name so a save can move values once.
 	// A marker that arrived with the field stays until the name changes;
@@ -160,7 +367,19 @@
 		local?.widget?.key || (local?.widget?.Name?.toLowerCase() as string) || ''
 	);
 	const widgetFn = $derived(widgets.widgetFunctions?.[widgetKey]);
-	const guiSchema = $derived((widgetFn?.GuiSchema as Record<string, { widget: any }>) || {});
+	type GuiEntry = {
+		widget?: string;
+		label?: string;
+		helper?: string;
+		placeholder?: string;
+		type?: string;
+		rows?: number;
+		options?: { value: string; label: string; disabled?: boolean }[];
+		fields?: Record<string, GuiEntry>;
+	};
+	const guiSchema = $derived((widgetFn?.GuiSchema as Record<string, GuiEntry>) || {});
+	/** Settings that need both columns (long text / nested groups). */
+	const WIDE_SETTINGS = new Set(['textarea', 'Textarea', 'Json', 'group']);
 
 	// --- Filter default vs specific fields from GuiSchema ---
 	const DEFAULT_KEYS = new Set([
@@ -178,6 +397,37 @@
 	]);
 
 	const specificKeys = $derived(Object.keys(guiSchema).filter((k) => !DEFAULT_KEYS.has(k)));
+	// Only keys with a registered admin control; others rendered nothing and left an empty row.
+	const settingKeys = $derived(
+		specificKeys.filter((k) => resolveAdminComponent(guiSchema[k]?.widget))
+	);
+
+	/** `minLength` → `Min Length`, `target_field` → `Target Field`. */
+	function settingLabel(key: string): string {
+		return key
+			.replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+			.replace(/[_-]+/g, ' ')
+			.replace(/\b\w/g, (c) => c.toUpperCase());
+	}
+
+	const SETTING_HINTS: Record<string, () => string> = {
+		min: widget_setting_min_hint,
+		minValue: widget_setting_min_hint,
+		max: widget_setting_max_hint,
+		maxValue: widget_setting_max_hint,
+		step: widget_setting_step_hint,
+		prefix: widget_setting_prefix_hint,
+		suffix: widget_setting_suffix_hint,
+		minLength: widget_setting_min_length_hint,
+		maxLength: widget_setting_max_length_hint
+	};
+
+	/** The widget's own `helper` text wins; common keys fall back to a shared hint. */
+	function settingHint(key: string): string {
+		const helper = guiSchema[key]?.helper;
+		if (helper) return helper;
+		return SETTING_HINTS[key]?.() ?? '';
+	}
 
 	// --- Auto-generate db_fieldName from label ---
 	function labelToDbName(label: string): string {
@@ -205,6 +455,31 @@
 	// --- Save ---
 	function handleSave() {
 		if (!local) return;
+		if (showIfEnabled && showIfField.trim()) {
+			local.showIf = {
+				field: showIfField.trim(),
+				operator: showIfOperator as any,
+				value: showIfValue
+			};
+		} else {
+			delete local.showIf;
+		}
+		if (requiredIfEnabled && requiredIfField.trim()) {
+			local.requiredIf = {
+				field: requiredIfField.trim(),
+				operator: requiredIfOperator as any,
+				value: requiredIfValue
+			};
+		} else {
+			delete local.requiredIf;
+		}
+		if (local.pattern || local.patternMessage) {
+			local.validation = {
+				...local.validation,
+				pattern: local.pattern,
+				patternMessage: local.patternMessage
+			};
+		}
 		setTargetWidget(local);
 		resolve(local);
 	}
@@ -289,40 +564,67 @@
 </script>
 
 {#if local}
-	<div class="flex flex-col w-full">
-		<!-- Header -->
-		<div class="border-b border-(--admin-border-default) px-6 py-4">
-			<h2 class="text-lg font-bold text-(--admin-text-body)">
-				{widget_form_edit_field()}{' '}<span class="text-tertiary-500 dark:text-primary-500"
-					>{local.label || 'Unnamed'}</span
-				>
-			</h2>
-			<p class="text-xs text-(--admin-text-muted) mt-0.5">
-				{widget_form_widget_type()}
-				{widgetKey || 'unknown'}
-			</p>
+	<!-- Fixed width: the dialog sizes to its content, so tabs would otherwise resize it.
+	     Height matches the Modal body cap (80vh) so only the tab content scrolls and the
+	     header and footer stay in view. -->
+	<div class="flex max-h-[80vh] w-full flex-col md:w-[min(56rem,calc(100vw-4rem))]">
+		<!-- Header: one title with the field identity beneath it -->
+		<div
+			class="flex shrink-0 items-center gap-3 border-b border-(--admin-border-default) py-4 ps-6 pe-4"
+		>
+			<div
+				class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500"
+			>
+				<iconify-icon
+					icon={local.icon || widgetFn?.Icon || 'mdi:widgets'}
+					width="22"
+					aria-hidden="true"
+				></iconify-icon>
+			</div>
+			<div class="flex min-w-0 flex-1 flex-col gap-1">
+				<h2 class="truncate text-lg font-semibold leading-tight text-(--admin-text-body)">
+					{widget_form_edit_field()} · {local.label || widget_form_unnamed()}
+				</h2>
+				<div class="flex min-w-0 items-center gap-2 text-xs text-(--admin-text-muted)">
+					<Badge variant="surface" size="sm" class="uppercase tracking-wider"
+						>{widgetKey || widget_form_unknown()}</Badge
+					>
+					{#if local.db_fieldName}
+						<span class="truncate font-mono">{local.db_fieldName}</span>
+					{/if}
+				</div>
+			</div>
+			<Button
+				variant="transparent"
+				type="button"
+				onclick={handleCancel}
+				aria-label={button_close()}
+				class="flex min-h-10 min-w-10 items-center justify-center p-0! text-(--admin-text-muted) hover:opacity-80"
+			>
+				<iconify-icon icon="mingcute:close-line" width="22" aria-hidden="true"></iconify-icon>
+			</Button>
 		</div>
 
 		<!-- Tabs -->
-		<div class="px-6 pt-4">
+		<div class="shrink-0 border-b border-(--admin-border-default) px-6">
 			<Tabs tabs={tabDefs} bind:activeTab variant="underline" />
 		</div>
 
 		<!-- Tab Content -->
-		<div class="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+		<div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
 			{#if activeTab === 'default'}
-				<!-- Tab 1: Default -->
-				<div class="space-y-4">
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-label"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+				<!-- Tab 1: Default — related pairs side by side -->
+				<div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-label" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_field_label()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
 							<SystemTooltip title={widget_form_field_label_hint()}
-								><HelpIcon ariaLabel="Help: Field Label" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_field_label() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -338,28 +640,16 @@
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<span class="block text-sm font-medium text-(--admin-text-muted)"
-								>{widget_form_icon()}</span
-							>
-							<SystemTooltip title={widget_form_icon_hint()}
-								><HelpIcon ariaLabel="Help: Field Icon" /></SystemTooltip
-							>
-						</div>
-						<IconifyIconsPicker bind:iconselected={local.icon} bind:icon={local.icon} />
-					</div>
-
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-dbname"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-dbname" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_db_name()}</label
 							>
 							<span class="text-error-500" aria-hidden="true">*</span>
 							<SystemTooltip title={widget_form_db_name_hint()}
-								><HelpIcon ariaLabel="Help: Database Field Name" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_db_name() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -367,18 +657,19 @@
 							bind:value={local.db_fieldName}
 							placeholder={widget_form_db_name_placeholder()}
 							data-testid="widget-field-name"
+							class="font-mono"
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-placeholder"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-placeholder" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_placeholder()}</label
 							>
 							<SystemTooltip title={widget_form_placeholder_hint()}
-								><HelpIcon ariaLabel="Help: Placeholder" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_placeholder() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -388,15 +679,15 @@
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-default"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-default" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_default()}</label
 							>
 							<SystemTooltip title={widget_form_default_hint()}
-								><HelpIcon ariaLabel="Help: Default Value" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_default() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -406,54 +697,15 @@
 						/>
 					</div>
 
-					<div
-						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
-					>
-						<div>
-							<p class="text-sm font-semibold text-(--admin-text-muted)">
-								{widget_form_required()}
-							</p>
-							<p class="text-xs text-(--admin-text-muted)">
-								{widget_form_required_hint()}
-							</p>
-						</div>
-						<input
-							type="checkbox"
-							aria-label={widget_form_required_aria()}
-							bind:checked={local.required}
-							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-						/>
-					</div>
-
-					<div
-						class="flex items-center justify-between p-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/50"
-					>
-						<div>
-							<p class="text-sm font-semibold text-(--admin-text-muted)">
-								{widget_form_translated()}
-							</p>
-							<p class="text-xs text-(--admin-text-muted)">
-								{widget_form_translated_hint()}
-							</p>
-						</div>
-						<input
-							type="checkbox"
-							aria-label={widget_form_translated_aria()}
-							data-testid="widget-field-translated"
-							bind:checked={local.translated}
-							class="h-5 w-5 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-						/>
-					</div>
-
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-helper"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5 md:col-span-2">
+						<div class="flex items-center gap-1">
+							<label for="field-helper" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_help_text()}</label
 							>
 							<SystemTooltip title={widget_form_help_text_hint()}
-								><HelpIcon ariaLabel="Help: Help Text" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_help_text() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -463,15 +715,15 @@
 						/>
 					</div>
 
-					<div class="space-y-1.5">
-						<div class="flex items-center gap-1.5">
-							<label
-								for="field-width"
-								class="text-sm font-medium leading-none text-(--admin-text-muted)"
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<label for="field-width" class="text-sm font-semibold text-(--admin-text-body)"
 								>{widget_form_width()}</label
 							>
 							<SystemTooltip title={widget_form_width_hint()}
-								><HelpIcon ariaLabel="Help: Width" /></SystemTooltip
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_width() })}
+								/></SystemTooltip
 							>
 						</div>
 						<Input
@@ -480,164 +732,554 @@
 							placeholder={widget_form_width_placeholder()}
 						/>
 					</div>
+
+					<div class="flex flex-col gap-1.5">
+						<div class="flex items-center gap-1">
+							<span class="text-sm font-semibold text-(--admin-text-body)"
+								>{widget_form_icon()}</span
+							>
+							<SystemTooltip title={widget_form_icon_hint()}
+								><HelpIcon
+									ariaLabel={widget_form_help_aria({ field: widget_form_icon() })}
+								/></SystemTooltip
+							>
+						</div>
+						<!-- One source of truth: the picker writes `iconselected`; `icon` is only
+						     needed by InputSwitch's bind for widget-specific controls. -->
+						<IconifyIconsPicker bind:iconselected={local.icon} />
+					</div>
+
+					<!-- Layout Organization: Tabs & Sections -->
+					<div class="flex flex-col gap-1.5">
+						<label for="field-tab" class="text-sm font-semibold text-(--admin-text-body)"
+							>{widget_form_tab_assignment()}</label
+						>
+						<Input
+							id="field-tab"
+							bind:value={local.tab}
+							placeholder={widget_form_tab_assignment_placeholder()}
+						/>
+					</div>
+
+					<div class="flex flex-col gap-1.5">
+						<label for="field-section" class="text-sm font-semibold text-(--admin-text-body)"
+							>{widget_form_section_heading()}</label
+						>
+						<Input
+							id="field-section"
+							bind:value={local.section}
+							placeholder={widget_form_section_heading_placeholder()}
+						/>
+					</div>
+
+					<!-- Behaviour switches: one row, hint under each title -->
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:col-span-2">
+						<div
+							class="flex items-center justify-between gap-4 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) px-4 py-3"
+						>
+							<div class="flex flex-col gap-0.5">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_required()}
+								</p>
+								<p class="text-xs text-(--admin-text-muted)">{widget_form_required_hint()}</p>
+							</div>
+							<!-- No bind: Toggle's `value` has a fallback, so binding an unset field would throw -->
+							<Toggle
+								size="sm"
+								ariaLabel={widget_form_required_aria()}
+								value={!!local.required}
+								onToggle={(v: boolean) => {
+									local.required = v;
+								}}
+								class="shrink-0"
+							/>
+						</div>
+
+						<div
+							class="flex items-center justify-between gap-4 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) px-4 py-3"
+						>
+							<div class="flex flex-col gap-0.5">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_translated()}
+								</p>
+								<p class="text-xs text-(--admin-text-muted)">{widget_form_translated_hint()}</p>
+							</div>
+							<Toggle
+								size="sm"
+								ariaLabel={widget_form_translated_aria()}
+								data-testid="widget-field-translated"
+								value={!!local.translated}
+								onToggle={(v: boolean) => {
+									local.translated = v;
+								}}
+								class="shrink-0"
+							/>
+						</div>
+					</div>
 				</div>
 			{:else if activeTab === 'settings'}
 				<!-- Tab 2: Settings (widget-specific GuiFields) -->
-				{#if specificKeys.length > 0}
-					<div class="space-y-3">
-						<p class="text-xs font-bold uppercase tracking-widest text-(--admin-text-muted)">
-							{widget_form_settings_suffix({ widget: widgetKey })}
-						</p>
-						{#each specificKeys as key (key)}
-							<InputSwitch
-								value={local[key]}
-								icon={local.icon as string}
-								widget={guiSchema[key]?.widget}
-								{key}
-								onupdate={(e: { value: any }) => updateField(key, e.value)}
-							/>
+				{#if settingKeys.length > 0}
+					<!-- Same label row + spacing as the Default tab -->
+					<div class="grid grid-cols-1 gap-x-6 gap-y-5 md:grid-cols-2">
+						{#each settingKeys as key (key)}
+							{@const entry = guiSchema[key] ?? {}}
+							{@const title = entry.label || settingLabel(key)}
+							{@const hint = settingHint(key)}
+							{@const isWide = WIDE_SETTINGS.has(entry.widget ?? '')}
+							<div class="flex flex-col gap-1.5 {isWide ? 'md:col-span-2' : ''}">
+								<div class="flex items-center gap-1">
+									<span class="text-sm font-semibold text-(--admin-text-body)">{title}</span>
+									{#if hint}
+										<SystemTooltip title={hint}
+											><HelpIcon
+												ariaLabel={widget_form_help_aria({ field: title })}
+											/></SystemTooltip
+										>
+									{/if}
+								</div>
+								<InputSwitch
+									value={local[key]}
+									icon={local.icon as string}
+									widget={entry.widget}
+									{key}
+									schema={entry}
+									label={title}
+									labelClass="sr-only"
+									hideLabel
+									onupdate={(e: { value: unknown }) => updateField(key, e.value)}
+								/>
+							</div>
 						{/each}
 					</div>
 				{:else}
 					<div
-						class="flex flex-col items-center justify-center py-12 text-(--admin-text-muted) space-y-2"
+						class="flex flex-col items-center justify-center space-y-2 py-12 text-(--admin-text-muted)"
 					>
-						<iconify-icon icon="mdi:tune" width="40" class="opacity-20"></iconify-icon>
+						<iconify-icon icon="mdi:tune" width="40" class="opacity-20" aria-hidden="true"
+						></iconify-icon>
 						<p class="text-sm">{widget_form_no_settings()}</p>
 						<p class="text-xs">
 							{widget_form_no_settings_part1()}{' '}<span class="font-semibold"
-								>{widgetKey || 'selected'}</span
+								>{widgetKey || widget_form_selected()}</span
 							>{' '}
 							{widget_form_no_settings_part2()}
 						</p>
 					</div>
 				{/if}
-			{:else if activeTab === 'permissions'}
-				<!-- Tab 3: Permissions (role-based view/edit matrix) -->
-				<div class="space-y-5">
-					<!-- Visibility toggle -->
+			{:else if activeTab === 'validation'}
+				<!-- Tab: Validation (Regex & Dynamic Constraints) -->
+				<div class="flex flex-col gap-6">
 					<div
-						class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
 					>
-						<h4
-							class="mb-2 text-xs font-bold uppercase tracking-[0.24em] text-(--admin-text-muted)"
+						<div
+							class="flex items-center justify-between border-b border-(--admin-border-subtle) pb-3"
 						>
-							{widget_form_visibility()}
-						</h4>
-						<Button
-							type="button"
-							variant="transparent"
-							class="h-auto! w-full justify-between rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) px-4! py-3! text-start hover:border-tertiary-500/50 dark:hover:border-primary-500/50"
-							onclick={() =>
-								updatePerms({
-									visibility: localPerms.visibility === 'public' ? 'private' : 'public'
-								})}
-						>
-							<span class="font-semibold text-(--admin-text-muted)">
-								{localPerms.visibility === 'public' ? 'Public' : 'Private'}
-							</span>
-							<iconify-icon
-								icon={localPerms.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'}
-								width="20"
-								class="text-(--admin-text-muted)"
-							></iconify-icon>
-						</Button>
-						<p class="mt-2 text-xs text-(--admin-text-muted)">
-							{localPerms.visibility === 'public'
-								? 'Field is visible to everyone by default.'
-								: 'Field is restricted; only allowed roles can access.'}
-						</p>
+							<div class="flex items-center gap-2">
+								<iconify-icon
+									icon="mdi:regex"
+									width="22"
+									class="text-tertiary-500 dark:text-primary-400"
+								></iconify-icon>
+								<div>
+									<h4 class="text-sm font-bold text-(--admin-text-body)">
+										{widget_validation_pattern_title()}
+									</h4>
+									<p class="text-xs text-(--admin-text-muted)">
+										{widget_validation_pattern_subtitle()}
+									</p>
+								</div>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<div class="flex flex-col gap-1.5">
+								<label
+									for="validation-preset"
+									class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_rule_preset()}</label
+								>
+								<Select
+									id="validation-preset"
+									value={selectedPreset}
+									options={REGEX_PRESETS}
+									onchange={(v) => handlePresetChange(v)}
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label
+									for="validation-pattern"
+									class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_regex()}</label
+								>
+								<Input
+									id="validation-pattern"
+									bind:value={local.pattern}
+									placeholder={widget_validation_regex_placeholder({
+										example: '^[A-Z]{3}-\\d{4}$'
+									})}
+									class="font-mono text-xs"
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5 sm:col-span-2">
+								<label
+									for="validation-message"
+									class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_error_message()}</label
+								>
+								<Input
+									id="validation-message"
+									bind:value={local.patternMessage}
+									placeholder={widget_validation_error_placeholder()}
+								/>
+							</div>
+						</div>
 					</div>
 
-					<!-- Require auth -->
 					<div
-						class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
 					>
-						<label
-							class="flex cursor-pointer items-center gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-3"
+						<div class="flex items-center gap-2 border-b border-(--admin-border-subtle) pb-3">
+							<iconify-icon
+								icon="mdi:ruler"
+								width="22"
+								class="text-tertiary-500 dark:text-primary-400"
+							></iconify-icon>
+							<div>
+								<h4 class="text-sm font-bold text-(--admin-text-body)">
+									{widget_validation_limits_title()}
+								</h4>
+								<p class="text-xs text-(--admin-text-muted)">
+									{widget_validation_limits_subtitle()}
+								</p>
+							</div>
+						</div>
+
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+							<div class="flex flex-col gap-1.5">
+								<label for="val-min-len" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_min_length()}</label
+								>
+								<Input
+									id="val-min-len"
+									type="number"
+									bind:value={local.minLength}
+									placeholder="3"
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label for="val-max-len" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_max_length()}</label
+								>
+								<Input
+									id="val-max-len"
+									type="number"
+									bind:value={local.maxLength}
+									placeholder="100"
+								/>
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label for="val-min-val" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_min_value()}</label
+								>
+								<Input id="val-min-val" type="number" bind:value={local.min} placeholder="0" />
+							</div>
+
+							<div class="flex flex-col gap-1.5">
+								<label for="val-max-val" class="text-sm font-semibold text-(--admin-text-body)"
+									>{widget_validation_max_value()}</label
+								>
+								<Input id="val-max-val" type="number" bind:value={local.max} placeholder="9999" />
+							</div>
+						</div>
+					</div>
+				</div>
+			{:else if activeTab === 'conditions'}
+				<!-- Tab: Conditions (showIf / requiredIf) -->
+				<div class="flex flex-col gap-6">
+					<!-- Visibility Logic: showIf -->
+					<div
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
+					>
+						<div
+							class="flex items-center justify-between border-b border-(--admin-border-subtle) pb-3"
 						>
-							<input
-								type="checkbox"
-								aria-label={widget_form_require_auth_aria()}
-								class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-								checked={localPerms.requiredAuth}
-								onchange={(e) =>
-									updatePerms({ requiredAuth: (e.target as HTMLInputElement).checked })}
+							<div class="flex items-center gap-2">
+								<iconify-icon
+									icon="mdi:eye-outline"
+									width="22"
+									class="text-tertiary-500 dark:text-primary-400"
+								></iconify-icon>
+								<div>
+									<h4 class="text-sm font-bold text-(--admin-text-body)">
+										{widget_conditions_visibility_title()}
+									</h4>
+									<p class="text-xs text-(--admin-text-muted)">
+										{widget_conditions_visibility_subtitle()}
+									</p>
+								</div>
+							</div>
+							<Toggle
+								size="sm"
+								ariaLabel={widget_conditions_visibility_aria()}
+								value={showIfEnabled}
+								onToggle={(v) => {
+									showIfEnabled = v;
+								}}
 							/>
-							<span class="text-sm font-semibold text-(--admin-text-muted)"
-								>{widget_form_require_auth()}</span
-							>
-						</label>
-						<p class="mt-2 text-xs text-(--admin-text-muted)">
-							{widget_form_require_auth_hint()}
-						</p>
+						</div>
+
+						{#if showIfEnabled}
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+								<div class="flex flex-col gap-1.5">
+									<label
+										for="cond-show-field"
+										class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_target_field()}</label
+									>
+									<Input
+										id="cond-show-field"
+										bind:value={showIfField}
+										placeholder={widget_conditions_target_field_placeholder()}
+										class="font-mono text-xs"
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-show-op" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_operator()}</label
+									>
+									<Select
+										id="cond-show-op"
+										value={showIfOperator}
+										options={CONDITION_OPERATORS}
+										onchange={(v) => (showIfOperator = v)}
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-show-val" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_match_value()}</label
+									>
+									<Input
+										id="cond-show-val"
+										bind:value={showIfValue}
+										placeholder={widget_conditions_match_value_placeholder()}
+									/>
+								</div>
+							</div>
+						{:else}
+							<p class="text-xs text-(--admin-text-muted) italic">
+								{widget_conditions_visibility_always()}
+							</p>
+						{/if}
+					</div>
+
+					<!-- Dynamic Requirement: requiredIf -->
+					<div
+						class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-5 space-y-4"
+					>
+						<div
+							class="flex items-center justify-between border-b border-(--admin-border-subtle) pb-3"
+						>
+							<div class="flex items-center gap-2">
+								<iconify-icon icon="mdi:asterisk" width="20" class="text-error-500"></iconify-icon>
+								<div>
+									<h4 class="text-sm font-bold text-(--admin-text-body)">
+										{widget_conditions_requirement_title()}
+									</h4>
+									<p class="text-xs text-(--admin-text-muted)">
+										{widget_conditions_requirement_subtitle()}
+									</p>
+								</div>
+							</div>
+							<Toggle
+								size="sm"
+								ariaLabel={widget_conditions_requirement_aria()}
+								value={requiredIfEnabled}
+								onToggle={(v) => {
+									requiredIfEnabled = v;
+								}}
+							/>
+						</div>
+
+						{#if requiredIfEnabled}
+							<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-req-field" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_target_field()}</label
+									>
+									<Input
+										id="cond-req-field"
+										bind:value={requiredIfField}
+										placeholder={widget_conditions_req_field_placeholder()}
+										class="font-mono text-xs"
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-req-op" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_operator()}</label
+									>
+									<Select
+										id="cond-req-op"
+										value={requiredIfOperator}
+										options={CONDITION_OPERATORS}
+										onchange={(v) => (requiredIfOperator = v)}
+									/>
+								</div>
+
+								<div class="flex flex-col gap-1.5">
+									<label for="cond-req-val" class="text-sm font-semibold text-(--admin-text-body)"
+										>{widget_conditions_match_value()}</label
+									>
+									<Input id="cond-req-val" bind:value={requiredIfValue} placeholder="true" />
+								</div>
+							</div>
+						{:else}
+							<p class="text-xs text-(--admin-text-muted) italic">
+								{widget_conditions_requirement_fallback()}
+							</p>
+						{/if}
+					</div>
+				</div>
+			{:else if activeTab === 'permissions'}
+				<!-- Tab 3: Permissions (role-based view/edit matrix) -->
+				<div class="flex flex-col gap-5">
+					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+						<!-- Visibility -->
+						<div
+							class="flex flex-col gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-4"
+						>
+							<div class="flex items-center justify-between gap-3">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_visibility()}
+								</p>
+								<Button
+									type="button"
+									variant="transparent"
+									class="h-auto! gap-2 rounded-lg border border-(--admin-border-default) px-3! py-2! hover:border-tertiary-500/40 dark:hover:border-primary-500/40"
+									onclick={() =>
+										updatePerms({
+											visibility: localPerms.visibility === 'public' ? 'private' : 'public'
+										})}
+								>
+									<iconify-icon
+										icon={localPerms.visibility === 'public' ? 'mdi:eye' : 'mdi:eye-off'}
+										width="18"
+										class="text-tertiary-500 dark:text-primary-500"
+										aria-hidden="true"
+									></iconify-icon>
+									<span class="text-sm font-semibold text-(--admin-text-body)">
+										{localPerms.visibility === 'public'
+											? widget_form_visibility_public()
+											: widget_form_visibility_private()}
+									</span>
+								</Button>
+							</div>
+							<p class="text-xs text-(--admin-text-muted)">
+								{localPerms.visibility === 'public'
+									? widget_form_visibility_public_hint()
+									: widget_form_visibility_private_hint()}
+							</p>
+						</div>
+
+						<!-- Require auth -->
+						<div
+							class="flex flex-col gap-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card) p-4"
+						>
+							<div class="flex min-h-10 items-center justify-between gap-3">
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_require_auth()}
+								</p>
+								<Toggle
+									size="sm"
+									ariaLabel={widget_form_require_auth_aria()}
+									value={localPerms.requiredAuth}
+									onToggle={(v: boolean) => updatePerms({ requiredAuth: v })}
+									class="shrink-0"
+								/>
+							</div>
+							<p class="text-xs text-(--admin-text-muted)">
+								{widget_form_require_auth_hint()}
+							</p>
+						</div>
 					</div>
 
 					<!-- Role matrix -->
 					{#if rolesProp.length > 0}
-						<div
-							class="rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/20 p-4"
-						>
-							<h4
-								class="mb-3 text-xs font-bold uppercase tracking-[0.24em] text-(--admin-text-muted)"
+						<div class="overflow-hidden rounded-lg border border-(--admin-border-default)">
+							<div
+								class="flex flex-col gap-1 border-b border-(--admin-border-default) bg-(--admin-bg-card) px-4 py-3"
 							>
-								{widget_form_role_matrix()}
-							</h4>
-							<p class="mb-4 text-xs text-(--admin-text-muted)">
-								{widget_form_role_matrix_hint()}
-							</p>
-
-							<!-- Table header -->
-							<div class="grid grid-cols-[1fr_60px_60px] gap-2 mb-2 px-2">
-								<span class="text-xs font-semibold text-(--admin-text-muted)"
-									>{widget_form_roles_role()}</span
-								>
-								<span class="text-xs font-semibold text-(--admin-text-muted) text-center"
-									>{widget_form_roles_view()}</span
-								>
-								<span class="text-xs font-semibold text-(--admin-text-muted) text-center"
-									>{widget_form_roles_edit()}</span
-								>
+								<p class="text-sm font-semibold text-(--admin-text-body)">
+									{widget_form_role_matrix()}
+								</p>
+								<p class="text-xs text-(--admin-text-muted)">{widget_form_role_matrix_hint()}</p>
 							</div>
-
-							<div class="space-y-1">
-								{#each rolesProp as role (role._id)}
-									<div
-										class="grid grid-cols-[1fr_60px_60px] gap-2 items-center rounded-lg px-3 py-2 hover:bg-surface-500/10 dark:hover:bg-surface-800/50 transition-colors"
-									>
-										<span class="text-sm text-(--admin-text-muted) truncate">
-											{role.name ?? role._id}
-										</span>
-										<div class="flex justify-center">
-											<input
-												type="checkbox"
-												aria-label={`View permission for ${role.name ?? role._id}`}
-												checked={localPerms.readRoles.includes(role._id)}
-												onchange={() => toggleRoleView(role._id)}
-												class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-											/>
-										</div>
-										<div class="flex justify-center">
-											<input
-												type="checkbox"
-												aria-label={`Edit permission for ${role.name ?? role._id}`}
-												checked={localPerms.writeRoles.includes(role._id)}
-												onchange={() => toggleRoleEdit(role._id)}
-												class="h-4 w-4 rounded border-surface-500/30 text-tertiary-600 focus:ring-tertiary-500 dark:text-primary-500 dark:focus:ring-primary-500 dark:bg-surface-800 dark:border-surface-600"
-											/>
-										</div>
-									</div>
-								{/each}
+							<div class="overflow-x-auto">
+								<table class="w-full text-sm">
+									<thead>
+										<tr class="text-xs font-semibold text-(--admin-text-muted)">
+											<th scope="col" class="px-4 py-2.5 text-start font-semibold"
+												>{widget_form_roles_role()}</th
+											>
+											<th scope="col" class="w-24 px-4 py-2.5 text-center font-semibold"
+												>{widget_form_roles_view()}</th
+											>
+											<th scope="col" class="w-24 px-4 py-2.5 text-center font-semibold"
+												>{widget_form_roles_edit()}</th
+											>
+										</tr>
+									</thead>
+									<tbody>
+										{#each rolesProp as role (role._id)}
+											<tr
+												class="border-t border-(--admin-border-subtle) transition-colors hover:bg-surface-500/10"
+											>
+												<td class="h-12 truncate px-4 text-(--admin-text-body)">
+													{role.name ?? role._id}
+												</td>
+												<td class="px-4">
+													<Checkbox
+														size="sm"
+														hideLabel
+														label={widget_form_role_view_aria({ role: role.name ?? role._id })}
+														checked={localPerms.readRoles.includes(role._id)}
+														onchange={() => toggleRoleView(role._id)}
+														class="items-center"
+													/>
+												</td>
+												<td class="px-4">
+													<Checkbox
+														size="sm"
+														hideLabel
+														label={widget_form_role_edit_aria({ role: role.name ?? role._id })}
+														checked={localPerms.writeRoles.includes(role._id)}
+														onchange={() => toggleRoleEdit(role._id)}
+														class="items-center"
+													/>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
 							</div>
 						</div>
 					{:else}
 						<div
-							class="rounded-xl border border-dashed border-(--admin-border-default) bg-surface-500/30 dark:bg-surface-900/10 p-6 text-center"
+							class="rounded-lg border border-dashed border-(--admin-border-default) p-6 text-center"
 						>
 							<iconify-icon
 								icon="mdi:shield-account-outline"
 								width="32"
-								class="text-(--admin-text-muted) opacity-30 mb-2"
+								class="mb-2 text-(--admin-text-muted) opacity-30"
+								aria-hidden="true"
 							></iconify-icon>
 							<p class="text-sm text-(--admin-text-muted)">
 								{widget_form_no_roles()}
@@ -648,22 +1290,27 @@
 			{/if}
 		</div>
 
-		<!-- Footer -->
+		<!-- Footer: quiet destructive/secondary actions start, decision end -->
 		<div
-			class="flex items-center justify-between border-t border-(--admin-border-default) px-6 py-4 bg-surface-500/10 dark:bg-surface-900/50"
+			class="flex shrink-0 flex-col-reverse gap-3 border-t border-(--admin-border-default) bg-surface-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:bg-surface-900/50"
 		>
-			<div class="flex gap-2">
-				<Button variant="error" type="button" onclick={handleDelete}>
-					<iconify-icon icon="mdi:trash-can-outline" width="18"></iconify-icon>
-					<span class="hidden sm:inline ms-1">{button_delete()}</span>
+			<div class="flex justify-center gap-1 sm:justify-start">
+				<Button
+					variant="transparent"
+					type="button"
+					onclick={handleDelete}
+					class="gap-2 text-error-500 hover:bg-error-500/10"
+				>
+					<iconify-icon icon="mdi:trash-can-outline" width="18" aria-hidden="true"></iconify-icon>
+					{button_delete()}
 				</Button>
-				<Button variant="tertiary" type="button" onclick={handleDuplicate}>
-					<iconify-icon icon="mdi:content-copy" width="18"></iconify-icon>
-					<span class="hidden sm:inline ms-1">{widget_form_duplicate()}</span>
+				<Button variant="ghost" type="button" onclick={handleDuplicate} class="gap-2">
+					<iconify-icon icon="mdi:content-copy" width="18" aria-hidden="true"></iconify-icon>
+					{widget_form_duplicate()}
 				</Button>
 			</div>
 
-			<div class="flex gap-3">
+			<div class="grid grid-cols-2 gap-3 sm:flex">
 				<Button variant="outline" type="button" onclick={handleCancel}>
 					{button_cancel()}
 				</Button>
@@ -676,7 +1323,7 @@
 					data-testid="widget-field-apply"
 					aria-label={widget_form_apply_aria()}
 				>
-					<iconify-icon icon="mdi:content-save" width="18"></iconify-icon>
+					<iconify-icon icon="mdi:content-save" width="18" aria-hidden="true"></iconify-icon>
 					<span class="ms-1">{button_save()}</span>
 				</Button>
 			</div>

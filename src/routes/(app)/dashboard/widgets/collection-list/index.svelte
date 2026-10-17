@@ -44,11 +44,32 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 	import Input from '@components/ui/input.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	import { buildCollectionDrilldownHref } from '@utils/dashboard-drilldown';
-	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import type {
 		CollectionSourceInfo,
 		ListQueryResult
 	} from '@src/services/analytics/collection-analytics-service';
+	import {
+		widget_list_configure_label,
+		widget_list_configure_title,
+		widget_list_no_collection,
+		widget_list_configure_feed,
+		widget_list_recent_entries_aria,
+		widget_list_view_collection,
+		widget_list_no_entries,
+		widget_list_appear_created,
+		widget_list_modal_title,
+		widget_list_setting_title,
+		widget_list_title_placeholder,
+		widget_list_collection_label,
+		widget_list_loading_collections,
+		widget_list_sort_field,
+		widget_list_direction,
+		widget_list_newest_first,
+		widget_list_oldest_first,
+		widget_list_items_to_display,
+		widget_list_cancel,
+		widget_list_save
+	} from '@src/paraglide/messages';
 
 	const {
 		config = undefined,
@@ -241,10 +262,10 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 				<Button
 					variant="ghost"
 					size="sm"
-					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
+					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
 					onclick={openSettings}
-					aria-label="Configure Collection List"
-					title="Configure Collection List"
+					aria-label={widget_list_configure_label()}
+					title={widget_list_configure_title()}
 				>
 					<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
 				</Button>
@@ -258,9 +279,9 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 						width={32}
 						class="mb-2 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-sm font-medium text-(--admin-text-muted)">No collection linked</p>
+					<p class="text-sm font-medium text-(--admin-text-muted)">{widget_list_no_collection()}</p>
 					<Button variant="outline" size="sm" class="mt-2 text-xs" onclick={openSettings}>
-						Configure Feed
+						{widget_list_configure_feed()}
 					</Button>
 				</div>
 			{:else if listData && listData.items.length > 0}
@@ -269,7 +290,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 				<div
 					class="custom-scroll flex-1 space-y-1 overflow-y-auto pe-1"
 					role="list"
-					aria-label="Recent collection entries"
+					aria-label={widget_list_recent_entries_aria()}
 				>
 					{#each visible as item, idx (String(item._id ?? item.id ?? idx))}
 						{@const pill = statusPill(item.status)}
@@ -282,7 +303,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 							>
 								<div class="min-w-0 flex-1">
 									<div
-										class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-primary-500 dark:text-surface-50"
+										class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-primary-500"
 									>
 										{itemTitle(item)}
 									</div>
@@ -312,7 +333,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 						})}
 						class="inline-flex items-center gap-1 text-xs font-medium text-(--admin-text-muted) transition-colors hover:text-primary-500"
 					>
-						<span>View collection</span>
+						<span>{widget_list_view_collection()}</span>
 						<iconify-icon icon="mdi:arrow-right" width={12}></iconify-icon>
 					</a>
 				</div>
@@ -321,8 +342,8 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 				<div class="flex flex-1 flex-col items-center justify-center p-3 text-center" role="status">
 					<iconify-icon icon="mdi:inbox-outline" width={28} class="mb-1.5 text-(--admin-text-muted)"
 					></iconify-icon>
-					<p class="text-xs font-medium text-(--admin-text-muted)">No entries found</p>
-					<p class="mt-0.5 text-[10px] text-(--admin-text-muted)">They appear here once created</p>
+					<p class="text-xs font-medium text-(--admin-text-muted)">{widget_list_no_entries()}</p>
+					<p class="mt-0.5 text-[10px] text-(--admin-text-muted)">{widget_list_appear_created()}</p>
 				</div>
 			{/if}
 		</div>
@@ -333,7 +354,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 {#if showSettingsModal}
 	<Modal
 		open={showSettingsModal}
-		title="Configure Collection List"
+		title={widget_list_modal_title()}
 		onclose={() => (showSettingsModal = false)}
 	>
 		<div class="flex flex-col gap-4 p-4">
@@ -343,12 +364,12 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 					for="list-title-{widgetId}"
 					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
-					Widget Title
+					{widget_list_setting_title()}
 				</label>
 				<Input
 					id="list-title-{widgetId}"
 					bind:value={customTitle}
-					placeholder="e.g. Latest Articles"
+					placeholder={widget_list_title_placeholder()}
 				/>
 			</div>
 
@@ -358,15 +379,15 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 					for="list-collection-{widgetId}"
 					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
-					Collection
+					{widget_list_collection_label()}
 				</label>
 				<select
 					id="list-collection-{widgetId}"
 					bind:value={selectedCollection}
-					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+					class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 				>
 					{#if sources.length === 0}
-						<option value="">Loading collections...</option>
+						<option value="">{widget_list_loading_collections()}</option>
 					{:else}
 						{#each sources as src (src.id)}
 							<option value={src.id}>{src.label || src.name}</option>
@@ -382,12 +403,12 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 						for="list-sort-field-{widgetId}"
 						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
-						Sort Field
+						{widget_list_sort_field()}
 					</label>
 					<select
 						id="list-sort-field-{widgetId}"
 						bind:value={sortField}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 					>
 						{#each sortFieldOptions as option (option.value)}
 							<option value={option.value}>{option.label}</option>
@@ -400,15 +421,15 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 						for="list-sort-direction-{widgetId}"
 						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 					>
-						Direction
+						{widget_list_direction()}
 					</label>
 					<select
 						id="list-sort-direction-{widgetId}"
 						bind:value={sortDirection}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 					>
-						<option value="desc">Newest first</option>
-						<option value="asc">Oldest first</option>
+						<option value="desc">{widget_list_newest_first()}</option>
+						<option value="asc">{widget_list_oldest_first()}</option>
 					</select>
 				</div>
 			</div>
@@ -419,12 +440,12 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 					for="list-limit-{widgetId}"
 					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
 				>
-					Items to display
+					{widget_list_items_to_display()}
 				</label>
 				<select
 					id="list-limit-{widgetId}"
 					bind:value={itemLimit}
-					class="w-full rounded border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500 dark:bg-surface-800 dark:text-surface-50"
+					class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
 				>
 					<option value={3}>3</option>
 					<option value={5}>5</option>
@@ -434,8 +455,10 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 
 			<!-- Modal Actions -->
 			<div class="mt-4 flex justify-end gap-2 border-t border-surface-500/20 pt-3">
-				<Button variant="outline" onclick={() => (showSettingsModal = false)}>Cancel</Button>
-				<Button variant="primary" onclick={saveSettings}>Save Configuration</Button>
+				<Button variant="outline" onclick={() => (showSettingsModal = false)}
+					>{widget_list_cancel()}</Button
+				>
+				<Button variant="primary" onclick={saveSettings}>{widget_list_save()}</Button>
 			</div>
 		</div>
 	</Modal>
