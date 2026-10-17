@@ -1144,12 +1144,16 @@
 								</h4>
 								<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
 									{#each list as w (w.key)}
-										<!-- Native button: use:draggable must attach to the DOM node. -->
+										<!-- Native button: use:draggable must attach to the DOM node. sveltednd never
+										     starts a drag on a <button> unless a `handle` is set (it skips its
+										     interactive-element guard then), so the tile is its own handle. -->
 										<button
 											type="button"
+											data-palette-tile
 											use:draggable={{
 												container: 'widget-palette',
 												dragData: { kind: 'palette', widgetKey: w.key } satisfies PaletteDrag,
+												handle: '[data-palette-tile]',
 												keyboard: true
 											}}
 											onclick={() => addSidebarWidget(w.key)}
