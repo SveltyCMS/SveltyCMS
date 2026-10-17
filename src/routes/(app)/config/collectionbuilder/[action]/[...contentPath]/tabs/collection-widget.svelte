@@ -149,15 +149,18 @@
 	 * Where the single insertion line is drawn. Derived from dndState instead of
 	 * sveltednd's own blue indicators, which it paints on every droppable and moves
 	 * onto the next sibling for "after". Covers field reorders and palette widgets,
-	 * which are inserted at the same slot.
+	 * which are inserted at the same slot. Computed once per drag update; rows only
+	 * compare their id against it.
 	 */
-	function dropLineFor(dragId: string): 'before' | 'after' | null {
-		if (!dndState.isDragging || dndState.targetContainer !== `field:${dragId}`) return null;
+	const activeDropLine = $derived.by((): { dragId: string; pos: 'before' | 'after' } | null => {
+		const target = dndState.isDragging ? dndState.targetContainer : null;
+		if (!target?.startsWith('field:')) return null;
 		const pos = dndState.dropPosition;
 		if (pos !== 'before' && pos !== 'after') return null;
+		const dragId = target.slice('field:'.length);
 		const index = items.findIndex((i) => i._dragId === dragId) + (pos === 'after' ? 1 : 0);
-		return isNoopFieldDrop(index) ? null : pos;
-	}
+		return isNoopFieldDrop(index) ? null : { dragId, pos };
+	});
 
 	const endZoneActive = $derived(
 		dndState.isDragging &&
@@ -778,9 +781,9 @@
 
 				<!-- Not a droppable itself: nesting it around the row droppables lit up the whole
 				     list and let one release fire onDrop twice. The library's blue lines are
-				     hidden here; dropLineFor() draws the only insertion line. -->
+				     hidden here; activeDropLine draws the only insertion line. -->
 				<div
-					class="mx-auto min-h-50 max-w-4xl space-y-3 rounded-xl p-1 [&_.drop-after]:after:hidden [&_.drop-before]:before:hidden"
+					class="mx-auto min-h-50 max-w-4xl rounded-xl p-1 [&_.drop-after]:after:hidden [&_.drop-before]:before:hidden"
 					data-testid="widget-fields-list"
 					role="list"
 					aria-label={builder_ts_fields_list_aria()}
@@ -789,7 +792,7 @@
 						{@const isDuplicate = duplicateFieldNames.has(
 							(item.db_fieldName || '').trim().toLowerCase()
 						)}
-						{@const dropLine = dropLineFor(item._dragId)}
+						{@const dropLine = activeDropLine?.dragId === item._dragId ? activeDropLine.pos : null}
 						<div
 							use:draggable={{
 								container: 'widget-fields',
@@ -803,7 +806,7 @@
 								direction: 'vertical'
 							}}
 							animate:flip={{ duration: flipDurationMs }}
-							class="group relative"
+							class="group relative py-1.5"
 							data-testid="widget-field-row"
 							data-field-name={item.db_fieldName || ''}
 							data-drag-id={item._dragId}
@@ -814,8 +817,8 @@
 									aria-hidden="true"
 									class="pointer-events-none absolute inset-x-0 z-10 h-0.5 rounded-full bg-warning-500 {dropLine ===
 									'before'
-										? '-top-2'
-										: '-bottom-2'}"
+										? '-top-px'
+										: '-bottom-px'}"
 								></span>
 							{/if}
 							<!-- Clean, simple row layout matching config/collectionbuilder -->
@@ -1005,7 +1008,7 @@
 						>
 							{#if endZoneActive}
 								<span
-									class="pointer-events-none absolute inset-x-0 top-1 h-0.5 rounded-full bg-warning-500"
+									class="pointer-events-none absolute inset-x-0 -top-px h-0.5 rounded-full bg-warning-500"
 								></span>
 							{/if}
 						</div>

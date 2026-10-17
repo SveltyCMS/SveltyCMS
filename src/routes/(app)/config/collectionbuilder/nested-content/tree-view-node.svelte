@@ -110,6 +110,8 @@ Features:
 
 	// A drag released over its own row still fires `click`; ignore it when the
 	// pointer travelled, so dropping a row back in place never navigates.
+	// Clicks with `detail === 0` (screen readers, keyboard, element.click()) have no
+	// pointer press to compare against, so the guard never applies to them.
 	let pressX = 0;
 	let pressY = 0;
 
@@ -122,7 +124,7 @@ Features:
 		if ((e.target as HTMLElement).closest('button, a[href], .drag-handle')) {
 			return;
 		}
-		if (Math.abs(e.clientX - pressX) + Math.abs(e.clientY - pressY) > 5) return;
+		if (e.detail !== 0 && Math.abs(e.clientX - pressX) + Math.abs(e.clientY - pressY) > 5) return;
 		activate();
 	}
 
