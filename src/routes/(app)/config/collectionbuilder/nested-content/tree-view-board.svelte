@@ -963,7 +963,8 @@ offset within the row on the native `dragover` event — that event carries
 <!-- Toolbar -->
 <div class="mb-4 flex flex-wrap items-center gap-2">
 	<!-- Plain Input + placeholder (as in the sidebar search): a floating label pads the
-	     top of the field, which pushed the caret below centre when focused. -->
+	     top of the field, which pushed the caret below centre when focused. The browser's
+	     own search clear button is hidden so only the styled clear button shows. -->
 	<div class="relative flex-1 min-w-50">
 		<Input
 			type="search"
@@ -972,7 +973,7 @@ offset within the row on the native `dragover` event — that event carries
 			aria-label={collections_search_aria()}
 			pre={searchIcon}
 			post={searchText ? searchClear : undefined}
-			inputClass="w-full"
+			inputClass="w-full [&::-webkit-search-cancel-button]:hidden"
 		/>
 	</div>
 	{#snippet searchIcon()}
