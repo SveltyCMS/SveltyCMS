@@ -19,6 +19,7 @@ reveal after position calculation prevents layout flash.
 - JS fallback with flip + shift for Safari and older browsers
 - show on mouseenter/focus, hide on mouseleave/blur/Escape
 - delayed visibility until position calculated (opacity-0 trick)
+- portals into the enclosing modal `<dialog>` so it renders above the top layer
 - WCAG 3.0: role="tooltip", aria-describedby trigger→content linkage
 - full Svelte 5 runes: $props, $derived, $state, $effect
 -->
@@ -213,7 +214,14 @@ reveal after position calculation prevents layout flash.
 		return () => document.removeEventListener('mouseover', handler, { capture: true });
 	});
 
+	// A modal <dialog> (showModal) lives in the browser top layer, above any z-index.
+	// Portal into the open dialog that contains the trigger so the tooltip joins that
+	// layer instead of rendering behind the modal. The <dialog> has no transform, so
+	// `position: fixed` inside it still resolves against the viewport.
+	let portalTarget = $state<HTMLElement | string>('body');
+
 	function show() {
+		portalTarget = (referenceEl?.closest('dialog[open]') as HTMLElement | null) ?? 'body';
 		open = true;
 	}
 	function hide() {
@@ -245,7 +253,7 @@ reveal after position calculation prevents layout flash.
 </div>
 
 {#if open}
-	<Portal>
+	<Portal target={portalTarget}>
 		<div
 			bind:this={floatingEl}
 			id={tooltipId}
