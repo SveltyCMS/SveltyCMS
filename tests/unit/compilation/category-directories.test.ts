@@ -62,6 +62,21 @@ describe("category directories", () => {
     await expect(fs.access(path.join(compiled, "blog"))).rejects.toThrow();
   });
 
+  it("leaves an existing category folder untouched (no write, so no live-data guard)", async () => {
+    const root = await tempRoot();
+    const existing = path.join(root, "blog");
+    await fs.mkdir(existing);
+    await fs.writeFile(path.join(existing, "posts.ts"), "export {};");
+    const before = (await fs.stat(existing)).mtimeMs;
+
+    await expect(
+      ensureCategoryDirectories([{ nodeType: "category", path: "/blog" }], [root]),
+    ).resolves.toBeUndefined();
+
+    expect((await fs.stat(existing)).mtimeMs).toBe(before);
+    expect((await fs.stat(path.join(existing, "posts.ts"))).isFile()).toBe(true);
+  });
+
   it("moves a category folder when its parent changes and leaves a reorder in place", async () => {
     const news = { _id: "news", nodeType: "category" as const, path: "/news" };
     const blog = {

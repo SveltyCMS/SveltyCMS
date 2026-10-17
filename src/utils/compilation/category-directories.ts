@@ -180,6 +180,14 @@ export async function ensureCategoryDirectories(
     for (const relative of relativeDirs) {
       const dir = resolvedCategoryDir(root, relative);
       if (!dir) continue;
+      // An existing folder needs no write, so it must not trip the live-data guard
+      // (a harness build over a checkout with local categories failed here).
+      try {
+        await fs.access(dir);
+        continue;
+      } catch {
+        // Missing: create it below.
+      }
       assertLiveDataWriteAllowed(dir);
       await fs.mkdir(dir, { recursive: true });
     }
