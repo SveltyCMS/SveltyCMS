@@ -17,7 +17,7 @@
  * - Fail-closed when `JWT_SECRET_KEY` is not configured
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { scryptSync, timingSafeEqual } from "node:crypto";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 
 /** Constant-time compare that pads to the longer input (no length leak). */
@@ -31,7 +31,7 @@ function constantTimeBufferEqual(a: Buffer, b: Buffer): boolean {
 }
 
 /**
- * Derive the share-link password HMAC secret from the JWT secret.
+ * Derive the share-link password salt from the JWT secret.
  * Domain-prefixed (like `apikey-hmac:` in api-keys.ts) so secrets are never
  * shared verbatim across subsystems. Throws if missing (fail-closed).
  */
@@ -44,13 +44,13 @@ function getShareLinkHmacSecret(): string {
 }
 
 /**
- * HMAC-SHA-256 hash of a share-link password (stored form).
+ * Scrypt KDF hash of a share-link password (stored form).
  * Resistant to offline brute-force: a leaked database cannot be cracked
  * without the server-side secret (unlike the legacy plain SHA-256 digest).
  */
 export function hashSharePassword(password: string): string {
-  // codeql[js/insufficient-password-hash]: HMAC-SHA-256 with server secret (not unsalted SHA-256); login passwords are Argon2id
-  return createHmac("sha256", getShareLinkHmacSecret()).update(password).digest("hex");
+  // Scrypt key derivation with server salt (CWE-916 compliant); login passwords are Argon2id
+  return scryptSync(password, getShareLinkHmacSecret(), 32).toString("hex");
 }
 
 /**

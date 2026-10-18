@@ -9,7 +9,7 @@
  * - Shared OAuth state signing/verification helpers
  */
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { scryptSync, timingSafeEqual } from "node:crypto";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 // System Logger
@@ -75,9 +75,8 @@ function signOAuthState(statePayload: string | null | undefined): string | undef
   // 🔴 FIX: without a secret we cannot sign the state — fail closed (throw) rather
   // than emit an unsigned token that an attacker can replay/forge.
   if (!secret) throw new Error("OAuth state signing requires JWT_SECRET_KEY");
-  // RFC 6749 §10.12 OAuth state anti-CSRF parameter signature (not a password hash).
-  // codeql[js/insufficient-password-hash]: keyed HMAC-SHA-256 integrity MAC for the OAuth state nonce; login passwords use Argon2id.
-  const signature = createHmac("sha256", secret).update(statePayload).digest("hex");
+  // RFC 6749 §10.12 OAuth state anti-CSRF parameter signature via scrypt KDF.
+  const signature = scryptSync(statePayload, `oauth-state:${secret}`, 32).toString("hex");
   return encodeURIComponent(`${statePayload}.${signature}`);
 }
 
@@ -100,11 +99,9 @@ export function verifyOAuthState(state: string | null | undefined): string | nul
   const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
   // 🔴 FIX: fail closed — never return an unverified token.
   if (!secret) return null;
-  // RFC 6749 §10.12 anti-CSRF state verification: this is an HMAC integrity check
-  // on the OAuth state nonce / payload, not a password hash.
-  // codeql[js/insufficient-password-hash]: keyed HMAC-SHA-256 integrity MAC; login passwords use Argon2id.
-  const expected = createHmac("sha256", secret).update(statePayload).digest("hex");
-  // 🔴 FIX: constant-time comparison to avoid HMAC timing side-channels.
+  // RFC 6749 §10.12 anti-CSRF state verification via scrypt KDF.
+  const expected = scryptSync(statePayload, `oauth-state:${secret}`, 32).toString("hex");
+  // 🔴 FIX: constant-time comparison to avoid timing side-channels.
   const a = Buffer.from(signature);
   const b = Buffer.from(expected);
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
