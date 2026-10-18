@@ -30,7 +30,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { wafGuard } from "./handle-waf-guard";
-import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
+import { isAiOrScannerBot } from "@src/services/security/threat-scan";
 import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
 import {
   hasPermissionBitmask,
@@ -130,9 +130,14 @@ function isLaneFlacExempt(
 ): boolean {
   try {
     if (getAllowedFieldSet(collectionId, role)) return false;
+    const wireMeta = getCollectionWireMeta(collectionId, tenantId);
+    if (wireMeta) {
+      return !wireMeta.hasGuardedFields;
+    }
     const schema = contentStore.getCollection(collectionId, tenantId as string) as
-      | { fields?: unknown[] }
+      | { fields?: unknown[]; _hasGuardedFields?: boolean }
       | undefined;
+    if (schema?._hasGuardedFields !== undefined) return !schema._hasGuardedFields;
     const fields = schema?.fields;
     return !Array.isArray(fields) || !hasGuardedFields(fields as never);
   } catch {
@@ -246,6 +251,8 @@ export interface CollectionWireMeta {
   publishedFields: Set<string>;
   /** True if schema defines lifecycle hooks that alter document read state */
   hasAfterReadHooks: boolean;
+  /** True if schema contains guarded fields subject to FLAC */
+  hasGuardedFields: boolean;
   /** Compiled default sort field & direction (e.g. "createdAt:desc") */
   defaultSort?: string;
   /** Compiled default limit (e.g. 25) */
@@ -254,12 +261,34 @@ export interface CollectionWireMeta {
   preSerializedMeta?: string;
 }
 
+let wireMetaVersion = -1;
+const wireMetaMap = new Map<string, CollectionWireMeta | null>();
+
 /**
- * Compiled wire-plane meta, memoized per schema object. `computeCollectionWireMeta`
- * builds a published-field Set per call; the lane compiles it once per schema
- * and reuses the result for every point read against that collection.
+ * Fast-path wire metadata lookup keyed by `${tenantId}:${collectionId}`.
+ * Invalidated automatically when `contentStore.contentVersion` increments.
  */
-const wireMetaCache = new WeakMap<object, CollectionWireMeta | null>();
+export function getCollectionWireMeta(
+  collectionId: string,
+  tenantId: string | null,
+): CollectionWireMeta | null {
+  if (wireMetaVersion !== contentStore.contentVersion) {
+    wireMetaMap.clear();
+    wireMetaVersion = contentStore.contentVersion;
+  }
+  const key = `${tenantId ?? "global"}:${collectionId}`;
+  const existing = wireMetaMap.get(key);
+  if (existing !== undefined) return existing;
+
+  const schema = contentStore.getCollection(collectionId, tenantId as string);
+  if (!schema) {
+    wireMetaMap.set(key, null);
+    return null;
+  }
+  const meta = computeCollectionWireMeta(schema);
+  wireMetaMap.set(key, meta);
+  return meta;
+}
 
 /**
  * Computes Wire Plane compilation metadata from a loaded collection Schema.
@@ -282,6 +311,10 @@ export function computeCollectionWireMeta(
     (schema as { afterRead?: unknown }).afterRead ||
     (schema as { afterFind?: unknown }).afterFind,
   );
+
+  const hasGuarded =
+    (schema as { _hasGuardedFields?: boolean })._hasGuardedFields ??
+    (Array.isArray(schema.fields) ? hasGuardedFields(schema.fields as never) : false);
 
   // Compile published fields from schema definition
   const publishedFields = new Set<string>(["_id", "createdAt", "updatedAt", "status"]);
@@ -328,6 +361,7 @@ export function computeCollectionWireMeta(
     defaultLocale,
     publishedFields,
     hasAfterReadHooks,
+    hasGuardedFields: hasGuarded,
     defaultSort,
     // `defaultLimit` mirrors the schema's defaultLimit or the query parser's fallback (50).
     defaultLimit: (schema as unknown as { defaultLimit?: number })?.defaultLimit ?? 50,
@@ -400,18 +434,35 @@ export function isWirePlaneAdmissible(
 
   if (!isSimpleCollectionRead(event)) return false;
 
+  const target = (event.locals as { __readTarget?: ReadLaneTarget | null } | undefined)
+    ?.__readTarget;
+  const isPoint = target
+    ? target.entryId != null
+    : splitPathSegments(event.url.pathname).length === 4;
+
   // Fast path for simple point reads with no query parameters
-  if (!event.url.search || event.url.search === "") {
+  if (isPoint && (!event.url.search || event.url.search === "")) {
     if (collectionMeta.hasAfterReadHooks) return false;
-    if (
-      event.cookies.get("preview") === "true" ||
-      event.cookies.get("preview_mode") === "true" ||
-      event.cookies.get("svelty_preview") === "true"
-    ) {
-      return false;
+    const cookieHeader = event.request.headers.get("cookie");
+    if (cookieHeader !== null) {
+      if (
+        cookieHeader.includes("preview") &&
+        (event.cookies.get("preview") === "true" ||
+          event.cookies.get("preview_mode") === "true" ||
+          event.cookies.get("svelty_preview") === "true")
+      ) {
+        return false;
+      }
+    } else {
+      if (
+        event.cookies.get("preview") === "true" ||
+        event.cookies.get("preview_mode") === "true" ||
+        event.cookies.get("svelty_preview") === "true"
+      ) {
+        return false;
+      }
     }
-    const parts = splitPathSegments(event.url.pathname);
-    if (parts.length === 4) return true;
+    return true;
   }
 
   const search = event.url.searchParams;
@@ -801,21 +852,7 @@ async function rebuildWarmCollectionRead(
   // The admission predicate owns that decision (unknown parameters fail closed inside
   // it); anything it declines falls through to LocalCMS findById below.
   if (entryId && dbAdapter?.crud?.findPointWireStream) {
-    const schema = contentStore.getCollection(collectionId, locals.tenantId as string);
-    // WeakMap plan: the compiled wire meta depends only on the schema object
-    // (the lane always compiles with the default locale), so a random-id scan
-    // reuses the first compilation instead of rebuilding the published-field
-    // Set per request. The cache keys on schema identity, which the content
-    // registry keeps stable across requests.
-    let wireMeta: CollectionWireMeta | null = null;
-    if (schema) {
-      if (wireMetaCache.has(schema)) {
-        wireMeta = wireMetaCache.get(schema) ?? null;
-      } else {
-        wireMeta = computeCollectionWireMeta(schema);
-        wireMetaCache.set(schema, wireMeta);
-      }
-    }
+    const wireMeta = getCollectionWireMeta(collectionId, locals.tenantId as string);
     if (wireMeta && isWirePlaneAdmissible(event, wireMeta)) {
       const wireRes = await dbAdapter.crud.findPointWireStream(
         collectionId,
@@ -840,7 +877,7 @@ async function rebuildWarmCollectionRead(
         marks?.set("build", 0);
         const cacheT0 = marks ? performance.now() : 0;
         if (entryId) {
-          responseCache.setPoint(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+          responseCache.setPointDirect(pathKey, apiBody, etag, 300_000, cacheTenant, {
             collection: collectionId,
             entryId,
           });
@@ -887,16 +924,7 @@ async function rebuildWarmCollectionRead(
   // fetches the wire body directly from the database engine using in-engine aggregation.
   // Benchmarked: SQLite +22.7% to +50.2% RPS gain; engines that decline fall through.
   if (!entryId && dbAdapter?.crud?.findListWireStream && listParams) {
-    const schema = contentStore.getCollection(collectionId, locals.tenantId as string);
-    let wireMeta: CollectionWireMeta | null = null;
-    if (schema) {
-      if (wireMetaCache.has(schema)) {
-        wireMeta = wireMetaCache.get(schema) ?? null;
-      } else {
-        wireMeta = computeCollectionWireMeta(schema);
-        wireMetaCache.set(schema, wireMeta);
-      }
-    }
+    const wireMeta = getCollectionWireMeta(collectionId, locals.tenantId as string);
     if (wireMeta && isWirePlaneAdmissible(event, wireMeta)) {
       const wireRes = await dbAdapter.crud.findListWireStream(collectionId, {
         tenantId: locals.tenantId as DatabaseId,
@@ -1120,21 +1148,19 @@ function laneHostIsLocal(hostname: string): boolean {
  * no body. A block is returned here so a warm cache entry is never the response.
  */
 function laneThreatResponse(event: RequestEvent): Response | null {
-  const pathLower = event.url.pathname.toLowerCase();
-  const userAgent = event.request.headers.get("user-agent") || "";
-  if (
-    isHoneypotPath(pathLower) ||
-    (isAiOrScannerBot(userAgent) && !laneHostIsLocal(event.url.hostname))
-  ) {
-    return new Response("", {
-      status: 200,
-      headers: {
-        "Content-Type": "text/plain",
-        "Content-Length": "0",
-        "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
-        "Cache-Control": "no-store",
-      },
-    });
+  if (!laneHostIsLocal(event.url.hostname)) {
+    const userAgent = event.request.headers.get("user-agent") || "";
+    if (isAiOrScannerBot(userAgent)) {
+      return new Response("", {
+        status: 200,
+        headers: {
+          "Content-Type": "text/plain",
+          "Content-Length": "0",
+          "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
   }
   const wafCheck = wafGuard.inspectEvent(event);
   if (!wafCheck.blocked) return null;

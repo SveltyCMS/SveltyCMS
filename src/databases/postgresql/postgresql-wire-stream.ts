@@ -77,7 +77,7 @@ export class PostgresWireStreamEngine {
         }
 
         const doc = `jsonb_build_object(${pairs.join(", ")})`;
-        const selectPrefix = `SELECT (CASE WHEN "data" IS NULL THEN ${doc} ELSE ("data" || ${doc}) END)::text AS doc_text, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const selectPrefix = `SELECT (CASE WHEN "data" IS NULL OR "data" = '{}'::jsonb THEN ${doc} ELSE ("data" || ${doc}) END)::text AS doc_text, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
         // 🔒 Soft-delete clamp: the public wire plane must never serve rows with
         // `isDeleted = true`, even when the caller asked for published content.
@@ -228,7 +228,7 @@ export class PostgresWireStreamEngine {
             pairs.push(`'${name}', "${name}"`);
           }
           const materialized = `jsonb_build_object(${pairs.join(", ")})`;
-          doc = `(CASE WHEN "data" IS NULL THEN ${materialized} ELSE ("data" || ${materialized}) END)`;
+          doc = `(CASE WHEN "data" IS NULL OR "data" = '{}'::jsonb THEN ${materialized} ELSE ("data" || ${materialized}) END)`;
         }
 
         const subSelect = `SELECT ${doc} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;

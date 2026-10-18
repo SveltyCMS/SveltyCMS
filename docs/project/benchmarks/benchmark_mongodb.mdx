@@ -42,18 +42,19 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(12/10/2026, 19:27:52)
+> [!NOTE]
+> **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
 
-**✅ PASS** · 33/39 tests · 6 skipped · **MONGODB** · Bun 1.4.2
+**✅ PASS** _(partial invocation)_ · 1/39 tests · 38 skipped · **mongodb** · standalone run
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    10 | 🟢     | +21550% | 0      |
-| **API**        |     9 | 🟢     | +42%    | 0      |
-| **Scale**      |    15 | 🟢     | -100%   | 0      |
-| **Resilience** |     5 | 🟢     | —       | 0      |
+| **Core**       |     2 | 🟢     | +8%     | 0      |
+| **API**        |     0 | ⚪     | —       | 0      |
+| **Scale**      |     0 | ⚪     | —       | 0      |
+| **Resilience** |     0 | ⚪     | —       | 0      |
 
 ### Issues (action required)
 
@@ -61,28 +62,27 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario               | Latency | Trend  | Budget   | Result |
-| ---------------------- | ------- | ------ | -------- | ------ |
-| **Cold Start**         | N/A     | ⚪ (—) | < 5000ms | ⚪ N/A |
-| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | ⚪ N/A |
-| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | ⚪ N/A |
-| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | ⚪ N/A |
+| Scenario  | Latency | Trend                                    | Budget | Result |
+| --------- | ------- | ---------------------------------------- | ------ | ------ |
+| **Cache** | 0.896ms | ⚪ stable at 0.939ms (±0.052ms) (2 runs) | < 5ms  | 🟢     |
+| **Cache** | 0.181ms | ⚪ stable at 0.167ms (±0.021ms) (2 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric | Trend | Sparkline | Latest |
-| ------ | ----- | --------- | ------ |
+| Metric                                           | Trend | Sparkline | Latest  |
+| ------------------------------------------------ | ----- | --------- | ------- |
+| api latency (HTTP: findById @ 8c (Cold)) (warm)  | 🟢    | `█▁`      | 3.269ms |
+| auth performance (Auth (full chain) @ 1c) (warm) | 🟢    | `▁`       | 0.327ms |
+| database performance (BULK INSERT (100)) (warm)  | 🟢    | `█▁`      | 3.202ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
 
 ```mermaid
 xychart-beta
-  title "MONGODB REST p95 (last 10 runs)"
+  title "mongodb REST p95 (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
@@ -101,68 +101,39 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    API LAYER LATENCY: [0.19, 0.05]
-    SRE TRUTH AUDIT: [0.12, 0.95]
-    COMPETITIVE 9-WORKLOAD REPLI: [0.10, 0.05]
-    MIDDLEWARE FLAMEGRAPH PROFIL: [0.13, 0.05]
-    Incremental Content Reload: [0.06, 0.05]
-    Database Adapter Raw CRUD: [0.05, 0.05]
-    REST API Performance: [0.19, 0.05]
-    GraphQL API Performance: [0.07, 0.05]
+    Cache: [0.18, 0.40]
 ```
 
 </details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
 <!-- EXECUTIVE_ALERTS_START -->
+<!-- EXECUTIVE_ALERTS_END -->
 
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
-### 🔴 Top Regressions
-
-> **🔴 graphql-cache-hit [Q2: Collections (L1 Hit)]** (mongodb): +97% | 2.10ms vs 1.07ms baseline
-> **🔴 graphql-cache-hit [Q1: Health (L1 Hit)]** (mongodb): +57% | 2.24ms vs 1.43ms baseline
-> **🔴 graphql-cache-hit [Q2: Collections (Cold Miss)]** (mongodb): +56% | 3.11ms vs 2.00ms baseline
-> **🔴 websocket-broadcast [Yjs CRDT Propagation]** (mongodb): +29% | 0.16ms vs 0.13ms baseline
-> **🔴 api-latency [HTTP: findById TURBO-HIT @ 8c (Warm)]** (mongodb): +29% | 0.99ms vs 0.77ms baseline
-
-### 🟢 Top Improvements
-
-> **competitive-workload-replica [update (Warm Concurrent 8c)]** (mongodb): -59% | 2.76ms vs 6.78ms baseline
-> **sharp-vs-bun-image [Bun.Image Metadata (header-only)]** (mongodb): -59% | 0.00ms vs 0.01ms baseline
-> **competitive-workload-replica [update (Warm Sequential)]** (mongodb): -58% | 1.06ms vs 2.52ms baseline
-> **entry-edit-hydration [Widget Prefetch (5 types)]** (mongodb): -57% | 0.02ms vs 0.04ms baseline
-> **scale-spectrum [listFilterSort @ 50000]** (mongodb): -53% | 0.88ms vs 1.87ms baseline
-
-<!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
+<!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-09-30)
+### Current Run Summary (2026-10-17)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a0f2eb-3fc5-7070-b340-71437b5a6870` · **Tests invoked:** 1 · **Metrics:** 5 · **DB:** mongodb
+**Run ID:** `01a14a7b-5a53-75f6-b3f5-31f19720d853` · **Tests invoked:** 1 · **Metrics:** 2 · **DB:** mongodb
 
-| Test              | Metric                        | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                            |
-| ----------------- | ----------------------------- | -------- | -------- | ----- | ----- | --------------------------------- |
-| Hooks Performance | Static Asset (No Middleware)  | 0.838    | 1.802    | 4207  | 🟢    | ⚪ established at 0.838ms (1 run) |
-| Hooks Performance | Turbo Pipeline (Light)        | 0.448    | 0.788    | 7856  | 🟢    | ⚪ established at 0.448ms (1 run) |
-| Hooks Performance | Full Security + Auth Pipeline | 0.285    | 0.518    | 11771 | 🟢    | ⚪ established at 0.285ms (1 run) |
-| Hooks Performance | REST with API Caching         | 0.295    | 0.467    | 12266 | 🟢    | ⚪ established at 0.295ms (1 run) |
-| Hooks Performance | Mutation + Audit Logging      | 1.315    | 1.978    | 705   | 🟢    | ⚪ established at 1.31ms (1 run)  |
+| Test              | Metric              | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
+| ----------------- | ------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
+| Cache Performance | Cache Miss (Bypass) | 0.896    | 1.103    | 1097 | 🟢    | ⚪ established at 0.896ms (1 run) |
+| Cache Performance | Cache Hit (L1 Warm) | 0.181    | 0.254    | 5372 | 🟢    | ⚪ established at 0.181ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-10-12)
+### Historical Trends (2026-10-17)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -567,18 +538,17 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ Cache</strong> · 🟢 0.478ms · ➡️ recorded (awaiting trend) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Cache</strong> · 🟢 0.181ms · ➡️ ⚪ established at 0.181ms (1 run) (2026-10-17 15:29:28) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                                  SVELTYCMS — CACHE SERVICE TELEMETRY                                  ║
-║                             File: tests/benchmarks/cache-service.test.ts                              ║
-║                                       Ran: 2026-10-06 12:44:28                                        ║
-║               Measures L1 cache hit latency and pattern invalidation overhead at scale.               ║
+║                                  SVELTYCMS — CACHE EFFICIENCY AUDIT                                   ║
+║                           File: tests/benchmarks/cache-performance.test.ts                            ║
+║                                       Ran: 2026-10-17 15:29:28                                        ║
+║         Measures cache hit vs miss latency and efficiency via real HTTP end-to-end requests.          ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Cache L1 Hit                 │ Cold:     0.25 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 1,533,307 RPS ║
-║ Pattern Invalidation (1k items @ 25k noise) │        0.478 ms │ p95:        1.127 ms │ RPS:      2,090 ║
-║ Pattern Invalidation (Namespaced 1k @ 50k noise) │        0.717 ms │ p95:        1.161 ms │ RPS:      1,394 ║
+║ Cache Miss (Bypass)          │ Cold:     2.77 ms │ Warm:     0.896 ms │ p95:     1.103 ms │   1,097 RPS ║
+║ Cache Hit (L1 Warm)          │ Cold:     0.81 ms │ Warm:     0.181 ms │ p95:     0.254 ms │   5,372 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 <!-- LEDGER_TRUTH_END -->

@@ -27,6 +27,10 @@ class ContentStore {
   private _schemaAliasIndex = new Map<string, string>();
   /** Fast-path cached sanitized client nodes per tenant. */
   private _clientNodesCache = new Map<string, ContentNode[]>();
+  /** Fast-path cached schema list per tenant, cleared on updateVersion. */
+  private _collectionsCache = new Map<string, Schema[]>();
+  /** Fast O(1) schema lookup cache per tenant and query key, cleared on updateVersion. */
+  private _collectionLookupCache = new Map<string, Schema | null>();
   /** Memoized first-collection per tenant, invalidated on contentVersion bump. */
   private _firstCollectionMemo = new Map<string, { version: number; schema: Schema | null }>();
   /** Tenants that completed content initialization, including empty tenants. */
@@ -97,15 +101,23 @@ class ContentStore {
 
   getCollections(tenantId?: string | null): Schema[] {
     const tid = this._tenantKey(tenantId);
+    const cached = this._collectionsCache.get(tid);
+    if (cached) return cached;
+
     const nodes = this._nodes.get(tid) || [];
     const fromNodes = nodes
       .filter((n) => n.nodeType === "collection" && n.collectionDef)
       .map((n) => n.collectionDef!);
-    if (fromNodes.length > 0) return fromNodes;
-    const explicit = this._collections.get(tid);
-    if (explicit && explicit.length > 0) return explicit;
-    if (tid === "global") return Array.from(this._schemas.values());
-    return [];
+    const result =
+      fromNodes.length > 0
+        ? fromNodes
+        : (this._collections.get(tid)?.length ?? 0) > 0
+          ? this._collections.get(tid)!
+          : tid === "global"
+            ? Array.from(this._schemas.values())
+            : [];
+    this._collectionsCache.set(tid, result);
+    return result;
   }
 
   getAllCollections(tenantId?: string | null): Schema[] {
@@ -113,11 +125,24 @@ class ContentStore {
   }
 
   getCollection(id: string, tenantId?: string | null): Schema | undefined {
+    if (!id) return undefined;
+    const tid = this._tenantKey(tenantId);
+    const cacheKey = `${tid}:${id}`;
+    if (this._collectionLookupCache.has(cacheKey)) {
+      return this._collectionLookupCache.get(cacheKey) ?? undefined;
+    }
+
     const found = this._findCollectionInList(this.getCollections(tenantId), id);
-    if (found) return found;
+    if (found) {
+      this._collectionLookupCache.set(cacheKey, found);
+      return found;
+    }
 
     let schema = this._schemas.get(id);
-    if (schema) return schema;
+    if (schema) {
+      this._collectionLookupCache.set(cacheKey, schema);
+      return schema;
+    }
 
     const cleanId = id.replace(/^\/+/, "").toLowerCase();
     const stripped = cleanId.replace(/^collection\//, "");
@@ -129,7 +154,10 @@ class ContentStore {
       this._schemaAliasIndex.get(normalized);
     if (aliasId) {
       schema = this._schemas.get(aliasId);
-      if (schema) return schema;
+      if (schema) {
+        this._collectionLookupCache.set(cacheKey, schema);
+        return schema;
+      }
     }
 
     // Slow fallback + self-heal index (legacy / partial indexes)
@@ -159,6 +187,7 @@ class ContentStore {
     if (schema?._id) {
       this._indexSchemaAliases(schema);
     }
+    this._collectionLookupCache.set(cacheKey, schema ?? null);
     return schema;
   }
 
@@ -474,6 +503,8 @@ class ContentStore {
 
   updateVersion() {
     this._clientNodesCache.clear();
+    this._collectionsCache.clear();
+    this._collectionLookupCache.clear();
     this._firstCollectionMemo.clear();
     this.contentVersion++;
   }

@@ -727,7 +727,9 @@ class ResponseCacheService {
    */
   public get(key: string, tenantId?: string | null): CachedResponseEntry | null {
     const fullKey = this.buildKey(key, tenantId);
-    const store = this.storeForUserKey(key);
+    const slot = classifyTurboKey(key);
+    const isPoint = slot?.entryId != null;
+    const store = isPoint ? this.pointL1 : this.localL1;
     const local = store.get(fullKey);
 
     if (local) {
@@ -735,19 +737,21 @@ class ResponseCacheService {
         this.removeEntry(store, fullKey);
         this.unindexKey(fullKey);
       } else {
-        this.maybeAttachBuffer(local, store === this.pointL1);
+        this.maybeAttachBuffer(local, isPoint);
         return local;
       }
     }
+
+    // Point reads are never written to shared L2 (bounded FIFO localL1 only)
+    if (isPoint) return null;
 
     const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
     if (entry && !this.isExpired(entry)) {
       if (!entry.buffer && textEncoder && entry.body) {
         entry.buffer = textEncoder.encode(entry.body);
       }
-      const max = store === this.pointL1 ? MAX_POINT_L1_ENTRIES : MAX_L1_ENTRIES;
       this.putEntry(store, fullKey, entry);
-      this.enforceL1Capacity(store, max);
+      this.enforceL1Capacity(store, MAX_L1_ENTRIES);
       this.indexKey(fullKey, key, tenantId);
       return entry;
     }
@@ -857,6 +861,38 @@ class ResponseCacheService {
 
     entry.expiresAt = Date.now() + ttlMs;
     entry.stale = false;
+    this.putEntry(this.pointL1, fullKey, entry);
+    this.enforceL1Capacity(this.pointL1, MAX_POINT_L1_ENTRIES);
+    if (meta?.collection && meta?.entryId) {
+      this.indexPointKey(fullKey, tenantId, meta.collection, meta.entryId);
+    } else {
+      this.indexKey(fullKey, key, tenantId);
+    }
+  }
+
+  /**
+   * Zero-allocation cache set dedicated to point reads.
+   * Avoids allocating an entry object wrapper when the admission filter rejects.
+   */
+  public setPointDirect(
+    key: string,
+    body: string,
+    etag: string,
+    ttlMs: number = 300_000,
+    tenantId?: string | null,
+    meta?: { collection: string; entryId: string },
+    compressed?: Record<string, Uint8Array>,
+  ): void {
+    const fullKey = this.buildKey(key, tenantId);
+    if (!this.admitPointRead(fullKey)) return;
+
+    const entry: CachedResponseEntry = {
+      body,
+      etag,
+      expiresAt: Date.now() + ttlMs,
+      stale: false,
+      ...(compressed ? { compressed } : {}),
+    };
     this.putEntry(this.pointL1, fullKey, entry);
     this.enforceL1Capacity(this.pointL1, MAX_POINT_L1_ENTRIES);
     if (meta?.collection && meta?.entryId) {
