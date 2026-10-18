@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/seo/components/MetaInput.svelte
+@file src/widgets/custom/seo/components/meta-input.svelte
 @component
 Reusable character-counted input for SEO meta fields (title, description).
 Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.

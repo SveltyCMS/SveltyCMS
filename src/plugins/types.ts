@@ -216,6 +216,8 @@ export interface PluginServerModule {
   migrations?: PluginMigration[];
   /** SSR hook resolved per enabled collection (e.g. pagespeed). */
   ssrHook?: PluginSSRHook;
+  /** Server-side parts (routes, schemas, etc.) merged at boot/activation. */
+  parts?: PluginPart[];
 }
 
 // Injection Zones for Slot System

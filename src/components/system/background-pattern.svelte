@@ -46,7 +46,7 @@ and configurable quality settings for weaker devices.
 		animationDirection = 'normal',
 		quality = 'medium', // New quality setting
 		autoDetectPerformance = true // Automatically adjust quality based on device
-	} = $props<{
+	}: {
 		background?: 'white' | '#242728';
 		startDirection?:
 			| 'TopLeft'
@@ -65,10 +65,10 @@ and configurable quality settings for weaker devices.
 		animationDirection?: 'normal' | 'reverse';
 		quality?: 'low' | 'medium' | 'high';
 		autoDetectPerformance?: boolean;
-	}>();
+	} = $props();
 
 	// Performance-based configuration
-	let actualQuality = $state(untrack(() => quality));
+	let actualQuality = $state<'low' | 'medium' | 'high'>(untrack(() => quality));
 	$effect(() => {
 		// Sync local state when prop changes, but only if not overriding via auto-detection
 		if (!autoDetectPerformance) {

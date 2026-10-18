@@ -102,11 +102,13 @@ test.describe.serial("User Profile Management", () => {
     await expect(openLink).toBeAttached({ timeout: 20_000 });
     await expect(openLink).toHaveAttribute("href", /\/config\/design-system(\?tab=overrides)?/);
 
-    // Navigate via the real href (SPA-safe); force-click as fallback if layout intercepts
+    // Navigate via the real href (SPA-safe). No force: a link the shell
+    // intercepts is a product bug, and Playwright's actionability check is the
+    // assertion we want.
     await openLink.scrollIntoViewIfNeeded().catch(() => {});
     await Promise.all([
       page.waitForURL(/\/config\/design-system/, { timeout: 20_000 }),
-      openLink.click({ force: true }),
+      openLink.click(),
     ]).catch(async () => {
       // Last resort: follow href attribute directly (still validates the link target)
       const href = await openLink.getAttribute("href");
@@ -144,7 +146,11 @@ test.describe.serial("User Profile Management", () => {
       .first();
     const avatarModal = page.locator(".modal-avatar").first();
     await expect(async () => {
-      await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
+      if (!(await avatarModal.isVisible().catch(() => false))) {
+        await editAvatarBtn
+          .click({ timeout: 2_000 })
+          .catch(() => editAvatarBtn.evaluate((el: HTMLElement) => el.click()));
+      }
       await expect(avatarModal).toBeVisible({ timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
 

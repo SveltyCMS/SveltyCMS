@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/RichText/Input.svelte
+@file src/widgets/core/rich-text/input.svelte
 @component SveltyCMS – Enterprise RichText Editor (2025 Edition)
 -->
 

@@ -316,6 +316,122 @@ describe("User API Unit Tests", () => {
     expect(response.status).toBe(403);
   });
 
+  it("rejects an email fallback that resolves into another tenant (409 EMAIL_IN_USE)", async () => {
+    const updateSpy = vi.fn().mockResolvedValue({
+      success: false,
+      message: "User not found",
+    });
+    (dbAdapter as any).auth.updateUserAttributes = updateSpy;
+    (dbAdapter as any).auth.getUserByEmail = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        _id: "user-b",
+        email: "shared@test.com",
+        tenantId: "t2",
+        role: "admin",
+        isAdmin: true,
+      },
+    });
+
+    const caller = createMockUser({
+      _id: "user-a",
+      email: "shared@test.com",
+      role: "admin",
+      isAdmin: true,
+    } as any);
+
+    const response = await invokeApi("PUT", {
+      path: "user/update-user-attributes",
+      body: { user_id: "user-a", newUserData: { username: "x" } },
+      user: caller,
+      tenantId: "t1",
+      roles: adminRoles,
+      dbAdapter,
+      bypass: true,
+    });
+
+    expect(response.status).toBe(409);
+    expect((await response.json()).code).toBe("EMAIL_IN_USE");
+    // The foreign user is never written to.
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves a stale self id by email within the same tenant", async () => {
+    const caller = createMockUser({
+      _id: "user-a",
+      email: "shared@test.com",
+      role: "admin",
+      isAdmin: true,
+    } as any);
+    const updateSpy = vi
+      .fn()
+      .mockResolvedValueOnce({ success: false, message: "User not found" })
+      .mockResolvedValue({ success: true, data: { ...caller, _id: "user-a2", username: "x" } });
+    (dbAdapter as any).auth.updateUserAttributes = updateSpy;
+    (dbAdapter as any).auth.getUserByEmail = vi.fn().mockResolvedValue({
+      success: true,
+      data: {
+        _id: "user-a2",
+        email: "shared@test.com",
+        tenantId: "t1",
+        role: "admin",
+        isAdmin: true,
+      },
+    });
+
+    const response = await invokeApi("PUT", {
+      path: "user/update-user-attributes",
+      body: { user_id: "user-a", newUserData: { username: "x" } },
+      user: caller,
+      tenantId: "t1",
+      roles: adminRoles,
+      dbAdapter,
+      bypass: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(updateSpy).toHaveBeenLastCalledWith(
+      "user-a2",
+      expect.objectContaining({ username: "x" }),
+      expect.objectContaining({ tenantId: "t1" }),
+    );
+  });
+
+  it("keeps the existing conflict response for a same-tenant duplicate email", async () => {
+    const updateSpy = vi.fn().mockResolvedValue({
+      success: false,
+      message: "User with email dup@test.com already exists",
+    });
+    const emailSpy = vi.fn();
+    (dbAdapter as any).auth.updateUserAttributes = updateSpy;
+    (dbAdapter as any).auth.getUserByEmail = emailSpy;
+
+    const caller = createMockUser({
+      _id: "user-a",
+      email: "caller@test.com",
+      role: "admin",
+      isAdmin: true,
+    } as any);
+
+    const response = await invokeApi("PUT", {
+      path: "user/update-user-attributes",
+      body: {
+        user_id: "user-a",
+        newUserData: { email: "dup@test.com" },
+      },
+      user: caller,
+      tenantId: "t1",
+      roles: adminRoles,
+      dbAdapter,
+      bypass: true,
+    });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).message).toContain("already exists");
+    // A conflict is not a "not found" fallback case.
+    expect(emailSpy).not.toHaveBeenCalled();
+  });
+
   it("strips role/isAdmin on PUT /user/:id self (alternate escalate path)", async () => {
     const updateSpy = vi.fn().mockResolvedValue({
       success: true,
@@ -601,6 +717,39 @@ describe("User API Unit Tests", () => {
         "u2",
         expect.anything(),
       );
+    });
+
+    it("GET user/sessions returns the dual envelope and marks exactly one current session", async () => {
+      (dbAdapter as any).auth.getActiveSessions = vi.fn().mockResolvedValue({
+        success: true,
+        data: [
+          { _id: "sess-current", user_id: "u1", rotated: false, userAgent: "UA-current" },
+          { _id: "sess-other", user_id: "u1", rotated: false, userAgent: "UA-other" },
+          { _id: "sess-rotated", user_id: "u1", rotated: true },
+        ],
+      });
+
+      const response = await invokeApi("GET", {
+        path: "user/sessions",
+        user: adminUser,
+        tenantId: "t1",
+        roles: adminRoles,
+        dbAdapter,
+        // The E2E bug: turbo/auth fast paths must carry this through.
+        locals: { session_id: "sess-current" } as any,
+      });
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.success).toBe(true);
+      // Both clients must work: the E2E reads `sessions`, the admin modal reads `data`.
+      expect(body.sessions).toHaveLength(2);
+      expect(body.data).toEqual(body.sessions);
+      // Soft-rotated sessions stay hidden, and only one row is current.
+      expect(body.sessions.some((s: { _id: string }) => s._id === "sess-rotated")).toBe(false);
+      const current = body.sessions.filter((s: { isCurrent: boolean }) => s.isCurrent);
+      expect(current).toHaveLength(1);
+      expect(current[0]._id).toBe("sess-current");
     });
   });
 });

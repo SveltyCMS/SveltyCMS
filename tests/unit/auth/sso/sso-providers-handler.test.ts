@@ -33,16 +33,19 @@ describe("handleSsoProvidersRoute", () => {
 
   beforeEach(() => {
     clearSsoProviders();
-    registerSsoProvider({
-      id: "google",
-      name: "Google Workspace",
-      icon: "flat-color-icons:google",
-      issuer: "https://accounts.google.com",
-      clientId: "google-client-id-123",
-      clientSecret: "top-secret-google-key",
-      allowedRedirectUris: ["https://example.com/callback"],
-      defaultRole: "editor",
-    });
+    registerSsoProvider(
+      {
+        id: "google",
+        name: "Google Workspace",
+        icon: "flat-color-icons:google",
+        issuer: "https://accounts.google.com",
+        clientId: "google-client-id-123",
+        clientSecret: "top-secret-google-key",
+        allowedRedirectUris: ["https://example.com/callback"],
+        defaultRole: "editor",
+      },
+      tenantId,
+    );
   });
 
   describe("GET /api/auth/sso-providers", () => {
@@ -180,7 +183,7 @@ describe("handleSsoProvidersRoute", () => {
       expect(body.data.count).toBe(1);
 
       // Verify internal state retains unmasked secret
-      const internalProviders = getAllSsoProviders();
+      const internalProviders = getAllSsoProviders(tenantId);
       expect(internalProviders).toHaveLength(1);
       expect(internalProviders[0].clientSecret).toBe("my-azure-secret");
       expect(internalProviders[0].jitProvisioning).toBe(true);
@@ -216,7 +219,7 @@ describe("handleSsoProvidersRoute", () => {
       expect(body.data.count).toBe(1);
 
       // Verify original secret "top-secret-google-key" was preserved, NOT overwritten with bullet characters
-      const internal = getAllSsoProviders();
+      const internal = getAllSsoProviders(tenantId);
       expect(internal[0].name).toBe("Google Workspace Updated");
       expect(internal[0].defaultRole).toBe("admin");
       expect(internal[0].clientSecret).toBe("top-secret-google-key");

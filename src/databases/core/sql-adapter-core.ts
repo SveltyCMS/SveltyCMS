@@ -21,6 +21,7 @@
  * - materialized-column registry shared by createModel and schema prewarm
  * - prepared queryBuilder list/count via executeCompiled
  * - lazy list index for a physical sort other than updatedAt
+ * - pure JSON-merge / value-preparation / soft-delete predicates live in `src/databases/sql/`
  */
 import { BaseAdapter } from "./base-adapter";
 import type {
@@ -55,7 +56,7 @@ import { normalizeCollectionTableName } from "./collection-name";
 import { generateUUID } from "@utils/native-utils";
 import { serializeSuccessEnvelope } from "@utils/fast-json";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
-import { hasIsoDateTimePrefix, nowISODateString } from "@src/utils/date";
+import { nowISODateString } from "@src/utils/date";
 import {
   count as drizzleCount,
   getTableColumns,
@@ -111,6 +112,22 @@ import { isPublishedStatus } from "@src/utils/security/publication-policy";
 import { StatementCoalescer } from "./statement-coalescer";
 import { translateAggregation } from "./aggregation-translator";
 import { SqlQueryBuilder, type SqlDialect, readCount, SQLITE_DIALECT } from "./sql-query-builder";
+import {
+  applyInsertDefaults,
+  buildInsertDefaultsPlan,
+  coerceDateBindValue,
+  collectDateColumnKeys,
+  isDateColumnKey,
+  isJsonSerializableValue,
+  type InsertDefaultEntry,
+} from "../sql/value-preparation";
+import {
+  canMergeJsonPatchInOneStatement,
+  jsonMergeSqlValue,
+  jsonMergeWrapperExpression,
+  mergeJsonPatchShallow,
+} from "../sql/json-merge";
+import { isSoftDeletedRow, queryHasSoftDeleteKey } from "../sql/read-predicates";
 
 // ============================================================================
 // System table schema pre-registration (module scope — evaluated once)
@@ -202,35 +219,6 @@ export type RawListWireStreamResult =
  */
 export const RAW_DECLINED: unique symbol = Symbol("SveltyCMS.RAW_DECLINED");
 export type RawFindResult<T> = T | null | typeof RAW_DECLINED;
-
-/**
- * True when a raw point-read row carries the soft-delete flag set. The raw
- * projections include `isDeleted`, so `findById` can enforce `includeDeleted`
- * without a second query. SQLite stores it as 0/1, PG/MariaDB as a boolean.
- */
-function isSoftDeleted(row: unknown): boolean {
-  const v = (row as { isDeleted?: unknown } | null | undefined)?.isDeleted;
-  return v === true || v === 1 || v === "1" || v === "true";
-}
-
-/**
- * True when a filter already pins `isDeleted` — top level or inside `$and`
- * (which `findPage`'s keyset merge wraps a base query in). An explicit filter
- * wins over the automatic live-row clamp: the trash view queries
- * `{ isDeleted: true }` and must keep seeing deleted rows.
- */
-function queryHasSoftDeleteKey(query: unknown): boolean {
-  if (!query || typeof query !== "object") return false;
-  const rec = query as Record<string, unknown>;
-  if (Object.prototype.hasOwnProperty.call(rec, "isDeleted")) return true;
-  const and = rec.$and;
-  if (Array.isArray(and)) {
-    for (let i = 0; i < and.length; i++) {
-      if (queryHasSoftDeleteKey(and[i])) return true;
-    }
-  }
-  return false;
-}
 
 const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -564,51 +552,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // Instance-level cache to skip even the Map.has() call after first registration
   protected _registeredSchemas = new Set<string>();
 
-  protected _insertDefaultsPlanCache = new WeakMap<
-    object,
-    Array<{
-      name: string;
-      def?: unknown;
-      isBooleanDef?: boolean;
-      defaultFn?: () => unknown;
-      isTimestamp?: boolean;
-    }>
-  >();
+  protected _insertDefaultsPlanCache = new WeakMap<object, InsertDefaultEntry[]>();
 
   protected getInsertDefaultsPlan(tableCols: Record<string, any>) {
     let plan = this._insertDefaultsPlanCache.get(tableCols);
     if (plan) return plan;
 
-    plan = [];
-    for (const name in tableCols) {
-      if (!Object.hasOwn(tableCols, name)) continue;
-      const col = tableCols[name] as {
-        default?: unknown;
-        defaultFn?: () => unknown;
-      };
-      const def = col.default;
-      const isTimestamp = name === "createdAt" || name === "updatedAt";
-      if (
-        def !== undefined &&
-        (typeof def !== "object" || Object.getPrototypeOf(def) === Object.prototype)
-      ) {
-        plan.push({
-          name,
-          def,
-          isBooleanDef: typeof def === "boolean",
-        });
-      } else if (typeof col.defaultFn === "function") {
-        plan.push({
-          name,
-          defaultFn: col.defaultFn,
-        });
-      } else if (isTimestamp) {
-        plan.push({
-          name,
-          isTimestamp: true,
-        });
-      }
-    }
+    plan = buildInsertDefaultsPlan(tableCols);
     this._insertDefaultsPlanCache.set(tableCols, plan);
     return plan;
   }
@@ -626,33 +576,16 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     values: Record<string, any>,
     opts?: { intBooleans?: boolean },
   ): Record<string, any> {
-    const result: Record<string, any> = { ...values };
     // 🚀 Reuse the warm per-table column cache (populated by prepareValues /
     // getRawFindByIdCols) instead of re-walking getTableColumns per insert.
     const cached = this._tableColumnsCache.get(table);
     const tableCols = cached ?? getTableColumns(table);
     if (!cached && tableCols) this._tableColumnsCache.set(table, tableCols);
+    if (!tableCols) return { ...values };
 
-    if (tableCols) {
-      const plan = this.getInsertDefaultsPlan(tableCols);
-      let now: Date | string | undefined;
-      const stamp = () => (now ??= this.writeNow());
-
-      for (let i = 0; i < plan.length; i++) {
-        const item = plan[i];
-        const name = item.name;
-        if (result[name] !== undefined) continue;
-
-        if (item.isTimestamp) {
-          result[name] = stamp();
-        } else if (item.defaultFn) {
-          result[name] = item.defaultFn();
-        } else if (item.def !== undefined) {
-          result[name] = opts?.intBooleans && item.isBooleanDef ? (item.def ? 1 : 0) : item.def;
-        }
-      }
-    }
-    return result;
+    const plan = this.getInsertDefaultsPlan(tableCols);
+    let now: Date | string | undefined;
+    return applyInsertDefaults(values, plan, () => (now ??= this.writeNow()), opts);
   }
 
   /** Whether INSERT … RETURNING is supported natively. */
@@ -713,10 +646,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         `Cannot merge partial update: no row "${String(id)}" to merge into (fail-closed, nothing written)`,
       );
     }
-    const merged: Record<string, unknown> = { ...stored };
-    for (const key in patch) {
-      if (Object.hasOwn(patch, key)) merged[key] = patch[key];
-    }
+    const merged = mergeJsonPatchShallow(stored, patch);
     values.data = this.shouldJsonSerializeInPrepare ? JSON.stringify(merged) || "{}" : merged;
     clearJsonDataPatch(values);
   }
@@ -730,7 +660,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * PostgreSQL form — `jsonPatchMergeMode` is `"operator"` there.
    */
   protected jsonMergeWrapper(colSql: string): { prefix: string; suffix: string } {
-    return { prefix: `COALESCE(${colSql}, '{}'::jsonb) || `, suffix: `::jsonb` };
+    return jsonMergeWrapperExpression(colSql);
   }
 
   /**
@@ -739,7 +669,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * `json_patch`/`JSON_MERGE_PATCH` express identically to a shallow merge.
    */
   public canMergeJsonInOneStatement(patch: Record<string, unknown>): boolean {
-    return this.jsonPatchMergeMode === "operator" || !jsonPatchNeedsJsMerge(patch);
+    return canMergeJsonPatchInOneStatement(this.jsonPatchMergeMode, patch);
   }
 
   /**
@@ -749,10 +679,10 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    */
   public jsonMergeSetValue(table: any, patch: Record<string, unknown>): SQL {
     const physName = this.getColumn(table, "data")?.name ?? "data";
-    const { prefix, suffix } = this.jsonMergeWrapper(
+    const wrapper = this.jsonMergeWrapper(
       this.quoteIdentifier(assertSafeSqlIdentifier(physName, "column")),
     );
-    return sql`${sql.raw(prefix)}${JSON.stringify(patch)}${sql.raw(suffix)}`;
+    return jsonMergeSqlValue(wrapper, patch);
   }
 
   /**
@@ -1338,29 +1268,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     let keys = this._dateKeyCache.get(schemaCols);
     if (keys) return keys;
 
-    keys = new Set<string>();
-    for (const k in schemaCols) {
-      if (!Object.hasOwn(schemaCols, k)) continue;
-      const col = schemaCols[k];
-      const isSpecial = k === "createdAt" || k === "updatedAt";
-      const mayBeDate =
-        isSpecial ||
-        k.includes("Date") ||
-        k.includes("date") ||
-        k.includes("At") ||
-        k.includes("Time") ||
-        k.includes("time");
-      if (
-        isSpecial ||
-        (mayBeDate &&
-          (col?.dataType === "date" ||
-            (col?.columnType && String(col.columnType).includes("Timestamp")) ||
-            col?.config?.dataType === "date" ||
-            (col?.config?.columnType && String(col.config.columnType).includes("Timestamp"))))
-      ) {
-        keys.add(k);
-      }
-    }
+    keys = collectDateColumnKeys(schemaCols);
     this._dateKeyCache.set(schemaCols, keys);
     return keys;
   }
@@ -1428,45 +1336,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             isDateColumn = dateKeys.has(k);
           } else {
             // Fallback (no schemaCols): identical original per-key predicate.
-            const isSpecialTimestamp = k === "createdAt" || k === "updatedAt";
-            const mayBeDate =
-              isSpecialTimestamp ||
-              k.includes("Date") ||
-              k.includes("date") ||
-              k.includes("At") ||
-              k.includes("Time") ||
-              k.includes("time");
-            isDateColumn =
-              isSpecialTimestamp ||
-              (mayBeDate &&
-                (isPhysical?.dataType === "date" ||
-                  (isPhysical?.columnType && String(isPhysical.columnType).includes("Timestamp")) ||
-                  isPhysical?.config?.dataType === "date" ||
-                  (isPhysical?.config?.columnType &&
-                    String(isPhysical.config.columnType).includes("Timestamp"))));
+            isDateColumn = isDateColumnKey(k, isPhysical);
           }
 
           if (isDateColumn) {
-            if (this.persistTimestampsAsDate) {
-              if (typeof val === "number" && val > 0) {
-                val = new Date(val);
-              } else if (typeof val === "string" && hasIsoDateTimePrefix(val)) {
-                const ts = Date.parse(val);
-                if (!isNaN(ts)) {
-                  val = new Date(ts);
-                }
-              }
-            } else if (val instanceof Date && !Number.isNaN(val.getTime())) {
-              val = val.toISOString();
-            } else if (typeof val === "number" && val > 0) {
-              val = new Date(val).toISOString();
-            }
-          } else if (
-            this.shouldJsonSerializeInPrepare &&
-            typeof val === "object" &&
-            val !== null &&
-            !(val instanceof Date)
-          ) {
+            val = coerceDateBindValue(val, this.persistTimestampsAsDate);
+          } else if (this.shouldJsonSerializeInPrepare && isJsonSerializableValue(val)) {
             val = JSON.stringify(val);
           }
           values[k] = val;
@@ -1676,7 +1551,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
       // 🔒 Soft-delete clamp: a non-permanent delete only sets `isDeleted`, so
       // the caller's filter must be AND-ed with a live-row predicate.
-      const effectiveQuery = this.clampSoftDeleted(table, q as any, options);
+      const effectiveQuery = this.clampSoftDeleted<T>(table, q, options);
 
       // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters compiled once with limit=1
       if (this.executeCompiled && !options.transaction) {
@@ -1982,7 +1857,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
 
       // 🔒 Soft-delete clamp (see findOne / clampSoftDeleted).
-      const effectiveQuery = this.clampSoftDeleted(table, q as any, options);
+      const effectiveQuery = this.clampSoftDeleted<T>(table, q, options);
 
       // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters + sort + limit/offset compiled once
       if (this.executeCompiled && !options.transaction) {
@@ -2320,7 +2195,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           // `null` = the SELECT ran and matched 0 rows → definitively absent:
           // return it instead of re-running the identical Drizzle SELECT.
           if (rawResult !== RAW_DECLINED) {
-            if (rawResult !== null && clampDeleted && isSoftDeleted(rawResult)) return null;
+            if (rawResult !== null && clampDeleted && isSoftDeletedRow(rawResult)) return null;
             return rawResult as T | null;
           }
         }
@@ -2910,7 +2785,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       () => this.executeUpdate(collection, id, data, options),
       "UPDATE_FAILED",
       undefined,
-      { ...options, isWrite: true, skipMeta: true },
+      { ...options, isWrite: true, skipMeta: true, operation: "update" },
     );
   }
 

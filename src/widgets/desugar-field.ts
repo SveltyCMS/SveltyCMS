@@ -286,6 +286,28 @@ export function evaluateCondition(
 }
 
 /**
+ * Visibility for a field in an entry form. A missing/empty `showIf` means visible.
+ */
+export function isFieldVisible(
+  field: Pick<BaseField, "showIf">,
+  data: Record<string, unknown> | null | undefined,
+): boolean {
+  return evaluateCondition(field.showIf, data);
+}
+
+/**
+ * Effective requiredness for a field: the static flag OR a satisfied `requiredIf`.
+ * `evaluateCondition(undefined)` is true, so the condition is only consulted when present.
+ */
+export function isFieldRequired(
+  field: Pick<BaseField, "required" | "requiredIf">,
+  data: Record<string, unknown> | null | undefined,
+): boolean {
+  if (field.required === true) return true;
+  return field.requiredIf ? evaluateCondition(field.requiredIf, data) : false;
+}
+
+/**
  * A sugar type builder declares only the shape it owns.
  * The authored field is layered over it, so preservation is the default.
  */

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/MegaMenu/MenuItemEditorModal.svelte
+@file src/widgets/custom/mega-menu/menu-item-editor-modal.svelte
 @component MenuItemEditorModal - Modal editor for individual MegaMenu items
 
 Provides a focused interface for editing the fields associated with a specific 

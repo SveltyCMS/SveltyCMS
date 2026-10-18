@@ -29,7 +29,15 @@ describe("package gate scripts", () => {
     const scripts = readPkgScripts();
     expect(scripts["test:doctor"]).toContain("test-doctor.ts");
     expect(scripts["test:security"]).toMatch(/defense-in-depth|vitest run/);
-    expect(existsSync(join(ROOT, "scripts/test-doctor.ts"))).toBe(true);
+    expect(existsSync(join(ROOT, "scripts/test/test-doctor.ts"))).toBe(true);
+  });
+
+  it("exposes the DOM interaction and E2E smoke gates", () => {
+    const scripts = readPkgScripts();
+    expect(scripts["test:unit:components"]).toContain("vitest.dom.config.ts");
+    expect(scripts["test:e2e:smoke"]).toContain("tests/e2e/smoke.spec.ts");
+    expect(existsSync(join(ROOT, "vitest.dom.config.ts"))).toBe(true);
+    expect(existsSync(join(ROOT, "tests/e2e/smoke.spec.ts"))).toBe(true);
   });
 
   it("does not ship deleted ghost entrypoints", () => {
@@ -54,6 +62,11 @@ describe("pre-commit hook", () => {
     const hook = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
     expect(hook).toContain("check-test-db-safety.ts");
   });
+
+  it("runs the real-DOM component interaction suite", () => {
+    const hook = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
+    expect(hook).toContain("test:unit:components");
+  });
 });
 
 describe("pre-push hook", () => {
@@ -64,5 +77,18 @@ describe("pre-push hook", () => {
     expect(prePush).not.toContain("test:unit");
     expect(prePush).toContain("run-integration.ts");
     expect(prePush).not.toContain("run-integration-tests");
+  });
+
+  it("runs the E2E smoke gate against a harness build", () => {
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build tests/e2e/smoke.spec.ts");
+    expect(prePush).toContain("SKIP_E2E_SMOKE");
+  });
+});
+
+describe("CI wiring", () => {
+  it("runs the DOM interaction suite in the unit job", () => {
+    const ci = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
+    expect(ci).toContain("bun run test:unit:components");
   });
 });

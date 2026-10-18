@@ -259,8 +259,16 @@ export const NAMESPACE_OWNERS: Record<string, string[]> = {
     "tests/unit/api/workflow-security.test.ts",
     "tests/integration/api/config-admin-surface.test.ts",
   ],
-  ai: ["tests/unit/api/ai-security.test.ts", "tests/unit/api/ai-copilot.test.ts"],
-  chat: ["tests/unit/api/ai-security.test.ts", "tests/unit/api/ai-copilot.test.ts"],
+  ai: [
+    "tests/unit/api/ai-security.test.ts",
+    "tests/unit/services/ai-service.test.ts",
+    "tests/unit/api/ai-permissions.test.ts",
+  ],
+  chat: [
+    "tests/unit/api/ai-security.test.ts",
+    "tests/unit/services/ai-service.test.ts",
+    "tests/unit/api/ai-permissions.test.ts",
+  ],
   "ai-builder": ["tests/unit/api/ai-builder.test.ts"],
   importer: ["tests/unit/api/export-import-security.test.ts"],
   export: ["tests/unit/api/export-import-security.test.ts"],

@@ -102,8 +102,9 @@ test.describe("Redirect Manager (Testing 2026)", () => {
     await dismissCookieBannerIfPresent(page);
     const deleteBtn = row.getByTestId("redirect-delete");
     await deleteBtn.scrollIntoViewIfNeeded();
-    // Table action cells can be clipped by overflow; force after scroll
-    await deleteBtn.click({ force: true, timeout: ACTION_TIMEOUT });
+    // No force: the scroll container must expose the action cell for a real
+    // user; an actionability failure here is a genuine layout regression.
+    await deleteBtn.click({ timeout: ACTION_TIMEOUT });
     // Must target ConfirmDialog — never the row "Delete" control (name often just "Delete")
     await confirmModal(page);
     await expect(page.locator(`[data-from="${fromPath}"]`)).toHaveCount(0, {

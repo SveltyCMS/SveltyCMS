@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/DateRange/Input.svelte
+@file src/widgets/custom/date-range/input.svelte
 @component
 **DateRange Widget Input Component**
 

@@ -33,15 +33,29 @@ export { validateId } from "./query-primitives";
 export const createDatabaseError = (
   code: string,
   message: string,
-  originalError?: any,
+  originalError?: unknown,
   statusCode?: number,
-): DatabaseError => ({
-  code,
-  message,
-  statusCode,
-  originalCode: originalError?.code || (originalError as any)?.originalError?.code,
-  details: originalError,
-});
+): DatabaseError => {
+  const errObj =
+    originalError && typeof originalError === "object"
+      ? (originalError as Record<string, unknown>)
+      : null;
+  const nestedErr =
+    errObj?.originalError && typeof errObj.originalError === "object"
+      ? (errObj.originalError as Record<string, unknown>)
+      : null;
+  const originalCode =
+    (typeof errObj?.code === "string" ? errObj.code : undefined) ||
+    (typeof nestedErr?.code === "string" ? nestedErr.code : undefined);
+
+  return {
+    code,
+    message,
+    statusCode,
+    originalCode,
+    details: originalError,
+  };
+};
 
 export const normalizePath = (p: string) => p.replace(/^\/+|\/+$/g, "").replace(/\/+/g, "/");
 
@@ -296,11 +310,19 @@ import type { SQL } from "drizzle-orm";
 // CORE TRANSFORMERS
 // ============================================================================
 
-export const safeDate = (input: any): Date => {
-  if (input && typeof input === "object" && typeof (input as any).getTime === "function") {
-    return new Date((input as any).getTime());
+function isDateLike(v: unknown): v is { getTime(): number } {
+  return (
+    v !== null &&
+    typeof v === "object" &&
+    typeof (v as { getTime?: unknown }).getTime === "function"
+  );
+}
+
+export const safeDate = (input: unknown): Date => {
+  if (isDateLike(input)) {
+    return new Date(input.getTime());
   }
-  return new Date(input);
+  return new Date(input as string | number | Date);
 };
 
 function isJsonString(value: unknown): value is string {
@@ -314,13 +336,13 @@ function isJsonString(value: unknown): value is string {
 /** Parse string JSON columns; native jsonb objects (PostgreSQL) pass through unchanged. */
 function normalizeJsonFieldValue(
   value: unknown,
-  options?: { mariaDoubleParseJson?: boolean },
+  _options?: { mariaDoubleParseJson?: boolean },
 ): unknown {
   let v = value;
   // Parse through every JSON-string layer — legacy rows may be double-encoded
   // ("stringified string") from older write paths; a single pass leaves them
   // as strings and permission bitsets silently degrade to empty.
-  const maxLayers = options?.mariaDoubleParseJson ? 3 : 3;
+  const maxLayers = 3;
   for (let i = 0; i < maxLayers; i++) {
     if (!isJsonString(v)) break;
     try {
@@ -521,12 +543,7 @@ export function convertDatesToISO(
     let needsWork = false;
     for (let i = 0; i < dateCols.length; i++) {
       const v = row[dateCols[i]];
-      if (
-        v instanceof Date ||
-        (v && typeof v === "object" && typeof (v as any).getTime === "function") ||
-        isEpochMs(v) ||
-        isPgTimestampString(v)
-      ) {
+      if (v instanceof Date || isDateLike(v) || isEpochMs(v) || isPgTimestampString(v)) {
         needsWork = true;
         break;
       }
@@ -583,7 +600,7 @@ export function convertDatesToISO(
     return row;
   }
 
-  const result: any = {};
+  const result: Record<string, unknown> = {};
 
   if (dateCols && dateCols.length > 0) {
     // 🚀 2027 FAST PATH: Only convert known date columns
@@ -592,8 +609,8 @@ export function convertDatesToISO(
       const v = row[k];
       if (v instanceof Date) {
         result[k] = v.toISOString();
-      } else if (v && typeof v === "object" && typeof (v as any).getTime === "function") {
-        result[k] = new Date((v as any).getTime()).toISOString();
+      } else if (isDateLike(v)) {
+        result[k] = new Date(v.getTime()).toISOString();
       } else if (isEpochMs(v)) {
         result[k] = new Date(v).toISOString();
       } else if (isPgTimestampString(v)) {
@@ -627,11 +644,8 @@ export function convertDatesToISO(
       if (!Object.hasOwn(row, k)) continue;
       if (result[k] !== undefined) continue;
       let v = row[k];
-      if (
-        v instanceof Date ||
-        (v && typeof v === "object" && typeof (v as any).getTime === "function")
-      ) {
-        v = (v instanceof Date ? v : new Date((v as any).getTime())).toISOString();
+      if (v instanceof Date || isDateLike(v)) {
+        v = (v instanceof Date ? v : new Date(v.getTime())).toISOString();
       } else if (DATE_FIELDS.has(k) && isEpochMs(v)) {
         // Unregistered table + SQLite INTEGER ms timestamp — still normalize.
         v = new Date(v).toISOString();
@@ -1004,18 +1018,6 @@ export function assertFiniteAmount(amount: number | string): number {
     throw new Error(`atomicIncrement amount must be a finite number, got: ${String(amount)}`);
   }
   return n;
-}
-
-/**
- * @deprecated Prefer {@link buildRawTenantClause} with bound parameters.
- * Kept for call sites that still embed filters as literals (quote-escaped only).
- */
-export function buildRawTenantFilter(
-  options?: BaseQueryOptions,
-  dialect: "mysql" | "postgres" | "sqlite" = "sqlite",
-): string {
-  const { sql } = buildRawTenantClause(options, dialect, { parameterized: false });
-  return sql;
 }
 
 /**

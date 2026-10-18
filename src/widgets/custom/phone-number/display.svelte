@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/PhoneNumber/Display.svelte
+@file src/widgets/custom/phone-number/display.svelte
 @component
 **PhoneNumber Widget Display Component**
 

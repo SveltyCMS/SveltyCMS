@@ -30,7 +30,7 @@ This page is for someone changing the collection schema model, not a newcomer. I
 > `some` / `none` / `every` compiled to a capped id lookup, nested relation writes,
 > `onDelete`, `type: "virtual"`, and `omit` / `graphql.omit`.
 
-Relation values stay ids. There is no new foreign-key index on the write path, because each extra index is maintained on every update (the composite-index note in [§3.41](../../project/achievements-2026.mdx#341-september-2026-harness-dbs-stop-landing-in-the-users-folder-composite-indexes-get-a-policy-and-the-update-lanes-residual-is-proven-to-be-the-durable-commit)). A full-document update is still the durable commit; this model does not make that PostgreSQL write faster.
+Relation values stay ids. There is no new foreign-key index on the write path, because each extra index is maintained on every update (the composite-index note in [§3.41](../../project/achievements-2026.mdx#341-september-2026-harness-db-isolation-composite-index-policy-durable-commit-proof)). A full-document update is still the durable commit; this model does not make that PostgreSQL write faster.
 
 ## Relations _(planned)_
 

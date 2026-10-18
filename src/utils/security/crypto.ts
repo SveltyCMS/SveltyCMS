@@ -126,14 +126,6 @@ export async function verifyDummyPassword(password: string): Promise<boolean> {
 
 // --- Token & Hash Utilities ---
 
-/**
- * Creates a SHA-256 checksum for the provided data.
- */
-export async function createChecksum(data: any): Promise<string> {
-  const { createHash } = await import(/* @vite-ignore */ "node:crypto");
-  return createHash("sha256").update(JSON.stringify(data)).digest("hex");
-}
-
 // --- Static AES-256 key resolution (plugin settings, TOTP, backups) ---
 //
 // Hex / strict-base64 env values are already 256-bit keys — use them as-is

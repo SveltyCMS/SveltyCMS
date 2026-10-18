@@ -23,6 +23,19 @@ vi.mock("@src/plugins/registry", () => ({
   },
 }));
 
+vi.mock("@utils/egress-guard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/egress-guard")>();
+  return {
+    ...actual,
+    validateEgressUrl: vi.fn(async (url: string) => new URL(url)),
+    safeFetch: vi.fn(async () => ({
+      success: true,
+      status: 200,
+      body: JSON.stringify([{ id: 1, title: "Hello", slug: "hello", status: "publish" }]),
+    })),
+  };
+});
+
 const TENANT = "default";
 const CONNECTOR_ID = "conn-wmcp" as DatabaseId;
 const COLLECTION_ID = "vc-wmcp" as DatabaseId;
@@ -67,12 +80,6 @@ function createMockDb() {
     updatedAt: "2026-07-08T00:00:00.000Z",
   };
 
-  globalThis.fetch = vi.fn(async () => ({
-    ok: true,
-    headers: { get: () => "128" },
-    json: async () => [{ id: 1, title: "Hello", slug: "hello", status: "publish" }],
-  })) as any;
-
   return {
     crud: {
       findOne: vi.fn(async (col: string, query: any) => {
@@ -98,7 +105,6 @@ function createMockDb() {
 
 describe("WebMCP virtual collection tools", () => {
   const priorTools = (globalThis as any).__webmcp_headless_tools;
-  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     (globalThis as any).__webmcp_headless_tools = undefined;
@@ -106,7 +112,6 @@ describe("WebMCP virtual collection tools", () => {
 
   afterEach(() => {
     (globalThis as any).__webmcp_headless_tools = priorTools;
-    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 

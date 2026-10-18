@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Email/Input.svelte
+@file src/widgets/core/email/input.svelte
 @component
 **Email Widget Component**
 

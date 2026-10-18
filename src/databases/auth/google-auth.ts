@@ -69,29 +69,41 @@ async function setCredentials(credentials: Credentials): Promise<void> {
   }
 }
 
-function signOAuthState(token: string | null | undefined): string | undefined {
-  if (!token) return undefined;
+function signOAuthState(statePayload: string | null | undefined): string | undefined {
+  if (!statePayload) return undefined;
   const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
   // 🔴 FIX: without a secret we cannot sign the state — fail closed (throw) rather
   // than emit an unsigned token that an attacker can replay/forge.
   if (!secret) throw new Error("OAuth state signing requires JWT_SECRET_KEY");
-  const signature = createHmac("sha256", secret).update(token).digest("hex");
-  return encodeURIComponent(`${token}.${signature}`);
+  // RFC 6749 §10.12 OAuth state anti-CSRF parameter signature (not a password hash).
+  // codeql[js/insufficient-password-hash]: keyed HMAC-SHA-256 integrity MAC for the OAuth state nonce; login passwords use Argon2id.
+  const signature = createHmac("sha256", secret).update(statePayload).digest("hex");
+  return encodeURIComponent(`${statePayload}.${signature}`);
 }
 
 export function verifyOAuthState(state: string | null | undefined): string | null {
   if (!state) return null;
-  const decoded = decodeURIComponent(state);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(state);
+  } catch {
+    // Malformed percent-encoding is attacker-controlled input, not a server error.
+    logger.warn("OAuth state could not be decoded");
+    return null;
+  }
   const parts = decoded.split(".");
   if (parts.length !== 2) {
     logger.warn("OAuth state missing HMAC signature");
     return null;
   }
-  const [token, signature] = parts;
+  const [statePayload, signature] = parts;
   const secret = getPrivateSettingSync("JWT_SECRET_KEY") as string;
   // 🔴 FIX: fail closed — never return an unverified token.
   if (!secret) return null;
-  const expected = createHmac("sha256", secret).update(token).digest("hex");
+  // RFC 6749 §10.12 anti-CSRF state verification: this is an HMAC integrity check
+  // on the OAuth state nonce / payload, not a password hash.
+  // codeql[js/insufficient-password-hash]: keyed HMAC-SHA-256 integrity MAC; login passwords use Argon2id.
+  const expected = createHmac("sha256", secret).update(statePayload).digest("hex");
   // 🔴 FIX: constant-time comparison to avoid HMAC timing side-channels.
   const a = Buffer.from(signature);
   const b = Buffer.from(expected);
@@ -99,11 +111,11 @@ export function verifyOAuthState(state: string | null | undefined): string | nul
     logger.warn("OAuth state HMAC signature mismatch!");
     return null;
   }
-  return token;
+  return statePayload;
 }
 
 async function generateGoogleAuthUrl(
-  token?: string | null,
+  statePayload?: string | null,
   promptType?: "consent" | "none" | "select_account",
   tenantId?: string | null,
 ): Promise<string> {
@@ -125,7 +137,7 @@ async function generateGoogleAuthUrl(
     prompt: "consent", // Force refresh token on every auth to ensure token freshness
     scope: scopes.join(" "),
     redirect_uri: baseUrl,
-    state: signOAuthState(token),
+    state: signOAuthState(statePayload),
     include_granted_scopes: true,
   };
   // Only add prompt if explicitly specified
@@ -154,7 +166,7 @@ export function getGithubOAuthRedirectUri(): string {
 }
 
 export async function generateGithubAuthUrl(
-  token?: string | null,
+  statePayload?: string | null,
   _promptType?: "consent" | "none" | "select_account",
   tenantId?: string | null,
 ): Promise<string> {
@@ -164,7 +176,7 @@ export async function generateGithubAuthUrl(
   }
 
   const redirectUri = getGithubOAuthRedirectUri();
-  const state = signOAuthState(token) || "no-token";
+  const state = signOAuthState(statePayload) || "no-token";
 
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", githubClientId as string);

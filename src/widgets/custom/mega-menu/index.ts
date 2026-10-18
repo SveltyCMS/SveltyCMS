@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/megamenu/index.ts
+ * @file src/widgets/custom/mega-menu/index.ts
  * @description MegaMenu Widget Definition.
  *
  * A powerful builder widget for creating nested, hierarchical menu structures.

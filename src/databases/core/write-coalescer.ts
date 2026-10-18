@@ -11,10 +11,17 @@
  * - Micro-batching under load: Coalesces concurrent writes up to maxBatchSize
  * - Per-operation settlement isolation: Failure of one op does not corrupt or abort siblings
  * - Savepoint support: Can execute grouped operations with sub-transaction rollback protection
+ * - Idle probe (`isIdle`) so callers can bypass scheduling entirely for latency-critical ops
  * - Rich observability: Exposes batch throughput, coalescing efficiency, and error metrics
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
+
+/**
+ * Coarse write kind for scheduling decisions. Only `update` is latency-sensitive
+ * enough to opt out of the scheduling hop (see `SVELTY_WRITE_COALESCE_UPDATE`).
+ */
+export type WriteOperationKind = "insert" | "update" | "delete" | "other";
 
 export interface PendingWriteOperation<T = unknown> {
   id: number;
@@ -136,6 +143,14 @@ export class AdaptiveWriteCoalescer {
    */
   public get pending(): number {
     return this.queue.length;
+  }
+
+  /**
+   * True when nothing is queued, scheduled, or draining — i.e. a submission
+   * right now would pay the scheduler hop for no coalescing benefit.
+   */
+  public isIdle(): boolean {
+    return this.queue.length === 0 && !this.scheduled && !this.draining;
   }
 
   /**

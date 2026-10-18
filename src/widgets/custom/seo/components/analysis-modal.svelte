@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Seo/components/AnalysisModal.svelte
+@file src/widgets/custom/seo/components/analysis-modal.svelte
 @component
 **Analysis Modal for SEO Widget**
 Displays detailed SEO analysis results in a modal overlay.

@@ -39,6 +39,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 	import type { DashboardWidgetConfig, WidgetSize } from '@src/content/types';
 	import { formatRelativeDate } from '@utils/date';
 	import BaseWidget from '../../base-widget.svelte';
+	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';

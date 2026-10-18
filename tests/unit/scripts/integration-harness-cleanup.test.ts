@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanupTestArtifacts } from "../../../scripts/integration-harness.ts";
+import { cleanupTestArtifacts } from "../../../scripts/runs/integration-harness.ts";
 
 describe("integration harness cleanup — live folder protection", () => {
   let root: string;
@@ -34,6 +34,9 @@ describe("integration harness cleanup — live folder protection", () => {
       "sveltycms_test.sqlite",
       "sveltycms_test.sqlite-wal",
       "sveltycms_test.sqlite-shm",
+      "sveltycms_test",
+      "sveltycms_test-wal",
+      "sveltycms_test-shm",
       "e2e_auth_test.sqlite",
       "bench_parent.db",
     ];
@@ -73,15 +76,19 @@ describe("integration harness cleanup — live folder protection", () => {
       join(root, "config", "global", "collections", "live-category", "posts.ts"),
       "live",
     );
-    // A second tenant exercises the sweep across all config/* entries.
+    // Test tenants exercise the sweep across all config/* entries.
     mkdirSync(join(root, "config", "tenant-42", "test-collections", "bench-x"), {
       recursive: true,
     });
+    mkdirSync(join(root, "config", "iso-tenant-a", "test-collections"), { recursive: true });
+    mkdirSync(join(root, "config", "iso-tenant-b", "test-collections"), { recursive: true });
 
     cleanupTestArtifacts(root);
 
     expect(existsSync(join(root, "config", "global", "test-collections"))).toBe(false);
-    expect(existsSync(join(root, "config", "tenant-42", "test-collections"))).toBe(false);
+    expect(existsSync(join(root, "config", "tenant-42"))).toBe(false);
+    expect(existsSync(join(root, "config", "iso-tenant-a"))).toBe(false);
+    expect(existsSync(join(root, "config", "iso-tenant-b"))).toBe(false);
     expect(
       existsSync(join(root, "config", "global", "collections", "live-category", "posts.ts")),
     ).toBe(true);

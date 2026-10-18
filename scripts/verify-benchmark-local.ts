@@ -45,7 +45,7 @@ function checkBuild(): void {
 
   const verify = spawnSync(
     "bun",
-    ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"],
+    ["run", "scripts/security/verify-prod-build-backdoor.ts", "--mode=bench"],
     {
       cwd: ROOT,
       stdio: "pipe",

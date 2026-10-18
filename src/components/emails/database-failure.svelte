@@ -11,6 +11,7 @@
 	import {
 		Body,
 		Button,
+		Column,
 		Container,
 		Head,
 		Heading,
@@ -19,6 +20,7 @@
 		Img,
 		Link,
 		Preview,
+		Row,
 		Section,
 		Text
 	} from '@better-svelte-email/components';
@@ -102,7 +104,9 @@
 						style="margin: 0 auto 16px; display: block;"
 					/>
 				</Link>
-				<Heading style="color: #ffffff; font-size: 28px; font-weight: bold; margin: 0 0 8px;"
+				<Heading
+					as="h1"
+					style="color: #ffffff; font-size: 28px; font-weight: bold; margin: 0 0 8px;"
 					>🚨 Critical Database Alert</Heading
 				>
 				<Text style="color: #ffffff; font-size: 16px; margin: 0; opacity: 0.95;">{sitename}</Text>
@@ -123,7 +127,9 @@
 
 			<!-- Error Details Section -->
 			<Section style="padding: 0 24px 24px;">
-				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
+				<Heading
+					as="h2"
+					style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
 					>Error Details</Heading
 				>
 
@@ -168,7 +174,9 @@
 
 			<!-- Recovery Attempts Section -->
 			<Section style="padding: 0 24px 24px;">
-				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
+				<Heading
+					as="h2"
+					style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
 					>Recovery Attempts</Heading
 				>
 
@@ -236,7 +244,9 @@
 
 			<!-- System Status Section -->
 			<Section style="padding: 0 24px 24px;">
-				<Heading style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
+				<Heading
+					as="h2"
+					style="color: #1f2937; font-size: 20px; font-weight: 600; margin: 0 0 16px;"
 					>System Status</Heading
 				>
 
@@ -284,7 +294,9 @@
 			<Section
 				style="padding: 24px; background-color: #fffbeb; border-left: 4px solid #f59e0b; margin: 24px;"
 			>
-				<Heading style="color: #92400e; font-size: 18px; font-weight: 600; margin: 0 0 12px;"
+				<Heading
+					as="h2"
+					style="color: #92400e; font-size: 18px; font-weight: 600; margin: 0 0 12px;"
 					>Action Required</Heading
 				>
 				<Text style="color: #92400e; font-size: 14px; margin: 0 0 12px;"

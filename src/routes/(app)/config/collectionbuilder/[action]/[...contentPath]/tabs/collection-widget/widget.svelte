@@ -130,6 +130,18 @@
 	};
 
 	// Modal 2 to Edit a selected widget
+	function uniqueDbFieldName(base: string, existing: readonly string[]): string {
+		const taken = new Set(existing);
+		const root = base.trim() || 'field';
+		let candidate = `${root}_copy`;
+		let suffix = 2;
+		while (taken.has(candidate)) {
+			candidate = `${root}_copy_${suffix}`;
+			suffix++;
+		}
+		return candidate;
+	}
+
 	function modalWidgetForm(selectedWidget: Field): void {
 		if (selectedWidget.permissions === undefined) {
 			selectedWidget.permissions = {};
@@ -146,6 +158,42 @@
 				if (!r) {
 					return;
 				}
+
+				// The editor signals removal/duplication with action flags. Without these
+				// branches the flags were merged back into the field, so Delete kept
+				// the field and Duplicate overwrote the original.
+				if (r.__delete === true) {
+					const remaining = fields
+						.filter((widget) => widget.id !== r.id)
+						.map((widget, index) => ({ ...widget, id: index + 1 }));
+					fields = remaining;
+					setCollectionValue({ ...collections.activeValue, fields: remaining });
+					return;
+				}
+
+				if (r.__duplicate === true) {
+					const sourceIndex = fields.findIndex((widget) => widget.id === r.id);
+					const source = sourceIndex >= 0 ? (fields[sourceIndex] ?? r) : r;
+					const copy: Field = {
+						...source,
+						id: fields.length + 1,
+						label: `${source.label || 'Field'} (copy)`,
+						db_fieldName: uniqueDbFieldName(
+							String(source.db_fieldName ?? ''),
+							fields.map((widget) => String(widget.db_fieldName ?? ''))
+						),
+						widget: {
+							...source.widget,
+							GuiFields: { ...source.widget.GuiFields }
+						},
+						permissions: { ...source.permissions }
+					};
+					const next = [...fields, copy];
+					fields = next;
+					setCollectionValue({ ...collections.activeValue, fields: next });
+					return;
+				}
+
 				// Find the index of the existing widget based on its ID
 				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
 
@@ -281,6 +329,7 @@
 							type="button"
 							variant="transparent"
 							size="sm"
+							data-testid={`collection-field-drag-${field.id}`}
 							class="field-drag-handle h-auto! min-w-0! cursor-grab p-1! text-(--admin-text-muted) active:cursor-grabbing hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
 							aria-label={collection_widgetfield_drag_aria({ label: field.label })}
 							title={builder_tip_drag_reorder()}
@@ -312,6 +361,7 @@
 							variant="ghost"
 							type="button"
 							onclick={() => modalWidgetForm(field)}
+							data-testid={`collection-field-edit-${field.id}`}
 							aria-label={button_edit()}
 							class="p-0! min-w-0 ms-auto"
 						>
@@ -324,7 +374,10 @@
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<Button variant="tertiary" onclick={() => modalSelectWidget()}
+			<Button
+				variant="tertiary"
+				onclick={() => modalSelectWidget()}
+				data-testid="collection-field-add"
 				>{collection_widgetfield_addFields()}
 			</Button>
 		</div>
@@ -339,6 +392,7 @@
 				variant="tertiary"
 				type="button"
 				onclick={handleCollectionSave}
+				data-testid="collection-field-save"
 				class="mt-2 justify-end"
 			>
 				{button_save()}

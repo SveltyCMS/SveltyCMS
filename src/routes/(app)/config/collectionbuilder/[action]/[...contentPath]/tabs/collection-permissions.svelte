@@ -6,6 +6,7 @@
 	import { collections, setCollection } from '@src/stores/collection-store.svelte';
 	import Card from '@src/components/ui/card.svelte';
 	import Button from '@src/components/ui/button.svelte';
+	import Checkbox from '@src/components/ui/checkbox.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import {
@@ -42,6 +43,20 @@
 	// ── Collection-level permission state ──
 	// Permissions are stored as: { [roleName]: { view: bool, edit: bool, write: bool } }
 	let permissions = $state<Record<string, { view: boolean; edit: boolean; write: boolean }>>({});
+
+	// Public form ingestion is an explicit per-collection opt-in. The schema
+	// flag is persisted by the builder's AST writer (`formEnabled: true`).
+	const formEnabled = $derived(
+		(collections.active as { formEnabled?: boolean } | null)?.formEnabled === true
+	);
+
+	function setFormEnabled(value: boolean) {
+		if (!collections.active) return;
+		setCollection({ ...collections.active, formEnabled: value } as any);
+		toast.info(value ? 'Public form endpoint enabled' : 'Public form endpoint disabled', {
+			duration: 1500
+		});
+	}
 
 	// Sync from existing collection on mount and when collection changes
 	$effect(() => {
@@ -167,6 +182,30 @@
 			</p>
 		</div>
 	</div>
+
+	<!-- Public Form Endpoint -->
+	<Card class="p-5">
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+			<div class="max-w-prose">
+				<h3 class="text-base font-semibold text-(--admin-text-body)">Public form endpoint</h3>
+				<p class="mt-1 text-sm text-(--admin-text-muted)">
+					Allow unauthenticated <code class="rounded bg-surface-500/10 px-1 py-0.5"
+						>POST /api/forms/&lt;collection&gt;</code
+					>. Submissions are stored as drafts with
+					<code class="rounded bg-surface-500/10 px-1 py-0.5">_formStatus: "pending"</code> so they can
+					be reviewed before publication.
+				</p>
+			</div>
+			<Checkbox
+				checked={formEnabled}
+				label="Enable public form submissions"
+				description="Only declared schema fields are accepted"
+				variant="toggle-card"
+				onchange={setFormEnabled}
+				class="sm:max-w-xs"
+			/>
+		</div>
+	</Card>
 
 	<!-- Permission Matrix -->
 	<Card class="overflow-hidden">

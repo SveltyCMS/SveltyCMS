@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Seo/components/SocialPreview.svelte
+@file src/widgets/custom/seo/components/social-preview.svelte
 @component
 **Social Media Preview Component**
 Displays a preview of the shared link for different platforms.

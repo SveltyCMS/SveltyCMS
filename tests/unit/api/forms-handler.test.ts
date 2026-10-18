@@ -33,15 +33,23 @@ describe("Forms API Handler", () => {
     } as unknown as RequestEvent;
   }
 
+  const CONTACT_SCHEMA = {
+    _id: "contact",
+    name: "contact",
+    formEnabled: true,
+    fields: [
+      { db_fieldName: "name", name: "name", type: "string" },
+      { db_fieldName: "email", name: "email", type: "string" },
+      { db_fieldName: "message", name: "message", type: "string" },
+    ],
+  };
+
   function createMockCms(insertResult = { _id: "entry_123" }) {
     return {
-      db: {
-        crud: {
-          insert: vi.fn().mockResolvedValue(insertResult),
-        },
-      },
       collections: {
+        getSchema: vi.fn().mockResolvedValue(CONTACT_SCHEMA),
         find: vi.fn().mockResolvedValue({ success: true, data: [{ _id: "sub_1", name: "Alice" }] }),
+        create: vi.fn().mockResolvedValue({ success: true, data: insertResult }),
       },
     } as any;
   }
@@ -59,8 +67,8 @@ describe("Forms API Handler", () => {
 
     const data = await res.json();
     expect(data.success).toBe(true);
-    // Crucial: DB insert was NEVER called
-    expect(cms.db.crud.insert).not.toHaveBeenCalled();
+    // Crucial: the collection write pipeline was NEVER called
+    expect(cms.collections.create).not.toHaveBeenCalled();
   });
 
   it("persists legitimate form submission with metadata and fires event", async () => {
@@ -80,11 +88,11 @@ describe("Forms API Handler", () => {
     expect(data.success).toBe(true);
     expect(data.data.id).toBe("sub_abc");
 
-    // DB insert was called with enriched metadata
-    expect(cms.db.crud.insert).toHaveBeenCalledTimes(1);
-    const [collection, payload, options] = cms.db.crud.insert.mock.calls[0];
+    // The normal collection write pipeline was called with enriched metadata
+    expect(cms.collections.create).toHaveBeenCalledTimes(1);
+    const [collection, payload, options] = cms.collections.create.mock.calls[0];
     expect(collection).toBe("contact");
-    expect(options).toEqual({ tenantId: TEST_TENANT });
+    expect(options).toEqual({ tenantId: TEST_TENANT, system: true });
     expect(payload.name).toBe("John Doe");
     expect(payload._formSubmittedAt).toBeDefined();
     expect(payload._formIpHash).toBeDefined();

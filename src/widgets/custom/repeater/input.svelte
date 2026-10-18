@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Repeater/Input.svelte
+@file src/widgets/custom/repeater/input.svelte
 @component
 **Repeater Input Component**
 

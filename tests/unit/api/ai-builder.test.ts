@@ -9,7 +9,7 @@
  * - fail-closed dispatcher registration (ai-builder → system:settings)
  * - defense-in-depth admin gate (401 unauthenticated / 403 non-admin)
  * - input guards (prompt / previousProposal)
- * - quota enforcement via builderAiGateway.checkQuota (429)
+ * - quota enforcement delegated to the service layer (exactly one consumption)
  * - approve-collection Phase 1 persist (proposal required, writes via service)
  * - unknown action (404 NOT_FOUND)
  */
@@ -120,7 +120,7 @@ describe("AI Builder API (POST /api/ai-builder)", () => {
       expect(aiBuilder.designCollection).not.toHaveBeenCalled();
     });
 
-    it("checks quota before designing and returns the proposal envelope", async () => {
+    it("delegates quota enforcement to the service and returns the proposal envelope", async () => {
       const response = await invokeApi("POST", {
         path: "ai-builder/design-collection",
         body: {
@@ -137,7 +137,9 @@ describe("AI Builder API (POST /api/ai-builder)", () => {
       expect(payload).toMatchObject({ success: true });
       expect(payload.data).toMatchObject({ backend: "mock-ai", diff: null });
       expect(payload.data.proposal.name).toBe("blog");
-      expect(aiBuilder.checkQuota).toHaveBeenCalledWith("admin-1");
+      // Regression: the handler used to pre-consume a quota slot before the
+      // service did, halving the effective per-user quota.
+      expect(aiBuilder.checkQuota).not.toHaveBeenCalled();
       expect(aiBuilder.designCollection).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: "Design a blog collection",
@@ -150,10 +152,10 @@ describe("AI Builder API (POST /api/ai-builder)", () => {
       );
     });
 
-    it("returns 429 when the builder quota is exceeded", async () => {
-      aiBuilder.checkQuota.mockImplementation(() => {
-        throw new AppError("AI builder quota exceeded", 429, "RATE_LIMITED");
-      });
+    it("returns 429 when the service reports the builder quota is exhausted", async () => {
+      aiBuilder.designCollection.mockRejectedValueOnce(
+        new AppError("AI builder quota exceeded", 429, "RATE_LIMITED"),
+      );
       const response = await invokeApi("POST", {
         path: "ai-builder/design-collection",
         body: { prompt: "Design a blog collection" },
@@ -161,7 +163,8 @@ describe("AI Builder API (POST /api/ai-builder)", () => {
         tenantId: "t1",
       });
       expect(response.status).toBe(429);
-      expect(aiBuilder.designCollection).not.toHaveBeenCalled();
+      expect(aiBuilder.checkQuota).not.toHaveBeenCalled();
+      expect(aiBuilder.designCollection).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -194,7 +197,7 @@ describe("AI Builder API (POST /api/ai-builder)", () => {
       const payload = await response.json();
       expect(payload.success).toBe(true);
       expect(payload.data.proposal.name).toBe("blog");
-      expect(aiBuilder.checkQuota).toHaveBeenCalledWith("admin-1");
+      expect(aiBuilder.checkQuota).not.toHaveBeenCalled();
       expect(aiBuilder.refineCollection).toHaveBeenCalledWith(
         expect.objectContaining({
           prompt: "Add a publishedDate field",

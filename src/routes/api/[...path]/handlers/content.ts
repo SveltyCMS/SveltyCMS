@@ -13,6 +13,7 @@
 
 import { logger } from "@utils/logger";
 import { AppError, raise } from "@utils/error-handling";
+import { redactSecrets } from "@utils/security/stream-redaction";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -320,7 +321,7 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
         if (isClosed) return;
         const clientPayload = normalizeSseEventPayload(payload, tenantId);
         if (!clientPayload) return;
-        eventBuffer.push(`data: ${JSON.stringify(clientPayload)}\n\n`);
+        eventBuffer.push(`data: ${redactSecrets(JSON.stringify(clientPayload))}\n\n`);
       };
 
       eventBus.on("*", handler);

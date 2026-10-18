@@ -54,11 +54,15 @@
 			onConfirm();
 		}}
 	>
-		<Input {type} bind:value={inputValue} aria-label="Input" />
+		<Input {type} bind:value={inputValue} aria-label="Input" data-testid="modal-prompt-input" />
 	</form>
 
 	<div class="flex justify-end gap-2 pt-2">
-		<Button variant="secondary" type="button" onclick={onCancel}>Cancel</Button>
-		<Button variant="primary" type="button" onclick={onConfirm}>Confirm</Button>
+		<Button variant="secondary" type="button" onclick={onCancel} data-testid="modal-prompt-cancel"
+			>Cancel</Button
+		>
+		<Button variant="primary" type="button" onclick={onConfirm} data-testid="modal-prompt-confirm"
+			>Confirm</Button
+		>
 	</div>
 </div>

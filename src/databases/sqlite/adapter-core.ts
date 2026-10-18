@@ -2719,11 +2719,36 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         host !== "127.0.0.1" &&
         !host.includes("://")
       ) {
-        const name = (config as any).DB_NAME;
+        const name = (config as any).DB_NAME || (config as any).name;
         if (host.endsWith(".sqlite") || host.endsWith(".db") || host.endsWith(":memory:")) {
           dbPath = host;
         } else if (name) {
-          dbPath = `${host.endsWith("/") || host.endsWith("\\") ? host : `${host}/`}${name}`;
+          const { resolveSqlitePath } = await import("../config-state");
+          dbPath = resolveSqlitePath(host, name);
+        }
+      }
+    }
+
+    // 🛡️ ISOLATION GUARD: Isolated test/harness DBs must never land in config/database/
+    if (dbPath && typeof dbPath === "string") {
+      const normalized = dbPath.replace(/\\/g, "/");
+      if (normalized.startsWith("config/database/") || normalized.includes("/config/database/")) {
+        const baseName = nodePath.basename(normalized);
+        const logicalName = baseName.replace(/-(wal|shm)$/i, "").replace(/\.(sqlite|db)$/i, "");
+        const { isIsolatedTestDbName } = await import("@utils/test-db-safety");
+        if (isIsolatedTestDbName(logicalName)) {
+          const finalName =
+            baseName.endsWith(".sqlite") || baseName.endsWith(".db")
+              ? baseName
+              : `${baseName}.sqlite`;
+          try {
+            fs.mkdirSync(nodePath.join(process.cwd(), "config", "test-database"), {
+              recursive: true,
+            });
+          } catch {
+            /* best-effort */
+          }
+          dbPath = `config/test-database/${finalName}`;
         }
       }
     }

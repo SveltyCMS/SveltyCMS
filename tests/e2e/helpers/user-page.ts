@@ -63,11 +63,16 @@ export async function selectUserTab(
   await dismissCookieConsent(page);
   const tabBtn = page.getByTestId(`tab-${tab}`);
   await expect(tabBtn).toBeVisible({ timeout });
-  const selected = await tabBtn.getAttribute("aria-selected");
-  if (selected !== "true") {
-    await tabBtn.click({ timeout });
-  }
-  await expect(tabBtn).toHaveAttribute("aria-selected", "true", { timeout });
+  await expect
+    .poll(
+      async () => {
+        if ((await tabBtn.getAttribute("aria-selected")) === "true") return true;
+        await tabBtn.click({ timeout: 1_500 }).catch(() => {});
+        return (await tabBtn.getAttribute("aria-selected")) === "true";
+      },
+      { timeout, intervals: [200, 500, 1000] },
+    )
+    .toBe(true);
   await expect(page.getByTestId("user-tab-panel")).toBeVisible({ timeout });
 }
 
@@ -112,24 +117,32 @@ export async function openUserAdminArea(page: Page, options?: { timeout?: number
 export async function ensureUsersAdminTab(page: Page) {
   const usersTab = page.getByTestId("admin-tab-users");
   await expect(usersTab).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
-  if ((await usersTab.getAttribute("aria-selected")) !== "true") {
-    await usersTab.click({ timeout: USER_ACTION_TIMEOUT });
-  }
-  await expect(usersTab).toHaveAttribute("aria-selected", "true", {
-    timeout: USER_ACTION_TIMEOUT,
-  });
+  await expect
+    .poll(
+      async () => {
+        if ((await usersTab.getAttribute("aria-selected")) === "true") return true;
+        await usersTab.click({ timeout: 1_500 }).catch(() => {});
+        return (await usersTab.getAttribute("aria-selected")) === "true";
+      },
+      { timeout: USER_ACTION_TIMEOUT, intervals: [200, 500, 1000] },
+    )
+    .toBe(true);
 }
 
 /** Switch admin sub-tab to Invitations (tokens). */
 export async function ensureInvitationsAdminTab(page: Page) {
   const tokensTab = page.getByTestId("admin-tab-tokens");
   await expect(tokensTab).toBeVisible({ timeout: USER_ACTION_TIMEOUT });
-  if ((await tokensTab.getAttribute("aria-selected")) !== "true") {
-    await tokensTab.click({ timeout: USER_ACTION_TIMEOUT });
-  }
-  await expect(tokensTab).toHaveAttribute("aria-selected", "true", {
-    timeout: USER_ACTION_TIMEOUT,
-  });
+  await expect
+    .poll(
+      async () => {
+        if ((await tokensTab.getAttribute("aria-selected")) === "true") return true;
+        await tokensTab.click({ timeout: 1_500 }).catch(() => {});
+        return (await tokensTab.getAttribute("aria-selected")) === "true";
+      },
+      { timeout: USER_ACTION_TIMEOUT, intervals: [200, 500, 1000] },
+    )
+    .toBe(true);
   // Wait for token list fetch when possible
   await page
     .waitForResponse(

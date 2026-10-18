@@ -13,12 +13,20 @@
  * - No new npm dependencies required
  *
  * ### Performance:
- * - Ollama (NPU): ~5ms per embedding batch
- * - Ollama (CPU): ~30ms per embedding
+ * - Ollama (NPU): one `/api/embed` round-trip per batch (~5ms)
+ * - Ollama (CPU): one round-trip per batch
  * - TF-IDF (CPU): <1ms per document (no model, just term frequencies)
+ *
+ * ### Batch transport:
+ * - Preferred: `POST /api/embed` with the full `input` array (one round-trip).
+ * - Fallback: older Ollama builds without that endpoint (HTTP 404/405) or a
+ *   malformed batch response are served by the legacy per-text
+ *   `POST /api/embeddings` loop, so behaviour is unchanged there.
  */
 
 import { logger } from "@utils/logger";
+import { rethrow } from "@utils/error-handling";
+import { safeFetch, validateEgressUrl } from "@utils/egress-guard";
 import { getPrivateSetting } from "@src/services/core/settings-service";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -38,6 +46,10 @@ const EMBEDDING_MODEL = "nomic-embed-text"; // 274MB, 768-dim, fast on NPU
 const EMBEDDING_DIMS = 768;
 const TFIDF_DIMS = 256; // smaller for fallback
 const OLLAMA_TIMEOUT_MS = 5000;
+/** Ollama is admin-configured and normally local — see the trust note below. */
+const OLLAMA_EGRESS = { allowHttp: true, allowPrivate: true } as const;
+const AVAILABILITY_MAX_BYTES = 1024 * 1024;
+const EMBEDDING_MAX_BYTES = 10 * 1024 * 1024;
 
 // ─── Backend State ─────────────────────────────────────────────────────────
 
@@ -100,42 +112,130 @@ async function checkOllamaAvailable(): Promise<boolean> {
   if (_ollamaAvailable !== null) return _ollamaAvailable;
   try {
     const base = await getOllamaBase();
-    const res = await fetch(`${base}/api/tags`, {
-      signal: AbortSignal.timeout(2000),
+    // 🛡️ SSRF: OLLAMA_URL is admin-configured; allowPrivate keeps localhost/LAN
+    // model servers reachable while metadata/link-local hosts remain blocked.
+    const url = `${base}/api/tags`;
+    await validateEgressUrl(url, OLLAMA_EGRESS);
+    const res = await safeFetch(url, {
+      ...OLLAMA_EGRESS,
+      timeoutMs: 2000,
+      maxSizeBytes: AVAILABILITY_MAX_BYTES,
     });
-    _ollamaAvailable = res.ok;
+    _ollamaAvailable = res.success;
     if (_ollamaAvailable) {
       logger.info("[Embedding] Ollama detected — using NPU/GPU-accelerated embeddings");
     }
-  } catch {
+  } catch (err) {
+    rethrow(err);
     _ollamaAvailable = false;
     logger.info("[Embedding] Ollama not available — using in-process TF-IDF fallback");
   }
   return _ollamaAvailable;
 }
 
-async function ollamaEmbed(texts: string[]): Promise<number[][]> {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isNumberVector(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "number");
+}
+
+/** Truncate to the model's context window (~8192 tokens for nomic-embed-text). */
+function truncateForModel(text: string): string {
+  return text.slice(0, 8000);
+}
+
+/**
+ * Legacy per-text transport (one round-trip per text).
+ * Kept for older Ollama builds that predate the batch `/api/embed` endpoint.
+ */
+async function ollamaEmbedPerText(texts: string[]): Promise<number[][]> {
   const vectors: number[][] = [];
   const base = await getOllamaBase();
 
-  // nomic-embed-text supports batch embedding — send all texts at once
-  // Ollama handles batching internally, including NPU/GPU parallelism
   for (const text of texts) {
-    // Truncate to model's context window (~8192 tokens for nomic-embed-text)
-    const truncated = text.slice(0, 8000);
-    const res = await fetch(`${base}/api/embeddings`, {
+    const url = `${base}/api/embeddings`;
+    await validateEgressUrl(url, OLLAMA_EGRESS);
+    const res = await safeFetch(url, {
+      ...OLLAMA_EGRESS,
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: EMBEDDING_MODEL, prompt: truncated }),
-      signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS),
+      body: JSON.stringify({ model: EMBEDDING_MODEL, prompt: truncateForModel(text) }),
+      timeoutMs: OLLAMA_TIMEOUT_MS,
+      maxSizeBytes: EMBEDDING_MAX_BYTES,
     });
 
-    if (!res.ok) throw new Error(`Ollama embedding failed: ${res.status}`);
-    const data = await res.json();
-    vectors.push(data.embedding || []);
+    if (!res.success || !res.body) {
+      throw new Error(`Ollama embedding failed: ${res.status ?? res.error ?? "error"}`);
+    }
+    const data: unknown = JSON.parse(res.body);
+    const embedding = isRecord(data) && isNumberVector(data.embedding) ? data.embedding : [];
+    vectors.push(embedding);
   }
 
   return vectors;
+}
+
+/**
+ * Batch transport: `POST /api/embed` with the whole `input` array in one request.
+ * Falls back to {@link ollamaEmbedPerText} when the endpoint is missing (404/405)
+ * or the response does not contain one numeric vector per input text.
+ */
+async function ollamaEmbed(texts: string[]): Promise<number[][]> {
+  const base = await getOllamaBase();
+  const url = `${base}/api/embed`;
+  await validateEgressUrl(url, OLLAMA_EGRESS);
+  const res = await safeFetch(url, {
+    ...OLLAMA_EGRESS,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: texts.map(truncateForModel),
+    }),
+    timeoutMs: OLLAMA_TIMEOUT_MS,
+    maxSizeBytes: EMBEDDING_MAX_BYTES,
+  });
+
+  // Older Ollama builds only expose /api/embeddings — treat 404/405 as "unsupported".
+  if (res.status === 404 || res.status === 405) {
+    logger.debug(
+      `[Embedding] Ollama /api/embed unavailable (HTTP ${res.status}) — using per-text /api/embeddings`,
+    );
+    return ollamaEmbedPerText(texts);
+  }
+
+  if (!res.success || !res.body) {
+    throw new Error(`Ollama embedding failed: ${res.status ?? res.error ?? "error"}`);
+  }
+
+  const data: unknown = JSON.parse(res.body);
+  const rawEmbeddings = isRecord(data) ? data.embeddings : undefined;
+
+  if (!Array.isArray(rawEmbeddings)) {
+    logger.warn(
+      "[Embedding] Ollama /api/embed returned no embeddings array — using per-text fallback",
+    );
+    return ollamaEmbedPerText(texts);
+  }
+
+  if (rawEmbeddings.length !== texts.length) {
+    logger.warn(
+      `[Embedding] Ollama /api/embed returned ${rawEmbeddings.length} vectors for ${texts.length} texts — using per-text fallback`,
+    );
+    return ollamaEmbedPerText(texts);
+  }
+
+  const embeddings = rawEmbeddings.filter(isNumberVector);
+  if (embeddings.length !== texts.length) {
+    logger.warn(
+      "[Embedding] Ollama /api/embed returned malformed vectors — using per-text fallback",
+    );
+    return ollamaEmbedPerText(texts);
+  }
+
+  return embeddings;
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────
@@ -156,10 +256,10 @@ export async function detectEmbeddingBackend(): Promise<EmbeddingBackend> {
  * Generate embeddings for one or more text strings.
  *
  * On Intel Core Ultra with NPU:
- *   Ollama → SYCL/OpenVINO → Intel AI Boost NPU → ~5ms batch
+ *   Ollama → SYCL/OpenVINO → Intel AI Boost NPU → one batch round-trip
  *
  * Without NPU:
- *   Ollama → CPU → ~30ms per text
+ *   Ollama → CPU → one batch round-trip (per-text fallback for old Ollama)
  *
  * Fallback (no Ollama):
  *   TF-IDF → CPU → <1ms per document

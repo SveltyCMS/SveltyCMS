@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/select/types.ts
+ * @file src/widgets/core/select/types.ts
  * @description Type definitions for the Select widget.
  */
 

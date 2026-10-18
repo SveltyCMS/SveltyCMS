@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Checkbox/Display.svelte
+@file src/widgets/core/checkbox/display.svelte
 @component
 **Checkbox Widget Display Component**
 

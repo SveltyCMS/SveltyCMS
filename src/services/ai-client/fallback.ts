@@ -25,8 +25,51 @@
  */
 
 import type { AltTextResult, EmbeddingResult } from "./types";
+import { rethrow } from "@utils/error-handling";
 
 // ─── Configuration ──────────────────────────────────────────────────────────
+
+const OLLAMA_TIMEOUT_MS = 120_000;
+const OLLAMA_MAX_RESPONSE_BYTES = 1024 * 1024;
+
+interface OllamaResponse {
+  ok: boolean;
+  status: number;
+  text: string;
+}
+
+/**
+ * Fetch an admin-configured Ollama endpoint.
+ *
+ * This module also runs in the browser (the AI client falls back from the
+ * LiteRT.js worker), so the Node-only egress guard cannot be imported
+ * statically here — that would pull `node:dns`/`node:net` into the client
+ * bundle. On the server we route through the shared guard; requests made from
+ * the browser originate on the user's own machine and are not a server-side
+ * SSRF surface.
+ */
+async function fetchOllama(url: string, init: RequestInit): Promise<OllamaResponse> {
+  if (typeof window === "undefined") {
+    // Cold path — only reached when this module is used outside the browser.
+    const { safeFetch, validateEgressUrl } = await import("@utils/egress-guard");
+    // OLLAMA_URL is admin-configured and normally loopback/LAN; allowPrivate is
+    // scoped to this trusted endpoint and still blocks metadata/link-local.
+    await validateEgressUrl(url, { allowHttp: true, allowPrivate: true });
+    const result = await safeFetch(url, {
+      allowHttp: true,
+      allowPrivate: true,
+      method: init.method,
+      headers: init.headers as Record<string, string> | undefined,
+      body: init.body as string | undefined,
+      timeoutMs: OLLAMA_TIMEOUT_MS,
+      maxSizeBytes: OLLAMA_MAX_RESPONSE_BYTES,
+    });
+    return { ok: result.success, status: result.status ?? 0, text: result.body ?? "" };
+  }
+
+  const response = await fetch(url, init);
+  return { ok: response.ok, status: response.status, text: await response.text() };
+}
 
 /**
  * Get the Ollama URL from the CMS settings.
@@ -39,7 +82,8 @@ async function getOllamaUrl(): Promise<string> {
       const { data } = await response.json();
       return data?.value || "http://127.0.0.1:11434";
     }
-  } catch {
+  } catch (err) {
+    rethrow(err);
     // Settings endpoint unavailable — use default
   }
   return "http://127.0.0.1:11434";
@@ -66,7 +110,7 @@ async function generateAltText(
     const base64 = arrayBufferToBase64(imageData);
     const dataUrl = `data:${mimeType};base64,${base64}`;
 
-    const response = await fetch(`${ollamaUrl}/api/generate`, {
+    const response = await fetchOllama(`${ollamaUrl}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -85,7 +129,7 @@ async function generateAltText(
       throw new Error(`Ollama returned ${response.status}`);
     }
 
-    const result = await response.json();
+    const result = JSON.parse(response.text) as { response?: string };
     const altText = (result.response || "").trim();
 
     return {
@@ -95,6 +139,7 @@ async function generateAltText(
       latencyMs: Math.round(performance.now() - startTime),
     };
   } catch (err) {
+    rethrow(err);
     return {
       altText: "",
       confidence: 0,
@@ -121,7 +166,7 @@ async function generateEmbeddings(text: string, maxLength?: number): Promise<Emb
     const ollamaUrl = await getOllamaUrl();
     const truncated = maxLength ? text.slice(0, maxLength) : text;
 
-    const response = await fetch(`${ollamaUrl}/api/embeddings`, {
+    const response = await fetchOllama(`${ollamaUrl}/api/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -134,7 +179,7 @@ async function generateEmbeddings(text: string, maxLength?: number): Promise<Emb
       throw new Error(`Ollama embedding returned ${response.status}`);
     }
 
-    const result = await response.json();
+    const result = JSON.parse(response.text) as { embedding?: number[] };
 
     return {
       vector: result.embedding || [],
@@ -142,7 +187,8 @@ async function generateEmbeddings(text: string, maxLength?: number): Promise<Emb
       backend: "ollama",
       latencyMs: Math.round(performance.now() - startTime),
     };
-  } catch {
+  } catch (err) {
+    rethrow(err);
     return {
       vector: [],
       dimensions: 0,

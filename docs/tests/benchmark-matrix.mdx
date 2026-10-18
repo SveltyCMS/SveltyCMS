@@ -557,11 +557,11 @@ bun run scripts/benchmark-matrix/generate-benchmark-reports.ts --force-sqlite
 
 ```bash
 # Run CI-core benchmarks for all adapters
-bun run scripts/run-core-benchmarks.ts
+bun run scripts/runs/run-core-benchmarks.ts
 
 # Run for a single adapter
-bun run scripts/run-core-benchmarks.ts --db=sqlite
-bun run scripts/run-core-benchmarks.ts --db=postgresql
+bun run scripts/runs/run-core-benchmarks.ts --db=sqlite
+bun run scripts/runs/run-core-benchmarks.ts --db=postgresql
 ```
 
 ### All Benchmarks (Standalone)

@@ -9,6 +9,20 @@ import type { ConnectorRecord } from "@plugins/unified-data-hub/types";
 import { RestOpenApiConnector } from "@plugins/unified-data-hub/server/connectors/rest-openapi";
 import { resetConnectorCircuit } from "@plugins/unified-data-hub/server/connector-circuit-breaker";
 
+const { safeFetchMock, validateEgressUrlMock } = vi.hoisted(() => ({
+  safeFetchMock: vi.fn(),
+  validateEgressUrlMock: vi.fn(async (url: string) => new URL(url)),
+}));
+
+vi.mock("@utils/egress-guard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/egress-guard")>();
+  return {
+    ...actual,
+    safeFetch: safeFetchMock,
+    validateEgressUrl: validateEgressUrlMock,
+  };
+});
+
 const CONNECTOR_ID = "rest-1" as DatabaseId;
 const TENANT = "default" as DatabaseId;
 const ISO_NOW = "2026-07-09T00:00:00.000Z" as ISODateString;
@@ -55,14 +69,15 @@ const collection = {
 
 describe("REST connector write-back", () => {
   const connector = new RestOpenApiConnector();
-  const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     resetConnectorCircuit(String(CONNECTOR_ID));
+    safeFetchMock.mockReset();
+    validateEgressUrlMock.mockReset();
+    validateEgressUrlMock.mockImplementation(async (url: string) => new URL(url));
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
@@ -71,16 +86,11 @@ describe("REST connector write-back", () => {
   });
 
   it("creates entries via POST with Idempotency-Key", async () => {
-    const calls: RequestInit[] = [];
-    globalThis.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
-      calls.push(init ?? {});
-      return {
-        ok: true,
-        status: 201,
-        headers: { get: () => null },
-        text: async () => JSON.stringify({ id: 99, title: "Created", slug: "created" }),
-      };
-    }) as any;
+    safeFetchMock.mockResolvedValue({
+      success: true,
+      status: 201,
+      body: JSON.stringify({ id: 99, title: "Created", slug: "created" }),
+    });
 
     const row = await connector.executeWrite({
       connector: writableRestConnector,
@@ -90,8 +100,12 @@ describe("REST connector write-back", () => {
     });
 
     expect(row?._source.sourceKey).toBe("99");
-    expect(JSON.parse(calls[0].body as string).title).toBe("Created");
-    const headers = calls[0].headers as Record<string, string>;
+    expect(validateEgressUrlMock.mock.invocationCallOrder[0]).toBeLessThan(
+      safeFetchMock.mock.invocationCallOrder[0],
+    );
+    const init = safeFetchMock.mock.calls[0][1] as RequestInit;
+    expect(JSON.parse(init.body as string).title).toBe("Created");
+    const headers = init.headers as Record<string, string>;
     expect(headers["Idempotency-Key"]).toBeTruthy();
     expect(headers.Authorization).toBe("Bearer secret-token");
   });
@@ -111,16 +125,7 @@ describe("REST connector write-back", () => {
   });
 
   it("deletes entries via DELETE on collection endpoint", async () => {
-    let method = "";
-    globalThis.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
-      method = init?.method ?? "";
-      return {
-        ok: true,
-        status: 200,
-        headers: { get: () => null },
-        text: async () => "",
-      };
-    }) as any;
+    safeFetchMock.mockResolvedValue({ success: true, status: 200, body: "" });
 
     await connector.executeWrite({
       connector: writableRestConnector,
@@ -129,6 +134,7 @@ describe("REST connector write-back", () => {
       entryId: `${CONNECTOR_ID}:7`,
     });
 
-    expect(method).toBe("DELETE");
+    const init = safeFetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe("DELETE");
   });
 });

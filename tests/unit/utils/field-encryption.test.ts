@@ -28,10 +28,10 @@ describe("field-level AES-256-GCM encryption", () => {
     resetFieldEncryptionKeyCache();
   });
 
-  it("round-trips a string through a v1:iv:tag:ciphertext envelope", async () => {
+  it("round-trips a string through a v2 key-ID envelope", async () => {
     const envelope = await encryptFieldValue("ssn-123", CTX, "ssn");
     expect(isFieldEncryptionEnvelope(envelope)).toBe(true);
-    expect(envelope.startsWith("v1:")).toBe(true);
+    expect(/^v2:[A-Za-z0-9._-]{1,64}:/.test(envelope)).toBe(true);
     expect(envelope).not.toContain("ssn-123");
     expect(await decryptFieldValue(envelope, CTX, "ssn")).toBe("ssn-123");
   });
@@ -104,6 +104,61 @@ describe("field-level AES-256-GCM encryption", () => {
     resetFieldEncryptionKeyCache();
     await expect(encryptFieldValue("x", CTX, "ssn")).rejects.toSatisfy((err: unknown) => {
       return err instanceof AppError && err.code === "FIELD_ENCRYPTION_UNAVAILABLE";
+    });
+  });
+
+  describe("hybrid PQC field encryption (ML-KEM-768)", () => {
+    it("round-trips field value with ML-KEM hybrid envelope when PQC_HYBRID_FIELDS=true", async () => {
+      const { generateKemKeyPair, isMlKemAvailable, isHybridEnvelope } =
+        await import("@utils/security/hybrid-kem");
+      if (!(await isMlKemAvailable())) return;
+
+      const keys = await generateKemKeyPair();
+      vi.stubEnv("PQC_HYBRID_FIELDS", "true");
+      vi.stubEnv("KEM_PUBLIC_KEY", keys.publicKey);
+      vi.stubEnv("KEM_PRIVATE_KEY", keys.privateKey);
+
+      const envelope = await encryptFieldValue("quantum-sensitive-data", CTX, "secretField");
+      expect(isFieldEncryptionEnvelope(envelope)).toBe(true);
+      expect(isHybridEnvelope(envelope)).toBe(true);
+      expect(envelope.split(":")).toHaveLength(9);
+
+      const decrypted = await decryptFieldValue(envelope, CTX, "secretField");
+      expect(decrypted).toBe("quantum-sensitive-data");
+
+      // AAD mismatch fail-closed
+      const badTenant = await decryptFieldValue(
+        envelope,
+        { ...CTX, tenantId: "evil_tenant" },
+        "secretField",
+      );
+      expect(badTenant).toBeNull();
+
+      // Tampered envelope fail-closed
+      const tampered = envelope.slice(0, -4) + "AAAA";
+      expect(await decryptFieldValue(tampered, CTX, "secretField")).toBeNull();
+    });
+
+    it("round-trips document fields through hybrid envelopes", async () => {
+      const { generateKemKeyPair, isMlKemAvailable, isHybridEnvelope } =
+        await import("@utils/security/hybrid-kem");
+      if (!(await isMlKemAvailable())) return;
+
+      const keys = await generateKemKeyPair();
+      vi.stubEnv("PQC_HYBRID_FIELDS", "true");
+      vi.stubEnv("KEM_PUBLIC_KEY", keys.publicKey);
+      vi.stubEnv("KEM_PRIVATE_KEY", keys.privateKey);
+
+      const doc = {
+        name: "Alice",
+        secretToken: "pqc_token_789",
+      };
+
+      await encryptDocumentFields(doc, ["secretToken"], CTX);
+      expect(isHybridEnvelope(doc.secretToken)).toBe(true);
+
+      await decryptDocumentFields(doc, ["secretToken"], CTX);
+      expect(doc.secretToken).toBe("pqc_token_789");
     });
   });
 });

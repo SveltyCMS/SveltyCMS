@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Checkbox/types.ts
+ * @file src/widgets/core/checkbox/types.ts
  * @description Type definitions for the Checkbox widget.
  */
 

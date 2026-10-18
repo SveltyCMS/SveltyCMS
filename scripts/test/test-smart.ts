@@ -1,0 +1,1294 @@
+/**
+ * @file scripts/test/test-smart.ts
+ * @description Smart Test Orchestrator — reads git diff and selects required test suites.
+ *
+ * ### The Three Gates
+ *
+ * Gate 1 — White-Box Unit:
+ *   Shared deterministic harness. No ad-hoc mocks. Every bug fix adds a regression test.
+ *
+ * Gate 2 — Black-Box Integration:
+ *   Real HTTP against SQLite. Identical adapter behavior. Unknown namespaces → 403.
+ *
+ * Gate 4 — Playwright E2E:
+ *   Single canonical seeder. Semantic selectors only. No arbitrary waits.
+ *
+ * Note: Type check, lint, and slop scan are handled by the pre-commit hook
+ * (gates 1 & 3), not by this orchestrator.
+ *
+ * ### Scope dedupe (execution only)
+ * The printed plan always shows every suite that was considered. At execution
+ * time a plain, unfiltered Vitest suite is skipped when another selected suite
+ * at the same gate already runs a superset of its paths — `tests/unit/utils/`
+ * is redundant once `tests/unit` is selected. Every uncertainty keeps the
+ * suite: compound commands, `VAR=value` prefixes, name filters (`-t`), globs,
+ * partial overlap, non-Vitest runners, and fail-closed plans.
+ *
+ * ### Failure Policy
+ * Flaky means unstable core. No "retry until green." Every failure must be root-caused.
+ *
+ * Usage:
+ *   bun run scripts/test/test-smart.ts              # auto-detect from git diff
+ *   bun run scripts/test/test-smart.ts --all        # run everything
+ *   bun run scripts/test/test-smart.ts --suite=auth # run specific suite
+ */
+
+import { join, dirname, resolve, relative, extname } from "node:path";
+import { execSync, spawn } from "node:child_process";
+import { readFileSync, existsSync, statSync, readdirSync, writeFileSync, mkdirSync } from "node:fs";
+import { getChangedPaths, resolveDiffBase } from "../git-safe";
+
+// ── Failure cache for smart retry across precheck runs ─────────────────
+const CACHE_DIR = join(import.meta.dirname, "../..", ".precheck-cache");
+const FAILURE_CACHE = join(CACHE_DIR, "failed-suites.json");
+
+function saveFailedSuites(suites: { label: string; gate: number; command: string }[]): void {
+  try {
+    if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
+    writeFileSync(FAILURE_CACHE, JSON.stringify(suites, null, 2), "utf8");
+  } catch {
+    /* best-effort */
+  }
+}
+
+function loadFailedSuites(): { label: string; gate: number; command: string }[] | null {
+  try {
+    if (!existsSync(FAILURE_CACHE)) return null;
+    const raw = readFileSync(FAILURE_CACHE, "utf8");
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function clearFailureCache(): void {
+  try {
+    if (existsSync(FAILURE_CACHE)) writeFileSync(FAILURE_CACHE, "[]", "utf8");
+  } catch {}
+}
+
+const ALIASES: Record<string, string> = {
+  "@src": "src",
+  "@components": "src/components",
+  "@databases": "src/databases",
+  "@config": "config",
+  "@utils": "src/utils",
+  "@stores": "src/stores",
+  "@widgets": "src/widgets",
+  "@services": "src/services",
+  $paraglide: "src/paraglide",
+};
+
+function getAllFiles(dir: string, fileList: string[] = []): string[] {
+  if (!existsSync(dir)) return fileList;
+  const files = readdirSync(dir);
+  for (const file of files) {
+    const filePath = join(dir, file);
+    if (statSync(filePath).isDirectory()) {
+      if (
+        file !== "node_modules" &&
+        file !== ".git" &&
+        file !== ".svelte-kit" &&
+        file !== ".compiledCollections"
+      ) {
+        getAllFiles(filePath, fileList);
+      }
+    } else {
+      const ext = extname(file);
+      if (ext === ".ts" || ext === ".js" || ext === ".svelte") {
+        fileList.push(filePath);
+      }
+    }
+  }
+  return fileList;
+}
+function toRelativePosix(p: string, root: string): string {
+  return relative(root, p).replace(/\\/g, "/");
+}
+
+function stripComments(content: string): string {
+  // Remove multiline comments
+  content = content.replace(/\/\*[\s\S]*?\*\//g, "");
+  // Remove single-line comments (ignoring URL protocols like http://)
+  content = content.replace(/(?:^|[^:])\/\/.*$/gm, "");
+  return content;
+}
+
+function extractImports(filePath: string): string[] {
+  try {
+    const content = readFileSync(filePath, "utf8");
+
+    // Use Bun's native fast transpiler scanning for TS/JS files if available.
+    if (typeof Bun !== "undefined" && !filePath.endsWith(".svelte")) {
+      const transpiler = new Bun.Transpiler({ loader: filePath.endsWith(".tsx") ? "tsx" : "ts" });
+      return transpiler
+        .scanImports(content)
+        .map((imp: { path: string }) => imp.path)
+        .filter((path: string) => !path.startsWith("node:")); // exclude node built-ins
+    }
+
+    // Fallback: Comment-stripping regex parser (handles Svelte script blocks or Node environments)
+    const cleanContent = stripComments(content);
+    const imports: string[] = [];
+    let match;
+
+    // 1. Static imports/exports with 'from'
+    const fromRegex = /(?:import|export)\s+[\s\S]*?\s+from\s+['"]([^'"]+)['"]/g;
+    while ((match = fromRegex.exec(cleanContent)) !== null) {
+      imports.push(match[1]);
+    }
+
+    // 2. Side-effect imports
+    const sideEffectRegex = /import\s+['"]([^'"]+)['"]/g;
+    while ((match = sideEffectRegex.exec(cleanContent)) !== null) {
+      imports.push(match[1]);
+    }
+
+    // 3. Dynamic imports & requires
+    const dynamicRegex = /(?:import|require)\(\s*['"]([^'"]+)['"]\s*\)/g;
+    while ((match = dynamicRegex.exec(cleanContent)) !== null) {
+      imports.push(match[1]);
+    }
+
+    return [...new Set(imports)];
+  } catch {
+    return [];
+  }
+}
+
+function resolveImport(importPath: string, importerFile: string, root: string): string | null {
+  let resolvedPath = "";
+
+  // Check if it matches an alias
+  let matchedAlias = false;
+  for (const [alias, targetDir] of Object.entries(ALIASES)) {
+    if (importPath === alias) {
+      resolvedPath = join(root, targetDir);
+      matchedAlias = true;
+      break;
+    } else if (importPath.startsWith(alias + "/")) {
+      resolvedPath = join(root, targetDir, importPath.slice(alias.length + 1));
+      matchedAlias = true;
+      break;
+    }
+  }
+
+  if (!matchedAlias) {
+    if (importPath.startsWith(".") || importPath.startsWith("/")) {
+      resolvedPath = resolve(dirname(importerFile), importPath);
+    } else {
+      return null;
+    }
+  }
+
+  const candidates = [
+    resolvedPath,
+    resolvedPath + ".ts",
+    resolvedPath + ".js",
+    resolvedPath + ".svelte",
+    join(resolvedPath, "index.ts"),
+    join(resolvedPath, "index.js"),
+    join(resolvedPath, "index.svelte"),
+  ];
+
+  for (const c of candidates) {
+    if (existsSync(c) && statSync(c).isFile()) {
+      return toRelativePosix(c, root);
+    }
+  }
+
+  return null;
+}
+
+interface DependencyGraph {
+  imports: Map<string, Set<string>>;
+  importedBy: Map<string, Set<string>>;
+}
+
+export function buildDependencyGraph(root: string): DependencyGraph {
+  const imports = new Map<string, Set<string>>();
+  const importedBy = new Map<string, Set<string>>();
+
+  const allFiles = [
+    ...getAllFiles(join(root, "src")),
+    ...getAllFiles(join(root, "config")),
+    ...getAllFiles(join(root, "tests")),
+  ];
+
+  for (const file of allFiles) {
+    const relFile = toRelativePosix(file, root);
+    const fileImports = extractImports(file);
+
+    for (const impPath of fileImports) {
+      const resolved = resolveImport(impPath, file, root);
+      if (resolved) {
+        if (!imports.has(relFile)) imports.set(relFile, new Set());
+        imports.get(relFile)!.add(resolved);
+
+        if (!importedBy.has(resolved)) importedBy.set(resolved, new Set());
+        importedBy.get(resolved)!.add(relFile);
+      }
+    }
+  }
+
+  return { imports, importedBy };
+}
+
+export function findTransitiveDependents(
+  changedFiles: string[],
+  graph: DependencyGraph,
+): Set<string> {
+  const affected = new Set<string>();
+  const queue = [...changedFiles];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (affected.has(current)) continue;
+    affected.add(current);
+
+    const dependents = graph.importedBy.get(current);
+    if (dependents) {
+      for (const dep of dependents) {
+        if (!affected.has(dep)) {
+          queue.push(dep);
+        }
+      }
+    }
+  }
+
+  return affected;
+}
+
+// ---------------------------------------------------------------------------
+// Suite definitions — what to run when files change
+// ---------------------------------------------------------------------------
+
+interface SuiteRule {
+  /** Glob patterns that trigger this suite */
+  patterns: string[];
+  /** Test command to execute */
+  command: string;
+  /** Human-readable label */
+  label: string;
+  /** Gate number (1-4) */
+  gate: number;
+}
+
+const SUITE_RULES: SuiteRule[] = [
+  // ── Gate 1: White-Box Unit (Vitest — same runner as pre-commit) ─────────
+  {
+    label: "Auth & Security",
+    gate: 1,
+    patterns: [
+      "src/routes/api/auth/**",
+      "src/databases/auth/**",
+      "src/hooks/handle-authentication.ts",
+      "src/routes/(app)/login/**",
+      "src/routes/api/[...path]/handlers/auth.ts",
+    ],
+    command:
+      "bun x vitest run tests/unit/hooks/authentication.test.ts tests/unit/hooks/defense-in-depth.test.ts tests/unit/auth/auth-lockout.test.ts",
+  },
+  {
+    label: "Authorization & RBAC",
+    gate: 1,
+    patterns: [
+      "src/hooks/handle-authorization.ts",
+      "src/routes/api/[...path]/+server.ts",
+      "src/services/permissions/**",
+      "src/databases/auth/roles/**",
+      "src/routes/api/[...path]/handlers/*.ts",
+    ],
+    command:
+      "bun x vitest run tests/unit/hooks/authorization.test.ts tests/unit/auth/roles/role-permission-access.test.ts",
+  },
+  {
+    label: "Middleware & Setup",
+    gate: 1,
+    patterns: [
+      "src/hooks/handle-system-state.ts",
+      "src/hooks/handle-setup.ts",
+      "src/hooks/handle-firewall.ts",
+      "src/hooks/handle-rate-limit.ts",
+      "src/hooks/handle-locale.ts",
+      "src/hooks/handle-theme.ts",
+      "src/hooks/add-security-headers.ts",
+    ],
+    command:
+      "bun x vitest run tests/unit/hooks/system-state.test.ts tests/unit/hooks/setup.test.ts tests/unit/hooks/security-headers.test.ts",
+  },
+  {
+    label: "Database Adapters",
+    gate: 2,
+    patterns: [
+      "src/databases/mongo/**",
+      "src/databases/mongodb/**",
+      "src/databases/sqlite/**",
+      "src/databases/postgresql/**",
+      "src/databases/mariadb/**",
+      "src/databases/db.ts",
+      "src/databases/dbInterface.ts",
+    ],
+    // List individual files (not contract.test.ts / tenant-isolation.test.ts — they need preview server on :4173)
+    command:
+      "bun test --timeout 300000 tests/integration/databases/adapter-parity.test.ts tests/integration/databases/advanced-crud-contract.test.ts tests/integration/databases/bulk-operations-contract.test.ts tests/integration/databases/cache-contract.test.ts tests/integration/databases/cache-integration.test.ts tests/integration/databases/content-nodes-contract.test.ts tests/integration/databases/db-interface.test.ts tests/integration/databases/error-contract.test.ts tests/integration/databases/health-contract.test.ts tests/integration/databases/resilience-load.test.ts tests/integration/databases/sqlite-adapter.test.ts tests/integration/databases/transaction-contract.test.ts",
+  },
+  {
+    label: "Content Structure Persistence",
+    gate: 1,
+    patterns: [
+      "src/content/**",
+      "config/collections/**",
+      "src/databases/core/relational-content.ts",
+      "src/routes/(app)/config/collectionbuilder/**",
+      "src/services/sdk/namespaces/data-operations.ts",
+      "src/utils/collection-order.server.ts",
+    ],
+    command:
+      "bun x vitest run tests/unit/content/structure-persistence-db.test.ts tests/unit/content/sync-content-state.test.ts tests/unit/content/upsert-content-nodes.test.ts tests/unit/test-harness/real-db-markers.test.ts tests/unit/test-harness/negative-mock-guard.test.ts && bun test --timeout 300000 tests/integration/databases/content-nodes-contract.test.ts",
+  },
+  {
+    label: "Stores & State",
+    gate: 1,
+    patterns: ["src/stores/**"],
+    command: "bun x vitest run tests/unit/stores/",
+  },
+  {
+    label: "Utilities",
+    gate: 1,
+    patterns: ["src/utils/**"],
+    command: "bun x vitest run tests/unit/utils/",
+  },
+  {
+    label: "Widgets",
+    gate: 1,
+    patterns: ["src/widgets/**"],
+    command: "bun x vitest run tests/unit/widgets/",
+  },
+  // ── Gate 2: Black-Box Integration ───────────────────────────────────────
+  {
+    label: "API Integration (SQLite)",
+    gate: 2,
+    patterns: ["src/routes/api/**", "src/hooks/handle-api-requests.ts", "src/services/**"],
+    command: "bun test --timeout 300000 tests/integration/",
+  },
+  // ── Gate 4: E2E ─────────────────────────────────────────────────────────
+  {
+    label: "E2E Wizard",
+    gate: 4,
+    patterns: [
+      "src/routes/setup/**",
+      "src/components/setup/**",
+      "tests/e2e/routes/setup/setup-wizard.spec.ts",
+    ],
+    command: "bun x playwright test tests/e2e/routes/setup/setup-wizard.spec.ts --project=wizard",
+  },
+  {
+    label: "E2E Auth",
+    gate: 4,
+    patterns: ["src/routes/(app)/login/**", "src/routes/api/auth/**", "tests/e2e/auth.setup.ts"],
+    command: "bun x playwright test --project=auth-setup",
+  },
+  {
+    label: "E2E User & Profile",
+    gate: 4,
+    patterns: [
+      "src/routes/(app)/user/**",
+      "src/components/ui/avatar.svelte",
+      "src/components/ui/checkbox.svelte",
+    ],
+    command:
+      "bun x playwright test tests/e2e/routes/user/management.spec.ts tests/e2e/routes/user/profile.spec.ts --project=chromium",
+  },
+  {
+    label: "E2E Media Gallery",
+    gate: 4,
+    patterns: ["src/routes/(app)/mediagallery/**", "src/components/media/**"],
+    command: "bun x playwright test tests/e2e/routes/mediagallery/ --project=chromium",
+  },
+  {
+    label: "E2E Collection Builder",
+    gate: 4,
+    patterns: ["src/routes/(app)/config/collectionbuilder/**"],
+    command: "bun x playwright test tests/e2e/routes/collection-builder/ --project=chromium",
+  },
+  {
+    label: "E2E Dashboard",
+    gate: 4,
+    patterns: ["src/routes/(app)/dashboard/**"],
+    command: "bun x playwright test tests/e2e/routes/dashboard/ --project=chromium",
+  },
+  {
+    label: "E2E Settings & System",
+    gate: 4,
+    patterns: ["src/routes/(app)/config/**"],
+    command:
+      "bun x playwright test tests/e2e/routes/config/ tests/e2e/routes/system/ --project=chromium",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Fallback: when change scope is unknown, fail closed → run the full core
+// ---------------------------------------------------------------------------
+
+const FULL_CORE_SUITE: SuiteRule = {
+  label: "Full Core Suite (fail-closed)",
+  gate: 0,
+  patterns: ["*"],
+  command: "bun run test:unit && bun test --timeout 300000 tests/integration/ && bun run slop",
+};
+
+// ---------------------------------------------------------------------------
+// Git diff helpers
+// ---------------------------------------------------------------------------
+
+function getChangedFiles(): string[] {
+  return getChangedPaths();
+}
+
+function matchesPattern(file: string, pattern: string): boolean {
+  // Comprehensive glob matching: escape all regex metacharacters except '*', then expand wildcards
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  const regexStr = escaped
+    .replace(/\*\*/g, "§§GLOBSTAR§§")
+    .replace(/\*/g, "[^/]*")
+    .replace(/§§GLOBSTAR§§/g, ".*");
+  return new RegExp(`^${regexStr}$`).test(file);
+}
+
+// ---------------------------------------------------------------------------
+// Synthetic edges — non-import relationships (codegen, dynamic dispatch)
+// ---------------------------------------------------------------------------
+
+/**
+ * Some relationships that matter for test selection aren't `import`
+ * statements, so buildDependencyGraph() can't see them:
+ *
+ *   - Generated files (src/content/types.generated.ts) are WRITTEN by the
+ *     Vite plugin that reads collection schema sources. There's no import
+ *     edge from a schema file to the generated output, or back — a schema
+ *     edit is invisible to the graph AND, until now, to SUITE_RULES, which
+ *     only matched src/content/** itself, not the schema sources under
+ *     config/collections/.
+ *   - Anything dispatched at runtime through a registry/map instead of a
+ *     static `import` is invisible to the regex-based extractImports().
+ *
+ * Each entry says: "if any changed file matches `trigger`, also treat
+ * `alsoTouched` as changed" — before pattern matching or the dependency
+ * graph run. Add an entry here whenever you introduce a new codegen step.
+ */
+interface SyntheticEdge {
+  label: string;
+  trigger: string[];
+  alsoTouched: string[];
+}
+
+const SYNTHETIC_EDGES: SyntheticEdge[] = [
+  {
+    label: "Collection schema → generated content types",
+    trigger: ["config/collections/**"],
+    alsoTouched: ["src/content/types.generated.ts", "src/content/types.ts"],
+  },
+  {
+    label: "Generated content types → hand-written types module",
+    trigger: ["src/content/types.generated.ts"],
+    alsoTouched: ["src/content/types.ts"],
+  },
+];
+
+export function expandSyntheticEdges(changedFiles: string[]): string[] {
+  const expanded = new Set(changedFiles);
+  let sizeBefore: number;
+  // Fixed-point: an injected file can itself be a trigger for another edge.
+  do {
+    sizeBefore = expanded.size;
+    const current = [...expanded];
+    for (const edge of SYNTHETIC_EDGES) {
+      const triggered = current.some((f) => edge.trigger.some((p) => matchesPattern(f, p)));
+      if (triggered) {
+        for (const f of edge.alsoTouched) {
+          if (!expanded.has(f)) {
+            console.log(`  🔗 ${edge.label} — treating ${f} as changed`);
+            expanded.add(f);
+          }
+        }
+      }
+    }
+  } while (expanded.size > sizeBefore);
+  return [...expanded];
+}
+
+function getMergeBase(): string {
+  // Prefer upstream (origin/next) — same base as precheck getChangedPaths.
+  // Do NOT compare against origin/main on the next branch (inflates the delta).
+  try {
+    return resolveDiffBase();
+  } catch {
+    return "HEAD~1";
+  }
+}
+
+/**
+ * Candidate identifiers from the current diff (added lines' symbols), used to
+ * optionally narrow `vitest -t`. One whole-tree diff instead of one `git diff`
+ * per file: callers use only the union, per-file spawns cost ~8s on a
+ * 280-file Windows diff, and a superset can only push the count past the
+ * 15-identifier gate (skipping the filter) — never toward fewer tests.
+ */
+function extractChangedIdentifiers(mergeBase: string): string[] {
+  try {
+    const diff = execSync(`git diff ${mergeBase}`, {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    });
+    const identifiers = new Set<string>();
+
+    // Look for added lines containing potential function/method calls or properties
+    const lineRegex = /^\+\s+.*?\b([a-zA-Z_][a-zA-Z0-9_]{3,})\b/gm;
+    let match;
+    while ((match = lineRegex.exec(diff)) !== null) {
+      if (!["import", "export", "const", "return", "function", "expect"].includes(match[1])) {
+        identifiers.add(match[1]);
+      }
+    }
+    return [...identifiers];
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Suite selection
+// ---------------------------------------------------------------------------
+
+interface SelectedSuite {
+  rule: SuiteRule;
+  matchingFiles: string[];
+}
+
+function selectSuites(changedFiles: string[]): SelectedSuite[] {
+  const selected: SelectedSuite[] = [];
+  const seen = new Set<string>();
+
+  for (const rule of SUITE_RULES) {
+    const matchingFiles = changedFiles.filter((f) =>
+      rule.patterns.some((p) => matchesPattern(f, p)),
+    );
+
+    if (matchingFiles.length > 0 && !seen.has(rule.label)) {
+      seen.add(rule.label);
+      selected.push({ rule, matchingFiles });
+    }
+  }
+
+  // If nothing matched and we have changed files → fail closed → full core
+  if (selected.length === 0 && changedFiles.length > 0) {
+    console.warn(
+      "\n⚠️  No specific suite matched changed files. FAIL-CLOSED → running full core suite.\n",
+    );
+    selected.push({ rule: FULL_CORE_SUITE, matchingFiles: changedFiles });
+  }
+
+  return selected;
+}
+
+// ---------------------------------------------------------------------------
+// Exclude filter
+// ---------------------------------------------------------------------------
+
+/**
+ * Removes test file paths from a command string that match the exclusion list.
+ * Only strips paths that appear as standalone arguments (not substrings).
+ */
+function filterExcludedFiles(cmd: string, excludeList: string[]): string {
+  if (excludeList.length === 0) return cmd;
+  const parts = cmd.split(/\s+/);
+  const filtered = parts.filter((part) => {
+    // Only filter arguments that look like test file paths
+    if (!part.endsWith(".test.ts")) return true;
+    return !excludeList.some((ex) => part === ex || part.endsWith("/" + ex));
+  });
+  return filtered.join(" ");
+}
+
+// ---------------------------------------------------------------------------
+// Scope-containment dedupe (execution only — the printed plan stays complete)
+// ---------------------------------------------------------------------------
+
+/** Path scope kinds: a directory covers its whole subtree, a file only itself. */
+interface ScopePath {
+  kind: "dir" | "file";
+  /** Repo-relative posix path, trailing slash stripped. */
+  path: string;
+}
+
+/** Shell operators that turn a suite command into a compound invocation. */
+const SHELL_OPERATORS = new Set(["&&", "||", ";", "|"]);
+/** `VAR=value` prefix — selects an alternate runtime config (e.g. DB_TYPE=…). */
+const ENV_PREFIX = /^[A-Za-z_][A-Za-z0-9_]*=/;
+const TEST_FILE_SUFFIX = /\.(test|spec)\.ts$/;
+
+/**
+ * Parse a suite command into the repo-relative paths it runs, or null when the
+ * command is not a plain, unfiltered `vitest run <paths…>`.
+ *
+ * Null means "not comparable": the suite is then neither dropped nor used as a
+ * container. That covers every shape we cannot prove equivalent —
+ *   - compound commands (`a && b`), `VAR=value` prefixes (DB_TYPE=… targets a
+ *     different adapter), and non-Vitest runners (bun test, playwright);
+ *   - any flag, including `-t`/`--testNamePattern`: the run then covers only a
+ *     name-filtered subset of its paths, so it cannot stand in for a sibling;
+ *   - a bare `vitest run` (scope comes from vitest.config.ts), a glob, or a
+ *     path that does not resolve on disk.
+ */
+function parseVitestScope(command: string, root: string): ScopePath[] | null {
+  const tokens = command.trim().split(/\s+/);
+  if (tokens.some((t) => SHELL_OPERATORS.has(t) || ENV_PREFIX.test(t))) return null;
+
+  const prefix =
+    tokens[0] === "bun" && tokens[1] === "x" && tokens[2] === "vitest" && tokens[3] === "run"
+      ? 4
+      : tokens[0] === "bunx" && tokens[1] === "vitest" && tokens[2] === "run"
+        ? 3
+        : -1;
+  if (prefix < 0) return null;
+
+  const positional = tokens.slice(prefix);
+  if (positional.length === 0) return null;
+
+  const scope: ScopePath[] = [];
+  for (const token of positional) {
+    if (token.startsWith("-") || /[*?[\]{}]/.test(token)) return null;
+    const rel = token.replace(/^\.\//, "").replace(/\/+$/, "");
+    const abs = join(root, rel);
+    if (!existsSync(abs)) return null;
+    if (statSync(abs).isDirectory()) {
+      scope.push({ kind: "dir", path: rel });
+    } else if (TEST_FILE_SUFFIX.test(rel)) {
+      scope.push({ kind: "file", path: rel });
+    } else {
+      return null; // positional that is neither a directory nor a test file
+    }
+  }
+  return scope;
+}
+
+/** True when every path in `candidate` equals or nests under a path in `container`. */
+function scopeContains(container: ScopePath[], candidate: ScopePath[]): boolean {
+  return candidate.every((c) =>
+    container.some((k) =>
+      k.kind === "file" ? k.path === c.path : c.path === k.path || c.path.startsWith(k.path + "/"),
+    ),
+  );
+}
+
+function formatScope(scope: ScopePath[]): string {
+  return scope.map((s) => (s.kind === "dir" ? `${s.path}/` : s.path)).join(" ");
+}
+
+/** A suite that was not executed because a broader suite already covers it. */
+interface DedupedSuite {
+  label: string;
+  scope: string;
+  containerLabel: string;
+  containerScope: string;
+}
+
+/**
+ * Drop suites whose entire path scope is already covered by another selected
+ * suite at the same gate (both plain, unfiltered Vitest runs). Equal scopes
+ * keep the first suite in plan order. A suite is restored — never silently
+ * lost — when the only suite that covered it is itself dropped and no kept
+ * ancestor exists.
+ *
+ * Exported for direct unit testing (see tests/unit/scripts/test-smart.test.ts).
+ */
+export function dedupeContainedSuites(
+  suites: SelectedSuite[],
+  root: string,
+): { kept: SelectedSuite[]; skipped: DedupedSuite[] } {
+  // Fail-closed / "run everything" plans must behave exactly as before.
+  if (suites.some((s) => s.rule.gate === 0)) return { kept: suites, skipped: [] };
+
+  const scopes = new Map<SelectedSuite, ScopePath[] | null>(
+    suites.map((s) => [s, parseVitestScope(s.rule.command, root)]),
+  );
+  const order = new Map(suites.map((s, i) => [s, i]));
+
+  const covers = (container: SelectedSuite, candidate: SelectedSuite): boolean => {
+    if (container === candidate) return false;
+    if (container.rule.gate !== candidate.rule.gate) return false;
+    const outer = scopes.get(container);
+    const inner = scopes.get(candidate);
+    if (!outer || !inner) return false;
+    if (!scopeContains(outer, inner)) return false;
+    // Same scope in both directions → keep the first in plan order.
+    if (scopeContains(inner, outer) && order.get(container)! > order.get(candidate)!) return false;
+    return true;
+  };
+
+  const droppedBy = new Map<SelectedSuite, SelectedSuite>();
+  for (const candidate of suites) {
+    const container = suites.find((other) => covers(other, candidate));
+    if (container) droppedBy.set(candidate, container);
+  }
+
+  // Containment is transitive, so a dropped container always has a kept
+  // ancestor. This fixed point resolves to that ancestor and restores any
+  // suite that would otherwise lose its coverage — belt and braces.
+  let settled = false;
+  while (!settled) {
+    settled = true;
+    for (const [suite, container] of Array.from(droppedBy)) {
+      if (!droppedBy.has(container)) continue;
+      const alternative = suites.find((other) => !droppedBy.has(other) && covers(other, suite));
+      if (alternative) droppedBy.set(suite, alternative);
+      else {
+        droppedBy.delete(suite);
+        settled = false;
+      }
+    }
+  }
+
+  const skipped: DedupedSuite[] = [];
+  for (const [suite, container] of droppedBy) {
+    const inner = scopes.get(suite);
+    const outer = scopes.get(container);
+    if (!inner || !outer) continue; // unreachable: covers() requires both scopes
+    skipped.push({
+      label: suite.rule.label,
+      scope: formatScope(inner),
+      containerLabel: container.rule.label,
+      containerScope: formatScope(outer),
+    });
+  }
+
+  return { kept: suites.filter((s) => !droppedBy.has(s)), skipped };
+}
+
+// ---------------------------------------------------------------------------
+// Test runner
+// ---------------------------------------------------------------------------
+
+async function runCommand(cmd: string, cwd: string): Promise<{ code: number; output: string }> {
+  const parts = cmd.split(/\s+/);
+
+  // Extract environment variable prefixes (VAR=value) — works cross-platform
+  const envOverrides: Record<string, string> = {};
+  let cmdStart = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const eqIdx = parts[i].indexOf("=");
+    if (eqIdx > 0 && /^[A-Z_][A-Z0-9_]*$/i.test(parts[i].slice(0, eqIdx))) {
+      envOverrides[parts[i].slice(0, eqIdx)] = parts[i].slice(eqIdx + 1);
+      cmdStart = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  const bin = parts[cmdStart];
+  const args = parts.slice(cmdStart + 1);
+
+  const CHUNK_SIZE = 20;
+
+  // Handle Space-Separated Chunking (e.g., bun test file1 file2)
+  // Separate pure test files from configuration flags safely
+  const isTestFile = (arg: string) => arg.endsWith(".test.ts") || arg.endsWith(".spec.ts");
+  const testFiles = args.filter(isTestFile);
+  const trailingFlags = args.filter((arg) => !isTestFile(arg));
+
+  if (testFiles.length > CHUNK_SIZE) {
+    console.log(
+      `📦 Command has ${testFiles.length} space-separated test files. Chunking into batches of ${CHUNK_SIZE}...`,
+    );
+    let overallCode = 0;
+
+    for (let i = 0; i < testFiles.length; i += CHUNK_SIZE) {
+      const chunk = testFiles.slice(i, i + CHUNK_SIZE);
+      // Keep flags completely safe at the end of the argument payload array
+      const chunkArgs = [...chunk, ...trailingFlags];
+
+      console.log(
+        `\n    [Batch ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(testFiles.length / CHUNK_SIZE)}] Running: ${bin} ${chunkArgs.join(" ")}`,
+      );
+
+      const code = await new Promise<number>((res) => {
+        const proc = spawn(bin, chunkArgs, {
+          cwd,
+          stdio: "inherit",
+          shell: process.platform === "win32",
+          env: { ...process.env, ...envOverrides },
+        });
+        proc.on("close", (c: number | null) => res(c ?? 0));
+      });
+
+      if (code !== 0) {
+        overallCode = code;
+        break;
+      }
+    }
+    return { code: overallCode, output: "" };
+  }
+
+  // 3. Fallback: Standard execution if within size limits
+  return new Promise((resolve) => {
+    const proc = spawn(bin, args, {
+      cwd,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: { ...process.env, ...envOverrides },
+    });
+
+    proc.on("close", (code: number) => {
+      resolve({ code: code ?? 0, output: "" });
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+async function main() {
+  const ROOT = join(import.meta.dirname, "..");
+  const argv = process.argv.slice(2);
+
+  // ── CLI flags ───────────────────────────────────────────────────────────
+  const runAll = argv.includes("--all");
+  const listOnly = argv.includes("--list");
+  const unitOnly = argv.includes("--unit-only");
+  const unitAndSqlite = argv.includes("--unit+sqlite");
+  const suiteFilter = argv.includes("--suite") ? argv[argv.indexOf("--suite") + 1] : null;
+  const excludeList = argv.includes("--exclude")
+    ? argv[argv.indexOf("--exclude") + 1]
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  const onlyFailures = argv.includes("--only-failures");
+
+  if (unitOnly || unitAndSqlite) {
+    FULL_CORE_SUITE.command = "bun run test:unit";
+  }
+
+  // ── Smart Docker detection ──────────────────────────────────────────────
+  // Check running containers and surface available DBs for extra adapter tests
+  const availableDbs: string[] = [];
+  try {
+    const ps = execSync("docker ps --format '{{.Names}}'", {
+      encoding: "utf8",
+      timeout: 3000,
+    }).trim();
+    if (ps.includes("postgres")) availableDbs.push("postgresql");
+    if (ps.includes("mongo")) availableDbs.push("mongodb");
+    if (ps.includes("mariadb")) availableDbs.push("mariadb");
+    if (availableDbs.length > 0) {
+      console.log(`🐳  Docker DBs detected: ${availableDbs.join(", ")} — adapter tests included`);
+    }
+  } catch {
+    // Docker not running or not installed — SQLite only, that's fine
+  }
+
+  // ── Determine changed files ─────────────────────────────────────────────
+  const changedFiles = runAll ? ["*"] : getChangedFiles();
+
+  if (changedFiles.length === 0) {
+    // Smart retry: if no files changed but previous run had failures, re-run those
+    const cached = loadFailedSuites();
+    if (cached && cached.length > 0) {
+      console.log(
+        "No changed files, but " + cached.length + " cached failure(s) found. Re-running those.",
+      );
+      // Push a sentinel so we know to skip normal selection below
+      changedFiles.push("__CACHED_RETRY__");
+    } else {
+      console.log("No changed files detected. Nothing to test.");
+      return;
+    }
+  }
+
+  const isCachedRetry = changedFiles.length === 1 && changedFiles[0] === "__CACHED_RETRY__";
+
+  console.log(`\n📋 Changed files (${changedFiles.length}):`);
+  for (const f of changedFiles.slice(0, 20)) {
+    console.log(`   ${f}`);
+  }
+  if (changedFiles.length > 20) {
+    console.log(`   ... and ${changedFiles.length - 20} more`);
+  }
+
+  // ── Select suites ───────────────────────────────────────────────────────
+  // Two signals, always combined — never either/or. Patterns encode domain
+  // knowledge and are the ONLY way to reach Gate 2/4: black-box integration
+  // and E2E tests hit the app over real HTTP, so they have no static
+  // `import` edge back to the route/handler code they exercise — the graph
+  // structurally cannot find them. The graph is purely additive, for
+  // transitive unit-test breakage no pattern anticipated.
+  const configFiles = [
+    "package.json",
+    "bun.lock",
+    "vite.config.ts",
+    "svelte.config.js",
+    "tsconfig.json",
+    "playwright.config.ts",
+  ];
+  const hasConfigChange = changedFiles.some(
+    (f) => configFiles.includes(f) || f.startsWith(".github/"),
+  );
+
+  // Expand with synthetic (non-import) edges before either signal runs.
+  const expandedChangedFiles = runAll ? changedFiles : expandSyntheticEdges(changedFiles);
+
+  let suites: SelectedSuite[] = [];
+  const seenLabels = new Set<string>();
+  const addSuites = (newSuites: SelectedSuite[]) => {
+    for (const s of newSuites) {
+      if (seenLabels.has(s.rule.label)) continue;
+      seenLabels.add(s.rule.label);
+      suites.push(s);
+    }
+  };
+
+  // Signal 1 — always runs; fails closed to FULL_CORE_SUITE internally if
+  // nothing matches.
+  addSuites(selectSuites(expandedChangedFiles));
+  const ranFullCore = suites.some((s) => s.rule.label === FULL_CORE_SUITE.label);
+
+  if (hasConfigChange) {
+    console.log(
+      ranFullCore
+        ? "⚙️  Config or pipeline files changed — full core suite selected."
+        : "⚙️  Config or pipeline files changed — dependency graph still runs alongside patterns.",
+    );
+  }
+
+  // Signal 2 — additive only. Skipped once we've already decided to run
+  // everything. Config changes (package.json, lockfiles, …) do NOT disable
+  // it: a version bump routinely rides along with real source edits, and the
+  // graph build is cheap next to silently under-testing that diff.
+  if (!runAll && !ranFullCore) {
+    console.log("🕸️  Building file dependency graph...");
+    const graph = buildDependencyGraph(ROOT);
+    const affected = findTransitiveDependents(expandedChangedFiles, graph);
+    const affectedTests = [...affected].filter(
+      (f) => f.startsWith("tests/") && (f.endsWith(".test.ts") || f.endsWith(".spec.ts")),
+    );
+
+    if (affectedTests.length > 0) {
+      console.log(
+        `\n🎯 Found ${affectedTests.length} additional test file(s) via dependency graph.`,
+      );
+
+      const unitFiles = affectedTests.filter((f) => f.startsWith("tests/unit/"));
+      const integrationFiles = affectedTests.filter((f) => f.startsWith("tests/integration/"));
+      const e2eFiles = affectedTests.filter((f) => f.startsWith("tests/e2e/"));
+
+      if (unitFiles.length > 0) {
+        const mb = getMergeBase();
+        const changesInDiff = extractChangedIdentifiers(mb);
+        let filterFlag = "";
+
+        if (changesInDiff.length > 0 && changesInDiff.length < 15) {
+          const pattern = changesInDiff.join("|");
+          filterFlag = ` -t "${pattern}"`;
+          console.log(
+            `✨ Ultra-Smart Focus: Narrowing execution down to test scopes matching: /${pattern}/`,
+          );
+        }
+
+        // Vitest uses -t for name filter (same intent as bun test -t).
+        const cmd =
+          unitFiles.length > 25
+            ? `bun x vitest run tests/unit${filterFlag}`
+            : `bun x vitest run ${unitFiles.join(" ")}${filterFlag}`;
+
+        addSuites([
+          {
+            rule: {
+              label: "Affected Unit Tests (graph)",
+              gate: 1,
+              patterns: [],
+              command: cmd,
+            },
+            matchingFiles: unitFiles,
+          },
+        ]);
+      }
+      if (integrationFiles.length > 0) {
+        addSuites([
+          {
+            rule: {
+              label: "Affected Integration Tests (graph)",
+              gate: 2,
+              patterns: [],
+              command: `bun test --timeout 300000 ${integrationFiles.join(" ")}`,
+            },
+            matchingFiles: integrationFiles,
+          },
+        ]);
+      }
+      if (e2eFiles.length > 0) {
+        addSuites([
+          {
+            rule: {
+              label: "Affected E2E Tests (graph)",
+              gate: 4,
+              patterns: [],
+              command: `bun x playwright test ${e2eFiles.join(" ")}`,
+            },
+            matchingFiles: e2eFiles,
+          },
+        ]);
+      }
+    } else {
+      console.log("No additional test files found via dependency graph.");
+    }
+  }
+
+  // Cached retry: replace normal selection with previously failed suites
+  if (isCachedRetry) {
+    const cached = loadFailedSuites();
+    if (cached && cached.length > 0) {
+      const cachedLabels = new Set(cached.map((f) => f.label));
+      const cachedSuites = SUITE_RULES.filter((r) => cachedLabels.has(r.label)).map((rule) => ({
+        rule,
+        matchingFiles: [] as string[],
+      }));
+      if (cachedSuites.length > 0) {
+        suites = cachedSuites;
+        console.log(
+          "Smart retry: running " +
+            suites.length +
+            " cached suite(s): " +
+            suites.map((s) => s.rule.label).join(", "),
+        );
+      } else {
+        console.log("Cached suites no longer exist. Clearing cache.");
+        clearFailureCache();
+        return;
+      }
+    }
+  }
+
+  if (unitOnly) {
+    suites = suites.filter((s) => s.rule.gate === 1 || s.rule.gate === 0);
+  }
+
+  if (unitAndSqlite) {
+    suites = suites.filter((s) => s.rule.gate === 1 || s.rule.gate === 2 || s.rule.gate === 0);
+  }
+
+  if (suiteFilter) {
+    suites = suites.filter((s) => s.rule.label.toLowerCase().includes(suiteFilter.toLowerCase()));
+    if (suites.length === 0) {
+      console.error(`❌ No suite matches filter "` + suiteFilter + `"`);
+      process.exit(1);
+    }
+  }
+
+  // --only-failures: narrow to previously failed suites only
+  if (onlyFailures) {
+    const cached = loadFailedSuites();
+    if (cached) {
+      const failedLabels = new Set(cached.map((f) => f.label));
+      suites = suites.filter((s) => failedLabels.has(s.rule.label));
+      if (suites.length === 0) {
+        console.log("No cached failures match current selection. Running full suite.");
+        clearFailureCache();
+      } else {
+        console.log(
+          "Retrying " +
+            suites.length +
+            " previously failed suite(s): " +
+            suites.map((s) => s.rule.label).join(", "),
+        );
+      }
+    } else {
+      console.log("No cached failures found. Running full suite.");
+    }
+  } else if (!runAll) {
+    // Auto-retry: if full suite already ran and only specific suites failed,
+    // narrow to just those failures on the next run (no new changes).
+    const cached = loadFailedSuites();
+    if (cached && cached.length > 0) {
+      const failedLabels = new Set(cached.map((f) => f.label));
+      const narrowed = suites.filter((s) => failedLabels.has(s.rule.label));
+      if (narrowed.length > 0) {
+        console.log(
+          "Smart retry: narrowing to " +
+            narrowed.length +
+            " previously failed suite(s): " +
+            narrowed.map((s) => s.rule.label).join(", "),
+        );
+        suites = narrowed;
+      }
+    }
+  }
+
+  // ── Add Docker adapter tests when containers are running ──────────────
+  if (availableDbs.length > 0 && (runAll || suites.some((s) => s.rule.gate === 2))) {
+    for (const db of availableDbs) {
+      const testFile = `tests/integration/databases/${db}-adapter.test.ts`;
+      const exists = await import("node:fs")
+        .then((fs) => fs.existsSync(join(ROOT, testFile)))
+        .catch(() => false);
+      if (exists) {
+        const label = `Adapter: ${db}`;
+        if (!suites.some((s) => s.rule.label === label)) {
+          suites.push({
+            rule: {
+              label,
+              gate: 2,
+              patterns: [],
+              command: `DB_TYPE=${db} bun test ${testFile}`,
+            },
+            matchingFiles: [testFile],
+          });
+        }
+      }
+    }
+  }
+
+  // ── Print plan ──────────────────────────────────────────────────────────
+  console.log("\n🧪 Smart Test Plan:");
+  console.log("═".repeat(60));
+
+  const byGate = new Map<number, SelectedSuite[]>();
+  for (const s of suites) {
+    const gate = s.rule.gate;
+    if (!byGate.has(gate)) byGate.set(gate, []);
+    byGate.get(gate)!.push(s);
+  }
+
+  for (const [gate, gsuites] of [...byGate.entries()].sort(([a], [b]) => a - b)) {
+    const gateLabel = gate === 0 ? "FAIL-CLOSED" : `Gate ${gate}`;
+    console.log(`\n  [${gateLabel}]`);
+    for (const s of gsuites) {
+      console.log(`    ${s.rule.label}`);
+      console.log(`      → ${s.rule.command}`);
+      if (s.matchingFiles.length <= 5) {
+        for (const f of s.matchingFiles) {
+          console.log(`        ${f}`);
+        }
+      } else {
+        console.log(`        ${s.matchingFiles.length} matching files`);
+      }
+    }
+  }
+
+  // ── Scope-containment dedupe ────────────────────────────────────────────
+  // Execution-time only: the plan above still shows every suite that was
+  // considered. See dedupeContainedSuites() for the never-deduped cases.
+  const failClosed = suites.some((s) => s.rule.gate === 0);
+  const dedupe = failClosed
+    ? { kept: suites, skipped: [] as DedupedSuite[] }
+    : dedupeContainedSuites(suites, ROOT);
+
+  if (failClosed) {
+    console.log("\n🔁 Scope dedupe: not applied — fail-closed plan runs everything.");
+  } else if (dedupe.skipped.length > 0) {
+    console.log(
+      `\n🔁 Scope dedupe: ${dedupe.skipped.length} suite(s) already covered by a broader Vitest scope — skipping:`,
+    );
+    for (const s of dedupe.skipped) {
+      console.log(
+        `   ↳ skipped "${s.label}" [${s.scope}] — already covered by "${s.containerLabel}" [${s.containerScope}]`,
+      );
+    }
+  } else {
+    console.log("\n🔁 Scope dedupe: no redundant Vitest scopes in this plan.");
+  }
+
+  if (listOnly) {
+    console.log("\n✅ Listed only. Use without --list to execute.");
+    return;
+  }
+
+  // ── Execute ─────────────────────────────────────────────────────────────
+  console.log("\n" + "═".repeat(60));
+  console.log("🚀 Executing test suites...\n");
+
+  let suitesToRun = [...dedupe.kept];
+
+  while (suitesToRun.length > 0) {
+    const results: { label: string; gate: number; code: number }[] = [];
+    const failedSuites: SelectedSuite[] = [];
+
+    for (const suite of suitesToRun) {
+      const rule = suite.rule;
+      const effectiveCommand = filterExcludedFiles(rule.command, excludeList);
+      const start = Date.now();
+      console.log(`\n▶ ${rule.label} (Gate ${rule.gate})`);
+      console.log(`  $ ${effectiveCommand}`);
+
+      const { code } = await runCommand(effectiveCommand, ROOT);
+      const duration = ((Date.now() - start) / 1000).toFixed(1);
+
+      results.push({ label: rule.label, gate: rule.gate, code });
+
+      if (code === 0) {
+        console.log(`  ✅ Passed (${duration}s)`);
+      } else {
+        console.log(`  ❌ Failed (${duration}s)`);
+        failedSuites.push(suite);
+      }
+    }
+
+    // ── Summary ─────────────────────────────────────────────────────────────
+    console.log("\n" + "═".repeat(60));
+    console.log("📊 Test Summary:");
+    for (const r of results) {
+      const status = r.code === 0 ? "✅" : "❌";
+      console.log(`  ${status} Gate ${r.gate}: ${r.label}`);
+    }
+
+    // Persist failures for smart retry on next precheck run
+    if (failedSuites.length > 0) {
+      saveFailedSuites(
+        failedSuites.map((s) => ({
+          label: s.rule.label,
+          gate: s.rule.gate,
+          command: s.rule.command,
+        })),
+      );
+      console.log(
+        "\nCached " +
+          failedSuites.length +
+          " failed suite(s) for smart retry. Next run with --only-failures skips passing suites.",
+      );
+    } else {
+      clearFailureCache();
+    }
+
+    if (failedSuites.length > 0) {
+      if (process.stdout.isTTY && process.stdin.isTTY) {
+        console.log("\n❌ Some suites failed.");
+        const answer = prompt(
+          "   Would you like to fix them and re-run only the failed suites? [Y/n] ",
+        );
+        if (answer === null || answer.trim().toLowerCase() !== "n") {
+          prompt("   Make your changes, then press [Enter] to re-run only the failed suites...");
+          suitesToRun = failedSuites;
+          console.log("\n🔄 Re-running failed suites...");
+          continue;
+        }
+      }
+      console.log("\n❌ Some suites failed. Root-cause each failure. Do NOT retry until green.");
+      process.exit(1);
+    } else {
+      console.log("\n✅ All selected suites passed.\n");
+      break;
+    }
+  }
+}
+
+// ── Guard: skip main() when imported as a module (e.g. by unit tests) ──
+// Test files set globalThis.__TEST_SMART_IMPORT before import to suppress.
+if (!(globalThis as any).__TEST_SMART_IMPORT) {
+  main().catch((err) => {
+    console.error("Smart runner crashed:", err);
+    process.exit(1);
+  });
+}

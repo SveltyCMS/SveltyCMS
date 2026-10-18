@@ -21,6 +21,8 @@ import {
   listSugarTypes,
   getAllSugarKeys,
   evaluateCondition,
+  isFieldVisible,
+  isFieldRequired,
 } from "@src/widgets/desugar-field";
 import type { FieldDefinition } from "@src/content/types";
 
@@ -398,5 +400,25 @@ describe("Field Conditional Logic — evaluateCondition", () => {
       operator: "equals",
       value: "custom",
     });
+  });
+});
+
+describe("field visibility and effective requiredness", () => {
+  const requiredIf = { field: "isBusiness", operator: "equals" as const, value: true };
+
+  it("isFieldVisible defaults to visible and follows showIf", () => {
+    expect(isFieldVisible({}, {})).toBe(true);
+    expect(isFieldVisible({ showIf: requiredIf }, { isBusiness: true })).toBe(true);
+    expect(isFieldVisible({ showIf: requiredIf }, { isBusiness: false })).toBe(false);
+  });
+
+  it("isFieldRequired combines the static flag with requiredIf", () => {
+    // The key regression: `evaluateCondition(undefined)` is true, so an absent
+    // requiredIf must NOT make every field required.
+    expect(isFieldRequired({ required: false }, {})).toBe(false);
+    expect(isFieldRequired({ required: true }, {})).toBe(true);
+    expect(isFieldRequired({ requiredIf }, { isBusiness: true })).toBe(true);
+    expect(isFieldRequired({ requiredIf }, { isBusiness: false })).toBe(false);
+    expect(isFieldRequired({ required: false, requiredIf }, { isBusiness: true })).toBe(true);
   });
 });

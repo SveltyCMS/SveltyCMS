@@ -4,7 +4,7 @@
  * @description Fast, reliable system setup for SveltyCMS in CI/Testing.
  */
 
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // ========================= CONFIG =========================
@@ -53,7 +53,7 @@ function getFallbackSecret(): string {
   try {
     const secretPath = join(process.cwd(), "tests/e2e/.auth/test-secret.txt");
     if (existsSync(secretPath)) {
-      return require("node:fs").readFileSync(secretPath, "utf8").trim();
+      return readFileSync(secretPath, "utf8").trim();
     }
   } catch {}
   return "SVELTYCMS_TEST_SECRET_2026";

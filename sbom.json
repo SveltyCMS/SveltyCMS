@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:21f240ec-7edb-464a-a51e-4bfeb5ee3367",
+  "serialNumber": "urn:uuid:17f18b03-771b-46b3-a327-fdec1de0299c",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-16T18:20:53.130Z",
+    "timestamp": "2026-10-18T20:38:49.388Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -6613,13 +6613,13 @@
     {
       "type": "library",
       "name": "maplibre-gl",
-      "version": "6.14.0",
-      "purl": "pkg:npm/maplibre-gl@6.14.0",
+      "version": "6.15.0",
+      "purl": "pkg:npm/maplibre-gl@6.15.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-L7U9y9TyPJ3P/JJbW+eH+A3FzdPq+3fnZFqqeCwf/S6cRGganHwVI5b/C8/zOYzreUzsloDPZVVaMQA94wOt4A=="
+          "content": "sha512-kxFetbvUHDOVaAP1CYb226Mdk2QhzIPddqM0xJTFD35wu78Mpd6NM7+H68ALjc6Oa0kAOX5EAdMKyvD2u3qfcg=="
         }
       ]
     },
@@ -6977,13 +6977,13 @@
     {
       "type": "library",
       "name": "nodemailer",
-      "version": "10.1.2",
-      "purl": "pkg:npm/nodemailer@10.1.2",
+      "version": "10.1.6",
+      "purl": "pkg:npm/nodemailer@10.1.6",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-rnQn9Rzh8RAwcp42MVsIvxbsv6YZ2a2/av+uyJ/LPU1+2QSlrRgFsWWZTKenyRUqkIl8urOI0c4+CEcmFdsvQw=="
+          "content": "sha512-8j/UEmA4AXr51URr3Ob0h+RCBtr0NKJ76Y2P9wJT6Eu3dRyruj2ULh2e6aiKrGg8nlUj1oX6N5h8dHA82EouaQ=="
         }
       ]
     },

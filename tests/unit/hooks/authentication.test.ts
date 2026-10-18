@@ -690,3 +690,39 @@ describe("primeSessionMemoryCache turbo write-through", () => {
     expect(turbo.tenantId).toBe("tenant-a");
   });
 });
+
+describe("session identity propagation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearAllSessionCaches();
+  });
+
+  it("sets locals.session_id on the turbo-auth fast path", async () => {
+    primeSessionMemoryCache(
+      "session-turbo-1",
+      { _id: "user-1", role: "admin" } as never,
+      "tenant-a" as any,
+      undefined,
+      undefined,
+      [{ _id: "admin", name: "admin", isAdmin: true }] as never,
+    );
+    const event = createMockEvent("/dashboard", "session-turbo-1");
+    const resolve = vi.fn(async () => new Response("OK"));
+
+    await handleAuthentication({ event, resolve } as any);
+
+    expect((event.locals as any).session_id).toBe("session-turbo-1");
+    expect((event.locals as any).user?._id).toBe("user-1");
+  });
+
+  it("sets locals.session_id when an upstream hook already validated the user", async () => {
+    const event = createMockEvent("/dashboard", "session-upstream-1");
+    (event.locals as any).user = { _id: "user-1", role: "admin" };
+    const resolve = vi.fn(async () => new Response("OK"));
+
+    await handleAuthentication({ event, resolve } as any);
+
+    expect((event.locals as any).session_id).toBe("session-upstream-1");
+    expect(resolve).toHaveBeenCalledTimes(1);
+  });
+});

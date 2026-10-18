@@ -84,7 +84,7 @@ describe("AI API Security - Authentication and Tenant Isolation", () => {
         tenantId: myTenant,
       });
       expect(response.status).toBe(200);
-      expect(aiService.chat).toHaveBeenCalled();
+      await vi.waitFor(() => expect(aiService.chat).toHaveBeenCalled());
     });
   });
 

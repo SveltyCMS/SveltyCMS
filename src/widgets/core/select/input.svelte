@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/select/input.svelte
+@file src/widgets/core/select/input.svelte
 @component
 **Select Widget Input Component**
 -->

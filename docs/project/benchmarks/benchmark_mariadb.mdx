@@ -42,18 +42,19 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(12/10/2026, 19:26:50)
+> [!NOTE]
+> **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
 
-**✅ PASS** · 38/45 tests · 7 skipped · **MARIADB** · Bun 1.4.2
+**✅ PASS** _(partial invocation)_ · 1/45 tests · 44 skipped · **mariadb** · standalone run
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    13 | 🟢     | +827%   | 0      |
-| **API**        |     9 | 🟢     | -48%    | 0      |
-| **Scale**      |    18 | 🟢     | +118%   | 0      |
-| **Resilience** |     5 | 🟢     | —       | 0      |
+| **Core**       |     2 | 🟢     | -24%    | 0      |
+| **API**        |     0 | ⚪     | —       | 0      |
+| **Scale**      |     0 | ⚪     | —       | 0      |
+| **Resilience** |     0 | ⚪     | —       | 0      |
 
 ### Issues (action required)
 
@@ -61,28 +62,27 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario               | Latency | Trend  | Budget   | Result |
-| ---------------------- | ------- | ------ | -------- | ------ |
-| **Cold Start**         | N/A     | ⚪ (—) | < 5000ms | ⚪ N/A |
-| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | ⚪ N/A |
-| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
-| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | ⚪ N/A |
-| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | ⚪ N/A |
+| Scenario  | Latency | Trend                                       | Budget | Result |
+| --------- | ------- | ------------------------------------------- | ------ | ------ |
+| **Cache** | 0.777ms | 🟢 faster: 1.02ms → 0.777ms (-24%) (2 runs) | < 5ms  | 🟢     |
+| **Cache** | 0.176ms | ⚪ stable at 0.231ms (±0.065ms) (2 runs)    | < 5ms  | 🟢     |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric | Trend | Sparkline | Latest |
-| ------ | ----- | --------- | ------ |
+| Metric                                           | Trend | Sparkline     | Latest  |
+| ------------------------------------------------ | ----- | ------------- | ------- |
+| api latency (HTTP: findById @ 8c (Cold)) (warm)  | 🟢    | `▁█`          | 3.159ms |
+| auth performance (Auth (full chain) @ 1c) (warm) | 🟢    | `▁`           | 0.368ms |
+| database performance (BULK INSERT (100)) (warm)  | 🟢    | `▆█▇▅▅▄▆▅▁▁▂` | 2.073ms |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
 
 ```mermaid
 xychart-beta
-  title "MARIADB REST p95 (last 10 runs)"
+  title "mariadb REST p95 (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
@@ -101,82 +101,40 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    API LAYER LATENCY: [0.09, 0.95]
-    MIDDLEWARE FLAMEGRAPH PROFIL: [0.05, 0.15]
-    Incremental Content Reload: [0.05, 0.30]
-    Middleware & Hooks Performan: [0.05, 0.05]
-    State Machine Transitions: [0.95, 0.05]
-    Database Adapter Raw CRUD: [0.05, 0.05]
-    ACID Transaction Overhead: [0.05, 0.11]
-    System Cache Efficiency: [0.05, 0.32]
+    Cache: [0.78, 0.95]
+    Cache: [0.18, 0.95]
 ```
 
 </details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
 <!-- EXECUTIVE_ALERTS_START -->
+<!-- EXECUTIVE_ALERTS_END -->
 
-> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
-
-### 🔴 Top Regressions
-
-> **🔴 seo-performance [Missing Path (404 Log)]** (mariadb): +706% | 154.69ms vs 19.18ms baseline
-> **🔴 migration-scale [Bulk Migration (10k docs)]** (mariadb): +104% | 30.75ms vs 15.06ms baseline
-> **🔴 scale-spectrum [findByIdRandom @ 1]** (mariadb): +97% | 1.55ms vs 0.79ms baseline
-> **🔴 rest-api-performance [Collection Find (List Limit 20)]** (mariadb): +79% | 0.77ms vs 0.43ms baseline
-> **🔴 config-promotion [Config Status Check]** (mariadb): +67% | 11.95ms vs 7.16ms baseline
-
-### 🟢 Top Improvements
-
-> **config-promotion [Config Import (10 cols)]** (mariadb): -81% | 12.08ms vs 62.50ms baseline
-> **competitive-workload-replica [create (Warm Concurrent 8c)]** (mariadb): -60% | 1.97ms vs 4.88ms baseline
-> **competitive-workload-replica [update (Warm Concurrent 8c)]** (mariadb): -57% | 2.46ms vs 5.76ms baseline
-> **admin-ux-vitality [Schema Resolution (8f)]** (mariadb): -53% | 0.25ms vs 0.53ms baseline
-> **competitive-workload-replica [mixed (Warm Concurrent 8c)]** (mariadb): -47% | 1.80ms vs 3.43ms baseline
-
-<!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
+<!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
 
-### Current Run Summary (2026-10-06)
+### Current Run Summary (2026-10-17)
 
 > **Scope:** Only tests that ran in THIS invocation.
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a11207-19ad-7364-8c8c-e9f102d52454` · **Tests invoked:** 1 · **Metrics:** 19 · **DB:** mariadb
+**Run ID:** `01a14a7b-204a-70b5-87d9-dd97e98f0101` · **Tests invoked:** 1 · **Metrics:** 2 · **DB:** mariadb
 
-| Test                 | Metric                          | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                                       |
-| -------------------- | ------------------------------- | -------- | -------- | ------ | ----- | -------------------------------------------- |
-| Database Performance | FIND ONE                        | 0.376    | 0.544    | 2521   | 🟢    | ⚪ stable at 0.398ms (±0.055ms) (3 runs)     |
-| Database Performance | FIND MANY (limit 50)            | 0.558    | 0.764    | 1694   | 🟢    | ⚪ stable at 0.649ms (±0.076ms) (3 runs)     |
-| Database Performance | FILTER (blob field, 1 match)    | 1.671    | 1.990    | 587    | 🟢    | ⚪ stable at 1.74ms (±0.079ms) (3 runs)      |
-| Database Performance | FIND PAGE (50 hasMore)          | 0.587    | 0.729    | 1684   | 🟢    | ⚪ stable at 0.679ms (±0.082ms) (3 runs)     |
-| Database Performance | UPDATE (no-returning)           | 0.396    | 0.519    | 2474   | 🟢    | ⚪ stable at 0.412ms (±0.118ms) (3 runs)     |
-| Database Performance | COUNT CACHED                    | 0.001    | 0.002    | 723903 | 🟢    | ⚪ stable at 0.001ms (3 runs)                |
-| Database Performance | BULK UPDATE (100 homogeneous)   | 1.293    | 1.542    | 758    | 🟢    | ⚪ stable at 1.38ms (±0.114ms) (3 runs)      |
-| Database Performance | INSERT                          | 0.443    | 0.752    | 2085   | ⚪    | 🟢 faster: 1.65ms → 0.443ms (-73%) (3 runs)  |
-| Database Performance | QUERY BUILDER LIST (50)         | 0.545    | 0.690    | 1753   | ⚪    | 🟢 faster: 3.54ms → 0.545ms (-85%) (3 runs)  |
-| Database Performance | FIND PAGE keyset                | 0.661    | 0.870    | 1442   | ⚪    | ⚪ stable at 0.681ms (±0.011ms) (3 runs)     |
-| Database Performance | FIND MANY offset 50             | 0.437    | 0.573    | 2182   | ⚪    | 🟢 faster: 0.559ms → 0.437ms (-22%) (3 runs) |
-| Database Performance | LIST+COUNT (legacy)             | 0.574    | 0.670    | 1678   | ⚪    | 🟢 faster: 0.799ms → 0.574ms (-28%) (3 runs) |
-| Database Performance | UPDATE                          | 0.711    | 0.955    | 1364   | ⚪    | 🟢 faster: 0.794ms → 0.711ms (-10%) (3 runs) |
-| Database Performance | NATIVE UPSERT                   | 0.326    | 0.441    | 2927   | ⚪    | ⚪ stable at 0.376ms (±0.031ms) (3 runs)     |
-| Database Performance | COUNT                           | 0.487    | 0.602    | 2020   | ⚪    | 🟢 faster: 0.607ms → 0.487ms (-20%) (3 runs) |
-| Database Performance | COUNT ESTIMATE                  | 0.310    | 0.427    | 3138   | ⚪    | ⚪ stable at 0.331ms (±0.009ms) (3 runs)     |
-| Database Performance | DELETE (Active Rows)            | 0.397    | 0.567    | 2282   | ⚪    | 🟢 faster: 1.65ms → 0.397ms (-76%) (3 runs)  |
-| Database Performance | BULK INSERT (100)               | 2.073    | 2.454    | 470    | ⚪    | 🟢 faster: 3.30ms → 2.07ms (-37%) (3 runs)   |
-| Database Performance | BULK UPDATE (100 heterogeneous) | 2.294    | 2.895    | 420    | ⚪    | 🟢 faster: 3.93ms → 2.29ms (-42%) (3 runs)   |
+| Test              | Metric              | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
+| ----------------- | ------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
+| Cache Performance | Cache Miss (Bypass) | 0.777    | 1.021    | 1234 | 🟢    | ⚪ established at 0.777ms (1 run) |
+| Cache Performance | Cache Hit (L1 Warm) | 0.176    | 0.239    | 5357 | 🟢    | ⚪ established at 0.176ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-10-12)
+### Historical Trends (2026-10-17)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -555,28 +513,19 @@ Throughput dropped 81% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ System Cache Efficiency</strong> · ⚪ 0.949ms · ↗️ — · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 69% — check connection pool saturation or lock contention.  
-**Severe degradation** (+261%) — review recent commits immediately.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ Cache</strong> · 🟢 0.176ms · ➡️ ⚪ established at 0.176ms (1 run) (2026-10-17 15:29:11) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
-║                      File: tests/benchmarks/negative-cache.test.ts                      ║
-║                                Ran: 2026-08-23 22:35:48                                 ║
-║        Measures Bloom-filter style missing-key cache speedup for repeated misses        ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │        1.621 ms │ p95:        3.249 ms │ RPS:        612 ║
-║ Cached Miss (Negative Cache)   │        0.001 ms │ p95:        0.002 ms │ RPS:    792,591 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                  SVELTYCMS — CACHE EFFICIENCY AUDIT                                   ║
+║                           File: tests/benchmarks/cache-performance.test.ts                            ║
+║                                       Ran: 2026-10-17 15:29:11                                        ║
+║         Measures cache hit vs miss latency and efficiency via real HTTP end-to-end requests.          ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Cache Miss (Bypass)          │ Cold:     3.26 ms │ Warm:     0.777 ms │ p95:     1.021 ms │   1,234 RPS ║
+║ Cache Hit (L1 Warm)          │ Cold:     0.89 ms │ Warm:     0.176 ms │ p95:     0.239 ms │   5,357 RPS ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

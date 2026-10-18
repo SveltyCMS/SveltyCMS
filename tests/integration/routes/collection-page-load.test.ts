@@ -10,7 +10,7 @@
  * requested row, never `type: "error"`.
  *
  * Black-box (HTTP only) so it runs against the external preview server started by
- * `scripts/run-integration.ts`.
+ * `scripts/runs/run-integration.ts`.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

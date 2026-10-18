@@ -36,7 +36,7 @@ import { dbAdapter } from "@src/databases/db";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
 import { contentStore } from "@stores/content-registry.svelte";
-import { createChecksum } from "@utils/security/crypto";
+import { createChecksum } from "@utils/security/checksum";
 import { generateUUID } from "@utils/native-utils";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { logger } from "@utils/logger";

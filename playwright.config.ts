@@ -11,7 +11,7 @@
  * Projects run in dependency order. In CI, e2e-prep runs wizard →
  * firstuser → auth-setup sequentially, then chromium is sharded N ways.
  *
- * Local default (CI-parity): `bun run test:e2e` → scripts/run-e2e-ci.ts
+ * Local default (CI-parity): `bun run test:e2e` → scripts/runs/run-e2e.ts
  *   (preview server :4173, COMPILE_ALL_ADAPTERS build, wizard → auth-setup → chromium)
  * Dev-server shortcut: `bun run test:e2e:dev` (Vite :5173) — not CI-identical.
  */
@@ -59,19 +59,26 @@ export default defineConfig({
   snapshotPathTemplate: "{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  // CI runs one retry so a retried-pass is visible as `flaky`; locally retries
+  // are opt-in (`PLAYWRIGHT_RETRIES=1`) so the flake budget can measure them.
+  retries: process.env.CI ? 1 : Number.parseInt(process.env.PLAYWRIGHT_RETRIES || "0", 10),
   workers: process.env.PLAYWRIGHT_WORKERS ? Number.parseInt(process.env.PLAYWRIGHT_WORKERS, 10) : 4,
   // CI: compact dots (failures still expand) + GitHub annotations + HTML/JSON for artifacts.
-  // Local: list for readable progress.
+  // Local: readable list + the same JSON so `bun run flake:budget` reads the run
+  // that just finished instead of a stale file.
   reporter: process.env.CI
     ? [
         ["dot"],
         ["github"], // inline annotations on the PR check
         ["html", { outputFolder: "tests/playwright-report", open: "never" }],
-        // Machine-readable for scripts/ci-report-playwright.ts → GITHUB_STEP_SUMMARY
+        // Machine-readable for scripts/ci/ci-report-playwright.ts → GITHUB_STEP_SUMMARY
         ["json", { outputFile: "tests/playwright-results.json" }],
       ]
-    : [["list"], ["html", { outputFolder: "tests/playwright-report", open: "never" }]],
+    : [
+        ["list"],
+        ["html", { outputFolder: "tests/playwright-report", open: "never" }],
+        ["json", { outputFile: "tests/playwright-results.json" }],
+      ],
 
   use: {
     // Default: Vite dev server (port 5173). CI sets PLAYWRIGHT_TEST_BASE_URL.
@@ -80,6 +87,7 @@ export default defineConfig({
       "x-test-mode": "true",
       "x-test-worker-index": process.env.TEST_WORKER_INDEX || "0",
       "x-test-secret": TEST_API_SECRET || "",
+      Origin: process.env.PLAYWRIGHT_TEST_BASE_URL || "http://127.0.0.1:4173",
     },
     launchOptions: {
       slowMo: Number.parseInt(process.env.SLOW_MO || "0", 10),

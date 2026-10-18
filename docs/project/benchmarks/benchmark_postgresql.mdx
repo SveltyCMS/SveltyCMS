@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |     4 | 🟢     | +52%    | 0      |
+| **Core**       |     2 | 🟢     | +13%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,12 +62,10 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario      | Latency    | Trend                                        | Budget | Result |
-| ------------- | ---------- | -------------------------------------------- | ------ | ------ |
-| **Logic**     | ⏳ pending | ⚪ stable at 0ms (2 runs)                    | < 5ms  | 🟢     |
-| **SDK**       | 0.008ms    | ⚪ stable at 0.006ms (2 runs)                | < 5ms  | 🟢     |
-| **HTTP**      | 0.439ms    | 🔴 slower: 0.338ms → 0.439ms (+30%) (2 runs) | < 5ms  | 🟢     |
-| **HTTP-Cold** | 2.014ms    | ⚪ stable at 1.33ms (±0.540ms) (2 runs)      | < 5ms  | 🟢     |
+| Scenario  | Latency | Trend                                    | Budget | Result |
+| --------- | ------- | ---------------------------------------- | ------ | ------ |
+| **Cache** | 0.755ms | ⚪ stable at 0.807ms (±0.115ms) (2 runs) | < 5ms  | 🟢     |
+| **Cache** | 0.189ms | ⚪ stable at 0.168ms (±0.018ms) (2 runs) | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -104,9 +102,7 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    SDK: [0.05, 0.65]
-    HTTP: [0.22, 0.58]
-    HTTP-Cold: [0.95, 0.95]
+    Cache: [0.19, 0.63]
 ```
 
 </details>
@@ -127,14 +123,12 @@ quadrantChart
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a149c1-be08-7490-9184-0d61d4fba1e6` · **Tests invoked:** 1 · **Metrics:** 4 · **DB:** postgresql
+**Run ID:** `01a14a7a-e189-706c-b2eb-aaca8a49dd96` · **Tests invoked:** 1 · **Metrics:** 2 · **DB:** postgresql
 
-| Test          | Metric                   | Avg (ms) | p95 (ms) | RPS    | Trend | Detail                            |
-| ------------- | ------------------------ | -------- | -------- | ------ | ----- | --------------------------------- |
-| Truth Latency | Logic Baseline           | 0.000    | 0.001    | 293370 | 🟢    | ⚪ established at 0ms (1 run)     |
-| Truth Latency | Local SDK (Full)         | 0.008    | 0.016    | 97685  | 🟢    | ⚪ established at 0.008ms (1 run) |
-| Truth Latency | HTTP End-to-End          | 0.439    | 0.593    | 2262   | 🟢    | ⚪ established at 0.439ms (1 run) |
-| Truth Latency | HTTP Cold (Cache-Busted) | 2.014    | 2.736    | 496    | 🟢    | ⚪ established at 2.01ms (1 run)  |
+| Test              | Metric              | Avg (ms) | p95 (ms) | RPS  | Trend | Detail                            |
+| ----------------- | ------------------- | -------- | -------- | ---- | ----- | --------------------------------- |
+| Cache Performance | Cache Miss (Bypass) | 0.755    | 0.966    | 1272 | 🟢    | ⚪ established at 0.755ms (1 run) |
+| Cache Performance | Cache Hit (L1 Warm) | 0.189    | 0.267    | 5138 | 🟢    | ⚪ established at 0.189ms (1 run) |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -521,28 +515,19 @@ Throughput dropped 86% — check connection pool saturation or lock contention.
 
 <!-- SECTION:CACHE:START -->
 <details id="section-cache">
-<summary><strong>🏷️ System Cache Efficiency</strong> · ⚪ 0.750ms · ↗️ — · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
-Throughput dropped 70% — check connection pool saturation or lock contention.  
-**Severe degradation** (+324%) — review recent commits immediately.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ Cache</strong> · 🟢 0.189ms · ➡️ ⚪ established at 0.189ms (1 run) (2026-10-17 15:28:56) · <a href="../../../tests/benchmarks/cache-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
-╔═════════════════════════════════════════════════════════════════════════════════════════╗
-║                            NEGATIVE CACHE PERFORMANCE AUDIT                             ║
-║                      File: tests/benchmarks/negative-cache.test.ts                      ║
-║                                Ran: 2026-08-23 22:41:20                                 ║
-║        Measures Bloom-filter style missing-key cache speedup for repeated misses        ║
-╠═════════════════════════════════════════════════════════════════════════════════════════╣
-║ First Miss (DB)                │        2.487 ms │ p95:        4.448 ms │ RPS:        400 ║
-║ Cached Miss (Negative Cache)   │        0.001 ms │ p95:        0.002 ms │ RPS:    828,497 ║
-╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                  SVELTYCMS — CACHE EFFICIENCY AUDIT                                   ║
+║                           File: tests/benchmarks/cache-performance.test.ts                            ║
+║                                       Ran: 2026-10-17 15:28:56                                        ║
+║         Measures cache hit vs miss latency and efficiency via real HTTP end-to-end requests.          ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Cache Miss (Bypass)          │ Cold:     4.12 ms │ Warm:     0.755 ms │ p95:     0.966 ms │   1,272 RPS ║
+║ Cache Hit (L1 Warm)          │ Cold:     0.88 ms │ Warm:     0.189 ms │ p95:     0.267 ms │   5,138 RPS ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

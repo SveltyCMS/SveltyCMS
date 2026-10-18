@@ -32,7 +32,7 @@
 	<Body>
 		<Container>
 			<Section>
-				<Heading>New order</Heading>
+				<Heading as="h1">New order</Heading>
 				<Text>{orderNumber} from {email}</Text>
 				<Text>{items}</Text>
 				<Text>Total: {total}</Text>

@@ -153,18 +153,6 @@ async function resolveConnectorForCollection(
   return connector;
 }
 
-/** @deprecated Use resolveJoinTarget — same-source only */
-export async function resolveSameSourceJoinTarget(
-  db: IDBAdapter,
-  tenantId: DatabaseId,
-  primary: VirtualCollectionRecord,
-  relation: VirtualRelation,
-  connector: ConnectorRecord,
-): Promise<VirtualCollectionRecord> {
-  const resolved = await resolveJoinTarget(db, tenantId, primary, relation, connector);
-  return resolved.collection;
-}
-
 export function collectJoinKeys(rows: FederatedRow[], localField: string): string[] {
   const keys = new Set<string>();
   for (const row of rows) {

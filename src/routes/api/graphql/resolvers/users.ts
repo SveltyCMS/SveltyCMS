@@ -3,7 +3,7 @@
  * @description GraphQL type definitions and resolvers for user-related queries.
  */
 
-import type { User } from "@src/databases/auth/types";
+import type { Role, User } from "@src/databases/auth/types";
 import type { DatabaseAdapter, ISODateString, DatabaseId } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { logger } from "@utils/logger";
@@ -74,6 +74,7 @@ export function userTypeDefs() {
 interface GraphQLContext {
   tenantId?: string | null;
   user?: User;
+  roles?: Role[];
   /** Publication visibility of the request (resolved in +server.ts context). */
   publicationFilter?: PublicationFilter;
 }
@@ -97,7 +98,7 @@ export function userResolvers(dbAdapter: DatabaseAdapter) {
       // 🛡️ HARDENING: RBAC parity with REST — /api/user requires `user:read`.
       // GraphQL previously exposed the tenant directory to ANY logged-in user
       // (admin/editor) because it only checked `context.user` presence.
-      if (!hasPermissionWithRoles(context.user, "user:read")) {
+      if (!hasPermissionWithRoles(context.user, "user:read", context.roles)) {
         throw new Error("Forbidden: insufficient permissions");
       }
 

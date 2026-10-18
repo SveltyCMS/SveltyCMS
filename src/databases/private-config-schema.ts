@@ -131,6 +131,12 @@ export const privateConfigSchema = object({
   AI_MODEL_CHAT: optional(string()),
   USE_AI_TAGGING: optional(coercedBoolean),
   AI_MODEL_VISION: optional(string()),
+  // Pluggable chat processor id (defaults to the built-in processor when unset).
+  AI_CHAT_PROCESSOR: optional(string()),
+  // Fail-closed moderation provider (opt-in; unset means moderation is skipped).
+  AI_MODERATION_PROVIDER: optional(string()),
+  AI_MODERATION_URL: optional(string()),
+  AI_MODERATION_API_KEY: optional(string()),
 
   // --- Authentication & Security ---
   PASSWORD_MIN_LENGTH: optional(coercedNumber),
@@ -159,6 +165,11 @@ export const privateConfigSchema = object({
   TWITCH_TOKEN: optional(string()),
   TIKTOK_TOKEN: optional(string()),
   SAML_JIT_PROVISIONING: optional(coercedBoolean),
+  SAML_ENTRY_POINT: optional(string()),
+  SAML_IDP_CERT: optional(string()),
+  SAML_ISSUER: optional(string()),
+  SAML_AUDIENCE: optional(string()),
+  SAML_SP_ENTITY_ID: optional(string()),
   SAML_CLIENT_SECRET_VERIFIER: optional(string()),
   SAML_ENCRYPTION_KEY: optional(string()),
   SAML_JWT_SIGNING_PRIVATE_KEY: optional(string()),

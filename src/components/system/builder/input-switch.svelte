@@ -92,8 +92,11 @@ Features:
 			type?: unknown;
 			rows?: unknown;
 			options?: unknown;
+			fields?: Record<string, unknown>;
 		}
 	);
+
+	const isGroup = $derived(props.widget === 'group' || props.widget === 'Group');
 
 	/**
 	 * Select has no labelClass: give it an aria-label and let the caller render the
@@ -101,6 +104,13 @@ Features:
 	 */
 	const controlProps = $derived.by(() => {
 		const extra: Record<string, unknown> = {};
+		if (isGroup) {
+			// SettingGroup is recursive: without `fields` it renders an empty fieldset.
+			extra.label = label;
+			if (schemaProps.fields !== undefined) extra.fields = schemaProps.fields;
+			if (props.labelClass !== undefined) extra.labelClass = props.labelClass;
+			return extra;
+		}
 		if (isSelect) {
 			extra.ariaLabel = label;
 			if (schemaProps.options !== undefined) extra.options = schemaProps.options;

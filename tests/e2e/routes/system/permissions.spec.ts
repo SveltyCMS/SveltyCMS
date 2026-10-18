@@ -235,7 +235,8 @@ test.describe("Permission Management Flow", () => {
     for (let i = 0; i < toToggle; i++) {
       const cb = toggleableCheckboxes.nth(i);
       before.set(i, await cb.isChecked());
-      await cb.click({ force: true, timeout: 5_000 });
+      // No force: an obscured permission checkbox is a real admin-UI regression.
+      await cb.click({ timeout: 5_000 });
       // Verify the toggle actually changed the checkbox state
       await expect
         .poll(async () => (await cb.isChecked()) !== before.get(i), {

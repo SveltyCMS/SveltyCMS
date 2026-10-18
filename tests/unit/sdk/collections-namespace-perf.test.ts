@@ -24,6 +24,7 @@ import {
 import { hasRequestCache } from "@src/services/sdk/namespaces/collections/request-cache";
 import { publicationCacheSuffix } from "@utils/security/publication-policy";
 import { BaseAdapter } from "@src/databases/core/base-adapter";
+import { cacheService } from "@src/databases/cache/cache-service";
 import type { IBatchAdapter, ICrudAdapter } from "@src/databases/db-interface";
 
 // Workflow module imports resolve against these fakes (same pattern as
@@ -162,6 +163,46 @@ describe("findById point-read cache-key contract", () => {
   });
 });
 
+describe("findById negative 404 cache", () => {
+  it("records a confirmed miss with the per-doc tag", async () => {
+    const findOne = vi.fn(async () => ({ success: true, data: null }));
+    const crud = crudWith({ findOne });
+    const ns = new CollectionsNamespace(new TestAdapter(crud) as any);
+    await ns.registerSchema("Articles", baseSchema as any);
+    vi.mocked(cacheService.recordMiss).mockClear();
+
+    const result = await ns.findById("Articles", "missing-neg-1", {
+      user: EDITOR,
+      bypassRequestCache: true,
+    } as any);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeNull();
+    expect(cacheService.recordMiss).toHaveBeenCalledWith(
+      expect.stringContaining(":collection:Articles:missing-neg-1"),
+      undefined,
+      ["doc:Articles:missing-neg-1"],
+    );
+  });
+
+  it("short-circuits the adapter when the negative cache reports a hit", async () => {
+    const findOne = vi.fn(async () => ({ success: true, data: null }));
+    const crud = crudWith({ findOne });
+    const ns = new CollectionsNamespace(new TestAdapter(crud) as any);
+    await ns.registerSchema("Articles", baseSchema as any);
+    vi.mocked(cacheService.isNegativeHit).mockReturnValueOnce(true);
+
+    const result = await ns.findById("Articles", "missing-neg-2", {
+      user: EDITOR,
+      bypassRequestCache: true,
+    } as any);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeNull();
+    expect(findOne).not.toHaveBeenCalled();
+  });
+});
+
 describe("find cache-bypass envelope", () => {
   it("returns the adapter envelope with in-place _collection meta", async () => {
     const findMany = vi.fn(async () => ({
@@ -229,5 +270,159 @@ describe("create publish-gate required fields", () => {
       code: "FIELD_VALIDATION_ERROR",
       message: "Field 'Title' is required when publishing",
     });
+  });
+
+  it("rejects publish when requiredIf condition is satisfied and field is missing", async () => {
+    const condSchema = {
+      _id: "Software",
+      name: "Software",
+      slug: "software",
+      fields: [
+        { db_fieldName: "is_licensed", name: "Is Licensed", widget: { Name: "Checkbox" } },
+        {
+          db_fieldName: "license_key",
+          name: "License Key",
+          widget: { Name: "Input" },
+          requiredIf: { field: "is_licensed", operator: "equals", value: true },
+        },
+      ],
+    };
+    const crud = crudWith({});
+    const ns = new CollectionsNamespace(new TestAdapter(crud) as any);
+    await ns.registerSchema("Software", condSchema as any);
+
+    // Condition met: is_licensed=true, but license_key is missing -> must reject
+    await expect(
+      ns.create("Software", { status: "publish", is_licensed: true }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'License Key' is required when publishing",
+    });
+
+    // Condition not met: is_licensed=false -> missing license_key is allowed
+    const createSuccess = vi.fn(async () => ({ success: true, data: { _id: "s1" } }));
+    const nsSuccess = new CollectionsNamespace(
+      new TestAdapter(crudWith({ create: createSuccess })) as any,
+    );
+    await nsSuccess.registerSchema("Software", condSchema as any);
+    const res = await nsSuccess.create("Software", { status: "publish", is_licensed: false }, {
+      user: ADMIN,
+    } as any);
+    expect(res.success).toBe(true);
+
+    // Condition met and field supplied -> allowed
+    const resFilled = await nsSuccess.create(
+      "Software",
+      { status: "publish", is_licensed: true, license_key: "KEY-12345" },
+      { user: ADMIN } as any,
+    );
+    expect(resFilled.success).toBe(true);
+  });
+
+  it("permits publish when field has required:true but is hidden by showIf", async () => {
+    const showIfSchema = {
+      _id: "Articles",
+      name: "Articles",
+      slug: "articles",
+      fields: [
+        { db_fieldName: "has_sponsor", name: "Has Sponsor", widget: { Name: "Checkbox" } },
+        {
+          db_fieldName: "sponsor_name",
+          name: "Sponsor Name",
+          widget: { Name: "Input" },
+          required: true,
+          showIf: { field: "has_sponsor", operator: "equals", value: true },
+        },
+      ],
+    };
+    const createSuccess = vi.fn(async () => ({ success: true, data: { _id: "a1" } }));
+    const ns = new CollectionsNamespace(
+      new TestAdapter(crudWith({ create: createSuccess })) as any,
+    );
+    await ns.registerSchema("Articles", showIfSchema as any);
+
+    // has_sponsor is false -> sponsor_name is hidden -> publish allowed even though required:true
+    const res = await ns.create("Articles", { status: "publish", has_sponsor: false }, {
+      user: ADMIN,
+    } as any);
+    expect(res.success).toBe(true);
+
+    // has_sponsor is true -> sponsor_name is visible -> publish rejected if missing
+    await expect(
+      ns.create("Articles", { status: "publish", has_sponsor: true }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'Sponsor Name' is required when publishing",
+    });
+  });
+});
+
+describe("update keeps an already-published entry valid", () => {
+  it("rejects clearing a required field when status is omitted", async () => {
+    const findOne = vi.fn(async () => ({
+      success: true,
+      data: { _id: "p1", title: "Existing", status: "publish" },
+    }));
+    const update = vi.fn(async () => ({ success: true, data: { _id: "p1" } }));
+    const ns = new CollectionsNamespace(new TestAdapter(crudWith({ findOne, update })) as any);
+    await ns.registerSchema("Posts", requiredSchema as any);
+
+    await expect(
+      ns.update("Posts", "p1", { title: "" }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'Title' is required when publishing",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects clearing a conditionally required field when status is omitted", async () => {
+    const condSchema = {
+      _id: "Software",
+      name: "Software",
+      slug: "software",
+      fields: [
+        { db_fieldName: "is_licensed", name: "Is Licensed", widget: { Name: "Checkbox" } },
+        {
+          db_fieldName: "license_key",
+          name: "License Key",
+          widget: { Name: "Input" },
+          requiredIf: { field: "is_licensed", operator: "equals", value: true },
+        },
+      ],
+    };
+    const findOne = vi.fn(async () => ({
+      success: true,
+      data: { _id: "s1", is_licensed: true, license_key: "KEY-1", status: "publish" },
+    }));
+    const update = vi.fn(async () => ({ success: true, data: { _id: "s1" } }));
+    const ns = new CollectionsNamespace(new TestAdapter(crudWith({ findOne, update })) as any);
+    await ns.registerSchema("Software", condSchema as any);
+
+    await expect(
+      ns.update("Software", "s1", { license_key: "" }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'License Key' is required when publishing",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("allows clearing a required field while the entry is still a draft", async () => {
+    const findOne = vi.fn(async () => ({
+      success: true,
+      data: { _id: "p2", title: "Draft", status: "draft" },
+    }));
+    const update = vi.fn(async () => ({ success: true, data: { _id: "p2" } }));
+    const ns = new CollectionsNamespace(new TestAdapter(crudWith({ findOne, update })) as any);
+    await ns.registerSchema("Posts", requiredSchema as any);
+
+    const result = await ns.update("Posts", "p2", { title: "" }, { user: ADMIN } as any);
+    expect(result.success).toBe(true);
+    expect(update).toHaveBeenCalledTimes(1);
   });
 });

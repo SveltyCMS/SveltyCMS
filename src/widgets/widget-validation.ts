@@ -15,6 +15,7 @@
  */
 
 import type { FieldInstance, Layout, Schema } from "@src/content/types";
+import { isFieldRequired, isFieldVisible } from "@src/widgets/desugar-field";
 import { logger } from "@utils/logger";
 
 /**
@@ -182,14 +183,16 @@ export function validateRequiredFields(
   const missingFields: string[] = [];
 
   for (const field of fields) {
-    if (!field.required) continue;
+    if (!isFieldRequired(field, entryData)) continue;
+    if (!isFieldVisible(field, entryData)) continue;
 
     const value = entryData[String(field.db_fieldName || field.name)];
     const isMissing =
       value === undefined ||
       value === null ||
       value === "" ||
-      (Array.isArray(value) && value.length === 0);
+      (Array.isArray(value) && value.length === 0) ||
+      (typeof value === "object" && Object.keys(value as object).length === 0);
 
     if (isMissing) {
       missingFields.push(String(field.name || field.db_fieldName || "unknown"));

@@ -20,7 +20,7 @@
 
 import type { ISODateString } from "../content/types";
 import { getLocale } from "@src/paraglide/runtime";
-import { formatDate, formatDateTime, formatTime, formatNumber, resolveLocale } from "./format-date";
+import { formatDateTime, formatNumber } from "./format-date";
 
 /**
  * Safely resolves the active UI locale from Paraglide without throwing in test/worker contexts.
@@ -377,5 +377,3 @@ export function formatIsoDuration(isoDuration: string | undefined): string | und
 }
 
 export const getCurrentDate = () => formatDateString(new Date(), "yyyy-MM-dd");
-
-export { formatDate, formatDateTime, formatTime, formatNumber, resolveLocale };

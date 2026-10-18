@@ -13,7 +13,7 @@ import {
   isAdminCaller,
   sanitizeClientUserAttributePatch,
 } from "@utils/security/user-attribute-policy";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
 import { readSessionCookie } from "@src/databases/auth/constants";
@@ -39,6 +39,13 @@ let layoutCachesModulePromise:
   | undefined;
 function loadLayoutCachesModule(): Promise<typeof import("@utils/server/layout-caches.server")> {
   return (layoutCachesModulePromise ??= import("@utils/server/layout-caches.server"));
+}
+
+/** Normalize a user's tenant ownership for comparison (null/empty → no tenant). */
+function tenantIdOf(user: unknown): string | null {
+  const raw = (user as { tenantId?: unknown } | null)?.tenantId;
+  if (raw === undefined || raw === null || raw === "") return null;
+  return String(raw);
 }
 
 export async function applyUserAttributeUpdate(
@@ -104,26 +111,45 @@ export async function applyUserAttributeUpdate(
     event.locals.user?.email
   ) {
     try {
-      // Email fallback resolves the user across tenants — branded system scope.
-      const byEmail = await cms.auth.getUserByEmail(String(event.locals.user.email), {
-        ...withSystemScope("auth-bootstrap"),
-      } as never);
-      const emailUser =
-        byEmail?.success && byEmail.data
-          ? byEmail.data
-          : byEmail && typeof byEmail === "object" && "_id" in (byEmail as object)
-            ? (byEmail as unknown as { _id: string })
-            : null;
-      const emailId = emailUser && (emailUser as { _id?: string })._id;
-      if (emailId && String(emailId) !== resolvedId) {
-        resolvedId = String(emailId);
-        result = await cms.auth.updateUserAttributes(resolvedId, updates, {
+      const email = String(event.locals.user.email);
+
+      // Resolve the legacy "stale session id after re-seed" case inside the
+      // ambient tenant only. Never let the fallback cross a tenant boundary.
+      const byEmail = await cms.auth.getUserByEmail(email, { tenantId } as never);
+      const emailUser = byEmail?.success && byEmail.data ? byEmail.data : null;
+
+      if (emailUser) {
+        const ownerTenant = tenantIdOf(emailUser);
+        if (tenantId && ownerTenant !== String(tenantId)) {
+          raise(409, "Email is already in use in another tenant", "EMAIL_IN_USE");
+        }
+        const emailId = (emailUser as { _id?: DatabaseId })._id;
+        if (emailId && String(emailId) !== resolvedId) {
+          resolvedId = String(emailId);
+          result = await cms.auth.updateUserAttributes(resolvedId, updates, {
+            tenantId,
+            ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
+          } as never);
+        }
+      } else if (tenantId) {
+        // The adapter scoped the lookup correctly and found no user. Check
+        // whether the same email is owned by another tenant: if so this is a
+        // cross-tenant conflict, not a resolvable fallback — reject and never
+        // touch the foreign record.
+        const foreign = await cms.auth.getUserByEmail(String(email), {
           ...withSystemScope("auth-bootstrap"),
-          ...(isAdmin ? { allowPrivilegeEscalation: true } : {}),
         } as never);
+        const foreignUser = foreign?.success && foreign.data ? foreign.data : null;
+        const foreignTenant = foreignUser ? tenantIdOf(foreignUser) : null;
+        if (foreignUser && foreignTenant !== String(tenantId)) {
+          raise(409, "Email is already in use in another tenant", "EMAIL_IN_USE");
+        }
       }
-    } catch {
-      /* keep original failure */
+    } catch (err) {
+      rethrow(err);
+      // Preserve intentional 409s; lookup failures keep the original result.
+      if (err instanceof AppError) throw err;
+      logger.debug("[Auth] Email fallback lookup failed", err);
     }
   }
 

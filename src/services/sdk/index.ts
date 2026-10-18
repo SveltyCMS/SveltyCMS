@@ -383,6 +383,11 @@ export class LocalCMS {
         }),
     } as LocalsFacade;
     localsCmsBinding.set(facade, cms);
+    Object.defineProperty(facade, "db", {
+      get: () => cms.db,
+      enumerable: false,
+      configurable: true,
+    });
     for (const key of LOCALS_NAMESPACE_KEYS) {
       Object.defineProperty(facade, key, localsNamespaceDescriptors[key]);
     }
@@ -433,6 +438,7 @@ type LocalsNamespaceProps = Pick<LocalCMS, LocalsNamespaceKey>;
 
 /** Observable shape of `LocalCMS.getLocals()`: five CRUD closures + lazy namespaces. */
 export interface LocalsFacade extends LocalsNamespaceProps {
+  readonly db: IDBAdapter;
   find(id: string, options?: any): ReturnType<CollectionsNamespace["find"]>;
   findById(
     id: string,

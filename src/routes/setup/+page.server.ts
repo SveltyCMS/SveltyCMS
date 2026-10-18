@@ -4,12 +4,7 @@
  * Note: Route protection is handled by the handleSetup middleware in hooks.server.ts
  */
 
-import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { promisify } from "node:util";
 import { version as pkgVersion } from "../../../package.json";
-import { logger } from "@utils/logger";
 import { redirect } from "@sveltejs/kit";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 import type { Actions, PageServerLoad } from "./$types";
@@ -21,7 +16,6 @@ function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/c
   return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
 }
 
-// Delegate core setup logic to setup.remote.ts
 import {
   testDatabaseConnection,
   seedDatabase,
@@ -30,12 +24,7 @@ import {
   testRedisConnection,
 } from "./setup.server";
 
-// execFile — never exec: package names must never reach a shell.
-// The setup wizard runs pre-auth; a shell-interpolated command here would be
-// an RCE if the DRIVER_PACKAGES allowlist ever regressed.
-const execFileAsync = promisify(execFile);
-
-// Database driver mapping (MongoDB is default, others are optional)
+// Database driver mapping
 const DRIVER_PACKAGES = {
   mongodb: "mongoose",
   "mongodb+srv": "mongoose",
@@ -48,15 +37,10 @@ const DRIVER_PACKAGES = {
 type DatabaseType = keyof typeof DRIVER_PACKAGES;
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
-  // DB-aware check: `config/private.ts` is written during the DB test/seed (and the
-  // store auto-seeds), i.e. BEFORE the admin account exists — so the file's mere
-  // presence is NOT a completed setup. Only redirect once an admin + roles exist;
-  // otherwise an abandoned half-setup would lock the user out of /setup entirely.
   if ((await getSetupState()) === SetupState.COMPLETE) {
     throw redirect(302, "/login");
   }
 
-  // Clear ALL existing auth session cookie variants to ensure fresh start
   const { clearAllSessionCookies } = await loadAuthConstantsModule();
   clearAllSessionCookies(cookies, "/");
 
@@ -73,7 +57,6 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 };
 
 export const actions: Actions = {
-  // Setup actions delegate to setup.remote.ts
   testDatabase: async ({ request }) => {
     const fd = await request.formData();
     const config = JSON.parse(fd.get("config") as string);
@@ -121,12 +104,7 @@ export const actions: Actions = {
     const password = fd.get("security") as string;
     return testRedisConnection(host, port, password);
   },
-
-  /**
-   * Installs database drivers (optional)
-   */
   installDriver: async ({ request }) => {
-    logger.info("🚀 Action: installDriver called");
     const formData = await request.formData();
     const dbType = formData.get("dbType") as DatabaseType;
 
@@ -140,49 +118,17 @@ export const actions: Actions = {
     const packageName = DRIVER_PACKAGES[dbType];
 
     try {
-      // Check if already installed
-      try {
-        await import(/* @vite-ignore */ packageName);
-        return {
-          success: true,
-          message: `Driver ${packageName} is already installed.`,
-          alreadyInstalled: true,
-          package: packageName,
-        };
-      } catch {
-        // Install needed
-      }
-
-      // Detect package manager
-      const cwd = process.cwd();
-      let pm = "npm";
-      if (existsSync(join(cwd, "bun.lock"))) {
-        pm = "bun";
-      } else if (existsSync(join(cwd, "yarn.lock"))) {
-        pm = "yarn";
-      } else if (existsSync(join(cwd, "pnpm-lock.yaml"))) {
-        pm = "pnpm";
-      }
-
-      logger.info(`Installing ${packageName} using ${pm}...`);
-      // Args array — no shell involved, packageName can never inject commands.
-      const args = pm === "npm" ? ["install", packageName] : ["add", packageName];
-      const { stdout, stderr } = await execFileAsync(pm, args, {
-        cwd,
-        timeout: 120_000,
-      });
-      logger.info("Installation output:", stdout + stderr);
-
+      await import(/* @vite-ignore */ packageName);
       return {
         success: true,
-        message: `Successfully installed ${packageName}.`,
+        message: `Driver ${packageName} is already installed.`,
+        alreadyInstalled: true,
         package: packageName,
       };
-    } catch (error: any) {
-      logger.error("Driver installation failed:", error);
+    } catch {
       return {
         success: false,
-        error: `Installation failed: ${error.message}`,
+        error: `Driver ${packageName} is not installed.`,
       };
     }
   },

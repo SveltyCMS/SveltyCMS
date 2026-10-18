@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/select/index.ts
+ * @file src/widgets/core/select/index.ts
  * @description Select Widget Definition.
  *
  * Implements a dropdown select widget using the Three Pillars Architecture.
@@ -40,8 +40,8 @@ const SelectWidget = createWidget<SelectProps>({
   Description: radioWidgetDescription(), // Reusing radio description for now
 
   // Define paths to the dedicated Svelte components.
-  inputComponentPath: "/src/widgets/custom/select/input.svelte",
-  displayComponentPath: "/src/widgets/custom/select/display.svelte",
+  inputComponentPath: "/src/widgets/core/select/input.svelte",
+  displayComponentPath: "/src/widgets/core/select/display.svelte",
 
   // Assign the dynamic validation schema.
   validationSchema,

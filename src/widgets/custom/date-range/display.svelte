@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/DateRange/Display.svelte
+@file src/widgets/custom/date-range/display.svelte
 @component
 **DateRange Display Component**
 

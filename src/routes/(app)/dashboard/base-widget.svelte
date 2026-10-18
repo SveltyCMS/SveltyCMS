@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/dashboard/BaseWidget
+@file src/routes/(app)/dashboard/base-widget.svelte
 @component
 **Base widget**
 
@@ -60,7 +60,7 @@ New Features:
 		cacheTTL = 300_000,
 		retryCount = 3,
 		retryDelay = 1000
-	} = $props<{
+	}: {
 		label: string;
 		theme?: 'light' | 'dark';
 		endpoint?: string;
@@ -79,7 +79,7 @@ New Features:
 		retryCount?: number;
 		retryDelay?: number;
 		[key: string]: any;
-	}>();
+	} = $props();
 
 	let widgetState = $state<Record<string, any>>({});
 	let loading = $state(false);

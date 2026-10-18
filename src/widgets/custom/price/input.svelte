@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Price/Input.svelte
+@file src/widgets/custom/price/input.svelte
 @component
 **Price Input Component**
 

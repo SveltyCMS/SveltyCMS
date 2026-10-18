@@ -19,6 +19,7 @@ import {
   type Column,
   eq,
   inArray,
+  notInArray,
   isNull,
   ne,
   gt,
@@ -41,7 +42,13 @@ import { normalizeSortDirection } from "./page-utils";
  */
 export async function executeWrite<T extends { run?: () => Promise<unknown> }>(
   builder: T,
-): Promise<{ changes?: number; rowsAffected?: number; count?: number }> {
+): Promise<{
+  changes?: number;
+  rowsAffected?: number;
+  rowCount?: number;
+  count?: number;
+  affectedRows?: number;
+}> {
   return (typeof builder.run === "function" ? await builder.run() : await (builder as any)) as any;
 }
 
@@ -330,6 +337,23 @@ export function getMaterializedFieldColumns(table: any): string[] {
  */
 export function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
+/**
+ * Translate a Mongo-style `$regex` value (anchors included) into a SQL LIKE
+ * pattern. Regex-escaped literals (e.g. `\.` from an email domain) are
+ * unescaped first — otherwise the backslash would be LIKE-escaped as a literal
+ * character and the search would never match.
+ */
+export function regexValueToLikePattern(rawValue: unknown): string {
+  const raw = String(rawValue ?? "");
+  const anchorStart = raw.startsWith("^");
+  const anchorEnd = raw.endsWith("$");
+  const core = anchorStart ? raw.slice(1) : raw;
+  const noTrailing = anchorEnd ? core.slice(0, -1) : core;
+  const unescaped = noTrailing.replace(/\\([.*+?^${}()|[\]\\-])/g, "$1");
+  const escaped = escapeLikePattern(unescaped);
+  return `${anchorStart ? "" : "%"}${escaped}${anchorEnd ? "" : "%"}`;
 }
 
 // 🚀 CENTRALIZED TABLE ALIASES: Shared across all SQL adapters.
@@ -1041,20 +1065,20 @@ function addSingleCondition(
       conditions.push(inArray(col, list));
       break;
     }
+    case "$nin": {
+      const list = Array.isArray(val) ? val : [val];
+      // `$nin: []` matches every row — emitting `NOT IN ()` is invalid SQL.
+      if (list.length === 0) break;
+      conditions.push(notInArray(col, list));
+      break;
+    }
     case "$regex": {
       // Mongo-style regex → SQL LIKE. Escape LIKE wildcards so user input
       // (e.g. "a.b" or "%" in search boxes) is matched literally.
       // The ESCAPE char is BOUND as a parameter, never inlined: on MySQL/MariaDB
       // a backslash inside a string literal is itself an escape, so `ESCAPE '\\'`
       // written as SQL text is a syntax error there (fine on SQLite/Postgres).
-      const raw = String(val ?? "");
-      // Translate Mongo anchors: "^foo" → starts-with, "foo$" → ends-with.
-      const anchorStart = raw.startsWith("^");
-      const anchorEnd = raw.endsWith("$");
-      const core = anchorStart ? raw.slice(1) : raw;
-      const noTrailing = anchorEnd ? core.slice(0, -1) : core;
-      const escaped = escapeLikePattern(noTrailing);
-      const pattern = `${anchorStart ? "" : "%"}${escaped}${anchorEnd ? "" : "%"}`;
+      const pattern = regexValueToLikePattern(val);
       const caseInsensitive = String(operators?.["$options"] ?? "")
         .toLowerCase()
         .includes("i");

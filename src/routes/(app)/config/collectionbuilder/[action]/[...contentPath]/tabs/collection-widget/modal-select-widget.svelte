@@ -80,7 +80,7 @@
 		<!-- Grid -->
 		<div data-testid="select-widget-grid">
 			{#each ['Core', 'Custom', 'Marketplace'] as category (category)}
-				{const categoryKeys =
+				{@const categoryKeys =
 					category === 'Core'
 						? widgets.coreWidgets
 						: category === 'Custom'
@@ -89,7 +89,7 @@
 								? widgets.marketplaceWidgets
 								: []}
 
-				{const filteredKeys = categoryKeys.filter(
+				{@const filteredKeys = categoryKeys.filter(
 					(key) => !searchTerm || key.toLowerCase().includes(searchTerm.toLowerCase())
 				)}
 

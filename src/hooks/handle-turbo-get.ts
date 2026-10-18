@@ -23,9 +23,15 @@ import {
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
 import { readSessionCookie, isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
 import { getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
+import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
+import {
+  decideSessionRisk,
+  evaluateSessionAnomaly,
+  type SessionRiskAction,
+} from "@src/databases/auth/session-user";
 import { resolveRequestTenant } from "./request-tenant";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
-import { getRequestFlags } from "@utils/hook-utils";
+import { getClientIp, getRequestFlags } from "@utils/hook-utils";
 import {
   negotiateEncoding,
   hasNativeCompression,
@@ -42,6 +48,19 @@ export interface TurboAuthContext {
   boundIp?: string | null;
   /** User-agent captured with the session. A later change steps mutations up. */
   boundUserAgent?: string | null;
+  /** RFC 8176 authentication method references for the session (e.g. ["pwd", "mfa"]). */
+  amr?: string[];
+  /** ISO timestamp of the interactive second factor, when one was completed. */
+  mfaVerifiedAt?: string;
+  /**
+   * True once the full authorization hook has loaded the caller's roles for
+   * this context. A login-primed context starts with `roles: []`; without this
+   * marker an empty role list would look like "no MFA required" instead of
+   * "role policy not loaded yet".
+   */
+  mfaPolicyKnown?: boolean;
+  /** Last computed surface risk; consumers may recompute per request instead. */
+  risk?: SessionRiskAction;
   /**
    * Role/permission epoch this context was compiled at.
    *
@@ -75,6 +94,7 @@ export function setTurboAuthContext(
   tenantId: DatabaseId | null,
   permMask?: bigint,
   permRev?: number,
+  auth?: { amr?: string[]; mfaVerifiedAt?: string; mfaPolicyKnown?: boolean },
 ): void {
   const previous = turboAuthCache.get(sessionId);
   if (previous) {
@@ -99,6 +119,13 @@ export function setTurboAuthContext(
     expiresAt: Date.now() + TURBO_AUTH_TTL_MS,
     permMask,
     permRev: permRev ?? getRoleBitsetVersion(),
+    amr: auth?.amr ?? previous?.amr,
+    mfaVerifiedAt: auth?.mfaVerifiedAt ?? previous?.mfaVerifiedAt,
+    // Callers that prime before the role policy is loaded (login / session
+    // prime) pass `mfaPolicyKnown: false` explicitly. The authorization hook
+    // passes true after loading the role list; an omitted marker (direct
+    // low-level callers) assumes the policy is known.
+    mfaPolicyKnown: auth?.mfaPolicyKnown ?? previous?.mfaPolicyKnown ?? true,
     boundIp: previous?.boundIp,
     boundUserAgent: previous?.boundUserAgent,
     isAdmin: userAdmin,
@@ -192,10 +219,34 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
   const turboCtx = getTurboAuthContext(sessionId);
   if (!turboCtx) return resolve(event);
 
+  // 🛡️ MFA: never serve a turbo response for a role that mandates a second
+  // factor when the session never completed one. Falling through (without
+  // deleting the context) lets the full auth/authorization pipeline enforce
+  // the redirect / 403 step-up.
+  if (
+    turboCtx.mfaPolicyKnown !== true ||
+    !validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr)
+  ) {
+    return resolve(event);
+  }
+
+  // 🛡️ Session-surface risk parity with the write lane: a different browser on
+  // a live session must step up, so the cached response is not served.
+  const risk = decideSessionRisk(
+    evaluateSessionAnomaly({
+      currentIp: getClientIp(event),
+      currentUserAgent: request.headers.get("user-agent"),
+      storedIp: turboCtx.boundIp,
+      storedUserAgent: turboCtx.boundUserAgent,
+    }),
+  );
+  if (risk === "step-up") return resolve(event);
+
   locals.user = turboCtx.user;
   locals.roles = turboCtx.roles;
   locals.tenantId = turboCtx.tenantId;
   locals.isAdmin = turboCtx.isAdmin;
+  locals.session_id = sessionId as DatabaseId;
   (locals as { __turboAuth?: boolean }).__turboAuth = true;
 
   // 🧪 Always re-apply the per-request test-mode tenant override: the turbo

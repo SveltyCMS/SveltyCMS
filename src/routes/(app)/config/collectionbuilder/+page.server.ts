@@ -166,7 +166,7 @@ export const actions: Actions = {
     }
 
     try {
-      const { executeGuiStructureSave } = await import("./collectionbuilder.server");
+      const { executeGuiStructureSave } = await import("./collectionbuilder-local.server");
       return await executeGuiStructureSave(locals.tenantId ?? null, operations);
     } catch (err) {
       logger.error("Error saving config:", err);

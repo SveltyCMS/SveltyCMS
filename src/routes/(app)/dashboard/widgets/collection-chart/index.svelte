@@ -39,6 +39,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 	import { untrack } from 'svelte';
 	import type { DashboardWidgetConfig, WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
+	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';

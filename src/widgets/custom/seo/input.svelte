@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Seo/input.svelte
+@file src/widgets/custom/seo/input.svelte
 @description SEO Widget Input Component.
 Handles meta tags, social previews, and schema markup with multi-language support and SEO analysis.
 -->

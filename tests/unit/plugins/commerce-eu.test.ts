@@ -25,9 +25,13 @@ import { AppError } from "@utils/error-handling";
 
 const safeFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("@utils/egress-guard", () => ({
-  safeFetch,
-}));
+vi.mock("@utils/egress-guard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/egress-guard")>();
+  return {
+    ...actual,
+    safeFetch,
+  };
+});
 
 const NOW = Date.parse("2026-10-05T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;

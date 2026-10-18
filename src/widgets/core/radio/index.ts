@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Radio/index.ts
+ * @file src/widgets/core/radio/index.ts
  * @description Radio Widget Definition.
  *
  * Implements a radio button group for selecting a single option from a list.
@@ -46,8 +46,8 @@ const RadioWidget = createWidget<RadioProps>({
   Description: widget_radio_description(),
 
   // Define paths to the dedicated Svelte components.
-  inputComponentPath: "/src/widgets/custom/radio/input.svelte",
-  displayComponentPath: "/src/widgets/custom/radio/display.svelte",
+  inputComponentPath: "/src/widgets/core/radio/input.svelte",
+  displayComponentPath: "/src/widgets/core/radio/display.svelte",
 
   // Assign the dynamic validation schema.
   validationSchema,

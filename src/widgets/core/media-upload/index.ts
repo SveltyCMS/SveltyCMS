@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/MediaUpload/index.ts
+ * @file src/widgets/core/media-upload/index.ts
  * @description Media Widget Definition.
  *
  * Implements a powerful media selector using the Three Pillars Architecture.
@@ -63,8 +63,8 @@ const MediaWidget = createWidget<MediaProps>({
   version: "1.0.0",
   Icon: "mdi:image-multiple",
   Description: mediaWidgetDescription(),
-  inputComponentPath: "/src/widgets/custom/media-upload/input.svelte",
-  displayComponentPath: "/src/widgets/custom/media-upload/display.svelte",
+  inputComponentPath: "/src/widgets/core/media-upload/input.svelte",
+  displayComponentPath: "/src/widgets/core/media-upload/display.svelte",
   validationSchema: createValidationSchema,
 
   // Set widget-specific defaults.

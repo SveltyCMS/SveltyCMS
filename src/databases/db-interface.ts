@@ -897,6 +897,11 @@ export interface ICrudAdapter {
     ids: DatabaseId[],
     options?: FindOptions<T>,
   ): Promise<DatabaseResult<T[]>>;
+  findById<T extends BaseEntity>(
+    collection: string,
+    id: DatabaseId,
+    options?: FindOptions<T>,
+  ): Promise<DatabaseResult<T | null>>;
   findMany<T extends BaseEntity>(
     collection: string,
     query: QueryFilter<T>,

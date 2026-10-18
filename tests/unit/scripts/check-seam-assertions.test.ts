@@ -15,7 +15,7 @@ import {
   detectPersistenceSignals,
   hasFailurePathSignal,
   hasPersistenceSignal,
-} from "../../../scripts/check-seam-assertions";
+} from "../../../scripts/check/check-seam-assertions";
 
 const ROOT = process.cwd();
 

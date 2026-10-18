@@ -43,13 +43,30 @@ The production preview must include `/api/testing` (seed/reset). A normal `bun r
 
 Markers checked: `Unauthorized: Testing endpoints are disabled`, `[TestingHandler]` (same as `verify-prod-build-backdoor --mode=bench`).
 
+## Directory Structure
+
+The `scripts/` directory is partitioned into structured domain folders to maintain an enterprise-grade validation and orchestration pipeline:
+
+```
+scripts/
+├── benchmark-matrix/   # Multi-database micro-benchmark and regression matrix
+├── check/              # Static safety & invariant gates (DB safety, bundle size, flake budget, seams, lockfile)
+├── ci/                 # CI reporting dashboards and Playwright result analyzers
+├── lint/               # Specialized AST and token linters (design tokens, shades, widgets, tenant isolation)
+├── probe/              # Runtime probes & network readiness (deploy backdoor, cgroup hardware, wait-for-ready)
+├── runs/               # Test runners & harness orchestrators (run-integration, run-e2e, matrix, bench)
+├── security/           # Dynamic & static security scanners, fuzzers, SBOM, backdoor verification
+├── test/               # Developer test tools & orchestrators (test-doctor, test-smart, test-contract)
+└── [root]              # CLI scaffolding, versioning, release wrappers, and system lifecycle tools
+```
+
 ## Git Hooks
 
 ### `.githooks/pre-commit` — Format → Lint → Unit (~40s)
 
 Runs before every commit. Steps:
 
-1. **Database safety** — `scripts/check-test-db-safety.ts`
+1. **Database safety** — `scripts/check/check-test-db-safety.ts`
 2. **Format + lint** — `bun run check` (oxfmt + oxlint)
 3. **Lint-staged** — `bun run gate:fast`
 4. **Unit tests** — `vitest run` (skipped if only docs changed)
@@ -61,7 +78,7 @@ Runs before every push. Steps:
 1. **Production build** — `COMPILE_ALL_ADAPTERS=true bun run build`
 2. **Quality Gate** — `bun run check`
 3. **CVE Audit** — `bun audit`
-4. **Secret Misuse Scan** — `bun run scripts/scan-secret-misuse.ts`
+4. **Secret Misuse Scan** — `bun run scripts/security/scan-secret-misuse.ts`
 5. **Tenant Isolation Gate** — `bun run test:tenant`
 6. **SQLite integration** — `bun test tests/integration/`
 
@@ -80,7 +97,7 @@ Covers the same adapter matrix CI runs.
 
 ## Core Testing Scripts
 
-### `scripts/run-e2e.ts` — E2E Test Runner
+### `scripts/runs/run-e2e.ts` — E2E Test Runner
 
 Unified E2E runner with CI and dev modes.
 
@@ -94,7 +111,7 @@ bun run test:e2e --dev --grep=login     # Dev mode + filter
 **CI mode**: Builds with `COMPILE_ALL_ADAPTERS=true`, starts production preview, runs wizard → auth-setup → chromium.
 **Dev mode**: Starts Vite dev server, runs Playwright directly. Faster but not CI-identical.
 
-### `scripts/test-doctor.ts` — Local Health Check
+### `scripts/test/test-doctor.ts` — Local Health Check
 
 Prints the real local vs CI gate map, then runs unit + SQLite integration.
 
@@ -107,7 +124,7 @@ bun run test:doctor --with-e2e      # also Playwright (CI-parity, reuses build)
 
 **Used by**: Manual developer workflow (not in hooks/CI). Prefer this over outdated `ci:local` / `verify:*` names (those scripts do not exist).
 
-### `scripts/test-smart.ts` — Smart Test Orchestrator
+### `scripts/test/test-smart.ts` — Smart Test Orchestrator
 
 Git-diff-aware test selector. Analyzes changed files and selects the optimal subset of tests.
 
@@ -153,7 +170,7 @@ bun x vitest run --coverage            # Enterprise P0 coverage gate (outputs to
 
 ## Security Scripts
 
-### `scripts/security-audit.ts` — Unified Security Audit
+### `scripts/security/security-audit.ts` — Unified Security Audit
 
 Master runner that dispatches to engines in `scripts/security/` plus the static scanners:
 
@@ -173,19 +190,19 @@ bun run security --full                 # Run ALL scanners (auth + risk + secret
 
 - `scripts/security/auth.ts` — Authenticated audit (builds, starts production server, seeds admin, runs scanner with `--auth`)
 - `scripts/security/scanner.ts` — OWASP A01-A07 probes (auth bypass, injection, headers, rate limiting, info leakage)
-- `bun audit` + `scripts/scan-osv.ts` (via `--cve`/`--full`) — dependency CVE check across GitHub Advisory DB and OSV.dev (20+ feeds), after refreshing `sbom.json`
+- `bun audit` + `scripts/security/scan-osv.ts` (via `--cve`/`--full`) — dependency CVE check across GitHub Advisory DB and OSV.dev (20+ feeds), after refreshing `sbom.json`
 
-### `scripts/scan-secret-misuse.ts` — Secret Misuse Scanner
+### `scripts/security/scan-secret-misuse.ts` — Secret Misuse Scanner
 
-Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files. Uses a single pre-compiled forbidden-key regex and 32-way parallel file batching. 6 detection rules including **comparison-based backdoor detection** (Rule 6: catches `password === "hardcoded"` patterns that assignment-based scanners miss) and `console.*`/`logger.*` secret exposure checks. Known key formats cover AWS, GitHub, Stripe, Google, OpenAI/Anthropic (`sk-`), Slack (`xox*-`), Hugging Face (`hf_`), JWTs, and private key blocks.
+Static analysis scanner that detects hardcoded credentials, API keys, and secret exposure in non-server files. Uses a single pre-compiled forbidden-key regex and 32-way parallel file batching. 6 detection rules including **comparison-based backdoor detection** (Rule 6: catches `password === "hardcoded"` patterns that assignment-based scanners miss) and `console.*`/`logger.*` secret exposure checks. Known key formats cover AWS, GitHub, Stripe, Google, OpenAI/Anthropic (`sk-`), Slack (`xox*-`), Hugging Face (`hf_`), JWTs, and private key blocks. Full scans cover `src/`, `scripts/`, `config/collections/`, `.github/` and root build configs; generated `config/private*.ts` is excluded.
 
 ```bash
-bun run scripts/scan-secret-misuse.ts               # incremental scan (changed files)
-bun run scripts/scan-secret-misuse.ts --full        # scan all files
-bun run scripts/scan-secret-misuse.ts --strict      # CI mode (exit 1 on findings)
+bun run scripts/security/scan-secret-misuse.ts               # incremental scan (changed files)
+bun run scripts/security/scan-secret-misuse.ts --full        # scan all files
+bun run scripts/security/scan-secret-misuse.ts --strict      # CI mode (exit 1 on medium/high findings)
 ```
 
-### `scripts/scan-security-risk.ts` — Global Security Risk Scanner (entire `src/`)
+### `scripts/security/scan-security-risk.ts` — Global Security Risk Scanner (entire `src/`)
 
 Static + AST scanner for vulnerability classes in OUR code — the layer no external database can cover. Scans all files under `src/` (vendored `src/types/`, `node_modules`, generated `src/paraglide/` excluded):
 
@@ -213,21 +230,21 @@ Static + AST scanner for vulnerability classes in OUR code — the layer no exte
 | SQL identifier interpolation | warning  | Unescaped identifiers (skipped in files with `assertSafeSqlIdentifier`-style guards)                                         |
 
 ```bash
-bun run scripts/scan-security-risk.ts          # scan (warnings tolerated)
-bun run scripts/scan-security-risk.ts --strict # exit 1 on errors (pre-commit)
+bun run scripts/security/scan-security-risk.ts          # scan (warnings tolerated)
+bun run scripts/security/scan-security-risk.ts --strict # exit 1 on errors (pre-commit)
 ```
 
-### `scripts/scan-osv.ts` — Global Vulnerability Check (OSV.dev)
+### `scripts/security/scan-osv.ts` — Global Vulnerability Check (OSV.dev)
 
 Queries **OSV.dev** — the global aggregator that merges GitHub Advisory DB (GHSA), NVD, and 20+ other feeds — with the purls from `sbom.json` (CycloneDX, kept in lockstep by pre-commit). One batch request covers the whole dependency tree, including SvelteKit/Svelte/Vite advisories. Results cached 24h under `node_modules/.cache/osv-cache.json`.
 
 ```bash
-bun run scripts/scan-osv.ts          # check (24h cache)
-bun run scripts/scan-osv.ts --strict # exit 1 on any vulnerability
-bun run scripts/scan-osv.ts --fresh  # ignore cache
+bun run scripts/security/scan-osv.ts          # check (24h cache)
+bun run scripts/security/scan-osv.ts --strict # exit 1 on any vulnerability
+bun run scripts/security/scan-osv.ts --fresh  # ignore cache
 ```
 
-### `scripts/risk-audit.ts` — Full Commit Risk Audit (Parallel 6-Gate Runner)
+### `scripts/security/risk-audit.ts` — Full Commit Risk Audit (Parallel 6-Gate Runner)
 
 Runs all 6 fast, stateless security checks **in parallel** in one gate (wired into `.githooks/pre-commit`) with deterministic buffered output and per-step timing:
 
@@ -243,53 +260,11 @@ bun run risk:audit          # parallel commit gate
 bun run risk:audit --full   # force full non-incremental scan on all gates
 ```
 
-### `scripts/verify-prod-build-backdoor.ts` — Build Backdoor Verification
-
-Scans build output to confirm `/api/testing` handler is present (bench builds) or stripped (deploy builds).
-
-```bash
-bun run scripts/verify-prod-build-backdoor.ts         # deploy mode
-bun run scripts/verify-prod-build-backdoor.ts --mode=bench
-```
-
-### `scripts/probe-deploy-testing-api.ts` — Deploy Backdoor Probe (A01)
-
-Full end-to-end probe: builds deploy-safe artifact, scans chunks, starts preview server, live-probes `/api/testing`.
-
-```bash
-bun run scripts/probe-deploy-testing-api.ts
-bun run scripts/probe-deploy-testing-api.ts --skip-build
-```
-
-**Used by**: CI whitebox job (`07-deploy-backdoor`).
-
----
-
-## Safety & Validation
-
-### `scripts/check-test-db-safety.ts` — Production DB Guard
-
-Blocks unsafe `config/private.test.ts` before any tests run. DB names must contain `test`, `bench`, `e2e`, or end in `_functional`.
-
-```bash
-bun run scripts/check-test-db-safety.ts
-```
-
-**Used by**: Pre-commit hook.
-
-### `scripts/probe-hardware-tiers.ts` — Hardware Tier Probe (cgroup)
-
-Self-bundles the real `src/utils/hardware-profile.ts` and runs it inside memory/CPU-limited containers (`--memory=256m --cpus=1`, `--memory=512m --cpus=2`, plus an unconstrained case), asserting the derived budgets exactly: heap, RSS target, L1 caches, body limit, DB pool, workers, threadpool, and the ≤ 70 % invariant. The unit suite injects limits; this gate proves the runtime actually reads the cgroup.
-
-```bash
-bun run scripts/probe-hardware-tiers.ts          # needs a reachable Docker daemon
-```
-
-**Used by**: CI whitebox job (`08-hardware-tiers`).
-
-### `scripts/slop-scanner.ts` — Code Quality + Security Architecture Scanner
+### `scripts/security/slop-scanner.ts` — Code Quality + Security Architecture Scanner
 
 Svelte 5 + Accessibility + RTL + Quality + Security scanner. Catches issues oxlint doesn't cover.
+
+Suppression entries in `.slop-suppress.json` are validated on load and matched by exact path or directory prefix only (never a substring), so one file cannot silently silence a sibling.
 
 **Code quality checks:** XSS (`{@html}`), RTL compatibility, button variant validation, file naming, duplicate content, stale-placeholder tracking.
 
@@ -316,25 +291,173 @@ Use `slop:suppress` in a comment to skip a file.
 ```bash
 bun run slop                              # Check all files
 bun run slop --strict                     # CI mode (fail on findings)
-bun run scripts/slop-scanner.ts --fix     # Check + autofix
-bun run scripts/slop-scanner.ts --surface # List the export-surface inventory (info)
+bun run scripts/security/slop-scanner.ts --fix     # Check + autofix
+bun run scripts/security/slop-scanner.ts --surface # List the advisory inventory
 ```
 
-Unused exports are classified into **dead-code candidates** (`unused-export` — referenced nowhere in `src`/`scripts`/root/`tests`/`docs`; actionable) and two advisory inventories: **export-surface** (referenced by tests/docs only — test-only reset helpers and documented public API) and **duplicate-export-name** (the same distinctive name exported by several modules — usually a legitimate re-export bridge or remote/server contract symmetry). Advisory items are collapsed to counts by default and shown under `--surface` / `--verbose` (or `SLOP_PRINT_CAP`).
+Unused exports are classified into **dead-code candidates** (`unused-export` — referenced nowhere in `src`/`scripts`/root/`tests`/`docs`; actionable) and two advisory inventories: **export-surface** (referenced by tests/docs only — test-only reset helpers and documented public API) and **duplicate-export-name** (the same distinctive name exported by several modules — usually a legitimate re-export bridge or remote/server contract symmetry).
+
+The two advisory categories are **not findings**: they are summarised on a separate `🗂️  Inventory:` line, never counted in the `errors / warnings / infos` total, and never affect `--strict`. A clean tree therefore reports `0 errors, 0 warnings, 0 infos` while still tracking the public/test surface. Use `--surface` / `--verbose` (or `SLOP_PRINT_CAP`) to print the inventory.
+
+### `scripts/security/verify-prod-build-backdoor.ts` — Build Backdoor Verification
+
+Scans build output to confirm `/api/testing` handler is present (bench builds) or stripped (deploy builds).
+
+```bash
+bun run scripts/security/verify-prod-build-backdoor.ts         # deploy mode
+bun run scripts/security/verify-prod-build-backdoor.ts --mode=bench
+```
+
+### `scripts/probe/probe-deploy-testing-api.ts` — Deploy Backdoor Probe (A01)
+
+Full end-to-end probe: builds deploy-safe artifact, scans chunks, starts preview server, live-probes `/api/testing`.
+
+```bash
+bun run scripts/probe/probe-deploy-testing-api.ts
+bun run scripts/probe/probe-deploy-testing-api.ts --skip-build
+```
+
+**Used by**: CI whitebox job (`07-deploy-backdoor`).
 
 ---
 
-## Bundle Analysis
+## Safety & Invariant Checks (scripts/check/)
 
-### `scripts/check-bundle-size.ts` — CI Bundle Gate
+### `scripts/check/check-test-db-safety.ts` — Production DB Guard
+
+Blocks unsafe `config/private.test.ts` before any tests run. DB names must contain `test`, `bench`, `e2e`, or end in `_functional`.
+
+```bash
+bun run scripts/check/check-test-db-safety.ts
+```
+
+**Used by**: Pre-commit hook.
+
+### `scripts/check/check-bundle-size.ts` — CI Bundle Gate
 
 Fails if TipTap/prosemirror leaks into the critical entry chunk or if entry/layout chunks exceed size thresholds.
 
 ```bash
-bun run scripts/check-bundle-size.ts
+bun run scripts/check/check-bundle-size.ts
 ```
 
 **Used by**: CI build job.
+
+### `scripts/check/check-flake-budget.ts` — Flake Budget Enforcement
+
+Enforces retried-test limits per E2E shard (≤2 retried passes, ≤3% of total runs) to prevent test flake drift.
+
+```bash
+bun run flake:budget
+```
+
+**Used by**: CI E2E summary job.
+
+### `scripts/check/check-seam-assertions.ts` — Component Seam Assertion Guard
+
+Scans integration and component test files to verify that interaction boundaries and critical state transitions have explicit assertions.
+
+```bash
+bun run check:seams
+```
+
+**Used by**: Quality gate (`bun run check`).
+
+### `scripts/check/check-lockfile-sync.ts` — Lockfile Parity Guard
+
+Ensures `bun.lock` dependencies are strictly in sync with `package.json` catalog definitions.
+
+```bash
+bun run check:lockfile
+```
+
+**Used by**: Quality gate (`bun run check`).
+
+### `scripts/check/check-hardcoded-copy.ts` & `scripts/check/check-translations.ts` — Localization Gates
+
+Verifies user-facing copy uses Paraglide message tokens and validates completeness across supported languages.
+
+```bash
+bun run check:copy
+bun run check:translations
+```
+
+---
+
+## Specialized Lint Scripts (scripts/lint/)
+
+### `scripts/lint/lint-design.ts` — Design Token & Class Linter
+
+Enforces Tailwind v4 token usage, scans for forbidden legacy utility classes, and guards against non-token color allocations.
+
+```bash
+bun run lint:design
+```
+
+### `scripts/lint/consolidate-shades.ts` — Status-Shade Contract Guard
+
+Enforces the status-shade contract (`500` fills, `500/400` text, single shade per ramp role).
+
+```bash
+bun run scripts/lint/consolidate-shades.ts --check
+bun run scripts/lint/consolidate-shades.ts         # autofix
+```
+
+### `scripts/lint/lint-widgets.ts` — Widget Architecture Linter
+
+Validates widget naming, contracts, a11y attributes, and directory layout across all custom and core widgets.
+
+```bash
+bun run lint:widgets
+```
+
+### `scripts/lint/lint-tenant-api.ts` — Tenant Isolation AST Linter
+
+Static AST analyzer that verifies every `/api` route handler applies tenant scoping (`tenantId`).
+
+```bash
+bun run lint:tenant              # incremental (git diff)
+bun run lint:tenant -- --full    # full scan
+```
+
+### `scripts/lint/lint-benchmark-mdx.ts` — Benchmark MDX Parity
+
+Ensures benchmark documentation tables and metrics stay synchronized with measured run results.
+
+```bash
+bun run lint:benchmark-mdx
+```
+
+---
+
+## Hardware & Environment Probes (scripts/probe/)
+
+### `scripts/probe/probe-hardware-tiers.ts` — Hardware Tier Probe (cgroup)
+
+Self-bundles the real `src/utils/hardware-profile.ts` and runs it inside memory/CPU-limited containers (`--memory=256m --cpus=1`, `--memory=512m --cpus=2`, plus an unconstrained case), asserting the derived budgets exactly: heap, RSS target, L1 caches, body limit, DB pool, workers, threadpool, and the ≤ 70 % invariant. The unit suite injects limits; this gate proves the runtime actually reads the cgroup.
+
+```bash
+bun run scripts/probe/probe-hardware-tiers.ts          # needs a reachable Docker daemon
+```
+
+**Used by**: CI whitebox job (`08-hardware-tiers`).
+
+### `scripts/probe/wait-for-ready.ts` — Readiness Gate Probe
+
+Zero-dependency TCP and HTTP readiness probe with PID monitoring for preview servers and database ports.
+
+```bash
+bun run scripts/probe/wait-for-ready.ts tcp:127.0.0.1:5432 --timeout=90000 --interval=2000
+bun run scripts/probe/wait-for-ready.ts http://127.0.0.1:4173/api/system/health --pid=1234
+```
+
+### `scripts/probe/probe-adaptive-update-lane.ts` — UPDATE Lane Micro-Benchmark
+
+Measures an idle single update through `NetworkDbQueueGate` twice: coalesced (`SVELTY_WRITE_COALESCING=1`) vs adaptive (`SVELTY_WRITE_COALESCE_UPDATE=1`). Local runs on 2026-10-18 (5 000 samples, 500 warm-up, no database): coalesced **p50 ≈2–3 µs / p95 ≈6 µs / max 2.3–2.5 ms**; adaptive **p50 ≈0.3–0.4 µs / p95 ≈0.5–0.6 µs / max 11–13 µs**. The adaptive lane removes the scheduler hop only when nothing else is queued or in flight.
+
+```bash
+bun run scripts/probe/probe-adaptive-update-lane.ts
+```
 
 ### `scripts/bundle-stats.ts` — Bundle Analytics
 
@@ -346,15 +469,15 @@ bun run build:stats
 
 ---
 
-## Benchmark Scripts
+## Benchmark Scripts (scripts/runs/ & scripts/benchmark-matrix/)
 
-### `scripts/run-core-benchmarks.ts` — CI-Core Benchmarks
+### `scripts/runs/run-core-benchmarks.ts` — CI-Core Benchmarks
 
 Runs core benchmarks for one or all adapters.
 
 ```bash
-bun run scripts/run-core-benchmarks.ts              # All adapters
-bun run scripts/run-core-benchmarks.ts --db=sqlite  # Single adapter
+bun run scripts/runs/run-core-benchmarks.ts              # All adapters
+bun run scripts/runs/run-core-benchmarks.ts --db=sqlite  # Single adapter
 ```
 
 **Used by**: CI `bench-core` job.
@@ -371,23 +494,22 @@ bun run verify:benchmark-local
 
 ## Other Scripts
 
-| Script                       | Purpose                                                  |
-| ---------------------------- | -------------------------------------------------------- |
-| `create-app.ts`              | Scaffolds new SveltyCMS project (`npx create-sveltycms`) |
-| `generate-sbom.ts`           | Generates software bill of materials                     |
-| `generate-core-countries.js` | Generates country list for address fields                |
-| `git-safe.ts`                | Hardened git wrapper (blocks `--no-verify`)              |
-| `setup-system.ts`            | One-time system initialization                           |
-| `upgrade.ts`                 | Full SveltyCMS version upgrade (`bun run upgrade`)       |
-| `ci-report-all-green.ts`     | CI dashboard for all-green gate (ci.yml)                 |
-| `ci-report-playwright.ts`    | CI reporter for Playwright results (ci.yml)              |
+| Script                               | Purpose                                                  |
+| ------------------------------------ | -------------------------------------------------------- |
+| `create-app.js`                      | Scaffolds new SveltyCMS project (`npx create-sveltycms`) |
+| `scripts/security/generate-sbom.ts`  | Generates software bill of materials                     |
+| `git-safe.ts`                        | Hardened git wrapper (blocks `--no-verify`)              |
+| `setup-system.ts`                    | One-time system initialization                           |
+| `upgrade.ts`                         | Full SveltyCMS version upgrade (`bun run upgrade`)       |
+| `scripts/ci/ci-report-all-green.ts`  | CI dashboard for all-green gate (ci.yml)                 |
+| `scripts/ci/ci-report-playwright.ts` | CI reporter for Playwright results (ci.yml)              |
 
 ## Git Hook Flow
 
 ```
 git commit
   └─ pre-commit
-       ├─ check-test-db-safety.ts
+       ├─ scripts/check/check-test-db-safety.ts
        ├─ bun run check (format + lint)
        ├─ lint-staged
        └─ test:unit

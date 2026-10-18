@@ -474,13 +474,22 @@ function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void
         );
     const sessionId = resolvedSessionId || null;
     if (!sessionId) return;
-    // Forward the 64-bit bitmask so turbo GET can pass it to request consumers
+    // Forward the 64-bit bitmask and the session's MFA context so turbo
+    // consumers can enforce role-level MFA without re-running the pipeline.
     setTurboAuthContext(
       sessionId,
       user,
       roles,
       event.locals.tenantId || null,
       event.locals.permMask,
+      undefined,
+      {
+        amr: event.locals.sessionAmr,
+        mfaVerifiedAt: event.locals.mfaVerifiedAt,
+        // handleAuthorization has just loaded the full role set; consumers may
+        // now evaluate mfaRequired instead of treating an empty list as "none".
+        mfaPolicyKnown: true,
+      },
     );
     rememberTurboSessionSurface(
       sessionId,

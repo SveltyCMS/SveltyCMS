@@ -641,17 +641,26 @@ their arrows so the canvas stays readable.
 							/>
 							<div class="flex flex-col gap-3">
 								<Checkbox
-									bind:checked={node.isInitial}
+									checked={node.isInitial ?? false}
 									label="Initial State"
 									size="sm"
 									onchange={(checked) => {
-										if (checked)
+										node.isInitial = checked;
+										if (checked) {
 											states.forEach((s) => {
 												if (s.id !== node.id) s.isInitial = false;
 											});
+										}
 									}}
 								/>
-								<Checkbox bind:checked={node.isFinal} label="Final State" size="sm" />
+								<Checkbox
+									checked={node.isFinal ?? false}
+									label="Final State"
+									size="sm"
+									onchange={(checked) => {
+										node.isFinal = checked;
+									}}
+								/>
 							</div>
 							<Button
 								variant="error"

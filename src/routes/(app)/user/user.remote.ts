@@ -10,7 +10,7 @@ import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { AppError } from "@utils/error-handling";
 import { verifyPassword as verifyPasswordHash } from "@src/databases/auth";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { isAdmin } from "@src/databases/auth/constants";
+import { isAdmin, readSessionCookie } from "@src/databases/auth/constants";
 import { invalidateSessionCache } from "@src/hooks/handle-authentication";
 import type { User } from "@src/databases/auth/types";
 
@@ -100,7 +100,9 @@ export const getActiveSessions = query(
       if (!result.success) {
         return { error: result.message || "Failed to load sessions" };
       }
-      const currentSessionId = String(event.locals.session_id ?? "");
+      const currentSessionId = String(
+        event.locals.session_id ?? readSessionCookie(event.cookies) ?? "",
+      );
       // Sessions come back as strongly-typed `Session`, but the view model reads
       // optional legacy fields (ip/updatedAt/createdAt) not present on the type —
       // widen to the index-signature view once for the mapping.

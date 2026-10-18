@@ -10,11 +10,14 @@
  * ### Features:
  * - Full backup creation (database + optional media metadata) with manifest and checksums
  * - Plan-first restore: never apply directly — requires explicit restore plan review
- * - AES-256-GCM encryption for backup artifacts (HKDF-SHA-256 key, UTF-8-slice dual-read)
+ * - AES-256-GCM v3 (`SCHB3`) key-ID backup envelopes with per-artifact AAD
+ *   (HKDF-SHA-256; legacy `SCHB2`/pre-key-ID archives stay readable)
+ * - Path containment for every user-supplied backup path (traversal + symlink escapes)
+ * - Opt-in ML-KEM-768 + AES-256-GCM hybrid backups (`SCHP1`, `PQC_HYBRID_BACKUPS=true`)
  * - Tenant-scoped isolation with super-admin override for cross-tenant restore
  * - NDJSON streaming exports for large datasets
  * - Background job support via jobQueue for large backup/restore operations
- * - Tamper-evident SHA-256 checksum chain integrity verification
+ * - Tamper-evident checksum chain (SHA-256 default; `CHECKSUM_ALGORITHM` for new artifacts)
  * - Secrets-aware: never exports passwords, tokens, API keys, or encryption keys
  * - Maintenance lock pattern for destructive restore operations
  * - Audit trail for all backup and restore operations
@@ -29,7 +32,7 @@
  *     roles.json          — role definitions
  *   media/
  *     media-map.json      — media metadata mapping (references, not binaries)
- *   checksums.json        — SHA-256 of each file
+ *   checksums.json        — checksums of each file (SHA-256 default)
  *   restore-notes.json    — pre-flight checklist for restore
  * ```
  */
@@ -39,13 +42,26 @@ import path from "node:path";
 import { dbAdapter } from "@src/databases/db";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import { generateUUID } from "@utils/native-utils";
+import { raise } from "@utils/error-handling";
 import {
   AES256_HKDF_INFO,
   AES256_HKDF_SALT,
   aesGcmDecryptWithKeys,
-  createChecksum,
   resolveStaticAesKey,
 } from "@utils/security/crypto";
+import {
+  createChecksum,
+  verifyChecksum as verifyChecksumWithProfile,
+} from "@utils/security/checksum";
+import { hybridOpen, hybridSeal, isMlKemAvailable } from "@utils/security/hybrid-kem";
+import {
+  deriveKeyId,
+  encodeBackupEnvelope,
+  keysForEnvelope,
+  parseBackupEnvelope,
+  parseKeyRingJson,
+  type ResolvedKeyRing,
+} from "@utils/security/envelope";
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from "node:crypto";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { logger } from "@utils/logger";
@@ -138,13 +154,156 @@ const SENSITIVE_FIELDS = new Set([
 const BACKUP_AES_ALGORITHM = "aes-256-gcm";
 const BACKUP_IV_LENGTH = 12; // NIST SP 800-38D recommended GCM nonce
 const BACKUP_AUTH_TAG_LENGTH = 16;
+const HYBRID_BACKUP_MAGIC = Buffer.from("SCHP1", "ascii");
+const HYBRID_BACKUP_AAD = Buffer.from("sveltycms-backup-v1", "utf8");
+/** AAD-bound v3 envelope: `"SCHB3"[kidLen][kid][iv][ciphertext][tag]`. */
+const BACKUP_V3_MAGIC = Buffer.from("SCHB3", "ascii");
+const BACKUP_AAD_PREFIX = "svelty-backup:v2";
+const BACKUP_KEY_ID_RE = /^[A-Za-z0-9._-]{1,64}$/;
 
 /**
- * Backup key ring: HKDF-SHA-256 for new artifacts, plus the historical
- * UTF-8-slice(0,32) key so archives encrypted before this change still restore.
- * Hex env values also try the decoded-hex key (TOTP/settings share ENCRYPTION_KEY).
+ * AAD that binds a backup blob to its relative artifact path. Encrypt and
+ * decrypt must use the same value; it prevents an attacker from swapping a
+ * ciphertext between two files in the same archive.
  */
-function backupAesKeyRing(encryptionKey: string): Buffer[] {
+export function backupArtifactAad(relativePath: string): string {
+  const normalized = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
+  return `${BACKUP_AAD_PREFIX}:${normalized}`;
+}
+
+/** Default backup storage root (must stay in sync with `listBackups`). */
+export function defaultBackupRoot(): string {
+  return path.resolve(process.cwd(), "storage", "backups");
+}
+
+/**
+ * Resolve a path to its real location even when the leaf does not exist yet:
+ * the nearest existing parent is passed through `fs.realpath`, then the
+ * missing suffix is re-appended.
+ */
+async function realpathNearest(target: string): Promise<string> {
+  let probe = target;
+  const suffix: string[] = [];
+  while (true) {
+    try {
+      const real = await fs.realpath(probe);
+      return path.resolve(real, ...suffix);
+    } catch {
+      const parent = path.dirname(probe);
+      if (parent === probe) return path.resolve(target);
+      suffix.unshift(path.basename(probe));
+      probe = parent;
+    }
+  }
+}
+
+/**
+ * Contain a user-supplied backup path inside the backup root.
+ *
+ * Rejects `..` escapes, paths on another drive/root, and symlink escapes
+ * (the nearest existing parent is `realpath`-resolved and re-checked).
+ * Returns the normalized absolute path, or `null` when it is not contained.
+ */
+export async function resolveBackupPath(
+  candidatePath: string,
+  rootDir: string = defaultBackupRoot(),
+): Promise<string | null> {
+  if (typeof candidatePath !== "string" || candidatePath.trim() === "") return null;
+
+  const root = path.resolve(rootDir);
+  const candidate = path.resolve(root, candidatePath);
+  const relative = path.relative(root, candidate);
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
+    return null;
+  }
+
+  const realRoot = await realpathNearest(root);
+  const realCandidate = await realpathNearest(candidate);
+  const realRelative = path.relative(realRoot, realCandidate);
+  if (
+    realRelative === "" ||
+    realRelative === ".." ||
+    realRelative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(realRelative)
+  ) {
+    return null;
+  }
+
+  return candidate;
+}
+
+interface ParsedBackupV3Envelope {
+  keyId: string;
+  iv: Buffer;
+  ciphertext: Buffer;
+  tag: Buffer;
+}
+
+function encodeBackupEnvelopeV3(
+  iv: Buffer,
+  ciphertext: Buffer,
+  tag: Buffer,
+  keyId: string,
+): Buffer {
+  const id = Buffer.from(keyId, "utf8");
+  return Buffer.concat([BACKUP_V3_MAGIC, Buffer.from([id.length]), id, iv, ciphertext, tag]);
+}
+
+function parseBackupEnvelopeV3(combined: Buffer): ParsedBackupV3Envelope | null {
+  if (
+    combined.length < BACKUP_V3_MAGIC.length ||
+    !combined.subarray(0, BACKUP_V3_MAGIC.length).equals(BACKUP_V3_MAGIC)
+  ) {
+    return null;
+  }
+
+  const idOffset = BACKUP_V3_MAGIC.length;
+  if (combined.length < idOffset + 1) return null;
+  const idLength = combined[idOffset];
+  if (idLength === 0 || idLength > 64) return null;
+
+  const offset = idOffset + 1 + idLength;
+  if (combined.length < offset + BACKUP_IV_LENGTH + BACKUP_AUTH_TAG_LENGTH) return null;
+
+  const keyId = combined.subarray(idOffset + 1, offset).toString("utf8");
+  if (!BACKUP_KEY_ID_RE.test(keyId)) return null;
+
+  return {
+    keyId,
+    iv: combined.subarray(offset, offset + BACKUP_IV_LENGTH),
+    ciphertext: combined.subarray(
+      offset + BACKUP_IV_LENGTH,
+      combined.length - BACKUP_AUTH_TAG_LENGTH,
+    ),
+    tag: combined.subarray(combined.length - BACKUP_AUTH_TAG_LENGTH),
+  };
+}
+
+/** Single fail-closed error for wrong keys, missing AAD, and tampered archives. */
+function backupDecryptionError(): never {
+  raise(
+    500,
+    "Backup decryption failed — wrong key or tampered archive",
+    "BACKUP_DECRYPTION_FAILED",
+  );
+}
+
+/** Opt-in hybrid backup envelope (`SCHP1` + ML-KEM-768/AES-256-GCM). */
+function hybridBackupsEnabled(): boolean {
+  return process.env.PQC_HYBRID_BACKUPS === "true";
+}
+
+/**
+ * Historical backup key candidates, in the order they were introduced:
+ * HKDF-SHA-256 → UTF-8 slice → resolved static key → legacy digests.
+ * Encrypt keeps HKDF first so existing archives stay readable.
+ */
+function backupKeyCandidates(encryptionKey: string): Buffer[] {
   const hkdfKey = Buffer.from(
     hkdfSync("sha256", encryptionKey, AES256_HKDF_SALT, AES256_HKDF_INFO.backupArtifact, 32),
   );
@@ -165,44 +324,167 @@ function backupAesKeyRing(encryptionKey: string): Buffer[] {
 }
 
 /**
- * Encrypts backup data using AES-256-GCM.
- * Layout (unchanged): 12-byte IV || ciphertext || 16-byte auth tag.
+ * Backup key ring: the primary HKDF key gets an ID; `BACKUP_KEY_RING` entries
+ * are decrypt-only keys kept during a rotation window.
  */
-export async function encryptBackupData(data: string, encryptionKey: string): Promise<Buffer> {
-  const key = backupAesKeyRing(encryptionKey)[0];
+function backupKeyRing(encryptionKey: string): ResolvedKeyRing {
+  const candidates = backupKeyCandidates(encryptionKey);
+  const primary = candidates[0];
+  const explicitId = process.env.BACKUP_KEY_ID?.trim();
+  const primaryId =
+    explicitId && /^[A-Za-z0-9._-]{1,64}$/.test(explicitId)
+      ? explicitId
+      : deriveKeyId(primary, createHash);
+
+  const entries = [{ id: primaryId, key: primary }];
+  const legacy = candidates.slice(1);
+  for (const ring of parseKeyRingJson(process.env.BACKUP_KEY_RING)) {
+    const ringCandidates = backupKeyCandidates(ring.raw);
+    const key = ringCandidates[0];
+    if (!entries.some((entry) => entry.key.equals(key))) entries.push({ id: ring.id, key });
+    legacy.push(...ringCandidates.slice(1));
+  }
+
+  return { primaryId, primary, entries, legacy };
+}
+
+/**
+ * Encrypts backup data using AES-256-GCM.
+ *
+ * New service writes pass an AAD and use the v3 layout
+ * `"SCHB3"[kidLen][kid][12-byte IV][ciphertext][16-byte auth tag]`.
+ * Calls without an AAD keep writing the legacy `SCHB2` envelope for
+ * backward-compatible tooling; every backup-service caller supplies AAD.
+ *
+ * @param aad - `backupArtifactAad(relativePath)` for the artifact being sealed.
+ */
+export async function encryptBackupData(
+  data: string,
+  encryptionKey: string,
+  aad?: string,
+): Promise<Buffer> {
+  if (hybridBackupsEnabled()) {
+    const publicKey = process.env.PQC_KEM_PUBLIC_KEY;
+    if (!publicKey) {
+      throw new Error("PQC_HYBRID_BACKUPS requires PQC_KEM_PUBLIC_KEY");
+    }
+    if (!(await isMlKemAvailable())) {
+      throw new Error("PQC_HYBRID_BACKUPS requires a runtime with ML-KEM-768 WebCrypto support");
+    }
+    const envelope = await hybridSeal(Buffer.from(data, "utf8"), {
+      publicKey,
+      aad: HYBRID_BACKUP_AAD,
+    });
+    return Buffer.concat([HYBRID_BACKUP_MAGIC, Buffer.from(envelope, "utf8")]);
+  }
+
+  const ring = backupKeyRing(encryptionKey);
   const iv = randomBytes(BACKUP_IV_LENGTH);
-  const cipher = createCipheriv(BACKUP_AES_ALGORITHM, key, iv);
+  const cipher = createCipheriv(
+    BACKUP_AES_ALGORITHM,
+    ring.primary,
+    iv,
+  ) as import("node:crypto").CipherGCM;
+  if (aad) cipher.setAAD(Buffer.from(aad, "utf8"));
   const encrypted = Buffer.concat([cipher.update(data, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
-  return Buffer.concat([iv, encrypted, authTag]);
+
+  return aad
+    ? encodeBackupEnvelopeV3(iv, encrypted, authTag, ring.primaryId)
+    : encodeBackupEnvelope(iv, encrypted, authTag, ring.primaryId);
 }
 
 /**
  * Decrypts backup data encrypted with AES-256-GCM.
- * Tries HKDF first, then legacy UTF-8-slice / hex keys.
+ *
+ * v3 requires the same AAD used on write; v2 (`SCHB2`) and the oldest
+ * `[iv][ciphertext][tag]` layout remain readable without AAD so archives
+ * written before this change can still be restored.
  */
-export async function decryptBackupData(encrypted: Buffer, encryptionKey: string): Promise<string> {
-  if (encrypted.length < BACKUP_IV_LENGTH + BACKUP_AUTH_TAG_LENGTH) {
-    throw new Error("Backup payload too short to be AES-256-GCM");
+export async function decryptBackupData(
+  encrypted: Buffer,
+  encryptionKey: string,
+  aad?: string,
+): Promise<string> {
+  if (
+    encrypted.length >= HYBRID_BACKUP_MAGIC.length &&
+    encrypted.subarray(0, HYBRID_BACKUP_MAGIC.length).equals(HYBRID_BACKUP_MAGIC)
+  ) {
+    const privateKey = process.env.PQC_KEM_PRIVATE_KEY;
+    if (!privateKey) {
+      throw new Error("Hybrid backup requires PQC_KEM_PRIVATE_KEY");
+    }
+    const plaintext = await hybridOpen(
+      encrypted.subarray(HYBRID_BACKUP_MAGIC.length).toString("utf8"),
+      { privateKey, aad: HYBRID_BACKUP_AAD },
+    );
+    return Buffer.from(plaintext).toString("utf8");
   }
-  const iv = encrypted.subarray(0, BACKUP_IV_LENGTH);
-  const authTag = encrypted.subarray(encrypted.length - BACKUP_AUTH_TAG_LENGTH);
-  const ciphertext = encrypted.subarray(
-    BACKUP_IV_LENGTH,
-    encrypted.length - BACKUP_AUTH_TAG_LENGTH,
-  );
+
+  const ring = backupKeyRing(encryptionKey);
+  const v3 = parseBackupEnvelopeV3(encrypted);
+  if (v3) {
+    if (!aad) {
+      logger.error("[BackupService] SCHB3 backup envelope requires an AAD");
+      backupDecryptionError();
+    }
+
+    const selection = keysForEnvelope(ring, { version: 2, keyId: v3.keyId });
+    if (selection.unknownKeyId) {
+      logger.error("[BackupService] Backup envelope references an unknown key ID", {
+        keyId: v3.keyId,
+      });
+      backupDecryptionError();
+    }
+
+    const decrypted = aesGcmDecryptWithKeys(
+      { createDecipheriv },
+      {
+        keys: selection.keys,
+        iv: v3.iv,
+        authTag: v3.tag,
+        ciphertext: v3.ciphertext,
+        aad: Buffer.from(aad, "utf8"),
+        algorithm: BACKUP_AES_ALGORITHM,
+      },
+    );
+    if (!decrypted) {
+      backupDecryptionError();
+    }
+    return decrypted.toString("utf8");
+  }
+
+  const parsed = parseBackupEnvelope(encrypted, BACKUP_IV_LENGTH, BACKUP_AUTH_TAG_LENGTH);
+  if (!parsed) {
+    backupDecryptionError();
+  }
+
+  const selection = keysForEnvelope(ring, parsed);
+  if (selection.unknownKeyId) {
+    logger.error("[BackupService] Backup envelope references an unknown key ID", {
+      keyId: parsed.keyId,
+    });
+    backupDecryptionError();
+  }
+
+  if (aad) {
+    logger.warn(
+      "[BackupService] Decrypting a legacy backup envelope without AAD — restore continues for backward compatibility",
+    );
+  }
+
   const decrypted = aesGcmDecryptWithKeys(
     { createDecipheriv },
     {
-      keys: backupAesKeyRing(encryptionKey),
-      iv,
-      authTag,
-      ciphertext,
+      keys: selection.keys,
+      iv: parsed.iv,
+      authTag: parsed.tag,
+      ciphertext: parsed.ciphertext,
       algorithm: BACKUP_AES_ALGORITHM,
     },
   );
   if (!decrypted) {
-    throw new Error("Backup decryption failed — wrong key or tampered archive");
+    backupDecryptionError();
   }
   return decrypted.toString("utf8");
 }
@@ -328,6 +610,8 @@ export interface RestoreOptions {
   superAdminOverride?: boolean;
   /** Decryption key if the backup was encrypted. */
   decryptionKey?: string;
+  /** Backup storage root used for path containment (default: storage/backups). */
+  storageDir?: string;
   /** Run as background job (default: auto-detect based on entry count). */
   background?: boolean;
   /** Specific collections to restore (empty = all). */
@@ -560,9 +844,13 @@ export class BackupService {
         const ndjson = sanitized.map((e) => JSON.stringify(e)).join("\n");
         const ndjsonPath = path.join(collectionsDir, `${colName}.ndjson`);
 
-        // Encrypt if key provided
+        // Encrypt if key provided (AAD binds the blob to its archive path)
         if (encryptionKey) {
-          const encrypted = await encryptBackupData(ndjson, encryptionKey);
+          const encrypted = await encryptBackupData(
+            ndjson,
+            encryptionKey,
+            backupArtifactAad(`database/collections/${colName}.ndjson`),
+          );
           await fs.writeFile(ndjsonPath, encrypted);
           checksums[`database/collections/${colName}.ndjson`] = await createChecksum(
             encrypted.toString("base64"),
@@ -588,7 +876,11 @@ export class BackupService {
     const settingsPath = path.join(dbDir, "settings.json");
     const settingsJson = JSON.stringify(settingsData, null, 2);
     if (encryptionKey) {
-      const encrypted = await encryptBackupData(settingsJson, encryptionKey);
+      const encrypted = await encryptBackupData(
+        settingsJson,
+        encryptionKey,
+        backupArtifactAad("database/settings.json"),
+      );
       await fs.writeFile(settingsPath, encrypted);
       checksums["database/settings.json"] = await createChecksum(encrypted.toString("base64"));
     } else {
@@ -601,7 +893,11 @@ export class BackupService {
     const rolesPath = path.join(dbDir, "roles.json");
     const rolesJson = JSON.stringify(rolesData, null, 2);
     if (encryptionKey) {
-      const encrypted = await encryptBackupData(rolesJson, encryptionKey);
+      const encrypted = await encryptBackupData(
+        rolesJson,
+        encryptionKey,
+        backupArtifactAad("database/roles.json"),
+      );
       await fs.writeFile(rolesPath, encrypted);
       checksums["database/roles.json"] = await createChecksum(encrypted.toString("base64"));
     } else {
@@ -616,7 +912,11 @@ export class BackupService {
       const mediaMapPath = path.join(mediaDir, "media-map.json");
       const mediaJson = JSON.stringify(mediaMap, null, 2);
       if (encryptionKey) {
-        const encrypted = await encryptBackupData(mediaJson, encryptionKey);
+        const encrypted = await encryptBackupData(
+          mediaJson,
+          encryptionKey,
+          backupArtifactAad("media/media-map.json"),
+        );
         await fs.writeFile(mediaMapPath, encrypted);
         checksums["media/media-map.json"] = await createChecksum(encrypted.toString("base64"));
       } else {
@@ -653,7 +953,11 @@ export class BackupService {
     const manifestPath = path.join(backupDir, "manifest.json");
     if (encryptionKey) {
       const manifestJson = JSON.stringify(manifest, null, 2);
-      const encrypted = await encryptBackupData(manifestJson, encryptionKey);
+      const encrypted = await encryptBackupData(
+        manifestJson,
+        encryptionKey,
+        backupArtifactAad("manifest.json"),
+      );
       await fs.writeFile(manifestPath, encrypted);
     } else {
       await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
@@ -663,7 +967,11 @@ export class BackupService {
     const checksumsPath = path.join(backupDir, "checksums.json");
     if (encryptionKey) {
       const csumJson = JSON.stringify(checksums, null, 2);
-      const encrypted = await encryptBackupData(csumJson, encryptionKey);
+      const encrypted = await encryptBackupData(
+        csumJson,
+        encryptionKey,
+        backupArtifactAad("checksums.json"),
+      );
       await fs.writeFile(checksumsPath, encrypted);
     } else {
       await fs.writeFile(checksumsPath, JSON.stringify(checksums, null, 2));
@@ -690,7 +998,11 @@ export class BackupService {
     const restoreNotesPath = path.join(backupDir, "restore-notes.json");
     if (encryptionKey) {
       const notesJson = JSON.stringify(restoreNotes, null, 2);
-      const encrypted = await encryptBackupData(notesJson, encryptionKey);
+      const encrypted = await encryptBackupData(
+        notesJson,
+        encryptionKey,
+        backupArtifactAad("restore-notes.json"),
+      );
       await fs.writeFile(restoreNotesPath, encrypted);
     } else {
       await fs.writeFile(restoreNotesPath, JSON.stringify(restoreNotes, null, 2));
@@ -706,8 +1018,13 @@ export class BackupService {
   /**
    * Validates a backup artifact: manifest structure, checksum integrity,
    * CMS version compatibility, and adapter match.
+   *
+   * @param options.storageDir - Backup root used for path containment.
    */
-  public async validateBackup(backupPath: string): Promise<BackupValidation> {
+  public async validateBackup(
+    backupPath: string,
+    options: { storageDir?: string } = {},
+  ): Promise<BackupValidation> {
     const errors: string[] = [];
     const warnings: string[] = [];
     let checksumsValid = false;
@@ -715,8 +1032,10 @@ export class BackupService {
     let adapterMatch = false;
     let manifest: BackupManifest | null = null;
 
-    // 🛡️ PATH TRAVERSAL: reject `..` segments in the supplied backup path.
-    if (backupPath.split(/[\\/]+/).includes("..")) {
+    // 🛡️ PATH CONTAINMENT: resolve the path, reject `..`/absolute escapes, and
+    // re-check the real path of the nearest existing parent for symlink escapes.
+    const resolvedPath = await resolveBackupPath(backupPath, options.storageDir);
+    if (!resolvedPath) {
       errors.push("Invalid backup path");
       return {
         valid: false,
@@ -729,13 +1048,13 @@ export class BackupService {
       };
     }
 
-    logger.info(`[BackupService] Validating backup: ${backupPath}`);
+    logger.info(`[BackupService] Validating backup: ${resolvedPath}`);
 
     try {
       // Check directory exists
-      const stat = await fs.stat(backupPath);
+      const stat = await fs.stat(resolvedPath);
       if (!stat.isDirectory()) {
-        errors.push(`Backup path is not a directory: ${backupPath}`);
+        errors.push(`Backup path is not a directory: ${resolvedPath}`);
         return {
           valid: false,
           errors,
@@ -748,7 +1067,7 @@ export class BackupService {
       }
 
       // Read manifest
-      const manifestPath = path.join(backupPath, "manifest.json");
+      const manifestPath = path.join(resolvedPath, "manifest.json");
       try {
         const manifestRaw = await fs.readFile(manifestPath, "utf-8");
         manifest = JSON.parse(manifestRaw) as BackupManifest;
@@ -779,7 +1098,7 @@ export class BackupService {
       }
 
       // Check checksums
-      checksumsValid = await this.verifyChecksums(backupPath, manifest);
+      checksumsValid = await this.verifyChecksums(resolvedPath, manifest);
       if (!checksumsValid) {
         errors.push("Checksum verification failed — backup may be tampered or corrupted");
       }
@@ -811,7 +1130,7 @@ export class BackupService {
       ];
       for (const file of requiredFiles) {
         try {
-          await fs.access(path.join(backupPath, file));
+          await fs.access(path.join(resolvedPath, file));
         } catch {
           warnings.push(`Missing expected file: ${file}`);
         }
@@ -851,10 +1170,18 @@ export class BackupService {
       tenantId?: string;
       collections?: string[];
       decryptionKey?: string;
+      storageDir?: string;
     } = {},
   ): Promise<{ success: boolean; plan?: RestorePlan; message: string }> {
+    const resolvedPath = await resolveBackupPath(backupPath, options.storageDir);
+    if (!resolvedPath) {
+      return { success: false, message: "Invalid backup path" };
+    }
+
     // Validate first
-    const validation = await this.validateBackup(backupPath);
+    const validation = await this.validateBackup(resolvedPath, {
+      storageDir: options.storageDir,
+    });
     if (!validation.valid) {
       return {
         success: false,
@@ -880,7 +1207,7 @@ export class BackupService {
     }
 
     logger.debug(
-      `[BackupService] Creating restore plan from: ${backupPath}, tenant=${targetTenant}`,
+      `[BackupService] Creating restore plan from: ${resolvedPath}, tenant=${targetTenant}`,
     );
 
     const planId = `restore_${generateUUID()}`;
@@ -894,7 +1221,7 @@ export class BackupService {
 
     try {
       // Plan collection restores
-      const collectionsDir = path.join(backupPath, "database", "collections");
+      const collectionsDir = path.join(resolvedPath, "database", "collections");
       let collectionFiles: string[] = [];
 
       try {
@@ -918,7 +1245,11 @@ export class BackupService {
           const filePath = path.join(collectionsDir, file);
           const raw = await fs.readFile(filePath);
           ndjsonRaw = options.decryptionKey
-            ? await decryptBackupData(raw, options.decryptionKey)
+            ? await decryptBackupData(
+                raw,
+                options.decryptionKey,
+                backupArtifactAad(`database/collections/${file}`),
+              )
             : raw.toString("utf-8");
         } catch (err) {
           logger.warn(`[BackupService] Failed to read backup collection "${colName}":`, err);
@@ -960,9 +1291,13 @@ export class BackupService {
       }
 
       // Plan settings restore
-      const settingsRaw = await fs.readFile(path.join(backupPath, "database", "settings.json"));
+      const settingsRaw = await fs.readFile(path.join(resolvedPath, "database", "settings.json"));
       const settingsJson = options.decryptionKey
-        ? await decryptBackupData(settingsRaw, options.decryptionKey)
+        ? await decryptBackupData(
+            settingsRaw,
+            options.decryptionKey,
+            backupArtifactAad("database/settings.json"),
+          )
         : settingsRaw.toString("utf-8");
       const backupSettings = JSON.parse(settingsJson) as Record<string, unknown>;
 
@@ -985,9 +1320,13 @@ export class BackupService {
       }
 
       // Plan roles restore
-      const rolesRaw = await fs.readFile(path.join(backupPath, "database", "roles.json"));
+      const rolesRaw = await fs.readFile(path.join(resolvedPath, "database", "roles.json"));
       const rolesJson = options.decryptionKey
-        ? await decryptBackupData(rolesRaw, options.decryptionKey)
+        ? await decryptBackupData(
+            rolesRaw,
+            options.decryptionKey,
+            backupArtifactAad("database/roles.json"),
+          )
         : rolesRaw.toString("utf-8");
       const backupRoles = JSON.parse(rolesJson) as Array<{ name: string; _id?: string }>;
 
@@ -1022,7 +1361,7 @@ export class BackupService {
 
     const plan: RestorePlan = {
       planId,
-      backupPath,
+      backupPath: resolvedPath,
       manifest,
       collections: collectionPlans,
       settings: settingsPlans,
@@ -1074,8 +1413,13 @@ export class BackupService {
       };
     }
 
+    const resolvedPath = await resolveBackupPath(backupPath, options.storageDir);
+    if (!resolvedPath) {
+      return { success: false, message: "Invalid backup path" };
+    }
+
     // Validate backup
-    const validation = await this.validateBackup(backupPath);
+    const validation = await this.validateBackup(resolvedPath, { storageDir: options.storageDir });
     if (!validation.valid) {
       return {
         success: false,
@@ -1117,7 +1461,7 @@ export class BackupService {
     }
 
     logger.debug(
-      `[BackupService] Starting restore: backup=${backupPath}, tenant=${targetTenant}, entries=${manifest.resources.entries}`,
+      `[BackupService] Starting restore: backup=${resolvedPath}, tenant=${targetTenant}, entries=${manifest.resources.entries}`,
     );
 
     const shouldBackground = options.background ?? manifest.resources.entries > 5000;
@@ -1127,7 +1471,7 @@ export class BackupService {
         "import-data",
         {
           backupTask: "restore",
-          backupPath,
+          backupPath: resolvedPath,
           targetTenant,
           userId: options.userId ?? "system",
           decryptionKey: options.decryptionKey,
@@ -1158,7 +1502,7 @@ export class BackupService {
         eventBus.emit("backup.restore.started", {
           tenantId: targetTenant,
           data: {
-            backupPath,
+            backupPath: resolvedPath,
             resourceCounts: manifest.resources,
           },
         });
@@ -1168,7 +1512,7 @@ export class BackupService {
 
       await this.runRestoreSync(
         adapter,
-        backupPath,
+        resolvedPath,
         targetTenant,
         manifest,
         options.decryptionKey,
@@ -1185,7 +1529,7 @@ export class BackupService {
         eventBus.emit("backup.restore.completed", {
           tenantId: targetTenant,
           data: {
-            backupPath,
+            backupPath: resolvedPath,
             resourceCounts: manifest.resources,
           },
         });
@@ -1242,7 +1586,11 @@ export class BackupService {
         const filePath = path.join(collectionsDir, file);
         const raw = await fs.readFile(filePath);
         ndjsonRaw = decryptionKey
-          ? await decryptBackupData(raw, decryptionKey)
+          ? await decryptBackupData(
+              raw,
+              decryptionKey,
+              backupArtifactAad(`database/collections/${file}`),
+            )
           : raw.toString("utf-8");
       } catch (err) {
         logger.error(`[BackupService] Failed to read backup data for "${colName}":`, err);
@@ -1303,7 +1651,11 @@ export class BackupService {
     try {
       const settingsRaw = await fs.readFile(path.join(backupPath, "database", "settings.json"));
       const settingsJson = decryptionKey
-        ? await decryptBackupData(settingsRaw, decryptionKey)
+        ? await decryptBackupData(
+            settingsRaw,
+            decryptionKey,
+            backupArtifactAad("database/settings.json"),
+          )
         : settingsRaw.toString("utf-8");
       const settings = JSON.parse(settingsJson) as Record<string, unknown>;
 
@@ -1330,7 +1682,7 @@ export class BackupService {
     try {
       const rolesRaw = await fs.readFile(path.join(backupPath, "database", "roles.json"));
       const rolesJson = decryptionKey
-        ? await decryptBackupData(rolesRaw, decryptionKey)
+        ? await decryptBackupData(rolesRaw, decryptionKey, backupArtifactAad("database/roles.json"))
         : rolesRaw.toString("utf-8");
       const roles = JSON.parse(rolesJson) as Array<Record<string, unknown>>;
 
@@ -1685,7 +2037,8 @@ export class BackupService {
   }
 
   /**
-   * Verifies SHA-256 checksums of all files in the backup against the manifest.
+   * Verifies checksums of all files in the backup against the manifest.
+   * Accepts prefixed (SHA-384/512) and legacy bare-hex (SHA-256) values.
    */
   private async verifyChecksums(backupPath: string, manifest: BackupManifest): Promise<boolean> {
     if (!manifest.checksums || Object.keys(manifest.checksums).length === 0) {
@@ -1698,23 +2051,29 @@ export class BackupService {
         // Skip manifest.json in the checksums — it was computed differently
         if (filePath === "manifest.json") continue;
 
-        const fullPath = path.join(backupPath, filePath);
+        // 🛡️ CONTAINMENT: manifest entries are archive data, not trusted paths.
+        const fullPath = await resolveBackupPath(filePath, backupPath);
+        if (!fullPath) {
+          logger.warn(`[BackupService] Refusing checksum path outside the backup: ${filePath}`);
+          return false;
+        }
+
         try {
           const raw = await fs.readFile(fullPath);
 
           // Try parsing as JSON first for proper checksum
-          let actualChecksum: string;
+          let matches: boolean;
           try {
             const parsed = JSON.parse(raw.toString("utf-8"));
-            actualChecksum = await createChecksum(parsed);
+            matches = verifyChecksumWithProfile(expectedChecksum, parsed);
           } catch {
             // Binary or encrypted — checksum the raw buffer
-            actualChecksum = await createChecksum(raw.toString("base64"));
+            matches = verifyChecksumWithProfile(expectedChecksum, raw.toString("base64"));
           }
 
-          if (actualChecksum !== expectedChecksum) {
+          if (!matches) {
             logger.warn(
-              `[BackupService] Checksum mismatch for "${filePath}": expected=${expectedChecksum.substring(0, 16)}..., got=${actualChecksum.substring(0, 16)}...`,
+              `[BackupService] Checksum mismatch for "${filePath}": expected=${expectedChecksum.substring(0, 16)}..., got a different digest`,
             );
             return false;
           }

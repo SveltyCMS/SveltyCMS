@@ -39,6 +39,11 @@ rather than bundling all widgets upfront.
 		tenantId?: string | null;
 		value?: any;
 		WidgetData?: Record<string, any>;
+		/**
+		 * Effective requiredness for conditional fields (`requiredIf`). When set and
+		 * different from `field.required`, the widget receives a memoized copy.
+		 */
+		requiredOverride?: boolean;
 		/** Called when value changes — parent patches global store field-by-field. */
 		onFieldSync?: () => void;
 	}
@@ -50,8 +55,17 @@ rather than bundling all widgets upfront.
 		value = $bindable(),
 		tenantId,
 		collectionName,
+		requiredOverride,
 		onFieldSync
 	}: Props = $props();
+
+	// Memoized: the copy is created only when requiredness actually changes, so
+	// form keystrokes (which re-render the parent) do not churn the widget prop.
+	const effectiveField = $derived(
+		requiredOverride === undefined || field.required === requiredOverride
+			? field
+			: { ...field, required: requiredOverride }
+	);
 
 	let component: any = $state(null);
 	let loading = $state(true);
@@ -59,17 +73,17 @@ rather than bundling all widgets upfront.
 	let lastSyncedValue = $state.raw<unknown>(value);
 
 	function runWidgetValidation(v: unknown) {
-		const widget = field.widget as
+		const widget = effectiveField.widget as
 			| { validationSchema?: unknown | ((f: FieldInstance) => unknown) }
 			| undefined;
 		if (!widget?.validationSchema) return;
 
 		let schema = widget.validationSchema;
 		if (typeof schema === 'function') {
-			schema = schema(field);
+			schema = schema(effectiveField);
 		}
 
-		const fieldName = getFieldName(field, false);
+		const fieldName = getFieldName(effectiveField, false);
 		const result = safeParse(schema as Parameters<typeof safeParse>[0], v);
 		if (!result.success) {
 			const message = result.issues[0]?.message || 'Invalid value';
@@ -85,6 +99,14 @@ rather than bundling all widgets upfront.
 		lastSyncedValue = v;
 		runWidgetValidation(v);
 		onFieldSync?.();
+	});
+
+	let lastRequired: boolean | undefined = undefined;
+	$effect(() => {
+		const required = effectiveField.required;
+		if (required === lastRequired) return;
+		lastRequired = required;
+		runWidgetValidation(value);
 	});
 
 	async function loadComponent() {
@@ -143,7 +165,7 @@ rather than bundling all widgets upfront.
 	</div>
 {:else if component}
 	{const Component = component}
-	<Component {field} bind:value {WidgetData} {tenantId} {collectionName} />
+	<Component field={effectiveField} bind:value {WidgetData} {tenantId} {collectionName} />
 {:else}
 	<div
 		class="widget-loader-empty rounded border border-warning-500 bg-warning-500/10 p-3 dark:bg-warning-900/20"

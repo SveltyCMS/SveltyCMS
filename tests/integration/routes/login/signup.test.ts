@@ -6,7 +6,7 @@
  * Subsequent user creation requires admin/session or invitation (create-user gate).
  *
  * Uses HTTP only (no in-process DB helpers) so the suite works with the external
- * preview server started by `scripts/run-integration.ts`.
+ * preview server started by `scripts/runs/run-integration.ts`.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

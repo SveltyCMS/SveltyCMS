@@ -74,6 +74,23 @@ corner-shape angled corners.
 
 	let _inputRef = $state<HTMLInputElement | null>(null);
 
+	/**
+	 * `bind:value` cannot coerce here because `type` is dynamic (`type={type}`):
+	 * Svelte only applies number coercion when the input type is statically
+	 * known. Without this, `<Input type="number">` produced strings, so number
+	 * settings skipped min/max validation and were saved as strings.
+	 */
+	function handleInput(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		if (type === 'number') {
+			value =
+				input.value === '' || Number.isNaN(input.valueAsNumber) ? undefined : input.valueAsNumber;
+		} else {
+			value = input.value;
+		}
+		(rest.oninput as ((event: Event) => void) | undefined)?.(event);
+	}
+
 	// Forward internal ref to external bindable prop
 	$effect(() => {
 		if (inputRef !== _inputRef) {
@@ -177,10 +194,11 @@ corner-shape angled corners.
 				className
 			)}
 			style={customStyles}
-			bind:value
+			value={Array.isArray(value) ? value.join(',') : (value ?? '')}
+			{...rest}
+			oninput={handleInput}
 			aria-invalid={!!error}
 			aria-describedby={errorId}
-			{...rest}
 		/>
 
 		{#if post}

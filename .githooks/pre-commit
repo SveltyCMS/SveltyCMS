@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Format → Lint → Unit → SBOM Sync (~40s)
+# SveltyCMS Pre-Commit — Format → Lint → Unit → Components → SBOM Sync (~45s)
 #
 # Pre-push runs build + SQLite integration.
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
@@ -14,10 +14,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 header "Pre-Commit"
 require_bun
 
-TOTAL=6; OK=0
+TOTAL=7; OK=0
 
 # Step 1 — Database safety
-if run "🛡️  Database safety" pm_run scripts/check-test-db-safety.ts; then
+if run "🛡️  Database safety" pm_run scripts/check/check-test-db-safety.ts; then
   OK=$((OK + 1))
 fi
 
@@ -59,6 +59,15 @@ if has_staged_changes '\.(md|mdx)$' && ! has_staged_changes '\.(ts|js|svelte)$';
   warn "Only docs changed — skipping unit tests"
   TOTAL=$((TOTAL - 1))
 elif run "🧪  Unit tests" pm_run test:unit; then
+  OK=$((OK + 1))
+fi
+
+# Step 5b — Component interaction tests (real DOM mount; the SSR-only unit
+# assertions cannot see click wiring, disabled guards, ARIA or modal flows).
+if has_staged_changes '\.(md|mdx)$' && ! has_staged_changes '\.(ts|js|svelte)$'; then
+  warn "Only docs changed — skipping component interaction tests"
+  TOTAL=$((TOTAL - 1))
+elif run "🧩  Component interactions" pm_run test:unit:components; then
   OK=$((OK + 1))
 fi
 

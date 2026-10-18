@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Seo/components/Heatmap.svelte
+@file src/widgets/custom/seo/components/heatmap.svelte
 @component
 **Heatmap widget for SEO Widget to manage meta title, description, and robots meta tags**
 

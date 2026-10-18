@@ -97,8 +97,9 @@ async function selectDeveloperRow(page: Page, options?: DeveloperRowOptions) {
   const checked = await checkbox.getAttribute("aria-checked");
   if (checked !== "true") {
     // This is a <button role="checkbox"> — check() requires a native input,
-    // so toggle via click (the button toggles its own aria-checked state).
-    await checkbox.click({ force: true, timeout: ACTION_TIMEOUT });
+    // so toggle via a normal click (the button toggles its own aria-checked
+    // state). No force: if the table overlays the control, that is a real bug.
+    await checkbox.click({ timeout: ACTION_TIMEOUT });
   }
 }
 
@@ -124,12 +125,14 @@ async function runRowUserAction(page: Page, action: "block" | "unblock") {
   // and would click the wrong control. The dialog may have a render gap, so wait
   // for the button inside it.
   const confirmBtn = dialog
-    .getByRole("button", { name: /confirm|yes|ok|block|unblock/i })
+    .getByTestId("modal-confirm")
+    .or(dialog.getByRole("button", { name: /confirm|yes|ok|block|unblock/i }))
     .or(dialog.locator("button").filter({ hasText: /confirm/i }))
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
-  await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });
+  // No force: a confirm button that another layer intercepts is a product bug.
+  await confirmBtn.click({ timeout: ACTION_TIMEOUT });
 
   // Verify the success toast (batch API is fire-and-forget with CSRF)
   await expect(page.getByText(new RegExp(`User ${action}ed successfully`, "i"))).toBeVisible({
@@ -148,29 +151,15 @@ async function bulkDeleteDeveloper(page: Page) {
   await expect(bulkMenu).toBeEnabled({ timeout: ACTION_TIMEOUT });
 
   const executeDelete = page.getByRole("button", { name: "Execute Delete action" });
-  if (await executeDelete.isEnabled({ timeout: 2_000 }).catch(() => false)) {
+  if (await executeDelete.isVisible().catch(() => false)) {
     await executeDelete.click({ timeout: ACTION_TIMEOUT });
   } else {
-    // The Multibutton defaults to the "Edit" action, so the dropdown is the only
-    // path to Delete. The SmartTable body overlays the open dropdown visually
-    // (z-index), so a plain click is blocked by pointer-interception — force-click
-    // the item. Re-open the menu if it closed mid-interaction.
+    // The Multibutton defaults to the "Edit" action, so open the dropdown for Delete.
+    // Multibutton container uses relative z-30 stacking context above the table.
     await bulkMenu.click({ timeout: ACTION_TIMEOUT });
-    const deleteItem = page.getByRole("menuitem", { name: /select delete action/i });
-    // Probe the dropdown render WITHOUT throwing — the old expect() failed
-    // first, so the re-open fallback below was unreachable. Re-open the menu
-    // when the dropdown closed mid-interaction.
-    const deleteItemVisible = await deleteItem
-      .isVisible({ timeout: ACTION_TIMEOUT })
-      .catch(() => false);
-    if (!deleteItemVisible) {
-      await bulkMenu.click({ timeout: ACTION_TIMEOUT });
-    }
-    // Expect auto-waits for the dropdown render — no fixed sleep
+    const deleteItem = page.getByRole("menuitem", { name: /delete/i });
     await expect(deleteItem).toBeVisible({ timeout: ACTION_TIMEOUT });
-    // Playwright coordinate clicks miss here (the SmartTable body overlays the
-    // dropdown and it can close mid-action) — fire the handler directly.
-    await deleteItem.evaluate((el) => (el as HTMLButtonElement).click());
+    await deleteItem.click({ timeout: ACTION_TIMEOUT });
   }
 
   // Target the delete-confirm dialog by content (avoids the cookie banner portal).
@@ -181,12 +170,13 @@ async function bulkDeleteDeveloper(page: Page) {
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   // Scope to the dialog — page-first /confirm|delete/i also matches toolbar buttons.
   const confirmBtn = dialog
-    .getByRole("button", { name: /confirm|yes|ok|delete/i })
+    .getByTestId("modal-confirm")
+    .or(dialog.getByRole("button", { name: /confirm|yes|ok|delete/i }))
     .or(dialog.locator("button").filter({ hasText: /confirm/i }))
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
   await confirmBtn.scrollIntoViewIfNeeded();
-  await confirmBtn.click({ force: true, timeout: ACTION_TIMEOUT });
+  await confirmBtn.click({ timeout: ACTION_TIMEOUT });
   await expect(page.getByText(/(?:User|Users)\s+Deleted/i)).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });

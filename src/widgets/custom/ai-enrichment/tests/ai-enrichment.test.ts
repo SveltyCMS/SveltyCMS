@@ -1,6 +1,7 @@
 /**
  * @file src/widgets/custom/ai-enrichment/tests/ai-enrichment.test.ts
- * @description Unit tests for the AI Enrichment widget validation logic.
+ * @description Unit tests for the AI Enrichment widget validation logic and
+ *   `/api/ai/enrich` response normalization.
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -9,6 +10,7 @@ vi.mock(
   async () => (await import("@tests/unit/widgets/test-utils")).WIDGET_MESSAGES,
 );
 import AIEnrichmentWidget from "@widgets/custom/ai-enrichment";
+import { normalizeEnrichmentResult } from "@widgets/custom/ai-enrichment/normalize";
 import { safeParse } from "valibot";
 
 describe("AI Enrichment Widget - Validation", () => {
@@ -48,5 +50,61 @@ describe("AI Enrichment Widget - Validation", () => {
 
     expect(safeParse(schema, "not-a-record").success).toBe(false);
     expect(safeParse(schema, 123).success).toBe(false);
+  });
+});
+
+describe("AI Enrichment Widget - Response normalization", () => {
+  it("unwraps a { success, data } envelope instead of writing undefined", () => {
+    const outcome = normalizeEnrichmentResult(
+      { success: true, data: "AI generated summary" },
+      { translated: false },
+    );
+
+    expect(outcome).toEqual({ ok: true, value: "AI generated summary" });
+  });
+
+  it("surfaces the server message when success is false", () => {
+    const outcome = normalizeEnrichmentResult(
+      { success: false, message: "Model is unavailable" },
+      { translated: false },
+    );
+
+    expect(outcome).toEqual({ ok: false, error: "Model is unavailable" });
+  });
+
+  it("falls back to a generic error when success is false without a message", () => {
+    const outcome = normalizeEnrichmentResult({ success: false }, { translated: false });
+
+    expect(outcome).toEqual({ ok: false, error: "AI Enrichment failed" });
+  });
+
+  it("joins keyword array results into a comma-separated string", () => {
+    const outcome = normalizeEnrichmentResult(
+      { success: true, data: ["svelte", "cms", "seo"] },
+      { translated: false },
+    );
+
+    expect(outcome).toEqual({ ok: true, value: "svelte, cms, seo" });
+  });
+
+  it("writes joined keywords into the active language slot when translated", () => {
+    const outcome = normalizeEnrichmentResult(
+      { success: true, data: ["eins", "zwei"] },
+      { translated: true, language: "de", current: { en: "one" } },
+    );
+
+    expect(outcome).toEqual({ ok: true, value: { en: "one", de: "eins, zwei" } });
+  });
+
+  it("never writes undefined for a missing payload", () => {
+    const outcome = normalizeEnrichmentResult({ success: true }, { translated: false });
+
+    expect(outcome).toEqual({ ok: true, value: "" });
+  });
+
+  it("accepts the legacy result key", () => {
+    const outcome = normalizeEnrichmentResult({ result: "legacy text" }, { translated: false });
+
+    expect(outcome).toEqual({ ok: true, value: "legacy text" });
   });
 });

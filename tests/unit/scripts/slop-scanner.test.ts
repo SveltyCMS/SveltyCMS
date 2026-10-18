@@ -5,7 +5,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { isExcludedPath, scanSvelteContent } from "../../../scripts/slop-scanner";
+import {
+  isExcludedPath,
+  scanSvelteContent,
+  summarizeViolations,
+  type Violation,
+} from "../../../scripts/security/slop-scanner";
 
 describe("slop-scanner — Svelte 5 SSR hydration ID safety", () => {
   it("flags crypto.randomUUID() in $derived at render level", async () => {
@@ -422,5 +427,44 @@ describe("slop-scanner — isolation (no shared violation state)", () => {
     const dirty = await scanSvelteContent("src/routes/b.svelte", "<div>{@html evil}</div>");
     expect(clean).toHaveLength(0);
     expect(dirty.some((v) => v.category === "security")).toBe(true);
+  });
+});
+
+describe("slop-scanner — advisory inventory is not a finding", () => {
+  const violation = (category: string, severity: Violation["severity"]): Violation => ({
+    file: "src/example.ts",
+    line: 1,
+    category,
+    message: category,
+    severity,
+  });
+
+  it("keeps documented/test-only exports and duplicate names out of the info count", () => {
+    const summary = summarizeViolations([
+      violation("security", "error"),
+      violation("export-surface", "info"),
+      violation("duplicate-export-name", "info"),
+      violation("unused-export", "info"),
+    ]);
+
+    expect(summary.errors).toHaveLength(1);
+    expect(summary.warnings).toHaveLength(0);
+    // Only the actionable dead-code candidate is an info; the two advisory
+    // inventories are tracked separately.
+    expect(summary.infos).toHaveLength(1);
+    expect(summary.infos[0].category).toBe("unused-export");
+    expect(summary.inventory).toHaveLength(2);
+  });
+
+  it("reports a clean tree as 0/0/0 even with inventory present", () => {
+    const summary = summarizeViolations([
+      violation("export-surface", "info"),
+      violation("duplicate-export-name", "info"),
+    ]);
+
+    expect(summary.errors).toHaveLength(0);
+    expect(summary.warnings).toHaveLength(0);
+    expect(summary.infos).toHaveLength(0);
+    expect(summary.inventory).toHaveLength(2);
   });
 });

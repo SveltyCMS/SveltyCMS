@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Number/index.ts
+ * @file src/widgets/core/number/index.ts
  * @description Number Widget Definition.
  *
  * Implements a robust number input widget that stores a precise number.
@@ -57,8 +57,8 @@ const NumberWidget = createWidget<NumberProps>({
   version: "1.0.0",
   Icon: "mdi:numeric",
   Description: widget_number_description(),
-  inputComponentPath: "/src/widgets/custom/number/input.svelte",
-  displayComponentPath: "/src/widgets/custom/number/display.svelte",
+  inputComponentPath: "/src/widgets/core/number/input.svelte",
+  displayComponentPath: "/src/widgets/core/number/display.svelte",
   validationSchema,
 
   // Set widget-specific defaults.

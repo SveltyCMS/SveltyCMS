@@ -49,7 +49,7 @@
 	<Body>
 		<Container>
 			<Section>
-				<Heading>Order received</Heading>
+				<Heading as="h1">Order received</Heading>
 				<Text>Thank you. We received order <strong>{orderNumber}</strong>.</Text>
 				<Text>{items}</Text>
 				{#if net}<Text>Net: {net}</Text>{/if}

@@ -20,6 +20,7 @@ import { FastLRU } from "@utils/native-utils";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
 import type { NumberFieldPlan } from "@src/content/content-utils";
+import type { ConditionExpression } from "@src/widgets/desugar-field";
 import { widgetRegistryService } from "@src/services/core/widget-registry-service";
 import { AppError } from "@utils/error-handling";
 import { fieldDeclaresGuard } from "@utils/field-guard";
@@ -67,7 +68,16 @@ export type SchemaHotFlags = {
   /** True when schema declares required fields. */
   _hasRequiredFields?: boolean;
   /** Pre-compiled required fields for zero-allocation validation on publish. */
-  _requiredFields?: Array<{ name: string; key: string }>;
+  _requiredFields?: Array<{ name: string; key: string; showIf?: ConditionExpression }>;
+  /** True when schema declares conditionally required fields (via requiredIf). */
+  _hasConditionallyRequiredFields?: boolean;
+  /** Pre-compiled conditionally required fields for validation on publish. */
+  _conditionallyRequiredFields?: Array<{
+    name: string;
+    key: string;
+    requiredIf: ConditionExpression;
+    showIf?: ConditionExpression;
+  }>;
   /** True when schema has fields with field-level permissions or visibility restrictions. */
   _hasGuardedFields?: boolean;
   /** db_fieldName of guarded fields. Empty when `_hasGuardedFields` is false. */
@@ -150,7 +160,13 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   const dateTimeFieldNames: string[] = [];
   const numberFields: NumberFieldPlan[] = [];
   const encryptedFieldNames: string[] = [];
-  const requiredFields: Array<{ name: string; key: string }> = [];
+  const requiredFields: Array<{ name: string; key: string; showIf?: ConditionExpression }> = [];
+  const conditionallyRequiredFields: Array<{
+    name: string;
+    key: string;
+    requiredIf: ConditionExpression;
+    showIf?: ConditionExpression;
+  }> = [];
   let hasNumberFields = false;
   let hasSanitizableFields = false;
   let hasConstrainedFields = false;
@@ -227,10 +243,16 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
     ) {
       hasConstrainedFields = true;
     }
-    if ((f as { required?: boolean }).required) {
+    const showIf = (f as { showIf?: ConditionExpression }).showIf;
+    const requiredIf = (f as { requiredIf?: ConditionExpression }).requiredIf;
+    if (requiredIf) {
       const key = String(dbName || f.name || "");
       const name = String(f.name || dbName || "unknown");
-      if (key) requiredFields.push({ name, key });
+      if (key) conditionallyRequiredFields.push({ name, key, requiredIf, showIf });
+    } else if ((f as { required?: boolean }).required) {
+      const key = String(dbName || f.name || "");
+      const name = String(f.name || dbName || "unknown");
+      if (key) requiredFields.push({ name, key, showIf });
     }
     if (fieldDeclaresGuard(f)) {
       hasGuardedFields = true;
@@ -260,6 +282,8 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._encryptedFieldNames = encryptedFieldNames;
   s._hasRequiredFields = requiredFields.length > 0;
   s._requiredFields = requiredFields;
+  s._hasConditionallyRequiredFields = conditionallyRequiredFields.length > 0;
+  s._conditionallyRequiredFields = conditionallyRequiredFields;
   s._hasGuardedFields = hasGuardedFields;
   s._guardedFieldNames = guardedFieldNames;
   return s;

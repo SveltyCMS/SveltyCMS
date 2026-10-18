@@ -25,7 +25,7 @@ SveltyCMS uses a **three-tier validation architecture** that balances developer 
 
 Hook: `.githooks/pre-commit` · Manual: `bun run precommit`
 
-1. `scripts/check-test-db-safety.ts` — never point tests at a live DB name
+1. `scripts/check/check-test-db-safety.ts` — never point tests at a live DB name
 2. `bun run check` — format (oxfmt) + lint (oxlint)
 3. `bun run gate:fast` — lint-staged
 4. **`bun run risk:audit`** — 6 parallel gates: global security-risk scan (all 4 adapters + loopback/tenant/test-mode/AST batch guards) + secret misuse + slop + tenant-isolation API hygiene (`lint-tenant-api`) + `bun audit` + OSV.dev (skipped if only docs changed; pass `--full` to force non-incremental scanning)
@@ -37,10 +37,10 @@ Hook: `.githooks/pre-commit` · Manual: `bun run precommit`
 Hook: `.githooks/pre-push` · Manual: **`bun run gate`** or `bun run prepush`
 
 1. Production build with `COMPILE_ALL_ADAPTERS=true`
-2. **Prod build backdoor verify** — `scripts/verify-prod-build-backdoor.ts --mode=bench`
-3. **Bundle size gate** — `scripts/check-bundle-size.ts`
+2. **Prod build backdoor verify** — `scripts/security/verify-prod-build-backdoor.ts --mode=bench`
+3. **Bundle size gate** — `scripts/check/check-bundle-size.ts`
 4. `bun run check` — TypeScript / Svelte quality gate
-5. Secret misuse scan — `scripts/scan-secret-misuse.ts --strict`
+5. Secret misuse scan — `scripts/security/scan-secret-misuse.ts --strict`
 6. **Tenant isolation** — `bun run test:tenant`
 7. SQLite integration: `bun test --timeout 300000 tests/integration/`  
    (in-suite harness starts preview + `config/private.test.ts`)

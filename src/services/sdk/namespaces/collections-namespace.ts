@@ -61,6 +61,7 @@ import { redactReadEnvelope, redactRecord } from "@utils/field-access";
 import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
+import { evaluateCondition } from "@src/widgets/desugar-field";
 
 import {
   getDbModuleLazy,
@@ -100,6 +101,7 @@ import {
   writeTouchesActiveWidgets,
   type PrepFieldSchema,
 } from "./collections/write-pipeline";
+import { compileRelationFilters } from "./collections/relation-filter";
 import type { FieldEncryptionContext } from "@utils/security/field-encryption";
 import {
   invalidateCache,
@@ -320,21 +322,44 @@ function sameShallowPayload(updates: Array<{ data: Record<string, unknown> }>): 
  */
 function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): void {
   const required = hot._requiredFields;
-  if (!hot._hasRequiredFields || !required || required.length === 0) return;
-  const record = payload as Record<string, unknown>;
+  const condRequired = hot._conditionallyRequiredFields;
+  if (
+    (!hot._hasRequiredFields || !required || required.length === 0) &&
+    (!hot._hasConditionallyRequiredFields || !condRequired || condRequired.length === 0)
+  ) {
+    return;
+  }
+  const record = (payload ?? {}) as Record<string, unknown>;
   const missingFields: string[] = [];
-  for (let i = 0; i < required.length; i++) {
-    const rf = required[i];
-    const val = record[rf.key];
-    if (
-      val === undefined ||
-      val === null ||
-      val === "" ||
-      (Array.isArray(val) && val.length === 0)
-    ) {
-      missingFields.push(rf.name);
+
+  const isMissing = (val: unknown): boolean =>
+    val === undefined ||
+    val === null ||
+    val === "" ||
+    (Array.isArray(val) && val.length === 0) ||
+    (typeof val === "object" && Object.keys(val as object).length === 0);
+
+  if (required) {
+    for (let i = 0; i < required.length; i++) {
+      const rf = required[i];
+      if (rf.showIf && !evaluateCondition(rf.showIf, record)) continue;
+      if (isMissing(record[rf.key])) {
+        missingFields.push(rf.name);
+      }
     }
   }
+
+  if (condRequired) {
+    for (let i = 0; i < condRequired.length; i++) {
+      const crf = condRequired[i];
+      if (crf.showIf && !evaluateCondition(crf.showIf, record)) continue;
+      if (!evaluateCondition(crf.requiredIf, record)) continue;
+      if (isMissing(record[crf.key])) {
+        missingFields.push(crf.name);
+      }
+    }
+  }
+
   if (missingFields.length > 0) {
     throw new AppError(
       missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
@@ -342,6 +367,24 @@ function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): 
       "FIELD_VALIDATION_ERROR",
     );
   }
+}
+
+/**
+ * True when the payload writes a field the publish gate cares about.
+ *
+ * Used to keep the existing-status read off ordinary updates: if no required
+ * (or conditionally required) field is touched, an update cannot make an
+ * already-published entry invalid.
+ */
+function touchesRequiredFields(hot: SchemaHotFlags, payload: unknown): boolean {
+  const record = (payload ?? {}) as Record<string, unknown>;
+  for (const field of hot._requiredFields ?? []) {
+    if (Object.hasOwn(record, field.key)) return true;
+  }
+  for (const field of hot._conditionallyRequiredFields ?? []) {
+    if (Object.hasOwn(record, field.key)) return true;
+  }
+  return false;
 }
 
 let resolvedContentSystem: ContentSystem | null = null;
@@ -852,9 +895,20 @@ export class CollectionsNamespace {
     // from the rows actually returned — the REST exposure of W2 (deep-offset
     // cliff). Without the opt-in, responses stay byte-identical to before.
     const keysetMode = decodedCursor !== null || options.keyset === true;
+    // Relation operators ($some/$none/$every) need target-collection lookups,
+    // which are async. Resolve them to plain $in/$nin before the synchronous
+    // query builder (and the keyset merge) runs.
+    const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
+      dbAdapter: this._dbAdapter.crud,
+      getCollectionName: (id) => this.getCollectionName(id),
+      resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
+      tenantId,
+      user: options.user,
+      system: options.system,
+    });
     const baseQuery: any = decodedCursor
-      ? mergeKeysetFilter(normalizedFilter as Record<string, unknown>, decodedCursor)
-      : normalizedFilter;
+      ? mergeKeysetFilter(resolvedFilter as Record<string, unknown>, decodedCursor)
+      : resolvedFilter;
     // Ownership wins over a caller-supplied field of the same name.
     const scopedQuery = ownership ? { ...baseQuery, ...ownership } : baseQuery;
 
@@ -880,6 +934,30 @@ export class CollectionsNamespace {
     if (!decodedCursor && !offset && !options.fields && !options.populate) {
       const lookup = parseIdLookup(query);
       if (lookup) {
+        // Negative 404 fast path: a bare `_id` lookup (no status constraint)
+        // maps 1:1 onto the point-read cache key, so a known miss can skip the
+        // adapter entirely. Status-constrained lookups keep suffix semantics
+        // and are left to the cache below.
+        const negativeKey =
+          lookup.status === undefined
+            ? `${tenantId || "global"}:collection:${schema._id}:${lookup.id}`
+            : null;
+        const negativeEligible =
+          negativeKey !== null && !bypassCache && !options.system && options.disableErrors !== true;
+        if (
+          negativeKey !== null &&
+          negativeEligible &&
+          cacheService.isNegativeHit(negativeKey, (tenantId || undefined) as string)
+        ) {
+          return presentRead(
+            { success: true, data: [] },
+            schema,
+            hot,
+            encCtx,
+            options.user,
+            options.system,
+          );
+        }
         const one = await this._dbAdapter.crud.findOne(
           this.getCollectionName(schema._id as string),
           query,
@@ -887,6 +965,11 @@ export class CollectionsNamespace {
         );
         const row =
           one?.success && one.data ? (Array.isArray(one.data) ? one.data[0] : one.data) : null;
+        if (!row && negativeEligible && negativeKey !== null && one?.success === true) {
+          cacheService.recordMiss(negativeKey, (tenantId || undefined) as string, [
+            `doc:${schema._id}:${lookup.id}`,
+          ]);
+        }
         if (row) {
           if (hot._hasActiveWidgets) {
             const payload = [row];
@@ -1123,9 +1206,17 @@ export class CollectionsNamespace {
 
     const ownership = ownershipFilter(schema, user, options.system);
     if (ownership === null) return (async function* emptyStream() {})();
+    const resolvedStreamFilter = await compileRelationFilters(normalizedStreamFilter, schema, {
+      dbAdapter: this._dbAdapter.crud,
+      getCollectionName: (id) => this.getCollectionName(id),
+      resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
+      tenantId,
+      user,
+      system: options.system,
+    });
     const scopedStreamFilter = ownership
-      ? { ...normalizedStreamFilter, ...ownership }
-      : normalizedStreamFilter;
+      ? { ...resolvedStreamFilter, ...ownership }
+      : resolvedStreamFilter;
 
     const { query } = buildTenantQuery(
       scopedStreamFilter,
@@ -1195,7 +1286,15 @@ export class CollectionsNamespace {
 
     const ownership = ownershipFilter(schema, options.user, options.system);
     if (ownership === null) return { success: true, data: 0 };
-    const scopedFilter = ownership ? { ...normalizedFilter, ...ownership } : normalizedFilter;
+    const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
+      dbAdapter: this._dbAdapter.crud,
+      getCollectionName: (id) => this.getCollectionName(id),
+      resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
+      tenantId,
+      user: options.user,
+      system: options.system,
+    });
+    const scopedFilter = ownership ? { ...resolvedFilter, ...ownership } : resolvedFilter;
 
     const { query } = buildTenantQuery(
       scopedFilter,
@@ -1653,6 +1752,27 @@ export class CollectionsNamespace {
       }
     }
 
+    // Negative 404: a confirmed miss under this exact publication suffix skips
+    // the adapter. Excluded for system scope and `disableErrors` callers, which
+    // use a miss as an existence probe (singleton / create checks).
+    if (
+      !bypassCache &&
+      !options.skipCacheService &&
+      !options.system &&
+      !disableErrors &&
+      cacheService.isNegativeHit(cacheKey, (tenantId || undefined) as string)
+    ) {
+      const hot = ensureSchemaHotFlags(schema);
+      return presentRead(
+        { success: true, data: null },
+        schema,
+        hot,
+        readEncryptionContext(schema, tenantId, hot),
+        options.user,
+        options.system,
+      );
+    }
+
     // Single-id hot path: direct loadOneById (no microtask batch delay). The
     // cache key built above is threaded through so the point-read lane does not
     // rebuild the same string and does not copy the options object.
@@ -1770,8 +1890,13 @@ export class CollectionsNamespace {
             )
             .catch(() => {});
         }
-      } else {
-        cacheService.recordMiss(resolvedCacheKey, (tenantId || undefined) as string);
+      } else if (result.success && !options.system && options.disableErrors !== true) {
+        // Only a successful query can prove absence — a transient adapter error
+        // must never poison the negative cache. The doc tag lets the next write
+        // to this id clear the marker immediately (clearByTags → invalidateByTags).
+        cacheService.recordMiss(resolvedCacheKey, (tenantId || undefined) as string, [
+          `doc:${schema._id}:${entryId}`,
+        ]);
       }
     }
 
@@ -1858,7 +1983,12 @@ export class CollectionsNamespace {
         );
       }
 
-      if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
+      if (
+        (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) ||
+        (hot._hasConditionallyRequiredFields &&
+          hot._conditionallyRequiredFields &&
+          hot._conditionallyRequiredFields.length > 0)
+      ) {
         assertRequiredFieldsForPublish(hot, entryData);
       } else if (schema.fields && schema.fields.length > 0) {
         const { valid, missingFields } = validateRequiredFields(
@@ -2018,19 +2148,27 @@ export class CollectionsNamespace {
     // "publish" while the entry's workflow instance is in a final state.
     // System writes (scheduled publishing, sync, imports) bypass the gate.
     const requestedStatus = (data as { status?: string } | null)?.status;
-    if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
-      if (
-        !isAdmin(effectiveUser) &&
-        effectiveUser?.role !== "admin" &&
-        !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
-      ) {
-        const workflowService = await getWorkflowServiceLazy();
-        await workflowService.assertPublishAllowed(
-          schema._id as string,
-          (tenantId as string | undefined) ?? undefined,
-          effectiveUser,
-          entryId,
-        );
+    const explicitPublish = requestedStatus === "publish" || requestedStatus === "published";
+    // 🛡️ SERVER-SIDE REQUIRED/requiredIf: validate on an explicit publish AND on
+    // any update that clears a required field of an entry that is ALREADY
+    // published. The old shape only checked explicit publish transitions, so a
+    // direct API PATCH without `status` could blank a required field and leave a
+    // published entry invalid (the client hid the field, the server did not).
+    if (!system && (explicitPublish || touchesRequiredFields(hot, updateData))) {
+      if (explicitPublish) {
+        if (
+          !isAdmin(effectiveUser) &&
+          effectiveUser?.role !== "admin" &&
+          !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
+        ) {
+          const workflowService = await getWorkflowServiceLazy();
+          await workflowService.assertPublishAllowed(
+            schema._id as string,
+            (tenantId as string | undefined) ?? undefined,
+            effectiveUser,
+            entryId,
+          );
+        }
       }
 
       if (schema.fields && schema.fields.length > 0) {
@@ -2047,19 +2185,29 @@ export class CollectionsNamespace {
           ...existingData,
           ...updateData,
         };
-        if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
-          assertRequiredFieldsForPublish(hot, merged);
-        } else {
-          const { valid, missingFields } = validateRequiredFields(
-            merged,
-            schema.fields as FieldInstance[],
-          );
-          if (!valid) {
-            throw new AppError(
-              missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
-              400,
-              "FIELD_VALIDATION_ERROR",
+        // Without an explicit status the entry keeps the status it already has.
+        const effectiveStatus = explicitPublish ? "publish" : existingData?.status;
+        const staysPublished = effectiveStatus === "publish" || effectiveStatus === "published";
+        if (staysPublished) {
+          if (
+            (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) ||
+            (hot._hasConditionallyRequiredFields &&
+              hot._conditionallyRequiredFields &&
+              hot._conditionallyRequiredFields.length > 0)
+          ) {
+            assertRequiredFieldsForPublish(hot, merged);
+          } else {
+            const { valid, missingFields } = validateRequiredFields(
+              merged,
+              schema.fields as FieldInstance[],
             );
+            if (!valid) {
+              throw new AppError(
+                missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+                400,
+                "FIELD_VALIDATION_ERROR",
+              );
+            }
           }
         }
       }

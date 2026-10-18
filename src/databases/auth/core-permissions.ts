@@ -409,6 +409,14 @@ export const corePermissions: Permission[] = [
     type: PermissionType.SYSTEM,
     description: "Grants access to the widget management API endpoints.",
   },
+  {
+    _id: "ai:use" as DatabaseId,
+    name: "AI Features Access",
+    action: PermissionAction.EXECUTE,
+    type: PermissionType.SYSTEM,
+    description:
+      "Grants access to the AI assistant, content enrichment, translation and scoring endpoints.",
+  },
 
   // Collection permissions
   {
@@ -644,3 +652,23 @@ export const corePermissions: Permission[] = [
     description: "Allows importing and exporting content and configuration.",
   },
 ];
+
+// ============================================================================
+// Canonical permission catalog
+// ============================================================================
+
+/**
+ * The catalog is the single source of truth for permission ids, categories,
+ * bit assignments, aliases and built-in role grants. Re-exported here so
+ * existing imports from `core-permissions` keep working.
+ */
+export {
+  PERMISSION_CATALOG,
+  PERMISSION_CATALOG_BY_ID,
+  PERMISSION_ALIASES,
+  DEFAULT_ROLE_GRANTS,
+  AUTHENTICATED_ENDPOINT_PERMISSION,
+  resolvePermissionId,
+  isCatalogPermissionId,
+} from "./permission-catalog";
+export type { PermissionCatalogEntry, PermissionCategory } from "./permission-catalog";

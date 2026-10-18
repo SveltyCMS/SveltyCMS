@@ -1738,7 +1738,7 @@ export async function setupBenchmarkServer() {
       TEST_API_SECRET: secret,
       NODE_ENV: isTestMode ? "development" : "production",
       // 🏔️ CI-PARITY SECRETS: explicitly carry the bootstrap secrets like
-      // scripts/run-e2e.ts startPreviewServer does — the sync settings cache is
+      // scripts/runs/run-e2e.ts startPreviewServer does — the sync settings cache is
       // cold on API-only boots, so the auth hook falls back to process.env for
       // JWT_SECRET_KEY. Do not rely on the parent-env spread alone.
       JWT_SECRET_KEY: process.env.JWT_SECRET_KEY || "Benchmark-JWT-Secret-Key-2026-32ch",
@@ -1783,7 +1783,7 @@ export async function setupBenchmarkServer() {
       // now use 24 blocking-I/O threads where every previously recorded run
       // used the libuv default 4 — pin the historical value so local numbers
       // stay comparable. The adaptive derivation itself is asserted by
-      // `scripts/probe-hardware-tiers.ts` (CI task 08-hardware-tiers).
+      // `scripts/probe/probe-hardware-tiers.ts` (CI task 08-hardware-tiers).
       UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || "4",
     },
     stdio: "pipe",

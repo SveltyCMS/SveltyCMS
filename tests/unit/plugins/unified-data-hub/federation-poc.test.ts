@@ -3,7 +3,7 @@
  * @description Phase 0 POC validation — mocked federation end-to-end paths.
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { DatabaseId } from "@databases/db-interface";
 import { FederationError } from "@plugins/unified-data-hub/types";
 import { executeVirtualRead } from "@plugins/unified-data-hub/server/virtual-query-engine";
@@ -28,6 +28,32 @@ vi.mock("@src/plugins/registry", () => ({
     getPluginState: async () => ({ enabled: true }),
   },
 }));
+
+vi.mock("@utils/egress-guard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/egress-guard")>();
+  return {
+    ...actual,
+    validateEgressUrl: vi.fn(async (url: string) => new URL(url)),
+    safeFetch: vi.fn(async () => ({
+      success: true,
+      status: 200,
+      body: JSON.stringify([
+        {
+          id: 1,
+          title: "Hello WP",
+          slug: "hello-wp",
+          status: "publish",
+          content: "<p>Body</p>",
+          excerpt: "Excerpt",
+          date: "2026-07-08T10:00:00",
+          modified: "2026-07-08T10:00:00",
+          author: 1,
+          featured_media: 0,
+        },
+      ]),
+    })),
+  };
+});
 
 const TENANT = "default" as DatabaseId;
 const CONNECTOR_ID = "conn-rest-1" as DatabaseId;
@@ -101,33 +127,6 @@ function createMockDb() {
 }
 
 describe("Phase 0 POC — federation validation", () => {
-  const originalFetch = globalThis.fetch;
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  beforeEach(() => {
-    globalThis.fetch = vi.fn(async () => ({
-      ok: true,
-      headers: { get: () => "1000" },
-      json: async () => [
-        {
-          id: 1,
-          title: "Hello WP",
-          slug: "hello-wp",
-          status: "publish",
-          content: "<p>Body</p>",
-          excerpt: "Excerpt",
-          date: "2026-07-08T10:00:00",
-          modified: "2026-07-08T10:00:00",
-          author: 1,
-          featured_media: 0,
-        },
-      ],
-    })) as unknown as typeof fetch;
-  });
-
   it("WordPress REST virtual Articles returns mapped fields", async () => {
     const db = createMockDb();
     const result = await executeVirtualRead(

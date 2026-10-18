@@ -22,6 +22,7 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { RequestLane } from "./handle-request-classifier";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
+import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { getTurboAuthContext } from "./handle-turbo-get";
 import { isLaneServingAllowed } from "./lane-state-gate";
@@ -307,6 +308,14 @@ function openWarmMutation(
   turbo: NonNullable<ReturnType<typeof getTurboAuthContext>>,
 ): Promise<void> | void {
   const { request, url, cookies, locals } = event;
+  // 🛡️ Role-level MFA: reject before the body is read so the request can still
+  // be replayed by the full pipeline, which owns the step-up redirect/403.
+  if (
+    turbo.mfaPolicyKnown !== true ||
+    !validateSessionMfaRequirement(turbo.user, turbo.roles, turbo.amr)
+  ) {
+    throw new AppError("Multi-factor authentication required", 403, "MFA_REQUIRED");
+  }
   const wafCheck = wafGuard.inspectEvent(event);
   if (wafCheck.blocked) {
     throw new AppError(wafCheck.reason ?? "Security Policy Violation", 400);
@@ -633,8 +642,16 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
   const turbo = resolveWarmWriteSession(event);
-  // Non-admins keep the full authorization pipeline. Body stays unread.
-  if (!turbo || !turbo.isAdmin) {
+  if (!turbo) return resolve(event);
+  // Non-admins keep the full authorization pipeline; MFA-mandating roles must
+  // step up there rather than being served warm here. Body stays unread.
+  if (
+    turbo.mfaPolicyKnown !== true ||
+    !validateSessionMfaRequirement(turbo.user, turbo.roles, turbo.amr)
+  ) {
+    return resolve(event);
+  }
+  if (!turbo.isAdmin) {
     return resolve(event);
   }
   const start = performance.now();
@@ -685,6 +702,14 @@ export const tryCollectionWriteLane: Handle = async ({ event, resolve }) => {
   if (!isLaneServingAllowed()) return resolve(event);
   const turbo = resolveWarmWriteSession(event);
   if (!turbo) return resolve(event);
+  // A role that mandates MFA but whose session never completed it must fall
+  // through (body still unread) so the full pipeline can enforce step-up.
+  if (
+    turbo.mfaPolicyKnown !== true ||
+    !validateSessionMfaRequirement(turbo.user, turbo.roles, turbo.amr)
+  ) {
+    return resolve(event);
+  }
   const kind = target.kind;
   // Batch, bulk, increment, and status are valid for non-admins who hold
   // collections:write. Leave those on the full pipeline. The body is unread.

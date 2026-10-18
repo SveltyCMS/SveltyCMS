@@ -451,8 +451,52 @@ To ensure enterprise stability while maintaining high agency, SveltyCMS implemen
 
 - **Draft-by-Default Airgap**: All content created or modified via the WebMCP tools is forcefully set to `status: "draft"`. This ensures that even if an AI agent is compromised or follows a malformed instruction, it cannot publish directly to the live site without administrative review.
 - **Soft-Delete Only**: The `delete_entry` WebMCP tool only performs soft-deletes. Permanent deletion is not exposed to AI agents — items go to Trash and are recoverable by admins.
-- **Prompt Injection Shielding**: High-sensitivity AI widgets (like `AIEnrichment`) wrap all user-provided data in `<user_data>` tags. The system prompt explicitly commands the LLM to treat this data as passive information and ignore any "Ignore previous instructions" payloads.
+- **Prompt Injection Shielding**: High-sensitivity AI widgets (like `AIEnrichment`) wrap all user-provided data in `<user_data>` tags. The system prompt explicitly commands the LLM to treat this data as passive information and ignore any "Ignore previous instructions" payloads. The shield is applied server-side in `AIService.process()`/`translate()` as well, so a direct API caller cannot skip it.
 - **Tarpit Trap**: Automated AI crawlers attempting to scrape sensitive system files are identified via honeypot routes and immediately IP-flagged for firewall rejection on the next request (no socket-holding delay — that was a Slowloris/DDoS vector).
+
+### 8.1 Provider Boundary, Authorization & Telemetry
+
+The AI surface is deliberately narrow so an operator can reason about cost, data flow and permissions before enabling it.
+
+- **Action allowlist**: `/api/ai/enrich` accepts `summarize`, `rewrite`, `seo`, `tags`, `keywords`, `translate` and `custom`. Unknown actions return `400` instead of falling through to a provider call. `custom` requires a non-empty `customPrompt` (capped at 500 characters).
+- **Input bounds**: enrichment input is capped at 12 000 characters and translation at the same limit; empty input short-circuits without a provider call.
+- **Dedicated capability**: `/api/ai/*` and `/api/chat` require `ai:use` (shipped on the built-in developer and editor roles). The AI builder remains `system:settings` and an admin gate, because it writes collection files.
+- **History validation**: client-supplied chat history is validated with Valibot — only `user` and `assistant` turns are accepted (never `system`), each capped at 8 000 characters, and at most 40 turns are kept. `AIService.chat()` re-applies the same limits for direct server callers.
+- **Batch embeddings**: `embed()` sends the whole array to Ollama's `/api/embed` in one round-trip and falls back to the legacy per-text `/api/embeddings` transport on older builds (HTTP 404/405 or a malformed batch response).
+- **Generated-source escaping**: AI-proposed collection labels and display paths are neutralized before interpolation into the generated JSDoc header, so a `*/` in a label cannot close the comment and become executable code.
+
+#### OpenTelemetry GenAI attributes
+
+Every Ollama call emits one structured debug record using the OpenTelemetry GenAI naming convention. Prompt and response payloads are **not** logged; only operation, provider, model, duration and token counts are recorded.
+
+| Attribute                     | Example              |
+| :---------------------------- | :------------------- |
+| `gen_ai.operation.name`       | `enrich`, `chat`     |
+| `gen_ai.provider.name`        | `ollama`             |
+| `gen_ai.request.model`        | `ministral-3:latest` |
+| `gen_ai.usage.input_tokens`   | `412`                |
+| `gen_ai.usage.output_tokens`  | `128`                |
+| `gen_ai.response.duration_ms` | `143`                |
+| `gen_ai.response.success`     | `true`               |
+
+### 8.2 Patterns Adopted from Drupal AI 1.5.0
+
+Source: publicly available release notes, "Drupal AI 1.5.0 is out" (Workflows of AI, 2026-10-12, describing the 2026-09-25 release). This is a self-assessment of patterns we found transferable, compared on publicly documented behaviour as of 2026-10-18 — not a benchmark or a claim of equivalence.
+
+| Pattern (as documented upstream)                              | SveltyCMS position                                                                                                                        |
+| :------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------- |
+| Lean core + feature modules with their own release cadence    | Keep the provider boundary, authorization and telemetry in core; keep feature surfaces (enrichment, builder, translation) thin consumers. |
+| Batch embeddings with a per-text fallback for older providers | Shipped: `embed()` uses `/api/embed` and falls back to `/api/embeddings`.                                                                 |
+| OpenTelemetry `gen_ai.*` span attributes                      | Shipped as structured log attributes (no exporter dependency yet).                                                                        |
+| Payload logging opt-in                                        | We keep payloads off entirely; only counts and timings are emitted.                                                                       |
+| ChatProcessor seam between the chat UI and the backend        | Planned: the current `/api/chat` handler calls `AIService` directly.                                                                      |
+| Server-side ChatMemory scoped to user/session                 | Planned: history is still client-supplied, now validated and bounded.                                                                     |
+| Streaming guardrails that redact while the response streams   | Planned; a deterministic filter must accompany any marker-based redaction.                                                                |
+| Provider moderation that fails closed                         | Planned; moderation would be one layer, never the sole authorization boundary.                                                            |
+| Reranker for search results                                   | Planned for the semantic index.                                                                                                           |
+| Extractive question answering                                 | Not planned; the current retrieval path returns citations instead.                                                                        |
+
+**Deliberately not adopted:** marker-only redaction as the sole control (a model that forgets to tag sensitive text removes nothing), LLM judgement as a security boundary, and payload logging enabled by default.
 
 ## ⌨️ Keyboard Shortcuts (Efficiency)
 

@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/core/MegaMenu/types.ts
+ * @file src/widgets/custom/mega-menu/types.ts
  * @description Type definitions for the MegaMenu widget
  *
  * @features

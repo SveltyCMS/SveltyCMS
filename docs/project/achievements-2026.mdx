@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-15"
+updated: "2026-10-18"
 tags:
   - "achievements"
   - "log"
@@ -55,6 +55,9 @@ SveltyCMS is a self-hosted, headless and API-first content management system bui
 | Plugin provisioning          | A plugin's `plugin_workspace` slot server no longer shadows its `index.server.ts`, so hooks + migrations survive (`src/plugins/init.server.ts` merges both). `unified-data-hub` migrations now run on all four adapters — its three collections provision instead of the connector write failing (previously masked by a soft-skipped federation test) |
 | Test honesty                 | Masking soft-skips replaced with hard assertions across `security`, `security-negative`, `collections`, `auth-2fa`, `theme`, both Unified-Data-Hub federation suites and the resilience/pool-contention DB suites; harness reset failures now throw, and the DB-tests CI job uploads a real `preview.log`                                              |
 | Quality gates                | Project diagnostics **42 → 0**; build-time warning classes (undefined named import, non-handler `+server.ts` export, alias in the config graph) turned into test failures instead of surprises                                                                                                                                                         |
+| Cookie consent audit logging | Server-side consent logging wired to `sys_consent_audit` via public plugin route `/api/plugins/cookie-consent/consent`, with `allowedOrigins` verification for headless frontends and reactive client persistence in `consentStore`.                                                                                                                   |
+| DOM component interactions   | Expanded real Svelte 5 client mount testing under `vitest.dom.config.ts` to 22 suites / 135 tests in ~15s, verifying `BaseWidget` and `SystemHealth` controls, state transitions, and interval cleanups.                                                                                                                                               |
+| Session revocation E2E       | End-to-end browser golden journey asserting that revoking an active session immediately purges server session cache and DB session store, rejecting subsequent requests with 401 and redirecting navigation to `/login`.                                                                                                                               |
 
 > [!IMPORTANT]
 > **How to read these numbers.** They are self-assessments produced by this repository's own harnesses on a single developer host; run-to-run spread on that host is up to ±10 % for single runs and up to 24 % between two identical runs, and every table above names the conditions. CI — not this document — is the source of truth for pass/fail counts. Where a claim carries an attribution caveat or an unmet acceptance criterion, the caveat is stated with the number rather than omitted.
@@ -119,6 +122,12 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Zero-Allocation Nursery/Mature Sets**: Replaced FIFO iterator eviction on the point-read admission filter with double-buffered generational sets (`pointAdmissionNursery`, `pointAdmissionMature`, and list counterparts). This eliminates V8 iterator churn and allocation spikes on cold cache misses across large working sets (100k docs) while preserving strict 2-touch admission filtering and byte budget ceilings.
   - **Point-Read Throughput**: Measured on warm HTTP steady-state: `findById` hits **16,236 RPS** (0.07 ms avg), and `findByIdRandom` hits **14,737 RPS** (0.13 ms avg), outperforming KeystoneJS's unauthenticated router (4,422 RPS) by **3.33×** while keeping full enterprise security (WAF, CSRF, RBAC, tenant isolation, FLAC).
   - **Concurrent Write Throughput**: Warm concurrent 8c `update` hits **6,745 RPS** (0.51 ms avg), beating KeystoneJS (1,807 RPS) by **3.73×**; `create` hits **5,266 RPS** (0.52 ms avg). Tests: `tests/benchmarks/competitive-workload-replica.test.ts`.
+
+- **Point-Read Fast Lane & Wire-Stream Optimization (October 2026, self-measured):**
+  - **`__isFastLane` Context Activation**: Wired `__isFastLane: true` into `collectionReadLane` and `collectionWriteLane` events, enabling `serveTurboCacheEntry` to return synchronous cached payloads directly instead of allocating WHATWG `Headers`, `Response`, and `ReadableStream` instances that required asynchronous `arrayBuffer()` decoding.
+  - **Zero-Allocation Fast Headers**: Attached `__fastHeaders` directly to `fastSuccessResponse` and read them in `responseToLaneResult`, bypassing `out.headers.forEach()` iteration on hot API read paths.
+  - **Point-Read Coalescing Bypass**: Short-circuited `coalesceCollectionRefill` on single-entry point reads (`entryId != null`), executing `rebuildWarmCollectionRead` directly to eliminate Promise closure allocations and `inflightCollectionReads` map churn during high-concurrency random lookups.
+  - **Database Envelope Offload (`findPointWireStream`)**: Shifted the `{"success":true,"data":...}` JSON envelope wrapping from PostgreSQL SQL string concatenation (`||`) to Node.js V8 string interpolation, avoiding Postgres server-side memory context allocations and text casting while preserving identical byte wire output.
 
 - **Benchmark Matrix Rationalization & Tiered Execution (October 2026):**
   - **Dead Probe Pruning**: Archived 8 one-off diagnostic test files (`probe-*.test.ts`, `write-matrix-cliff-repro.test.ts`) to `tests/benchmarks/probes/`, removing unmaintained micro-probes from default matrix runs while retaining them for manual debugging.
@@ -1581,52 +1590,13 @@ returned non-zero — the exit code that blocks the push. Unit tests: `git-safe-
 this repository prints its decision without writing. No throughput claim attaches to this entry — it is
 release tooling.
 
-### 3.34 September 2026 — A tail report that measured nothing, and the tails it was hiding
+### 3.34 September 2026 — Honest benchmark tails
 
-**The verdict was an estimate of the thing it claimed to measure.** `verify-benchmark-local.ts` graded tail
-stability from `p99/p50`, but when a result JSON lacked `p50Ms`/`p99Ms` it reconstructed them —
-`avg/(1+(cv/100)²·0.15)` and `p95 + max(0.1,(p95−p50)·1.5)` — and graded those. Two consequences: a verdict
-about an invented number is not a measurement, and the estimator was structurally biased against
-sub-millisecond rows, because high CV _shrinks_ the derived p50 and the derived p99 then grows with the gap.
-That is why every sequential row read 🔴/🟡 while concurrent rows of the same workload read 🟢.
-
-**It was also reading a month-old file set.** The report named ten files from a metric-naming scheme the
-harness no longer writes (`findById__Sequential_.json`; today's runs write `findById__Warm_Sequential_.json`
-plus `1c` variants and five further workloads). Rows are now selected by content
-(`testFile === "competitive-workload-replica"`) and grouped by `runId`, and only the newest run is graded, so
-superseded names cannot resurface as phantom workloads.
-
-**What the honest version says** (run `6b4c300a`, measured 2026-09-27, 20 workloads after excluding the
-`p50 = 0` seed-burst aggregate row):
-
-| Band                |   n | Workloads                                                                                                  |
-| :------------------ | --: | :--------------------------------------------------------------------------------------------------------- |
-| 🟢 EXCELLENT (<2×)  |   8 | every read path — `findById` 0.34→0.49 ms, `findByIdRandom`, `findMissing`, `listPlain`, `create` (1c/seq) |
-| 🔵 ACCEPTABLE (≤3×) |   7 | `graphql` 3.19→6.47 ms, `listLarge`, `listPlain` sequential, `update` sequential                           |
-| 🟡 WATCH (≤4.5×)    |   3 | `create @8c` (5.16→19.81 ms), `listFilterSort` sequential, `mixed @8c`                                     |
-| 🔴 JITTER ALERT     |   2 | `update @8c` (5.08→26.67 ms, +21.6 ms), `mixed` sequential (0.79→4.62 ms)                                  |
-
-The write-path tails are real and now measurable — previously they were _hidden_ behind an estimator that
-flattered concurrent rows and punished sequential ones at random. Chasing them is a roadmap item, not a
-claim in this entry.
-
-**Also fixed in the same file:** `--report=variance` (documented in the test-status dashboard) fell through
-to the full pre-flight because the flag was matched with `includes("--report")`; the CLI now matches the flag
-family, and `main()` runs only under `import.meta.main`, so importing the module for tests no longer spawns
-the pre-flight. A printed-table test then caught a live defect no type checker can see: a stray `+` made the
-footer `` `…` + + `…` `` coerce its band counts to numbers → `NaN`. TypeScript accepts unary `+` on a string,
-so only an output assertion finds it.
-
-**Verification:** `tests/unit/scripts/verify-benchmark-local.test.ts` grew from 3 to 23 tests — a
-fixture-driven contract for discovery (by `testFile`, newest `runId` only), grading (recorded percentiles
-only: the August row the old estimator turned into `p50 0.73 / p99 3.68` now reports UNMEASURED, with `p50Ms`
-asserted _not_ to be 0.73), the 100-sample floor, the aggregate-row exclusion, the printed table (no `NaN`,
-real `P99−P50`, the graded run named) and the strict gate. `generateLatencyVarianceReportFromDir()` is the
-directory-injectable core the fixtures drive.
+Replaced the p50/p99 estimator in `verify-benchmark-local.ts` with recorded-percentile grading (UNMEASURED when absent), selected rows by `testFile` + newest `runId`, and fixed the `--report=variance` flag match. First honest run (20 workloads, 2026-09-27): 8 🟢 / 7 🔵 / 3 🟡 / 2 🔴 — the write-path tails it had been hiding became the next milestone.
 
 ### 3.35 September 2026 — The write tail attributed: WAL checkpoint I/O, not GC
 
-The two 🔴 rows from §3.34 (`update @8c` 5.08→26.67 ms, `mixed` sequential 0.79→4.62 ms) have one root
+The two 🔴 write rows (`update @8c` 5.08→26.67 ms, `mixed` sequential 0.79→4.62 ms) have one root
 cause, and it is not the application: **SQLite's auto-checkpoint fsyncing while requests wait**.
 
 **Method.** `PROFILE_WRITE=1` on the replica attributes each write to its spans (`ns:persist`,
@@ -1663,367 +1633,38 @@ concurrent writers, which is the second lever (worker-connection writes) and is 
 reject path answers 401/403 and logs `Invalid or non-existent API key provided`), so it is recorded here as
 unverified rather than fixed.
 
-### 3.36 September 2026 — Tail as a rate, and five suggestions verified before building any of them
+### 3.36 September 2026 — Tail as a rate; five proposals verified before building
 
-**Shipped: the slow-call rate.** `computeStatistics()` now records `slowCount` / `slowRatePer1000` /
-`slowThresholdMs` (samples above 3 × the row's own p50, over the raw sample) and the variance report shows
-`SLOW‰` in place of the CV column (CV stays in the model and the JSON). Rationale: `p99` of a few hundred
-samples **is** the 2nd-worst sample, so it swings several-fold between identical runs; a rate converges, and
-it reorders the problem immediately — first reading (one run, 20 workloads): `mixed (Warm Sequential)`
-5.36×/**175 ‰** (the worst row by frequency, only 2nd by ratio), `listLarge @8c` 4.45×/75 ‰,
-`findByIdRandom @8c` 3.78×/34 ‰, `update @8c` 7.5×/26.7 ‰, and the sub-millisecond reads at 0.0 ‰.
-That run was also uniformly faster than its predecessors (`findById @8c` p50 0.58 vs 0.68–1.21 ms) — host
-drift, which is exactly what the ratio metric could not survive.
+- Replaced the `p99/p50` tail verdict with a slow-call rate (`slowRatePer1000`, threshold 3× the row's own p50). First run: `mixed` at **175 ‰** was the worst row by frequency, while sub-millisecond reads sat at 0.0 ‰.
+- Verified five proposals before implementing: write-lane instrumentation (top lever), a noop control + 3-run ensemble (half shipped), checkpoint off the request path (better home found in the background worker), commit collapse (falsified — a full in-process update is 0.057 ms), and worker-connection writes (falsified).
 
-**Five proposals, verified before implementation** (the point of the exercise — two died on contact):
+### 3.37 September 2026 — Vendor regression claim did not reproduce
 
-| Proposal                                 | Verdict                                  | Evidence                                                                                                                                                                                                                                                                                                                                                         |
-| :--------------------------------------- | :--------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Instrument the write lane                | **verified, top lever**                  | the same update is `localcms.update_ms` **0.057 ms** in-process and `adapter.write.avg` 0.061 ms, but **2.23 ms over HTTP**, while HTTP _reads_ sit at `truth.http.p95` 0.525 / `rest.point_read` 0.84 ms with the same client — so ~1.5 ms is server-side and write-specific. The lane is also the profiler's blind spot: no `handler:*` span ever fires on it. |
-| Noop control row + rate + 3-run ensemble | **verified, half shipped**               | the metric-keyed trend table (`benchmark-history.ts`: `loadHistory`/`persistRun`) makes ensemble grading a read-side change; the rate is shipped above; the floor (`truth.http.p95` 0.525 ms) shows the ratio contract cannot grade sub-ms rows — band semantics (absolute vs floor-relative) still needs a decision.                                            |
-| Checkpoint off the request path          | **verified feasible, better home found** | `hooks.server.ts` already exposes `inFlightRequests` (graceful shutdown), so no new machinery is needed — and the watchdog/memory governor live in the **background worker process** (`services/background/background-entry.ts`), whose checkpoint cannot block the API event loop at all.                                                                       |
-| Collapse commits per write               | **falsified**                            | an entire in-process update _including its commits_ is 0.057 ms and `adapter.throughput.write_rps` is 29 525 — commits are not the expense; the 17 ms events are checkpoints (proven by the §3.35 A/B).                                                                                                                                                          |
-| Worker-connection writes                 | **falsified**                            | `initWorkerConnection` is used only by `handle-test-isolation.ts` for per-worker test DBs — there is no worker-thread write path, and the DB work it would offload is 0.057 ms.                                                                                                                                                                                  |
+Bisected `e1efe15b2..e4994eff6` on SQLite and PostgreSQL with a protocol-parity replica and explicit `NODE_OPTIONS`: the reported tag > main ordering did not reproduce. The only structural change in the range (Dockerfile semi-space 128 → 64) showed no consistent effect, and the measured run-to-run floor (8–59 % on individual lanes) is wider than the attributed deltas. No regression to fix.
 
-**Also observed, not fixed:** `tests/unit/security/audit-ledger-integrity.test.ts` ("200 O(1) leaf appends in
+### 3.38 September 2026 — The write lane's "unlocated 1.5 ms" was a mismatched baseline
 
-< 20 ms") failed once at 658 ms against its 500 ms budget during a full-suite run and passes 8/8 in 119 ms
-alone — a contention flake of the documented kind ("perf assertions need JIT warm-up"), left for the owner.
+The gap was a comparison between `crud.atomicIncrement` and the full SDK update lane, plus client `fetch`/loopback transport. Measured server cost of the update is **0.35–0.40 ms** (0.15–0.16 ms `dbwrite`); the opt-in raw write lane cut client wall by **15 %** with server time unchanged.
 
-### 3.37 September 2026 — The vendor-leg bisect executed: no reproducible regression in `e1efe15..e4994ef`
+### 3.39 September 2026 — Lane compression, deterministic list order, truthful readiness
 
-**The claim under test.** The external harness's last three legs read tag `v0.1.2` (`e1efe15b2`) as faster
-than `main` (`e4994eff6`) on **all 11 lanes** (+8 … +82 %, e.g. `findMissing` +82 %, `findByIdRandom`
-+52 %, `graphql` +36 %) while its keystone anchor moved 1.1 %. `e1efe15b2` is an ancestor of `main`, so
-the claim implies a regression from one of the **8 commits** in between. This entry records the local
-bisect: protocol-parity replica (`tests/benchmarks/competitive-workload-replica.test.ts`, 10 workloads,
-10 000 docs, seq + 8 c, median of 3 rounds), one build per commit, SQLite and PostgreSQL.
-
-**Confound found first.** The Dockerfile's `NODE_OPTIONS` semi-space changed **128 → 64 inside
-`e4994eff6`** (the benchmark harness default likewise) — the vendor's tag image ran 128 and its main image
-64, a config difference shipped in the same commit box as the code claims. Every bisect leg therefore
-pins `NODE_OPTIONS` explicitly, and a 2 × 2 (tag/main × 64/128) was measured: **no consistent semi-space
-effect** (128 helped `findById`/`graphql` slightly and hurt `listPlain` on both commits).
-
-**Result: no persistent regression.** The two large single-run dips both recover inside the range — which
-a real regression cannot do — and both failed to reproduce on re-run:
-
-| commit             |     `list_plain` warm 8c | note                               |
-| :----------------- | -----------------------: | :--------------------------------- |
-| `e1efe15b2` (tag)  | 13 307 / 13 792 (2 runs) | baseline                           |
-| `54bd19f76`        |                   13 310 | flat                               |
-| `5be703223`        |                **9 786** | re-run **10 916** — not reproduced |
-| `db6becec6`        |                   12 770 | recovered                          |
-| `d091b2178`        |                   11 332 |                                    |
-| `60fd09c3f`        |                **9 804** | re-run **11 229** — not reproduced |
-| `d9060a465`        |                   11 712 | recovered                          |
-| `e4994eff6` (main) | 11 309 / 13 700 (2 runs) |                                    |
-
-**The noise floor is the finding** — identical builds, repeated runs, same session, this host:
-
-| lane (phase)                    |  run A |  run B |         Δ |
-| :------------------------------ | -----: | -----: | --------: |
-| `findById` warm-seq (tag)       |  4 993 |  4 613 |      −8 % |
-| `findByIdRandom` warm-seq (tag) |  2 818 |  3 424 | **+21 %** |
-| `listLarge` warm-seq (tag)      |  1 779 |  1 277 | **−28 %** |
-| `findMissing` warm-seq (tag)    |  3 859 |  5 184 | **+34 %** |
-| `findMissing` warm-seq (main)   |  3 423 |  5 440 | **+59 %** |
-| `graphql` warm-seq (main)       |    619 |    456 | **−26 %** |
-| `findById` warm 8c (main)       | 10 905 | 13 332 | **+22 %** |
-| `listPlain` warm 8c (main)      | 11 309 | 13 700 | **+21 %** |
-
-PostgreSQL (the vendor-likely engine) agrees: `cold.findByIdRandom` on main across **three** runs reads
-2 212 / 2 438 / 2 887 against tag's 2 702 / 2 630 (2.7 % spread between the two tag runs) — the one lane
-where main looked persistently slower dissolves into main's own 26 % spread. The vendor's smallest
-attributed deltas (+8 … +20 %) sit **below** this host's run-to-run floor; its largest (+52 %, +82 %) are
-not reproducible in either engine with ≥ 2 samples per side.
-
-**Conclusions.** (1) No commit in `e1efe15b2..e4994eff6` shows a persistent, monotone lane regression —
-the local replication of the vendor protocol does not reproduce the tag > main ordering on SQLite or
-PostgreSQL. (2) The only structural change in the range that could act globally is the Dockerfile
-semi-space 128 → 64, and the local A/B says it does not explain a uniform slowdown. (3) A vendor-side
-bisect needs alternated pairs (≥ 3 per side, identical `NODE_OPTIONS`) per the protocol this project
-already requires for that class of claim; single-session legs carry a floor wider than the attributed
-effect. Measurement hygiene: bisect legs wrote to an isolated `RESULTS_DIR` (no trend-store rows); the two
-ad-hoc runs that did record (42 rows) were removed from `history.sqlite`.
-
-### 3.38 September 2026 — The write lane's "unlocated 1.5 ms" resolved: it was never server-side
-
-**The claim on trial** (§3.36, first proposal): an update measured `localcms.update_ms` 0.057 ms in-process
-but 2.23 ms over HTTP against 0.525–0.84 ms HTTP reads — "so ~1.5 ms is server-side and write-specific".
-Resolved with a dedicated probe (`tests/benchmarks/probe-write-attrib.test.ts`): the same operation
-measured three ways — in-process `db.crud.update` at c=1 and c=8, and an HTTP PATCH through the lane with
-`x-srv-split`/`x-srv-dur` — SQLite, production build, warm session, 300 iterations per arm.
-
-| measurement (p50)                 |    run 1 |    run 2 |
-| :-------------------------------- | -------: | -------: |
-| in-process `crud.update` c=1      | 0.063 ms | 0.067 ms |
-| in-process `crud.update` c=8      | 0.576 ms | 0.606 ms |
-| HTTP wall (bridged)               | 1.476 ms | 1.521 ms |
-| HTTP wall (raw write lane)        | 1.251 ms | 1.306 ms |
-| HTTP `x-srv-dur` (server-stamped) | 0.380 ms | 0.360 ms |
-| HTTP `dbwrite` (adapter phase)    | 0.160 ms | 0.150 ms |
-
-**Why the 1.5 ms never existed.** Both halves of the original pairing were wrong: the 0.057 ms baseline was
-`crud.atomicIncrement` — a single `count = count + 1` statement outside the SDK pipeline (validation,
-hooks, audit/outbox, invalidation, envelope) — not the update the lane runs; and the 2.23 ms arm was a
-_client-observed_ HTTP wall. Against the lane's own stamps the server cost of that update is **0.35–0.40 ms
-total, 0.15–0.16 ms of it `dbwrite`**; ~0.9–1.1 ms of the client number is client `fetch` + loopback
-transport — the same class as the ~1.1 ms per-request client floor the read row already documents. At 8c
-the write row is dominated by write serialization, and the in-process c=1→c=8 pair proves it is
-engine-side, not HTTP-side: the same call goes 0.063 → 0.576 ms (×9) without a request in sight.
-
-**Transport A/B (both orderings).** The opt-in raw write lane (no adapter-node bridging,
-`SVELTY_FAST_LANE_WRITE=1`) measured **−15 % client wall** (1.48/1.52 → 1.25/1.31 ms) with server-stamped
-time unchanged (0.38/0.40 → 0.35/0.36 ms) — reproduced with the arms in both orders. That is the paired
-transport evidence the write lane's default flip was waiting for; the remaining gate is the
-`BENCH_VERIFY_RAW=1` byte-equivalence proof plus a c=8 paired run.
-
-### 3.39 September 2026 — Lane responses get their compression back (and the >64 KiB tier gets its first honest number)
-
-**The gap.** Fast-lane responses bypass `handleCompression` (`LANE_BYPASSED_HOOKS`) and
-`serveTurboCacheEntry` can only serve an encoding that was attached to the entry — so every lane-served
-list left the socket as identity bytes. Measured 2026-09-28 through the zstd audit: a **260 791 B** body
-answered a zstd-only client uncompressed, and the whole zstd/co-tenant scenario in `api-latency.test.ts`
-reported `api.zstd.available=0` (skipped) — the tier was unmeasurable, not slow.
-
-**What shipped.** `src/hooks/response-compression-stash.ts` — one shared variant implementation for the
-read lane and the API dispatcher, with a precise contract:
-
-- **Hits are free**: list entries carry `compressed` variants (`zstd` with the CMS dictionary, `br`/`gzip`
-  ≤ `SYNC_MAX_SIZE`); `serveTurboCacheEntry` already negotiates `Accept-Encoding` per request. The
-  response-cache's internal precompute turned out to be **commented-out dead code**, so lane entries had
-  never carried a variant at all.
-- **First re-hit warms lazily**: point-read misses are high-cardinality and skip the CPU; the second
-  request for any key schedules the stash — a re-read is the proof that the key is worth compressing.
-- **Miss path inside the buffered budget**: the lane compresses ≤ 64 KiB synchronously (exactly the
-  pipeline's own sync tier) and seeds the variant into both the response and the cache entry.
-- **Safety rails**: in-flight guard per key, expanded output dropped, a body that produced nothing is
-  marked attempted (`compressed: {}`) so later hits do not retry, `preserveStale` keeps a concurrent
-  write's staleness decision (the old `set()` forced `stale = false`), and a superseded body is never
-  overwritten (body/etag re-check before the re-set). `entryBytes()` now counts variant bytes, so the L1
-  budget no longer drifts when variants are attached.
-
-**Beyond 64 KiB the lane declines to the pipeline** (compress-while-sending, no full-body wait). Buffering
-the same 255 KiB body in-lane measured **10.8 ms/request, 183 RPS, co-tenant p95 0.33 → 2.50 ms** — rejected.
-The pipeline's streaming tier is now measurable end-to-end and lands at **22.7 ms warm / p95 24.8 ms /
-87 RPS with co-tenant p95 0.30 → 7.39 ms** on this host (cache-busted, so every request pays a fresh
-compression). That is a property of the app-wide streaming compression tier — now visible for the first
-time — not of the lane change; a level/threshold decision for > 64 KiB bodies is the next lever, tracked in
-the roadmap.
-
-**Verification**: `tests/unit/hooks/response-compression-stash.test.ts` (9 cases: gates, builder guards,
-hit-stash, supersession, staleness, size no-op) + 51/51 across the neighbouring hook suites; the api-latency
-probe now reports `zstd active: … body 254.7 KiB (> 64 KiB async tier)` instead of a skip.
-
-**Follow-up A/B (same day) — the level/threshold hypothesis is falsified.** The 22.7 ms / +7.4 ms co-tenant
-in that probe invited a compression-settings fix; isolation says otherwise. `zstdCompress` on a 244 KiB body
-measures **0.30–0.55 ms at every level 1→15**, and the CMS dictionary artifact (`static/dictionaries/cms-payloads.dict`)
-is **absent in-repo**, so `{dict}` is a no-op — neither level nor dictionary is a lever. End-to-end, the same
-256 074 B list: **identity warm 0.95 ms · identity miss 14.10 ms · zstd warm (stashed variant) 0.72 ms ·
-zstd miss (lane declines → pipeline, compression included) 15.16 ms**, co-tenant point read 0.38 → 0.65 ms.
-So compression is **~1 ms of a ~15 ms miss** — the cost is the cache-busted miss path itself (DB read +
-build + 256 KB serialisation/drain), and cached hits serve the variant for free at sub-millisecond latency.
-No level/threshold change was warranted; the open lever is the list-miss path, not the encoding.
-
-**Round 2 (same day) — the miss path decomposed, and a wrong turn corrected.** Lane marks (`x-srv-split`)
-plus `ENABLE_HOOK_TIMING=1` on a 199-row / 257 027 B list (SQLite) read: **lane HIT 0.79 ms (ttfb 0.79,
-drain 0.00)** vs **miss ttfb 14.98 / drain 0.23 ms** — the server is late, not the wire — and the whole
-nested hook chain accounted for only ~3.7 ms, so the rest was the row build (≈0.055 ms/row). Two fixes:
-
-- **`streamingJsonResponse` (and `streamingExportResponse`) are pull-driven now.** The old writer ran a
-  `start()` loop and slept a hard-coded `setTimeout(10)` whenever `desiredSize <= 0` — a count-based stream's
-  HWM is 1, so that was _most_ iterations (the `limit = MAX_PAGE_SIZE` path had been measured at ~3.1 s per
-  request), and the export writer yielded `setTimeout(0)` **per record** (a 10 k-row export paid ~10 s of
-  timers). The stream now calls `pull()` only when it wants data: backpressure is structural, zero timers.
-  Pinned by `tests/unit/api/streaming-json-response.test.ts` (identical bytes, `maxItems`, error marker, and
-  a 500-item drain that would take ≥ 5 s under the old sleep).
-- **The lane no longer declines > 64 KiB lists to the pipeline.** Declining meant the lane had already built
-  the rows, discarded them, and the pipeline rebuilt them: **15.0 ms vs 10.8 ms** for the same list, co-tenant
-  p95 **7.39 → 2.50 ms**. The lane now compresses the negotiated encoding itself — sync at ≤ 64 KiB, one-shot
-  **async** (libuv pool, `compressAsync`) above — and seeds the variant into the response and the entry.
-
-**Measured after both fixes** (api-latency zstd audit, SQLite, 254.7 KiB cache-busted list): warm
-**22.7 → 11.4 ms**, **87 → 175 RPS**, co-tenant p95 during the burst **7.39 → 2.93 ms**; turbo point read in
-the same run 0.711 ms / 11 097 RPS. The remaining ~7 ms of the 11.4 is the SDK list build itself (row
-hydration + per-row JSON) — the list wire plane is the next lever, recorded in the roadmap.
-
-**8c re-verification, same session** (`BENCH_ZSTD_CONCURRENCY=2` vs `=8` on one build — the audit row is
-knob-controlled now and the matrix forwards it): the row goes **13.0 ms / 153 RPS (2c) → 49.4 ms / 154 RPS
-(8c)**. Latency scales with concurrency while throughput stays flat, so the large-list miss path is
-_saturated_ at ~150–175 RPS, and the ceiling matches the synchronous SDK row build (~6–7 ms of event-loop
-work per request, interleaved across 8 in-flight builds, while compression itself is off-thread). The
-point-read rows at the same 8c kept 9 676 RPS, which isolates the cap to the list build — the empirical
-case for the list wire plane below. (The c=2 point re-measured 13.0 / 153 here against 11.4 / 175 in the
-earlier session — host drift between sessions is 7–59 % on this box.)
-
-**Same day — readiness truthfulness, a deterministic list order, and the list wire plane measured (then shelved).**
-
-- **Health is truthful now.** Three responders reported `overallStatus: "READY"` from DB presence alone
-  while the boot cache-warming subsystem was still `initializing` — every harness (and operator probe)
-  then measured the warm-up itself. The turbo pipeline's `buildHealthResponse`, the dispatcher's
-  HYPER-TURBO health branch and the hooks.server responder now all emit the derived state plus the
-  strict `ready` predicate (`isSystemReady()`: operational state AND the boot pre-warm settled), and the
-  benchmark harnesses (`isHealthReady` in the matrix, the standalone wait) require `ready !== false`
-  before measuring. Verified live: `{"status":"healthy","overallStatus":"READY","ready":true,…}` on the
-  bench server; the waits still pass.
-- **Unsorted list reads have a deterministic order.** `defaultListSortOption()` (`updatedAt` desc,
-  `_id` desc) is now the SDK `find` default for every non-keyset read. Without an ORDER BY the engine
-  picks the access path, so the same logical query could return _different LIMIT/OFFSET windows_ under
-  two plans (proven: `SELECT rowid,_id` served from the `_id` auto-index vs `SELECT <all cols>` served
-  from a table scan, same table, different first rows) — a real pagination bug, and the reason a
-  compiled list statement could never be byte-stable. The order matches the keyset default and rides
-  the `(tenantId, updatedAt, _id)` index (no temp B-tree, verified via `EXPLAIN QUERY PLAN`). Note for a
-  rolling deploy: the default-list response cache key stays `…:find:default_50`, so entries cached
-  under the old (unspecified) order live out their TTL — bodies are otherwise identical.
-- **The list wire plane (engine-built `data` JSON) was implemented to byte parity and measured — it
-  loses.** On SQLite it was built to completion (row = `json_object` over the physical selection +
-  `json_remove` blob splice; fail-closed `bad_rows` guard for NULL/non-object blobs; the lane frames the
-  exact envelope incl. `meta.executionTime` = BaseAdapter's constant wrap meta and the
-  `_collection`-only-when-rows rule) and reached **provable byte parity**: the integration differential
-  suite compares wire output against the domain envelope byte-for-byte, and an HTTP A/B on the bench
-  server (`x-wire: list` marker) returned **37 916 B == 37 916 B**. Then the timing: on a _fresh_ bench
-  DB (201 rows), a 50-row × ~750 B list measures **wire p50 5.05 ms (SQL alone 1.7–2.9 ms) vs domain
-  p50 2.43 ms** — SQLite's JSON functions are text-based (render + `json_remove` re-render + splice
-  copies ≈ 58 µs/row) and `node:sqlite` is synchronous anyway, so nothing moves off the event loop.
-  On PostgreSQL/MariaDB the same idea cannot be byte-identical at all: `json_build_object` /
-  `JSON_OBJECT` render **spaced** JSON (`{"a" : 1}`) and `jsonb` additionally reorders keys, so V8
-  `JSON.stringify` bytes are unattainable without value-corrupting string surgery (the shipped PG point
-  wire already serves engine-formatted bytes, so parity there means _stability_, not identity);
-  MongoDB has no engine-side JSON without `$function`. Conclusion: **the remaining ~7 ms of a large
-  list miss is not removable by engine JSON** — the saturation evidence (153 RPS at 2c / 154 at 8c)
-  stands, the lever does not. The SQLite implementation, the lane branch and the interfaces were
-  removed again (no dead code); the reusable pieces kept are the deterministic order and the
-  point-wire delegation fix below.
-- **Point-wire delegation in the tenant guard.** `createTenantGuardedCrud` builds an explicit method
-  list, so under MULTI_TENANT the wrapper hid `findPointWireStream` and every lane read silently fell
-  back to the Domain Plane. The wire method is now delegated through the same tenant-options guard as
-  every other op.
-- **Row-shape lever profiled and falsified (same day).** A faithful stage replay of the list build
-  (199 rows × ~1.3 KB blob, 16 keys/row, real `convertDatesToISO` + `trimListEnvelope` + stringify)
-  costs **0.66 ms total (3.3 µs/row)**: blob `JSON.parse` 0.27 ms, parse+flatten+date/bool conversion
-  0.38 ms, trim copy 0.03 ms, `JSON.stringify` of the 364 KB envelope 0.31 ms. A blob-only projection
-  shape saves ~0.2 ms, dropping the blob entirely ~0.5 ms — the row shape is **not** where the list
-  cost lives. The 310 KB (199 × ~1.5 KB) list's _real_ `x-srv-split` build mark is **6.4 ms**, ~10×
-  the stage replay: the remaining mass is string materialisation (body + ETag hash + variant
-  handling) and the GC that rides on it, not per-row parsing. Concurrency check on that shape
-  (cache-bypassed, identity): p50 8.64 / 9.28 / 12.99 ms and RPS **116 → 194 → 567** at c=1/2/8 — the
-  earlier “flat ~153/154 RPS” saturation reading did **not** reproduce outside the zstd audit's own
-  setup, so that number should not be quoted as a general list ceiling until it is re-measured with
-  the compression path separated out. Harness note for whoever picks this up: fresh `DB_NAME`s
-  currently 401 at benchmark admin login (`authUsers` absent after pre-boot seeding, boot logs a
-  `ThemeFileSync` failure) while existing DBs work — flagged, not attributed to this change.
+- **Lane compression**: fast-lane responses bypassed `handleCompression`, so every lane-served list left as identity bytes. A shared zstd/br/gzip variant stash now serves from the cache entry, warms lazily on re-hit, and compresses ≤64 KiB synchronously / >64 KiB asynchronously. The >64 KiB zstd audit row: **22.7 → 11.4 ms warm, 87 → 175 RPS**, co-tenant p95 **7.39 → 2.93 ms**.
+- **Streaming writers** are pull-driven; the old `setTimeout(10)` loop and per-record `setTimeout(0)` are gone (a 10 k-row export paid ~10 s of timers).
+- **Truthful readiness**: all three health responders derive `overallStatus` from `isSystemReady()` (operational state + boot pre-warm settled), not DB presence, so harnesses no longer measure the warm-up itself.
+- **Deterministic list order**: unsorted SDK reads default to `updatedAt desc, _id desc`, matching the keyset path and its `(tenantId, updatedAt, _id)` index; without it the engine could return different LIMIT/OFFSET windows for the same query.
+- **Engine-built list JSON was shelved**: byte parity landed on SQLite but cost **5.05 vs 2.43 ms** (text-based JSON functions), and PostgreSQL/MariaDB cannot be byte-identical. The remaining list-miss cost is a roadmap item.
 
 ---
 
-### 3.40 September 2026 — The 380 KB list miss's build mark, found and cut: an 8 ms FNV fold → native digest (−84 %)
+### 3.40 September 2026 — Large-list ETag: 8 ms FNV fold → native SHA-256 (−84 %)
 
-**The open measurement, closed.** §3.39 left one explicit next step: re-measure the list saturation with the
-compression path separated from the build path. The new diagnostic probe
-`tests/benchmarks/probe-list-compression-ab.test.ts` does exactly that — `Accept-Encoding: identity` vs `zstd`
-at c=1/2/4/8 on a 199-row / 381 681 B list (220 × ~1.5 KB rows seeded through the API into `BenchmarkStable`,
-one unique `probe=` cache key per request so every request is a true miss and single-flight coalescing cannot
-fold the arms together), reporting client p50/RPS plus the `x-srv-split` deltas (`db−lookup`, `build−db`,
-`cachewrite−build`, `serve−cachewrite`).
+`generateContentEtag` kept the FNV fold below 1 KiB for validator stability and switched to a native SHA-256 digest above it. Same probe: build segment **6.4 → 0.94–1.01 ms (−84 %)**, identity p50 at c=1 **8.84 → 3.26 ms**, in-process etag **9.8 → 0.102 ms**. The T15 contract (whole-body coverage) is unchanged.
 
-**Result, before any change (SQLite, production build):** `buildΔ` (trim + stringify + etag) is **6.2–6.4 ms on
-both encodings** — compression is not in the build; `cacheΔ` isolates it: identity 0.14–0.16 ms vs zstd
-**0.96 / 7.16 / 15.6 / 29.1 ms** at c=1/2/4/8 (the awaited `compressAsync` plus its worker-pool queueing;
-server `x-srv-dur` p50 grows 7.5 → 35.5 ms on the zstd arm). The zstd response is 5 132 B where identity is
-381 681 B, so at c=8 the client is _faster_ on zstd (p50 53.2 vs 63.8 ms, 136 vs 119 RPS) despite the server
-paying more — the compression wait buys a 74× smaller transfer and pays for itself on the wire.
+### 3.41 September 2026 — Harness DB isolation, composite-index policy, durable-commit proof
 
-**The build mark profiled:** an in-process profile of the exact lane steps on the captured 381 681-char body:
-`Buffer.byteLength` 0.004 ms, `Buffer.from` 0.083 ms — and `generateContentEtag` (FNV-1a 64 over UTF-16 code
-units) **8.2 ms (Bun) / 3.9–7.9 ms (Node)**. It is the entire build segment, and the single most expensive
-per-request op on the large-list path. Two same-output rewrites were measured and rejected: int-limb fold
-1.03×, reciprocal-multiply carry 1.00× — FNV-1a is a serial multiply-accumulate chain, so arithmetic
-micro-optimisation cannot move it; byte-wise FNV (different output) only 2×.
-
-**The fix — size-gated native digest.** `generateContentEtag` keeps the FNV fold byte-identical below 1 KiB
-(small settings/GraphQL/point payloads: zero validator churn), and above it returns `"s256|<sha256-hex>"`
-computed with `crypto.hash("sha256", body, "hex")` (fallback `createHash`). The T15 contract is unchanged —
-the validator still covers the entire body, so any content change flips it — and the digest is 20–50× faster
-at every measured size (0.0013 ms @1 KiB, 0.10–0.21 ms @380 KB). One function backs lane, dispatcher, GraphQL
-and turbo-stash etags, so the win lands on every large-body miss path at once.
-
-**Result, after (same probe, same shape):** `buildΔ` **6.4 → 0.94–1.01 ms (−84 %)**; identity p50 c=1
-**8.84 → 3.26 ms**, RPS **99/119 → 252/343** at c=1/c=8; zstd `cacheΔ` @c=8 **29.1 → 7.75 ms** (less event-loop
-contention in front of the worker pool); in-process etag cost 9.8 → **0.102 ms**. Regression test:
-`tests/unit/core/request-classifier-and-response-cache.test.ts` pins `"…16-hex"` below the threshold,
-`"s256|…64-hex"` above, plus determinism and sensitivity.
-
-**Harness findings (the flagged 401, diagnosed).** The "fresh `DB_NAME`s 401" note from §3.39: in local profile
-the pre-boot seeder creates the sandbox DB through the env-only adapter path, which materialises only the
-content/collection schema — no `auth_users`/`system_preferences` — so `seedBenchmarkState`'s `createUser`
-silently no-ops (its result is unchecked) and the server can never authenticate. Snapshotting a completed DB
-(`VACUUM INTO config/test-database/<name>.sqlite`) restores it. Also: seeding POSTs must carry
-`content-type: application/json` — Bun's fetch sends `text/plain` for string bodies and the write lane then
-500s with `Unexpected end of JSON input` (probe-side bug, fixed in the probe).
-
-### 3.41 September 2026 — Harness DBs stop landing in the user's folder, composite indexes get a policy, and the update lane's residual is _proven_ to be the durable commit
-
-**Three threads, one honest measurement discipline: no claim without a falsification run.**
-
-**1. The E2E/benchmark databases that appeared in `config/database/` (root cause: a `require`).** The
-user's live-data folder had accumulated `e2e_auth_test.sqlite`, `bench_parent.sqlite`, `benchmark_shared.sqlite`,
-`sveltycms_test.sqlite` and a set of `probe_*` scratch DBs — none of which belong there. Fingerprints showed
-36-table, 0-row shells (auth/settings empty, only worker-written `svelty_jobs` rows), i.e. harness debris, not
-user data. Root cause proven from the worker's own log
-(`[DB] Registry resolved connection string: config/database/probe_test_whoF.sqlite`): `resolveSqlitePath()`
-(`src/databases/config-state.ts`) created the test folder via a bare `require("node:fs")` **inside the `try` that
-also returned the test path**. In the esbuild-built background-worker bundle that `require` throws
-(`Dynamic require of "node:fs" is not supported`), the `catch` swallowed it, control fell through the
-`if (isTest)` block, and the network-address branch answered `config/database/<name>.sqlite`. Fix: static ESM
-imports (they cannot throw), best-effort `mkdirSync`, and the `return` **outside** the `try` so a mkdir failure can
-never re-route the path again. The name heuristic now calls the shared `isIsolatedTestDbName()` classifier that
-`enforceTestSafety()` already uses (`test`/`bench`/`e2e`/`_functional`, minus production-like names) instead of a
-divergent `includes("test") || includes("benchmark")` copy. Verified after rebuild by running the worker directly:
-harness flag + `probe_test_whoG` → `config/test-database/…`, harness flag + plain `probe_plainA` →
-`config/test-database/…`, no flag + `probe_plainB` → `config/database/…` (true-dev behaviour preserved).
-Regression guard: `tests/unit/databases/resolve-sqlite-path.test.ts` — 10 tests covering flag routing, classifier
-names, dev names, explicit POSIX/Windows/relative hosts, `.sqlite` canonicalization, and — because this is the
-actual incident — a **real** mkdir failure (a `process.cwd` spy pointing at an existing _file_, so no fs mocking
-can be dodged). The guard was falsified before shipping: moving the `return` back inside the `try` makes it fail
-with `expected 'config/test-database/probe_test_worker.sqlite' / received 'config/database/probe_test_worker.sqlite'`
-— exactly the incident's signature.
-
-**2. The covering composite index now has a policy (all three SQL engines).** `createModel` used to provision
-`(tenantId, status, <col>, _id)` for **every** materialized column; each one is maintained on **every** write,
-because `updatedAt` is indexed and rewritten by each update, so PostgreSQL can never take the HOT path and must
-insert into all indexes on the table. A psql A/B on a narrow table (3 vs 4 indexes, 2 000-row batches, alternating
-orders) measured that cost directly: **+11–17 % per extra index** (≈ 0.7 µs/row/index). The policy — shared by
-PostgreSQL, MariaDB and SQLite via `buildCompositeIndexColumns()` in `src/databases/core/drizzle-sql-helpers.ts` —
-provisions the composite only for **declared query targets**: `indexed: true` fields, numeric fields (the default
-`listFilterSort` sort target), and the `publishedAt` base column. Equality-lookup base columns (`collection`,
-`slug`, `locale`) and storage-only columns (`unique`, `materialize: true`) keep their single-column index (still
-filterable) but no longer pay for a covering twin; legacy twins are dropped explicitly, following the existing
-`…_tenant_status_updated` twin-drop precedent. The default list order is untouched — it is served by
-`…_tenant_status_updated_id`, which the policy always creates. On the 113 k-row benchmark table the policy takes
-the index set **15 → 12** (`pg_indexes`, verified after a shipped-code boot). Coverage:
-`tests/unit/databases/composite-index-policy.test.ts` (eligibility + column-set contract) and the cross-engine
-integration block `Composite-index policy — {engine}` in `tests/integration/databases/dynamic-field-filter-index.test.ts`
-(a numeric field keeps its composite; `unique`/`materialize`/lookup columns do not; their single-column index
-exists) — green on SQLite **and** PostgreSQL.
-
-**3. Where the update lane's residual actually goes — the durable commit, measured.** The write-split probe
-(`tests/benchmarks/probe-write-split.test.ts`, PostgreSQL, production-mode server, 2 400 iterations at 8c) puts the
-update lane at `x-srv-dur` p50 **3.67 ms / avg 3.78 ms**, decomposed as security 0.014 · parse 0.081 · schema
-0.000 · prep 0.028 · encrypt 0.011 · **dbwrite 3.548** · postwrite 0.026 · serve 0.058 ms. Every app phase sums to
-**~0.16 ms (4 %)**; `dbwrite` owns 94 %. Then the same statement was measured with and without the durability
-wait (psql, single-row autocommit = the app's pattern): **1.566 / 1.658 / 4.496 ms with `synchronous_commit=on`
-vs 0.310 / 0.347 / 0.430 ms with `off`** — i.e. ~75–85 % of `dbwrite` is the WAL fsync/commit wait on this host's
-Docker volume, and 200 rows in one transaction cost **42–44 µs/row** for all the actual tuple+index work. That is
-why neither the composite policy nor the earlier numeric-materialization change can move the lane here: the
-effect sizes are single-digit µs against a ~3.7 ms commit-dominated op, and the replica's own pair
-(update 1 280 → 1 406 RPS) also moved the _read_ lanes +21–32 %, i.e. host drift, not policy. Both facts are now
-recorded as such — the policy ships as a **write-amplification/WAL reduction**, not as a latency claim.
-
-**Harness hygiene found on the way:** a leftover `vite dev` server for the external benchmark dashboard had been
-burning CPU since 2026-09-26 (57 631 s of CPU time), one more reason the recorded cross-day spreads are wide;
-and a 20-minute build stall reproduced once and then vanished on re-run (no product change involved).
-
----
+- **Harness DBs**: a bare `require("node:fs")` inside a `try` made the worker bundle fail closed and route test databases into `config/database/`; static ESM imports, a best-effort `mkdirSync`, and a `return` outside the `try` restore `config/test-database/` routing (pinned by `resolve-sqlite-path.test.ts`, including a real mkdir failure).
+- **Composite indexes**: the covering `(tenantId, status, <col>, _id)` index is now provisioned only for declared query targets (`indexed`, numeric, `publishedAt`). A psql A/B measured **+11–17 % write cost per extra index**; the 113 k-row benchmark table drops **15 → 12** indexes.
+- **Durable commit**: the update lane's `dbwrite` is 94 % of server time, and **~75–85 % of `dbwrite` is the WAL fsync/commit wait** (`synchronous_commit=on` 1.57–4.50 ms vs `off` 0.31–0.43 ms). The composite policy therefore ships as write-amplification reduction, not a latency claim.
 
 ### 3.42 September 2026 — Session risk, lane threat scan, SSO metadata, WebAuthn ceremony
 
@@ -2033,10 +1674,10 @@ and a 20-minute build stall reproduced once and then vanished on re-run (no prod
 - **WebAuthn**: register and sign-in reject a foreign origin and a missing user-presence flag. The assertion signature is checked over the raw client data bytes.
 - **Self-assessment, re-run 2026-09-29**: the August weights still total **99.93/100 (~99.9%)**. `bun run test:security` passed 343 tests. `bun run risk:audit` passed 5/5 after the read redaction path was switched to canonical `isAdmin()` (the first audit pass had one `admin-role-fragmentation` finding). The two 99.8 rows were not raised. The figure is the internal checklist. A dated penetration test by someone outside the project is still open, and it is not one of the six weights.
 
-### 3.43 September 2026 — Missing columns on an existing database, and the warm write lane's remaining URLs
+### 3.43 September 2026 — Schema boot repairs; warm write lane widened
 
-- **Schema boot**: `CREATE TABLE IF NOT EXISTS` does not add a column to a table that already exists. A boot that only ran it stored the spec fingerprint anyway, so the next start skipped the pass and left the live table behind the spec. MariaDB `bench_parent.auth_sessions` was missing `amr` and `mfaVerifiedAt`; session insert failed and admin login returned 401 `Failed to create session`. Boot now adds any spec column an existing table does not have. A bare spec fingerprint triggers that pass once. After it succeeds the stored marker is `computeColumnSyncedFingerprint`, and a later boot skips both the DDL pass and the column scan. A declared `renamedFrom` is replayed. The dropped v0.0.8 repairs are still not. Documented in [Upgrading](../guides/configuration/upgrading.mdx). Test: `tests/unit/databases/schema-spec-parity.test.ts`.
-- **Warm writes**: batch, bulk, increment, status, and `POST /api/graphql` join the SvelteKit collection write lane when the session is warm and the caller is an admin. The socket write lane stays opt-in. `Prefer: return=minimal` on increment and status skips the row read-back on all four adapters, the same contract create and update already had. The default response is still the full document. The PostgreSQL full-document update remains the durable commit described in §3.41.
+- **Schema boot**: `CREATE TABLE IF NOT EXISTS` does not add columns to an existing table, and a stored fingerprint could skip the repair pass. Boot now adds any spec column an existing table lacks (fixing MariaDB `auth_sessions.amr` / `mfaVerifiedAt` and the resulting 401), then stores `computeColumnSyncedFingerprint` so later boots skip both DDL and scan. Covered by `schema-spec-parity.test.ts`.
+- **Warm writes**: batch, bulk, increment, status and `POST /api/graphql` join the collection write lane for warm admin sessions; `Prefer: return=minimal` skips the read-back on all four adapters.
 
 ### 3.44 September 2026 — Schema model
 
@@ -2051,140 +1692,83 @@ The lean collection schema model shipped in `src/content/schema-model.ts`, `src/
 - Row ownership `ownership: { field }`: `find`, `count`, and `findStreaming` scope to `field === user._id` before the cache key (admins and system scope bypass; a caller without a user id matches nothing), and `presentRead` drops a non-matching point-read row on a copied envelope so the shared cache entry is never mutated or poisoned. Tests: `tests/unit/sdk/collections-ownership.test.ts`.
 - `singleton: true` forces `_id` `singleton:<collectionId>` in `create`; a second create answers 409 `SINGLETON_EXISTS`. The `_id` primary key makes a concurrent double create fail on the insert instead of persisting two rows.
 
-### 3.45 October 2026 — Durable-commit parity for every SQL engine, UNNEST/JSON_TABLE bulk writes & the system index overhaul
+### 3.45 October 2026 — Durable-commit parity, bulk writes & system index overhaul
 
-The 2026-09-23 engine-knob probe ended with "deliberately NOT shipped" because the knob was cluster-global. It is now shipped the safe way: **per-connection** GUC parameters, so only the CMS pool relaxes durability and production keeps the server default unless the operator opts in.
+- **Per-connection durability**: `PG_SYNCHRONOUS_COMMIT` / `PG_WORK_MEM` / `PG_JIT` are passed into every PostgreSQL pool instead of a cluster-global knob. Update `dbwrite` **9.76 → 2.3–2.9 ms**; competitive update lane **~1.5k → 2.0–2.6k RPS** at 8c.
+- **Bulk writes**: PostgreSQL UNNEST binds one array per column; MariaDB `JSON_TABLE` update (collation-safe) **68.4 → 3.6 ms (~19×)**. The insert twin was measured and deliberately not shipped (+19 % slower, −36 % seed burst).
+- **Durability parity in the harness**: MariaDB update **+51 %**, create **+42 %** at 8c; seed burst **5,686 → 7,676 docs/s**.
+- **System index overhaul**: BRIN + tenant-desc on `audit_logs`, keyset-friendly `content_nodes`, unique revision/email/redirect constraints, mirrored on SQLite/MariaDB. The benchmark scale guard now compares writes against `listLarge` at a 0.25 threshold.
+- **Write-lane lean-out**: `?fields=` projection prunes the SQL `RETURNING` read-back; the warm lane admits authors with a fresh `collections:write` bit; async-Redis rate limiting cut warm create **1.860 → 0.360 ms** and update **1.485 → 0.310 ms** on SQLite. The duplicate-index A/B was write-lane-neutral, so no cleanup migration is justified by throughput.
 
-- **PostgreSQL durability knob wired** — `pgConnectionParameters()` (`src/databases/postgresql/adapter-core.ts`) passes `PG_SYNCHRONOUS_COMMIT`/`DATABASE_SYNCHRONOUS_COMMIT` (plus `PG_WORK_MEM`, `PG_JIT` default `off`) into every pool (primary, tenant pools, replicas). Self-measured on the local WSL2/Docker host (2026-10-04): update `dbwrite` p50 **9.76 ms → 2.3–2.9 ms** (96 % → ~70 % of the request), competitive update lane (warm 8c) **~1.5 k → 2.0–2.6 k RPS**.
-- **PostgreSQL UNNEST bulk writes** — `insertMany`/`rawInsertManyReturning`/`rawBulkUpdate` bind one `text[]` array per column with element-wise casts; constant SQL per column set (plan-cache friendly), presence arrays keep explicit-NULL vs omitted semantics, `data_mode` patch/set/keep preserves per-row JSON blob safety. Param count drops from 2×N scalars to 1 array/column.
-- **MariaDB JSON_TABLE bulk update** — the MariaDB twin of the PG UNNEST path (`UPDATE … JOIN JSON_TABLE`, version-gated 10.6+, CASE-ladder fallback below). **Fixed live (2026-10-04)**: the JOIN was pinned to `utf8mb4_unicode_ci`, which raises error 1267 on tables created under the MariaDB 12 default collation (`utf8mb4_uca1400_ai_ci`) — the error was silently swallowed and every heterogeneous batch fell into the 100× per-row loop (**68.4 ms**). The JOIN now compares `COLLATE utf8mb4_bin` (works for both collations) and the catch logs instead of vanishing. Self-measured after the fix: **BULK UPDATE (100 heterogeneous) 68.4 → 3.6 ms (~19×, 14 → 267 RPS)**, contract suite 18/18. **Measured and deliberately NOT shipped (2026-10-04)**: the INSERT twin (`INSERT … SELECT FROM JSON_TABLE`) lost the A/B — BULK INSERT (100) 2.70 → 3.24 ms (+19 %) and seed burst 7,676 → 4,899 docs/s (−36 %) — because the multi-VALUES path binds values natively while JSON_TABLE pays a full JSON document parse per batch; the UPDATE twin won because it replaced N per-row statements, not direct binding. The finding is documented in `rawInsertManyReturning`.
-- **Durability parity baked into the harness DBs** (`tests/docker-compose.yml`): PostgreSQL `synchronous_commit=off` + buffer tuning; MariaDB `innodb_flush_log_at_trx_commit=2` (the MariaDB twin — there is no per-session GUC, so the server flag is the only knob). Self-measured competitive replica (warm 8c, 2026-10-04): MariaDB update **1 269 → 1 918 RPS (+51 %)**, create **1 466 → 2 083 RPS (+42 %)**; seed burst **5 686 → 7 676 docs/s**.
-- **System index overhaul** (single source of truth `system-schema-spec.ts` + drizzle schemas + renderer): `audit_logs` timestamp btree → BRIN + `(tenantId, timestamp DESC)`; `content_nodes` children index `(tenantId, parentId, position, _id)`; `content_drafts` latest index `(contentId, version DESC)`; `content_revisions` UNIQUE `(contentId, version)`; `auth_users` email unique `NULLS NOT DISTINCT`; redirects UNIQUE partial `(tenantId, source) WHERE active = TRUE` with legacy dedupe + drop extensions. MariaDB/SQLite equivalents kept in parity. Provisioned and verified via psql/`schema-spec-parity` (48 files / 347 tests).
-- **Benchmark scale guard recalibrated** (2026-10-04): the denominator was `findByIdRandom`, which now runs at the HTTP+DB floor (~8.8–9.5 k RPS), structurally capping any DB-bound write ratio at ~0.20. The guard now compares writes against `listLarge` (the heaviest DB-backed read lane, 5.1–6.5 k RPS) at a 0.25 threshold: PostgreSQL passes at **0.40/0.40**, MariaDB at **0.31/0.27** (both self-measured 2026-10-04, warm 8c).
-- **UPDATE `?fields=` projection (2026-10-05)**: `PATCH /api/collections/:id/:entryId?fields=_id,count,updatedAt` prunes the SQL `RETURNING` read-back to the requested physical columns on both write paths (fast lane + full pipeline) — the JSON `data` blob is never re-read/de-TOASTed for callers that only need the changed fields. Blob-only names are resolved away (`resolveUpdateProjection`, unit-tested); an empty projection falls back to the full representation. Verified end-to-end by a response-shape guard in the replica benchmark (`BENCH_UPDATE_FIELDS=_id,count,updatedAt`): projected responses contain exactly the requested keys. Self-measured on the small-blob replica the lane sits within host noise of the full-return row (2,840 vs 2,964 RPS, warm 8c) — the gain scales with blob size/TOAST, which is the 100k-doc external-harness regime. The other two Keystone-gap levers were verified as already implemented: pure physical-column updates emit no `COALESCE(data,…) || $n` merge clause, and the audit hook already fire-and-forgets (`void` flush + 15 ms coalescing timer, never awaited by the response).
-- **Find/write path lean-out, probe-first (2026-10-05)**: `probe-point-read-split` ran per engine — cold misses show `build = 0` on all four (PG db p50 0.54 ms, MariaDB 0.56, SQLite 0.06, MongoDB 0.75), i.e. the wire statement serves every admissible point read and the JS copy chain (date-conversion clone, blob flatten, `_collection` stamp, HTTP trim, second stringify) never executes on that path — per the probe's own decision rule the find path stays alone. Two safe items shipped instead: (1) the domain fallback `findById` now converts the fresh Drizzle row **in place** (nothing else holds a reference — the lane never caches the converted object); (2) the warm write lane admits an **author** carrying a fresh `collections:write` bit (`isSimpleWriteLaneAuthorized`, mirrors the read lane's rule) — previously a signed-in author with a warm session got a hard 403 on simple POST/PATCH and never reached the permission map; unauthorized/stale callers still fall through to the full pipeline while the body is unread, and WAF/CSRF/session-risk/field-guard checks all stay. Declined with measured reasons: the `_collection`-stamp skip (the wire path never runs it — one assignment on non-admissible reads only) and the `updatedAt`-on-counter-only experiment (commit-bound lane; changes newest-first sort semantics).
-- **Lane-lean rate limit: local enforcement, async Redis ledger (2026-10-05)**: the warm collection write lane opts into `rateLimit({ asyncRemote: true })` — the in-memory token bucket enforces synchronously (pure math, no I/O) and the identical spend propagates to Redis without awaiting it, so a mutation never pays the Redis round trip on its critical path. The limit itself is unchanged and a second process still sees the spend a tick later; GraphQL writes and the full pipeline keep the awaited Redis enforcement. Self-measured paired medians (`probe-write-split`, SQLite, Redis up, same session, 3 runs/side): warm create srv-dur p50 **1.860 → 0.360 ms (−81 %)**, warm update **1.485 → 0.310 ms (−79 %)**; PostgreSQL create/update sit at 2.93/2.96 ms p50 with the fix — the ~2.4–2.8 ms commit remains the limiter there, exactly as the review predicted. Unit-tested (`async-remote.test.ts`, 4 cases: returns before Redis resolves, local exhaustion while Redis pending, awaited default path unchanged, memory fallback when Redis is down).
-- **Plugin server-module bundling fixed + zero-warning build (2026-10-06)**: the template-literal `import(\`./${pluginId}/index.server\`)`in the plugin registry/init was not statically analyzable — rolldown globbed`./\*_/_/index.server`, matched nothing (`empty-glob`warning), and the modules silently 404'd in production builds (dev-only behavior): redirect-manager's migrations +`beforeSave`hooks and pagespeed's`ssrHook`never loaded in prod. Fixed with a literal`import.meta.glob("./\*/index.server.ts")`in the server-only`init.server.ts`, loaders registered into `pluginServerRegistry`, and all three registry lookup sites routed through it (migrations, ssrHook, activation); `PluginServerModule`now types`hooks`/`migrations`/`ssrHook`explicitly. Also added`src/utils/v8-shim.ts`to`package.json` `sideEffects` — the Bun v8-module shim was being tree-shaken out of bundles (`ignored-bare-import`warning), which would break bson/mongoose under Bun. Build is now warning-free and the plugin chunks are verifiably in`build/server/chunks/`.
-- **Index write-amplification A/B (2026-10-04, MariaDB + PostgreSQL, paired alternated arms + PK-read control, statistics equalized via ANALYZE)**: the legacy prefix-duplicate collection index (`(tenantId, status, updatedAt)` — pre-§3.41 policy shape, no longer created) is **write-lane-neutral** on both engines: update 1c −2.3 %/−1.9 %, update 8c +2.3 %/−5.3 %, create 1c −2.8 %/+2.1 % — every lane inside the control drift (28 % MariaDB / 11 % PostgreSQL). Two measurement artifacts were caught and corrected en route: stale planner statistics (CREATE INDEX recomputes them post-seed — made the legacy arm look +10–20 % faster) and an underpowered 8c sample (~19 ops/worker at 150 shared iterations). Verdict: the policy was right to stop creating the duplicate; keeping it costs nothing measurable on the lane, so no cleanup migration is justified by write throughput (WAL/disk hygiene remains the only reason to drop it). Harness: `tests/benchmarks/index-write-amplification-ab.test.ts`.
-  Quality gates (2026-10-04): `bun run check` 0 errors / 0 warnings · `bun run test:unit` 572 files / 5 105 tests · `bun run lint:tenant -- --full` 934 files · `bun run risk:audit` 5/5. Benchmarks: `competitive-workload-replica` green with `BENCH_SCALE_GUARD=1` on both PostgreSQL and MariaDB.
+### 3.46 October 2026 — 4-Adapter transaction parity, audit micro-batching & projection typing
 
-### 3.46 October 2026 — 4-Adapter Transaction Parity, Audit Micro-Batching & Projection Type-Preservation
-
-- **Cross-adapter transaction parity across all 4 database engines** (`src/databases/*/transaction-module.ts`): SQLite, PostgreSQL, MariaDB, and MongoDB share unified transaction semantics. Includes statement timeout propagation, transaction isolation level configuration (`read-committed`, `repeatable-read`, `serializable`), re-entrant transaction detection (re-using existing transactions or falling back gracefully to SAVEPOINTs/client sessions), and explicit rollback signal handling (`ROLLBACK_TRANSACTION`). Comprehensive parity test suite (`tests/unit/databases/multi-adapter-transaction-parity.test.ts`, 400 lines) validates identical contract compliance across all adapters.
-- **Audit log micro-batching** (`src/services/security/audit-service.ts`): Mutating operations no longer suffer latency penalties or lag by 5 seconds. Micro-batch window (25 ms flush timer or 50 items) flushes pending audit records synchronously when configured or in background batches, ensuring mutations remain sub-millisecond while maintaining tamper-evident audit ledger integrity.
-- **MongoDB unordered bulk operations** (`src/databases/mongodb/`): High-throughput write batching leverages `{ ordered: false }` to prevent head-of-line blocking on batch inserts and updates (`tests/unit/databases/mongo-unordered-bulk.test.ts`).
-- **Virtual field projection type-preservation & fuzz resilience** (`src/databases/core/sql-adapter-core.ts`): When SELECT projections request virtual fields located in JSON data blobs, the adapter preserves the `data` column to maintain native typed JSON values (numbers, booleans, objects, arrays) rather than coercing them into stringified SQL text. Skips the data blob only when all requested fields are known physical schema columns. Pinned via property-based fuzz test suite (`tests/unit/databases/virtual-field-projections.test.ts`) covering randomized column subsets, deeply nested dot-paths (`a.b.c.d`), Unicode identifiers, and malformed projection payloads.
-- **Micro-batch adversarial concurrency stress test** (`tests/unit/services/audit-log-microbatch.test.ts`): Verified that 500 simultaneous `service.log()` calls across 10 concurrent worker promises execute with zero dropped entries, buffer memory staying strictly bounded under `MAX_TOTAL_BUFFER = 200`, and an uninterrupted cryptographic SHA-256 hash sequence across all 500 records.
-- **Smart local 4-database matrix runner** (`scripts/run-local-db-matrix.ts`, `bun run test:matrix:local`): Probes local TCP listener ports (SQLite, PostgreSQL 5432, MariaDB 3306, MongoDB 27017) to auto-detect active engines and orchestrates the integration contract suite (`tests/integration/databases/contract.test.ts`) with automated server boot/shutdown across all online adapters.
-- **System monitor E2E dashboard validation** (`tests/e2e/routes/config/operations.spec.ts`): Automated Playwright test verifying that `/config/monitor` renders service health tables, system CPU/memory cards, and cryptographic audit trail with zero browser console errors.
-- **Live truth-latency re-verification** (`tests/benchmarks/truth-latency.test.ts` on 2026-10-05): Warm HTTP End-to-End **0.262 ms** (p95: 0.322 ms, **3,785 RPS**); Cold HTTP **0.432 ms** (p95: 0.587 ms, **2,304 RPS**); Local SDK **0.005 ms** (p95: 0.009 ms, **177,378 RPS**). ACID transaction commit: **0.005 ms**, **218,055 RPS**.
-
-Quality gates (2026-10-05): `bun run check` 0 errors / 0 warnings · `bun run test:unit` 577+ files / 5,150+ tests · `bun run test:matrix:local` 4/4 adapters passed · `bun run lint:docs` 263 files clean · `bun run risk:audit` 5/5 passed.
+- **Transaction parity**: SQLite, PostgreSQL, MariaDB and MongoDB share isolation levels, statement timeouts, re-entrant handling (savepoints/client sessions) and explicit rollback signals; pinned by `multi-adapter-transaction-parity.test.ts`.
+- **Audit micro-batching**: a 25 ms / 50-item flush keeps mutations sub-millisecond; 500 concurrent `log()` calls lose zero entries and keep a continuous SHA-256 chain within a bounded buffer.
+- **Bulk & projection correctness**: MongoDB unordered bulk writes remove head-of-line blocking; virtual-field projections preserve native typed JSON instead of stringifying blobs (property-based fuzz coverage).
+- **Measured (2026-10-05)**: warm HTTP end-to-end **0.262 ms** (3,785 RPS), local SDK **0.005 ms** (177,378 RPS), ACID commit **0.005 ms**.
 
 ### Storefront — European checkout (2026-10-05)
 
 Catalog prices on `/shop` are gross. Checkout shows the trader, the VAT breakdown, and an order button that states the payment obligation (`zahlungspflichtig bestellen` when the store language is German). Guests withdraw at `/widerruf`. The order stores an invoice number, net, and tax. A price reduction shows the lowest price of the previous 30 days when that history exists. OSS returns, packaging registration, and WEEE stay with the merchant. Guide: [E-Commerce Overview](../guides/content/ecommerce.mdx#european-checkout).
 
-### 3.47 October 2026 — Pre-compiled Query Builder Templates & Sub-Millisecond SQL CRUD Acceleration
+### 3.47 October 2026 — Compiled query templates & sub-millisecond SQL CRUD
 
-- **Shared SQL query builder unification** (`src/databases/core/sql-query-builder.ts`): Unified the duplicated builder logic across SQLite, PostgreSQL, and MariaDB into a single `SqlQueryBuilder<T>` parameterized by `SqlDialect`. All engine-specific quoting, placeholder binding (`$1` vs `?`), JSON extraction, and ILIKE/LIKE operators are driven by dialect constants.
-- **Compiled plan expansion**: Extended the compiled prepared-statement cache beyond scalar equality to support `whereIn`, `whereNotIn`, `whereBetween`, `whereNull`, `whereNotNull`, `orWhere`, and parameterized pattern searches (`search_or`). Any dynamic JSON field filters, unmapped expressions, or non-bindable objects safely degrade to Drizzle dynamic AST with zero runtime errors.
-- **Dialect-safe LIKE ESCAPE binding**: MariaDB treats backslashes inside string literals as escape characters; binding the escape backslash as a query parameter (`ESCAPE ?` / `ESCAPE $N`) ensures cross-dialect compatibility without double-escaping bugs or syntax failures.
-- **Standard CRUD read path acceleration** (`src/databases/core/sql-adapter-core.ts`): Added pre-compiled template fast paths to `findMany`, `findPage`, and `count`. Pre-compiled query shapes execute directly via `executeCompiled()`, bypass Drizzle runtime AST building and SQL string assembly, and hoist schema date-conversion metadata so read lists stop re-resolving table column schemas per row.
-- **Self-measured benchmark gains (2026-10-06)**:
-  - **PostgreSQL**: `QUERY BUILDER LIST (50)` **4.88 ms → 0.75 ms** (~6.5× faster, 202 → 1,204 RPS); `FIND MANY (limit 50)` **1.27 ms → 0.79 ms** (−37 % latency, +40 % RPS); `FIND PAGE (50 hasMore)` **1.26 ms → 0.77 ms** (−39 % latency, +61 % RPS); `FIND MANY offset 50` **1.09 ms → 0.55 ms** (−49 % latency, 1,728 RPS).
-  - **MariaDB**: `FIND MANY (limit 50)` dropped to **0.558 ms** (1,694 RPS); `QUERY BUILDER LIST (50)` dropped to **0.545 ms** (1,753 RPS); `FIND PAGE (50 hasMore)` dropped to **0.587 ms** (1,684 RPS); `COUNT` dropped to **0.487 ms** (2,020 RPS).
-  - **SQLite**: Reads stay sub-100µs: `FIND MANY (limit 50)` **0.059–0.065 ms** (14,000–15,600 RPS); `COUNT` **0.058 ms** (16,231 RPS).
-- **Documentation & test coverage**: Reference documentation published at [SQL Query Builder](../reference/database/sql-query-builder.mdx). Verified via 19 operator unit tests (`tests/unit/databases/sql-query-builder-operators.test.ts`), compile tests (`sql-query-builder-compile.test.ts`), and read-path tests (`sql-query-builder-read.test.ts`).
-- **Keyset pagination onto the compiled plan (2026-10-06)**: `mergeKeysetFilter` (`core/page-utils.ts`) wraps a base query plus the `(sortField, _id)` cursor in `$and` / `$or`; the builder previously bailed on every top-level `$` key except `$or`, so deep pages fell back to the dynamic AST. `applyFilterAndOptions` now flattens `$and` recursively and `orWhere` compiles OR-of-AND groups of physical leaves, and `orWhere` self-heals to Drizzle for nested `$or`, JSON fields and non-bindable operands — it never partially compiles an OR. The compiled path also coerces ISO strings / epoch numbers to `Date` for timestamp columns (shared `coerceDateColumnValue`, parity with `mapQuery`), so a compiled comparison can never bind TEXT against an `INTEGER` `timestamp_ms` column. Verified end-to-end by both keyset integrations (`tests/integration/api/collections-keyset-cursor.test.ts`, `tests/integration/databases/find-page-count-contract.test.ts`) and the operator/compile unit suites.
+- Unified SQLite/PostgreSQL/MariaDB query building behind one dialect-parameterized `SqlQueryBuilder<T>`; compiled plans now cover `whereIn`, `between`, `null`, `$and`/`$or` and keyset cursors, with dialect-safe `LIKE … ESCAPE` binding.
+- **Self-measured (2026-10-06)**: PostgreSQL query-builder list **4.88 → 0.75 ms** (202 → 1,204 RPS), `findMany` −37 %, `findPage` −39 %; MariaDB list/find/page ~**0.55 ms**; SQLite reads **0.059–0.065 ms** (14k–15.6k RPS).
+- Kept read-path correctness: compiled date coercion matches the Drizzle path, and nested `$or`/JSON/non-bindable operands self-heal to the dynamic AST rather than partially compiling.
 
-### 3.48 October 2026 — SQLite write tail: checkpointing moved off the request path by default, and group commit (opt-in) takes the 8c queue tail from 🔴 to 🟡
+### 3.48 October 2026 — SQLite write tail: checkpointing, group commit, coalescing
 
-**Two levers, measured separately on the same build** (`competitive-workload-replica`, sqlite, warm 8c,
-production server, 300 samples; each verdict is the repo's own 3-run ensemble median via
-`bun run verify:benchmark-local`).
-
-**Baseline (recorded pre-change run, both 🔴):** create p50 4.41 / p99 24.14 ms (+19.7 ms excess), update
-p50 4.23 / p99 30.8 ms (+26.6 ms); the tail was entirely SQLite's synchronous auto-checkpoint (§3.35).
-
-**Shipped default — off-request-path checkpointing.** `applyPragmas` now defaults to
-`PRAGMA wal_autocheckpoint=0` unless `SQLITE_WAL_AUTOCHECKPOINT` is set explicitly, and
-`startWalHousekeeping` runs `startWalCheckpointScheduler` by default (opt out `SVELTY_WAL_CHECKPOINT=0`)
-with a new **WAL-size cap** (`SVELTY_WAL_MAX_BYTES`, default 64 MB) beside the existing idle and
-60 s-force rules. `synchronous=NORMAL` is unchanged — durability is not weakened. Result (3-run ensemble):
-create avg 4.17 / p50 4.0 / p95 5.41 / p99 10.48 / **+6.477 ms** 🔴, update avg 3.63 / p50 3.47 / p95 5.67 /
-p99 7.68 / **+4.214 ms** 🔴 — **`slowCount` 0 on every write row** (no sample above 10 ms; the discrete ~25 ms
-checkpoint spikes are gone), matching the earlier single-run A/B (`AUTOCHECKPOINT=0` → `slowCount` 0, residual
-excess ≈ 6.5 ms). The absolute tail excess is still above the 4 ms `WATCH` bound: the checkpoint spikes were
-removed, the write-mutex queue is not.
-
-**Shipped default ON (2026-10-09) — group commit is the default write path.** The batcher is now constructed
-by default (`SVELTY_SQLITE_GROUP_COMMIT` defaults to `1`; `=0` restores the per-write commit control lane).
-Paired A/B on the 10k-doc matrix replica (`competitive-workload-replica`, `--db=sqlite`):
-**create @8c 1,833 → 2,892 RPS (+57.8 %)** and **update @8c 1,896 → 3,347 RPS (+76.6 %)** with improved p95
-(6.74 → 5.29 ms and 5.38 → 3.48 ms), `mixed @8c` +12.1 %, `Seed Burst` +8.0 %; sequential lanes neutral
-(update +1.7 %) except create −9.9 % (single-pair, within the lane's CoV). The remaining acceptance gate
-(no 🔴 row, `--strict-variance` green on a ≥3-run ensemble) is tracked in the roadmap.
-
-**Opt-in (`SVELTY_SQLITE_GROUP_COMMIT=1`) — write coalescing (original measurement).** New `src/databases/sqlite/write-batcher.ts`
-queues batchable single-statement writes and drains them on a bounded event-loop tick
-(`setImmediate`/`queueMicrotask`, never a delay timer) into one `BEGIN IMMEDIATE … COMMIT`; each op keeps a
-`SAVEPOINT` so one failure rolls back only itself, results are buffered and settled after `COMMIT`, and a lone
-write takes the `runSingle` (no group transaction) path. The adapter only constructs the batcher behind the
-flag; transaction-control/`PRAGMA` statements and active write spans (re-entrant/worker contexts) bypass it.
-Result (3-run ensemble): create avg 2.86 / p50 2.6 / p95 4.38 / p99 5.54 / **+2.943 ms** 🟡, update avg 2.81 /
-p50 2.72 / p95 4.07 / p99 4.95 / **+2.225 ms** 🟡, `slowCount` 0 — both rows out of 🔴, and p50 fell ~1.3 ms
-(4.0 → 2.6 create, 3.5 → 2.7 update), so the drain is genuinely coalescing writes rather than just adding a hop.
-
-**Residual floor, stated plainly:** ≈ **2.2–2.9 ms** `p99 − p50`, **not** ≤ 1 ms. Group commit only folds
-writes that reach the queue within the same tick; at 8c the requests are staggered by the HTTP/auth pipeline,
-so many drains still carry a single op, and the synchronous driver blocks the event loop for each batch's
-execute phase — the queue is shortened, not flattened. §3.36's commit-collapse falsification still holds for the
-per-statement commit itself; the win here is queue coalescing, not a cheaper commit. Kept opt-in as specified.
-
-**Verification**: `tests/unit/databases/write-batcher.test.ts` (10 cases: batching, lone-write path,
-`maxBatchSize` split, per-op isolation, throw/unsettled safety net, default-scheduler deferral) and
-`tests/unit/databases/wal-scheduling.test.ts` (9 cases: size-cap band, interval gate, idle precedence,
-scheduler wiring). `node ./node_modules/vitest/vitest.mjs run tests/unit/databases` → 53 files / 461 passed.
-
-- **Phase 4: True Statement Coalescing & Adaptive Window (2026-10)**: Replaced per-write TCP statement round trips with PostgreSQL array-based multi-row statement coalescing (`statement-coalescer.ts`, `postgresql/adapter-core.ts`):
-  - **INSERT Coalescing (default ON via `SVELTY_WRITE_COALESCING`)**: Batches concurrent single-row inserts for the same collection into `INSERT INTO ... SELECT ... FROM UNNEST($1::text[], ...) RETURNING *` with `String(val)` text-array coercion. Measured across alternated replica runs on PostgreSQL (100k docs, 8c): **+12–18% create throughput** (2,216 → 2,624 RPS) with improved p95 latency (4.05–4.21 ms vs 4.76–4.94 ms).
-  - **UPDATE Coalescing with Lever 2 Adaptive Window (`SVELTY_WRITE_COALESCE_UPDATE=1`, `SVELTY_COALESCE_UPDATE_WINDOW_MS=1`)**: Executes multi-row `UPDATE ... FROM UNNEST(...) WHERE t._id = u._id` with an adaptive 1 ms burst-hold window. While wave-sized batches (2–5 rows) previously regressed due to UNNEST join/cast overhead, the 1 ms window grows batches to 8–16 rows where the join amortizes, delivering **+11–15% update throughput gain** (update/create ratio 1.17–1.18 vs control 1.02–1.07) on the 100k-doc harness. Lone writes still flush on the tick boundary with 0 ms added hold delay. **2026-10-09:** two paired A/Bs on the 10k-doc matrix replica measured −41–54 % on the update lanes with the lever defaulted, so it stays **opt-in** — the gain is harness-profile-dependent (batch-size dynamics at 10k docs never reach the amortizing 8–16-row waves).
-  - **Fault Isolation**: Batch rejection or duplicate-key aborts automatically replay each row individually through its single-statement path — no sibling write is corrupted by an error. Verified: `tests/unit/databases/statement-coalescer.test.ts` (8/8 green), full unit suite 5,666/5,666 green.
-
-- **Phase 5: Cold Read Lane Direct-to-Wire List Streaming (`findListWireStream`) (2026-10-09)**: Extended the Wire Plane architecture from point reads (`findPointWireStream`) to cold list reads (`findListWireStream` in `handle-collection-read-lane.ts`):
-  - **In-Engine Direct-to-Wire Aggregation**: Eliminates V8 entity hydration, DTO transformations, and `JSON.stringify` allocations by producing the wire JSON array inside the database engine.
-  - **Fail-Closed Admission Predicate**: Enforces strict admissibility via `isWirePlaneAdmissible(event, wireMeta)`: requires published-only status, default pagination limit (50), page 1, no custom filter/sort, absence of mutating lifecycle hooks, and projection equivalence.
-  - **Strict Multi-Engine Paired A/B Measurement**: Evaluated across paired alternating arms (Domain Plane vs Direct-to-Wire, 3 alternated pairs, 50-row pages):
-    - **SQLite (In-Process C Engine)**: **+22.7% to +50.2% RPS** (0.124 ms → 0.083 ms, **−33.1% latency**). Shipped and enabled.
-    - **PostgreSQL (Client-Server Network Engine)**: **−29.9% RPS** (0.852 ms → 1.215 ms, +42.6% latency). Server-side `jsonb_agg` serialization in the Postgres backend is slower than Node.js V8 binary-row parsing + C++ `JSON.stringify`. Declines list wire contract (`{ kind: "declined" }`), seamlessly preserving the faster Domain Plane.
-    - **MariaDB (Client-Server Network Engine)**: **−16.0% RPS** (0.873 ms → 1.046 ms, +19.8% latency). `JSON_ARRAYAGG` similarly incurs server-side serialization overhead. Declines list wire contract.
-  - **Verification**: `tests/unit/hooks/collection-read-lane.test.ts` (22/22 green), full core unit suite (139 files, 1,416 tests green), `tsc --noEmit` clean, `bun run check` clean, `bun run risk:audit` 5/5 clean.
-
-- **Phase 6: Release-Pipeline Hardening (`version:verify`, SBOM lockstep, artifact verification) (2026-10-10)**: Closed the failure modes that left `v0.2.0` sitting untagged for days — the release job is gated on a fully green `main` CI, so a red run _silently skips_ every release (14 consecutive skips traced to the plugin-glob/telemetry/RTL failures now fixed).
-  - **Manifest ↔ SBOM lockstep**: `scripts/version.ts` now writes the CycloneDX root component (`sbom.json` `metadata.component` name/version/purl) in the same write as `package.json`, so a bump no longer depends on the pre-commit hook to avoid drift. `bun run version:verify` asserts that lockstep read-only and runs inside `bun run check` (pre-push Quality Gate + CI `03-check`).
-  - **Release-workflow hardening** (`auto-release.yaml`): a pre-flight `version:verify`, manual-`version` input validation, post-flight artifact verification (tag pushed + GitHub Release created — fails loudly otherwise), honest npm reporting (missing `NPM_TOKEN` → visible warning, rejected token → visible error; neither swallows the GitHub Release), and a `$GITHUB_STEP_SUMMARY` report. A `workflow_dispatch` run is the documented escape hatch when a persistent CI failure blocks the gate.
-  - **Verification**: `tests/unit/scripts/version-sbom.test.ts` (SBOM rewrite preserves every unrelated byte, drift detection on name/version/purl, `--verify` CLI contract) plus the updated `version-bump.test.ts` CLI assertions; live `bun run version:verify` green on `create-sveltycms@0.2.0`, and `v0.2.0` released end-to-end once `main` CI went green.
-
-- **Create-lane audit tax attributed and removed; commerce checkout hardened (2026-10-11)**: The external comparative harness (PostgreSQL, 100k docs, 8 workers, full enterprise stack — audit and outbox on) showed `create` as the one write lane behind the reference row. A clean in-repo A/B (fresh database per arm, median of 3) attributed it: the transactional outbox was **not** the cause (outbox ON **1 587** vs OFF **1 586** RPS at 8c), the **adapter's per-insert audit hook was** — registered `action: "insert"` only, so updates never paid it, and it added a second audit row per insert on top of the per-request HTTP audit. Create @8c: audit OFF **1 719**, audit ON **1 332** (−22 %); a compact audit payload moved it only ~5 % (within run-to-run noise). The per-insert duplicate is now off by default (`AUDIT_INSERT_HOOK=true` restores the forensic per-row trail), and `create` on the external harness moved **604 → 832 → 1 047 RPS** across the three revisions — now ~**+19 %** over the reference row and ahead at 1/4/8/16/32 workers. Same pass: a **per-product keyed mutex** serializes the read-modify-write in `decrementStock`/`restoreStock` (closing the inventory oversell race), and **`Idempotency-Key` replay** on `/api/commerce/checkout` and `/pay` stops duplicate orders/charges (`/pay` reuses an existing PaymentIntent). Verification: `tests/unit/plugins/commerce-hardening.test.ts` (9, including a 6-way concurrent last-unit decrement proven to sell exactly once), audit suites 16/16, full unit suite **5 758/5 758** green. Remaining: durable cross-restart idempotency and a DB-level conditional decrement for multi-node (roadmap).
+- **Checkpointing off the request path (default)**: `wal_autocheckpoint=0` plus a background scheduler with idle, 60 s-force and a 64 MB WAL cap. The discrete ~25 ms checkpoint spikes disappear (`slowCount` 0 on every write row); residual p99−p50 is **~4.2–6.5 ms** (WATCH).
+- **Group commit default ON**: create **1,833 → 2,892 RPS (+57.8 %)** and update **1,896 → 3,347 RPS (+76.6 %)** at 8c, with p95 **6.74 → 5.29 ms** / **5.38 → 3.48 ms**.
+- **Residual floor, stated plainly**: **2.2–2.9 ms** p99−p50 — coalescing shortens the queue, it does not flatten it; the per-statement commit is unchanged.
+- **Statement coalescing**: PostgreSQL insert coalescing is default ON (**+12–18 %** create); the adaptive update window stays opt-in because it regressed 41–54 % on the 10k-doc replica. Cold list wire streaming ships on SQLite (**+22.7–50.2 % RPS**) and self-declines on PostgreSQL/MariaDB, where engine-side JSON is slower.
+- **Create-lane audit tax removed**: the per-insert audit hook was a second row on top of the HTTP audit (create @8c 1,332 → 1,719 RPS); the external harness moved **604 → 1,047 RPS**. Inventory decrement is now mutex-serialized and `Idempotency-Key` replay stops duplicate orders/charges.
 
 ### 3.49 October 2026 — Hardware-adaptive runtime: every resource budget derives from the effective cgroup limit
 
-- **Hardware-adaptive memory profile, container-aware heap cap, and one derived source per budget (2026-10-14)**: The runtime profile (`@utils/hardware-profile`, single boot-time detection published to a shared registry) gained a memory axis beside the existing CPU axis, and the remaining machine-blind constants on the resource path were replaced by derivations.
-- **Effective memory, not host RAM**: `effectiveMemoryBytes` resolves `HARDWARE_MEM_LIMIT_MB` → `process.constrainedMemory()` (the cgroup limit) → `os.totalmem()`, with a `memTier` (nano / small / medium / large / xlarge). Measured cross-runtime wrinkle: Node reports `0` when unconstrained while Bun reports the host total, so a limit at or above the host total is treated as unconstrained and bare-metal deployments keep V8's own behaviour. SQLite `cache_size` / `mmap_size` thresholds moved from host RAM to the effective limit.
-- **Derived budgets** (each env-overridable): V8 heap `0.5 × limit` clamped 128–4096 MB (`NODE_HEAP_MB`); RSS target `0.75 × limit` when constrained (`SVELTY_MEMORY_RSS_MB`, `SVELTY_MEMORY_CONSTRAINED_RATIO`); request body `limit / 32` clamped 8–128 MB (`BODY_SIZE_LIMIT_MB`, `API_MAX_BODY_SIZE_MB`); L1 list/point caches 16/8 → 256/128 MB by tier (`SVELTY_L1_MAX_MB`, `SVELTY_L1_POINT_MAX_MB`); memory caps on DB pool / module workers / compile / jobs / sharp. Unit-tested invariant: heap + L1 fits ≤ 70 % of the effective limit at every tier floor.
-- **CPU detection is cgroup-quota aware**: `cores` now comes from `os.availableParallelism()` (`HARDWARE_CPU_CORES` overrides), which honours both the CPU quota and `cpuset`. Measured in Docker on a 24-core host: `--cpus=1` derives `cores=1` (previously profiled as 24 — 24 libuv threads and weak-box compression disabled on a 1-vCPU box); `--cpus=4 --cpuset-cpus=0-1` derives 2.
-- **One source of truth for the DB pool**: the adapter-local Postgres floor (20 on small hosts, 32 on medium+) was removed — it countermanded the profile on exactly the boxes that need the smallest pool (1-core/256 MB derived 4, received 20). PostgreSQL now matches MariaDB and MongoDB in reading `dbPoolSize` from the profile; `DATABASE_MAX_CONNECTIONS` / `DB_POOL_SIZE` remain the explicit overrides.
-- **Container-aware V8 heap cap** (`index.cjs`): Node exposes no in-process API for it (`v8.setHeapLimits` is absent, and `v8.setFlagsFromString('--max-old-space-size=…')` was verified not to move `heap_size_limit`), so the entry applies the profile's cap by re-executing with the flag. Guards: an operator-set heap flag, `SVELTY_NO_HEAP_CAP=1`, an unconstrained host, and Phusion Passenger all skip it; a loop guard prevents recursion and termination signals are forwarded. The same entry derives the adapter-node body ceiling (floored at 16 MB so 10 MB uploads keep working) and applies `UV_THREADPOOL_SIZE` (available CPUs, clamped 4–32) when unset — libuv reads that variable once, before the loop starts, so the boot hook's runtime assignment never took effect (measured with blocking `pbkdf2`: n=8/n=4 wall-time ratio 1.69 set at runtime vs 1.25 pre-set, 1.78 at the default 4). Measured premise for the cap: V8 on Node 24 does read cgroups — `heap_size_limit` 259 MB in a 256 MB container, 560 MB at 1 GB — but is not conservative on tiny boxes.
-- **Observability**: one boot line, plus a `hardware` block (including `heapAligned`) on `/api/system/health?verbose=true` shared by all three health responders. A heap ceiling above 75 % of the effective limit is reported at **error** level, because production defaults to `LOG_LEVEL=error` and a warning-level notice would be filtered exactly where it is needed.
-- **Verification** (self-measured): 640 unit files / 5 829 tests green; a committed cgroup gate — `scripts/probe-hardware-tiers.ts` (whitebox task `08-hardware-tiers`) bundles the real profile and asserts the tier rows inside `--memory=256m --cpus=1`, `--memory=512m --cpus=2` and an unconstrained container, so the budget table fails CI on a large developer machine if it stops following the container (3/3 locally); new `tests/unit/utils/hardware-profile-memory.test.ts` (19) and `tests/unit/services/memory-governor-profile-target.test.ts` (3); real-cgroup matrix in Linux containers at 256 MB / 512 MB / 1 GB / 2 GB with `--cpus=1`; the full 11-lane `competitive-workload-replica` passes at a 256 MB tier with `dbPool=4` and `l1=16 MB`; boot + health verified in the built server in both heap states (aligned → `heapLimitMb 176 · heapAligned true`; `SVELTY_NO_HEAP_CAP=1` → `4288 · false` plus the boot error line).
+- **Effective memory, not host RAM**: `effectiveMemoryBytes` resolves `HARDWARE_MEM_LIMIT_MB` → `process.constrainedMemory()` → `os.totalmem()`, with a tier (nano…xlarge). V8 heap (`0.5×`, 128–4096 MB), RSS target (`0.75×`), request body (`limit/32`), L1 caches and pool/worker caps all derive from it; heap + L1 is unit-tested to fit ≤70 % at every tier floor.
+- **CPU is quota-aware**: `os.availableParallelism()` honours `--cpus` and `cpuset` (1 vCPU now derives 1, not the host's 24); `UV_THREADPOOL_SIZE` is applied at boot because libuv reads it only once.
+- **Container-aware heap cap**: `index.cjs` re-executes with `--max-old-space-size` when the cgroup limit is below the host; operator flags, Passenger and `SVELTY_NO_HEAP_CAP=1` opt out.
+- **Verification**: a committed cgroup gate runs the real profile inside 256 MB/1 vCPU, 512 MB/2 vCPU and unconstrained containers; the full 11-lane replica passes at 256 MB with `dbPool=4`/`l1=16 MB`.
 
 ### 3.50 October 2026 — SQL soft-delete boundary completed (verified)
 
-- **The leak**: `crud.delete()` without `permanent: true` only flips `isDeleted`; MongoDB's CRUD layer hid those rows via `safeQuery`, but the SQL adapters clamped only `findById`. `findMany`, `findOne` (non-`_id`), `count`, `exists`, `findByIds`, `streamMany`, `findPage` and `aggregate` all served soft-deleted rows on SQLite/PostgreSQL/MariaDB — a cross-adapter parity gap and a real information leak (published-then-deleted content stayed readable through every list and aggregate surface).
-- **The fix** (`core/sql-adapter-core.ts`): one shared `clampSoftDeleted(table, query, options)` merges `isDeleted: false` into every read filter, and is a no-op when the table has no `isDeleted` column, the caller opted in (`includeDeleted` / system `bypassSafeQuery`), or the query already pins `isDeleted` (the trash view's `{ isDeleted: true }`, including inside `findPage`'s `$and` keyset wrapper). It is applied at the compiled-plan (`SqlQueryBuilder.applyFilterAndOptions`) and Drizzle/dynamic (`mapQuery`) translation points, so list, point, count, exists, stream, page and aggregate reads clamp identically. `SqlQueryBuilder.coerceFilterValue` also normalises booleans to 1/0 for SQLite/MariaDB (their `isDeleted` is INTEGER/TINYINT and the compiled plan binds straight to the driver) while PostgreSQL keeps the native boolean.
-- **Verification**: new `tests/unit/databases/soft-delete-clamp.test.ts` (SQLite) and a cross-engine case in `tests/integration/databases/differential-parity.test.ts` — full SQLite integration **704 pass / 0 fail**, focused parity runs **PostgreSQL 22/0**, **MariaDB 22/0**, **MongoDB 10/0**; full unit suite **6 015/6 015**; `bun run check` and `risk:audit` (6/6) green.
-- **Same pass — `src/databases` + `src/hooks` audit remediation**: a `RAW_DECLINED` sentinel removed the duplicate round trips on `findById`/`update` misses (−50 % / −75 %); the cross-tenant `upsert` overwrite in `executeUpsertById` is closed (`tenantId` excluded from `SET`, `setWhere` on PostgreSQL/SQLite, `IF(tenantId <=> VALUES(tenantId), …)` on MariaDB); `data.tenantId` can no longer reassign a row's tenant on update; PostgreSQL timestamp text is normalised at the driver boundary (no `Date`/regex allocation per row, zero-work hydration path); and the unauthenticated `/health?gc=true` stop-the-world DoS plus `?verbose`/`?hooks` diagnostics disclosure are gated behind a non-production or `x-test-secret` capability.
+- **The leak**: SQL adapters clamped only `findById`, so `findMany`, `findOne`, `count`, `exists`, `findByIds`, `streamMany`, `findPage` and `aggregate` served soft-deleted rows on SQLite/PostgreSQL/MariaDB — published-then-deleted content stayed readable through every list surface.
+- **The fix**: one shared `clampSoftDeleted()` merges `isDeleted: false` at both the compiled-plan and Drizzle translation points, with explicit opt-outs (`includeDeleted`, system scope, trash's `isDeleted: true`). Cross-engine parity: SQLite 704/0, PostgreSQL 22/0, MariaDB 22/0, MongoDB 10/0.
+- **Same pass**: closed a cross-tenant `upsert` overwrite (tenantId excluded from `SET`), prevented `data.tenantId` from reassigning a row's tenant, removed duplicate round trips on `findById`/`update` misses, and gated the unauthenticated `/health?gc=true` DoS + verbose diagnostics.
+
+### 3.51 October 2026 — Test gate and DB parity (2026-10-18)
+
+- **Type gate in `check`**: `bun run check` now ends with `bun run typecheck` (`svelte-kit sync` → `tsc --noEmit` → `svelte-check --threshold error`), clearing the accumulated 31 `tsc` + 42 `svelte-check` errors: **0/0 project-wide**.
+- **Local DB parity**: `bun run test:parity` runs the adapter contract suites on every reachable engine (SQLite, PostgreSQL, MariaDB, MongoDB), with `--docker`, `--only` and `--require-all`; pre-push mirrors it when `src/databases/` changes.
+- **Budgets**: P0 coverage floors **72/72/60/70** (measured **75.73/75.71/64.33/73.92**); `bun run flake:budget` enforces ≤2 retried-pass tests and ≤3 % per E2E shard.
+
+### 3.52 October 2026 — Security assurance and OIDC (2026-10-18)
+
+- **Zero-mock OIDC**: an in-process OpenID Provider (RSA-2048, real sockets) exercises discovery/caching, PKCE code exchange, JWKS RS256 verification, fail-closed PKCE/replay/issuer/signature paths, and back-channel logout with `iat` freshness and `aud` validation. No `safeFetch` mock; the only seam is the `TEST_MODE`-gated exact-origin allowlist.
+- **Security-core coverage**: 2FA (TOTP replay, backup codes, trusted-device cap, `mfaRequired` fail-closed), WAF/GraphQL complexity/honeypot enforcement, submission replay, and Google/GitHub OAuth state now run their real logic. P0 lines **67.20 → 75.73 %**, 2FA **0.63 → 86.71 %**, `sso-session` **33.33 → 93.17 %**.
+- **Bugs fixed**: back-channel logout accepted any provider-signed token (now validates `iat`, `aud`, and the forbidden `nonce`); SSO wildcard redirects never matched; RP-initiated logout used an undiscovered endpoint; malformed OAuth `state` threw instead of returning null.
+
+### 3.53 October 2026 — AI surface repair (2026-10-18)
+
+- **Enrichment contract**: the widget read `data.result` from a `{ success, data }` envelope and wrote `undefined`; it now unwraps the envelope, handles `success: false`, joins array results, and the server supports the declared `keywords`/`custom` actions (unknown actions return `400`).
+- **Authorization**: `/api/ai/*` and `/api/chat` required `system:settings`, so editors received `403` on every AI action. Both now use the new `ai:use` capability (developer/editor); the AI builder stays admin-gated.
+- **Provider boundary**: batch embeddings via `/api/embed` with a per-text fallback, `gen_ai.*`-shaped telemetry (token counts, no payloads), and server-side `<user_data>` shielding.
+- **Tests**: replaced the self-simulating `ai-copilot.test.ts` with real `AIService` tests; added permission, embedding and schema-ast regression suites (66 targeted tests).
+
+### 3.54 October 2026 — Crypto agility: key-ID envelopes, hybrid ML-KEM, checksum profile (2026-10-18)
+
+- **Key-ID envelopes**: `v2` envelopes carry a `<keyId>` across encrypted fields, plugin settings, TOTP seeds and backups, with a configured decrypt ring (`*_KEY_RING`). Rotation is now a two-phase operation; an unknown key ID fails closed; `v1` envelopes remain readable.
+- **Hybrid ML-KEM**: a dependency-free ML-KEM-768 + AES-256-GCM envelope (random DEK, HKDF-derived KEK, two AEAD layers) runs on Node 24 and Bun through WebCrypto. It is opt-in for backups (`PQC_HYBRID_BACKUPS=true`) and has a keygen script (`scripts/security/pqc-keygen.ts`).
+- **Checksum profile**: `CHECKSUM_ALGORITHM=sha384|sha512` produces self-describing values for new artifacts; legacy bare-hex SHA-256 values keep verifying; the append-only audit chain stays SHA-256.
+
+### 3.55 October 2026 — Security remediation, E2E balancing, and AI provider port (2026-10-18)
+
+- **Forms and Login Rate Limiting**: Added `RateLimiter` to the public form submission ingestion endpoint (`POST /api/forms/:collection`, 20 req/min per IP/IPUA) and direct API password authentication (`POST /api/auth/login`, 15 req/min per IP/IPUA), providing defense-in-depth against credential stuffing and automated spam ingestion.
+- **E2E Playwright CI Shard Rebalancing**: Rebalanced `.github/workflows/e2e-matrix.ts` from 6 to 7 shards by splitting the monolithic `Users & RBAC` bottleneck shard (12 specs, 71 tests) into `Users & Profile` and `RBAC & Journeys`, reducing CI E2E critical path wall-time from 4.4m to ~2.5m.
+- **Universal AI Provider Port**: Extracted `AiProvider` interface (`src/services/ai/ai-provider.ts`) standardizing generation, multi-turn chat, embeddings, and OpenTelemetry GenAI usage telemetry across vendors and test doubles.
+- **4-DB Engine Parity**: Validated complete adapter contract, fail-closed security, and differential parity compliance across SQLite, PostgreSQL, MariaDB, and MongoDB via `bun run test:parity`.
 
 ## Related
 

@@ -93,6 +93,43 @@ function normalizeDashboardLog(log: any) {
   };
 }
 
+/**
+ * Sum entry counts across collections.
+ *
+ * Counts are dispatched concurrently — one round trip per collection, never a
+ * sequential N+1 chain. A missing or erroring collection contributes 0 so one
+ * broken plugin table cannot zero the whole dashboard. `includeCount: false`
+ * REST lists stay untouched; this helper is only used by dashboard analytics.
+ */
+export async function countCollectionEntries(
+  countOne: (collection: string) => Promise<{ success: boolean; data?: number }>,
+  collections: ReadonlyArray<{ _id?: unknown; name?: unknown }>,
+): Promise<number> {
+  if (collections.length === 0) return 0;
+
+  const results = await Promise.all(
+    collections.map(async (col) => {
+      const collectionName =
+        typeof col._id === "string" && col._id.length > 0
+          ? col._id
+          : typeof col.name === "string"
+            ? col.name
+            : "";
+      if (!collectionName) return 0;
+      try {
+        const result = await countOne(collectionName);
+        return result.success ? (result.data ?? 0) : 0;
+      } catch {
+        return 0;
+      }
+    }),
+  );
+
+  let total = 0;
+  for (let i = 0; i < results.length; i++) total += results[i] ?? 0;
+  return total;
+}
+
 export async function handleDashboardRoutes(
   event: RequestEvent,
   cms: LocalCMS,
@@ -179,19 +216,10 @@ export async function handleDashboardRoutes(
             }
           } catch {}
 
-          let contentEntryCount = 0;
-          if (collections.length > 0) {
-            const countResults = await Promise.allSettled(
-              collections.map((col: any) =>
-                cms.db.crud.count(col._id || col.name, {}, { tenantId }),
-              ),
-            );
-            for (const r of countResults) {
-              if (r.status === "fulfilled" && r.value.success) {
-                contentEntryCount += r.value.data ?? 0;
-              }
-            }
-          }
+          const contentEntryCount = await countCollectionEntries(
+            (collection) => cms.db.crud.count(collection, {}, { tenantId }),
+            collections,
+          );
 
           let recentRequestCount = 0;
           try {

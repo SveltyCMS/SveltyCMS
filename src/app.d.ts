@@ -22,58 +22,13 @@ declare global {
       // (with tags) for a stashed-body GET, so handle-api-requests skips its
       // duplicate write unless a super-admin `?tenantId=` override re-scoped it.
       __dispatcherTurboWrite?: boolean;
+      __flags?: import("@src/utils/hook-utils").RequestFlags;
       allTokens: Token[];
       allUsers: User[];
       collections?: unknown;
 
       // High-performance Local API (Payload style)
-      cms?: {
-        auth: any;
-        collections: {
-          list: (options?: any) => Promise<any[]>;
-          search: (query: string, options?: any) => Promise<any>;
-          find: (
-            collection: string,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any[]>>;
-          findById: (
-            collection: string,
-            id: string,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any | null>>;
-          getNodeChildren: (parentId: string, tenantId?: any) => Promise<any>;
-          create: (
-            collection: string,
-            data: any,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-          getRevisions: (collection: string, id: string, tenantId?: any) => Promise<any>;
-          update: (
-            collection: string,
-            id: string,
-            data: any,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-          delete: (
-            collection: string,
-            id: string,
-            options?: any,
-          ) => Promise<import("@src/databases/db-interface").DatabaseResult<any>>;
-          bulkCreate: (collection: string, data: any[], options?: any) => Promise<any>;
-          bulkUpdate: (collection: string, updates: any[], options?: any) => Promise<any>;
-          bulkDelete: (collection: string, ids: string[], options?: any) => Promise<any>;
-          queryBuilder: (collection: string, options?: any) => any;
-          modifyRequest: (params: any) => Promise<any>;
-          refresh: (tId?: string) => Promise<any>;
-          reorderContentNodes: (items: any[], tId?: string) => Promise<any>;
-        };
-        media: any;
-        widgets: any;
-        system: any;
-        websiteTokens: any;
-        db: import("@src/databases/db-interface").IDBAdapter;
-        [key: string]: any;
-      };
+      cms?: import("@src/services/sdk").LocalsFacade;
 
       cspNonce?: string;
       customCss: string;

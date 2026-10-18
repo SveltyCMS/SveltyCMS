@@ -1,0 +1,110 @@
+---
+path: "docs/reference/security/security-posture.mdx"
+title: "Security Posture — 2026-10-18"
+description: "Dated, self-assessed security and FIPS 140-3 posture: internal gates, external penetration-test status, scope checklist, and open items as of 2026-10-18."
+order: 11
+icon: "mdi:shield-check-outline"
+author: "SveltyCMS Team"
+created: "2026-10-18"
+updated: "2026-10-18"
+tags:
+  - "security"
+  - "compliance"
+  - "assessment"
+---
+
+# Security Posture — 2026-10-18
+
+This page records the security assessment posture of the SveltyCMS repository as of **2026-10-18**. It is a factual status page, not a certificate, an audit report, or a marketing claim. Where a control has not been independently verified, this page says so.
+
+The internal gates below are **self-assessed** by the project. They fail when a named control regresses, but they are rule-based and regression-based; they do not replace an independent assessment of a running deployment.
+
+## Assessment status
+
+| Assessment                | Status as of 2026-10-18 | What it is and where it runs                                                                                                                                                                                                                                                                                                                                 |
+| :------------------------ | :---------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Internal static analysis  | Run for this revision   | `bun run risk:audit` runs `scan-security-risk`, `scan-secret-misuse`, `slop-scanner`, the tenant-isolation API lint, `bun audit`, and `scan-osv`. The full gate runs in the pre-commit hook (`.githooks/pre-commit`); CI runs the dependency-audit, secret-misuse, and tenant-isolation jobs separately. CodeQL security-extended runs weekly and on demand. |
+| Internal dynamic gates    | Run for this revision   | `bun run test:security` is the security-focused Vitest subset (hooks, authorization, media/SVG, SSRF/egress, GraphQL, WAF, audit chain, field-write guard, WebAuthn, SSO metadata). It is part of `bun run test:unit` in the pre-commit hook and the CI unit job. `tests/integration/api/security-negative.test.ts` runs on the CI database matrix.          |
+| External penetration test | **Not performed**       | No dated penetration test by a party outside the project exists as of 2026-10-18. An external test is required before enterprise GA and is tracked as the [“Third-Party Security Audit” roadmap item](../../project/roadmap-2026.mdx#8-enterprise-security-community-active-backlog).                                                                        |
+
+The internal rows above describe checks in this repository. They are not a substitute for the external row, and a clean scanner run does not close it.
+
+## FIPS 140-3 posture
+
+**SveltyCMS does not claim FIPS 140-3 validation.** The repository does not ship a validated cryptographic module, does not provide a FIPS-approved service indicator, and does not assert that its cryptographic operations run inside a validated boundary.
+
+A FIPS-enabled OpenSSL provider on the operator's host and a FIPS-validated application are different claims:
+
+- **Operator runtime property.** The operator may run Node.js or the `openssl` CLI with a FIPS provider installed and enabled. That describes the host's OpenSSL configuration.
+- **Application validation.** Validation applies to a specific cryptographic module under a defined operational environment, with an approved service indicator and the operator controls that maintain the validated configuration. Enabling a provider does not, by itself, validate the application or the way it calls the module.
+
+An operator can inspect the runtime with:
+
+```bash
+node -p "process.versions.openssl"
+openssl list -providers
+```
+
+`process.versions.openssl` reports the OpenSSL version the Node runtime was built against. It does not report whether a validated provider is active. `openssl list -providers` lists the providers available to the `openssl` binary on `PATH`, which may differ from the OpenSSL runtime embedded in Node. A provider labelled `fips` is evidence of the operator's configuration, not evidence that SveltyCMS is validated.
+
+A validated deployment requires all of the following, and they sit outside this repository:
+
+1. A cryptographic module validated under FIPS 140-3 (a current CMVP certificate for the exact module and version).
+2. An approved service indicator showing that the module is operating in its approved mode for the relevant operations.
+3. Operational controls that preserve the validated configuration: key management, access control, configuration management, audit and monitoring, and the personnel and physical controls required by the operator's accreditation scope.
+
+An operator can build such a deployment around a validated runtime. That validation belongs to the operator's deployment and accreditation scope; it is not a SveltyCMS product claim.
+
+## What is covered internally
+
+These checks are **self-assessed, not certified**. They are useful because they are reproducible in the repository, and they are limited to the rules and regressions they contain.
+
+| Gate                                                                                                    | What it covers                                                                                                                                                                                                                                                    | Where it runs                                                                |
+| :------------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| [`bun run risk:audit`](../../../scripts/security/risk-audit.ts)                                         | The six-check umbrella: static risk scan, secret-misuse scan, slop scanner, tenant-isolation API lint, `bun audit`, and OSV.dev.                                                                                                                                  | Pre-commit hook; CI runs the individual dependency, secret, and tenant jobs. |
+| [`bun run test:security`](tested-security-features.mdx)                                                 | Security regressions for hooks, authentication, authorization, tenant-scoped file serving, collection read/write lanes, egress guard, SVG/SSRF handling, GraphQL, WAF, audit-ledger integrity, field-write guards, WebAuthn ceremonies, and SSO session metadata. | Local run; included in the CI unit job.                                      |
+| [`scan-security-risk`](../../../scripts/security/scan-security-risk.ts)                                 | Static AST scan over `src` for injection classes across all four adapters, command execution, path traversal, SSRF, privilege-field writes, SVG stream bypass, and XSS sinks.                                                                                     | `risk:audit` in pre-commit.                                                  |
+| [`scan-secret-misuse`](../../../scripts/security/scan-secret-misuse.ts)                                 | Hardcoded credentials and comparison backdoors.                                                                                                                                                                                                                   | Pre-commit and CI secret-misuse job.                                         |
+| [`slop-scanner`](../../../scripts/security/slop-scanner.ts)                                             | XSS, RTL, and security architecture rules.                                                                                                                                                                                                                        | `risk:audit` in pre-commit.                                                  |
+| [`scan-osv`](../../../scripts/security/scan-osv.ts)                                                     | Dependency advisories from OSV.dev (GHSA, NVD, and other feeds).                                                                                                                                                                                                  | `risk:audit` in pre-commit.                                                  |
+| [`tests/unit/security/crypto-inventory.test.ts`](../../../tests/unit/security/crypto-inventory.test.ts) | Pins application crypto parameters: primitives, key/IV lengths, Argon2id cost, WebAuthn algorithms, and API-key hashing. A change to any pinned value must update the test and the documentation in the same changeset.                                           | Unit suite and CI.                                                           |
+| Crypto-agility suites                                                                                   | `key-ring` (v2 key IDs, rotation ring, v1 reads), `hybrid-kem` (ML-KEM-768 envelope), and `checksum-profile` (SHA-384/512 + legacy SHA-256).                                                                                                                      | Unit suite and CI.                                                           |
+| [Quantum security analysis](./quantum-security.mdx)                                                     | Current algorithms, what Grover/Shor would affect, and the post-quantum roadmap. It is an analysis, not a certification.                                                                                                                                          | Reviewed quarterly with the crypto inventory.                                |
+
+## What an external test should cover
+
+An external penetration test should target a running deployment, not just the repository. The engagement scope should include at least:
+
+- [ ] Authentication, session management, 2FA, SAML, and OIDC flows, including logout and session revocation.
+- [ ] Authorization and tenant isolation, including cross-tenant object references and row-ownership checks.
+- [ ] Media upload and SVG handling, including polyglot files, content-type confusion, and storage paths.
+- [ ] SSRF and egress controls, including redirects and remote URL fetching.
+- [ ] API keys and token lifecycle: creation, storage, rotation, revocation, and hashing.
+- [ ] Backup and restore, including artifact encryption and separation of backup keys.
+- [ ] Plugin sandboxing and plugin workspace isolation.
+- [ ] Migration tooling, including import paths, schema changes, and data exposure during migration.
+
+The output should be a dated report with reproducible findings, severity, affected versions, and retest results.
+
+## Known limitations and open items
+
+- **No external penetration test.** As of 2026-10-18 there is no dated report from an independent party. This is the primary open item and the reason the assessment status table does not mark the external row as complete.
+- **No application-level FIPS 140-3 claim.** An operator's FIPS-enabled OpenSSL provider does not validate the application, and this repository does not provide a validated module or service indicator.
+- **Crypto agility is partially shipped.** Key-ID envelopes (`v2` + `*_KEY_RING`), the hybrid ML-KEM primitive (opt-in for backups via `PQC_HYBRID_BACKUPS=true`), and the optional SHA-384/SHA-512 checksum profile are implemented. Remaining: wire fields/settings/TOTP to the hybrid envelope and document a re-wrap/rollback runbook. See the [cryptographic-agility roadmap item](../../project/roadmap-2026.mdx#8-enterprise-security-community-active-backlog) and the [quantum security analysis](./quantum-security.mdx).
+- **Crypto is reviewed quarterly.** The primitives and parameters are pinned by `tests/unit/security/crypto-inventory.test.ts`; changes to those values require a documentation update in the same changeset.
+- **Internal gates have a defined scope.** The scanners and regression tests cover the rules they contain. They do not search for vulnerability classes those rules do not describe, and they are not a substitute for an external assessment.
+
+## Disclosure
+
+Report suspected vulnerabilities through either channel:
+
+- Email: [security@sveltycms.com](mailto:security@sveltycms.com)
+- GitHub: [Security advisories](https://github.com/SveltyCMS/SveltyCMS/security/advisories) (private report form)
+
+The project aims to reply within **48 hours** and to fix **critical** issues within **7 days**. The full staged timeline is in [SECURITY.md](../../../SECURITY.md) and the [incident response](./incident-response.mdx) page. For a report, include affected version/branch, reproduction steps, impact, and any proof of concept.
+
+## Review cadence
+
+The next scheduled review is **2027-01-31**, or earlier on a material security change such as a crypto primitive or parameter change, an authentication or authorization boundary change, a tenant-isolation change, or a disclosure-policy change.
+
+Cryptography is reviewed quarterly independent of this page. The [quantum security analysis](./quantum-security.mdx) records the current algorithms and the post-quantum roadmap; the [OWASP ASVS matrix](./owasp-asvs-compliance.mdx) records the internal control mapping. Neither is a certificate, and neither closes the external-test item.

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/richText/components/VideoDialog.svelte
+@file src/widgets/core/rich-text/components/video-dialog.svelte
 @component
 **VideoDialog for richText editor**
 

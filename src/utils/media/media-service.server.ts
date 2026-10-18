@@ -13,7 +13,7 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
 import { processImageWithPresets, type ImageVariant } from "@src/services/media/image-processor";
 import { deleteAllVariants } from "@src/services/media/image-variant-storage";
@@ -337,6 +337,128 @@ export interface Annotation {
   height?: number;
   radius?: number;
   text?: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Client update allowlist (mass-assignment defense)                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fields a client may write through `PATCH /api/media/:id`.
+ *
+ * Managed columns are deliberately absent: `_id`, `tenantId`, `createdBy`,
+ * `updatedBy`, `createdAt`, `updatedAt`, `storagePath`, `url`, `size`,
+ * `mimeType`, `hash`, `isDeleted`, `path`, `bucket`, `provider`, etc. must
+ * never be client-writable, whatever the payload claims.
+ */
+export const MEDIA_UPDATE_FIELDS = [
+  "alt",
+  "caption",
+  "description",
+  "tags",
+  "title",
+  "focalPoint",
+  "metadata",
+] as const;
+
+/**
+ * Keys a client may write inside `metadata`.
+ *
+ * Includes the editorial/accessibility fields the admin UI edits, the
+ * technical fields it round-trips from a read, and the server-owned keys the
+ * UI echoes back on save (`imageVariants`, `versions`, `sharedLinks`). The
+ * latter are preserved so a normal metadata save never destroys derived data;
+ * they are still confined to the metadata blob and can never become columns.
+ */
+export const MEDIA_UPDATE_METADATA_FIELDS = [
+  "advancedMetadata",
+  "aiTags",
+  "alt",
+  "altText",
+  "author",
+  "camera",
+  "caption",
+  "codec",
+  "copyright",
+  "description",
+  "dominantColor",
+  "duration",
+  "exif",
+  "focalPoint",
+  "format",
+  "hasAlpha",
+  "hasProfile",
+  "height",
+  "imageVariants",
+  "iptc",
+  "keywords",
+  "location",
+  "name",
+  "originalFilename",
+  "placeholder",
+  "processingTimeMs",
+  "sharedLinks",
+  "software",
+  "tags",
+  "title",
+  "uploadTimestamp",
+  "uploadedBy",
+  "versions",
+  "watermarkApplied",
+  "width",
+  "xmp",
+] as const;
+
+const MEDIA_UPDATE_FIELD_SET: ReadonlySet<string> = new Set(MEDIA_UPDATE_FIELDS);
+const MEDIA_UPDATE_METADATA_FIELD_SET: ReadonlySet<string> = new Set(MEDIA_UPDATE_METADATA_FIELDS);
+
+/** Prototype-pollution keys are discarded at every depth we walk. */
+const UNSAFE_OBJECT_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Reduce a client-supplied media PATCH body to the fields the UI actually owns.
+ *
+ * - Unknown top-level keys (including `tenantId`, `_id`, `storagePath`, `url`)
+ *   are dropped, not forwarded.
+ * - Prototype-pollution keys are dropped at every walked depth.
+ * - `metadata` is validated against the explicit nested allowlist; an unknown
+ *   metadata key is a client error (400), never a silent write.
+ */
+export function sanitizeMediaUpdatePayload(input: unknown): Record<string, unknown> {
+  if (!isPlainRecord(input)) {
+    raise(400, "Media update payload must be an object", "INVALID_MEDIA_UPDATE");
+  }
+
+  const payload: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    if (UNSAFE_OBJECT_KEYS.has(key) || !MEDIA_UPDATE_FIELD_SET.has(key)) continue;
+    if (key === "metadata") {
+      payload.metadata = sanitizeMediaUpdateMetadata(value);
+      continue;
+    }
+    payload[key] = value;
+  }
+  return payload;
+}
+
+function sanitizeMediaUpdateMetadata(value: unknown): Record<string, unknown> {
+  if (!isPlainRecord(value)) {
+    raise(400, "Media metadata must be an object", "INVALID_MEDIA_METADATA");
+  }
+
+  const metadata: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (UNSAFE_OBJECT_KEYS.has(key)) continue;
+    if (!MEDIA_UPDATE_METADATA_FIELD_SET.has(key)) {
+      raise(400, `Unsupported media metadata field: ${key}`, "INVALID_MEDIA_METADATA_FIELD");
+    }
+    metadata[key] = entry;
+  }
+  return metadata;
 }
 
 export interface MediaManipulation {
@@ -1165,8 +1287,19 @@ export class MediaService {
     mediaId: string,
     data: Record<string, unknown>,
     tenantId?: DatabaseId | null,
+    options: { internal?: boolean } = {},
   ): Promise<void> {
-    const res = await this.db.crud.update("media", mediaId as DatabaseId, data, {
+    // Client paths run through the explicit allowlist; internal maintenance
+    // writes (versions, manipulation, restore) legitimately patch managed
+    // columns and opt out. Tenant ownership is always an adapter option, never
+    // body data — strip identity/tenant keys on both paths.
+    const source = options.internal ? data : sanitizeMediaUpdatePayload(data);
+    const safeData: Record<string, unknown> = { ...source };
+    delete safeData.tenantId;
+    delete safeData._id;
+    for (const key of UNSAFE_OBJECT_KEYS) delete safeData[key];
+
+    const res = await this.db.crud.update("media", mediaId as DatabaseId, safeData, {
       tenantId: tenantId,
     });
     if (!res.success) throw new Error(res.message);
@@ -1573,6 +1706,7 @@ export class MediaService {
         },
       },
       tenantId,
+      { internal: true },
     );
 
     const finalRes = await this.db.crud.findOne<DbMediaItem>(
@@ -1971,7 +2105,7 @@ export class MediaService {
         updatedAt: new Date().toISOString(),
       };
 
-      await this.updateMedia(mediaId, updateData, tenantId);
+      await this.updateMedia(mediaId, updateData, tenantId, { internal: true });
 
       // Return the updated media item enriched
       const finalRes = await this.db.crud.findOne<DbMediaItem>(
@@ -2061,7 +2195,7 @@ export class MediaService {
         updatedAt: new Date().toISOString(),
       };
 
-      await this.updateMedia(mediaId, updateData, tenantId);
+      await this.updateMedia(mediaId, updateData, tenantId, { internal: true });
 
       const finalRes = await this.db.crud.findOne<DbMediaItem>(
         "media",

@@ -1,0 +1,845 @@
+/**
+ * @file scripts/runs/integration-harness.ts
+ * @description Shared helpers for integration orchestrators (run-integration, start-integration-server).
+ *
+ * Single source of truth for:
+ * - test secrets (TEST_API_SECRET / JWT / ENCRYPTION) so config file and process env never desync
+ * - private.test.ts generation
+ * - SQLite test DB cleanup
+ * - health polling
+ * - cautious port reclaim
+ * - process-tree teardown
+ * - Docker adapter *hints* (not a full multi-DB matrix)
+ *
+ * ### Features:
+ * - stable default secrets matching tests/integration helpers
+ * - FORCE_FREE_PORT opt-in for aggressive kill
+ * - cross-platform build env via spawn (no `set VAR&&` shell)
+ */
+
+import { execSync, spawn, type ChildProcess } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
+import {
+  getDefaultDbPort,
+  getDockerDefaultDbCredentials,
+  getIntegrationDbName,
+} from "../../src/utils/test-db-credentials.ts";
+import { isIsolatedTestDbName } from "../../src/utils/test-db-safety.ts";
+
+// ── Constants (aligned with tests/integration/helpers/server.ts) ─────────────
+
+/** Stable default — tests fall back to this when env is unset. Never randomize. */
+export const DEFAULT_INTEGRATION_TEST_API_SECRET = "SVELTYCMS_TEST_SECRET_2026";
+export const DEFAULT_INTEGRATION_JWT = "Integration-Test-JWT-Secret-Key-2026-pad-to-32chars!!";
+export const DEFAULT_INTEGRATION_ENCRYPTION = "Integration-Encryption-Key-2026-32ch";
+export const DEFAULT_INTEGRATION_ADMIN_PASSWORD = "Password123!";
+
+/** Health states accepted while CMS progressive boot settles. */
+export const INTEGRATION_HEALTH_STATES = new Set([
+  "ready",
+  "healthy",
+  "setup",
+  "warmed",
+  "warming",
+  "degraded",
+  "initializing",
+  "idle",
+  "recovery",
+  "ok",
+]);
+
+/** Exact compose names from tests/docker-compose.yml + common image prefixes. */
+const DOCKER_ADAPTER_HINTS: Record<string, { containerNames: string[]; imagePrefixes: string[] }> =
+  {
+    mongodb: {
+      containerNames: ["sveltycms-mongodb"],
+      imagePrefixes: ["mongo:", "mongodb/mongodb-community-server"],
+    },
+    postgresql: {
+      containerNames: ["sveltycms-postgresql"],
+      imagePrefixes: ["postgres:", "postgresql:"],
+    },
+    mariadb: {
+      containerNames: ["sveltycms-mariadb"],
+      imagePrefixes: ["mariadb:", "mysql:"],
+    },
+  };
+
+export interface IntegrationSecrets {
+  jwt: string;
+  encryption: string;
+  testApiSecret: string;
+  adminPassword: string;
+}
+
+export interface IntegrationRunContext {
+  root: string;
+  port: string;
+  apiBaseUrl: string;
+  dbType: string;
+  dbName: string;
+  secrets: IntegrationSecrets;
+}
+
+// ── Secrets (resolve + pin once — never generate twice) ───────────────────────
+
+/**
+ * Process-lifetime pin. After the first resolve/pin, every consumer
+ * (private.test.ts, preview env, bun test env, health probes) sees the same values.
+ * Avoids the historical bug: randomUUID() in writePrivateTestConfig AND again in serverEnv.
+ */
+let _pinnedSecrets: IntegrationSecrets | null = null;
+
+/** Test-only: clear pin between unit cases. */
+export function resetPinnedIntegrationSecrets(): void {
+  _pinnedSecrets = null;
+}
+
+/**
+ * Resolve secrets once per process. Prefer env; fall back to stable defaults
+ * shared with integration test helpers (not random UUIDs).
+ *
+ * Subsequent calls return the same pinned object (by value) unless reset.
+ */
+export function resolveIntegrationSecrets(
+  env: NodeJS.ProcessEnv = process.env,
+): IntegrationSecrets {
+  if (_pinnedSecrets) {
+    return { ..._pinnedSecrets };
+  }
+  return {
+    jwt: env.JWT_SECRET_KEY || DEFAULT_INTEGRATION_JWT,
+    encryption: env.ENCRYPTION_KEY || DEFAULT_INTEGRATION_ENCRYPTION,
+    testApiSecret: env.TEST_API_SECRET || DEFAULT_INTEGRATION_TEST_API_SECRET,
+    adminPassword: env.ADMIN_PASSWORD || DEFAULT_INTEGRATION_ADMIN_PASSWORD,
+  };
+}
+
+/**
+ * Pin secrets onto process.env so parent + all later readers share one source.
+ * Idempotent: first call wins for the process (unless resetPinnedIntegrationSecrets).
+ */
+export function pinIntegrationSecrets(
+  secrets?: IntegrationSecrets,
+  env: NodeJS.ProcessEnv = process.env,
+): IntegrationSecrets {
+  if (_pinnedSecrets) {
+    // Re-apply pin to env (in case env was wiped) without regenerating values.
+    env.JWT_SECRET_KEY = _pinnedSecrets.jwt;
+    env.ENCRYPTION_KEY = _pinnedSecrets.encryption;
+    env.TEST_API_SECRET = _pinnedSecrets.testApiSecret;
+    env.ADMIN_PASSWORD = _pinnedSecrets.adminPassword;
+    return { ..._pinnedSecrets };
+  }
+  const resolved = secrets ?? resolveIntegrationSecrets(env);
+  _pinnedSecrets = { ...resolved };
+  env.JWT_SECRET_KEY = _pinnedSecrets.jwt;
+  env.ENCRYPTION_KEY = _pinnedSecrets.encryption;
+  env.TEST_API_SECRET = _pinnedSecrets.testApiSecret;
+  env.ADMIN_PASSWORD = _pinnedSecrets.adminPassword;
+  return { ..._pinnedSecrets };
+}
+
+/** Single accessor for tests / helpers — always the pinned secret after orchestrator start. */
+export function getIntegrationTestApiSecret(env: NodeJS.ProcessEnv = process.env): string {
+  if (_pinnedSecrets) return _pinnedSecrets.testApiSecret;
+  return env.TEST_API_SECRET || DEFAULT_INTEGRATION_TEST_API_SECRET;
+}
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
+export function writePrivateTestConfig(ctx: IntegrationRunContext): void {
+  const { root, apiBaseUrl, dbType, dbName, secrets } = ctx;
+  const creds = getDockerDefaultDbCredentials(dbType);
+  const dbPort = getDefaultDbPort(dbType);
+  const configDir = join(root, "config");
+  mkdirSync(configDir, { recursive: true });
+  mkdirSync(join(root, "config", "test-database"), { recursive: true });
+  mkdirSync(join(root, "config", "test-collections"), { recursive: true });
+
+  const content = `/**
+ * @file config/private.test.ts
+ * @description Auto-generated by integration harness — do not edit by hand.
+ */
+export const privateEnv = {
+  DB_TYPE: ${JSON.stringify(dbType)},
+  DB_HOST: ${JSON.stringify(process.env.DB_HOST || "127.0.0.1")},
+  DB_PORT: ${dbPort ? Number(dbPort) : "undefined"},
+  DB_NAME: ${JSON.stringify(dbName)},
+  DB_USER: ${JSON.stringify(process.env.DB_USER ?? creds.user)},
+  DB_PASSWORD: ${JSON.stringify(process.env.DB_PASSWORD ?? creds.password)},
+  JWT_SECRET_KEY: ${JSON.stringify(secrets.jwt)},
+  ENCRYPTION_KEY: ${JSON.stringify(secrets.encryption)},
+  TEST_API_SECRET: ${JSON.stringify(secrets.testApiSecret)},
+  PREVIEW_SECRET: ${JSON.stringify(process.env.PREVIEW_SECRET || "Integration-Preview-Secret-2026")},
+  PASSWORD_MIN_LENGTH: 8,
+  USE_REDIS: false,
+  MULTI_TENANT: false,
+  DEMO: false,
+  HOST_PROD: ${JSON.stringify(apiBaseUrl)},
+};
+export const privateConfig = privateEnv;
+export default privateEnv;
+`;
+  writeFileSync(join(configDir, "private.test.ts"), content, "utf8");
+  console.log(`✅ Wrote config/private.test.ts (DB_TYPE=${dbType})`);
+}
+
+export function cleanSqliteTestFiles(root: string, dbType: string, dbName: string): void {
+  if (dbType !== "sqlite") return;
+  const fileName = dbName.endsWith(".sqlite") ? dbName : `${dbName}.sqlite`;
+  for (const dir of ["database", "test-database"]) {
+    const base = join(root, "config", dir, fileName);
+    for (const p of [
+      base,
+      `${base}-wal`,
+      `${base}-shm`,
+      join(root, "config", dir, `${dbName}.db`),
+    ]) {
+      if (existsSync(p)) {
+        try {
+          unlinkSync(p);
+        } catch {
+          /* ignore locked files */
+        }
+      }
+    }
+  }
+}
+
+// ── Server env ────────────────────────────────────────────────────────────────
+
+/** Env for preview `node build/index.js` and the bun test child — same secrets as private.test.ts. */
+export function buildIntegrationServerEnv(
+  ctx: IntegrationRunContext,
+  extra: Record<string, string> = {},
+): Record<string, string> {
+  const { port, apiBaseUrl, dbType, dbName, secrets } = ctx;
+  const creds = getDockerDefaultDbCredentials(dbType);
+  return {
+    ...process.env,
+    PORT: port,
+    HOST: "127.0.0.1",
+    ORIGIN: apiBaseUrl,
+    API_BASE_URL: apiBaseUrl,
+    DB_TYPE: dbType,
+    DB_HOST: process.env.DB_HOST || "127.0.0.1",
+    DB_PORT: process.env.DB_PORT || getDefaultDbPort(dbType),
+    DB_NAME: dbName,
+    DB_USER: process.env.DB_USER ?? creds.user,
+    DB_PASSWORD: process.env.DB_PASSWORD ?? creds.password,
+    TEST_MODE: "true",
+    NODE_ENV: process.env.NODE_ENV || "test",
+    // 🧮 BODY-CEILING DETERMINISM: `API_MAX_BODY_SIZE_BYTES` is derived from the
+    // memory tier in production (15–128 MB: a small box keeps the 15 MB floor,
+    // a large one accepts bigger bulk imports) and adapter-node's own ceiling is
+    // derived the same way. The dispatcher-guard test in
+    // `tests/integration/api/user-extended.test.ts` asserts the 413 on a
+    // declared oversize body, so the harness pins the documented 15 MB contract
+    // instead of leaving the acceptance boundary machine-dependent.
+    API_MAX_BODY_SIZE_MB: process.env.API_MAX_BODY_SIZE_MB || "15",
+    JWT_SECRET_KEY: secrets.jwt,
+    ENCRYPTION_KEY: secrets.encryption,
+    TEST_API_SECRET: secrets.testApiSecret,
+    PREVIEW_SECRET: process.env.PREVIEW_SECRET || "Integration-Preview-Secret-2026",
+    PASSWORD_MIN_LENGTH: "8",
+    ADMIN_PASSWORD: secrets.adminPassword,
+    ...extra,
+  };
+}
+
+/**
+ * Default integration port.
+ *
+ * A fixed 4173 collides with a preview/E2E server or with a stale integration run
+ * still holding the port — and `ensurePortAvailable` can only clear listeners it
+ * recognises as a CMS. A port from the ephemeral range above the preview default
+ * makes that collision unlikely; `PORT` or `API_BASE_URL` still pin it when a
+ * caller needs a known address (the value is propagated to both the server and
+ * the test env through `buildIntegrationServerEnv`).
+ */
+function defaultIntegrationPort(): string {
+  return String(4173 + Math.floor(Math.random() * 500));
+}
+
+export function createIntegrationContext(
+  root: string,
+  overrides: Partial<{
+    port: string;
+    apiBaseUrl: string;
+    dbType: string;
+    dbName: string;
+  }> = {},
+): IntegrationRunContext {
+  // Pin once: private.test.ts, preview env, and bun test env all share this object.
+  const secrets = pinIntegrationSecrets();
+  const port = overrides.port ?? process.env.PORT ?? defaultIntegrationPort();
+  const apiBaseUrl = overrides.apiBaseUrl ?? process.env.API_BASE_URL ?? `http://127.0.0.1:${port}`;
+  let rawDbType = (overrides.dbType ?? process.env.DB_TYPE ?? "sqlite").toLowerCase();
+  if (rawDbType === "postgress" || rawDbType === "postgres" || rawDbType === "pg") {
+    rawDbType = "postgresql";
+  }
+  if (rawDbType === "mongo") rawDbType = "mongodb";
+  if (rawDbType === "maria" || rawDbType === "mysql") rawDbType = "mariadb";
+  const dbType = rawDbType;
+  const dbName = overrides.dbName ?? process.env.DB_NAME ?? getIntegrationDbName(dbType);
+  return {
+    root,
+    port,
+    apiBaseUrl,
+    dbType,
+    dbName,
+    secrets,
+  };
+}
+
+// ── Health ────────────────────────────────────────────────────────────────────
+
+export async function waitForIntegrationHealth(
+  apiBaseUrl: string,
+  options: {
+    maxAttempts?: number;
+    testApiSecret?: string;
+    logPrefix?: string;
+  } = {},
+): Promise<void> {
+  const maxAttempts = options.maxAttempts ?? 45;
+  // Prefer explicit → pinned → env → stable default (never a fresh random).
+  const secret = options.testApiSecret ?? getIntegrationTestApiSecret();
+  const prefix = options.logPrefix ?? "";
+
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/system/health`, {
+        headers: {
+          "x-test-mode": "true",
+          "x-test-secret": secret,
+        },
+        signal: AbortSignal.timeout(2000),
+      });
+      if (res.ok || res.status === 533) {
+        const data = await res.json().catch(() => ({}));
+        const payload = data?.data && typeof data.data === "object" ? data.data : data;
+        const status = String(payload.overallStatus ?? payload.status ?? "").toLowerCase();
+        if (INTEGRATION_HEALTH_STATES.has(status) || res.ok) {
+          console.log(`${prefix}✅ Server ready (state: ${status || res.status})`);
+          return;
+        }
+      }
+    } catch {
+      /* waiting */
+    }
+    await sleep(1000);
+  }
+  throw new Error(`Server not ready at ${apiBaseUrl} after ${maxAttempts}s`);
+}
+
+/** Soft health probe — true if CMS health endpoint answers. */
+export async function isCmsHealthResponding(apiBaseUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${apiBaseUrl}/api/system/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    return res.ok || res.status === 533 || res.status === 503;
+  } catch {
+    return false;
+  }
+}
+
+// ── Port / process management ─────────────────────────────────────────────────
+
+function listListeningPids(port: string): number[] {
+  try {
+    if (process.platform === "win32") {
+      const out = execSync(
+        `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -ExpandProperty OwningProcess -Unique"`,
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      );
+      return out
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map(Number)
+        .filter((n) => Number.isFinite(n) && n > 0);
+    }
+    const out = execSync(`lsof -ti:${port} -sTCP:LISTEN 2>/dev/null || true`, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return out
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map(Number)
+      .filter((n) => Number.isFinite(n) && n > 0);
+  } catch {
+    return [];
+  }
+}
+
+function killPidTree(pid: number, force = false): void {
+  try {
+    if (process.platform === "win32") {
+      execSync(`taskkill /pid ${pid} /T ${force ? "/F" : ""}`.trim(), {
+        stdio: "ignore",
+      });
+    } else {
+      try {
+        process.kill(-pid, force ? "SIGKILL" : "SIGTERM");
+      } catch {
+        process.kill(pid, force ? "SIGKILL" : "SIGTERM");
+      }
+    }
+  } catch {
+    /* already gone */
+  }
+}
+
+/**
+ * Ensure port is free before starting preview.
+ *
+ * - Empty port → ok
+ * - CMS health already answering → stop those PIDs (stale integration server)
+ * - Unknown listener → error unless FORCE_FREE_PORT=1
+ */
+export async function ensurePortAvailable(
+  port: string,
+  apiBaseUrl: string,
+  options: { force?: boolean } = {},
+): Promise<void> {
+  const force = options.force || process.env.FORCE_FREE_PORT === "1";
+  const pids = listListeningPids(port);
+  if (pids.length === 0) return;
+
+  const cmsLike = await isCmsHealthResponding(apiBaseUrl);
+  if (cmsLike) {
+    console.warn(
+      `⚠️ Port ${port} already has a CMS health endpoint (PID(s): ${pids.join(", ")}). Stopping for a clean run.`,
+    );
+    for (const pid of pids) killPidTree(pid, true);
+    for (let i = 0; i < 15; i++) {
+      await sleep(200);
+      if (listListeningPids(port).length === 0) break;
+    }
+    return;
+  }
+
+  if (force) {
+    console.warn(`⚠️ FORCE_FREE_PORT: killing non-CMS listener(s) on ${port}: ${pids.join(", ")}`);
+    for (const pid of pids) killPidTree(pid, true);
+    for (let i = 0; i < 15; i++) {
+      await sleep(200);
+      if (listListeningPids(port).length === 0) break;
+    }
+    return;
+  }
+
+  throw new Error(
+    `Port ${port} is in use by PID(s) ${pids.join(", ")} and does not look like SveltyCMS. ` +
+      `Stop that process, set PORT to a free port, or set FORCE_FREE_PORT=1 to kill it.`,
+  );
+}
+
+/**
+ * Structured teardown for the preview (and grandchildren on Windows via /T).
+ * SIGTERM first, then force after a short grace period.
+ */
+export async function stopChildProcessTree(
+  child: ChildProcess | null | undefined,
+  options: { graceMs?: number; label?: string } = {},
+): Promise<void> {
+  if (!child?.pid) return;
+  const graceMs = options.graceMs ?? 800;
+  const label = options.label ?? "process";
+  const pid = child.pid;
+
+  try {
+    if (process.platform === "win32") {
+      // /T kills the whole tree; prefer graceful then force
+      try {
+        execSync(`taskkill /pid ${pid} /T`, { stdio: "ignore" });
+      } catch {
+        /* may already be exiting */
+      }
+      await sleep(graceMs);
+      try {
+        execSync(`taskkill /pid ${pid} /T /F`, { stdio: "ignore" });
+      } catch {
+        /* gone */
+      }
+    } else {
+      try {
+        child.kill("SIGTERM");
+      } catch {
+        /* ignore */
+      }
+      await sleep(graceMs);
+      if (child.exitCode === null && !child.killed) {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`⚠️ Failed to stop ${label} (pid ${pid}):`, err);
+  }
+}
+
+// ── Build ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Strong markers that only appear in the real testing handler body.
+ * Keep in sync with scripts/security/verify-prod-build-backdoor.ts FULL_HANDLER_MARKERS.
+ * A normal `bun run build` strips /api/testing via testBackdoorStripperPlugin —
+ * integration + e2e MUST use COMPILE_ALL_ADAPTERS=true so seed/reset work.
+ */
+export const INTEGRATION_TESTING_HARNESS_MARKERS = [
+  "Unauthorized: Testing endpoints are disabled",
+  "[TestingHandler]",
+] as const;
+
+function collectJsFiles(dir: string, out: string[] = []): string[] {
+  if (!existsSync(dir)) return out;
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    let st;
+    try {
+      st = statSync(full);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) collectJsFiles(full, out);
+    else if (st.isFile() && name.endsWith(".js")) out.push(full);
+  }
+  return out;
+}
+
+/**
+ * Returns true when build/ (or .svelte-kit/output) contains the full /api/testing handler.
+ * Deploy-stripped builds return false (handler replaced with 404 stub).
+ */
+export function buildHasTestingHarness(root: string): boolean {
+  const scanDirs = [
+    join(root, "build", "server"),
+    join(root, "build", "server", "chunks"),
+    join(root, ".svelte-kit", "output", "server"),
+    join(root, ".svelte-kit", "output", "server", "chunks"),
+  ];
+  const files = scanDirs.flatMap((d) => collectJsFiles(d));
+  for (const file of files) {
+    try {
+      const content = readFileSync(file, "utf8");
+      if (INTEGRATION_TESTING_HARNESS_MARKERS.some((m) => content.includes(m))) return true;
+    } catch {
+      /* skip unreadable */
+    }
+  }
+  return false;
+}
+
+/** Production build with COMPILE_ALL_ADAPTERS via spawn env (no fragile shell `set` / export). */
+export async function runProductionBuild(root: string): Promise<void> {
+  // Stale `build/` from a previous failed build can cause adapter-node issues
+  // or fail to remove a locked tree (ENOTEMPTY build).
+  const buildDir = join(root, "build");
+  const svelteKitOutputDir = join(root, ".svelte-kit", "output");
+  try {
+    rmSync(buildDir, { recursive: true, force: true });
+    rmSync(svelteKitOutputDir, { recursive: true, force: true });
+  } catch (err) {
+    console.warn(
+      `⚠️  Could not clear build directories: ${err instanceof Error ? err.message : err}`,
+    );
+  }
+
+  // Windows may keep a handle open for a few ms after rmSync; starting the
+  // adapter before it clears produces partial client copies (ENOENT chunks).
+  if (process.platform === "win32") await sleep(300);
+
+  console.log("🏗️  Building (COMPILE_ALL_ADAPTERS=true)...");
+  return new Promise((resolve, reject) => {
+    const child = spawn("bun", ["run", "build"], {
+      cwd: root,
+      stdio: "inherit",
+      // Windows needs shell so `bun.cmd` resolves on PATH; env still injects COMPILE_ALL_ADAPTERS.
+      shell: process.platform === "win32",
+      env: {
+        ...process.env,
+        COMPILE_ALL_ADAPTERS: "true",
+      },
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`Production build exited with code ${code ?? 1}`));
+    });
+  });
+}
+
+export type EnsureIntegrationBuildOptions = {
+  /**
+   * When true, reuse build/ if present and has harness.
+   * Deploy-stripped builds always trigger a rebuild (seed would 404 otherwise).
+   */
+  noBuild?: boolean;
+  /** When true, refuse to rebuild and exit with guidance (CI fail-closed). Default: auto-rebuild. */
+  strictNoBuild?: boolean;
+};
+
+/**
+ * Ensure a harness-enabled production build exists.
+ * - Default: always rebuild with COMPILE_ALL_ADAPTERS
+ * - --no-build: reuse if harness present; auto-rebuild if deploy-stripped
+ * - --no-build --strict: exit 1 if stripped (used when rebuild must not happen in CI artifacts)
+ */
+export async function ensureIntegrationBuild(
+  root: string,
+  options: EnsureIntegrationBuildOptions = {},
+): Promise<{ rebuilt: boolean; harness: boolean }> {
+  const entry = join(root, "build", "index.js");
+  const noBuild = options.noBuild === true;
+  const strict = options.strictNoBuild === true;
+
+  if (!noBuild) {
+    await runProductionBuild(root);
+    if (!existsSync(entry)) {
+      throw new Error(`Missing ${entry} after build`);
+    }
+    if (!buildHasTestingHarness(root)) {
+      throw new Error(
+        "Build completed but /api/testing harness markers are missing. " +
+          "Ensure COMPILE_ALL_ADAPTERS=true is applied during vite build.",
+      );
+    }
+    return { rebuilt: true, harness: true };
+  }
+
+  // --no-build path
+  if (!existsSync(entry)) {
+    if (strict) {
+      throw new Error(`Missing ${entry}. Run without --no-build first.`);
+    }
+    console.warn("⚠️  No build/ found — building with COMPILE_ALL_ADAPTERS=true…");
+    await runProductionBuild(root);
+    return { rebuilt: true, harness: buildHasTestingHarness(root) };
+  }
+
+  if (buildHasTestingHarness(root)) {
+    console.log("✅ Existing build includes testing harness (/api/testing)");
+    return { rebuilt: false, harness: true };
+  }
+
+  // Deploy-stripped: normal `bun run build` — seed/reset will return API_ENDPOINT_NOT_AVAILABLE
+  const msg =
+    "Existing build is deploy-stripped (no /api/testing handler).\n" +
+    "  Integration tests need: COMPILE_ALL_ADAPTERS=true bun run build\n" +
+    "  Docker DBs running is not enough — the preview bundle must include the testing API.";
+
+  if (strict) {
+    throw new Error(msg);
+  }
+
+  console.warn(`⚠️  ${msg.replace(/\n/g, "\n⚠️  ")}`);
+  console.warn("⚠️  Auto-rebuilding with COMPILE_ALL_ADAPTERS=true…");
+  await runProductionBuild(root);
+  if (!buildHasTestingHarness(root)) {
+    throw new Error("Rebuild finished but testing harness is still missing.");
+  }
+  console.log("✅ Rebuild complete — testing harness present");
+  return { rebuilt: true, harness: true };
+}
+
+// ── Docker adapter hints (not a matrix runner) ────────────────────────────────
+
+function listDockerPsLines(): string[] {
+  try {
+    const out =
+      typeof Bun !== "undefined" && typeof Bun.spawnSync === "function"
+        ? new TextDecoder().decode(
+            Bun.spawnSync(["docker", "ps", "--format", "{{.Names}}\t{{.Image}}"], {
+              stdout: "pipe",
+              stderr: "pipe",
+            }).stdout,
+          )
+        : execSync('docker ps --format "{{.Names}}\t{{.Image}}"', {
+            encoding: "utf8",
+            timeout: 3000,
+            stdio: ["ignore", "pipe", "ignore"],
+          });
+    return out
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Hint which optional DB adapter *suites* may run (tests skip if container absent).
+ * Always includes sqlite. Does **not** start containers or switch CMS DB_TYPE.
+ */
+export function detectDockerAdapterHints(): {
+  available: string[];
+  detail: string;
+} {
+  const lines = listDockerPsLines();
+  const available = ["sqlite"];
+  const matched: string[] = [];
+
+  for (const [adapter, rule] of Object.entries(DOCKER_ADAPTER_HINTS)) {
+    const hit = lines.some((line) => {
+      const [nameRaw = "", imageRaw = ""] = line.split("\t");
+      const name = nameRaw.toLowerCase();
+      const image = imageRaw.toLowerCase();
+
+      // Exact compose container names only (tests/docker-compose.yml) — no loose "postgres" substring.
+      if (rule.containerNames.some((n) => name === n.toLowerCase())) return true;
+
+      // Image family match: "postgres:16", "library/postgres:16", "mirror/mariadb:11"
+      return rule.imagePrefixes.some((p) => {
+        const pref = p.toLowerCase();
+        const bare = pref.replace(/:$/, "");
+        return (
+          image === bare ||
+          image.startsWith(pref) ||
+          image.includes(`/${pref}`) ||
+          image.includes(`/${bare}:`) ||
+          image.endsWith(`/${bare}`)
+        );
+      });
+    });
+    if (hit) {
+      available.push(adapter);
+      matched.push(adapter);
+    }
+  }
+
+  const detail =
+    matched.length > 0
+      ? `optional adapter tests may run for: ${matched.join(", ")} (CMS still uses single DB_TYPE)`
+      : "no compose DB containers detected — only sqlite + in-process suites";
+
+  return { available, detail };
+}
+
+// ── Cleanup ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Remove test artifacts left behind by the integration harness:
+ * - config/private.test.ts (auto-generated test config)
+ * - config/test-database/ (SQLite DB files for tests)
+ * - config/test-collections/ + config/<tenant>/test-collections/
+ *   (collection files and builder category directories for tests)
+ * - .compiledCollections/test-collections/ (compiled collection output)
+ * - config/database/<harness-named>.sqlite / .db + WAL sidecars — never
+ *   live-named files (shared test-name classifier, see `sweepHarnessSqliteFiles`)
+ */
+export function cleanupTestArtifacts(root: string): void {
+  const paths = [
+    join(root, "config", "private.test.ts"),
+    join(root, "config", "test-database"),
+    join(root, "config", "test-collections"),
+    join(root, ".compiledCollections", "test-collections"),
+    join(root, "test-media"),
+    // WAF rate-limiter persistence: state must never leak across harness runs
+    // (a negative bucket dumped <60s before the next boot re-locks logins).
+    join(root, "config", "database", "security_rl_dump.json"),
+  ];
+  for (const p of paths) {
+    try {
+      rmSync(p, { recursive: true, force: true });
+    } catch {
+      /* ok */
+    }
+  }
+
+  // Tenant-scoped test collection folders (e.g. config/global/test-collections):
+  // builder category sync creates real directories under the tenant's collection
+  // root, and the content-nodes contract suite exercises the `global` tenant.
+  // Only the `test-collections` subfolder is ever swept — `<tenant>/collections`
+  // is live data and must never be touched. Empty test-tenant directories (e.g.
+  // config/iso-tenant-a, config/iso-tenant-b) are pruned once test-collections is gone.
+  const configRoot = join(root, "config");
+  try {
+    for (const entry of readdirSync(configRoot)) {
+      const tenantDir = join(configRoot, entry);
+      const candidate = join(tenantDir, "test-collections");
+      if (existsSync(candidate)) {
+        try {
+          rmSync(candidate, { recursive: true, force: true });
+        } catch {
+          /* locked — leave it for the next run */
+        }
+      }
+
+      // If a test tenant directory is now empty (e.g. iso-tenant-a, iso-tenant-b,
+      // tenant-* created solely for tests), remove the empty directory so test
+      // scaffolding does not litter config/.
+      const isTestTenant =
+        entry.startsWith("iso-tenant-") ||
+        entry.startsWith("test-") ||
+        entry.includes("tenant-") ||
+        isIsolatedTestDbName(entry);
+
+      if (isTestTenant && existsSync(tenantDir)) {
+        try {
+          if (readdirSync(tenantDir).length === 0) {
+            rmSync(tenantDir, { recursive: true, force: true });
+          }
+        } catch {
+          /* locked */
+        }
+      }
+    }
+  } catch {
+    /* no config dir — nothing to sweep */
+  }
+
+  const swept = sweepHarnessSqliteFiles(root);
+  if (swept.length > 0) {
+    console.log(`🧹 Swept harness DB leftovers from the live folder: ${swept.join(", ")}`);
+  }
+  console.log("🧹 Test artifacts cleaned (live config/database and config/collections protected)");
+}
+
+/**
+ * Harness databases must never accumulate in the live `config/database/` folder.
+ * `resolveSqlitePath` routes harness/isolated names to `config/test-database/`,
+ * but legacy code paths or interrupted runs may leave test DB files
+ * (with or without .sqlite/.db extension, and their -wal/-shm sidecars) behind.
+ * Only shared-classifier names are swept (`test`/`bench`/`e2e`/`_functional`,
+ * minus prod/live/main patterns) — a live-named file is never touched.
+ */
+function sweepHarnessSqliteFiles(root: string): string[] {
+  const liveDir = join(root, "config", "database");
+  if (!existsSync(liveDir)) return [];
+  const removed: string[] = [];
+  for (const entry of readdirSync(liveDir)) {
+    // Strip WAL / SHM sidecars: e.g. .sqlite-wal, .db-shm, or raw -wal / -shm
+    const base = entry.replace(/-(wal|shm)$/i, "");
+    // Strip optional SQLite extensions: .sqlite or .db
+    const logicalName = base.replace(/\.(sqlite|db)$/i, "");
+    if (!isIsolatedTestDbName(logicalName)) continue;
+    try {
+      unlinkSync(join(liveDir, entry));
+      removed.push(entry);
+    } catch {
+      /* locked — leave it for the next run */
+    }
+  }
+  return removed;
+}

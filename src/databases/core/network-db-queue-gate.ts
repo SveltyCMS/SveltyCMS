@@ -9,6 +9,8 @@
  * - Zero allocation on fast path (active < maxConcurrency executes immediately)
  * - FIFO queued waiting with configurable queue capacity and timeout
  * - Immediate fail-fast (503 / POOL_EXHAUSTED) when queue limit is exceeded
+ * - Adaptive UPDATE lane (`SVELTY_WRITE_COALESCE_UPDATE=1`): an update on an idle
+ *   gate skips the coalescer scheduling hop entirely
  * - Observability metrics (active, waiting, maxConcurrency, maxQueue)
  * - Safe re-entrancy via AsyncLocalStorage (transactions and nested queries share a single permit)
  */
@@ -16,7 +18,11 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
-import { AdaptiveWriteCoalescer, type CoalescerMetrics } from "./write-coalescer";
+import {
+  AdaptiveWriteCoalescer,
+  type CoalescerMetrics,
+  type WriteOperationKind,
+} from "./write-coalescer";
 
 export interface NetworkDbQueueGateOptions {
   /** Maximum number of concurrent database operations executing simultaneously. */
@@ -37,6 +43,15 @@ interface QueuedOperation {
   timer?: ReturnType<typeof setTimeout>;
 }
 
+export interface AdaptiveUpdateMetrics {
+  /** Whether `SVELTY_WRITE_COALESCE_UPDATE=1` is active for this gate. */
+  enabled: boolean;
+  /** Updates that executed without the scheduler hop (idle queue). */
+  immediate: number;
+  /** Updates that were held because another mutation was already in flight. */
+  coalesced: number;
+}
+
 export class NetworkDbQueueGate {
   private active = 0;
   private readonly queue: QueuedOperation[] = [];
@@ -46,14 +61,27 @@ export class NetworkDbQueueGate {
   private readonly name: string;
   private readonly asyncLocal = new AsyncLocalStorage<boolean>();
   private readonly writeCoalescer: AdaptiveWriteCoalescer | null;
+  private readonly adaptiveUpdates: boolean;
+  /** `SVELTY_WRITE_COALESCING=1` — coalesce every write (inserts included). */
+  private readonly coalesceAllWrites: boolean;
+  private immediateUpdates = 0;
+  private coalescedUpdates = 0;
 
   constructor(options: NetworkDbQueueGateOptions) {
     this.maxConcurrency = Math.max(1, options.maxConcurrency);
     this.maxQueue = Math.max(1, options.maxQueue ?? 500);
     this.timeoutMs = Math.max(500, options.timeoutMs ?? 15_000);
     this.name = options.name ?? "NetworkDB";
+    // Either flag opts into coalescing. The UPDATE flag on its own is enough so
+    // an operator does not have to remember two env vars, and it additionally
+    // switches updates to the adaptive (no-hop-when-idle) lane.
+    const coalescingEnabled =
+      process.env.SVELTY_WRITE_COALESCING === "1" ||
+      process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
+    this.coalesceAllWrites = process.env.SVELTY_WRITE_COALESCING === "1";
+    this.adaptiveUpdates = process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
     this.writeCoalescer =
-      options.enableWriteCoalescing === true && process.env.SVELTY_WRITE_COALESCING === "1"
+      options.enableWriteCoalescing === true && coalescingEnabled
         ? new AdaptiveWriteCoalescer({ name: `${this.name}Coalescer` })
         : null;
   }
@@ -160,12 +188,36 @@ export class NetworkDbQueueGate {
   /**
    * Coalesce a write operation during high-concurrency bursts.
    * Dispatches immediately when idle; micro-batches when concurrent writers queue.
+   *
+   * With `SVELTY_WRITE_COALESCE_UPDATE=1`, an UPDATE that finds the queue and
+   * the gate completely idle runs immediately: the scheduler hop exists only to
+   * batch siblings, and there is no sibling to batch. Once any mutation is in
+   * flight/queued, later updates take the coalesced path as before.
    */
-  public async coalesceWrite<T>(fn: () => Promise<T>): Promise<T> {
+  public async coalesceWrite<T>(fn: () => Promise<T>, operation?: WriteOperationKind): Promise<T> {
     if (!this.writeCoalescer) {
       return this.acquire(fn);
     }
+    // The UPDATE-only flag must not change insert/delete scheduling: those keep
+    // their pre-existing direct `acquire` path unless SVELTY_WRITE_COALESCING=1.
+    if (!this.coalesceAllWrites && operation !== "update") {
+      return this.acquire(fn);
+    }
+    if (this.adaptiveUpdates && operation === "update" && this.canAdmitUpdateImmediately()) {
+      this.immediateUpdates++;
+      return this.acquire(fn);
+    }
+    if (operation === "update") this.coalescedUpdates++;
     return this.writeCoalescer.submit(() => this.acquire(fn));
+  }
+
+  /**
+   * No queue, no scheduled drain, no in-flight query, no active permit.
+   * `active` counts every gated query (reads included), so an update never
+   * jumps ahead of a read that currently holds a connection.
+   */
+  private canAdmitUpdateImmediately(): boolean {
+    return this.active === 0 && this.queue.length === 0 && (this.writeCoalescer?.isIdle() ?? true);
   }
 
   /**
@@ -184,6 +236,7 @@ export class NetworkDbQueueGate {
     maxConcurrency: number;
     maxQueue: number;
     coalescing?: CoalescerMetrics | null;
+    adaptiveUpdates?: AdaptiveUpdateMetrics;
   } {
     return {
       active: this.active,
@@ -191,6 +244,11 @@ export class NetworkDbQueueGate {
       maxConcurrency: this.maxConcurrency,
       maxQueue: this.maxQueue,
       coalescing: this.getCoalescerMetrics(),
+      adaptiveUpdates: {
+        enabled: this.adaptiveUpdates,
+        immediate: this.immediateUpdates,
+        coalesced: this.coalescedUpdates,
+      },
     };
   }
 

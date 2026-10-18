@@ -22,6 +22,7 @@ import {
   isMultiTenantMode,
   resetSafeQueryCache,
 } from "@src/utils/security/safe-query";
+import { raise } from "@utils/error-handling";
 import { hasTenantBypass } from "./system-tenant-scope";
 
 export type TenantGuardMode = "inject" | "reject" | "bypass";
@@ -47,7 +48,19 @@ function enforceOptionsSync<T extends BaseQueryOptions | undefined>(
   return options;
 }
 
-function enforceDataTenantIdSync<T extends Record<string, unknown>>(
+function isPresentTenantId(value: unknown): value is DatabaseId {
+  return value !== undefined && value !== null && value !== "";
+}
+
+/**
+ * Rejects a body-supplied `tenantId` that does not match the ambient tenant
+ * scope. A caller must never be able to steer a write into another tenant by
+ * putting `tenantId` in the payload.
+ *
+ * Exported for focused unit tests; the guarded CRUD wrapper is the only
+ * production caller.
+ */
+export function enforceDataTenantIdSync<T extends Record<string, unknown>>(
   data: T,
   options: BaseQueryOptions | undefined,
   operation?: string,
@@ -55,13 +68,25 @@ function enforceDataTenantIdSync<T extends Record<string, unknown>>(
   if (!isMultiTenantMode()) return data;
   if (hasTenantBypass(options)) return data;
 
-  if (data.tenantId !== undefined && data.tenantId !== null && data.tenantId !== "") {
+  // `null` is an explicit global scope decision in safe-query, so it counts as
+  // present here: tenant-specific data must not be written into the global layer.
+  const optionsTenantId = options?.tenantId;
+  const optionsHasScope = optionsTenantId !== undefined && optionsTenantId !== "";
+
+  if (isPresentTenantId(data.tenantId)) {
+    if (optionsHasScope && data.tenantId !== optionsTenantId) {
+      raise(
+        500,
+        `Security Violation: Attempted to write data for tenant "${String(data.tenantId)}" into tenant "${String(optionsTenantId)}" on ${operation || "crud.write"}.`,
+        "TENANT_MISMATCH",
+      );
+    }
     return data;
   }
 
   // Prefer options.tenantId when data omitted it (write paths).
-  if (options?.tenantId !== undefined && options?.tenantId !== null && options.tenantId !== "") {
-    return { ...data, tenantId: options.tenantId as DatabaseId };
+  if (isPresentTenantId(options?.tenantId)) {
+    return { ...data, tenantId: options.tenantId };
   }
 
   assertTenantContext(options, operation || "crud.write");
@@ -102,6 +127,9 @@ export function createTenantGuardedCrud(
 
     findByIds: async (collection, ids, options) =>
       inner.findByIds(collection, ids, g(options, "findByIds")),
+
+    findById: async (collection, id, options) =>
+      inner.findById(collection, id, g(options, "findById")),
 
     findMany: async (collection, query, options) =>
       inner.findMany(collection, query, g(options, "findMany")),

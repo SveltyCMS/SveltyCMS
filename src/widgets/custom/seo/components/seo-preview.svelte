@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Seo/components/SeoPreview.svelte
+@file src/widgets/custom/seo/components/seo-preview.svelte
 @component
 **SEO Preview widget for SEO Widget**
 

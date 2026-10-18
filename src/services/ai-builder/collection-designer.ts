@@ -55,6 +55,8 @@ async function runDesign(
   previousProposal?: CollectionDesignProposal,
 ): Promise<DesignResult> {
   const gateway = builderAiGateway;
+  // Quota is consumed exactly once, here. HTTP wrappers must not pre-consume it
+  // (calling checkQuota before delegating would charge every request twice).
   gateway.checkQuota(userId ?? "system");
 
   // Explicit caller allowlist wins; otherwise derive the default from the registry.

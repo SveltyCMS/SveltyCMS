@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/PhoneNumber/types.ts
+ * @file src/widgets/custom/phone-number/types.ts
  * @description Type definitions for the PhoneNumber widget.
  *
  * @features

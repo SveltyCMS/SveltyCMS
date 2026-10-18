@@ -1,6 +1,6 @@
 /**
  * @file src/utils/point-read-payload.ts
- * @description Shared HTTP point-read payload trim for `GET /api/collections/:collection/:entryId`.
+ * @description Shared HTTP payload trims for collection reads (`GET /api/collections/:collection[/:entryId]`).
  *
  * The SDK row (LocalCMS contract) is never changed: server-side consumers
  * (admin SSR, dashboard search, sitemap) keep reading `_collection` and every
@@ -25,8 +25,13 @@
  * - Keeps `_id`, `status`, `slug` and every content field: `_id` is the
  *   identity, `status` the documented publication control, `slug` documented
  *   content — headless clients read all three from point-read payloads
- * - Single-row only: list payloads (arrays) and non-envelopes pass through
- *   unchanged, so the list contract stays byte-identical
+ * - Single-row only: arrays (list payloads) and non-envelopes pass through
+ *   `trimPointReadEnvelope` unchanged, so the list contract stays byte-identical
+ * - List fast path: `trimListEnvelope` returns the input envelope by identity when
+ *   no row carries `_collection` (no envelope/array/row clone), and copies only the
+ *   rows that actually need the key removed — untouched rows keep their reference
+ * - List copies use a key-copy loop instead of object spread: it skips the
+ *   `_collection` key while copying, so no clone-then-`delete` pass is needed
  */
 
 /**
@@ -80,9 +85,28 @@ export function trimPointReadEnvelope(envelope: unknown): unknown {
 }
 
 /**
+ * Copy an object without its `_collection` key. The input row is never mutated
+ * (it may be referenced by the SDK request cache or an L2 write).
+ */
+function copyWithoutCollection(item: Record<string, unknown>): Record<string, unknown> {
+  const copy: Record<string, unknown> = {};
+  const keys = Object.keys(item);
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    if (key !== "_collection") copy[key] = item[key];
+  }
+  return copy;
+}
+
+/**
  * Trim a `{ success, data, meta? }` SDK envelope for HTTP list serialization.
  * Strips per-row `_collection` duplications across all items and hoists
  * `meta._collection` once onto the top-level envelope.
+ *
+ * Fast path: when no row carries `_collection`, the input envelope is returned
+ * by identity — no envelope spread, no array clone, no row clones. This is the
+ * common list shape (the SDK only injects the meta on cross-collection reads),
+ * so large list payloads stop paying a clone per row.
  */
 export function trimListEnvelope(envelope: unknown): unknown {
   if (!envelope || typeof envelope !== "object" || Array.isArray(envelope)) return envelope;
@@ -90,19 +114,34 @@ export function trimListEnvelope(envelope: unknown): unknown {
   const data = env.data;
   if (!data || !Array.isArray(data) || data.length === 0) return envelope;
 
+  // Hoist from the first row exactly as before; the scan below detects whether
+  // any row (first included) actually needs trimming.
   let collectionMeta: unknown = undefined;
+  let hasCollectionMeta = false;
   const first = data[0];
   if (first && typeof first === "object" && "_collection" in first) {
     collectionMeta = (first as Record<string, unknown>)._collection;
+    hasCollectionMeta = true;
   }
+
+  if (!hasCollectionMeta) {
+    for (let i = 1; i < data.length; i++) {
+      const item = data[i];
+      if (item && typeof item === "object" && "_collection" in item) {
+        hasCollectionMeta = true;
+        break;
+      }
+    }
+  }
+
+  // Nothing to trim: return the caller's envelope untouched (identity contract).
+  if (!hasCollectionMeta) return envelope;
 
   const trimmedArray: unknown[] = [];
   for (let i = 0; i < data.length; i++) {
     const item = data[i];
-    if (item && typeof item === "object") {
-      const row = { ...(item as Record<string, unknown>) };
-      delete row._collection;
-      trimmedArray.push(row);
+    if (item && typeof item === "object" && "_collection" in item) {
+      trimmedArray.push(copyWithoutCollection(item as Record<string, unknown>));
     } else {
       trimmedArray.push(item);
     }

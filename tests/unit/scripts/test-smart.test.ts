@@ -2,7 +2,7 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 
 // Dynamic import after suppressing module-level main() call
 (globalThis as any).__TEST_SMART_IMPORT = true;
-const mod = await import("../../../scripts/test-smart.ts");
+const mod = await import("../../../scripts/test/test-smart.ts");
 const { expandSyntheticEdges } = mod;
 
 describe("dedupeContainedSuites", () => {

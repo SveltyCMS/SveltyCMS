@@ -189,6 +189,9 @@ export async function initializePlugins(dbAdapter: any, tenantId = "default"): P
                 ) {
                   plugin.migrations = serverMod.migrations;
                 }
+                if (serverMod.parts) {
+                  plugin.parts = [...(plugin.parts || []), ...serverMod.parts];
+                }
               }
             }
           } catch {

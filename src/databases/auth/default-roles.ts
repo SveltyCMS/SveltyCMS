@@ -14,6 +14,7 @@
  */
 
 import { getAllPermissions } from "./permissions";
+import { DEFAULT_ROLE_GRANTS } from "./permission-catalog";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/content/types";
 
@@ -41,35 +42,9 @@ export const defaultRoles: Role[] = [
     name: "Developer",
     description: "Technical users - Access to development tools, APIs, and system configuration",
     isAdmin: false,
-    permissions: [
-      "system:dashboard",
-      "api:graphql",
-      "api:collections",
-      "api:export",
-      "api:systemInfo",
-      "api:user",
-      "api:userActivity",
-      "api:media",
-      // Granular media capabilities: the `/api/media` and
-      // `/api/system-virtual-folder` dispatcher gates require these, not the
-      // coarse `api:media` name. Without them the media gallery silently 403s
-      // (folder tree, folder create, image editor save).
-      "media:read",
-      "media:write",
-      "media:delete",
-      "api:widgets",
-      "api:send-mail",
-      "collections:read",
-      "collections:update",
-      "collections:create",
-      "content:builder",
-      "config:collectionbuilder",
-      "config:widgetManagement",
-      "config:adminArea",
-      "config:settings",
-      "user:manage",
-      "user.create",
-    ],
+    // Canonical grants live in `permission-catalog.ts`; aliases such as
+    // collections:create/update resolve to the collections:write gate there.
+    permissions: [...DEFAULT_ROLE_GRANTS.developer],
     icon: "material-symbols:code",
     color: "gradient-pink",
   },
@@ -78,25 +53,7 @@ export const defaultRoles: Role[] = [
     name: "Editor",
     description: "Content managers - Create and edit content, manage media and users",
     isAdmin: false,
-    permissions: [
-      "collections:read",
-      "collections:read_drafts",
-      "collections:update",
-      "collections:create",
-      "content:editor",
-      "content:read_drafts",
-      "content:images",
-      "system:dashboard",
-      "api:systemInfo",
-      "api:collections",
-      "api:user",
-      "api:userActivity",
-      "api:media",
-      "media:read",
-      "media:write",
-      "media:delete",
-      "user:manage",
-    ],
+    permissions: [...DEFAULT_ROLE_GRANTS.editor],
     icon: "material-symbols:edit",
     color: "gradient-tertiary",
   },
@@ -106,14 +63,7 @@ export const defaultRoles: Role[] = [
     description:
       "Read-only visitor - Access to read public collections, media and query GraphQL APIs",
     isAdmin: false,
-    permissions: [
-      "collections:read",
-      "api:collections",
-      "api:media",
-      "media:read",
-      "graphql:read",
-      "api:graphql",
-    ],
+    permissions: [...DEFAULT_ROLE_GRANTS.guest],
     icon: "material-symbols:person-outline",
     color: "gradient-grey",
   },

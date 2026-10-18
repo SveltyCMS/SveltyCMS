@@ -46,11 +46,6 @@ import {
   type SourceFile,
 } from "typescript";
 
-/** @deprecated Use `ContentNodeOperation` from `@src/content/types` */
-export type UpsertOperation = ContentNodeOperation;
-
-export { executeGuiStructureSave, serializeStructureNodes } from "./collectionbuilder-local.server";
-
 function requirePermission(event: RequestEvent) {
   const user = getAuthenticatedUser(event.locals);
   const { roles: tenantRoles, isAdmin } = event.locals as App.Locals;

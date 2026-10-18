@@ -76,7 +76,7 @@ describe("ALE — dbAdapter field-encryption performance impact", () => {
     const secret = "bench-secret-email@example.com";
     const enc = await encryptFieldValue(secret, ctx, "email");
     expect(typeof enc).toBe("string");
-    expect(enc.startsWith("v1:")).toBe(true);
+    expect(/^v2:[A-Za-z0-9._-]{1,64}:/.test(enc)).toBe(true);
     const dec = await decryptFieldValue(enc, ctx, "email");
     expect(dec).toBe(secret);
   });

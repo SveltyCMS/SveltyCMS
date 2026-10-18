@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildQueries, parseOsvResponse, type OsvResult } from "../../../scripts/scan-osv";
+import { buildQueries, parseOsvResponse, type OsvResult } from "../../../scripts/security/scan-osv";
 
 describe("buildQueries", () => {
   it("batches purls into groups of 1000", () => {

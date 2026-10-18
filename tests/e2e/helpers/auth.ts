@@ -15,7 +15,7 @@ import {
   EDITOR_CREDENTIALS as HARNESS_EDITOR,
   TEST_PASSWORD,
 } from "../../harness/fixtures";
-import { SESSION_COOKIE_RE, sessionLooksValid, TEST_API_HEADERS } from "./api";
+import { SESSION_COOKIE_RE, sessionLooksValid, TEST_API_HEADERS, primeCsrfHeaders } from "./api";
 import { dismissCookieConsent } from "./cookie-consent";
 
 /**
@@ -421,6 +421,10 @@ export async function loginAs(
       `Login failed for ${email} after retry with seeding. Current URL: ${page.url()}`,
     );
   }
+
+  // The page render issues the CSRF cookie; prime the context once it exists so
+  // API mutations do not have to repeat the token on every request.
+  await primeCsrfHeaders(page);
 }
 
 /**
@@ -518,6 +522,7 @@ export async function loginAsEditor(
       const target = typeof waitForUrl === "string" ? waitForUrl : "/user";
       await page.goto(target, { waitUntil: "domcontentloaded", timeout: 30_000 });
       if (!page.url().includes("/login")) {
+        await primeCsrfHeaders(page);
         return;
       }
     }
@@ -602,6 +607,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         if (waitForUrl instanceof RegExp) {
           await page.waitForURL(waitForUrl, { timeout: 10_000 }).catch(() => undefined);
         }
+        await primeCsrfHeaders(page);
         return;
       }
     } else if (page.url() === "about:blank") {
@@ -610,8 +616,10 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       // a real page (login.spec.ts asserts non-about:blank after login).
       await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 20_000 });
       await waitForHydration(page).catch(() => undefined);
+      await primeCsrfHeaders(page);
       return;
     } else {
+      await primeCsrfHeaders(page);
       return;
     }
   } else {
@@ -662,6 +670,7 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
         }
         const finalUrl = page.url();
         if (!finalUrl.includes("/login")) {
+          await primeCsrfHeaders(page);
           return;
         }
       }

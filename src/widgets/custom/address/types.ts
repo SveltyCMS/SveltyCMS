@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Address/types.ts
+ * @file src/widgets/custom/address/types.ts
  * @description Type definitions for the Address widget.
  *
  * @features

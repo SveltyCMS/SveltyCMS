@@ -22,6 +22,7 @@
  */
 
 import type { Role, User } from "@src/databases/auth/types";
+import { PERMISSION_CATALOG } from "@src/databases/auth/permission-catalog";
 import type { PluginCapability } from "@src/plugins/types";
 import { logger } from "@utils/logger";
 
@@ -29,79 +30,14 @@ import { logger } from "@utils/logger";
 // Core Capability Definitions
 // ============================================================================
 
-/** All built-in CMS capabilities — the closed set that every owner gets. */
-export const CORE_CAPABILITIES: readonly string[] = [
-  // Content
-  "collection:read",
-  "collection:write",
-  "collection:delete",
-  "collections:read",
-  "collections:write",
-  "content:export",
-  "content:import",
-  "content:sync",
-
-  // Media
-  "media:read",
-  "media:write",
-  "media:delete",
-
-  // Users & Roles
-  "user:read",
-  "user:write",
-  "user:delete",
-  "user:manage",
-
-  // System
-  "system:read",
-  "system:settings",
-  "system:admin",
-  "systemPreferences:read",
-  "systemPreferences:write",
-
-  // Config
-  "config:read",
-  "config:write",
-  "config:settings",
-  "config:collectionManagement",
-  "config:collectionbuilder",
-  "config:graphql",
-  "config:imageeditor",
-  "config:dashboard",
-  "config:widgetManagement",
-  "config:themeManagement",
-  "config:accessManagement",
-  "config:emailPreviews",
-  "config:adminArea",
-  "config:importexport",
-  "config:automations",
-  "config:webhooks",
-
-  // API
-  "api:user",
-  "api:exportData",
-
-  // Admin
-  "admin:access",
-
-  // Dashboard
-  "dashboard:read",
-
-  // Backups
-  "backup:read",
-  "backup:create",
-
-  // Tokens
-  "token:create",
-
-  // Migration
-  "migration:read",
-  "migration:apply",
-
-  // Plugin system
-  "plugin:settings:manage",
-  "plugins:execute",
-] as const;
+/**
+ * All built-in CMS capabilities — the closed set that every owner gets.
+ * Derived from the canonical permission catalog (`capability: true`) so a new
+ * core capability cannot be added to one surface only.
+ */
+export const CORE_CAPABILITIES: readonly string[] = PERMISSION_CATALOG.filter(
+  (permission) => permission.capability === true,
+).map((permission) => permission.id);
 
 /** Core capability union type for autocomplete. */
 export type CoreCapability = (typeof CORE_CAPABILITIES)[number];

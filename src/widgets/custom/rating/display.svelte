@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Rating/Display.svelte
+@file src/widgets/custom/rating/display.svelte
 @component
 **Rating Widget Display Component**
 

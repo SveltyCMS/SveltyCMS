@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/RemoteVideo/types.ts
+ * @file src/widgets/custom/remote-video/types.ts
  * @description Type definitions for the RemoteVideo widget.
  *
  * @features

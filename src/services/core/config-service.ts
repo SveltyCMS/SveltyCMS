@@ -12,7 +12,7 @@ import path from "node:path";
 import { dbAdapter } from "@src/databases/db";
 import type { Role } from "@src/databases/auth/types";
 import type { Widget, Theme } from "@src/databases/db-interface";
-import { createChecksum } from "@utils/security/crypto";
+import { createChecksum } from "@utils/security/checksum";
 import { assertLiveDataWriteAllowed, resolveConfigSyncRoot } from "@utils/benchmark-sandbox";
 import { getSchemaPath } from "@src/content/first-collection";
 import { logger } from "@utils/logger";

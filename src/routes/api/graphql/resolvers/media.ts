@@ -3,7 +3,7 @@
  * @description Dynamic GraphQL schema and resolver generation for media.
  */
 
-import type { User } from "@src/databases/auth/types";
+import type { Role, User } from "@src/databases/auth/types";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { logger } from "@utils/logger";
@@ -66,6 +66,7 @@ interface PaginationArgs {
 interface GraphQLContext {
   tenantId?: string | null;
   user?: User;
+  roles?: Role[];
   /** Publication visibility of the request (resolved in +server.ts context). */
   publicationFilter?: PublicationFilter;
 }
@@ -90,7 +91,7 @@ export function mediaResolvers(dbAdapter: DatabaseAdapter) {
     // 🛡️ HARDENING: RBAC parity with REST — media routes require `media:read`.
     // GraphQL previously exposed the media library to ANY logged-in user
     // because it only checked `context.user` presence.
-    if (!hasPermissionWithRoles(context.user, "media:read")) {
+    if (!hasPermissionWithRoles(context.user, "media:read", context.roles)) {
       throw new Error("Forbidden: insufficient permissions");
     }
 

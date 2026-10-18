@@ -8,6 +8,7 @@
  */
 
 import { expect, type Locator, type Page } from "@playwright/test";
+import { TEST_API_HEADERS } from "./api";
 
 export interface CollectionFixture {
   name: string;
@@ -405,4 +406,71 @@ export async function createEntryWithNames(
   await page.getByRole("textbox", { name: "First Name" }).fill(firstName);
   await page.getByRole("textbox", { name: "Last Name" }).fill(lastName);
   await page.getByRole("button", { name: /save/i }).first().click();
+}
+
+/** Seed a real collection (physical model + content node) via the testing API. */
+export async function seedCollectionFixture(
+  page: Page,
+  prefix: string,
+): Promise<{ id: string; name: string }> {
+  const id = `${prefix}${Date.now().toString(36)}`;
+  const response = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "create-collection",
+      schema: {
+        _id: id,
+        name: id,
+        path: `/collection/${id}`,
+        fields: [
+          { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
+        ],
+      },
+    },
+  });
+  expect(response.ok(), `create-collection fixture failed: ${response.status()}`).toBeTruthy();
+  return { id, name: id };
+}
+
+/** Create an entry through the admin UI and assert it was saved. */
+export async function createEntryViaUi(page: Page, title: string): Promise<void> {
+  const createBtn = page
+    .getByTestId("entry-list-action-create")
+    .or(page.getByRole("button", { name: /create new entry|create/i }))
+    .first();
+  const titleBox = page
+    .getByRole("textbox", { name: /^title$/i })
+    .or(page.locator('input[name="title"], textarea[name="title"]').first())
+    .first();
+
+  await expect(async () => {
+    if (!(await titleBox.isVisible().catch(() => false))) {
+      if (await createBtn.isVisible().catch(() => false)) {
+        await createBtn.click({ timeout: 2_000 }).catch(() => {});
+      }
+    }
+    await expect(titleBox).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 25_000, intervals: [1_000, 2_000] });
+
+  await titleBox.click();
+  await titleBox.fill(title);
+  await titleBox.blur();
+
+  const saveBtn = page.getByRole("button", { name: /save/i }).first();
+  await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
+
+  const writePromise = page.waitForResponse(
+    (res) =>
+      (res.request().method() === "POST" || res.request().method() === "PATCH") &&
+      /\/api\/collections\//.test(new URL(res.url()).pathname),
+    { timeout: 25_000 },
+  );
+  await saveBtn.click();
+  const writeRes = await writePromise;
+  expect(writeRes.ok()).toBeTruthy();
+
+  await expect
+    .poll(async () => page.url().includes("create="), { timeout: 20_000 })
+    .toBe(false)
+    .catch(() => undefined);
 }

@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Rating/index.ts
+ * @file src/widgets/custom/rating/index.ts
  * @description Rating Widget Definition.
  *
  * Implements an interactive star rating widget.

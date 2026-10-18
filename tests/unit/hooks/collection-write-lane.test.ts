@@ -216,6 +216,100 @@ describe("warm collection write step-up", () => {
   });
 });
 
+describe("warm collection write MFA", () => {
+  const mfaRole = {
+    _id: "admin",
+    name: "Administrator",
+    isAdmin: true,
+    mfaRequired: true,
+    permissions: [],
+  };
+  const mfaUser = { _id: "admin-mfa", email: "mfa@test.local", role: "admin" };
+
+  function warmMfaSession(sessionId: string, amr?: string[]) {
+    clearTurboAuthCache();
+    setTurboAuthContext(
+      sessionId,
+      mfaUser as never,
+      [mfaRole] as never,
+      null,
+      undefined,
+      undefined,
+      { amr },
+    );
+    return getTurboAuthContext(sessionId)!;
+  }
+
+  it("rejects a warm write when the role mandates MFA and AMR has no second factor", async () => {
+    const sessionId = "write-lane-mfa-missing";
+    const turbo = warmMfaSession(sessionId, ["pwd"]);
+    const event = createMockEvent("/api/collections/posts", {
+      method: "POST",
+      sessionCookie: sessionId,
+      cookies: { csrf_token: "unit-csrf-token" },
+      headers: { "x-csrf-token": "unit-csrf-token" },
+    });
+    (event.locals as unknown as Record<string, unknown>).__parsedJsonBody = { title: "x" };
+
+    const res = await serveWarmCollectionWrite(event, turbo);
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: "MFA_REQUIRED" });
+    expect(wlMocks.create).not.toHaveBeenCalled();
+    clearTurboAuthCache();
+  });
+
+  it("admits a warm write once the session AMR proves MFA", async () => {
+    const sessionId = "write-lane-mfa-ok";
+    const turbo = warmMfaSession(sessionId, ["pwd", "mfa"]);
+    wlMocks.create.mockResolvedValue({ success: true, data: { _id: "entry-mfa", title: "x" } });
+    const event = createMockEvent("/api/collections/posts", {
+      method: "POST",
+      sessionCookie: sessionId,
+      cookies: { csrf_token: "unit-csrf-token" },
+      headers: { "x-csrf-token": "unit-csrf-token" },
+    });
+    (event.locals as unknown as Record<string, unknown>).__parsedJsonBody = { title: "x" };
+
+    const res = await serveWarmCollectionWrite(event, turbo);
+
+    expect(res.status).toBe(201);
+    expect(wlMocks.create).toHaveBeenCalledTimes(1);
+    clearTurboAuthCache();
+  });
+
+  it("falls through tryCollectionWriteLane when MFA is unmet", async () => {
+    const sessionId = "write-lane-mfa-fallthrough";
+    warmMfaSession(sessionId, ["pwd"]);
+    const resolve = vi.fn().mockResolvedValue(new Response("ok"));
+    const event = createMockEvent("/api/collections/posts", {
+      method: "POST",
+      sessionCookie: sessionId,
+    });
+
+    await tryCollectionWriteLane({ event, resolve });
+
+    expect(resolve).toHaveBeenCalledWith(event);
+    expect(wlMocks.create).not.toHaveBeenCalled();
+    clearTurboAuthCache();
+  });
+
+  it("falls through tryGraphqlWriteLane when MFA is unmet", async () => {
+    const sessionId = "graphql-lane-mfa-fallthrough";
+    warmMfaSession(sessionId, ["pwd"]);
+    const resolve = vi.fn().mockResolvedValue(new Response("ok"));
+    const event = createMockEvent("/api/graphql", {
+      method: "POST",
+      sessionCookie: sessionId,
+    });
+
+    await tryGraphqlWriteLane({ event, resolve });
+
+    expect(resolve).toHaveBeenCalledWith(event);
+    clearTurboAuthCache();
+  });
+});
+
 describe("collectionWriteLaneKind branch coverage", () => {
   const id = "00000000-0000-7000-8000-000000000001";
 

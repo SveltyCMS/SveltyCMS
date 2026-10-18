@@ -148,3 +148,22 @@ describe("resolveSqlitePath — best-effort directory creation", () => {
     }
   });
 });
+
+describe("SQLiteAdapter — resolvePath test isolation guard", () => {
+  it("reroutes string path in config/database with test name to config/test-database/", async () => {
+    const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
+    const adapter = new SQLiteAdapter();
+    const resolved = await (adapter as any).resolvePath("config/database/sveltycms_test");
+    expect(resolved.replace(/\\/g, "/")).toContain("config/test-database/sveltycms_test.sqlite");
+  });
+
+  it("reroutes object config with host 'config/database' and DB_NAME 'sveltycms_test'", async () => {
+    const { SQLiteAdapter } = await import("@src/databases/sqlite/sqlite-adapter");
+    const adapter = new SQLiteAdapter();
+    const resolved = await (adapter as any).resolvePath({
+      host: "config/database",
+      DB_NAME: "sveltycms_test",
+    });
+    expect(resolved.replace(/\\/g, "/")).toContain("config/test-database/sveltycms_test.sqlite");
+  });
+});

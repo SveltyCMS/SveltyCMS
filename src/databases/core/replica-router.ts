@@ -488,6 +488,8 @@ export class ReplicaRouterAdapter implements IDBAdapter {
       find: async (col, q, opt) => this.executeRead("find", (a) => a.crud.find(col, q, opt), opt),
       findByIds: async (col, ids, opt) =>
         this.executeRead("findByIds", (a) => a.crud.findByIds(col, ids, opt), opt),
+      findById: async (col, id, opt) =>
+        this.executeRead("findById", (a) => a.crud.findById(col, id, opt), opt),
       findOne: async (col, q, opt) =>
         this.executeRead("findOne", (a) => a.crud.findOne(col, q, opt), opt),
       findMany: async (col, q, opt) =>
