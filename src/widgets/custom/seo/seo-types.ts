@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Seo/seoTypes.ts
+ * @file src/widgets/custom/seo/seo-types.ts
  * @description Comprehensive TypeScript types for SEO analysis
  */ export interface SeoAnalysisConfig {
   analysisDepth: "basic" | "standard" | "comprehensive";

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/Group/Input.svelte
+@file src/widgets/core/group/input.svelte
 @component
 **Group Widget Input Component**
 

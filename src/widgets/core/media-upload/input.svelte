@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/MediaUpload/Input.svelte
+@file src/widgets/core/media-upload/input.svelte
 @component
 **Media Upload Widget Component**
 

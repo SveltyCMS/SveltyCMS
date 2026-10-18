@@ -5,7 +5,7 @@
       "D:\\SveltyCMS\\node_modules\\@playwright\\test\\cli.js",
       "test",
       "--project=chromium",
-      "--grep=Admin route breadth",
+      "tests/e2e/smoke.spec.ts",
       "--workers=1"
     ],
     "configFile": "D:\\SveltyCMS\\playwright.config.ts",
@@ -189,20 +189,20 @@
   },
   "suites": [
     {
-      "title": "routes\\config\\route-breadth.spec.ts",
-      "file": "routes/config/route-breadth.spec.ts",
+      "title": "smoke.spec.ts",
+      "file": "smoke.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Admin route breadth",
-          "file": "routes/config/route-breadth.spec.ts",
-          "line": 51,
+          "title": "Pre-Push E2E Smoke Gate",
+          "file": "smoke.spec.ts",
+          "line": 61,
           "column": 6,
           "specs": [
             {
-              "title": "/dashboard renders its shell",
+              "title": "1. Admin Authentication & UI Shell Hydration",
               "ok": true,
               "tags": [],
               "tests": [
@@ -212,7 +212,7 @@
                     {
                       "type": "serial",
                       "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                         "line": 0,
                         "column": 0
                       }
@@ -226,7 +226,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 946,
+                      "duration": 848,
                       "errors": [],
                       "stdout": [
                         {
@@ -236,14 +236,18 @@
                           "text": "[Auth] ✓ Admin session via testing API\n"
                         }
                       ],
-                      "stderr": [],
+                      "stderr": [
+                        {
+                          "text": "[smoke] redirect: 302 http://127.0.0.1:4173/ -> /en/collection/pages\n"
+                        }
+                      ],
                       "retry": 0,
-                      "startTime": "2026-10-18T15:02:16.190Z",
+                      "startTime": "2026-10-18T15:18:32.629Z",
                       "annotations": [
                         {
                           "type": "serial",
                           "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                             "line": 0,
                             "column": 0
                           }
@@ -255,13 +259,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "d1861b91886608e7f34e-48f3af32dda3fc797ad8",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
+              "id": "4219922fea2e2bd3c691-865bb03fa5274cf306e1",
+              "file": "smoke.spec.ts",
+              "line": 64,
+              "column": 3
             },
             {
-              "title": "/mediagallery renders its shell",
+              "title": "2. Media Gallery — Virtual Folder Creation & CSRF Token",
               "ok": true,
               "tags": [],
               "tests": [
@@ -271,7 +275,7 @@
                     {
                       "type": "serial",
                       "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                         "line": 0,
                         "column": 0
                       }
@@ -285,7 +289,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 951,
+                      "duration": 1484,
                       "errors": [],
                       "stdout": [
                         {
@@ -297,12 +301,12 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-18T15:02:17.387Z",
+                      "startTime": "2026-10-18T15:18:33.719Z",
                       "annotations": [
                         {
                           "type": "serial",
                           "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                             "line": 0,
                             "column": 0
                           }
@@ -314,13 +318,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "d1861b91886608e7f34e-81e86e837aabceca22af",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
+              "id": "4219922fea2e2bd3c691-3894945848ab37a9c2fc",
+              "file": "smoke.spec.ts",
+              "line": 80,
+              "column": 3
             },
             {
-              "title": "/user renders its shell",
+              "title": "3. User Management View & Hydration",
               "ok": true,
               "tags": [],
               "tests": [
@@ -330,7 +334,7 @@
                     {
                       "type": "serial",
                       "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                         "line": 0,
                         "column": 0
                       }
@@ -344,7 +348,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 1049,
+                      "duration": 1046,
                       "errors": [],
                       "stdout": [
                         {
@@ -356,12 +360,12 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-18T15:02:18.348Z",
+                      "startTime": "2026-10-18T15:18:35.212Z",
                       "annotations": [
                         {
                           "type": "serial",
                           "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                             "line": 0,
                             "column": 0
                           }
@@ -373,13 +377,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "d1861b91886608e7f34e-d7f74e43b4076a82fd16",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
+              "id": "4219922fea2e2bd3c691-83289290207a0c49ddd6",
+              "file": "smoke.spec.ts",
+              "line": 153,
+              "column": 3
             },
             {
-              "title": "/config renders its shell",
+              "title": "4. Collection CRUD UI Journey — Create Entry, Reload & Assert",
               "ok": true,
               "tags": [],
               "tests": [
@@ -389,7 +393,7 @@
                     {
                       "type": "serial",
                       "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                         "line": 0,
                         "column": 0
                       }
@@ -403,7 +407,7 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 980,
+                      "duration": 2635,
                       "errors": [],
                       "stdout": [
                         {
@@ -415,12 +419,12 @@
                       ],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-18T15:02:19.411Z",
+                      "startTime": "2026-10-18T15:18:36.266Z",
                       "annotations": [
                         {
                           "type": "serial",
                           "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                             "line": 0,
                             "column": 0
                           }
@@ -432,13 +436,13 @@
                   "status": "expected"
                 }
               ],
-              "id": "d1861b91886608e7f34e-d0c11a22d0191bc1b25c",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
+              "id": "4219922fea2e2bd3c691-6b5f2ccfce31eb23a867",
+              "file": "smoke.spec.ts",
+              "line": 174,
+              "column": 3
             },
             {
-              "title": "/config/access-management renders its shell",
+              "title": "5. System Health & API Readiness",
               "ok": true,
               "tags": [],
               "tests": [
@@ -448,7 +452,7 @@
                     {
                       "type": "serial",
                       "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                         "line": 0,
                         "column": 0
                       }
@@ -462,24 +466,17 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 986,
+                      "duration": 242,
                       "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
+                      "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-18T15:02:20.399Z",
+                      "startTime": "2026-10-18T15:18:38.908Z",
                       "annotations": [
                         {
                           "type": "serial",
                           "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
+                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
                             "line": 0,
                             "column": 0
                           }
@@ -491,777 +488,10 @@
                   "status": "expected"
                 }
               ],
-              "id": "d1861b91886608e7f34e-ac4c98eb3f44244ae4d8",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/api renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 957,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:21.394Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-90a46e85c4dfcfd024bf",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/automations renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 918,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:22.360Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-2e00b9fb55f2478ac10e",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/collectionbuilder renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 869,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:23.289Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-a75f097396d1f9259a20",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/design-system renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 951,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:24.167Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-782d3bb73f2fbd9f415c",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/extensions renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 960,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:25.128Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-e0495bf45f5cdcb1c447",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/monitor renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 922,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:26.097Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-85387b622bbbe82aead5",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/queue renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 906,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:27.030Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-c136ef583dd55f666880",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/redirects renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 876,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:27.944Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-2c04bb12d31403317c5b",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/sync renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 865,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:28.830Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-b75a7550c54fa3202301",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/system-settings renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 982,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:29.704Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-656a46fe2b1cf72e39d5",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/trash renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 925,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:30.695Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-e56efb107ca21765a52e",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/webhooks renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 900,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:31.629Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-d320a87f0dab82f49947",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
-            },
-            {
-              "title": "/config/workflows renders its shell",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 901,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:02:32.538Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\config\\route-breadth.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d1861b91886608e7f34e-9ee996a86bf85c5e61d6",
-              "file": "routes/config/route-breadth.spec.ts",
-              "line": 53,
-              "column": 5
+              "id": "4219922fea2e2bd3c691-55fe6c681f07276b7fea",
+              "file": "smoke.spec.ts",
+              "line": 215,
+              "column": 3
             }
           ]
         }
@@ -1270,9 +500,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-18T15:02:14.831Z",
-    "duration": 18916.119,
-    "expected": 18,
+    "startTime": "2026-10-18T15:18:32.169Z",
+    "duration": 7217.131,
+    "expected": 5,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

@@ -1,5 +1,5 @@
 /**
-@file src/widgets/core/RichText/extensions/ImageResize.ts
+@file src/widgets/core/rich-text/extensions/image-resize.ts
 @description - RichText TipTap widget image extension
 
 Features:

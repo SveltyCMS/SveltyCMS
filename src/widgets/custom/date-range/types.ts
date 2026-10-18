@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Daterange/types.ts
+ * @file src/widgets/custom/date-range/types.ts
  * @description Type definitions for the DateRange widget.
  */
 

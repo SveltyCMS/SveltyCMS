@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/RemoteVideo/index.ts
+ * @file src/widgets/custom/remote-video/index.ts
  * @description RemoteVideo Widget Definition.
  *
  * Implements a dynamic widget for embedding videos from various remote platforms

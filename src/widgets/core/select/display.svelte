@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/select/display.svelte
+@file src/widgets/core/select/display.svelte
 @component
 **Select Widget Display Component**
 -->

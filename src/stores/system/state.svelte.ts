@@ -29,12 +29,16 @@ import { calibrateAnomalyThresholds, detectAnomalies, saveCurrentMetrics } from 
 import { getGlobal, setGlobal } from "@src/utils/native-utils";
 
 // Fallback $state rune for non-Vite execution environments (Bun/Node direct scripts)
-if (typeof (globalThis as any).$state === "undefined") {
-  (globalThis as any).$state = Object.assign((v: any) => v, {
-    raw: (v: any) => v,
-    snapshot: (v: any) => v,
-    eager: (v: any) => v,
-  });
+try {
+  if (typeof (globalThis as any).$state === "undefined") {
+    (globalThis as any).$state = Object.assign((v: any) => v, {
+      raw: (v: any) => v,
+      snapshot: (v: any) => v,
+      eager: (v: any) => v,
+    });
+  }
+} catch {
+  // Svelte dev runtime defines a throwing getter on globalThis.$state; ignore in client builds
 }
 
 // 🚀 MODULE-LEVEL STATE MIRROR: overallState stored as a primitive string.

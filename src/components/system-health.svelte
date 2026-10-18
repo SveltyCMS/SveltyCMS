@@ -188,7 +188,7 @@ Displays real-time system state and individual service health with comprehensive
 
 			if (retryCount < MAX_RETRIES) {
 				retryCount++;
-				toast.warning('Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})', {
+				toast.warning(`Health check failed. Retrying... (${retryCount}/${MAX_RETRIES})`, {
 					duration: 2000
 				});
 
@@ -245,9 +245,7 @@ Displays real-time system state and individual service health with comprehensive
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Unknown error';
 			logger.error('Reinitialization failed:', err);
-			toast.error(`Reinitialization failed: ${message}`);
-
-			toast.error('Failed to reinitialize: ${message}', { duration: 5000 });
+			toast.error(`Reinitialization failed: ${message}`, { duration: 5000 });
 		} finally {
 			isReinitializing = false;
 		}
@@ -426,17 +424,17 @@ Displays real-time system state and individual service health with comprehensive
 
 	<!-- Stats Grid -->
 	<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-		<AdminCard class="preset-outlined-surface-500 p-3">
+		<AdminCard class="p-3">
 			<p class="text-xs opacity-70">Uptime</p>
 			<p class="text-lg font-bold">{formatUptime(uptime)}</p>
 		</AdminCard>
 
-		<AdminCard class="preset-outlined-surface-500 p-3">
+		<AdminCard class="p-3">
 			<p class="text-xs opacity-70">Last Checked</p>
 			<p class="text-sm font-bold">{formattedLastChecked}</p>
 		</AdminCard>
 
-		<AdminCard class="preset-outlined-surface-500 p-3">
+		<AdminCard class="p-3">
 			<p class="text-xs opacity-70">Services</p>
 			<p class="text-lg font-bold">
 				{serviceCount}
@@ -444,7 +442,7 @@ Displays real-time system state and individual service health with comprehensive
 			</p>
 		</AdminCard>
 
-		<AdminCard class="preset-outlined-surface-500 p-3">
+		<AdminCard class="p-3">
 			<p class="text-xs opacity-70">Health</p>
 			<p
 				class="text-lg font-bold {healthPercentage >= 80
@@ -489,7 +487,7 @@ Displays real-time system state and individual service health with comprehensive
 		</div>
 
 		{#if serviceCount === 0}
-			<AdminCard class="preset-outlined-surface-500 p-6 text-center">
+			<AdminCard class="p-6 text-center">
 				<p class="text-sm opacity-70">No services registered</p>
 			</AdminCard>
 		{:else}
@@ -531,7 +529,7 @@ Displays real-time system state and individual service health with comprehensive
 	</div>
 
 	<!-- API Health Endpoint Info -->
-	<AdminCard class="preset-outlined-surface-500 p-3">
+	<AdminCard class="p-3">
 		<details class="space-y-2">
 			<summary class="cursor-pointer text-sm font-semibold opacity-70 hover:opacity-100"
 				>API Health Endpoint</summary

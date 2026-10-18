@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Currency/index.ts
+ * @file src/widgets/custom/currency/index.ts
  * @description Currency Widget Definition.
  *
  * Implements a robust currency input widget that stores a precise number

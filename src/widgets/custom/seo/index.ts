@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Seo/index.ts
+ * @file src/widgets/custom/seo/index.ts
  * @description SEO Widget Definition.
  *
  * An SEO analysis and optimization tool embedded as a widget.

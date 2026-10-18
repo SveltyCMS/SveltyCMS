@@ -1,5 +1,5 @@
 /**
-@file src/widgets/core/RichText/extensions/TextStyle.ts
+@file src/widgets/core/rich-text/extensions/text-style.ts
 @description - RichText TipTap widget text style extension with fixed font size handling
 */
 

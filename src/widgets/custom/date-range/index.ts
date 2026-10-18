@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Daterange/index.ts
+ * @file src/widgets/custom/date-range/index.ts
  * @description DateRange Widget Definition.
  *
  * Implements a robust date range widget using the Three Pillars Architecture.

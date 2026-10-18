@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Seo/components/RobotsMetaInput.svelte
+@file src/widgets/custom/seo/components/robots-meta-input.svelte
 @component
 **Robots Meta widget for SEO Widget to manage robots meta data**
 

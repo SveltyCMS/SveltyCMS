@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/Relation/Input.svelte
+@file src/widgets/core/relation/input.svelte
 @component
 **Relation Widget Input Component**
 

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/Input/Display.svelte
+@file src/widgets/core/input/display.svelte
 @component
 **Text Input Widget Display Component**
 

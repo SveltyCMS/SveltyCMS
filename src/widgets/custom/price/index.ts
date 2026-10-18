@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Price/index.ts
+ * @file src/widgets/custom/price/index.ts
  * @description Price Widget Definition.
  *
  * Handles monetary values with currency support.

@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Number/types.ts
+ * @file src/widgets/core/number/types.ts
  * @description Type definitions for the Number widget.
  *
  * @features

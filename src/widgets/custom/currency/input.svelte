@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Currency/Input.svelte
+@file src/widgets/custom/currency/input.svelte
 @component
 **Currency Widget Input Component**
 

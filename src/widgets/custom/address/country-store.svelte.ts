@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Address/country-store.svelte.ts
+ * @file src/widgets/custom/address/country-store.svelte.ts
  * @description Singleton store for efficient country data management.
  *
  * Features:

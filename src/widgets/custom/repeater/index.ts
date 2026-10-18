@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Repeater/index.ts
+ * @file src/widgets/custom/repeater/index.ts
  * @description Repeater Widget Definition.
  *
  * Allows creating an array of complex objects (rows), where each row

@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/Seo/components/SeoAnalysisPanel.svelte
+@file src/widgets/custom/seo/components/seo-analysis-panel.svelte
 @component
 **SEO Analysis Panel**
 Displays the overall score and a scrollable list of suggestions.

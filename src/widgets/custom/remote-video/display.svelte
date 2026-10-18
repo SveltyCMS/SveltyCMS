@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/custom/RemoteVideo/Display.svelte
+@file src/widgets/custom/remote-video/display.svelte
 @component
 **RemoteVideo Widget Display Component**
 

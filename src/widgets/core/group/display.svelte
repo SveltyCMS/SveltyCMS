@@ -1,5 +1,5 @@
 <!--
-@file src/widgets/core/Group/Display.svelte
+@file src/widgets/core/group/display.svelte
 @component
 **Group Widget Display Component**
 

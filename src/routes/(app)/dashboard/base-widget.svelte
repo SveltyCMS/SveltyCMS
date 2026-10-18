@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/dashboard/BaseWidget
+@file src/routes/(app)/dashboard/base-widget.svelte
 @component
 **Base widget**
 

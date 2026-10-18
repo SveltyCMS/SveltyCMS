@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/select/index.ts
+ * @file src/widgets/core/select/index.ts
  * @description Select Widget Definition.
  *
  * Implements a dropdown select widget using the Three Pillars Architecture.

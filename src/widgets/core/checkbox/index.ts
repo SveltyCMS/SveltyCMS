@@ -1,5 +1,5 @@
 /**
- * @file src/widgets/custom/Checkbox/index.ts
+ * @file src/widgets/core/checkbox/index.ts
  * @description Definition of the Checkbox widget
  *
  * Implements a robust checkbox widget using the Three Pillars Architecture.
