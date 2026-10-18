@@ -38,8 +38,8 @@ async function runVirtualFederationBenchmark() {
     name: "Bench REST",
     type: "rest" as const,
     enabled: true,
-    config: { baseUrl: "https://bench.example.com" },
-    allowedHosts: ["bench.example.com"],
+    config: { baseUrl: "http://127.0.0.1:45678" },
+    allowedHosts: ["127.0.0.1"],
     capabilities: {
       filterPushdown: false,
       sortPushdown: false,
@@ -80,24 +80,28 @@ async function runVirtualFederationBenchmark() {
     },
   } as any;
 
+  const mockPosts = Array.from({ length: 25 }, (_, i) => ({
+    id: i + 1,
+    title: `Post ${i}`,
+    slug: `post-${i}`,
+    status: "publish",
+    content: "x",
+    excerpt: "y",
+    date: "2026-07-08",
+    modified: "2026-07-08",
+    author: 1,
+    featured_media: 0,
+  }));
+  const mockPayload = JSON.stringify(mockPosts);
+
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = vi.fn(async () => ({
-    ok: true,
-    headers: { get: () => "512" },
-    json: async () =>
-      Array.from({ length: 25 }, (_, i) => ({
-        id: i + 1,
-        title: `Post ${i}`,
-        slug: `post-${i}`,
-        status: "publish",
-        content: "x",
-        excerpt: "y",
-        date: "2026-07-08",
-        modified: "2026-07-08",
-        author: 1,
-        featured_media: 0,
-      })),
-  })) as any;
+  globalThis.fetch = vi.fn(
+    async () =>
+      new Response(mockPayload, {
+        status: 200,
+        headers: { "Content-Type": "application/json", "X-WP-Total": "512" },
+      }),
+  ) as any;
 
   const opts = {
     tenantId: TENANT,
