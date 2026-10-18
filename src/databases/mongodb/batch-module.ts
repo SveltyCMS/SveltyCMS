@@ -6,6 +6,7 @@
 import { DatabaseModule } from "../core/base-adapter";
 import { applyTenantFilterToMongoQuery, sameBatchPayload } from "../core/relational-utils";
 import { nowISODateString } from "@src/utils/date";
+import { normalizeCollectionName } from "./mongodb-utils";
 import type {
   BaseQueryOptions,
   DatabaseResult,
@@ -75,7 +76,9 @@ export class MongoBatchModule extends DatabaseModule<MongoAdapterCore> {
       return { success: true as const, data: { modifiedCount: 0 } };
     }
 
-    const model = (this.adapter as any).getModel?.(collection);
+    const model =
+      (this.adapter as any).getModel?.(collection) ??
+      (this.adapter as any)._getOrCreateModel?.(normalizeCollectionName(collection));
 
     // 🛡️ TENANT ISOLATION: every write filter is tenant-scoped like crud.update
     // (safeQuery would do the same) — bulk ops must never touch other tenants.

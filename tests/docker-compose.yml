@@ -20,6 +20,14 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
+    # 🚀 DURABILITY PARITY: syncdelay=60 and journalCommitInterval=500 batch
+    # journal commits instead of frequent fsyncing on every write — the MongoDB
+    # twin of MariaDB's innodb_flush_log_at_trx_commit=2 and PostgreSQL's
+    # synchronous_commit=off (virtualized disks on WSL2/Hyper-V/CI cost 2–4 ms
+    # per commit fsync). Test/benchmark only.
+    command: --syncdelay 60 --journalCommitInterval 500 --wiredTigerCacheSizeGB 1
+    tmpfs:
+      - /data/db
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
       interval: 10s
