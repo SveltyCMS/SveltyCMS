@@ -7,6 +7,8 @@ export {
   resetAndSeedDatabase,
   TEST_API_SECRET,
   TEST_API_HEADERS,
+  csrfToken,
+  primeCsrfHeaders,
   seedReadyState,
   resetToSetupMode,
   seedWebhook,

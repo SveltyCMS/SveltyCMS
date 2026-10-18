@@ -844,7 +844,7 @@
 	</div>
 
 	<!-- Toolbar -->
-	<div class={SMART_TABLE_TOOLBAR}>
+	<div class="{SMART_TABLE_TOOLBAR} relative z-30">
 		<div class="order-3 flex items-center gap-2 sm:order-2">
 			<TableFilter
 				bind:globalSearchValue
@@ -861,7 +861,7 @@
 			<SmartTableMetricsBadge source={showUserList ? 'UserManagement.list' : 'Tokens.list'} />
 		</div>
 
-		<div class="order-2 flex items-center justify-center sm:order-3">
+		<div class="order-2 flex items-center justify-center sm:order-3 relative z-30">
 			<Multibutton
 				{selectedRows}
 				type={showUserList ? 'user' : 'token'}

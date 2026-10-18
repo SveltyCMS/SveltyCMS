@@ -310,7 +310,13 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
               .where(and(...conditions));
             const result = await executeWrite(query);
             return {
-              modifiedCount: result?.changes ?? result?.rowsAffected ?? result?.count ?? -1,
+              modifiedCount:
+                result?.changes ??
+                result?.rowsAffected ??
+                result?.rowCount ??
+                result?.count ??
+                result?.affectedRows ??
+                -1,
             };
           }
         }
@@ -367,7 +373,13 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
               const result = (
                 typeof stmt.run === "function" ? await stmt.run() : await stmt
               ) as any;
-              modifiedCount += result?.changes ?? result?.rowsAffected ?? result?.count ?? 0;
+              modifiedCount +=
+                result?.changes ??
+                result?.rowsAffected ??
+                result?.rowCount ??
+                result?.count ??
+                result?.affectedRows ??
+                0;
             }
           }),
         );
@@ -390,9 +402,17 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
       // owned by another tenant sharing the DB instance.
       const conditions = [inArray((table as any)._id, ids as string[])];
       applyTenantFilter(conditions, (table as any).tenantId, options);
-      const result = await this.db.delete(table as any).where(and(...conditions));
+      const query = this.db.delete(table as any).where(and(...conditions));
+      const result = (await executeWrite(query)) as any;
+      const deletedCount =
+        result?.changes ??
+        result?.rowsAffected ??
+        result?.rowCount ??
+        result?.count ??
+        result?.affectedRows ??
+        0;
       return {
-        deletedCount: (result as unknown as { changes: number }).changes,
+        deletedCount,
       };
     }, "BULK_DELETE_FAILED");
   }

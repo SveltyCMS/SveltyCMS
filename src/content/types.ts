@@ -14,7 +14,7 @@ import type { WidgetRecord as widgets } from "@src/widgets/types";
 import type { SchemaHooks } from "./schema-hooks";
 // Note: collectionSchemas may be used in the future for runtime validation
 
-// Auth
+import type { ConditionExpression } from "@src/widgets/desugar-field";
 import type { RolePermissions } from "@src/databases/auth/types";
 import type { WidgetPlaceholder } from "@src/widgets/placeholder";
 import type { ContentTypes, CollectionMap } from "./types.generated";
@@ -234,6 +234,10 @@ export interface FieldInstance {
   // Permissions: access control for this field (AUTH tab). Stored in widget.permissions.
   permissions?: WidgetFieldPermissions | Record<string, Record<string, boolean>>;
   required: boolean; // Now required (factory sets default)
+  /** Dynamic visibility rule based on other field values. */
+  showIf?: ConditionExpression;
+  /** Dynamic required requirement based on other field values. */
+  requiredIf?: ConditionExpression;
   translated: boolean; // Now required (factory sets default)
   type?: string; // Optional field type
   unique?: boolean;

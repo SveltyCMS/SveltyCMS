@@ -187,17 +187,23 @@ jobs:
               echo "::group::lockfile-sync"
               bun run scripts/check-lockfile-sync.ts
               echo "::endgroup::"
+              echo "::group::typecheck (tsc + svelte-check)"
+              bun run typecheck
+              echo "::endgroup::"
               echo "✅ Quality gate clean"
           - task: 04-unit
             name: ⚡ Unit Tests
             # --coverage runs the exact suite `bun run test:unit` (the pre-commit hook) runs
-            # AND enforces the P0 floors in vitest.config.ts (lines 48 / funcs 47 /
-            # branches 40 / statements 47), producing the json report Codecov uploads — so
+            # AND enforces the P0 floors in vitest.config.ts (lines 72 / funcs 72 /
+            # branches 60 / statements 70), producing the json report Codecov uploads — so
             # the suite runs once, not twice. The mutation harness is excluded from the
             # coverage run (its temp-file dynamic import is incompatible with v8
-            # instrumentation) and runs right after in the same job.
+            # instrumentation) and runs right after in the same job. The component
+            # interaction suite (real client build, jsdom) runs last so a DOM regression
+            # fails this job instead of only the E2E shards.
             run: |
               bun run test:unit:coverage
+              bun run test:unit:components
               bun run test:mutation
           - task: 04b-tenant-gate
             name: 🛡️ Tenant Isolation Gate
@@ -714,6 +720,10 @@ jobs:
         if: always()
         run: bun run scripts/ci-report-playwright.ts --label="E2E Prep (wizard + auth-setup)" --json=tests/playwright-results.json --preview=preview.log
 
+      - name: Flake budget (wizard + auth-setup)
+        if: always()
+        run: bun run scripts/check-flake-budget.ts --json=tests/playwright-results.json --max-flaky=0 --allow-missing
+
       - name: Shutdown Preview Server
         if: always()
         run: |
@@ -878,6 +888,14 @@ jobs:
       - name: Smart Playwright summary
         if: always()
         run: bun run scripts/ci-report-playwright.ts --label="E2E — ${{ matrix.name }}" --json=tests/playwright-results.json --preview=preview.log
+
+      # Explicit flake budget: retries keep a shard green, so a retried-pass
+      # ("flaky") hides instability. Budget: ≤2 per shard, ≤3% of executed
+      # tests. Missing reports (server crash) are allowed — the test step owns
+      # that failure.
+      - name: Flake budget
+        if: always()
+        run: bun run scripts/check-flake-budget.ts --json=tests/playwright-results.json --max-flaky=2 --max-flake-rate=3 --allow-missing
 
       - uses: actions/upload-artifact@v7
         if: always()

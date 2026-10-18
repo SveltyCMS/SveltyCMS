@@ -10,7 +10,10 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { escapeLikePattern } from "@src/databases/core/drizzle-sql-helpers";
+import {
+  escapeLikePattern,
+  regexValueToLikePattern,
+} from "@src/databases/core/drizzle-sql-helpers";
 
 describe("escapeLikePattern", () => {
   it("leaves plain text untouched", () => {
@@ -38,5 +41,36 @@ describe("escapeLikePattern", () => {
   it("handles empty and regex-anchor-only input", () => {
     expect(escapeLikePattern("")).toBe("");
     expect(escapeLikePattern("^foo$")).toBe("^foo$"); // anchors are handled by callers
+  });
+});
+
+describe("regexValueToLikePattern", () => {
+  it("unescapes regex-escaped literals before LIKE escaping", () => {
+    // The regression: `developer@test\.com` was stored with a literal backslash,
+    // so the LIKE search never matched the email address.
+    expect(regexValueToLikePattern("developer@test\\.com")).toBe("%developer@test.com%");
+    expect(regexValueToLikePattern("\\(foo\\)")).toBe("%(foo)%");
+  });
+
+  it("translates Mongo anchors to LIKE starts/ends-with", () => {
+    expect(regexValueToLikePattern("^foo$")).toBe("foo");
+    expect(regexValueToLikePattern("^foo")).toBe("foo%");
+    expect(regexValueToLikePattern("foo$")).toBe("%foo");
+  });
+
+  it("still escapes real LIKE wildcards", () => {
+    expect(regexValueToLikePattern("%")).toBe("%\\%%");
+    expect(regexValueToLikePattern("a_b")).toBe("%a\\_b%");
+    expect(regexValueToLikePattern("50%_off")).toBe("%50\\%\\_off%");
+  });
+
+  it("leaves literal dots alone (they are not LIKE wildcards)", () => {
+    expect(regexValueToLikePattern("a.b")).toBe("%a.b%");
+  });
+
+  it("handles empty and non-string values", () => {
+    expect(regexValueToLikePattern(undefined)).toBe("%%");
+    expect(regexValueToLikePattern("")).toBe("%%");
+    expect(regexValueToLikePattern(42)).toBe("%42%");
   });
 });

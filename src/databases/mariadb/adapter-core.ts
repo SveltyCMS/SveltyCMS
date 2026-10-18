@@ -1709,6 +1709,16 @@ export abstract class AdapterCore extends SqlAdapterCore {
       const prepared = updates.map((u) =>
         this.prepareUpdateValues(table, u.data, u.id as string, now, options),
       );
+      // 🐛 PK CARRIER: prepareUpdateValues (isUpdate=true) deliberately omits the
+      // primary key — crud.update must never write it back into SET. Both bulk
+      // strategies below need the id to match rows (JSON_TABLE JOIN / CASE
+      // ladder), so carry it on the prepared row and let the setCols loop keep
+      // excluding it. Without this, every heterogeneous MariaDB batch built its
+      // JOIN from String(undefined) and silently updated zero rows.
+      const ids = updates.map((u) => String(u.id));
+      prepared.forEach((values, i) => {
+        values[idColName] = ids[i];
+      });
 
       // 🔀 PARTIAL-UPDATE MERGE: `JSON_MERGE_PATCH` can wrap the `data` column in
       // this one statement, but only for patches it expresses like a shallow merge.

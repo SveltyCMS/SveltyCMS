@@ -2,14 +2,15 @@
 # =============================================================================
 # SveltyCMS Pre-Push — Build → SQLite Integration (~5 min)
 #
-# Pre-commit already ran: format, lint, unit tests.
-# This hook builds the project and runs the SQLite integration test suite.
-# Multi-DB matrix, E2E, and full audits run in CI only.
-#
-# POLICY: --no-verify is blocked by git-safe.ts by default.
+# Pre-commit already ran: format, lint, unit tests, component interaction tests.
+# This hook builds the project and runs the SQLite integration suite plus a
+# local DB-parity pass when adapter code changed. Multi-DB matrix, full E2E and
+# audits run in CI only.
 #
 # Flags:
 #   --only-failures      Skip build, re-run only previously failed suites via test:smart
+#   SKIP_DB_PARITY=true  Skip the adapter parity step
+#   SKIP_E2E_SMOKE=true  Skip the Chromium smoke gate
 #
 # Release: a push to `main` that passes the gate IS a release. The hook derives
 # the next SemVer from Conventional Commits (`scripts/version.ts auto`, falling
@@ -84,11 +85,11 @@ if [ "$HAS_CODE_CHANGES" = false ]; then
   exit 0
 fi
 
-info "Pre-commit already verified: format, lint, unit tests."
-info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration"
+info "Pre-commit already verified: format, lint, unit tests, component interactions."
+info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration + DB parity + E2E smoke"
 echo ""
 
-TOTAL=10; OK=0
+TOTAL=12; OK=0
 
 # Step 1 — Production build (mirrors CI build job)
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true "$PM_BIN" run build; then
@@ -140,6 +141,31 @@ fi
 # Step 7 — SQLite integration tests (diff-scoped; `--diff` runs only suites mapped
 # from changed files and falls back to the full suite when none are affected)
 if run "🗄️  Integration tests (SQLite, diff)" pm_run scripts/run-integration.ts --no-build --diff; then
+  OK=$((OK + 1))
+fi
+
+# Step 7b — Local DB parity. Pre-push only proves SQLite, so an adapter-specific
+# regression could otherwise reach the CI matrix. Runs the cross-adapter
+# contract suites against every reachable engine (auto-detected), and is a
+# no-op when no adapter/database code changed. `bun run test:parity:docker`
+# starts the missing engines through the test compose profiles.
+if [ "${SKIP_DB_PARITY:-false}" = "true" ]; then
+  warn "DB parity skipped via SKIP_DB_PARITY=true"
+  OK=$((OK + 1))
+elif ! has_push_changes '^(src/databases/|tests/integration/databases/|scripts/integration-harness\.ts)'; then
+  info "No adapter/database changes — parity matrix not required"
+  OK=$((OK + 1))
+elif run "🧬  DB parity (auto-detected engines)" pm_run test:parity -- --tests=tests/integration/databases/contract.test.ts; then
+  OK=$((OK + 1))
+fi
+
+# Step 8 — E2E Smoke Gate (Chromium) — fast browser verification before push
+if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
+  if run "🌐  E2E Smoke Gate (Chromium)" pm_run scripts/run-e2e.ts --no-build tests/e2e/smoke.spec.ts; then
+    OK=$((OK + 1))
+  fi
+else
+  warn "E2E smoke gate skipped via SKIP_E2E_SMOKE=true"
   OK=$((OK + 1))
 fi
 

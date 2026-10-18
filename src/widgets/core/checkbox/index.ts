@@ -37,8 +37,8 @@ const CheckboxWidget = createWidget<CheckboxProps>({
   Description: widget_checkbox_description(),
 
   // Define paths to the dedicated Svelte components.
-  inputComponentPath: "/src/widgets/custom/checkbox/input.svelte",
-  displayComponentPath: "/src/widgets/custom/checkbox/display.svelte",
+  inputComponentPath: "/src/widgets/core/checkbox/input.svelte",
+  displayComponentPath: "/src/widgets/core/checkbox/display.svelte",
 
   // Assign the validation schema.
   validationSchema: CHECKBOX_VALIDATION_SCHEMA,

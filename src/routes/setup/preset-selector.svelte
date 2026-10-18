@@ -11,10 +11,13 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { Preset } from './presets';
 
-	let { presets, selected = $bindable('blank') } = $props<{
+	let {
+		presets,
+		selected = $bindable('blank')
+	}: {
 		presets: Preset[];
 		selected: string | null;
-	}>();
+	} = $props();
 
 	let scrollEl = $state<HTMLDivElement | null>(null);
 	let canScrollLeft = $state(false);
@@ -276,7 +279,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 				i
 					? 'w-4.5! rounded-[3px]! bg-tertiary-500! dark:bg-primary-500! '
 					: ''}"
-				aria-label={`Select preset ${preset.name || i + 1}`}
+				aria-label={`Select preset ${preset.title || i + 1}`}
 				onclick={() => {
 					select(preset.id);
 					scrollEl?.scrollTo({ left: i * 288, behavior: 'smooth' });

@@ -51,6 +51,7 @@ get_estimate_sec() {
     *SBOM*)             echo 2  ;;
     *Lint-staged*)      echo 3  ;;
     *Unit*)             echo 35 ;;
+    *Component*)        echo 4  ;;
     *Secret*)           echo 3  ;;
     *Tenant*)           echo 5  ;;
     *Backdoor*|*Probe*) echo 3  ;;
@@ -58,6 +59,7 @@ get_estimate_sec() {
     *Bundle*)          echo 3  ;;
     *Build*|*build*)    echo 90 ;;
     *Integration*)      echo 150 ;;
+    *Parity*)            echo 300 ;;
     *)                  echo 30 ;;
   esac
 }

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-07-19"
+updated: "2026-10-18"
 tags:
   - "testing"
   - "adr"
@@ -44,16 +44,22 @@ This ADR locks **how** admin/product routes are tested and structured so UI refa
 4. **Testid policy** — control-risk anchors only
 5. **Shared mutation client** — `fetchApi` always attaches CSRF on non-GET
 6. **Testing API security** — production-hard-closed; same gate as test bypass
+7. **Type gate** — `bun run check` runs `tsc --noEmit` + `svelte-check` (2026-10-18)
+8. **Composite DOM coverage** — Tabs, dropdowns, confirm dialogs, SmartTable selection/sort, bulk Multibutton (2026-10-18)
+9. **Local DB parity** — `bun run test:parity` mirrors the CI contract suites on every reachable engine (2026-10-18)
+10. **Explicit flake budget** — retried-pass count/rate is a CI gate, not a retry side effect (2026-10-18)
+11. **No force-click workarounds** — E2E drives the real hit target; remaining `force` uses require a documented overlay reason (2026-10-18)
 
 ---
 
 ## 1. Testing pyramid (target ratio)
 
-| Layer           | Share (guidance) | Proves                                                        | Tools             |
-| --------------- | ---------------- | ------------------------------------------------------------- | ----------------- |
-| **Unit**        | ~70%             | Pure utils, validation, page.server gates, `*-api.ts` clients | Vitest            |
-| **Integration** | ~20%             | HTTP + DB, RBAC, settings/webhooks services                   | Integration suite |
-| **E2E**         | ~10%             | **Golden journeys** (outcome), sparse shell guards            | Playwright        |
+| Layer           | Share (guidance) | Proves                                                        | Tools                         |
+| --------------- | ---------------- | ------------------------------------------------------------- | ----------------------------- |
+| **Unit**        | ~62%             | Pure utils, validation, page.server gates, `*-api.ts` clients | Vitest                        |
+| **Component**   | ~8%              | Real DOM events, Svelte 5 runes, disabled/ARIA/modal wiring   | Vitest + jsdom (client build) |
+| **Integration** | ~20%             | HTTP + DB, RBAC, settings/webhooks services                   | Integration suite             |
+| **E2E**         | ~10%             | **Golden journeys** (outcome), sparse shell guards            | Playwright                    |
 
 “100% control map” means every **control risk** has the right layer(s)—not 100% of DOM nodes.
 
@@ -198,19 +204,24 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 ## Shared infrastructure
 
-| Piece                  | Path                                                                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                                             |
-| Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                                        |
-| Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                                       |
-| E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                                           |
-| Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                                                 |
-| Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                                          |
-| Prod strip proof       | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                                                                              |
-| Smart Test Selector    | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering                                                  |
-| **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                                       |
-| Integration harness    | `tests/integration/harness.ts` — singleton preview, private.test.ts, seed isolation                                                  |
-| E2E CI-parity runner   | `bun run test:e2e` → `scripts/run-e2e.ts` (preview :4173, harness pre-check) — `--dev` for Vite :5173, `--no-build` to reuse a build |
+| Piece                  | Path                                                                                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                                                                        |
+| Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                                                                   |
+| Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                                                                  |
+| E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                                                                      |
+| Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                                                                            |
+| Checkbox helper        | `tests/e2e/helpers/checkbox.ts` — clicks `label[for]` for sr-only inputs                                                                                        |
+| Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                                                                     |
+| Prod strip proof       | `tests/unit/scripts/verify-prod-build-backdoor.test.ts`                                                                                                         |
+| Smart Test Selector    | `scripts/test-smart.ts` — unioned signals, synthetic edges, surgical diff-filtering                                                                             |
+| Component interaction  | `vitest.dom.config.ts` + `tests/unit/components/dom/` (client Svelte, jsdom)                                                                                    |
+| Zero-mock OIDC peer    | `tests/integration/helpers/oidc-test-server.ts` — real HTTP provider on `127.0.0.1:0` (discovery, `/authorize`, `/token` + PKCE, `/jwks`, logout-token minting) |
+| Local DB parity        | `scripts/run-local-db-matrix.ts` — `bun run test:parity` (`--docker`, `--only`, `--require-all`)                                                                |
+| Flake budget           | `scripts/check-flake-budget.ts` — `bun run flake:budget` (reads Playwright JSON)                                                                                |
+| **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                                                                  |
+| Integration harness    | `tests/integration/harness.ts` — singleton preview, private.test.ts, seed isolation                                                                             |
+| E2E CI-parity runner   | `bun run test:e2e` → `scripts/run-e2e.ts` (preview :4173, harness pre-check) — `--dev` for Vite :5173, `--no-build` to reuse a build                            |
 
 ---
 
@@ -218,26 +229,99 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 Enterprise stability rules that every layer must honor:
 
-| Rule                   | Unit                                                          | Integration                           | E2E                                     |
-| ---------------------- | ------------------------------------------------------------- | ------------------------------------- | --------------------------------------- | ------------- | --------------------- |
-| **One identity**       | `@tests/harness`                                              | seed uses harness emails              | `helpers/auth.ts` → harness             |
-| **Right altitude**     | pure logic / gates                                            | HTTP + multi-DB                       | golden journeys only                    |
-| **No soft-skip empty** | n/a                                                           | n/a                                   | seed or hard-fail                       |
-| **Crash isolation**    | n/a                                                           | detect socket death → restart         | storageState fail-closed                |
-| **Local = CI binary**  | Vitest                                                        | preview `node build`                  | `test:e2e` = preview :4173              |
-| **P0 floors**          | `bun x vitest run --coverage` thresholds (`vitest.config.ts`) | multi-DB matrix in CI                 | P0 journeys in `critical-test-paths.ts` |
-| **Push smoke**         | smart unit + security                                         | auto SQLite smoke when `src/databases | plugins                                 | hooks` change | not on push (CI-only) |
+| Rule                   | Unit                                                    | Integration                                                 | E2E                                     |
+| ---------------------- | ------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------- |
+| **One identity**       | `@tests/harness`                                        | seed uses harness emails                                    | `helpers/auth.ts` → harness             |
+| **Right altitude**     | pure logic / gates                                      | HTTP + multi-DB                                             | golden journeys only                    |
+| **No soft-skip empty** | n/a                                                     | n/a                                                         | seed or hard-fail                       |
+| **Crash isolation**    | n/a                                                     | detect socket death → restart                               | storageState fail-closed                |
+| **Local = CI binary**  | Vitest                                                  | preview `node build`                                        | `test:e2e` = preview :4173              |
+| **P0 floors**          | `bun run test:coverage` thresholds (`vitest.config.ts`) | multi-DB matrix in CI                                       | P0 journeys in `critical-test-paths.ts` |
+| **Push smoke**         | smart unit + security                                   | auto SQLite + **local parity when `src/databases` changes** | not on push (CI-only)                   |
 
 **Commands (canonical):**
 
 ```bash
 bun run test:unit                 # Layer 1
-bun x vitest run --coverage       # Layer 1 + P0 coverage floors (thresholds in vitest.config.ts)
+bun run test:unit:components      # Layer 1b — real DOM component interaction (jsdom)
+bun run test:coverage             # Layer 1 + P0 coverage floors (thresholds in vitest.config.ts)
 bun run test:integration          # Layer 2 (builds + multi-file)
 bun run test:integration:smoke    # Layer 2 quick SQLite
+bun run test:parity               # Layer 2b — contract suites on every reachable local engine
 bun run test:e2e                  # Layer 3 CI-parity (preview :4173)
 bun run test:e2e:dev              # Layer 3 Vite :5173 (local only)
+bun run flake:budget              # Layer 3 flake gate (retried-pass budget)
 ```
+
+---
+
+## 6. Component interaction layer — **implemented 2026-10-18**
+
+The unit suite runs under an SSR-forced Vitest config, so SSR string assertions
+(`render(Component).not.toThrow()`) cannot prove that a control is wired. The DOM
+suite closes that gap without Playwright:
+
+| Piece   | Path / command                                                                                                                                                                                                                                                                                                                                                                |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Config  | `vitest.dom.config.ts` — `conditions: ["browser"]`, `import.meta.env.SSR: "false"`, jsdom                                                                                                                                                                                                                                                                                     |
+| Harness | `tests/unit/components/dom/render.ts` — `renderComponent` / `click` / `type` / `select` / `press`                                                                                                                                                                                                                                                                             |
+| Suites  | Button, Checkbox, Toggle, Input/Select/Textarea, Modal, ModalPrompt, Tabs, Dropdown, ConfirmDialog, SmartTable saved views + selection/sort, TableIcons, Multibutton, System Settings, Access Management role modal, Workflow editor, Webhooks, Media Gallery folders, Collection Builder field editor + validation/conditions/permissions/preview (**19 files / 118 tests**) |
+| Command | `bun run test:unit:components` (pre-commit + CI `04-unit`)                                                                                                                                                                                                                                                                                                                    |
+
+The default `vitest.config.ts` **excludes** `tests/unit/components/dom/**` — running
+those files under the SSR config resolves `svelte` to its server entry and `mount()`
+throws `lifecycle_function_unavailable`.
+
+Rules:
+
+1. An interaction test must mount the component, act on real DOM (click/label/key), and
+   assert the observable outcome — not just that render did not throw.
+2. Prefer `data-testid` anchors on controls the E2E suite also drives (ModalPrompt now
+   exposes `modal-prompt-input|confirm|cancel`).
+3. Keep the suite fast: it must stay under ~15 s locally (19 files / 118 tests currently run in ~13 s) so pre-commit can run it on every commit.
+4. Never mock a component's own event wiring — mount it and click/keypress the real control.
+
+---
+
+## 7. Reliability gates — **implemented 2026-10-18**
+
+Six gaps let regressions pass local hooks. Each now has an explicit gate:
+
+| Gap                       | Gate                                                                                                                                                                                                                                           | Where                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type drift                | `tsc --noEmit` + `svelte-check --threshold error`                                                                                                                                                                                              | `bun run typecheck`, appended to `check`; CI `03-check`                                                                                                                                                                                                                                                                                     |
+| Composite UI untested     | 20 jsdom suites (see §6)                                                                                                                                                                                                                       | `bun run test:unit:components` (pre-commit)                                                                                                                                                                                                                                                                                                 |
+| E2E workarounds hide bugs | Removed `force` from user-management, permission, profile-link and redirect-delete clicks; `toggleCheckbox()` clicks the visible label                                                                                                         | `tests/e2e/routes/user/management.spec.ts`, `tests/e2e/helpers/checkbox.ts`                                                                                                                                                                                                                                                                 |
+| DB parity was CI-only     | `bun run test:parity` runs contract suites on every reachable engine; pre-push runs the core contract when `src/databases/` changed                                                                                                            | `scripts/run-local-db-matrix.ts`, `.githooks/pre-push` step 7b                                                                                                                                                                                                                                                                              |
+| Coverage floors too low   | Raised to 72/72/60/70 (lines/functions/branches/statements) from measured 75.73/75.71/64.33/73.92                                                                                                                                              | `vitest.config.ts`                                                                                                                                                                                                                                                                                                                          |
+| Security core untested    | Real suites for 2FA, `handle-security`, submission replay, SSO/OIDC (discovery, JWKS, exchange, back-channel claims, logout), and OAuth state (109 tests)                                                                                      | `tests/unit/databases/two-factor-auth-service.test.ts`, `tests/unit/hooks/handle-security.test.ts`, `tests/unit/security/submission-guard.test.ts`, `tests/unit/auth/sso-session.test.ts`, `tests/unit/auth/google-auth.test.ts`                                                                                                            |
+| Admin route forms         | jsdom suites for System Settings (11), Access Management role modal (8), Workflow editor (6), Webhooks (10), Media Gallery folders (6), Collection Builder field editor (16), Collection Builder validation/conditions/permissions/preview (8) | `tests/unit/components/dom/system-settings-interaction.test.ts`, `.../access-management-interaction.test.ts`, `.../workflow-interaction.test.ts`, `.../webhooks-interaction.test.ts`, `.../media-folders-interaction.test.ts`, `.../collection-builder-fields-interaction.test.ts`, `.../collection-builder-conditions-interaction.test.ts` |
+| Mocks hid boundary bugs   | `oidc-live` integration (11): real in-process IdP, real TCP/`safeFetch`/JWKS; the only seam is an exact-origin test allowlist that throws outside `TEST_MODE`                                                                                  | `tests/integration/auth/oidc-live.test.ts`, `tests/integration/helpers/oidc-test-server.ts`, `src/utils/egress-guard.ts` (`allowTestEgressOrigin`)                                                                                                                                                                                          |
+| Preview ≠ product gap     | `showIf`/`requiredIf` are evaluated by the live entry form via `isFieldVisible`/`isFieldRequired` (unit-tested), not only by the builder preview; hidden fields also drop stale required errors                                                | `src/widgets/desugar-field.ts`, `src/components/collection-display/fields.svelte`, `tests/unit/widgets/desugar-field.test.ts`                                                                                                                                                                                                               |
+| Integrated page loops     | Fresh-build smoke + `pageerror`/console capture; the create-entry journey asserts the title field appears. A DOM suite alone cannot catch a loop caused by field-identity churn across `WidgetLoader`                                          | `tests/e2e/smoke.spec.ts`, `src/components/collection-display/widget-loader.svelte`                                                                                                                                                                                                                                                         |
+| Flake control reactive    | ≤2 retried-pass / ≤3% per shard (0 for prep)                                                                                                                                                                                                   | `scripts/check-flake-budget.ts`, CI E2E steps; local Playwright writes the same JSON                                                                                                                                                                                                                                                        |
+| Whole-code % invisible    | Full-source unit report + client DOM report unioned **best measurement per file** (never summed: builds have incompatible statement maps)                                                                                                      | `bun run test:coverage:all`, `scripts/merge-coverage.ts`, `vitest.dom.config.ts`                                                                                                                                                                                                                                                            |
+| Route breadth unmeasured  | 18 static admin routes must render a shell (HTTP < 400, no `/login`, no error page)                                                                                                                                                            | `tests/e2e/routes/config/route-breadth.spec.ts`                                                                                                                                                                                                                                                                                             |
+| Adapter-specific bulk bug | Real MariaDB contract run catches what a mock/SSR suite cannot: `prepareUpdateValues` omits the PK on updates, which the MariaDB bulk strategies need for the JOIN/CASE match                                                                  | `tests/integration/databases/bulk-operations-contract.test.ts` (20/20 on MariaDB)                                                                                                                                                                                                                                                           |
+
+**E2E actionability rule** — do not use `force: true` on a normal in-page control. If a
+control is obscured, that is a product bug (z-index/pointer interception). `force` is
+reserved for documented animation/consent overlays; `evaluate(el => el.click())` is
+reserved for controls Playwright genuinely cannot hit and must include a reason.
+
+**E2E worker rule** — the CI-parity runner (`bun run test:e2e`) defaults to one worker,
+like every CI shard. Parallel spec files share one SQLite E2E database and race on
+reset/seed, which shows up as retried-pass flakes; pass `--workers=N` only when you
+accept that contention.
+
+**Flake measurement rule** — local Playwright writes `tests/playwright-results.json`.
+Retries are off locally by default; run with `PLAYWRIGHT_RETRIES=1` when you want a
+recovered test to be recorded as `flaky`, then `bun run flake:budget` applies the same
+≤2 / ≤3 % budget CI uses.
+
+**Parity rule** — an adapter change is not “done” on SQLite alone. Run
+`bun run test:parity` (or `test:parity:docker` to boot the missing engines);
+`--require-all` turns skipped engines into a failure.
 
 ---
 

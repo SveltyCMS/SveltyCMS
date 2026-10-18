@@ -4,32 +4,21 @@
  *              optional DX plugins (inspector, quiet build, LiteRT WASM) gated.
  */
 import { exec } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, statSync, promises as fsPromises } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  promises as fsPromises,
+} from "node:fs";
 import { builtinModules } from "node:module";
 import { platform } from "node:os";
 import path from "node:path";
 import nodeAdapter from "@sveltejs/adapter-node";
 import bunAdapter from "svelte-adapter-bun";
 
-// Dual-Adapter (Robert 09-02): process.env.ADAPTER waehlt den Build-Adapter.
-//   ADAPTER=node (default) -> @sveltejs/adapter-node (Node/Passenger/Plesk)
-//   ADAPTER=bun          -> svelte-adapter-bun (Bun.serve, fuer bun build/index.js)
-// Der Competitive-Benchmark (benchmark-repo) baut beide Varianten (ARG ADAPTER)
-// und misst sie unter node vs bun (RUNTIME).
-//
-
-// svelte-adapter-bun (1.0.1) still reads the SvelteKit-2 `config.kit.*` legacy
-// alias, which makes kit emit `adapter_config_kit_deprecated` on every
-// ADAPTER=bun build, and calls the removed `generateManifest` adapter API
-// (`adapter_generate_manifest_removed`), which otherwise aborts the build.
-// The wrapper below:
-//   - serves `kit` as a self-alias through a config proxy so the deprecated
-//     getter is never invoked (`config.kit === config`, the v2 contract the
-//     adapter was written against);
-//   - serves `generateManifest({ relativePath })` from kit's own final manifest
-//     module (`.svelte-kit/output/server/manifest.js`, written after
-//     prerendering with `relative_path: '.'`) so the adapter can inline the
-//     same expression it used to get from the removed API.
+// Dual-Adapter: process.env.ADAPTER selects build adapter (node default, bun optional)
 function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
   const orig = bunAdapter(opts);
   return {
@@ -47,8 +36,6 @@ function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
             });
           }
           if (prop === "generateManifest") {
-            // `relativePath` is ignored: the adapter only ever passes "./",
-            // which is what kit's manifest module is written with.
             return () => {
               const manifestPath = path.resolve(target.getServerDirectory(), "manifest.js");
               const source = readFileSync(manifestPath, "utf8").trim();
@@ -69,7 +56,31 @@ function safeBunAdapter(opts?: Parameters<typeof bunAdapter>[0]) {
   };
 }
 
-const adapter = process.env.ADAPTER === "bun" ? safeBunAdapter : nodeAdapter;
+/**
+ * Windows: adapter-node removes `build/` with a non-retrying rmSync. Pre-clean
+ * with retries so antivirus/file-handle latency cannot abort the build
+ * (ENOTEMPTY). Never monkey-patch the `node:fs` namespace: Rolldown rejects
+ * configs that assign to import bindings (`ASSIGN_TO_IMPORT`).
+ */
+function safeNodeAdapter(opts?: Parameters<typeof nodeAdapter>[0]) {
+  const orig = nodeAdapter(opts);
+  const outDir = opts?.out ?? "build";
+  return {
+    ...orig,
+    async adapt(builder: Parameters<NonNullable<typeof orig.adapt>>[0]) {
+      if (existsSync(outDir)) {
+        try {
+          rmSync(outDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+        } catch {
+          // ignore; adapter-node will attempt rmSync as well
+        }
+      }
+      return await orig.adapt(builder);
+    },
+  };
+}
+
+const adapter = process.env.ADAPTER === "bun" ? safeBunAdapter : safeNodeAdapter;
 
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { sveltekit } from "@sveltejs/kit/vite";
@@ -1532,7 +1543,7 @@ export default defineConfig(() => {
               toggleButtonPos: "bottom-right",
             }
           : false,
-        adapter: adapter({ out: "build", precompress: true }),
+        adapter: adapter({ out: "build", precompress: platform() !== "win32" }),
         experimental: { remoteFunctions: true },
         // Bench/integration matrices bind 4173 + random offset; trust loopback port range.
         csrf: {

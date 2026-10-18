@@ -7,7 +7,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { validateEgressUrl, EgressError } from "../../../src/utils/egress-guard";
+import {
+  allowTestEgressOrigin,
+  validateEgressUrl,
+  EgressError,
+} from "../../../src/utils/egress-guard";
 
 describe("validateEgressUrl — SSRF defense", () => {
   // allowHttp so we exercise private-IP rules (production also rejects plain HTTP first)
@@ -93,6 +97,58 @@ describe("validateEgressUrl — SSRF defense", () => {
       expect.unreachable("should have thrown");
     } catch (err) {
       expect(err).toBeInstanceOf(EgressError);
+    }
+  });
+});
+
+describe("allowTestEgressOrigin — explicit test-only allowlist", () => {
+  it("permits exactly the registered origin and still blocks other loopback ports", async () => {
+    const dispose = allowTestEgressOrigin("http://127.0.0.1:43219");
+    try {
+      await expect(
+        validateEgressUrl("http://127.0.0.1:43219/.well-known/openid-configuration", {
+          allowHttp: false,
+        }),
+      ).resolves.toBeTruthy();
+
+      await expect(
+        validateEgressUrl("http://127.0.0.1:43220/", { allowHttp: true }),
+      ).rejects.toThrow(/private|Blocked/i);
+      await expect(
+        validateEgressUrl("http://localhost:43219/", { allowHttp: true }),
+      ).rejects.toThrow(/Blocked/i);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("revokes the allowance when the disposer runs", async () => {
+    const dispose = allowTestEgressOrigin("http://127.0.0.1:43221");
+    await expect(
+      validateEgressUrl("http://127.0.0.1:43221/jwks", { allowHttp: true }),
+    ).resolves.toBeTruthy();
+
+    dispose();
+    await expect(
+      validateEgressUrl("http://127.0.0.1:43221/jwks", { allowHttp: true }),
+    ).rejects.toThrow(/private|Blocked/i);
+  });
+
+  it("refuses to register outside a test runtime", () => {
+    const previousTestMode = process.env.TEST_MODE;
+    const previousPlaywright = process.env.PLAYWRIGHT_TEST;
+
+    process.env.TEST_MODE = "false";
+    delete process.env.PLAYWRIGHT_TEST;
+
+    try {
+      expect(() => allowTestEgressOrigin("http://127.0.0.1:43222")).toThrow(/test-only/i);
+    } finally {
+      if (previousTestMode === undefined) delete process.env.TEST_MODE;
+      else process.env.TEST_MODE = previousTestMode;
+
+      if (previousPlaywright === undefined) delete process.env.PLAYWRIGHT_TEST;
+      else process.env.PLAYWRIGHT_TEST = previousPlaywright;
     }
   });
 });

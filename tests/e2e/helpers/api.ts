@@ -111,6 +111,40 @@ export async function resetAndSeedDatabase(page: Page) {
 /** Matches the auth session cookie names (host/secure prefixes included). */
 export const SESSION_COOKIE_RE = /auth_sessions|__Host-auth_sessions|__Secure-auth_sessions/i;
 
+/** CSRF cookie names accepted by the server (production uses the __Host- prefix). */
+const CSRF_COOKIE_NAMES = new Set(["csrf_token", "__Host-csrf_token", "__Secure-csrf_token"]);
+
+/** Read the current CSRF token from the browser context (null when not set yet). */
+export async function csrfToken(page: Page): Promise<string | null> {
+  try {
+    const cookies = await page.context().cookies();
+    const cookie = cookies.find((c) => CSRF_COOKIE_NAMES.has(c.name));
+    return cookie ? decodeURIComponent(cookie.value) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Attach the CSRF token to every request the context makes.
+ *
+ * `setExtraHTTPHeaders` replaces the context-level headers, so include the
+ * testing headers (test mode/secret/worker) that playwright.config.ts set.
+ * Per-request headers still win, which keeps the `x-test-security` RBAC probes
+ * (empty secret) working.
+ */
+export async function primeCsrfHeaders(page: Page): Promise<void> {
+  const token = await csrfToken(page);
+  if (!token) return;
+  const origin =
+    process.env.PLAYWRIGHT_TEST_BASE_URL || process.env.ORIGIN || "http://127.0.0.1:4173";
+  await page.context().setExtraHTTPHeaders({
+    ...TEST_API_HEADERS,
+    "X-CSRF-Token": token,
+    Origin: origin,
+  });
+}
+
 function parseSetCookieHeader(header: string): Array<{ name: string; value: string }> {
   if (!header) return [];
   const parts = header.split(/,(?=\s*[^;,]+=[^;,])/);
@@ -154,7 +188,11 @@ export async function applySessionCookie(
       const sid = response.headers()["x-test-session-id"];
       if (sid) sessionPairs = [{ name: "auth_sessions", value: sid }];
     }
-    const toApply = sessionPairs.length > 0 ? sessionPairs : pairs.slice(0, 1);
+    // Keep every cookie the login response set — not just the session. The CSRF
+    // token lives in its own cookie; dropping it here made every subsequent
+    // `page.request` POST/DELETE fail with 403 until a full page load re-set it
+    // (media folder RBAC was the visible symptom).
+    const toApply = pairs.length > 0 ? pairs : sessionPairs;
     if (toApply.length === 0) return false;
     let hostPort = hostname;
     try {
@@ -168,13 +206,17 @@ export async function applySessionCookie(
     for (const { name, value } of toApply) {
       const isHost = name.startsWith("__Host-");
       const secure = isHost || name.startsWith("__Secure-");
+      // Only the session cookie is httpOnly. CSRF/theme/lang must stay readable
+      // by client JS (`document.cookie`), or hydrated mutations cannot attach
+      // the X-CSRF-Token header even though the cookie exists.
+      const httpOnly = SESSION_COOKIE_RE.test(name);
       try {
         await page.context().addCookies([
           {
             name,
             value: decodeURIComponent(value),
             url: `${secure ? "https" : "http"}://${hostPort}`,
-            httpOnly: true,
+            httpOnly,
             sameSite: "Lax",
             secure,
           },
@@ -189,7 +231,7 @@ export async function applySessionCookie(
               value: decodeURIComponent(value),
               domain: domainOnly,
               path: "/",
-              httpOnly: true,
+              httpOnly,
               sameSite: "Lax",
               secure,
             },
@@ -200,6 +242,7 @@ export async function applySessionCookie(
         }
       }
     }
+    if (anyOk) await primeCsrfHeaders(page);
     return anyOk;
   } catch {
     return false;

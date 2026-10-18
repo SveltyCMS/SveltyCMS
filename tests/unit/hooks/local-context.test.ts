@@ -26,10 +26,10 @@ const sdkControl = vi.hoisted(() => ({
 
 const contentControl = vi.hoisted(() => ({
   isInitializedForTenant: vi.fn(() => true),
-  getCollections: vi.fn(() => []),
+  getCollections: vi.fn((): unknown[] => []),
   initialize: vi.fn(async () => {}),
   ensureContentInitialized: vi.fn(async () => {}),
-  getFirstCollectionRedirectUrl: vi.fn(async () => null),
+  getFirstCollectionRedirectUrl: vi.fn(async (): Promise<string | null> => null),
 }));
 
 vi.mock("@src/databases/db", () => ({

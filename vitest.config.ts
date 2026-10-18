@@ -15,6 +15,34 @@ import { pathAliases } from "./path-aliases.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isCI = process.env.CI === "true" || process.env.CI === "1";
+/**
+ * Full-source mode (manual, not the gate): widens the report to every src file so
+ * it can be unioned with the component/DOM report. Thresholds are P0-only and
+ * are disabled in this mode.
+ */
+const coverageAll = process.env.COVERAGE_ALL === "1";
+const p0CoverageInclude = [
+  "src/hooks/**/*.ts",
+  "src/databases/auth/**/*.ts",
+  "src/utils/test-bypass.server.ts",
+  "src/utils/error-handling.ts",
+  "src/utils/security/**/*.ts",
+  "src/routes/api/[...path]/+server.ts",
+];
+
+/**
+ * Local HTML coverage is opt-in: the v8 HTML reporter intermittently aborts on
+ * Windows after writing the tables (exit 1 with no diagnostic), which made the
+ * local coverage gate unusable. `text-summary` + `json` are stable and carry
+ * every metric the threshold check needs; set `COVERAGE_HTML=1` for the
+ * browsable report. The per-file `text` table is also avoided for the same
+ * reason (very wide lines abort the reporter on some terminals).
+ */
+const coverageReporters = isCI
+  ? ["text-summary", "json"]
+  : process.env.COVERAGE_HTML === "1"
+    ? ["text-summary", "json", "html"]
+    : ["text-summary", "json"];
 
 const resolvedAliases = Object.fromEntries(
   Object.entries(pathAliases).map(([key, value]) => [key, path.resolve(__dirname, value)]),
@@ -62,7 +90,16 @@ export default defineConfig({
     // Widget-local suites live beside their widget (custom widgets are glob-loaded,
     // so the tests ship with the widget rather than in tests/unit).
     include: ["tests/unit/**/*.test.ts", "src/widgets/custom/**/tests/**/*.test.ts"],
-    exclude: ["**/*.bun.ts", "**/*.bun.test.ts", "node_modules", ".svelte-kit"],
+    // DOM-interaction suites mount real Svelte components (client runtime). They
+    // run via `vitest.dom.config.ts` (`bun run test:unit:components`) because this
+    // config forces SSR resolution (`import.meta.env.SSR: "true"`).
+    exclude: [
+      "**/*.bun.ts",
+      "**/*.bun.test.ts",
+      "tests/unit/components/dom/**",
+      "node_modules",
+      ".svelte-kit",
+    ],
     // CI: dots + annotations; local: full reporter.
     reporters: isCI ? ["dot", "github-actions"] : ["default"],
     // Only failing tests print their captured console/stdout — locally too. Passing
@@ -72,25 +109,25 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reportsDirectory: "./.vitest/coverage",
-      reporter: isCI ? ["text-summary", "json"] : ["text", "json", "html"],
-      // P0 packages only — enterprise A++ gate focuses on security/core, not vanity % of all src
-      include: [
-        "src/hooks/**/*.ts",
-        "src/databases/auth/**/*.ts",
-        "src/utils/test-bypass.server.ts",
-        "src/utils/error-handling.ts",
-        "src/utils/security/**/*.ts",
-        "src/routes/api/[...path]/+server.ts",
-      ],
+      reporter: coverageReporters,
+      // P0 packages only — enterprise A++ gate focuses on security/core, not vanity % of all src.
+      // COVERAGE_ALL=1 widens the scope for the unit ∪ DOM union report.
+      include: coverageAll ? ["src/**/*.{ts,svelte}"] : p0CoverageInclude,
       exclude: ["src/paraglide/**", "src/**/*.d.ts", "src/**/*.test.ts"],
-      // Applied when running `bun x vitest run --coverage` (there is no npm script alias) —
-      // keeps P0 floors honest without blocking full-suite unit runs that omit --coverage.
-      thresholds: {
-        lines: 48,
-        functions: 47,
-        branches: 40,
-        statements: 47,
-      },
+      // Applied when running `bun run test:unit:coverage` — keeps P0 floors
+      // honest without blocking full-suite unit runs that omit --coverage.
+      // Measured 2026-10-18 after the security-core suites (71+ files): lines
+      // 74.01, functions 74.84, branches 62.82, statements 72.14. Floors sit
+      // ~2 points below so ordinary refactors do not red the gate while a real
+      // coverage regression does.
+      thresholds: coverageAll
+        ? {}
+        : {
+            lines: 72,
+            functions: 72,
+            branches: 60,
+            statements: 70,
+          },
     },
     pool: "forks",
     isolate: true,

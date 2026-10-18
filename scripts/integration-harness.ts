@@ -551,7 +551,20 @@ export function buildHasTestingHarness(root: string): boolean {
 }
 
 /** Production build with COMPILE_ALL_ADAPTERS via spawn env (no fragile shell `set` / export). */
-export function runProductionBuild(root: string): Promise<void> {
+export async function runProductionBuild(root: string): Promise<void> {
+  // Stale `build/` from a previous failed build can cause adapter-node issues
+  // or fail to remove a locked tree (ENOTEMPTY build).
+  const buildDir = join(root, "build");
+  try {
+    rmSync(buildDir, { recursive: true, force: true });
+  } catch (err) {
+    console.warn(`⚠️  Could not clear ${buildDir}: ${err instanceof Error ? err.message : err}`);
+  }
+
+  // Windows may keep a handle open for a few ms after rmSync; starting the
+  // adapter before it clears produces partial client copies (ENOENT chunks).
+  if (process.platform === "win32") await sleep(300);
+
   console.log("🏗️  Building (COMPILE_ALL_ADAPTERS=true)...");
   return new Promise((resolve, reject) => {
     const child = spawn("bun", ["run", "build"], {
@@ -754,16 +767,38 @@ export function cleanupTestArtifacts(root: string): void {
   // builder category sync creates real directories under the tenant's collection
   // root, and the content-nodes contract suite exercises the `global` tenant.
   // Only the `test-collections` subfolder is ever swept — `<tenant>/collections`
-  // is live data and must never be touched.
+  // is live data and must never be touched. Empty test-tenant directories (e.g.
+  // config/iso-tenant-a, config/iso-tenant-b) are pruned once test-collections is gone.
   const configRoot = join(root, "config");
   try {
     for (const entry of readdirSync(configRoot)) {
-      const candidate = join(configRoot, entry, "test-collections");
-      if (!existsSync(candidate)) continue;
-      try {
-        rmSync(candidate, { recursive: true, force: true });
-      } catch {
-        /* locked — leave it for the next run */
+      const tenantDir = join(configRoot, entry);
+      const candidate = join(tenantDir, "test-collections");
+      if (existsSync(candidate)) {
+        try {
+          rmSync(candidate, { recursive: true, force: true });
+        } catch {
+          /* locked — leave it for the next run */
+        }
+      }
+
+      // If a test tenant directory is now empty (e.g. iso-tenant-a, iso-tenant-b,
+      // tenant-* created solely for tests), remove the empty directory so test
+      // scaffolding does not litter config/.
+      const isTestTenant =
+        entry.startsWith("iso-tenant-") ||
+        entry.startsWith("test-") ||
+        entry.includes("tenant-") ||
+        isIsolatedTestDbName(entry);
+
+      if (isTestTenant && existsSync(tenantDir)) {
+        try {
+          if (readdirSync(tenantDir).length === 0) {
+            rmSync(tenantDir, { recursive: true, force: true });
+          }
+        } catch {
+          /* locked */
+        }
       }
     }
   } catch {
@@ -777,15 +812,11 @@ export function cleanupTestArtifacts(root: string): void {
   console.log("🧹 Test artifacts cleaned (live config/database and config/collections protected)");
 }
 
-/** File shapes a SQLite database and its WAL sidecars can take in a folder. */
-const SQLITE_ARTIFACT_SUFFIX = /\.(sqlite|db)(-(wal|shm))?$/i;
-
 /**
  * Harness databases must never accumulate in the live `config/database/` folder.
  * `resolveSqlitePath` routes harness/isolated names to `config/test-database/`,
- * but pre-fix builds and interrupted runs left `<name>.sqlite` shells (+ WAL
- * sidecars) behind — runs only cleaned their *own* DB name at start, and the
- * end-of-run cleanup swept nothing in the live folder (this function).
+ * but legacy code paths or interrupted runs may leave test DB files
+ * (with or without .sqlite/.db extension, and their -wal/-shm sidecars) behind.
  * Only shared-classifier names are swept (`test`/`bench`/`e2e`/`_functional`,
  * minus prod/live/main patterns) — a live-named file is never touched.
  */
@@ -794,8 +825,10 @@ function sweepHarnessSqliteFiles(root: string): string[] {
   if (!existsSync(liveDir)) return [];
   const removed: string[] = [];
   for (const entry of readdirSync(liveDir)) {
-    if (!SQLITE_ARTIFACT_SUFFIX.test(entry)) continue;
-    const logicalName = entry.replace(/-(wal|shm)$/i, "").replace(/\.(sqlite|db)$/i, "");
+    // Strip WAL / SHM sidecars: e.g. .sqlite-wal, .db-shm, or raw -wal / -shm
+    const base = entry.replace(/-(wal|shm)$/i, "");
+    // Strip optional SQLite extensions: .sqlite or .db
+    const logicalName = base.replace(/\.(sqlite|db)$/i, "");
     if (!isIsolatedTestDbName(logicalName)) continue;
     try {
       unlinkSync(join(liveDir, entry));

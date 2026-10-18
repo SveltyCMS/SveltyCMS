@@ -91,17 +91,17 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 
 CI runs 9 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
 
-| CI job (`ci.yml`)                  | Local mirror                                                                                                                  |
-| :--------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
-| 🏁 Bootstrap (paraglide + codegen) | `bun run paraglide`; `bun x svelte-kit sync`                                                                                  |
-| 01-format / 02-lint                | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                                 |
-| 03-check                           | subset of `bun run check` (format + lint + lockfile) — always run full `bun run check`                                        |
-| 04-unit                            | `bun run test:unit`; CI runs `test:unit:coverage` (runs the same suite + P0 floors) then `test:mutation`                      |
-| 04b-tenant-gate                    | `bun run test:tenant`; on a dirty tree: `bun run lint:tenant -- --full`                                                       |
-| 05-cve / 06 / 07 / 08-hardware     | `bun run risk:audit`; `bun run scripts/probe-deploy-testing-api.ts`; `bun run scripts/probe-hardware-tiers.ts` (needs Docker) |
-| 🏗️ Build                           | `COMPILE_ALL_ADAPTERS=true bun run build` (keeps `/api/testing`; plain `bun run build` strips it)                             |
-| 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`)            |
-| 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"`      |
+| CI job (`ci.yml`)                  | Local mirror                                                                                                                                                                                                                       |
+| :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🏁 Bootstrap (paraglide + codegen) | `bun run paraglide`; `bun x svelte-kit sync`                                                                                                                                                                                       |
+| 01-format / 02-lint                | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                                                                                                                                      |
+| 03-check                           | `bun run check` (format + lint + lockfile + **`typecheck`**: `tsc --noEmit` + `svelte-check`)                                                                                                                                      |
+| 04-unit                            | `bun run test:unit` + `bun run test:unit:components`; CI runs `test:coverage` then components then `test:mutation`                                                                                                                 |
+| 04b-tenant-gate                    | `bun run test:tenant`; on a dirty tree: `bun run lint:tenant -- --full`                                                                                                                                                            |
+| 05-cve / 06 / 07 / 08-hardware     | `bun run risk:audit`; `bun run scripts/probe-deploy-testing-api.ts`; `bun run scripts/probe-hardware-tiers.ts` (needs Docker)                                                                                                      |
+| 🏗️ Build                           | `COMPILE_ALL_ADAPTERS=true bun run build` (keeps `/api/testing`; plain `bun run build` strips it)                                                                                                                                  |
+| 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`); local parity: `bun run test:parity` (add `--docker` to boot missing engines, `--require-all` to fail on skips) |
+| 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"`; flake gate: `bun run flake:budget`                                                                       |
 
 **Parity rules — the ones that break otherwise-green trees:**
 
@@ -114,25 +114,30 @@ CI runs 9 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on 
 - **Axe audits run in the Auth & Branding shard** — any color change must keep `bg-{hue}-500` + `text-white` ≥ 4.5:1 (status-shade contract) or the RTL contrast audit fails.
 - **DB/contract changes must pass on all 4 adapters** — an adapter-specific bug (e.g. jsonPath re-filter after column-stripping) only surfaces on the DB matrix; when you touch adapter or load-path code, run `test:integration` on at least SQLite + one server DB locally.
 
-**Before you push** — minimum local set: `bun run check` → `bun run test:unit` → `bun run lint:tenant -- --full` → `bun run risk:audit`. Touched server/DB code: `bun run test:integration` (SQLite; `DB_TYPE=<db>` for a specific adapter). Touched a route: `bun run test:e2e -- --grep="(<its shard>)"`. Touched docs: `bun run lint:docs`.
+**Before you push** — minimum local set: `bun run check` → `bun run test:unit` → `bun run test:unit:components` → `bun run lint:tenant -- --full` → `bun run risk:audit`. Touched server/DB code: `bun run test:integration` (SQLite) **and `bun run test:parity`** (all reachable engines; `--require-all` to forbid skips). Touched a route: `bun run test:e2e -- --grep="(<its shard>)"`. Touched docs: `bun run lint:docs`. Touched a `.svelte` file: also run `bun run test:unit:components` (real DOM mount; SSR-only tests cannot see click/hydration wiring). Do **not** add `force: true` to a normal control — an obscured control is a product bug; use `tests/e2e/helpers/checkbox.ts` for sr-only Checkbox inputs.
 
 ### Commands
 
 | Category  | Command                                                    | Purpose                                                                                                                 |
 | :-------- | :--------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
 | Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                                                 |
-| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile                                                                    |
+| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile + **typecheck (`tsc` + `svelte-check`)**                           |
 |           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                                          |
-| Tests     | `bun run test:unit`                                        | Vitest unit suite (~40s)                                                                                                |
+|           | `bun run typecheck`                                        | `svelte-kit sync` → `tsc --noEmit` → `svelte-check --threshold error`                                                   |
+| Tests     | `bun run test:unit`                                        | Vitest unit suite (~60s)                                                                                                |
+|           | `bun run test:unit:components`                             | Client-build Svelte 5 component interaction tests (jsdom, ~14s)                                                         |
+|           | `bun run test:coverage`                                    | Unit suite + enforced P0 coverage floors (72/72/60/70)                                                                  |
 |           | `bun run test:security`                                    | Hooks/authz/media/GraphQL security regressions + scanners                                                               |
 |           | `bun run test:doctor`                                      | Unit + SQLite integration + gate map                                                                                    |
 |           | `bun run test:integration`                                 | Build + SQLite integration (harness)                                                                                    |
+|           | `bun run test:parity`                                      | Contract suites on every reachable local engine (`--docker`, `--only`, `--require-all`)                                 |
 |           | `bun run test:tenant`                                      | Tenant lint (`--full` on dirty trees) + tenant unit suite                                                               |
 |           | `bun run test:e2e`                                         | Playwright (CI-parity; `-- --grep` for one shard)                                                                       |
+|           | `bun run flake:budget`                                     | Fail when retried-pass count/rate exceeds the E2E flake budget                                                          |
 | Git       | `bun run git commit` / `bun run git push` / `bun run gate` | Hardened commit / pre-push gate (blocks `--no-verify`); `push --release` bumps + commits the version after a green gate |
 | CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB ×4/E2E/bench are CI-only — mirror each CI job via the table above                           |
 
-Pipeline: pre-commit = test-db-safety → format/lint → risk audit → unit → SBOM sync; pre-push = build (4 adapters) → SQLite integration. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract) before touching product code.
+Pipeline: pre-commit = test-db-safety → format/lint/**typecheck** → risk audit → unit → **component interactions** → SBOM sync; pre-push = build (4 adapters) → **DB parity when `src/databases/` changed** → E2E smoke. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract, flake budget) before touching product code.
 
 ## 5. Architecture (brief)
 

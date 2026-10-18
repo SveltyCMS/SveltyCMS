@@ -66,6 +66,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { adminFade } from '@utils/admin-transitions';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import ModalEditForm from './modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
@@ -355,7 +356,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 			const res = await fetch(config.endpoint(), {
 				method: config.method(),
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': page.data.csrfToken },
+				headers: clientJsonHeaders(page.data.csrfToken),
 				body: JSON.stringify(body)
 			});
 
@@ -466,7 +467,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	}
 </script>
 
-<div class="relative flex items-center" bind:this={dropdownRef}>
+<div class="relative z-30 flex items-center" bind:this={dropdownRef}>
 	<div
 		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled
 			? 'active:scale-95'

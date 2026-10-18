@@ -328,6 +328,11 @@ function resolveChangedTestPaths(baseRef: string): string[] {
       continue;
     }
     if (n.startsWith("src/databases/")) testPaths.add("tests/integration/databases/");
+    // SSO/OIDC lives under src/databases/auth and exercises the egress guard —
+    // route those changes to the zero-mock provider suite as well.
+    if (n.startsWith("src/databases/auth/") || n.startsWith("src/utils/egress-guard")) {
+      testPaths.add("tests/integration/auth/");
+    }
     if (n.startsWith("src/routes/api/") || n.startsWith("src/hooks/"))
       testPaths.add("tests/integration/api/");
     if (n.startsWith("src/routes/")) testPaths.add("tests/integration/routes/");

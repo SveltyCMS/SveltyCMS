@@ -19,6 +19,7 @@
 
 import { expect, test } from "@playwright/test";
 import { ensureAuthenticated, seedInviteToken } from "../../helpers/api";
+import { toggleCheckbox } from "../../helpers/checkbox";
 import {
   openIdentityTab,
   openTokenView,
@@ -80,8 +81,9 @@ test.describe("Auth Toggles", () => {
       { timeout: ACTION_TIMEOUT },
     );
 
-    // The checkbox input is sr-only (visually hidden) — use evaluate to click
-    await passkeyCheckbox.evaluate((el: HTMLElement) => el.click());
+    // The checkbox input is sr-only (visually hidden) — click its visible
+    // label, exactly like a user, instead of dispatching a DOM click.
+    await toggleCheckbox(passkeyCheckbox);
 
     const response = await apiCall;
     expect(response.ok()).toBe(true);
@@ -95,7 +97,7 @@ test.describe("Auth Toggles", () => {
 
     // Restore the shared admin's preference — other serial specs depend on it.
     if ((await passkeyCheckbox.isChecked()) !== wasChecked) {
-      await passkeyCheckbox.evaluate((el: HTMLElement) => el.click());
+      await toggleCheckbox(passkeyCheckbox);
     }
   });
 
@@ -111,7 +113,7 @@ test.describe("Auth Toggles", () => {
       { timeout: ACTION_TIMEOUT },
     );
 
-    await magicLinkCheckbox.evaluate((el: HTMLElement) => el.click());
+    await toggleCheckbox(magicLinkCheckbox);
 
     const response = await apiCall;
     expect(response.ok()).toBe(true);
@@ -121,7 +123,7 @@ test.describe("Auth Toggles", () => {
 
     // Restore the shared admin's preference — other serial specs depend on it.
     if ((await magicLinkCheckbox.isChecked()) !== wasChecked) {
-      await magicLinkCheckbox.evaluate((el: HTMLElement) => el.click());
+      await toggleCheckbox(magicLinkCheckbox);
     }
   });
 
@@ -137,7 +139,7 @@ test.describe("Auth Toggles", () => {
       { timeout: ACTION_TIMEOUT },
     );
 
-    await oauthCheckbox.evaluate((el: HTMLElement) => el.click());
+    await toggleCheckbox(oauthCheckbox);
 
     const response = await apiCall;
     expect(response.ok()).toBe(true);
@@ -147,7 +149,7 @@ test.describe("Auth Toggles", () => {
 
     // Restore the shared admin's preference — other serial specs depend on it.
     if ((await oauthCheckbox.isChecked()) !== wasChecked) {
-      await oauthCheckbox.evaluate((el: HTMLElement) => el.click());
+      await toggleCheckbox(oauthCheckbox);
     }
   });
 });

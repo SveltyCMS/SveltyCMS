@@ -48,6 +48,7 @@ Uses the same shared TreeView as collections:
 	import { goto } from '$app/navigation';
 	import { pinnedStore } from '@src/stores/collection-store.svelte';
 	import { page } from '$app/state';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
 	interface FolderNode extends TreeItem {
 		children?: FolderNode[];
@@ -370,10 +371,7 @@ Uses the same shared TreeView as collections:
 		try {
 			const res = await fetch('/api/system-virtual-folder', {
 				method: 'PATCH',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken ?? ''
-				},
+				headers: clientJsonHeaders(page.data.csrfToken),
 				body: JSON.stringify({
 					action: 'reorder',
 					parentId: newParentId,

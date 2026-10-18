@@ -18,7 +18,7 @@
  */
 
 import { spawn, spawnSync, execSync, type ChildProcess } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureIntegrationBuild } from "./integration-harness.ts";
@@ -92,6 +92,61 @@ async function waitForServer(url: string, timeoutMs = 120_000): Promise<void> {
   throw new Error(`Server did not become ready at ${url} within ${timeoutMs}ms`);
 }
 
+/**
+ * Confirm the port is actually released after `freePort`.
+ *
+ * Stop-Process/lsof are asynchronous at the OS level: without this check the
+ * newly spawned preview can die with EADDRINUSE while the readiness probe is
+ * happily answered by the STALE server — Playwright then tests an old bundle
+ * (the classic "changed UI looks like a product failure" trap).
+ */
+async function waitForPortFree(port: number, timeoutMs = 5_000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      await fetch(`http://127.0.0.1:${port}/api/system/health`, {
+        signal: AbortSignal.timeout(500),
+      });
+    } catch {
+      return; // connection refused → port is free
+    }
+    await sleep(150);
+  }
+  throw new Error(
+    `Port ${port} is still accepting connections after cleanup — a stale preview server survived. Kill it and rerun.`,
+  );
+}
+
+/** Fail fast when the spawned server exits before the readiness probe answers. */
+async function waitForServerOrExit(server: ChildProcess, url: string): Promise<void> {
+  const exited = new Promise<never>((_, reject) => {
+    server.once("exit", (code, signal) => {
+      reject(
+        new Error(
+          `Preview server exited before becoming ready (code ${code}, signal ${signal}). ` +
+            `The port is likely held by a stale server; kill it and rerun.`,
+        ),
+      );
+    });
+  });
+  await Promise.race([waitForServer(url), exited]);
+}
+
+/** Remove stale Playwright artifacts so a crashed prior run cannot leak traces/results. */
+function cleanRunArtifacts(): void {
+  for (const rel of [
+    "tests/test-results",
+    "tests/playwright-report",
+    "tests/playwright-results.json",
+  ]) {
+    try {
+      rmSync(join(ROOT, rel), { recursive: true, force: true });
+    } catch {
+      /* non-fatal */
+    }
+  }
+}
+
 async function runCmd(cmd: string, cargs: string[], env: Record<string, string>): Promise<number> {
   return new Promise((resolve) => {
     const proc = spawn(cmd, cargs, {
@@ -112,11 +167,18 @@ async function buildIfNeeded(): Promise<void> {
   if (DEV_MODE) return;
 
   try {
-    // Local --no-build: auto-rebuild if deploy-stripped. CI: fail closed (strict).
+    // Local --no-build: auto-rebuild if deploy-stripped OR source is newer than
+    // build/. Without the freshness check, `test:e2e:smoke` silently tests a
+    // stale bundle (a changed testid/UI can look like a product failure).
+    // CI: fail closed (strict) — artifacts must already be current.
     const strict =
       process.env.CI === "true" || process.env.CI === "1" || process.env.CI_STRICT_BUILD === "1";
+    const stale = !strict && SKIP_BUILD && buildIsStale(ROOT);
+    if (stale) {
+      console.log("ℹ️  Source is newer than build/ — rebuilding with COMPILE_ALL_ADAPTERS=true…");
+    }
     await ensureIntegrationBuild(ROOT, {
-      noBuild: SKIP_BUILD,
+      noBuild: SKIP_BUILD && !stale,
       strictNoBuild: SKIP_BUILD && strict,
     });
     console.log("");
@@ -124,6 +186,40 @@ async function buildIfNeeded(): Promise<void> {
     console.error(`❌ ${err instanceof Error ? err.message : err}`);
     process.exit(1);
   }
+}
+
+/** Newest mtime under a file/directory (0 when missing). */
+function newestMtime(path: string): number {
+  let newest = 0;
+  try {
+    const stat = statSync(path);
+    if (!stat.isDirectory()) return stat.mtimeMs;
+    for (const name of readdirSync(path)) {
+      newest = Math.max(newest, newestMtime(join(path, name)));
+    }
+  } catch {
+    /* missing or unreadable — ignore */
+  }
+  return newest;
+}
+
+/**
+ * True when any build input is newer than the production entrypoint.
+ * Kept intentionally narrow: only paths that change the runtime bundle.
+ */
+function buildIsStale(root: string): boolean {
+  const entry = join(root, "build", "index.js");
+  if (!existsSync(entry)) return true;
+  const buildMtime = statSync(entry).mtimeMs;
+  const inputs = [
+    "src",
+    "static",
+    "vite.config.ts",
+    "svelte.config.js",
+    "path-aliases.ts",
+    "package.json",
+  ];
+  return inputs.some((input) => newestMtime(join(root, input)) > buildMtime);
 }
 
 async function startDevServer(): Promise<ChildProcess> {
@@ -240,6 +336,8 @@ async function main() {
   await buildIfNeeded();
 
   freePort(PORT);
+  await waitForPortFree(PORT);
+  cleanRunArtifacts();
   const server = DEV_MODE ? await startDevServer() : await startPreviewServer();
 
   process.on("exit", () => cleanupSync(server));
@@ -253,7 +351,7 @@ async function main() {
   });
 
   try {
-    await waitForServer(BASE_URL);
+    await waitForServerOrExit(server, BASE_URL);
     console.log(`✅ Server ready at ${BASE_URL}\n`);
 
     if (!DEV_MODE) {
@@ -297,6 +395,12 @@ async function main() {
     const pwArgs = ["x", "playwright", "test"];
     if (!DEV_MODE) pwArgs.push("--project=chromium");
     pwArgs.push(...EXTRA_PW_ARGS);
+    // CI shards run one worker: the SQLite E2E database is shared, so parallel
+    // files race on resets/seeds and produce retried-pass flakes. Match CI
+    // locally unless the caller chose a worker count explicitly.
+    if (!DEV_MODE && !EXTRA_PW_ARGS.some((arg) => arg.startsWith("--workers"))) {
+      pwArgs.push("--workers=1");
+    }
     const exitCode = await runCmd("bun", pwArgs, {
       ...process.env,
       PLAYWRIGHT_TEST_BASE_URL: BASE_URL,

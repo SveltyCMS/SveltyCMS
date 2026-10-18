@@ -13,10 +13,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RequestEvent } from "@sveltejs/kit";
 import { createMockEvent } from "./test-utils";
 
-const themeMock = vi.hoisted(() => ({
-  isInitialized: vi.fn(() => false),
-  getTheme: vi.fn(async () => ({ name: "Default", customCss: "body { margin: 0 }" })),
-}));
+const themeMock = vi.hoisted(() => {
+  type MockTheme = { name: string; customCss?: string };
+  return {
+    isInitialized: vi.fn(() => false),
+    getTheme: vi.fn(async (): Promise<MockTheme> => ({
+      name: "Default",
+      customCss: "body { margin: 0 }",
+    })),
+  };
+});
 
 const sysState = vi.hoisted(() => ({
   overallState: "READY" as string,
@@ -44,11 +50,16 @@ function createHtmlResolve(baseHtml: string = BASE_HTML) {
   return vi.fn(
     async (
       _event: RequestEvent,
-      opts?: { transformPageChunk?: (input: { html: string }) => string },
+      opts?: {
+        transformPageChunk?: (input: {
+          html: string;
+          done: boolean;
+        }) => string | undefined | Promise<string | undefined>;
+      },
     ) => {
       let html = baseHtml;
       if (opts?.transformPageChunk) {
-        const result = opts.transformPageChunk({ html });
+        const result = await opts.transformPageChunk({ html, done: true });
         if (typeof result === "string") html = result;
       }
       return new Response(html, { status: 200, headers: { "Content-Type": "text/html" } });
@@ -78,7 +89,12 @@ describe("handleUserPreferences — fast-path skips", () => {
 
   it("returns early when the route spec skips preferences middleware", async () => {
     const event = createMockEvent("/dashboard");
-    event.locals.routeSpec = { skipMiddlewares: ["preferences"] };
+    event.locals.routeSpec = {
+      lane: "dashboard",
+      requiredCacheCategories: [],
+      preloadEndpoints: [],
+      skipMiddlewares: ["preferences"],
+    };
     const resolve = createHtmlResolve();
 
     await handleUserPreferences({ event, resolve });

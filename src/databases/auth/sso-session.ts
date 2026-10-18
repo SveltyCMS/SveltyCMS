@@ -327,8 +327,10 @@ export function validatePostLogoutRedirectUri(providerId: string, redirectUri: s
   if (provider.allowedRedirectUris.length === 0) return false;
 
   return provider.allowedRedirectUris.some((pattern) => {
-    // Convert wildcard patterns to regex
-    const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+    // Convert wildcard patterns to regex. `*` must be escaped with the rest of
+    // the metacharacters first, otherwise `\*` never matches and the wildcard
+    // pattern is compiled as a quantifier on the preceding character.
+    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regexStr = escaped.replace(/\\\*/g, ".*");
     try {
       return new RegExp(`^${regexStr}$`, "i").test(redirectUri);
@@ -414,7 +416,7 @@ export async function performRpInitiatedLogout(
     if (redirectUri) params.set("post_logout_redirect_uri", redirectUri);
     if (state) params.set("state", state);
 
-    const endSessionUrl = `${provider.endSessionEndpoint}?${params.toString()}`;
+    const endSessionUrl = `${endSessionEndpoint}?${params.toString()}`;
 
     logger.info(`[SSO] RP-Initiated Logout → ${provider.id}: ${endSessionUrl}`);
     return {
@@ -554,22 +556,6 @@ export async function verifyJwtWithProviderJwks(
       return { valid: false, reason: "iss mismatch" };
     }
 
-    const discovered = await discoverOidcConfig(provider.id);
-    const jwksUri = discovered?.jwksUri || provider.jwksUri;
-    if (!jwksUri) {
-      // 🔴 FIX: without a JWKS we cannot verify the signature — fail closed
-      // instead of accepting the token structurally (auth bypass).
-      logger.warn(`[SSO] No jwks_uri for ${provider.id} — rejecting token`);
-      return { valid: false, reason: "no_jwks_configured" };
-    }
-
-    const keys = await fetchJwks(jwksUri);
-    const jwk =
-      (header.kid ? keys.find((k) => k.kid === header.kid) : undefined) ||
-      keys.find((k) => k.kty === "RSA" || k.kty === "EC") ||
-      keys[0];
-    if (!jwk) return { valid: false, reason: "No matching JWK" };
-
     const data = Buffer.from(`${parts[0]}.${parts[1]}`);
     const signature = Buffer.from(parts[2], "base64url");
     const alg = header.alg || "RS256";
@@ -587,6 +573,22 @@ export async function verifyJwtWithProviderJwks(
       }
       return { valid: true, payload };
     }
+
+    const discovered = await discoverOidcConfig(provider.id);
+    const jwksUri = discovered?.jwksUri || provider.jwksUri;
+    if (!jwksUri) {
+      // 🔴 FIX: without a JWKS we cannot verify the signature — fail closed
+      // instead of accepting the token structurally (auth bypass).
+      logger.warn(`[SSO] No jwks_uri for ${provider.id} — rejecting token`);
+      return { valid: false, reason: "no_jwks_configured" };
+    }
+
+    const keys = await fetchJwks(jwksUri);
+    const jwk =
+      (header.kid ? keys.find((k) => k.kid === header.kid) : undefined) ||
+      keys.find((k) => k.kty === "RSA" || k.kty === "EC") ||
+      keys[0];
+    if (!jwk) return { valid: false, reason: "No matching JWK" };
 
     const keyObject = createPublicKey({ key: jwk, format: "jwk" });
     const verifyAlg = alg.startsWith("ES")
@@ -752,13 +754,18 @@ export async function handleFrontChannelLogout(issuer: string, sid: string): Pro
 
 // ─── Back-Channel Logout ────────────────────────────────────────────────────
 
+/** Accepted iat skew / maximum age for a back-channel logout token (spec §2.6). */
+const LOGOUT_TOKEN_MAX_AGE_S = 300;
+
 interface LogoutTokenClaims {
   iss: string;
   sub?: string;
-  aud?: string;
+  aud?: string | string[];
   iat: number;
   jti: string;
   sid?: string;
+  /** Spec §2.6: a logout token MUST NOT carry a nonce. */
+  nonce?: string;
   events: {
     "http://schemas.openid.net/event/backchannel-logout": Record<string, never>;
   };
@@ -818,6 +825,23 @@ export async function handleBackChannelLogout(
     if (!matchedProvider) {
       logger.warn(`[SSO] Unknown back-channel issuer: ${payload.iss}`);
       return { success: false, message: "Unknown issuer" };
+    }
+
+    // Spec §2.6: a logout token is single-use/near-term and minted for one RP.
+    // Without these checks any token signed by the provider (for any client,
+    // however old) could terminate this deployment's sessions.
+    const now = Math.floor(Date.now() / 1000);
+    if (typeof payload.iat !== "number" || Math.abs(now - payload.iat) > LOGOUT_TOKEN_MAX_AGE_S) {
+      return { success: false, message: "Stale or invalid iat claim" };
+    }
+    if (payload.nonce !== undefined) {
+      return { success: false, message: "Logout token must not contain nonce" };
+    }
+    if (matchedProvider.clientId) {
+      const audiences = Array.isArray(payload.aud) ? payload.aud : payload.aud ? [payload.aud] : [];
+      if (!audiences.includes(matchedProvider.clientId)) {
+        return { success: false, message: "aud mismatch" };
+      }
     }
 
     // 🚀 JWKS signature verification (RS256/ES256) when jwks_uri available

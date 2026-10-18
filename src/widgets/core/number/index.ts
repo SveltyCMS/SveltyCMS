@@ -57,8 +57,8 @@ const NumberWidget = createWidget<NumberProps>({
   version: "1.0.0",
   Icon: "mdi:numeric",
   Description: widget_number_description(),
-  inputComponentPath: "/src/widgets/custom/number/input.svelte",
-  displayComponentPath: "/src/widgets/custom/number/display.svelte",
+  inputComponentPath: "/src/widgets/core/number/input.svelte",
+  displayComponentPath: "/src/widgets/core/number/display.svelte",
   validationSchema,
 
   // Set widget-specific defaults.

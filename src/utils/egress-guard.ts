@@ -37,6 +37,32 @@ const BLOCKED_IP_RANGES = [
 
 const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal", "169.254.169.254"]);
 
+// ─── Test-only egress allowlist ───────────────────────────────────────────────
+// Zero-mock integration tests need a real local peer (the in-process OIDC
+// server). Loopback is blocked by design, so a test can opt in to the *exact*
+// origin it started. Registration is refused outside TEST_MODE /
+// PLAYWRIGHT_TEST, so a production runtime can never widen the guard.
+const TEST_ALLOWED_ORIGINS = new Set<string>();
+
+/**
+ * Allows the exact `origin` (scheme + host + port) until the returned disposer
+ * runs. Test-only: throws unless TEST_MODE / PLAYWRIGHT_TEST is enabled.
+ */
+export function allowTestEgressOrigin(origin: string): () => void {
+  if (process.env.TEST_MODE !== "true" && process.env.PLAYWRIGHT_TEST !== "true") {
+    throw new Error(
+      "allowTestEgressOrigin() is test-only (requires TEST_MODE=true or PLAYWRIGHT_TEST=true)",
+    );
+  }
+
+  const key = new URL(origin).origin;
+  TEST_ALLOWED_ORIGINS.add(key);
+
+  return () => {
+    TEST_ALLOWED_ORIGINS.delete(key);
+  };
+}
+
 export interface EgressOptions {
   allowHttp?: boolean;
   maxRedirects?: number;
@@ -79,6 +105,11 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
   } catch {
     throw new EgressError(`Invalid URL format: ${url}`);
   }
+
+  // Test-only exact-origin allowance for in-process peers (see
+  // allowTestEgressOrigin). Checked before the protocol/host rules so a local
+  // http test server can be reached without widening them for anything else.
+  if (TEST_ALLOWED_ORIGINS.has(parsed.origin)) return parsed;
 
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
     throw new EgressError(`Blocked protocol: ${parsed.protocol}`);

@@ -230,4 +230,158 @@ describe("create publish-gate required fields", () => {
       message: "Field 'Title' is required when publishing",
     });
   });
+
+  it("rejects publish when requiredIf condition is satisfied and field is missing", async () => {
+    const condSchema = {
+      _id: "Software",
+      name: "Software",
+      slug: "software",
+      fields: [
+        { db_fieldName: "is_licensed", name: "Is Licensed", widget: { Name: "Checkbox" } },
+        {
+          db_fieldName: "license_key",
+          name: "License Key",
+          widget: { Name: "Input" },
+          requiredIf: { field: "is_licensed", operator: "equals", value: true },
+        },
+      ],
+    };
+    const crud = crudWith({});
+    const ns = new CollectionsNamespace(new TestAdapter(crud) as any);
+    await ns.registerSchema("Software", condSchema as any);
+
+    // Condition met: is_licensed=true, but license_key is missing -> must reject
+    await expect(
+      ns.create("Software", { status: "publish", is_licensed: true }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'License Key' is required when publishing",
+    });
+
+    // Condition not met: is_licensed=false -> missing license_key is allowed
+    const createSuccess = vi.fn(async () => ({ success: true, data: { _id: "s1" } }));
+    const nsSuccess = new CollectionsNamespace(
+      new TestAdapter(crudWith({ create: createSuccess })) as any,
+    );
+    await nsSuccess.registerSchema("Software", condSchema as any);
+    const res = await nsSuccess.create("Software", { status: "publish", is_licensed: false }, {
+      user: ADMIN,
+    } as any);
+    expect(res.success).toBe(true);
+
+    // Condition met and field supplied -> allowed
+    const resFilled = await nsSuccess.create(
+      "Software",
+      { status: "publish", is_licensed: true, license_key: "KEY-12345" },
+      { user: ADMIN } as any,
+    );
+    expect(resFilled.success).toBe(true);
+  });
+
+  it("permits publish when field has required:true but is hidden by showIf", async () => {
+    const showIfSchema = {
+      _id: "Articles",
+      name: "Articles",
+      slug: "articles",
+      fields: [
+        { db_fieldName: "has_sponsor", name: "Has Sponsor", widget: { Name: "Checkbox" } },
+        {
+          db_fieldName: "sponsor_name",
+          name: "Sponsor Name",
+          widget: { Name: "Input" },
+          required: true,
+          showIf: { field: "has_sponsor", operator: "equals", value: true },
+        },
+      ],
+    };
+    const createSuccess = vi.fn(async () => ({ success: true, data: { _id: "a1" } }));
+    const ns = new CollectionsNamespace(
+      new TestAdapter(crudWith({ create: createSuccess })) as any,
+    );
+    await ns.registerSchema("Articles", showIfSchema as any);
+
+    // has_sponsor is false -> sponsor_name is hidden -> publish allowed even though required:true
+    const res = await ns.create("Articles", { status: "publish", has_sponsor: false }, {
+      user: ADMIN,
+    } as any);
+    expect(res.success).toBe(true);
+
+    // has_sponsor is true -> sponsor_name is visible -> publish rejected if missing
+    await expect(
+      ns.create("Articles", { status: "publish", has_sponsor: true }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'Sponsor Name' is required when publishing",
+    });
+  });
+});
+
+describe("update keeps an already-published entry valid", () => {
+  it("rejects clearing a required field when status is omitted", async () => {
+    const findOne = vi.fn(async () => ({
+      success: true,
+      data: { _id: "p1", title: "Existing", status: "publish" },
+    }));
+    const update = vi.fn(async () => ({ success: true, data: { _id: "p1" } }));
+    const ns = new CollectionsNamespace(new TestAdapter(crudWith({ findOne, update })) as any);
+    await ns.registerSchema("Posts", requiredSchema as any);
+
+    await expect(
+      ns.update("Posts", "p1", { title: "" }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'Title' is required when publishing",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("rejects clearing a conditionally required field when status is omitted", async () => {
+    const condSchema = {
+      _id: "Software",
+      name: "Software",
+      slug: "software",
+      fields: [
+        { db_fieldName: "is_licensed", name: "Is Licensed", widget: { Name: "Checkbox" } },
+        {
+          db_fieldName: "license_key",
+          name: "License Key",
+          widget: { Name: "Input" },
+          requiredIf: { field: "is_licensed", operator: "equals", value: true },
+        },
+      ],
+    };
+    const findOne = vi.fn(async () => ({
+      success: true,
+      data: { _id: "s1", is_licensed: true, license_key: "KEY-1", status: "publish" },
+    }));
+    const update = vi.fn(async () => ({ success: true, data: { _id: "s1" } }));
+    const ns = new CollectionsNamespace(new TestAdapter(crudWith({ findOne, update })) as any);
+    await ns.registerSchema("Software", condSchema as any);
+
+    await expect(
+      ns.update("Software", "s1", { license_key: "" }, { user: ADMIN } as any),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: "FIELD_VALIDATION_ERROR",
+      message: "Field 'License Key' is required when publishing",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("allows clearing a required field while the entry is still a draft", async () => {
+    const findOne = vi.fn(async () => ({
+      success: true,
+      data: { _id: "p2", title: "Draft", status: "draft" },
+    }));
+    const update = vi.fn(async () => ({ success: true, data: { _id: "p2" } }));
+    const ns = new CollectionsNamespace(new TestAdapter(crudWith({ findOne, update })) as any);
+    await ns.registerSchema("Posts", requiredSchema as any);
+
+    const result = await ns.update("Posts", "p2", { title: "" }, { user: ADMIN } as any);
+    expect(result.success).toBe(true);
+    expect(update).toHaveBeenCalledTimes(1);
+  });
 });

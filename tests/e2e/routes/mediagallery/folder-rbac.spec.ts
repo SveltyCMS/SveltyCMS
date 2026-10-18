@@ -14,6 +14,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
+import { csrfToken } from "../../helpers/api";
 import { loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 
 // Re-enable the *real* auth pipeline for probe requests:
@@ -23,9 +24,13 @@ import { loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 const SECURITY_HEADERS = { "x-test-security": "true", "x-test-secret": "" } as const;
 
 async function csrfHeader(page: Page): Promise<Record<string, string>> {
-  const cookies = await page.context().cookies();
-  const token = cookies.find((cookie) => cookie.name === "csrf_token")?.value;
-  return token ? { "X-CSRF-Token": token } : {};
+  const token = await csrfToken(page);
+  // A missing cookie is the root cause of the historic 403s here: the login
+  // response set it but applySessionCookie used to discard non-session cookies.
+  expect(token, "CSRF cookie missing after login").toBeTruthy();
+  const origin =
+    process.env.PLAYWRIGHT_TEST_BASE_URL || process.env.ORIGIN || "http://127.0.0.1:4173";
+  return { "X-CSRF-Token": token!, Origin: origin };
 }
 
 test.describe("Media folders — RBAC (non-bypassed)", () => {

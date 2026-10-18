@@ -55,6 +55,7 @@ function normalizeStoredValue(value: any) {
 describe("Database Interface Contract Tests", () => {
   let db: IDBAdapter | null = null;
   let currentDbType = process.env.DB_TYPE || "sqlite";
+  let sqliteTestDbPath: string | null = null;
 
   beforeAll(async () => {
     // @ts-ignore - private.test.ts is generated at runtime in CI, not present at type-check time
@@ -236,11 +237,13 @@ describe("Database Interface Contract Tests", () => {
           privateConfig.database?.name ||
           "sveltycms_test.db";
 
+        const { resolveSqlitePath } = await import("../../../src/databases/config-state");
         const finalPath =
           sqliteDbName.includes("/") || sqliteDbName.includes("\\")
             ? sqliteDbName
-            : `config/database/${sqliteDbName}`;
+            : resolveSqlitePath(databaseConfig.host || privateConfig.DB_HOST, sqliteDbName);
 
+        sqliteTestDbPath = finalPath;
         await db.connect(finalPath);
       }
 
@@ -267,6 +270,19 @@ describe("Database Interface Contract Tests", () => {
       }
     } catch (error) {
       console.warn("DB Interface Test: non-fatal disconnect error", error);
+    }
+
+    if (sqliteTestDbPath) {
+      const { existsSync, unlinkSync } = await import("node:fs");
+      const { resolve } = await import("node:path");
+      const fullPath = resolve(process.cwd(), sqliteTestDbPath);
+      for (const p of [fullPath, `${fullPath}-wal`, `${fullPath}-shm`]) {
+        try {
+          if (existsSync(p)) unlinkSync(p);
+        } catch {
+          /* safe */
+        }
+      }
     }
   });
 
@@ -379,7 +395,9 @@ describe("Database Interface Contract Tests", () => {
         _id: "__definitely_missing__" as DatabaseId,
       });
       expect(miss.success).toBe(true);
-      expect(miss.data ?? null).toBeNull();
+      if (miss.success) {
+        expect(miss.data ?? null).toBeNull();
+      }
     });
   });
 

@@ -31,6 +31,7 @@
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { formatDateTime, formatDate } from '@utils/format-date';
+	import { isFieldRequired, isFieldVisible } from '@src/widgets/desugar-field';
 
 	// Auth & Page data
 	import { page } from '$app/state';
@@ -252,7 +253,7 @@
 	);
 
 	// --- 4. SIMPLIFIED LOGIC ---
-	let derivedFields = $derived(fields || []);
+	let derivedFields = $derived(fields || activeCollection?.fields || []);
 
 	// Get available languages
 	let availableLanguages = $derived.by<Locale[]>(() => {
@@ -276,6 +277,9 @@
 			permissions: field.permissions || {}
 		};
 	}
+
+	/** Field names visible on the previous pass — used to clear stale required errors. */
+	let previouslyVisibleFieldNames = new Set<string>();
 
 	let filteredFields = $derived(
 		derivedFields
@@ -475,7 +479,8 @@
 		const errors: Record<string, string> = {};
 		const values = currentCollectionValue;
 		for (const field of filteredFields) {
-			if (!field.required) continue;
+			if (!isFieldVisible(field, values)) continue;
+			if (!isFieldRequired(field, values)) continue;
 			const fieldName = getFieldName(field, false);
 			const value = values[fieldName];
 			const isEmpty =
@@ -492,16 +497,31 @@
 
 	$effect(() => {
 		const errors = requiredFieldErrors;
-		for (const field of filteredFields) {
-			const fieldName = getFieldName(field, false);
-			if (errors[fieldName]) {
-				if (!validationStore.hasError(fieldName)) {
-					validationStore.setError(fieldName, errors[fieldName]);
+		const fields = filteredFields;
+		untrack(() => {
+			const visibleNames = new Set<string>();
+			for (const field of fields) {
+				if (!isFieldVisible(field, currentCollectionValue)) continue;
+				const fieldName = getFieldName(field, false);
+				visibleNames.add(fieldName);
+				if (errors[fieldName]) {
+					if (validationStore.getError(fieldName) !== errors[fieldName]) {
+						validationStore.setError(fieldName, errors[fieldName]);
+					}
+				} else if (validationStore.hasError(fieldName)) {
+					validationStore.clearError(fieldName);
 				}
-			} else if (validationStore.hasError(fieldName)) {
-				validationStore.clearError(fieldName);
 			}
-		}
+			// A field hidden by `showIf` (or no longer required by `requiredIf`) must
+			// not keep a stale error that blocks save. Track the previous visible set
+			// instead of reading the error store reactively (avoids clearing loops).
+			for (const fieldName of previouslyVisibleFieldNames) {
+				if (!visibleNames.has(fieldName) && validationStore.hasError(fieldName)) {
+					validationStore.clearError(fieldName);
+				}
+			}
+			previouslyVisibleFieldNames = visibleNames;
+		});
 	});
 
 	$effect(() => {
@@ -658,9 +678,10 @@
 			>
 				<div class="flex w-full flex-col gap-1">
 					{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
-						{#if field.widget}
+						{#if field.widget && isFieldVisible(field, currentCollectionValue)}
 							{@const fieldIcon = resolveFieldIcon(field)}
 							{@const fieldName = getFieldName(field, false)}
+							{@const isRequired = isFieldRequired(field, currentCollectionValue)}
 							<div
 								class="w-full min-w-0 text-start"
 								id="field-container-{fieldName}"
@@ -692,7 +713,7 @@
 												></iconify-icon>
 											</SystemTooltip>
 										{/if}
-										{#if field.required}
+										{#if isRequired}
 											<span class="text-error-500" aria-hidden="true">*</span>
 										{/if}
 									</div>
@@ -800,6 +821,7 @@
 													<WidgetLoader
 														loader={loadedWidget}
 														field={{ ...field, translated: false }}
+														requiredOverride={isRequired}
 														WidgetData={{}}
 														bind:value={currentCollectionValue[fieldName][fieldLocale]}
 														onFieldSync={() => syncFieldToStore(fieldName)}
@@ -812,6 +834,7 @@
 											<WidgetLoader
 												loader={loadedWidget}
 												{field}
+												requiredOverride={isRequired}
 												WidgetData={{}}
 												bind:value={currentCollectionValue[fieldName]}
 												onFieldSync={() => syncFieldToStore(fieldName)}

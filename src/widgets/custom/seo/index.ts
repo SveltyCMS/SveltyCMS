@@ -122,8 +122,8 @@ const SeoWidget = createWidget({
   sveltycms: ">=0.0.8",
   Icon: "tabler:seo",
   Description: widget_seo_description(),
-  inputComponentPath: "/src/widgets/custom/Seo/input.svelte",
-  displayComponentPath: "/src/widgets/custom/Seo/display.svelte",
+  inputComponentPath: "/src/widgets/custom/seo/input.svelte",
+  displayComponentPath: "/src/widgets/custom/seo/display.svelte",
   validationSchema,
 
   // Set widget-specific defaults.

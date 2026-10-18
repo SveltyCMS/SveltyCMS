@@ -82,6 +82,7 @@
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { registerHotkey } from '@src/utils/hotkeys';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { uploadMediaFilesHandle } from '@utils/media/upload-client';
 	import { matchesJsonPathFilter } from '@utils/json-path-filter';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -668,10 +669,7 @@
 				try {
 					const response = await fetch('/api/system-virtual-folder', {
 						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-CSRF-Token': page.data.csrfToken ?? ''
-						},
+						headers: clientJsonHeaders(page.data.csrfToken),
 						body: JSON.stringify({
 							name: name.trim(),
 							parent: data.currentFolder?._id

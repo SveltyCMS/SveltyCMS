@@ -61,6 +61,7 @@ import { redactReadEnvelope, redactRecord } from "@utils/field-access";
 import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
+import { evaluateCondition } from "@src/widgets/desugar-field";
 
 import {
   getDbModuleLazy,
@@ -320,21 +321,44 @@ function sameShallowPayload(updates: Array<{ data: Record<string, unknown> }>): 
  */
 function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): void {
   const required = hot._requiredFields;
-  if (!hot._hasRequiredFields || !required || required.length === 0) return;
-  const record = payload as Record<string, unknown>;
+  const condRequired = hot._conditionallyRequiredFields;
+  if (
+    (!hot._hasRequiredFields || !required || required.length === 0) &&
+    (!hot._hasConditionallyRequiredFields || !condRequired || condRequired.length === 0)
+  ) {
+    return;
+  }
+  const record = (payload ?? {}) as Record<string, unknown>;
   const missingFields: string[] = [];
-  for (let i = 0; i < required.length; i++) {
-    const rf = required[i];
-    const val = record[rf.key];
-    if (
-      val === undefined ||
-      val === null ||
-      val === "" ||
-      (Array.isArray(val) && val.length === 0)
-    ) {
-      missingFields.push(rf.name);
+
+  const isMissing = (val: unknown): boolean =>
+    val === undefined ||
+    val === null ||
+    val === "" ||
+    (Array.isArray(val) && val.length === 0) ||
+    (typeof val === "object" && Object.keys(val as object).length === 0);
+
+  if (required) {
+    for (let i = 0; i < required.length; i++) {
+      const rf = required[i];
+      if (rf.showIf && !evaluateCondition(rf.showIf, record)) continue;
+      if (isMissing(record[rf.key])) {
+        missingFields.push(rf.name);
+      }
     }
   }
+
+  if (condRequired) {
+    for (let i = 0; i < condRequired.length; i++) {
+      const crf = condRequired[i];
+      if (crf.showIf && !evaluateCondition(crf.showIf, record)) continue;
+      if (!evaluateCondition(crf.requiredIf, record)) continue;
+      if (isMissing(record[crf.key])) {
+        missingFields.push(crf.name);
+      }
+    }
+  }
+
   if (missingFields.length > 0) {
     throw new AppError(
       missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
@@ -342,6 +366,24 @@ function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): 
       "FIELD_VALIDATION_ERROR",
     );
   }
+}
+
+/**
+ * True when the payload writes a field the publish gate cares about.
+ *
+ * Used to keep the existing-status read off ordinary updates: if no required
+ * (or conditionally required) field is touched, an update cannot make an
+ * already-published entry invalid.
+ */
+function touchesRequiredFields(hot: SchemaHotFlags, payload: unknown): boolean {
+  const record = (payload ?? {}) as Record<string, unknown>;
+  for (const field of hot._requiredFields ?? []) {
+    if (Object.hasOwn(record, field.key)) return true;
+  }
+  for (const field of hot._conditionallyRequiredFields ?? []) {
+    if (Object.hasOwn(record, field.key)) return true;
+  }
+  return false;
 }
 
 let resolvedContentSystem: ContentSystem | null = null;
@@ -1858,7 +1900,12 @@ export class CollectionsNamespace {
         );
       }
 
-      if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
+      if (
+        (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) ||
+        (hot._hasConditionallyRequiredFields &&
+          hot._conditionallyRequiredFields &&
+          hot._conditionallyRequiredFields.length > 0)
+      ) {
         assertRequiredFieldsForPublish(hot, entryData);
       } else if (schema.fields && schema.fields.length > 0) {
         const { valid, missingFields } = validateRequiredFields(
@@ -2018,19 +2065,27 @@ export class CollectionsNamespace {
     // "publish" while the entry's workflow instance is in a final state.
     // System writes (scheduled publishing, sync, imports) bypass the gate.
     const requestedStatus = (data as { status?: string } | null)?.status;
-    if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
-      if (
-        !isAdmin(effectiveUser) &&
-        effectiveUser?.role !== "admin" &&
-        !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
-      ) {
-        const workflowService = await getWorkflowServiceLazy();
-        await workflowService.assertPublishAllowed(
-          schema._id as string,
-          (tenantId as string | undefined) ?? undefined,
-          effectiveUser,
-          entryId,
-        );
+    const explicitPublish = requestedStatus === "publish" || requestedStatus === "published";
+    // 🛡️ SERVER-SIDE REQUIRED/requiredIf: validate on an explicit publish AND on
+    // any update that clears a required field of an entry that is ALREADY
+    // published. The old shape only checked explicit publish transitions, so a
+    // direct API PATCH without `status` could blank a required field and leave a
+    // published entry invalid (the client hid the field, the server did not).
+    if (!system && (explicitPublish || touchesRequiredFields(hot, updateData))) {
+      if (explicitPublish) {
+        if (
+          !isAdmin(effectiveUser) &&
+          effectiveUser?.role !== "admin" &&
+          !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
+        ) {
+          const workflowService = await getWorkflowServiceLazy();
+          await workflowService.assertPublishAllowed(
+            schema._id as string,
+            (tenantId as string | undefined) ?? undefined,
+            effectiveUser,
+            entryId,
+          );
+        }
       }
 
       if (schema.fields && schema.fields.length > 0) {
@@ -2047,19 +2102,29 @@ export class CollectionsNamespace {
           ...existingData,
           ...updateData,
         };
-        if (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) {
-          assertRequiredFieldsForPublish(hot, merged);
-        } else {
-          const { valid, missingFields } = validateRequiredFields(
-            merged,
-            schema.fields as FieldInstance[],
-          );
-          if (!valid) {
-            throw new AppError(
-              missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
-              400,
-              "FIELD_VALIDATION_ERROR",
+        // Without an explicit status the entry keeps the status it already has.
+        const effectiveStatus = explicitPublish ? "publish" : existingData?.status;
+        const staysPublished = effectiveStatus === "publish" || effectiveStatus === "published";
+        if (staysPublished) {
+          if (
+            (hot._hasRequiredFields && hot._requiredFields && hot._requiredFields.length > 0) ||
+            (hot._hasConditionallyRequiredFields &&
+              hot._conditionallyRequiredFields &&
+              hot._conditionallyRequiredFields.length > 0)
+          ) {
+            assertRequiredFieldsForPublish(hot, merged);
+          } else {
+            const { valid, missingFields } = validateRequiredFields(
+              merged,
+              schema.fields as FieldInstance[],
             );
+            if (!valid) {
+              throw new AppError(
+                missingFields.map((f) => `Field '${f}' is required when publishing`).join("; "),
+                400,
+                "FIELD_VALIDATION_ERROR",
+              );
+            }
           }
         }
       }

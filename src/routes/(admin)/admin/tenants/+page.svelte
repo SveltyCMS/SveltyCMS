@@ -30,7 +30,7 @@
 		SMART_TABLE_THEAD
 	} from '@components/ui/smart-table';
 
-	let { data } = $props<{ data: PageData }>();
+	let { data }: { data: PageData } = $props();
 
 	let tenants = $derived(data.tenants);
 	let creating = $state(false);

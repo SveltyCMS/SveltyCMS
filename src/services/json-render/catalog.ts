@@ -6,6 +6,7 @@
 import { schema, defineRegistry } from "json-render-svelte";
 import type { WidgetDefinition } from "@widgets/types";
 import { logger } from "@utils/logger";
+import { getComponentLoader } from "@src/widgets/scanner";
 
 // Import basic components
 import VerticalLayout from "./components/vertical-layout.svelte";
@@ -44,13 +45,11 @@ export async function registerForJsonRender(widget: WidgetDefinition): Promise<v
     },
   };
 
-  // 2. Resolve the widget's actual display component lazily so it can be
-  //    rendered instead of falling back to Text. The path is a runtime string
-  //    (not statically analyzable), so the dynamic import is best-effort.
-  const displayComponentPath = widget.displayComponentPath;
-  if (displayComponentPath) {
+  // 2. Resolve the widget's actual display component lazily using Vite-bundled chunk loaders.
+  const loader = getComponentLoader(widget.Name, "display");
+  if (loader) {
     try {
-      const mod = await import(/* @vite-ignore */ displayComponentPath);
+      const mod = await loader();
       sveltyRegistry[widget.Name] = mod.default;
     } catch (err) {
       logger.debug(`[JsonRender] Failed to load display component for ${widget.Name}:`, err);

@@ -1,8 +1,11 @@
 <script lang="ts">
-	let { value, contentLanguage } = $props<{
+	let {
+		value,
+		contentLanguage
+	}: {
 		value: any;
 		contentLanguage: string;
-	}>();
+	} = $props();
 
 	const displayValue = $derived.by(() => {
 		if (typeof value === 'string') return value;

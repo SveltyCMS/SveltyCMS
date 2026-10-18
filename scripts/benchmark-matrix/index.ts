@@ -229,11 +229,14 @@ const GROUPS = [
       "admin-ux-vitality",
       "multi-tenant-performance",
       "openapi-performance",
-      "relational-performance",
       "seo-performance",
-      "mixed-workload",
       "realtime-performance",
     ],
+  },
+  {
+    name: "Heavy Query & Mixed Workload",
+    parallel: false,
+    tests: ["relational-performance", "mixed-workload"],
   },
   {
     name: "SDK/Local Read",

@@ -1676,7 +1676,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
       // 🔒 Soft-delete clamp: a non-permanent delete only sets `isDeleted`, so
       // the caller's filter must be AND-ed with a live-row predicate.
-      const effectiveQuery = this.clampSoftDeleted(table, q as any, options);
+      const effectiveQuery = this.clampSoftDeleted<T>(table, q, options);
 
       // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters compiled once with limit=1
       if (this.executeCompiled && !options.transaction) {
@@ -1982,7 +1982,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       }
 
       // 🔒 Soft-delete clamp (see findOne / clampSoftDeleted).
-      const effectiveQuery = this.clampSoftDeleted(table, q as any, options);
+      const effectiveQuery = this.clampSoftDeleted<T>(table, q, options);
 
       // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters + sort + limit/offset compiled once
       if (this.executeCompiled && !options.transaction) {

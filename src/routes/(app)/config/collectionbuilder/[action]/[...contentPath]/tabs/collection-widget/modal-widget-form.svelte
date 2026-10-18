@@ -260,7 +260,6 @@
 	let requiredIfValue = $state('');
 	let selectedPreset = $state('custom');
 
-	// --- Local working copy (seed immediately so first paint is not empty for E2E) ---
 	function cloneValue(v: any) {
 		if (!v) {
 			return {
@@ -280,11 +279,26 @@
 				widget: {}
 			};
 		}
+		let cloned: any;
 		try {
-			return deepClone(v);
+			cloned = deepClone(v);
 		} catch {
-			return { ...v };
+			cloned = { ...v };
 		}
+		if (cloned.validation && typeof cloned.validation === 'object') {
+			if (!cloned.pattern && cloned.validation.pattern) cloned.pattern = cloned.validation.pattern;
+			if (!cloned.patternMessage && cloned.validation.patternMessage)
+				cloned.patternMessage = cloned.validation.patternMessage;
+			if (cloned.minLength === undefined && cloned.validation.minLength !== undefined)
+				cloned.minLength = cloned.validation.minLength;
+			if (cloned.maxLength === undefined && cloned.validation.maxLength !== undefined)
+				cloned.maxLength = cloned.validation.maxLength;
+			if (cloned.min === undefined && cloned.validation.min !== undefined)
+				cloned.min = cloned.validation.min;
+			if (cloned.max === undefined && cloned.validation.max !== undefined)
+				cloned.max = cloned.validation.max;
+		}
+		return cloned;
 	}
 
 	// Seed immediately so first paint is not empty for E2E. The initializer
@@ -329,9 +343,10 @@
 		}
 
 		selectedPreset = 'custom';
-		if (next?.pattern) {
+		const pat = next?.pattern || next?.validation?.pattern;
+		if (pat) {
 			for (const [k, v] of Object.entries(PRESET_PATTERNS)) {
-				if (v.pattern === next.pattern) {
+				if (v.pattern === pat) {
 					selectedPreset = k;
 					break;
 				}
@@ -473,12 +488,63 @@
 		} else {
 			delete local.requiredIf;
 		}
-		if (local.pattern || local.patternMessage) {
-			local.validation = {
-				...local.validation,
-				pattern: local.pattern,
-				patternMessage: local.patternMessage
-			};
+		const nextValidation = { ...local.validation };
+		if (local.pattern) {
+			nextValidation.pattern = local.pattern;
+		} else {
+			delete nextValidation.pattern;
+			delete local.pattern;
+		}
+		if (local.patternMessage) {
+			nextValidation.patternMessage = local.patternMessage;
+		} else {
+			delete nextValidation.patternMessage;
+			delete local.patternMessage;
+		}
+		if (local.minLength !== undefined && local.minLength !== '') {
+			const n = Number(local.minLength);
+			if (!Number.isNaN(n)) {
+				nextValidation.minLength = n;
+				local.minLength = n;
+			}
+		} else {
+			delete nextValidation.minLength;
+			delete local.minLength;
+		}
+		if (local.maxLength !== undefined && local.maxLength !== '') {
+			const n = Number(local.maxLength);
+			if (!Number.isNaN(n)) {
+				nextValidation.maxLength = n;
+				local.maxLength = n;
+			}
+		} else {
+			delete nextValidation.maxLength;
+			delete local.maxLength;
+		}
+		if (local.min !== undefined && local.min !== '') {
+			const n = Number(local.min);
+			if (!Number.isNaN(n)) {
+				nextValidation.min = n;
+				local.min = n;
+			}
+		} else {
+			delete nextValidation.min;
+			delete local.min;
+		}
+		if (local.max !== undefined && local.max !== '') {
+			const n = Number(local.max);
+			if (!Number.isNaN(n)) {
+				nextValidation.max = n;
+				local.max = n;
+			}
+		} else {
+			delete nextValidation.max;
+			delete local.max;
+		}
+		if (Object.keys(nextValidation).length > 0) {
+			local.validation = nextValidation;
+		} else {
+			delete local.validation;
 		}
 		setTargetWidget(local);
 		resolve(local);
@@ -787,6 +853,7 @@
 							<Toggle
 								size="sm"
 								ariaLabel={widget_form_required_aria()}
+								data-testid="widget-field-required"
 								value={!!local.required}
 								onToggle={(v: boolean) => {
 									local.required = v;
@@ -1299,19 +1366,31 @@
 					variant="transparent"
 					type="button"
 					onclick={handleDelete}
+					data-testid="widget-field-delete"
 					class="gap-2 text-error-500 hover:bg-error-500/10"
 				>
 					<iconify-icon icon="mdi:trash-can-outline" width="18" aria-hidden="true"></iconify-icon>
 					{button_delete()}
 				</Button>
-				<Button variant="ghost" type="button" onclick={handleDuplicate} class="gap-2">
+				<Button
+					variant="ghost"
+					type="button"
+					onclick={handleDuplicate}
+					data-testid="widget-field-duplicate"
+					class="gap-2"
+				>
 					<iconify-icon icon="mdi:content-copy" width="18" aria-hidden="true"></iconify-icon>
 					{widget_form_duplicate()}
 				</Button>
 			</div>
 
 			<div class="grid grid-cols-2 gap-3 sm:flex">
-				<Button variant="outline" type="button" onclick={handleCancel}>
+				<Button
+					variant="outline"
+					type="button"
+					onclick={handleCancel}
+					data-testid="widget-field-cancel"
+				>
 					{button_cancel()}
 				</Button>
 				<Button

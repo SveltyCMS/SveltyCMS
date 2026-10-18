@@ -81,7 +81,14 @@ function signOAuthState(token: string | null | undefined): string | undefined {
 
 export function verifyOAuthState(state: string | null | undefined): string | null {
   if (!state) return null;
-  const decoded = decodeURIComponent(state);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(state);
+  } catch {
+    // Malformed percent-encoding is attacker-controlled input, not a server error.
+    logger.warn("OAuth state could not be decoded");
+    return null;
+  }
   const parts = decoded.split(".");
   if (parts.length !== 2) {
     logger.warn("OAuth state missing HMAC signature");
