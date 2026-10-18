@@ -150,13 +150,13 @@ tags:
   - Collapse SQL adapter smoke tests into a single engine-parameterized contract suite.
   - Replace the remaining soft-skips with hard assertions — done for `security`, `security-negative`, `collections` (now provisions its fixture via `/api/testing` instead of a sandbox-blocked file write), `auth-2fa`, `theme` and both Unified-Data-Hub federation suites; the harness reset now throws instead of warn-and-proceed. Also de-vacuumed `metrics`, `search`, `marketplace`, `outbox-plugin-storage`, `settings`, `dashboard`, `website-tokens`, `graphql` (tenant-scoped query now gated on `MULTI_TENANT`), and the DB contract suites (`transaction-contract` — the concurrent test inserted via `db.crud` instead of the txn handle, so its "rollback leak" was a test bug; `pool-contention`, `health-contract`, `content-nodes-contract`, `db-interface`, `resilience-load`, `cache-contract`).
   - Replace the remaining fixed sleeps with condition waits (the harness reset path now health-polls; several API suites still pad with fixed waits).
-- **Recently shipped (2026-10-18)**: `src/plugins/init.server.ts` merges a plugin's `index.server.ts` with its `plugin_workspace` slot server; `scripts/benchmark-matrix/index.ts` splits `Feature HTTP Read` to isolate heavy relational and mixed workloads (`relational-performance`, `mixed-workload`) into their own sequential lane, eliminating SQLite lock contention under full-matrix runs without lowering reliability guards; server-side `requiredIf` and `showIf` evaluation added to `CollectionsNamespace` write path with zero hot-path overhead.
+- **Recently shipped (2026-10-18)**: `src/plugins/init.server.ts` merges a plugin's `index.server.ts` with its `plugin_workspace` slot server; `scripts/benchmark-matrix/index.ts` splits `Feature HTTP Read` to isolate heavy relational and mixed workloads (`relational-performance`, `mixed-workload`) into their own sequential lane, eliminating SQLite lock contention under full-matrix runs without lowering reliability guards; server-side `requiredIf` and `showIf` evaluation added to `CollectionsNamespace` write path with zero hot-path overhead; server-side cookie consent logging wired to `sys_consent_audit` via public plugin route `/api/plugins/cookie-consent/consent` and `consentStore` with `allowedOrigins` enforcement.
 - **Codebase & Documentation Cleanup**:
   - Reconcile documented-but-unmounted components: mount or document as unmounted (`TokenPicker`, `two-factor-setup-modal`, `virtual-media-grid`).
-  - Prune deprecated zero-caller symbols: `MigrationEngine.executeMigration`, `buildRawTenantFilter`, `resolveSameSourceJoinTarget`, `UpsertOperation`.
-  - Prune orphaned scripts: `scripts/analyze-base-metrics.ts`, `check-deprecated.ts`, `generate-comprehensive-comparison.ts`, `provision-e2e.ts`, `record-cold-warm-benchmarks.ts`.
+  - [x] Prune deprecated zero-caller symbols: `MigrationEngine.executeMigration`, `buildRawTenantFilter`, `resolveSameSourceJoinTarget`, `UpsertOperation`.
+  - [x] Prune orphaned scripts (2026-10-18): `analyze-base-metrics.ts`, `check-deprecated.ts`, `generate-comprehensive-comparison.ts`, `provision-e2e.ts`, `record-cold-warm-benchmarks.ts`, plus the one-shot locale codemods (`add-page-title-suffix-key.mjs`, `fix-embedded-expression-messages.mjs`, `verify-locale-parity.mjs`) and the duplicate `create-app.ts` (the published bin is `create-app.js`).
   - Validate inline code paths: resolve 107 stale inline `` `src/…` `` references in docs and add verification to `tests/lint-docs.ts`.
-  - Wire up server-side cookie consent logging in `src/plugins/cookie-consent/api.server.ts`.
+  - [x] Wire up server-side cookie consent logging in `src/plugins/cookie-consent/api.server.ts`.
 - **State Migration**:
   - Migrate legacy stores (`systemState`, `overallState`) in `src/stores/system/state.svelte.ts` to Svelte 5 runes (`$state()`, `$derived()`).
 
@@ -164,8 +164,13 @@ tags:
 
 ## 8. Enterprise, Security & Community (Active Backlog)
 
-- **Third-Party Security Audit**:
-  - Commission an independent external penetration test prior to enterprise GA.
+- **Third-Party Security Audit** — posture: [Security posture](../reference/security/security-posture.mdx):
+  - Commission an independent external penetration test prior to enterprise GA. **Not performed as of 2026-10-18.**
+- **Cryptographic agility (PQC readiness)** — reference: [Quantum security](../reference/security/quantum-security.mdx):
+  - [x] Key-ID envelopes (`v2:<keyId>:…`, binary key IDs, `SCHB2` backups) and a configured decrypt ring (`*_KEY_RING`). Shipped in `src/utils/security/envelope.ts`; rotation is now a two-phase operation.
+  - [x] Hybrid at-rest envelope (AES-256-GCM payload under a random DEK, DEK wrapped with ML-KEM-768 + HKDF). Primitive shipped in `src/utils/security/hybrid-kem.ts`; opt-in for backups via `PQC_HYBRID_BACKUPS=true`. **Remaining:** wire fields/settings/TOTP and document a re-wrap/rollback runbook.
+  - [x] Optional SHA-384/SHA-512 checksum profile (`CHECKSUM_ALGORITHM`) for new artifacts; legacy bare-hex values still verify as SHA-256. The append-only audit chain stays SHA-256.
+  - [x] Pin the documented parameters with `crypto-inventory`, `key-ring`, `hybrid-kem` and `checksum-profile` tests; extend them when an envelope format changes.
 - **GraphQL Supergraph**:
   - Apollo Federation v2 compatibility for multi-service enterprise architectures.
 - **Cross-Source Data Merge (v3.1)**:
@@ -175,3 +180,19 @@ tags:
   - Marketplace static OpenGraph card synchronization on live docroot.
   - Interactive "Was this page helpful?" feedback component on docs routes.
   - Public ecosystem launch (Product Hunt, Hacker News, awesome-cms).
+
+---
+
+## 9. AI Provider Architecture (Active Backlog)
+
+Based on publicly available release notes for Drupal AI 1.5.0 (Workflows of AI, 2026-10-12). Adopted items are recorded in [achievements-2026](./achievements-2026.mdx) §3.53.
+
+- **Provider port**:
+  - [x] Extracted typed `AiProvider` interface (`src/services/ai/ai-provider.ts`) defining generate/chat/embed/usage contracts with OpenTelemetry GenAI naming, decoupling inference callers from specific LLM vendors with server-side provider resolution.
+- **ChatProcessor seam**: move `/api/chat` behind a processor interface so an agent, a workflow engine or an external assistant can answer without the chat UI knowing which backend ran.
+- **ChatMemory**: persist conversation threads server-side, scoped by `tenantId` + user/session, with an explicit reset endpoint. Until this ships, client history stays validated and bounded (already enforced).
+- **Streaming guardrails**: apply redaction while the response streams, with a deterministic filter as the primary control and model markers as an additional signal — never markers alone.
+- **Moderation fail-closed**: when a configured moderation provider is unavailable, block rather than pass. Moderation is one layer, not the authorization boundary.
+- **Reranker**: re-order semantic-index candidates by answer relevance (top-N configurable), keeping keyword scores as the fallback.
+- **Token budgets**: per-tenant daily token ceilings derived from the existing quota primitive, surfaced in the admin dashboard.
+- **Exporter**: optional OpenTelemetry OTLP export for the `gen_ai.*` attributes already emitted (currently structured logs only).

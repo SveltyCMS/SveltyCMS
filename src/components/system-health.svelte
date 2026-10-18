@@ -24,7 +24,8 @@ Displays real-time system state and individual service health with comprehensive
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import { systemState } from '@src/stores/system/state.svelte.ts';
 	import type { ServiceHealth, SystemState } from '@src/stores/system/types';
-	import { formatDisplayDate, formatTime } from '@utils/date';
+	import { formatDisplayDate } from '@utils/date';
+	import { formatTime } from '@utils/format-date';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { toast } from '@src/stores/toast.svelte.ts';

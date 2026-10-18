@@ -1150,7 +1150,7 @@
 							<div
 								class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
 							>
-								<p
+								<div
 									class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 								>
 									<iconify-icon
@@ -1171,7 +1171,7 @@
 											></iconify-icon>
 										</button>
 									</SystemTooltip>
-								</p>
+								</div>
 								<p
 									class="w-full text-base font-medium text-(--admin-text-body)"
 									data-testid="profile-username"
@@ -1183,7 +1183,7 @@
 							<div
 								class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
 							>
-								<p
+								<div
 									class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 								>
 									<iconify-icon
@@ -1204,7 +1204,7 @@
 											></iconify-icon>
 										</button>
 									</SystemTooltip>
-								</p>
+								</div>
 								<p
 									class="w-full break-all text-base font-medium text-(--admin-text-body)"
 									data-testid="profile-email"
@@ -1218,7 +1218,7 @@
 								class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
 								data-testid="profile-password-field"
 							>
-								<p
+								<div
 									class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 								>
 									<iconify-icon
@@ -1239,7 +1239,7 @@
 											></iconify-icon>
 										</button>
 									</SystemTooltip>
-								</p>
+								</div>
 								<p
 									class="font-mono text-base tracking-widest text-(--admin-text-muted)"
 									aria-hidden="true"
@@ -1415,7 +1415,9 @@
 											width={20}
 											aria-hidden="true"
 										></iconify-icon>
-										<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+										<div
+											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
+										>
 											{adminarea_activesession()}
 											<SystemTooltip title={helpTitle('sessions')}>
 												<button
@@ -1428,7 +1430,7 @@
 													></iconify-icon>
 												</button>
 											</SystemTooltip>
-										</p>
+										</div>
 									</div>
 									<div class="flex shrink-0 flex-wrap items-center gap-1.5">
 										{#if otherSessionCount > 0}
@@ -1620,7 +1622,9 @@
 										aria-hidden="true"
 									></iconify-icon>
 									<div class="min-w-0">
-										<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+										<div
+											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
+										>
 											{userpage_passkeys()}
 											<SystemTooltip title={helpTitle('passkeys')}>
 												<button
@@ -1633,7 +1637,7 @@
 													></iconify-icon>
 												</button>
 											</SystemTooltip>
-										</p>
+										</div>
 										<p class="text-xs text-(--admin-text-muted)">{userpage_passkey_hint()}</p>
 									</div>
 								</div>
@@ -1655,7 +1659,9 @@
 										aria-hidden="true"
 									></iconify-icon>
 									<div class="min-w-0">
-										<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+										<div
+											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
+										>
 											{userpage_magic_link()}
 											<SystemTooltip title={helpTitle('magic')}>
 												<button
@@ -1668,7 +1674,7 @@
 													></iconify-icon>
 												</button>
 											</SystemTooltip>
-										</p>
+										</div>
 										<p class="text-xs text-(--admin-text-muted)">{userpage_magic_hint()}</p>
 									</div>
 								</div>
@@ -1690,7 +1696,9 @@
 										aria-hidden="true"
 									></iconify-icon>
 									<div class="min-w-0">
-										<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+										<div
+											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
+										>
 											{userpage_oauth_login()}
 											<SystemTooltip title={helpTitle('oauth')}>
 												<button
@@ -1703,7 +1711,7 @@
 													></iconify-icon>
 												</button>
 											</SystemTooltip>
-										</p>
+										</div>
 										<p class="text-xs text-(--admin-text-muted)">
 											{userpage_oauth_hint()}
 										</p>
@@ -1727,7 +1735,9 @@
 											width={20}
 											aria-hidden="true"
 										></iconify-icon>
-										<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+										<div
+											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
+										>
 											{system_permission()}
 											<SystemTooltip title={helpTitle('permissions')}>
 												<button
@@ -1740,7 +1750,7 @@
 													></iconify-icon>
 												</button>
 											</SystemTooltip>
-										</p>
+										</div>
 									</div>
 									<div class="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
 										{#each user.permissions as permission (permission)}
@@ -1791,7 +1801,7 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+									<div class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 										{userpage_workspace_appearance()}
 										<SystemTooltip title={helpTitle('appearance')}>
 											<button
@@ -1804,7 +1814,7 @@
 												></iconify-icon>
 											</button>
 										</SystemTooltip>
-									</p>
+									</div>
 								</div>
 								<div
 									class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2"
@@ -1942,7 +1952,7 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<p class="flex items-center gap-1 uppercase">
+									<div class="flex items-center gap-1 uppercase">
 										{userpage_collaboration()}
 										<SystemTooltip title={helpTitle('collaboration')}>
 											<button
@@ -1955,7 +1965,7 @@
 												></iconify-icon>
 											</button>
 										</SystemTooltip>
-									</p>
+									</div>
 								</div>
 								<div class="space-y-3 ps-1">
 									<div
@@ -2025,7 +2035,7 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+									<div class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 										{userpage_privacy_data_title()}
 										<SystemTooltip title={helpTitle('privacy')}>
 											<button
@@ -2038,7 +2048,7 @@
 												></iconify-icon>
 											</button>
 										</SystemTooltip>
-									</p>
+									</div>
 								</div>
 								<button
 									type="button"

@@ -102,7 +102,7 @@ Rules:
 
 ## Status-shade contract
 
-**One hue, one job.** Every semantic ramp (`error`, `success`, `warning`, `tertiary`, `primary`, `secondary`, `surface`) uses the _same shade step for the same role_. Reaching for adjacent shades is what produced "too many different reds" across the admin. The drift guard `scripts/consolidate-shades.mjs --check` runs inside `bun run check` and exits 1 on any violation; run the same script without `--check` to auto-repair (idempotent, re-run after any big UI sweep).
+**One hue, one job.** Every semantic ramp (`error`, `success`, `warning`, `tertiary`, `primary`, `secondary`, `surface`) uses the _same shade step for the same role_. Reaching for adjacent shades is what produced "too many different reds" across the admin. The drift guard `scripts/lint/consolidate-shades.ts --check` runs inside `bun run check` and exits 1 on any violation; run the same script without `--check` to auto-repair (idempotent, re-run after any big UI sweep).
 
 | Role                                            | Light                | Dark           |
 | :---------------------------------------------- | :------------------- | :------------- |
@@ -130,7 +130,7 @@ Rules:
 - **Light text on dark status surfaces** (`text-{hue}-50`/`-100` on `bg-{hue}-900/*`) stays paired — error toasts, dark modal tinting.
 - **Decorative brand hues** (`indigo`, `purple`, `pink`, `violet`, `teal`, `cyan`) are allowed for seasonal effects, preset swatches, FloatingNav spokes and non-theme data viz — never for status semantics.
 - `{hue}-900` / `-950` solid fills and `{hue}-900/10` remain valid dark-surface accents; `{hue}-400` solid is allowed for small status dots on dark surfaces.
-- **`src/app.css` preset recipes are owner-tuned**: the `preset-tonal-*` / `preset-outlined-*` / `preset-ghost-*` / `preset-soft-surface` utilities intentionally use `text-{hue}-700` and `dark:text-{hue}-200`/`-300` emphasis steps for contrast on washes. `src/app.css` is exempted in `consolidate-shades.mjs` (EXCLUDED) so the guard never rewrites it — component code must still follow the contract.
+- **`src/app.css` preset recipes are owner-tuned**: the `preset-tonal-*` / `preset-outlined-*` / `preset-ghost-*` / `preset-soft-surface` utilities intentionally use `text-{hue}-700` and `dark:text-{hue}-200`/`-300` emphasis steps for contrast on washes. `src/app.css` is exempted in `consolidate-shades.ts` (EXCLUDED) so the guard never rewrites it — component code must still follow the contract.
 
 Canonical recipes live in `src/app.css` (`preset-tonal-*`, `preset-outlined-*`, `preset-ghost-*`) and `src/components/ui/status-badge.svelte`. The `--admin-*` token layer in `src/utilities.css` stays the single source for chrome surfaces.
 

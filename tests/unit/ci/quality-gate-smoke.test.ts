@@ -29,7 +29,7 @@ describe("package gate scripts", () => {
     const scripts = readPkgScripts();
     expect(scripts["test:doctor"]).toContain("test-doctor.ts");
     expect(scripts["test:security"]).toMatch(/defense-in-depth|vitest run/);
-    expect(existsSync(join(ROOT, "scripts/test-doctor.ts"))).toBe(true);
+    expect(existsSync(join(ROOT, "scripts/test/test-doctor.ts"))).toBe(true);
   });
 
   it("exposes the DOM interaction and E2E smoke gates", () => {
@@ -81,7 +81,7 @@ describe("pre-push hook", () => {
 
   it("runs the E2E smoke gate against a harness build", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
-    expect(prePush).toContain("scripts/run-e2e.ts --no-build tests/e2e/smoke.spec.ts");
+    expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build tests/e2e/smoke.spec.ts");
     expect(prePush).toContain("SKIP_E2E_SMOKE");
   });
 });

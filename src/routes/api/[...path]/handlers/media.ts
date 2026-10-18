@@ -43,6 +43,7 @@ import { parseMultipartStream } from "@utils/media/streaming-upload";
 import { API_MAX_BODY_SIZE_BYTES } from "@utils/api-body-limits";
 import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
+import { sanitizeMediaUpdatePayload } from "@utils/media/media-service.server";
 import type { MediaItem } from "@utils/media/media-models";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
@@ -143,7 +144,9 @@ export async function handleMediaRoutes(
         if (!method) return successResponse(event, null);
         return rawResponse(
           event,
-          await cms.media.update(method, await request.json(), { tenantId }),
+          await cms.media.update(method, sanitizeMediaUpdatePayload(await request.json()), {
+            tenantId,
+          }),
         );
       case "DELETE":
         return await handleDeleteRoutes(event, cms, tenantId, user, method, segments);

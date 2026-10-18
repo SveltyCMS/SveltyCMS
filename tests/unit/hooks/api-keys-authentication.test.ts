@@ -157,10 +157,11 @@ describe("handleAuthentication Middleware - API Keys", () => {
       data: mockApiKey,
     });
 
-    await handleAuthentication({ event, resolve: mockResolve });
+    const res = await handleAuthentication({ event, resolve: mockResolve });
 
     expect(event.locals.user).toBeNull();
-    expect(mockResolve).toHaveBeenCalled();
+    expect(res.status).toBe(401);
+    expect(mockResolve).not.toHaveBeenCalled();
   });
 
   it("should reject an expired API Key", async () => {
@@ -185,10 +186,11 @@ describe("handleAuthentication Middleware - API Keys", () => {
       data: mockApiKey,
     });
 
-    await handleAuthentication({ event, resolve: mockResolve });
+    const res = await handleAuthentication({ event, resolve: mockResolve });
 
     expect(event.locals.user).toBeNull();
-    expect(mockResolve).toHaveBeenCalled();
+    expect(res.status).toBe(401);
+    expect(mockResolve).not.toHaveBeenCalled();
   });
 
   it("should enforce tenant isolation for API Keys", async () => {
@@ -213,9 +215,10 @@ describe("handleAuthentication Middleware - API Keys", () => {
       data: mockApiKey,
     });
 
-    await handleAuthentication({ event, resolve: mockResolve });
+    const res = await handleAuthentication({ event, resolve: mockResolve });
 
     expect(event.locals.user).toBeNull();
-    expect(mockResolve).toHaveBeenCalled();
+    expect(res.status).toBe(401);
+    expect(mockResolve).not.toHaveBeenCalled();
   });
 });

@@ -74,6 +74,7 @@ import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 import { extractPkConflictId } from "../core/query-primitives";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
+import { TenantPoolManager } from "../sql/tenant-pool-manager";
 
 export abstract class AdapterCore extends SqlAdapterCore {
   public type = "mariadb";
@@ -97,15 +98,17 @@ export abstract class AdapterCore extends SqlAdapterCore {
   };
 
   public pool: mysql.Pool | null = null;
-  /** Map of tenant ID to dedicated mysql2 connection pool */
-  private _tenantPools = new Map<string, mysql.Pool>();
-  /** The tenant ID for the current request context, set by setTenantContext() */
-  private _currentTenantId: string | null = null;
+  /** Tenant → dedicated mysql2 pool and current tenant context. */
+  private _tenantPools = new TenantPoolManager<mysql.Pool>({
+    label: "MariaDBAdapter",
+    closePool: (pool) => pool.end(),
+    closedAllMessage: "Closed all per-tenant connection pools in MariaDB",
+  });
   private _rawPoolConfig: any = null;
 
   /** Active tenant for pool routing (null = unset). */
   public get currentTenantId(): string | null {
-    return this._currentTenantId;
+    return this._tenantPools.currentTenantId;
   }
 
   public get db(): MySql2Database<typeof schema> {
@@ -847,8 +850,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
     params: readonly unknown[],
     options?: BaseQueryOptions,
   ): Promise<unknown[]> {
-    const pool =
-      (this._currentTenantId && this._tenantPools.get(this._currentTenantId)) || this.pool;
+    const tenantId = this._tenantPools.currentTenantId;
+    const pool = (tenantId && this._tenantPools.get(tenantId)) || this.pool;
     if (!pool) throw new Error("Database not connected");
     if (options?.transaction || !this.queueGate || this.queueGate.isInsideActiveContext()) {
       const [rows] = await pool.execute(sqlText, params as any);
@@ -864,8 +867,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
     execute: (sql: string, params?: any[]) => Promise<any>;
     client: any;
   } {
-    const pool =
-      (this._currentTenantId && this._tenantPools.get(this._currentTenantId)) || this.pool;
+    const tenantId = this._tenantPools.currentTenantId;
+    const pool = (tenantId && this._tenantPools.get(tenantId)) || this.pool;
     return {
       execute: async (sqlText: string, params: any[] = []) => {
         if (!pool) throw new Error("Database not connected");
@@ -1260,7 +1263,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         return rows;
       };
     }
-    const tenantId = (options?.tenantId as string) || this._currentTenantId;
+    const tenantId = (options?.tenantId as string) || this._tenantPools.currentTenantId;
     const pool = (tenantId && this._tenantPools.get(tenantId)) || this.pool;
     return async (sqlText: string, params: any[] = []) => {
       if (!pool) throw new Error("Database not connected");
@@ -2492,7 +2495,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * Directs raw statement execution to the dedicated tenant pool slice when configured.
    */
   public setTenantContext(tenantId: string | null): void {
-    this._currentTenantId = tenantId;
+    this._tenantPools.currentTenantId = tenantId;
   }
 
   /**
@@ -2530,9 +2533,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
   ): void {
     const existing = this._tenantPools.get(tenantId);
     if (existing) {
-      existing.end().catch(() => {
-        logger.debug(`Failed to close existing pool for tenant "${tenantId}"`);
-      });
+      this._tenantPools.releaseExisting(tenantId);
     }
 
     const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
@@ -2567,10 +2568,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * Closes and removes the dedicated connection pool for a tenant.
    */
   public async closeTenantPool(tenantId: string): Promise<void> {
-    const pool = this._tenantPools.get(tenantId);
-    if (pool) {
-      await pool.end();
-      this._tenantPools.delete(tenantId);
+    if (await this._tenantPools.close(tenantId)) {
       logger.info(`Closed dedicated connection pool for tenant "${tenantId}"`);
     }
   }
@@ -2579,21 +2577,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * Closes and removes all dedicated connection pools across all tenants.
    */
   public async closeAllTenantPools(): Promise<void> {
-    if (this._tenantPools.size === 0) return;
-    const entries = Array.from(this._tenantPools.entries());
-    this._tenantPools.clear();
-    this._currentTenantId = null;
-
-    await Promise.all(
-      entries.map(([tenantId, pool]) =>
-        pool
-          .end()
-          .catch((err: unknown) =>
-            logger.warn(`Failed to close pool for tenant "${tenantId}":`, err),
-          ),
-      ),
-    );
-    logger.info("Closed all per-tenant connection pools in MariaDB");
+    await this._tenantPools.closeAll();
   }
 
   // --------------------------------------------------------------------------

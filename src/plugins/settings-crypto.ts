@@ -22,20 +22,20 @@
  */
 
 import { logger } from "@utils/logger";
+import { AES256_HKDF_INFO, aesGcmDecryptWithKeys } from "@utils/security/crypto";
 import {
-  AES256_HKDF_INFO,
-  aesGcmDecryptWithKeys,
-  resolveStaticAesKey,
-  staticAesKeyRing,
-  type ResolvedStaticAesKey,
-} from "@utils/security/crypto";
+  encodeBinaryEnvelope,
+  keysForEnvelope,
+  parseBinaryEnvelope,
+  resolveKeyRing,
+  type ResolvedKeyRing,
+} from "@utils/security/envelope";
 
 // ============================================================================
 // Constants
 // ============================================================================
 
 const ENV_KEY_NAME = "SECRET_ENCRYPTION_KEY";
-const ENVELOPE_VERSION = 1;
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 16; // 128 bits
 const AUTH_TAG_LENGTH = 16; // 128 bits
@@ -60,7 +60,7 @@ export interface EncryptionContext {
 // Key Management
 // ============================================================================
 
-let cachedKeys: ResolvedStaticAesKey | null | undefined;
+let cachedKeys: ResolvedKeyRing | null | undefined;
 
 /**
  * Test-only: drop the memoized key ring so the next call re-reads
@@ -75,7 +75,7 @@ export function resetSettingsCryptoKeyCache(): void {
  * Hex / strict-base64 → raw 32-byte AES key. Passphrase → HKDF-SHA-256
  * (cached for the process; SHA-256 dual-read for envelopes written before HKDF).
  */
-async function getEncryptionKeys(): Promise<ResolvedStaticAesKey | null> {
+async function getEncryptionKeys(): Promise<ResolvedKeyRing | null> {
   if (cachedKeys !== undefined) return cachedKeys;
 
   try {
@@ -87,8 +87,11 @@ async function getEncryptionKeys(): Promise<ResolvedStaticAesKey | null> {
     }
 
     const crypto = await import("node:crypto");
-    cachedKeys = resolveStaticAesKey(crypto, raw, AES256_HKDF_INFO.pluginSettings);
-    if (cachedKeys.fallbacks.length > 0) {
+    cachedKeys = resolveKeyRing(crypto, raw, AES256_HKDF_INFO.pluginSettings, {
+      keyId: process.env.SECRET_ENCRYPTION_KEY_ID,
+      ringJson: process.env.SECRET_ENCRYPTION_KEY_RING,
+    });
+    if (cachedKeys.legacy.length > 0) {
       logger.warn(
         "[SettingsCrypto] Secret-encryption key is not hex/base64 — deriving key via HKDF-SHA-256. " +
           "For production, generate a key: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
@@ -111,8 +114,8 @@ async function getEncryptionKeys(): Promise<ResolvedStaticAesKey | null> {
 /**
  * Encrypt a plaintext string value for storage in plugin settings.
  *
- * Format: base64(version_byte || iv || authTag || ciphertext)
- * Envelope: `v1:iv:authTag:ciphertext` (base64-encoded)
+ * Format (v2): base64([2][keyIdLen][keyId][iv][authTag][ciphertext])
+ * v1 (no key ID) stays readable.
  *
  * When `context` is provided, the tenantId:pluginId pair is bound into
  * the GCM encryption as Additional Authenticated Data (AAD). This ensures
@@ -150,10 +153,8 @@ export async function encryptSecret(
     const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
     const authTag = cipher.getAuthTag();
 
-    // Encode: version byte + IV + authTag + ciphertext
-    const version = Buffer.from([ENVELOPE_VERSION]);
-    const envelope = Buffer.concat([version, iv, authTag, encrypted]);
-    return envelope.toString("base64");
+    // v2 binary envelope: [2][keyIdLen][keyId][iv][authTag][ciphertext]
+    return encodeBinaryEnvelope(iv, authTag, encrypted, keys.primaryId).toString("base64");
   } catch (err) {
     logger.error("[SettingsCrypto] Encryption failed", { error: String(err) });
     throw err;
@@ -184,29 +185,28 @@ export async function decryptSecret(
   try {
     const crypto = await import("node:crypto");
     const combined = Buffer.from(envelope, "base64");
-
-    let offset = 0;
-
-    // Check version byte
-    const version = combined[0];
-    if (version !== ENVELOPE_VERSION) {
-      logger.warn(`[SettingsCrypto] Unknown envelope version: ${version}`);
+    const parsed = parseBinaryEnvelope(combined, IV_LENGTH, AUTH_TAG_LENGTH);
+    if (!parsed) {
+      logger.warn("[SettingsCrypto] Unknown or malformed envelope version");
       return null;
     }
-    offset = 1;
 
-    const iv = combined.subarray(offset, (offset += IV_LENGTH));
-    const authTag = combined.subarray(offset, (offset += AUTH_TAG_LENGTH));
-    const ciphertext = combined.subarray(offset);
+    const selection = keysForEnvelope(keys, parsed);
+    if (selection.unknownKeyId) {
+      logger.error("[SettingsCrypto] Unknown key ID — refusing to decrypt", {
+        keyId: parsed.keyId,
+      });
+      return null;
+    }
 
     const aad = context
       ? Buffer.from(`${context.tenantId}:${context.pluginId}`, "utf8")
       : undefined;
     const decrypted = aesGcmDecryptWithKeys(crypto, {
-      keys: staticAesKeyRing(keys),
-      iv,
-      authTag,
-      ciphertext,
+      keys: selection.keys,
+      iv: parsed.iv,
+      authTag: parsed.tag,
+      ciphertext: parsed.ciphertext,
       aad,
       algorithm: ALGORITHM,
     });

@@ -104,8 +104,10 @@ vi.mock("@src/databases/db", () => {
 });
 
 // Mock MediaService to return the mock object
-vi.mock("@src/utils/media/media-service.server", () => {
+vi.mock("@src/utils/media/media-service.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@src/utils/media/media-service.server")>();
   return {
+    ...actual,
     MediaService: vi.fn().mockImplementation(function (this: any) {
       return mockMediaService;
     }),
@@ -116,6 +118,7 @@ vi.mock("@src/utils/media/media-service.server", () => {
 import {
   GET as dispatcherGET,
   POST as dispatcherPOST,
+  PATCH as dispatcherPATCH,
   DELETE as dispatcherDELETE,
 } from "@src/routes/api/[...path]/+server";
 // Removed non-existent mediaService import
@@ -154,7 +157,7 @@ const mediaIdHandler = {
       }),
       params: { path: `media/${id}` },
     };
-    return dispatcherPOST(mockEvent as any); // PATCH is routed via POST dispatcher if needed, or I should export PATCH
+    return dispatcherPATCH(mockEvent as any);
   },
 };
 
@@ -301,6 +304,68 @@ describe("Media API Security Unit Tests", () => {
         expect.objectContaining({ metadata: { alt: "new alt" } }),
         tenantId,
       );
+    });
+
+    it("strips tenant and managed columns before the adapter (mass assignment)", async () => {
+      const event = {
+        params: { id: "media-1" },
+        locals: { user, roles, tenantId },
+        request: {
+          method: "PATCH",
+          json: vi.fn().mockResolvedValue({
+            tenantId: "tenant-B",
+            _id: "forged-id",
+            uploadedBy: "attacker",
+            createdBy: "attacker",
+            createdAt: "2000-01-01T00:00:00.000Z",
+            updatedAt: "2000-01-01T00:00:00.000Z",
+            storagePath: "/etc/passwd",
+            url: "https://evil.example/x.jpg",
+            size: 1,
+            mimeType: "text/html",
+            hash: "forged",
+            isDeleted: true,
+            path: "../../etc/passwd",
+            bucket: "other-bucket",
+            provider: "s3",
+            alt: "A",
+            caption: "C",
+            tags: ["t1"],
+            metadata: { alt: "nested alt", caption: "nested caption", tags: ["t2"] },
+          }),
+        },
+      } as unknown as RequestEvent;
+
+      await mediaIdHandler.PATCH(event as any);
+
+      expect(mockMediaService.updateMedia).toHaveBeenCalledTimes(1);
+      const [, payload, scopedTenant] = mockMediaService.updateMedia.mock.calls[0];
+      expect(scopedTenant).toBe(tenantId);
+      expect(payload).toEqual({
+        alt: "A",
+        caption: "C",
+        tags: ["t1"],
+        metadata: { alt: "nested alt", caption: "nested caption", tags: ["t2"] },
+      });
+      for (const managed of [
+        "tenantId",
+        "_id",
+        "uploadedBy",
+        "createdBy",
+        "createdAt",
+        "updatedAt",
+        "storagePath",
+        "url",
+        "size",
+        "mimeType",
+        "hash",
+        "isDeleted",
+        "path",
+        "bucket",
+        "provider",
+      ]) {
+        expect(payload).not.toHaveProperty(managed);
+      }
     });
   });
 

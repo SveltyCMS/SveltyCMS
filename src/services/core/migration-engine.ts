@@ -1039,41 +1039,4 @@ export class MigrationEngine {
       return [];
     }
   }
-
-  // ─────────────────────────────────────────────────────────────
-  // Legacy: executeMigration (backward compatibility)
-  // ─────────────────────────────────────────────────────────────
-
-  /**
-   * Executes the migration.
-   *
-   * @deprecated Use `applyMigration()` instead, which provides idempotency,
-   * locking, and ledger recording.
-   *
-   * In a real scenario, this would handle data transformation batches.
-   * For now, it updates the model definition in the DB.
-   */
-  static async executeMigration(
-    plan: MigrationPlan,
-    codeSchema: Schema,
-  ): Promise<{ success: boolean; message: string }> {
-    const ledger = logger.channel("MigrationEngine");
-
-    if (plan.impact.dataLossPotential) {
-      ledger.warn(`Migration for ${plan.collectionId} involves potential data loss.`);
-      // In a full implementation, we would create a backup here.
-    }
-
-    try {
-      if (!dbAdapter) {
-        throw new Error("DB Adapter not initialized");
-      }
-      await dbAdapter.collection.updateModel(codeSchema);
-      return { success: true, message: "Migration executed successfully." };
-    } catch (err) {
-      const error = err as Error;
-      ledger.error("Migration failed", error);
-      return { success: false, message: error.message || "Migration failed" };
-    }
-  }
 }

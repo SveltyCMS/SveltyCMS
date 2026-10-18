@@ -23,7 +23,9 @@ import {
   normalizeCollectionId,
 } from "@utils/benchmark-runtime";
 
-export { isBenchmarkArtifact, isBenchmarkRuntime, normalizeCollectionId };
+// Re-exported for the collection scan/bootstrap dynamic imports, which treat this
+// module as the preset/benchmark runtime surface.
+export { isBenchmarkArtifact, isBenchmarkRuntime };
 
 /**
  * Content-scan / scale-stress debris that must never bloat the GraphQL schema,

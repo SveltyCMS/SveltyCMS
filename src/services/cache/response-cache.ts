@@ -206,12 +206,76 @@ export function deepSortKeys(val: unknown): unknown {
   return sorted;
 }
 
+/**
+ * Bounded memo for {@link buildGraphQLResponseCacheKey}.
+ *
+ * GraphQL clients replay the same document + variables on every poll/refetch;
+ * re-parsing variables, recursively sorting keys, and hashing the query is pure
+ * work for identical raw inputs. The memo key is the *raw* request tuple (query,
+ * variables as submitted, publication filter, normalized user id) so string-
+ * different but semantically equal variable objects still normalise correctly
+ * (they simply take the compute path and produce the same output). Only the
+ * normalization result is cached — never an authorization decision.
+ */
+export const GRAPHQL_RESPONSE_KEY_MEMO_MAX = 2000;
+const graphqlResponseKeyMemo = new Map<string, string>();
+let graphqlResponseKeyMemoHits = 0;
+let graphqlResponseKeyMemoMisses = 0;
+
+/** Test/diagnostic view of the GraphQL key memo. */
+export function getGraphQLResponseKeyMemoStats(): {
+  size: number;
+  max: number;
+  hits: number;
+  misses: number;
+} {
+  return {
+    size: graphqlResponseKeyMemo.size,
+    max: GRAPHQL_RESPONSE_KEY_MEMO_MAX,
+    hits: graphqlResponseKeyMemoHits,
+    misses: graphqlResponseKeyMemoMisses,
+  };
+}
+
+/** Clear the memo — used by tests and tenant-aware invalidation tooling. */
+export function clearGraphQLResponseKeyMemo(): void {
+  graphqlResponseKeyMemo.clear();
+  graphqlResponseKeyMemoHits = 0;
+  graphqlResponseKeyMemoMisses = 0;
+}
+
+function graphqlMemoKey(
+  rawQuery: string,
+  rawVariables: string,
+  publicationFilter: string,
+  normalizedUserId: string | null,
+): string {
+  // NUL is not valid in a GraphQL document, so it is a safe tuple separator.
+  return `${rawQuery}\u0000${rawVariables}\u0000${publicationFilter}\u0000${normalizedUserId ?? ""}`;
+}
+
 export function buildGraphQLResponseCacheKey(
   query: string,
   variables?: unknown,
   publicationFilter = "all",
   userId?: unknown,
 ): string {
+  const normalizedUserId = userId ? String(userId) : null;
+  const rawVariables =
+    typeof variables === "string"
+      ? variables
+      : variables && typeof variables === "object" && variables !== null
+        ? JSON.stringify(variables)
+        : "";
+
+  const memoKey = graphqlMemoKey(query, rawVariables, publicationFilter, normalizedUserId);
+  const memoized = graphqlResponseKeyMemo.get(memoKey);
+  if (memoized !== undefined) {
+    graphqlResponseKeyMemoHits++;
+    return memoized;
+  }
+  graphqlResponseKeyMemoMisses++;
+
   let varsObj: Record<string, unknown> = {};
   let varsStr = "";
   if (typeof variables === "string" && variables.trim()) {
@@ -227,9 +291,15 @@ export function buildGraphQLResponseCacheKey(
   if (Object.keys(varsObj).length > 0) {
     varsStr = JSON.stringify(deepSortKeys(varsObj));
   }
-  const normalizedUserId = userId ? String(userId) : null;
   const queryHash = hashStr(`${query}:${varsStr}:${publicationFilter}`);
-  return buildUserResponseCacheKey("/api/graphql", `?q=${queryHash}`, normalizedUserId);
+  const key = buildUserResponseCacheKey("/api/graphql", `?q=${queryHash}`, normalizedUserId);
+
+  if (graphqlResponseKeyMemo.size >= GRAPHQL_RESPONSE_KEY_MEMO_MAX) {
+    const oldest = graphqlResponseKeyMemo.keys().next().value;
+    if (oldest !== undefined) graphqlResponseKeyMemo.delete(oldest);
+  }
+  graphqlResponseKeyMemo.set(memoKey, key);
+  return key;
 }
 
 /**

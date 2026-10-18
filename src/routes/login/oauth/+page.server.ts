@@ -657,10 +657,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 export const actions: Actions = {
   OAuth: async ({ request }) => {
     const data = await request.formData();
-    const token = data.get("token");
+    const registrationToken = data.get("token");
     try {
-      // Generate OAuth URL with token in state parameter
-      const authUrl = await generateGoogleAuthUrl(token?.toString() || null);
+      // Generate OAuth URL with registration token in state parameter
+      const authUrl = await generateGoogleAuthUrl(registrationToken?.toString() || null);
       throw redirect(302, authUrl, { external: true });
     } catch (err) {
       if (err instanceof Error) {

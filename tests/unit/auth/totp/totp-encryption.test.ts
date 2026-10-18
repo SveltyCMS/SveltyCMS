@@ -1,7 +1,7 @@
 /**
  * @file tests/unit/auth/totp/totp-encryption.test.ts
  * @description Unit tests for TOTP secret encryption/decryption, trusted device tokens,
- *              and backward compatibility with legacy plaintext secrets.
+ *              AAD user binding, fail-closed key handling, and legacy migration.
  */
 
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
@@ -95,24 +95,48 @@ describe("TOTP Secret Encryption", () => {
     expect(result).toBeNull();
   });
 
-  describe("Backward compatibility with legacy plaintext secrets", () => {
-    it("should recognize and return legacy base32 secrets as-is", async () => {
+  describe("AAD user binding", () => {
+    it("round-trips when the same user ID is supplied", async () => {
+      const { encryptTotpSecret, decryptTotpSecret } = await import("@src/databases/auth/totp");
+      const secret = "JBSWY3DPEHPK3PXP";
+
+      const encrypted = await encryptTotpSecret(secret, "user-1");
+      await expect(decryptTotpSecret(encrypted, "user-1")).resolves.toBe(secret);
+    });
+
+    it("rejects an envelope copied to a different user", async () => {
+      const { encryptTotpSecret, decryptTotpSecret } = await import("@src/databases/auth/totp");
+      const secret = "JBSWY3DPEHPK3PXP";
+
+      const encrypted = await encryptTotpSecret(secret, "user-1");
+      await expect(decryptTotpSecret(encrypted, "user-2")).resolves.toBeNull();
+    });
+
+    it("rejects a user-bound envelope when no user ID is supplied", async () => {
+      const { encryptTotpSecret, decryptTotpSecret } = await import("@src/databases/auth/totp");
+      const secret = "JBSWY3DPEHPK3PXP";
+
+      const encrypted = await encryptTotpSecret(secret, "user-1");
+      await expect(decryptTotpSecret(encrypted)).resolves.toBeNull();
+    });
+  });
+
+  describe("Legacy plaintext secrets", () => {
+    it("rejects an unencrypted base32 secret instead of returning it", async () => {
       const { decryptTotpSecret } = await import("@src/databases/auth/totp");
       const legacySecret = "JBSWY3DPEHPK3PXP"; // valid base32 TOTP secret
 
-      const result = await decryptTotpSecret(legacySecret);
-      expect(result).toBe(legacySecret);
+      await expect(decryptTotpSecret(legacySecret)).resolves.toBeNull();
     });
 
-    it("should handle legacy secrets with padding", async () => {
+    it("rejects legacy secrets with padding", async () => {
       const { decryptTotpSecret } = await import("@src/databases/auth/totp");
       const legacySecret = "JBSWY3DPEHPK3PXP===="; // with padding
 
-      const result = await decryptTotpSecret(legacySecret);
-      expect(result).toBe(legacySecret);
+      await expect(decryptTotpSecret(legacySecret)).resolves.toBeNull();
     });
 
-    it("should encrypt-then-decrypt round-trip for legacy migration", async () => {
+    it("encrypt-then-decrypt round-trip for legacy migration", async () => {
       const { encryptTotpSecret, decryptTotpSecret } = await import("@src/databases/auth/totp");
       const legacySecret = "JBSWY3DPEHPK3PXP";
 
@@ -125,20 +149,33 @@ describe("TOTP Secret Encryption", () => {
     });
   });
 
-  describe("Graceful degradation without encryption key", () => {
-    it("should store plaintext when no encryption key is configured", async () => {
-      vi.stubEnv("ENCRYPTION_KEY", undefined);
-      vi.stubEnv("SECRET_ENCRYPTION_KEY", undefined);
+  describe("Fail-closed without an encryption key", () => {
+    it("throws TOTP_KEY_MISSING instead of storing plaintext", async () => {
+      const previousEncryptionKey = process.env.ENCRYPTION_KEY;
+      const previousSecretKey = process.env.SECRET_ENCRYPTION_KEY;
+      delete process.env.ENCRYPTION_KEY;
+      delete process.env.SECRET_ENCRYPTION_KEY;
       vi.resetModules();
 
-      const { encryptTotpSecret, resetTotpEncryptionKeyCache } =
-        await import("@src/databases/auth/totp");
-      resetTotpEncryptionKeyCache();
-      const secret = "JBSWY3DPEHPK3PXP";
+      let resetCache: (() => void) | undefined;
+      try {
+        const { encryptTotpSecret, resetTotpEncryptionKeyCache } =
+          await import("@src/databases/auth/totp");
+        resetCache = resetTotpEncryptionKeyCache;
+        resetCache();
+        const secret = "JBSWY3DPEHPK3PXP";
 
-      const result = await encryptTotpSecret(secret);
-      // Without a key, returns the secret as-is (graceful degradation)
-      expect(result).toBe(secret);
+        await expect(encryptTotpSecret(secret)).rejects.toMatchObject({
+          code: "TOTP_KEY_MISSING",
+          status: 500,
+        });
+      } finally {
+        if (previousEncryptionKey === undefined) delete process.env.ENCRYPTION_KEY;
+        else process.env.ENCRYPTION_KEY = previousEncryptionKey;
+        if (previousSecretKey === undefined) delete process.env.SECRET_ENCRYPTION_KEY;
+        else process.env.SECRET_ENCRYPTION_KEY = previousSecretKey;
+        resetCache?.();
+      }
     });
   });
 });

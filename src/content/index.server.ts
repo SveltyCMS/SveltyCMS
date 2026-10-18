@@ -38,19 +38,6 @@ import type { DatabaseAdapter } from "@src/databases/db-interface";
 import type { ContentNodeOperation } from "./types";
 import { contentSystemBase } from "./index";
 
-export { contentStore } from "@stores/content-registry.svelte";
-export {
-  contentNavigation,
-  contentMetrics,
-  sortContentNodes,
-  generateCategoryNodesFromPaths,
-  hasDuplicateSiblingName,
-  setContentContext,
-  useContent,
-  initializeContent,
-  CONTENT_CONTEXT_KEY,
-} from "./index";
-
 export * from "./types";
 export {
   syncContentState,

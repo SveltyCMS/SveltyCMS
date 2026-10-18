@@ -15,6 +15,7 @@
  */
 
 export * from "./crypto";
+export * from "./checksum";
 export * from "./constants";
 export * from "./auth-utils";
 export * from "./csrf-utils";

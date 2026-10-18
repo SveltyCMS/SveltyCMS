@@ -347,7 +347,7 @@ describe("ConfigService", () => {
 
   describe("checksums", () => {
     it("are stable across repeated calls with same input", async () => {
-      const { createChecksum } = await import("@src/utils/security/crypto");
+      const { createChecksum } = await import("@src/utils/security/checksum");
 
       const data1 = { name: "test", fields: [{ a: 1 }] };
       const data2 = { name: "test", fields: [{ a: 1 }] };
@@ -359,7 +359,7 @@ describe("ConfigService", () => {
     });
 
     it("produce different hashes when content differs (detects schema drift)", async () => {
-      const { createChecksum } = await import("@src/utils/security/crypto");
+      const { createChecksum } = await import("@src/utils/security/checksum");
 
       const data1 = { name: "blog", fields: [{ name: "title", type: "text" }] };
       const data2 = { name: "blog", fields: [{ name: "title", type: "richtext" }] };

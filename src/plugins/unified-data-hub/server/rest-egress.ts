@@ -12,6 +12,8 @@
 
 import type { ConnectorRecord } from "../types";
 import { FederationError } from "../types";
+import { rethrow } from "@utils/error-handling";
+import { safeFetch, validateEgressUrl } from "@utils/egress-guard";
 import {
   assertConnectorCircuitClosed,
   recordConnectorFailure,
@@ -58,32 +60,26 @@ export async function restEgressJson(args: {
     headers["Idempotency-Key"] = args.idempotencyKey;
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
   try {
-    const init: RequestInit = {
+    // 🛡️ SSRF: connector baseUrl/allowedHosts are admin input and the host may
+    // resolve to a private address — validate DNS before handing it to fetch.
+    const targetUrl = args.url.toString();
+    await validateEgressUrl(targetUrl, { allowHttp: true });
+
+    const result = await safeFetch(targetUrl, {
+      allowHttp: true,
       method: args.method,
       headers,
-      signal: controller.signal,
-    };
-    if (args.body !== undefined && args.method !== "GET" && args.method !== "HEAD") {
-      init.body = JSON.stringify(args.body);
-    }
-
-    const response = await fetch(args.url.toString(), init);
-    const contentLength = Number(response.headers.get("content-length") || 0);
-    if (contentLength > MAX_RESPONSE_BYTES) {
-      recordConnectorFailure(connectorId);
-      throw new FederationError("CONNECTOR_WRITE_FAILED", "Response too large", 502);
-    }
+      body:
+        args.body !== undefined && args.method !== "GET" && args.method !== "HEAD"
+          ? JSON.stringify(args.body)
+          : undefined,
+      timeoutMs: FETCH_TIMEOUT_MS,
+      maxSizeBytes: MAX_RESPONSE_BYTES,
+    });
 
     let body: unknown = null;
-    const text = await response.text();
-    if (text.length > MAX_RESPONSE_BYTES) {
-      recordConnectorFailure(connectorId);
-      throw new FederationError("CONNECTOR_WRITE_FAILED", "Response too large", 502);
-    }
+    const text = result.body ?? "";
     if (text) {
       try {
         body = JSON.parse(text);
@@ -92,22 +88,25 @@ export async function restEgressJson(args: {
       }
     }
 
-    if (!response.ok) {
+    if (!result.success) {
       recordConnectorFailure(connectorId);
       const message =
         typeof body === "object" && body && "message" in body
           ? String((body as { message: unknown }).message)
-          : `HTTP ${response.status}`;
+          : (result.error ?? `HTTP ${result.status ?? "unknown"}`);
       throw new FederationError(
         "CONNECTOR_WRITE_FAILED",
         message,
-        response.status >= 400 && response.status < 500 ? response.status : 502,
+        result.status !== undefined && result.status >= 400 && result.status < 500
+          ? result.status
+          : 502,
       );
     }
 
     recordConnectorSuccess(connectorId);
-    return { status: response.status, body };
+    return { status: result.status ?? 200, body };
   } catch (err) {
+    rethrow(err);
     if (!(err instanceof FederationError)) {
       recordConnectorFailure(connectorId);
     } else if (err.code !== "CONNECTOR_WRITE_FAILED") {
@@ -119,7 +118,5 @@ export async function restEgressJson(args: {
       err instanceof Error ? err.message : String(err),
       502,
     );
-  } finally {
-    clearTimeout(timer);
   }
 }

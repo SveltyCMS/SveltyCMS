@@ -71,6 +71,7 @@ import {
 import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
+import { TenantPoolManager } from "../sql/tenant-pool-manager";
 import { PG_STATEMENT_WARMUP_ENV, IMPOSSIBLE_ID } from "./statement-warmup";
 
 /**
@@ -200,20 +201,16 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // Per-Tenant Connection Pools
   // --------------------------------------------------------------------------
 
-  /** Map of tenant ID to dedicated postgres.js connection pool */
-  private _tenantPools = new Map<string, ReturnType<typeof postgres>>();
-  /** Tracks active in-flight query count per tenant pool to prevent evicting busy pools */
-  private _tenantPoolInflight = new Map<string, number>();
-  /** Last-use timestamp per dedicated tenant pool — eviction takes the least recently used idle pool */
-  private _tenantPoolLastUsed = new Map<string, number>();
-  /** Set of tenants with dedicated isolated DSNs (which can safely skip cross-tenant GUC) */
-  private _dedicatedDsnTenants = new Set<string>();
-  /** The tenant ID for the current request context, set by setTenantContext() */
-  private _currentTenantId: string | null = null;
+  /** Tenant → dedicated postgres.js pool, in-flight counters and LRU state. */
+  private _tenantPools = new TenantPoolManager<ReturnType<typeof postgres>>({
+    label: "PostgreSQLAdapter",
+    closePool: (pool) => pool.end(),
+    closedAllMessage: "Closed all per-tenant connection pools",
+  });
 
   /** Active tenant for pool routing / txn GUC (null = unset). */
   public get currentTenantId(): string | null {
-    return this._currentTenantId;
+    return this._tenantPools.currentTenantId;
   }
 
   protected _transactionModule?: import("./transaction-module").TransactionModule;
@@ -1867,8 +1864,11 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
     // If a per-tenant dedicated pool is active, use it for full
     // connection-level isolation instead of the shared pool.
-    if (this._currentTenantId && this._tenantPools.has(this._currentTenantId)) {
-      return this._tenantPools.get(this._currentTenantId)!;
+    if (
+      this._tenantPools.currentTenantId &&
+      this._tenantPools.has(this._tenantPools.currentTenantId)
+    ) {
+      return this._tenantPools.get(this._tenantPools.currentTenantId)!;
     }
 
     if (mode === "write" || this.allReplicaSqls.length === 0) {
@@ -2928,14 +2928,14 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     tenantId: string | null,
     sql?: ReturnType<typeof postgres> | null,
   ): Promise<void> {
-    this._currentTenantId = tenantId;
+    this._tenantPools.currentTenantId = tenantId;
     const value = tenantId ?? "global";
     if (!this.sql) {
       throw new Error("[PostgreSQLAdapter] Database not connected — cannot set tenant context");
     }
     // Dedicated DSN pools connect to an isolated database that cannot see other tenants;
     // they may skip GUC only when they have a dedicated isolated DSN and no shared tables exist.
-    const isDedicatedDsn = tenantId ? this._dedicatedDsnTenants.has(tenantId) : false;
+    const isDedicatedDsn = tenantId ? this._tenantPools.isDedicatedDsn(tenantId) : false;
     if (isDedicatedDsn && !sql) {
       return;
     }
@@ -3024,6 +3024,28 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   // --------------------------------------------------------------------------
 
   /**
+   * Evicts the oldest idle dedicated tenant pool when capacity limit is reached.
+   * Never evicts a pool that currently has in-flight queries.
+   */
+  private _evictOldestIdleTenantPool(maxTenantPools: number): void {
+    this._tenantPools.evictOldestIdle(maxTenantPools);
+  }
+
+  /**
+   * Tracks query start on a dedicated tenant pool for eviction safety.
+   */
+  public trackTenantPoolQueryStart(tenantId: string): void {
+    this._tenantPools.trackQueryStart(tenantId);
+  }
+
+  /**
+   * Tracks query completion on a dedicated tenant pool.
+   */
+  public trackTenantPoolQueryEnd(tenantId: string): void {
+    this._tenantPools.trackQueryEnd(tenantId);
+  }
+
+  /**
    * Returns a dedicated postgres.js pool for the given tenant.
    * Creates one from the base DATABASE_URL if it doesn't exist yet.
    * The pool is tagged with `application_name=tenant_{tenantId}` for
@@ -3033,74 +3055,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @returns A postgres.js connection pool dedicated to this tenant
    * @throws {Error} if DATABASE_URL is not configured
    */
-  /**
-   * Evicts the oldest idle dedicated tenant pool when capacity limit is reached.
-   * Never evicts a pool that currently has in-flight queries.
-   */
-  private _evictOldestIdleTenantPool(maxTenantPools: number): void {
-    if (this._tenantPools.size < maxTenantPools) return;
-
-    let candidateKey: string | null = null;
-    let candidateLastUsed = Number.POSITIVE_INFINITY;
-    for (const key of this._tenantPools.keys()) {
-      const inFlight = this._tenantPoolInflight.get(key) ?? 0;
-      if (inFlight > 0) continue;
-      const lastUsed = this._tenantPoolLastUsed.get(key) ?? 0;
-      if (lastUsed < candidateLastUsed) {
-        candidateLastUsed = lastUsed;
-        candidateKey = key;
-      }
-    }
-
-    if (!candidateKey) {
-      logger.warn(
-        `[PostgreSQLAdapter] All ${this._tenantPools.size} dedicated pools have active queries. Skipping LRU eviction.`,
-      );
-      return;
-    }
-
-    const evicted = this._tenantPools.get(candidateKey);
-    this._tenantPools.delete(candidateKey);
-    this._tenantPoolInflight.delete(candidateKey);
-    this._tenantPoolLastUsed.delete(candidateKey);
-    this._dedicatedDsnTenants.delete(candidateKey);
-
-    if (evicted) {
-      evicted.end().catch((err: unknown) => {
-        logger.debug(
-          `[PostgreSQLAdapter] Failed to close evicted pool for tenant "${candidateKey}":`,
-          err,
-        );
-      });
-    }
-    logger.info(
-      `[PostgreSQLAdapter] LRU evicted idle dedicated pool for tenant "${candidateKey}" (cap: ${maxTenantPools})`,
-    );
-  }
-
-  /**
-   * Tracks query start on a dedicated tenant pool for eviction safety.
-   */
-  public trackTenantPoolQueryStart(tenantId: string): void {
-    this._tenantPoolInflight.set(tenantId, (this._tenantPoolInflight.get(tenantId) ?? 0) + 1);
-  }
-
-  /**
-   * Tracks query completion on a dedicated tenant pool.
-   */
-  public trackTenantPoolQueryEnd(tenantId: string): void {
-    const cur = this._tenantPoolInflight.get(tenantId) ?? 1;
-    if (cur <= 1) {
-      this._tenantPoolInflight.delete(tenantId);
-    } else {
-      this._tenantPoolInflight.set(tenantId, cur - 1);
-    }
-  }
-
   public getTenantPool(tenantId: string): ReturnType<typeof postgres> {
-    const existing = this._tenantPools.get(tenantId);
+    const existing = this._tenantPools.acquire(tenantId);
     if (existing) {
-      this._tenantPoolLastUsed.set(tenantId, Date.now());
       return existing;
     }
 
@@ -3128,7 +3085,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     });
 
     this._tenantPools.set(tenantId, pool);
-    this._tenantPoolLastUsed.set(tenantId, Date.now());
     logger.debug(`Created dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
     return pool;
   }
@@ -3147,16 +3103,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     // Close existing pool if present
     const existing = this._tenantPools.get(tenantId);
     if (existing) {
-      existing.end().catch(() => {
-        logger.debug(`Failed to close existing pool for tenant "${tenantId}"`);
-      });
-      this._tenantPools.delete(tenantId);
-      this._tenantPoolInflight.delete(tenantId);
-      this._tenantPoolLastUsed.delete(tenantId);
-      this._dedicatedDsnTenants.delete(tenantId);
+      this._tenantPools.releaseExisting(tenantId);
     } else {
       const maxTenantPools = parseInt(process.env.MAX_TENANT_POOLS || "16", 10);
-      this._evictOldestIdleTenantPool(maxTenantPools);
+      this._tenantPools.evictOldestIdle(maxTenantPools);
     }
 
     const poolSize = parseInt(process.env.TENANT_DB_POOL_SIZE || "10", 10);
@@ -3173,8 +3123,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     });
 
     this._tenantPools.set(tenantId, pool);
-    this._tenantPoolLastUsed.set(tenantId, Date.now());
-    this._dedicatedDsnTenants.add(tenantId);
+    this._tenantPools.markDedicated(tenantId);
     logger.info(`Configured dedicated connection pool for tenant "${tenantId}" (max: ${poolSize})`);
   }
 
@@ -3185,13 +3134,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * @param tenantId - The tenant ID whose pool should be closed
    */
   public async closeTenantPool(tenantId: string): Promise<void> {
-    const pool = this._tenantPools.get(tenantId);
-    if (pool) {
-      await pool.end();
-      this._tenantPools.delete(tenantId);
-      this._tenantPoolInflight.delete(tenantId);
-      this._tenantPoolLastUsed.delete(tenantId);
-      this._dedicatedDsnTenants.delete(tenantId);
+    if (await this._tenantPools.close(tenantId)) {
       logger.info(`Closed dedicated connection pool for tenant "${tenantId}"`);
     }
   }
@@ -3201,23 +3144,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
    * Should be called during shutdown to release all database connections.
    */
   public async closeAllTenantPools(): Promise<void> {
-    if (this._tenantPools.size === 0) return;
-
-    const entries = Array.from(this._tenantPools.entries());
-    this._tenantPools.clear();
-    this._tenantPoolInflight.clear();
-    this._dedicatedDsnTenants.clear();
-    this._currentTenantId = null;
-
-    await Promise.all(
-      entries.map(([tenantId, pool]) =>
-        pool
-          .end()
-          .catch((err: unknown) =>
-            logger.warn(`Failed to close pool for tenant "${tenantId}":`, err),
-          ),
-      ),
-    );
-    logger.info("Closed all per-tenant connection pools");
+    await this._tenantPools.closeAll();
   }
 }

@@ -33,12 +33,14 @@ import {
   sessionTtlMs,
   isAdmin,
 } from "@src/databases/auth/constants";
-import type { User } from "@src/databases/auth/types";
+import type { Role, User } from "@src/databases/auth/types";
 import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";
+import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
 import {
   getApiKeyAuthCacheSync,
   getWebsiteTokenAuthCacheSync,
+  invalidateApiKeyAuth,
   isApiKeyAuthNegativeHit,
   isWebsiteTokenAuthNegativeHit,
   recordApiKeyAuthMiss,
@@ -75,6 +77,65 @@ function maskEmail(email: string): string {
   const local = email.slice(0, atIndex);
   const domain = email.slice(atIndex);
   return local[0] + "***" + local[local.length - 1] + domain;
+}
+
+type ApiKeyAction = "read" | "write" | "delete";
+
+/** Map an HTTP method to the API-key action it requires. */
+function apiKeyActionForMethod(method: string): ApiKeyAction {
+  switch (method.toUpperCase()) {
+    case "GET":
+    case "HEAD":
+    case "OPTIONS":
+      return "read";
+    case "DELETE":
+      return "delete";
+    default:
+      // POST/PUT/PATCH — and any unknown verb — require write scope (fail closed).
+      return "write";
+  }
+}
+
+/**
+ * Enforce an API key's declared scopes against the request method.
+ *
+ * Empty/absent scopes keep the pre-scope behaviour (the key's permission set
+ * alone decides), so existing keys stay backward compatible. Otherwise access
+ * is granted when the key carries `admin`, `*`, the bare action, or a scoped
+ * action (`<resource>:<action>` / `<resource>:*`).
+ */
+export function isApiKeyScopeAllowed(scopes: unknown, method: string, pathname?: string): boolean {
+  if (!Array.isArray(scopes) || scopes.length === 0) return true;
+  const action = apiKeyActionForMethod(method);
+  const normalized = scopes
+    .filter((scope): scope is string => typeof scope === "string")
+    .map((scope) => scope.toLowerCase());
+  if (normalized.includes("admin") || normalized.includes("*") || normalized.includes(action)) {
+    return true;
+  }
+  const suffix = `:${action}`;
+  if (normalized.some((scope) => scope.endsWith(suffix) || scope.endsWith(":*"))) {
+    return true;
+  }
+
+  // Legacy resource-only scopes (e.g. `["graphql"]`) predate the
+  // `<resource>:<action>` convention. Preserve their original meaning — full
+  // access to that resource — without silently granting every other resource.
+  const resource = pathname ? /^\/api\/([^/?#]+)/i.exec(pathname)?.[1]?.toLowerCase() : undefined;
+  if (!resource) return false;
+  const singular = resource.endsWith("s") ? resource.slice(0, -1) : resource;
+  return normalized.includes(resource) || normalized.includes(singular);
+}
+
+/** RFC 6750-style failure for a revoked/expired API key (never fall through). */
+function apiKeyAuthFailure(message: string): Response {
+  return new Response(JSON.stringify({ success: false, error: message, code: "API_KEY_INVALID" }), {
+    status: 401,
+    headers: {
+      "content-type": "application/json",
+      "WWW-Authenticate": 'Bearer error="invalid_token"',
+    },
+  });
 }
 
 /**
@@ -889,9 +950,21 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     const turboCtx = turboAuthCache.get(turboSessionId);
     // 🛡️ Absolute expiry — never slides on access. Prevents timing attacks
     // that infer session liveness from TTL reset patterns.
-    if (turboCtx && Date.now() < turboCtx.expiresAt) {
+    if (
+      turboCtx &&
+      Date.now() < turboCtx.expiresAt &&
+      turboCtx.mfaPolicyKnown === true &&
+      validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr) &&
+      riskFromSurface(
+        getClientIp(event),
+        event.request.headers.get("user-agent"),
+        turboCtx.boundIp,
+        turboCtx.boundUserAgent,
+      ) !== "step-up"
+    ) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
+      (locals as any).session_id = turboSessionId as DatabaseId;
       // Fall back to the cached user's own tenant when neither the cached context
       // nor locals carry one (e.g. Demo Mode's per-visitor cookie was never set on
       // an authenticated request). Mirrors the post-session bind below — without it
@@ -930,9 +1003,21 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
   // 🚀 UNIVERSAL TURBO AUTH: After CSRF establishment on mutations, check if session is warm
   if (turboSessionId) {
     const turboCtx = turboAuthCache.get(turboSessionId);
-    if (turboCtx && Date.now() < turboCtx.expiresAt) {
+    if (
+      turboCtx &&
+      Date.now() < turboCtx.expiresAt &&
+      turboCtx.mfaPolicyKnown === true &&
+      validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr) &&
+      riskFromSurface(
+        getClientIp(event),
+        event.request.headers.get("user-agent"),
+        turboCtx.boundIp,
+        turboCtx.boundUserAgent,
+      ) !== "step-up"
+    ) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
+      (locals as any).session_id = turboSessionId as DatabaseId;
       (locals as any).tenantId = resolveRequestTenant(
         event.request,
         turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null,
@@ -954,6 +1039,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
 
   // 🚀 REUSE UPSTREAM VALIDATED USER: If handleTurboPipeline or test bypass already validated this user
   if (locals.user && (locals.user as any)._id) {
+    if (!locals.session_id && turboSessionId) {
+      locals.session_id = turboSessionId as DatabaseId;
+    }
     if (!locals.permissions) {
       locals.permissions = locals.user.permissions || [];
     }
@@ -1089,6 +1177,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           resolution = {
             status: "ok",
             user,
+            amr: turboCtx.amr,
+            mfaVerifiedAt: turboCtx.mfaVerifiedAt,
             risk: riskFromSurface(
               getClientIp(event),
               event.request.headers.get("user-agent"),
@@ -1164,6 +1254,17 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               // hit would otherwise serve the whole session tenantless (see the
               // TurboAuthContext tenant fallback above).
               locals.tenantId || user.tenantId || null,
+              undefined,
+              undefined,
+              resolution.status === "ok"
+                ? {
+                    amr: resolution.amr,
+                    mfaVerifiedAt: resolution.mfaVerifiedAt,
+                    // The session branch has not loaded the full role list yet;
+                    // handleAuthorization flips this to true on the same request.
+                    mfaPolicyKnown: ((locals as any).roles?.length ?? 0) > 0,
+                  }
+                : undefined,
             );
           }
           if (sessionId && resolution.status === "ok") {
@@ -1260,6 +1361,59 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           const cachedKeyData = getApiKeyAuthCacheSync(hash, locals.tenantId as DatabaseId);
 
           if (cachedKeyData) {
+            // 🛡️ The cache TTL is 60s, so revocation/expiry must be re-checked
+            // on every hit — otherwise a key revoked after caching keeps working.
+            const cachedExpiresAt = cachedKeyData.expiresAt;
+            const cachedExpired =
+              typeof cachedExpiresAt === "string" &&
+              new Date(cachedExpiresAt).getTime() < Date.now();
+            const cachedRevoked = cachedKeyData.revoked === true;
+            const cachedTenantId = cachedKeyData.tenantId as DatabaseId | undefined;
+            const cachedTenantMismatch =
+              !!cachedTenantId &&
+              !!locals.tenantId &&
+              String(cachedTenantId) !== String(locals.tenantId);
+
+            if (cachedExpired || cachedRevoked || cachedTenantMismatch) {
+              logger.warn(
+                `[Auth] Rejecting cached API Key (${
+                  cachedExpired ? "expired" : cachedRevoked ? "revoked" : "tenant mismatch"
+                })`,
+              );
+              metricsService.incrementAuthFailures();
+              const cachedKeyId = String(cachedKeyData.user._id ?? "").replace("apikey:", "");
+              if (cachedKeyId) {
+                void invalidateApiKeyAuth(cachedKeyId, locals.tenantId as DatabaseId, hash).catch(
+                  (err: unknown) =>
+                    logger.warn(
+                      `[Auth] Failed to invalidate cached API Key: ${
+                        err instanceof Error ? err.message : String(err)
+                      }`,
+                    ),
+                );
+              }
+              // Fail closed: never fall through to the DB after a cached reject.
+              return apiKeyAuthFailure(
+                cachedExpired
+                  ? "API key expired"
+                  : cachedRevoked
+                    ? "API key revoked"
+                    : "API key tenant mismatch",
+              );
+            }
+
+            if (!isApiKeyScopeAllowed(cachedKeyData.user.scopes, method, event.url.pathname)) {
+              logger.warn(
+                `[Auth] API Key scope denied: ${String(cachedKeyData.user.username ?? "unknown")} (${method})`,
+              );
+              metricsService.incrementAuthFailures();
+              throw new AppError(
+                "API key scope does not permit this request",
+                403,
+                "API_KEY_SCOPE_DENIED",
+              );
+            }
+
             locals.user = cachedKeyData.user as unknown as User;
             locals.permissions = cachedKeyData.user.permissions as string[];
             locals.tenantId = (cachedKeyData.tenantId as DatabaseId) || locals.tenantId;
@@ -1291,18 +1445,32 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               if (apiKey.expiresAt && new Date(apiKey.expiresAt).getTime() < Date.now()) {
                 logger.warn(`[Auth] API Key expired: ${apiKey.name}`);
                 metricsService.incrementAuthFailures();
+                return apiKeyAuthFailure("API key expired");
               } else if (apiKey.revoked) {
                 logger.warn(`[Auth] API Key is revoked: ${apiKey.name}`);
                 metricsService.incrementAuthFailures();
+                return apiKeyAuthFailure("API key revoked");
               } else {
                 // 2. Tenant Isolation Check
                 if (apiKey.tenantId && locals.tenantId && apiKey.tenantId !== locals.tenantId) {
                   logger.warn(`[Auth] API Key tenant mismatch: ${apiKey.name}`);
                   metricsService.incrementAuthFailures();
-                  return await resolve(event);
+                  return apiKeyAuthFailure("API key tenant mismatch");
                 }
 
-                // 3. Construct virtual API user
+                // 3. Scope Check — an empty scope list keeps full-permission
+                // behaviour for keys created before scopes were enforced.
+                if (!isApiKeyScopeAllowed(apiKey.scopes, method, event.url.pathname)) {
+                  logger.warn(`[Auth] API Key scope denied: ${apiKey.name} (${method})`);
+                  metricsService.incrementAuthFailures();
+                  throw new AppError(
+                    "API key scope does not permit this request",
+                    403,
+                    "API_KEY_SCOPE_DENIED",
+                  );
+                }
+
+                // 4. Construct virtual API user
                 locals.user = {
                   _id: `apikey:${apiKey._id}`,
                   email: `apikey@api.local`,
@@ -1322,6 +1490,8 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
                   {
                     user: locals.user as unknown as Record<string, unknown>,
                     tenantId: locals.tenantId as string,
+                    expiresAt: apiKey.expiresAt ?? null,
+                    revoked: apiKey.revoked === true,
                   },
                   String(apiKey._id),
                   locals.tenantId as DatabaseId,
@@ -1576,6 +1746,7 @@ export function primeSessionMemoryCache(
   tenantId?: DatabaseId | null,
   amr?: string[],
   mfaVerifiedAt?: string,
+  roles?: Role[],
 ): void {
   // Targeted negative-entry removal (the session is now known-valid) — never
   // clear the whole negative cache for one session.
@@ -1586,5 +1757,10 @@ export function primeSessionMemoryCache(
   const entry: SessionCacheEntry = { user: safeUser, timestamp: Date.now(), amr, mfaVerifiedAt };
   setSessionInCache(sessionId, entry);
   const resolvedTenant = tenantId ?? (safeUser as User).tenantId ?? null;
-  setTurboAuthContext(sessionId, safeUser, [], resolvedTenant);
+  const safeRoles = roles ?? [];
+  setTurboAuthContext(sessionId, safeUser, safeRoles, resolvedTenant, undefined, undefined, {
+    amr,
+    mfaVerifiedAt,
+    mfaPolicyKnown: safeRoles.length > 0,
+  });
 }

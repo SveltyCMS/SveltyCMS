@@ -30,7 +30,7 @@
 	<Body>
 		<Container>
 			<Section>
-				<Heading>Refund processed</Heading>
+				<Heading as="h1">Refund processed</Heading>
 				<Text>A refund for order <strong>{orderNumber}</strong> ({total}) has been recorded.</Text>
 			</Section>
 		</Container>

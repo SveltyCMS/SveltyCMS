@@ -11,7 +11,7 @@
  * Projects run in dependency order. In CI, e2e-prep runs wizard →
  * firstuser → auth-setup sequentially, then chromium is sharded N ways.
  *
- * Local default (CI-parity): `bun run test:e2e` → scripts/run-e2e-ci.ts
+ * Local default (CI-parity): `bun run test:e2e` → scripts/runs/run-e2e.ts
  *   (preview server :4173, COMPILE_ALL_ADAPTERS build, wizard → auth-setup → chromium)
  * Dev-server shortcut: `bun run test:e2e:dev` (Vite :5173) — not CI-identical.
  */
@@ -71,7 +71,7 @@ export default defineConfig({
         ["dot"],
         ["github"], // inline annotations on the PR check
         ["html", { outputFolder: "tests/playwright-report", open: "never" }],
-        // Machine-readable for scripts/ci-report-playwright.ts → GITHUB_STEP_SUMMARY
+        // Machine-readable for scripts/ci/ci-report-playwright.ts → GITHUB_STEP_SUMMARY
         ["json", { outputFile: "tests/playwright-results.json" }],
       ]
     : [

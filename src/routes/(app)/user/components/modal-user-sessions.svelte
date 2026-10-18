@@ -139,11 +139,14 @@ Features:
 				throw new Error(errData.message || usersessions_load_failed());
 			}
 			const json = await res.json();
-			if (json.success && Array.isArray(json.data)) {
-				sessions = json.data;
-			} else {
-				sessions = [];
-			}
+			const list = Array.isArray(json.data)
+				? json.data
+				: Array.isArray(json.data?.sessions)
+					? json.data.sessions
+					: Array.isArray(json.sessions)
+						? json.sessions
+						: [];
+			sessions = list;
 		} catch (err) {
 			const msg = err instanceof Error ? err.message : usersessions_load_error();
 			toast.error(msg);

@@ -17,7 +17,7 @@ import {
   resetPinnedIntegrationSecrets,
   resolveIntegrationSecrets,
   writePrivateTestConfig,
-} from "../../../scripts/integration-harness.ts";
+} from "../../../scripts/runs/integration-harness.ts";
 
 describe("integration secret pin (single-adapter HTTP)", () => {
   const prev = {

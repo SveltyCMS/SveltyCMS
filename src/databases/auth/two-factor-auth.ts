@@ -40,9 +40,12 @@ type AuthInterface = IDBAdapter["auth"];
 
 // ─── Helper: Decrypt stored TOTP secret (handles legacy plaintext + encrypted) ─
 
-async function resolveTotpSecret(totpSecret: string | undefined): Promise<string | null> {
+async function resolveTotpSecret(
+  totpSecret: string | undefined,
+  userId?: string,
+): Promise<string | null> {
   if (!totpSecret) return null;
-  return decryptTotpSecret(totpSecret);
+  return decryptTotpSecret(totpSecret, userId);
 }
 
 // ─── Two-Factor Authentication Service ───────────────────────────────────────
@@ -79,7 +82,7 @@ export class TwoFactorAuthService {
         existingUser.data?.twoFactorPending &&
         existingUser.data?.totpSecret
       ) {
-        const existingSecret = await resolveTotpSecret(existingUser.data.totpSecret);
+        const existingSecret = await resolveTotpSecret(existingUser.data.totpSecret, userId);
         if (existingSecret) {
           logger.info("Resuming pending 2FA setup", { userId, tenantId });
           const qrCodeURL = generateQRCodeURL(existingSecret, userEmail, this.serviceName);
@@ -102,7 +105,7 @@ export class TwoFactorAuthService {
       const secret = await generateTOTPSecret();
 
       // Encrypt secret for at-rest storage before persisting as pending
-      const encryptedSecret = await encryptTotpSecret(secret);
+      const encryptedSecret = await encryptTotpSecret(secret, userId);
 
       // Persist the encrypted secret immediately as pending (enables resume)
       await this.db.updateUserAttributes(
@@ -170,7 +173,7 @@ export class TwoFactorAuthService {
           tenantId: tenantId ?? undefined,
         });
         if (userResult.success && userResult.data?.totpSecret) {
-          resolvedSecret = await resolveTotpSecret(userResult.data.totpSecret);
+          resolvedSecret = await resolveTotpSecret(userResult.data.totpSecret, userId);
         }
       }
 
@@ -191,7 +194,7 @@ export class TwoFactorAuthService {
       const hashedBackupCodes = await Promise.all(backupCodes.map((code) => hashBackupCode(code)));
 
       // Re-encrypt the secret (in case the stored one has a different envelope)
-      const encryptedSecret = await encryptTotpSecret(resolvedSecret);
+      const encryptedSecret = await encryptTotpSecret(resolvedSecret, userId);
 
       // Update user with 2FA settings — promote from pending to active
       const updateData: Partial<User> = {
@@ -262,7 +265,7 @@ export class TwoFactorAuthService {
       }
 
       // Resolve the stored TOTP secret (decrypt if encrypted, handle legacy plaintext)
-      const resolvedSecret = await resolveTotpSecret(user.totpSecret);
+      const resolvedSecret = await resolveTotpSecret(user.totpSecret, userId);
 
       // First try TOTP verification
       if (resolvedSecret && (await verifyTOTPCode(resolvedSecret, code))) {

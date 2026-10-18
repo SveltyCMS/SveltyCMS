@@ -73,7 +73,7 @@
 
 			<!-- Main Content -->
 			<Section>
-				<Heading
+				<Heading as="h1"
 					><center>
 						Welcome to <strong
 							>Svelty<span style="color:#22c55e;font-weight:bold;">CMS</span></strong

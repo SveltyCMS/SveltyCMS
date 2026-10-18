@@ -15,7 +15,14 @@
 import type { DatabaseId } from "@src/databases/db-interface";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { getPrivateSetting } from "@src/services/core/settings-service";
+import { logger } from "@utils/logger";
+import { rethrow } from "@utils/error-handling";
+import { safeFetch, validateEgressUrl } from "@utils/egress-guard";
 import { getHotCollections } from "./behavioral-learner";
+
+/** Tag generation is a best-effort enrichment — keep the bound tight. */
+const TAG_TIMEOUT_MS = 5_000;
+const TAG_MAX_RESPONSE_BYTES = 1024 * 1024;
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -187,7 +194,13 @@ export async function generateTags(
       `.trim();
 
       const ollamaUrl = (await getPrivateSetting("OLLAMA_URL")) || "http://127.0.0.1:11434";
-      const response = await fetch(`${ollamaUrl}/api/generate`, {
+      // 🛡️ SSRF: OLLAMA_URL is admin-configured; allowPrivate keeps localhost/LAN
+      // model servers reachable while metadata/link-local hosts remain blocked.
+      const url = `${ollamaUrl}/api/generate`;
+      await validateEgressUrl(url, { allowHttp: true, allowPrivate: true });
+      const response = await safeFetch(url, {
+        allowHttp: true,
+        allowPrivate: true,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -196,11 +209,12 @@ export async function generateTags(
           stream: false,
           options: { num_predict: 100, temperature: 0.3 },
         }),
-        signal: AbortSignal.timeout(5000),
+        timeoutMs: TAG_TIMEOUT_MS,
+        maxSizeBytes: TAG_MAX_RESPONSE_BYTES,
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.success && response.body) {
+        const data = JSON.parse(response.body) as { response?: string };
         const tags = (data.response || "")
           .split(/[,;\n]/)
           .map((t: string) => t.trim().toLowerCase())
@@ -213,8 +227,10 @@ export async function generateTags(
         }));
       }
     }
-  } catch {
+  } catch (err) {
+    rethrow(err);
     // Ollama unavailable — fall through to keyword extraction
+    logger.debug("[ContentInsights] Ollama tag generation unavailable", err);
   }
 
   // Keyword extraction fallback

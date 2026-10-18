@@ -194,7 +194,7 @@ To maintain extreme test velocity, widgets are tested as logic units rather than
 > [!IMPORTANT]
 > **Safety Protocol (live data — non-negotiable)**: Local automated work must **never read or write** the developer's `config/private.ts` and must **never connect** to the live user database (e.g. `sveltycms.db`). Source of truth is **`config/private.test.ts` only** (isolated names: `sveltycms_test`, `benchmark_shared`, `e2e_*`). Policy: `src/utils/private-config-policy.ts`. CI (`ci.yml`) may create an ephemeral `private.ts` on the runner as a test mirror — never committed or pushed.
 >
-> Pre-commit / pre-push run `scripts/check-test-db-safety.ts`: rejects unsafe test `DB_NAME`, live config pointing at test DBs, and **test DB_NAME equal to live private.ts**. Manual: `bun run scripts/check-test-db-safety.ts`.
+> Pre-commit / pre-push run `scripts/check/check-test-db-safety.ts`: rejects unsafe test `DB_NAME`, live config pointing at test DBs, and **test DB_NAME equal to live private.ts**. Manual: `bun run scripts/check/check-test-db-safety.ts`.
 >
 > **Pre-push does not run the 4-DB matrix or benchmarks by default** (CI-only). Opt in locally with Docker + `DB_TYPE=postgresql|mariadb|mongodb bun test --timeout 300000 tests/integration/`. Credentials: `src/utils/test-db-credentials.ts`.
 >

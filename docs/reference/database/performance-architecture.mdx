@@ -985,7 +985,7 @@ SveltyCMS detects what the machine **actually allows** once at process start and
 
 **Invariant (unit-tested):** `heap + L1 list + L1 point ≤ 70 %` of the effective limit at every tier floor, so a deployment never has to run a GC sweep just to fit — see `tests/unit/utils/hardware-profile-memory.test.ts`.
 
-**CI gate (containers, not mocks):** `scripts/probe-hardware-tiers.ts` runs the real profile inside `--memory=256m --cpus=1`, `--memory=512m --cpus=2` and an unconstrained container and asserts the table rows above exactly (plus the ≤ 70 % invariant) — a 32 GB developer machine still fails the gate if the derivation stops following the cgroup. Wired as CI task `08-hardware-tiers`.
+**CI gate (containers, not mocks):** `scripts/probe/probe-hardware-tiers.ts` runs the real profile inside `--memory=256m --cpus=1`, `--memory=512m --cpus=2` and an unconstrained container and asserts the table rows above exactly (plus the ≤ 70 % invariant) — a 32 GB developer machine still fails the gate if the derivation stops following the cgroup. Wired as CI task `08-hardware-tiers`.
 
 **Global CPU budget** — `HARDWARE_CPU_BUDGET` (default `0.75`). The reserved share stays for co-hosted services on all-in-one deployments; set `1` when the app server is dedicated (managed/remote DB):
 

@@ -40,7 +40,7 @@ Admin/config routes should follow **[ADR: Testing 2026](./adr-testing-2026.mdx)*
 
 ```mermaid
 graph TD
-    GitDiff[Git Diff] --> SmartOrch{Smart Orchestrator<br>scripts/test-smart.ts}
+    GitDiff[Git Diff] --> SmartOrch{Smart Orchestrator<br>scripts/test/test-smart.ts}
 
     SmartOrch -->|"src/hooks/*"| Gate1[Gate 1: Unit Tests]
     SmartOrch -->|"src/routes/api/*"| Gate2[Gate 2: Contracts]

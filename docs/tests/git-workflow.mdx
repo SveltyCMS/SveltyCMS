@@ -50,7 +50,7 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 
 `.githooks/pre-commit` runs:
 
-1. **Database safety** — `scripts/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, and **matching live/test DB names** (user data protection).
+1. **Database safety** — `scripts/check/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, and **matching live/test DB names** (user data protection).
 2. **Format + lint** — `bun run check` (oxfmt + oxlint).
 3. **Lint-staged** — `bun run gate:fast`.
 4. **`risk:audit`** — security-risk scan (all adapters) + secret misuse + slop + `bun audit` + OSV (skipped if only docs changed).
@@ -66,15 +66,15 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 
 `.githooks/pre-push` runs:
 
-| Check                         | Command                                              | Est.     |
-| :---------------------------- | :--------------------------------------------------- | :------- |
-| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`            | ~45–120s |
-| Prod backdoor verify          | `scripts/verify-prod-build-backdoor.ts --mode=bench` | ~5–15s   |
-| Bundle size gate              | `scripts/check-bundle-size.ts`                       | ~5–15s   |
-| Quality gate                  | `bun run check`                                      | ~15–40s  |
-| Secret misuse scan            | `scripts/scan-secret-misuse.ts --strict`             | ~5–15s   |
-| Tenant isolation              | `bun run test:tenant`                                | ~5–20s   |
-| SQLite integration tests      | `bun test tests/integration/`                        | ~60–180s |
+| Check                         | Command                                                       | Est.     |
+| :---------------------------- | :------------------------------------------------------------ | :------- |
+| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`                     | ~45–120s |
+| Prod backdoor verify          | `scripts/security/verify-prod-build-backdoor.ts --mode=bench` | ~5–15s   |
+| Bundle size gate              | `scripts/check/check-bundle-size.ts`                          | ~5–15s   |
+| Quality gate                  | `bun run check`                                               | ~15–40s  |
+| Secret misuse scan            | `scripts/security/scan-secret-misuse.ts --strict`             | ~5–15s   |
+| Tenant isolation              | `bun run test:tenant`                                         | ~5–20s   |
+| SQLite integration tests      | `bun test tests/integration/`                                 | ~60–180s |
 
 **Full unit suite is not re-run on push.** Multi-adapter DB matrix, E2E, and benchmarks are CI-only. Docs-only pushes skip build + integration.
 
@@ -207,7 +207,7 @@ We follow an enhanced **Conventional Commits** specification to maintain a clear
 - **Purpose**: Detects unsafe `{@html}`, legacy Svelte 4 patterns, missing ARIA, RTL violations, dead exports.
 - **Command**: `bun run slop`
 
-Unused-export findings are split into two info buckets: **dead-code candidates** (referenced nowhere in `src`/`scripts`/root/`tests`/`docs` — actionable) and **export-surface** (test-only helpers + documented public API — a tracked inventory, not dead code). A third advisory bucket, **`duplicate-export-name`**, flags the same distinctive export name in several modules — usually a legitimate re-export bridge or SvelteKit remote/server contract symmetry, occasionally a real collision. All advisory buckets are summarised as counts by default and listed with `bun run scripts/slop-scanner.ts --surface`.
+Unused-export findings are split into two info buckets: **dead-code candidates** (referenced nowhere in `src`/`scripts`/root/`tests`/`docs` — actionable) and **export-surface** (test-only helpers + documented public API — a tracked inventory, not dead code). A third advisory bucket, **`duplicate-export-name`**, flags the same distinctive export name in several modules — usually a legitimate re-export bridge or SvelteKit remote/server contract symmetry, occasionally a real collision. All advisory buckets are summarised as counts by default and listed with `bun run scripts/security/slop-scanner.ts --surface`.
 
 ---
 
@@ -299,14 +299,13 @@ All scripts in `scripts/` and their role in the testing pipeline:
 
 ### Utility Scripts
 
-| Script                       | Role                           | Command               |
-| :--------------------------- | :----------------------------- | :-------------------- |
-| `security-audit.ts`          | Security vulnerability scanner | `bun run security`    |
-| `generate-sbom.ts`           | SBOM generation                | `bun run audit:sbom`  |
-| `bundle-stats.ts`            | Bundle size analysis           | `bun run build:stats` |
-| `upgrade.ts`                 | Automated core updates         | `bun run upgrade`     |
-| `setup-system.ts`            | System bootstrap               | Dev setup helper      |
-| `generate-core-countries.js` | Country data generator         | Address widget data   |
+| Script              | Role                           | Command               |
+| :------------------ | :----------------------------- | :-------------------- |
+| `security-audit.ts` | Security vulnerability scanner | `bun run security`    |
+| `generate-sbom.ts`  | SBOM generation                | `bun run audit:sbom`  |
+| `bundle-stats.ts`   | Bundle size analysis           | `bun run build:stats` |
+| `upgrade.ts`        | Automated core updates         | `bun run upgrade`     |
+| `setup-system.ts`   | System bootstrap               | Dev setup helper      |
 
 ---
 

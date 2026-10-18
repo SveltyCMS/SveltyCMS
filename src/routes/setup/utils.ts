@@ -12,7 +12,6 @@ import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { getHardwareProfile } from "@utils/hardware-profile";
-import { createClient } from "redis";
 import { resolveSqlitePath } from "@src/databases/config-state";
 
 /**
@@ -263,15 +262,18 @@ export async function getSetupDatabaseAdapter(
  * Used to suggest performance optimizations to the user during setup.
  */
 export async function checkRedis(): Promise<boolean> {
-  const client = createClient({
-    socket: {
-      host: "localhost",
-      port: 6379,
-      connectTimeout: 1000,
-    },
-  });
-
   try {
+    // Cold path: the probe runs once in the setup wizard. Loading node-redis
+    // here keeps it out of the module graph the setup page hydrates with.
+    const { createClient } = await import("redis");
+    const client = createClient({
+      socket: {
+        host: "localhost",
+        port: 6379,
+        connectTimeout: 1000,
+      },
+    });
+
     await client.connect();
     await client.ping();
     await client.destroy();

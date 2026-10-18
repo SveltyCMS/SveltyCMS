@@ -39,6 +39,7 @@ import {
   getTrustedDeviceCookieConfig,
   hashBackupCode,
   isValidTOTPSecret,
+  resetTotpEncryptionKeyCache,
   verifyBackupCode,
   verifyTOTPCode,
 } from "@src/databases/auth/totp";
@@ -126,14 +127,22 @@ describe("TOTP 2FA Service (Unit Suite)", () => {
     expect(cookieConfig.sameSite).toBe("strict");
   });
 
-  it("handles encryptTotpSecret and decryptTotpSecret gracefully", async () => {
-    const secret = "JBSWY3DPEHPK3PXP";
-    const encrypted = await encryptTotpSecret(secret);
-    expect(typeof encrypted).toBe("string");
+  it("encrypts and decrypts a secret when a key is configured", async () => {
+    const previousKey = process.env.ENCRYPTION_KEY;
+    process.env.ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    resetTotpEncryptionKeyCache();
 
-    const decrypted = await decryptTotpSecret(encrypted);
-    // With or without encryption key, it should decrypt or fallback safely
-    expect(decrypted === secret || decrypted === null).toBe(true);
+    try {
+      const secret = "JBSWY3DPEHPK3PXP";
+      const encrypted = await encryptTotpSecret(secret);
+      expect(typeof encrypted).toBe("string");
+      expect(encrypted).not.toBe(secret);
+      expect(await decryptTotpSecret(encrypted)).toBe(secret);
+    } finally {
+      if (previousKey === undefined) delete process.env.ENCRYPTION_KEY;
+      else process.env.ENCRYPTION_KEY = previousKey;
+      resetTotpEncryptionKeyCache();
+    }
 
     expect(await decryptTotpSecret("")).toBeNull();
   });

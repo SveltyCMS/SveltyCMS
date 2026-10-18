@@ -274,7 +274,7 @@ Source of truth: [`playwright.config.ts`](../../playwright.config.ts) — 5 proj
 | `auth-setup` | `auth.setup.ts` + `routes/login/login.spec.ts` (serial, 1 worker)                | `firstuser`  |
 | `chromium`   | all remaining route specs — fully parallel, CI-sharded via named `--grep` groups | `auth-setup` |
 
-CI (`e2e-prep`) runs `wizard` → `auth-setup` (which pulls in `firstuser`) sequentially; the `e2e` job then shards `chromium` into 6 named groups via `.github/workflows/e2e-matrix.ts`: Config & System · Builder & Content · Users & RBAC · Media & Dashboard · Auth & Branding · Admin & Catch-All.
+CI (`e2e-prep`) runs `wizard` → `auth-setup` (which pulls in `firstuser`) sequentially; the `e2e` job then shards `chromium` into 7 balanced groups via `.github/workflows/e2e-matrix.ts`: Config & System · Builder & Content · Users & Profile · RBAC & Journeys · Media & Dashboard · Auth & Branding · Admin & Catch-All.
 
 ## Next Steps
 

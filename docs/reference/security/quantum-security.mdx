@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/security/quantum-security.mdx"
 title: "Quantum Security — Current Crypto vs PQC Roadmap"
-description: "What SveltyCMS actually uses, what Grover/Shor would affect, and NIST PQC status as of August 2026. Not a claim of product-wide post-quantum certification."
+description: "What SveltyCMS actually uses, what Grover/Shor would affect, and NIST PQC status as of October 2026. Not a claim of product-wide post-quantum certification."
 order: 10
 icon: "mdi:atom"
 author: "SveltyCMS Team"
 created: "2025-11-02"
-updated: "2026-08-23"
+updated: "2026-10-18"
 tags:
   - "security"
   - "quantum"
@@ -14,126 +14,292 @@ tags:
   - "post-quantum"
 ---
 
-# Quantum Security — Status as of 2026-08-23
+# Quantum Security — Status as of 2026-10-18
 
-This page is a **self-assessment of application cryptography**, dated **2026-08-23**. It is **not** a FIPS/CNSA certification, not a claim that every hop (TLS, SSO, passkeys) is post-quantum, and not a 15–30 year guarantee.
+This page is a **self-assessment of application cryptography**, dated **2026-10-18** and reviewed quarterly. It is **not** a FIPS/CNSA certification, not a claim that every hop (TLS, SSO, passkeys) is post-quantum, and not a 15–30 year guarantee.
 
-**What is true today (application layer):**
+> **Maintenance contract:** the parameters below are pinned by
+> `tests/unit/security/crypto-inventory.test.ts`. A change to a primitive, key/IV
+> length, Argon2 cost, WebAuthn algorithm or API-key hash must update this page in
+> the same changeset.
 
-- Passwords: **Argon2id** (64 MiB, t=3, p=4 in production — `ARGON2_CONFIG` in `@utils/security/crypto.ts`)
-- Data at rest (plugin settings, TOTP secrets, backups): **AES-256-GCM**. Hex/base64 `ENCRYPTION_KEY` / `SECRET_ENCRYPTION_KEY` are used as 256-bit keys (AES-NI). Passphrase-shaped values are **HKDF-SHA-256** (cached once); decrypt still accepts the older SHA-256(raw) envelopes.
-- API keys, backup-code hashes, re-auth proofs: **HMAC-SHA-256** with the server secret (single scheme — the legacy plain-SHA-256 dual-read was removed in 2026-08; pre-HMAC rows must be rotated/regenerated)
-- Checksums / content hashes: **SHA-256**
-- **No ML-KEM / ML-DSA / SLH-DSA in application code** as of this date
+## 1. What is true today (application layer)
 
-**What is not quantum-safe in this product today:**
+- **Passwords**: **Argon2id**, `m = 65536 KiB` (64 MiB), `t = 3`, `p = 4` in production
+  (`ARGON2_CONFIG`, `@utils/security/crypto.ts`). The test runtime uses a deliberately
+  small config; the production parameters are also pinned in `DUMMY_ARGON2_HASH`.
+- **Data at rest**: **AES-256-GCM** (32-byte key, 16-byte IV, 16-byte tag) for:
+  - plugin settings secrets (`SECRET_ENCRYPTION_KEY`; AAD binds `tenantId:pluginId`),
+  - TOTP seeds (`ENCRYPTION_KEY` or `SECRET_ENCRYPTION_KEY`),
+  - `encrypt: true` collection fields (`v2:<keyId>:iv:tag:ciphertext`; v1 stays readable),
+  - backup artifacts (`SCHB2` key-ID envelope; 12-byte IV layout).
+- **Key ring**: `v2` envelopes carry a key ID. `ENCRYPTION_KEY_ID` / `SECRET_ENCRYPTION_KEY_ID`
+  (and `BACKUP_KEY_ID`) label the primary key; `ENCRYPTION_KEY_RING` /
+  `SECRET_ENCRYPTION_KEY_RING` / `BACKUP_KEY_RING` hold decrypt-only JSON maps
+  (`{ "<keyId>": "<raw key>" }`) for a rotation window. An unknown key ID fails closed.
+- **Key derivation**: 64-char hex and strict-base64 values are used as raw 32-byte keys
+  (no KDF on the request path). Passphrase-shaped values go through **HKDF-SHA-256** with
+  a domain-separated `info` string; decrypt still accepts the older `SHA-256(raw)` and
+  lenient-base64 envelopes so existing ciphertext keeps working.
+- **API keys, backup codes, re-auth proofs, trusted-device cookies**:
+  **HMAC-SHA-256** with a server secret and domain-separated prefixes. The pre-HMAC
+  plain-SHA-256 API-key scheme was removed in 2026-08; older keys must be rotated.
+- **Opaque high-entropy tokens**: unsalted SHA-256 is used only as an equality digest for
+  256-bit random values (credential/token lookups). It is **not** a password KDF.
+- **Checksums**: SHA-256 by default; `CHECKSUM_ALGORITHM=sha384|sha512` produces
+  self-describing `sha384:<hex>` / `sha512:<hex>` values for **new** artifacts, while legacy
+  bare-hex values keep verifying as SHA-256. The append-only audit chain stays SHA-256.
+- **Session model**: the session cookie is an **opaque server-side ID**, not a JWT.
+  CSRF and trusted-device proofs are HMAC-SHA-256 tokens. Revocation is server-side.
+- **No ML-DSA / SLH-DSA** in application code. **ML-KEM-768** is available through the
+  dependency-free `hybrid-kem` module and the opt-in `PQC_HYBRID_BACKUPS=true` backup
+  envelope; it is **not** the default at-rest path.
 
-- **WebAuthn** registration offers **ES256 (P-256, alg −7)** and **RS256 (alg −257)** — both are Shor-broken _if_ a cryptographically relevant quantum computer (CRQC) exists
-- **OIDC/SAML** token verification uses provider JWKS (**RS256 / ES256**)
-- **TLS in transit** is the hosting stack (Node/OpenSSL, reverse proxy, CDN) — not something the CMS implements. Harvest-now-decrypt-later applies here unless the terminator negotiates a hybrid KEM (e.g. **X25519MLKEM768**)
+## 2. What is not quantum-safe today
 
----
+- **WebAuthn**: registration offers **ES256 (P-256, alg −7)** and **RS256 (alg −257)** —
+  ECC/RSA, Shor-broken if a cryptographically relevant quantum computer (CRQC) exists.
+- **OIDC**: provider JWKS verification accepts **RS256/384/512**, **ES256/384/512**, and
+  **HS256/384/512** when a client secret is configured (`sso-session.ts`). The RS*/ES*
+  families are Shor-broken; HS\* is symmetric and not Shor-broken, but its security is the
+  shared client secret.
+- **SAML**: assertion signatures are XML DSig (RSA with **SHA-256** by default; the IdP certificate determines the family), with `wantAssertionsSigned: true` (`saml-auth.ts`) — Shor-broken.
+- **TLS in transit**: negotiated by Node/OpenSSL, the reverse proxy or the CDN — not
+  something the CMS implements. Harvest-now-decrypt-later applies unless the terminator
+  offers a hybrid KEM such as **X25519MLKEM768**.
 
-## Threat model (plain language)
+## 3. Threat model (plain language)
 
-| Algorithm class         | Classical                      | If a CRQC exists                                                         | SveltyCMS use                                                     |
-| ----------------------- | ------------------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| RSA, ECDSA, ECDH, EdDSA | Fine today                     | **Broken (Shor)**                                                        | Not used for at-rest encryption. **Used** for WebAuthn + IdP JWTs |
-| AES-256-GCM             | ~256-bit                       | Grover → ~128-bit search (still the usual “high” bar)                    | At-rest encryption                                                |
-| HMAC-SHA-256            | Strong                         | Grover on the hash; HMAC-with-secret remains the practical bound         | API keys, backup codes, proofs                                    |
-| SHA-256 (bare)          | Collision ~128-bit classically | Weaker collision bound in some quantum models; preimage ~128-bit         | Content checksums, WebAuthn RP ID hash                            |
-| Argon2id                | Memory-hard password KDF       | Grover halves _password-search_ bits; **memory-hardness is not removed** | Password hashes                                                   |
+| Algorithm class         | Classical                      | If a CRQC exists                                                         | SveltyCMS use                                 |
+| :---------------------- | :----------------------------- | :----------------------------------------------------------------------- | :-------------------------------------------- |
+| RSA, ECDSA, ECDH, EdDSA | Fine today                     | **Broken (Shor)**                                                        | **Used** for WebAuthn, OIDC/SAML signatures   |
+| AES-256-GCM             | ~256-bit                       | Grover → ~128-bit search (still the usual “high” bar)                    | At-rest encryption                            |
+| HMAC-SHA-256            | Strong                         | Grover on the hash; HMAC-with-secret remains the practical bound         | API keys, backup codes, CSRF, trusted devices |
+| SHA-256 (bare)          | Collision ~128-bit classically | Weaker collision bound in some quantum models; preimage ~128-bit         | Checksums, audit chain, WebAuthn RP ID hash   |
+| Argon2id                | Memory-hard password KDF       | Grover halves _password-search_ bits; **memory-hardness is not removed** | Password hashes                               |
 
-NIST finalized **FIPS 203 (ML-KEM)**, **FIPS 204 (ML-DSA)**, and **FIPS 205 (SLH-DSA)** on **13 August 2024**. As of **July 2026** those three remain the **final** PQC algorithm baseline (plus **SP 800-227**, September 2025, KEM usage). **FN-DSA (expected FIPS 206)** was **not** a published FIPS as of May 2026. NIST’s extra-signatures process advanced nine candidates to round 3 in **May 2026** (NIST IR 8610); that work **augments** FIPS 204/205, it does not replace them. A July 2026 NIST note on HAWK does **not** apply to ML-KEM/ML-DSA.
+NIST finalized **FIPS 203 (ML-KEM)**, **FIPS 204 (ML-DSA)**, and **FIPS 205 (SLH-DSA)** on
+**13 August 2024**. As of **July 2026** those three remain the final PQC algorithm baseline
+(plus **SP 800-227**, September 2025, KEM usage). **FN-DSA (expected FIPS 206)** was not a
+published FIPS as of May 2026. NIST's extra-signatures process advanced nine candidates to
+round 3 in **May 2026** (NIST IR 8610); that work augments FIPS 204/205, it does not replace
+them. A July 2026 NIST note on HAWK does not apply to ML-KEM/ML-DSA.
 
-US/EU planning dates commonly cited (not SveltyCMS SLAs): start now; high-risk systems ~**2030**; broader migration ~**2035**. Australian ASD guidance (ISM, updated through 2025–26) prefers **SHA-384 / SHA-512** and **AES-256** for new gear intended past 2030.
+US/EU planning dates commonly cited (not SveltyCMS SLAs): start now; high-risk systems
+~**2030**; broader migration ~**2035**. Australian ASD guidance (ISM, updated through
+2025–26) prefers **SHA-384 / SHA-512** and **AES-256** for new gear intended past 2030.
 
----
+## 4. What we actually ship
 
-## What we actually ship
+### 4.1 Symmetric / password (Grover, not Shor)
 
-### Symmetric / password (Grover, not Shor)
+| Primitive    | Parameters                                                                                                                                | Role                                                        |
+| :----------- | :---------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------- |
+| Argon2id     | 64 MiB, time cost 3, parallelism 4 (tests use a tiny config)                                                                              | Password hashing                                            |
+| AES-256-GCM  | 32-byte key, 16-byte IV (settings/TOTP/fields) or 12-byte IV (backups), 16-byte tag. Passphrase env → HKDF-SHA-256, hex/base64 used as-is | Plugin settings, TOTP secrets, encrypted fields, backups    |
+| HMAC-SHA-256 | Server `JWT_SECRET_KEY` (domain-salted prefixes for API keys / backup codes)                                                              | Secret comparison, CSRF, trusted devices — not “encryption” |
+| SHA-256      | —                                                                                                                                         | Media/content hashes, audit chain, WebAuthn `rpId` hash     |
 
-| Primitive    | Parameters                                                                                                                                  | Role                                            |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| Argon2id     | 64 MiB, time cost 3, parallelism 4 (tests use a tiny config)                                                                                | Password hashing                                |
-| AES-256-GCM  | 32-byte key, 16-byte IV (settings/TOTP) or 12-byte IV (backups), 16-byte tag. Passphrase env → HKDF-SHA-256 (cached), hex/base64 used as-is | Plugin settings, TOTP secrets, backup artifacts |
-| HMAC-SHA-256 | Server `JWT_SECRET_KEY` (domain-salted prefixes for API keys / backup codes)                                                                | Secret comparison, not “encryption”             |
-| SHA-256      | —                                                                                                                                           | Media/content hashes, WebAuthn `rpId` hash      |
+Grover's algorithm is a **quadratic** speedup on unstructured search. It does **not** break
+AES-256 the way Shor breaks RSA. Treating AES-256 as “AES-128 equivalent” is the usual
+_ideal-model_ slogan; real Grover is hard to parallelize. We still prefer AES-256 over
+AES-128 for long-lived ciphertext.
 
-Grover’s algorithm is a **quadratic** speedup on unstructured search. It does **not** break AES-256 the way Shor breaks RSA. Treating AES-256 as “AES-128 equivalent” is the usual _ideal-model_ slogan; real Grover is hard to parallelize. We still prefer AES-256 over AES-128 for long-lived ciphertext.
+Argon2id's defense is **password entropy + memory**. Quantum search does not give free RAM.
+Weak passwords stay weak.
 
-Argon2id’s defense is **password entropy + memory**. Quantum search does not give free RAM. Weak passwords stay weak.
-
-### Public-key surfaces (Shor)
+### 4.2 Public-key surfaces (Shor)
 
 These are **in the product** and would not survive a CRQC:
 
-1. **Passkeys / WebAuthn** — `pubKeyCredParams` in `webauthn-service.ts`: `-7` (ES256 / P-256), `-257` (RS256).
-2. **SSO** — `sso-session.ts` verifies IdP JWTs with **RS256/ES256** JWKS.
-3. **TLS** — whatever Node, the reverse proxy, or the CDN negotiates. Default classical TLS is ECDHE; hybrid **X25519MLKEM768** is shipping in 2026 stacks (e.g. OpenSSL 3.5+ “built in” PQC). That is an **ops** choice, not a CMS toggle.
+1. **Passkeys / WebAuthn** — `pubKeyCredParams` in `webauthn-service.ts`: `-7` (ES256 /
+   P-256), `-257` (RS256).
+2. **OIDC** — `sso-session.ts` verifies IdP JWTs with the provider JWKS (RS*/ES*/HS\*).
+3. **SAML** — `saml-auth.ts` verifies XML DSig assertions with the IdP certificate (SHA-256).
+4. **TLS** — whatever Node, the reverse proxy, or the CDN negotiates. Default classical TLS
+   is ECDHE; hybrid **X25519MLKEM768** is shipping in 2026 stacks (e.g. OpenSSL 3.5+
+   “built in” PQC). That is an **ops** choice, not a CMS toggle.
 
-Session cookies themselves are server-side IDs + HMAC-style proofs, **not** RSA JWTs. The harvest-now-decrypt-later risk for _captured HTTPS_ is still the TLS handshake, not AES-GCM blobs on disk.
+### 4.3 Data classes and retention
 
----
+The quantum question depends on **how long the data must stay confidential**, not just on
+the primitive.
 
-## What the old page got wrong (fixed here)
+| Data class                             | Primitive                            | Typical lifetime                     | If a CRQC arrives                                                                |
+| :------------------------------------- | :----------------------------------- | :----------------------------------- | :------------------------------------------------------------------------------- |
+| Login passwords                        | Argon2id                             | Until changed                        | Offline hash search gets a quadratic speedup; memory-hardness still applies      |
+| Plugin settings / TOTP / encrypted PII | AES-256-GCM                          | Long-lived                           | Only relevant if ciphertext **and** key material are both captured (key custody) |
+| Backups                                | AES-256-GCM                          | Long-lived (years)                   | Same as above — store the backup key separately from the backup                  |
+| Session cookies                        | Opaque random ID + server-side state | Hours                                | Low: the cookie is not a bearer JWT and is revocable server-side                 |
+| OIDC/SAML assertions                   | RSA/ECDSA signatures                 | Minutes                              | Forgery requires a CRQC; captured assertions age out quickly                     |
+| Audit log chain                        | SHA-256                              | Long-lived (integrity)               | Integrity margin shrinks; confidentiality is not provided by the chain           |
+| Admin HTTPS traffic                    | TLS (ECDHE + hybrid KEM if enabled)  | Seconds (session), years if captured | **Harvest-now-decrypt-later** — the main reason to enable hybrid TLS today       |
 
-| Old claim                                         | Why it was wrong as of 2026-08-23                                                                                     |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| “Quantum-resistant for 15–30 years” / fake % bars | Unverifiable. Depends on CRQC timelines nobody can date.                                                              |
-| “No RSA or ECC”                                   | WebAuthn ES256/RS256 and OIDC JWKS are ECC/RSA.                                                                       |
-| SHA-256 is only “checksums”                       | HMAC-SHA-256 is on the auth hot path (API keys, backup codes, re-auth).                                               |
-| “TLS PQC experimental, adoption 2025–2030”        | Hybrid KEM is **production** on major CDNs/OpenSSL in 2026; still **not automatic** on every VPS.                     |
-| “NIST 2024” as if nothing moved                   | FIPS 203–205 still the baseline; SP 800-227 (2025); extra signatures round 3 (May 2026); FN-DSA not a published FIPS. |
-| CRYSTALS-Kyber / Dilithium as the product names   | Standardized names: **ML-KEM**, **ML-DSA**, **SLH-DSA**.                                                              |
-| Benchmark-run CSPRNG nonce as a “quantum layer”   | Process memory for benches is not a PQC control.                                                                      |
-| Sample `kyberEncapsulate` / `pqcrypto` snippets   | **Not implemented.** Left out so they cannot be copied as if they shipped.                                            |
+## 5. Key rotation and re-encryption
 
----
+**Current state:**
 
-## Operator checklist (today)
+- `v2` envelopes carry a `<keyId>` and the runtime selects exactly that key; an unknown ID
+  fails closed instead of trying unrelated keys. `v1` envelopes (no ID) still decrypt by
+  trying the primary, the configured ring and the legacy derivations.
+- The ring is configured per subsystem: `ENCRYPTION_KEY_RING`, `SECRET_ENCRYPTION_KEY_RING`,
+  `BACKUP_KEY_RING`. IDs are explicit (`*_KEY_ID`) or derived from the key bytes.
+- Rotation is now a **two-phase** operation: add the old key to the ring while the new key is
+  primary, then re-encrypt rows at your own pace (new writes already use the new ID).
+- There is still **no online re-wrap command**: re-encrypting existing rows/objects is a
+  migration, not a background switch.
 
-1. Terminate TLS on a stack that can offer **X25519MLKEM768** (or equivalent hybrid) if you care about harvest-now-decrypt-later on admin HTTPS.
-2. Keep **Argon2id + AES-256-GCM**; do not drop to AES-128 or bare SHA-256 for passwords. Prefer a 64-char hex `ENCRYPTION_KEY` (setup wizard default) so AES-NI runs with no KDF on the request path.
-3. Treat **passkeys and SSO** as classically strong, **not** PQC, until authenticators and IdPs sign with ML-DSA/SLH-DSA.
-4. Rotate `JWT_SECRET_KEY` / `ENCRYPTION_KEY` as secrets, not as a quantum migration.
-5. For data that must remain confidential past ~2035, plan a **re-encrypt** pass once application-layer ML-KEM (or hybrid) exists in this codebase — it does **not** today.
+**Safe rotation:**
 
----
+1. Generate the new key and set it as the primary (`ENCRYPTION_KEY` / `SECRET_ENCRYPTION_KEY`).
+2. Put the old key in the ring under its old ID and give the new key a new `*_KEY_ID`.
+3. Deploy. New writes use the new ID; old rows decrypt through the ring.
+4. Re-encrypt existing rows/objects (field encryption, plugin settings, TOTP seeds, backups).
+5. Remove the old ring entry after verification.
 
-## Application PQC roadmap (honest)
+**Losing a key still loses data.** A ring is a decrypt aid, not a backup: store the keys (and
+backup keys) separately from the ciphertext and from the backups.
 
-| Window                                  | Intent                                                               | Status in this repo                  |
-| --------------------------------------- | -------------------------------------------------------------------- | ------------------------------------ |
-| 2026                                    | Symmetric + Argon2id; HMAC-SHA-256; TLS hybrid at the edge           | **Current**                          |
-| Next major crypto change                | Optional hybrid wrap for long-lived at-rest blobs (AES-GCM + ML-KEM) | **Not started**                      |
-| When WebAuthn/IdPs ship PQC algs        | Offer ML-DSA (or successor) in `pubKeyCredParams`                    | **Blocked on authenticators / IdPs** |
-| CNSA 2.0 / ASD-style “new gear by 2030” | SHA-384/512 option for new checksums; AES-256 already                | **Hash upgrade not scheduled**       |
+## 6. Application-level PQC (shipped primitive, opt-in)
+
+The hybrid construction below is **implemented** in `src/utils/security/hybrid-kem.ts` and
+verified by `tests/unit/security/hybrid-kem.test.ts`; it works on Node 24 and Bun through
+WebCrypto (`ML-KEM-768`). It is wired into **backups only**, behind
+`PQC_HYBRID_BACKUPS=true` plus `PQC_KEM_PUBLIC_KEY` / `PQC_KEM_PRIVATE_KEY`; it is not the
+default path for fields, settings or TOTP (those remain AES-256-GCM with key IDs).
+
+A sound construction for long-lived at-rest data is a hybrid envelope, not “AES-GCM with
+ML-KEM sprinkled on top”:
+
+1. Generate a random 256-bit **DEK** per object.
+2. Encapsulate to a recipient/KEK with **ML-KEM-768** (FIPS 203); run the shared secret
+   through HKDF-SHA-256 with a domain-separated `info` string.
+3. Encrypt the payload with **AES-256-GCM** under the DEK.
+4. Store `v1:<kemCiphertext>:<salt>:<dekIv>:<dekTag>:<wrappedDek>:<payloadIv>:<payloadTag>:<payloadCiphertext>`
+   and bind context as AAD.
+
+Remaining work before calling the whole data plane hybrid: wire the same envelope into field
+encryption, plugin settings and TOTP (all async paths), add cross-adapter parity tests, and
+document a re-wrap/rollback procedure. The primitive itself does not need a new dependency.
+
+## 7. Verify these claims
+
+| Claim                                | Source of truth                                                             |
+| :----------------------------------- | :-------------------------------------------------------------------------- |
+| Argon2id parameters                  | `ARGON2_CONFIG` / `DUMMY_ARGON2_HASH` in `src/utils/security/crypto.ts`     |
+| AES-256-GCM key/IV/tag lengths       | `ENCRYPTION_CONFIG` in `src/utils/security/crypto.ts`                       |
+| HKDF info domains + legacy fallbacks | `AES256_HKDF_INFO` / `resolveStaticAesKey()`                                |
+| API-key hashing is HMAC              | `hashApiKey()` in `src/databases/auth/api-keys.ts`                          |
+| WebAuthn algorithms                  | `buildRegistrationOptions()` in `webauthn-service.ts`                       |
+| OIDC algorithm set                   | `verifyJwtWithProviderJwks()` in `sso-session.ts`                           |
+| SAML signature algorithm             | `getSAML()` in `saml-auth.ts` (`signatureAlgorithm: "sha256"`)              |
+| Key-ID envelopes + decrypt ring      | `resolveKeyRing()` in `src/utils/security/envelope.ts`                      |
+| Hybrid ML-KEM envelope               | `hybridSeal()` / `hybridOpen()` in `src/utils/security/hybrid-kem.ts`       |
+| Optional SHA-384/512 checksums       | `createChecksum()` / `verifyChecksum()` in `src/utils/security/checksum.ts` |
+
+```bash
+# Machine-checkable subset:
+bun run vitest run tests/unit/security/crypto-inventory.test.ts \
+  tests/unit/security/key-ring.test.ts \
+  tests/unit/security/hybrid-kem.test.ts \
+  tests/unit/security/checksum-profile.test.ts
+
+# Direct inspection:
+rg -n "ARGON2_CONFIG|DUMMY_ARGON2_HASH|ENCRYPTION_CONFIG|AES256_HKDF_INFO" src/utils/security/crypto.ts
+rg -n "pubKeyCredParams" src/databases/auth/webauthn/webauthn-service.ts
+rg -n "createHmac\\(\"sha256\"" src/databases/auth/api-keys.ts
+rg -n "signatureAlgorithm" src/databases/auth/saml-auth.ts
+rg -n "PQC_HYBRID_BACKUPS|SCHP1|SCHB2" src/services/core/backup-service.ts
+
+# Generate an ML-KEM key pair for the opt-in hybrid backup envelope:
+bun run scripts/security/pqc-keygen.ts
+
+# Operator-side TLS check (does the edge offer a hybrid group?):
+openssl s_client -connect example.com:443 -groups X25519MLKEM768 </dev/null 2>/dev/null | grep -E "Server Temp Key|Cipher"
+```
+
+## 8. Operator checklist (today)
+
+1. Terminate TLS on a stack that can offer **X25519MLKEM768** (or equivalent hybrid) if you
+   care about harvest-now-decrypt-later on admin HTTPS.
+2. Keep **Argon2id + AES-256-GCM**; do not drop to AES-128 or bare SHA-256 for passwords.
+   Prefer a 64-char hex `ENCRYPTION_KEY` (setup wizard default) so AES-NI runs with no KDF
+   on the request path.
+3. Treat **passkeys and SSO** as classically strong, **not** PQC, until authenticators and
+   IdPs sign with ML-DSA/SLH-DSA.
+4. Store backup keys **separately** from backups; a stolen backup plus its key defeats the
+   at-rest encryption regardless of algorithm.
+5. Rotate `JWT_SECRET_KEY` / `ENCRYPTION_KEY` as secrets, not as a quantum migration. Do not
+   rotate an encryption key without the re-encrypt plan in §5.
+6. For data that must remain confidential past ~2035: the hybrid primitive and the opt-in
+   backup envelope exist today (`PQC_HYBRID_BACKUPS=true`). Field/settings/TOTP wiring and a
+   re-wrap/rollback procedure are still pending; plan a **re-encrypt** pass when they land.
+7. SveltyCMS does **not** claim FIPS 140-3 validation. Your OpenSSL build may be
+   FIPS-enabled; the application does not assert it.
+
+## 9. Application PQC roadmap (honest)
+
+| Window                                  | Intent                                                          | Status in this repo                                                  |
+| :-------------------------------------- | :-------------------------------------------------------------- | :------------------------------------------------------------------- |
+| 2026                                    | Symmetric + Argon2id; HMAC-SHA-256; TLS hybrid at the edge      | **Current**                                                          |
+| Key-ID envelopes                        | `v2` + configured decrypt ring (rotation without a code change) | **Shipped**                                                          |
+| Hybrid at-rest                          | AES-256-GCM payload under a DEK wrapped with ML-KEM-768 + HKDF  | **Shipped for backups (opt-in)**; fields/settings/TOTP pending       |
+| When WebAuthn/IdPs ship PQC algs        | Offer ML-DSA (or successor) in `pubKeyCredParams`               | **Blocked on authenticators / IdPs**                                 |
+| CNSA 2.0 / ASD-style “new gear by 2030” | SHA-384/512 option for new checksums; AES-256 already           | **Shipped helper** (`CHECKSUM_ALGORITHM`); audit chain stays SHA-256 |
 
 No date here is a promise that a CRQC exists or does not exist.
 
----
+## 10. When this advice changes
+
+Re-review this page when any of the following happens:
+
+- NIST publishes a new FIPS or changes the status of FN-DSA / the extra-signature candidates.
+- A major authenticator platform or IdP ships ML-DSA/SLH-DSA, or `pubKeyCredParams` gains a
+  PQC algorithm.
+- Node/OpenSSL or the major CDNs change their hybrid-KEM default (today: opt-in).
+- A CRQC milestone is publicly demonstrated, or a national authority changes its migration date.
+- A key compromise, a new data class with a longer retention period, or a new at-rest store.
+- Any change to the primitives pinned by `crypto-inventory.test.ts`.
+
+**Next scheduled review:** 2027-01-31.
+
+## 11. Glossary
+
+- **CRQC** — cryptographically relevant quantum computer: one large enough to run Shor's
+  algorithm against the key sizes in use.
+- **HNDL** — harvest now, decrypt later: capture ciphertext today, decrypt it once a CRQC exists.
+- **KEM** — key-encapsulation mechanism (e.g. ML-KEM). **DEK / KEK** — data / key-encryption key.
+- **ML-KEM / ML-DSA / SLH-DSA** — FIPS 203 / 204 / 205 algorithm families.
+- **Grover** — quadratic speedup on unstructured search (symmetric keys, hashes).
+- **Shor** — polynomial-time factoring / discrete log (RSA, ECDSA, ECDH, EdDSA).
 
 ## FAQ
 
-**Should I panic about quantum computers this year?**  
-No. There is no public evidence of a CRQC that breaks AES-256 or Argon2id. There **is** a reason to prefer hybrid TLS now for traffic that might still be sensitive in the 2030s.
+**Should I panic about quantum computers this year?**
+No. There is no public evidence of a CRQC that breaks AES-256 or Argon2id. There **is** a
+reason to prefer hybrid TLS now for traffic that might still be sensitive in the 2030s.
 
-**Is SveltyCMS “post-quantum certified”?**  
-No. At-rest passwords and AES-256-GCM are in the Grover-resistant _class_. Passkeys, SSO signatures, and default TLS are not.
+**Is SveltyCMS “post-quantum certified”?**
+No. At-rest passwords and AES-256-GCM are in the Grover-resistant _class_. Passkeys, SSO
+signatures, and default TLS are not.
 
-**Do I need to re-encrypt the database now?**  
-Not for Grover-on-AES-256. Re-encrypt when we ship an application ML-KEM layer, or if a key leaked.
+**Do I need to re-encrypt the database now?**
+Not for Grover-on-AES-256. Re-encrypt after a key rotation (§5), when enabling the opt-in
+hybrid backup envelope for existing archives, or if a key leaked. Field/settings/TOTP do not
+yet have a hybrid path.
 
-**Will PQC make the CMS slow?**  
-ML-KEM/ML-DSA are larger than X25519/ECDSA. That cost shows up in **TLS and signatures**, not in Argon2id login (already milliseconds by design).
-
----
+**Will PQC make the CMS slow?**
+ML-KEM/ML-DSA are larger than X25519/ECDSA. That cost shows up in **TLS and signatures**,
+not in Argon2id login (already milliseconds by design).
 
 ## Related
 
+- [Security posture](./security-posture.mdx)
 - [Secrets inventory](./secrets-inventory.mdx)
 - [Authentication system](./authentication-system.mdx)
 - [Tested security features](./tested-security-features.mdx)
-- NIST: [FIPS 203](https://csrc.nist.gov/pubs/fips/203/final), [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final), [FIPS 205](https://csrc.nist.gov/pubs/fips/205/final), [SP 800-227](https://csrc.nist.gov/pubs/sp/800/227/final)
+- NIST: [FIPS 203](https://csrc.nist.gov/pubs/fips/203/final),
+  [FIPS 204](https://csrc.nist.gov/pubs/fips/204/final),
+  [FIPS 205](https://csrc.nist.gov/pubs/fips/205/final),
+  [SP 800-227](https://csrc.nist.gov/pubs/sp/800/227/final),
+  [IR 8610](https://csrc.nist.gov/pubs/ir/8610/final)

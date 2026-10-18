@@ -76,7 +76,7 @@ function collectionEpochCacheKey(collection: string): string {
 }
 
 export class CacheService {
-  private l1: FastLRU<string, any>;
+  private l1: FastLRU<string, unknown>;
   private l2: any = null;
   private subscriber: any = null;
   private nodeId: string;
@@ -112,7 +112,7 @@ export class CacheService {
     // operator can trade memory for hit-rate without a rebuild. `sizeCalculation`
     // is a deliberately cheap O(1) estimate — no deep object walk on the hot set
     // path; it approximates the retained bytes closely enough to bound RAM.
-    this.l1 = new FastLRU<string, any>({
+    this.l1 = new FastLRU<string, unknown>({
       max: Number(process.env.CACHE_L1_MAX_ENTRIES) || 50000,
       maxSize: Number(process.env.CACHE_L1_MAX_BYTES) || 64 * 1024 * 1024,
       // A single value larger than this is not cached (a safe no-op in
@@ -469,7 +469,7 @@ export class CacheService {
     return null;
   }
 
-  async get<T>(
+  async get<T = unknown>(
     key: string,
     tenantId?: string | null,
     _category?: CacheCategory,
@@ -629,9 +629,9 @@ export class CacheService {
 
   // ── Core Write Operations ───────────────────────────────────────────────
 
-  async set(
+  async set<T = unknown>(
     key: string,
-    value: any,
+    value: T,
     ttl = 0,
     tenantId?: string | null,
     _category = CacheCategory.GENERAL,
@@ -673,9 +673,9 @@ export class CacheService {
     }
   }
 
-  setSync(
+  setSync<T = unknown>(
     key: string,
-    value: any,
+    value: T,
     ttl = 0,
     tenantId?: string | null,
     _category = CacheCategory.GENERAL,
@@ -744,7 +744,7 @@ export class CacheService {
   }
 
   async setMany(
-    entries: { key: string; value: any; ttl?: number; tags?: string[] }[],
+    entries: { key: string; value: unknown; ttl?: number; tags?: string[] }[],
     tenantId?: string | null,
     category = CacheCategory.GENERAL,
   ): Promise<void> {
@@ -816,7 +816,14 @@ export class CacheService {
       } catch {}
     }
 
-    if (cachedEntry && typeof cachedEntry === "object" && "storedAt" in cachedEntry) {
+    const isSwrEntry = (e: unknown): e is { value: unknown; storedAt: number } =>
+      typeof e === "object" &&
+      e !== null &&
+      "storedAt" in e &&
+      typeof (e as { storedAt: unknown }).storedAt === "number" &&
+      "value" in e;
+
+    if (isSwrEntry(cachedEntry)) {
       const age = Date.now() - cachedEntry.storedAt;
       if (age < ttl) {
         cacheMetrics.recordHit(fullKey, _category, tenantId, 0, "l1");

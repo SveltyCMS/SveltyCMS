@@ -11,77 +11,25 @@
 
 import type { Role, User } from "./types";
 import { isAdmin } from "./constants";
+import { PERMISSION_CATALOG, resolvePermissionId } from "./permission-catalog";
 
 /**
- * 64-bit bitmask definitions for core permissions.
- * Fixed bit assignment (0..44) guarantees zero-drift across workers and restarts.
+ * 64-bit bitmask definitions derived from the canonical permission catalog.
+ * Fixed bit assignment guarantees zero-drift across workers and restarts;
+ * alias ids (`users:read`, `collections:create`, …) share their canonical bit.
  */
-export const PERMISSION_BITS: Record<string, bigint> = {
-  // System capabilities
-  "system:admin": 1n << 0n,
-  "system:dashboard": 1n << 1n,
-  "system:settings": 1n << 2n,
-  "system:read": 1n << 3n,
-
-  // Collections capabilities
-  "collections:read": 1n << 4n,
-  "collections:write": 1n << 5n,
-  "collection:read": 1n << 6n,
-  "collection:write": 1n << 7n,
-  "collection:delete": 1n << 8n,
-
-  // Media capabilities
-  "media:read": 1n << 9n,
-  "media:write": 1n << 10n,
-  "media:delete": 1n << 11n,
-
-  // User management capabilities
-  "user:read": 1n << 12n,
-  "user:write": 1n << 13n,
-  "user:delete": 1n << 14n,
-  "users:read": 1n << 12n, // alias
-  "users:write": 1n << 13n, // alias
-
-  // Content capabilities
-  "content:read": 1n << 15n,
-  "content:write": 1n << 16n,
-  "content:delete": 1n << 17n,
-  "content:export": 1n << 18n,
-  "content:import": 1n << 19n,
-  "content:sync": 1n << 20n,
-
-  // Config capabilities
-  "config:read": 1n << 21n,
-  "config:write": 1n << 22n,
-  "config:importexport": 1n << 23n,
-  "config:automations": 1n << 24n,
-  "config:webhooks": 1n << 25n,
-
-  // Dashboard capabilities
-  "dashboard:read": 1n << 26n,
-  "dashboard:write": 1n << 27n,
-  "dashboard:update": 1n << 28n,
-
-  // Preferences & Mail capabilities
-  "systemPreferences:read": 1n << 29n,
-  "systemPreferences:write": 1n << 30n,
-  "send-mail:write": 1n << 31n,
-  "permissions:update": 1n << 32n,
-
-  // Database operations
-  "migration:read": 1n << 33n,
-  "migration:apply": 1n << 34n,
-  "backup:read": 1n << 35n,
-  "backup:create": 1n << 36n,
-
-  // Plugins & APIs
-  "plugin:settings:manage": 1n << 37n,
-  "plugins:execute": 1n << 38n,
-  "api:token": 1n << 39n,
-  "workflow:transition": 1n << 40n,
-  graphql: 1n << 41n,
-  webhooks: 1n << 42n,
-};
+export const PERMISSION_BITS: Record<string, bigint> = (() => {
+  const bits: Record<string, bigint> = {};
+  for (const permission of PERMISSION_CATALOG) {
+    if (permission.bitIndex === undefined) continue;
+    const bit = 1n << BigInt(permission.bitIndex);
+    bits[permission.id] = bit;
+    for (const alias of permission.aliases ?? []) {
+      bits[alias] = bit;
+    }
+  }
+  return bits;
+})();
 
 /** All 64 bits set — root admin super-mask */
 export const ADMIN_PERM_MASK: bigint = 0xffff_ffff_ffff_ffffn;
@@ -97,22 +45,33 @@ export const EMPTY_PERM_MASK: bigint = 0n;
  */
 export const FIELD_PERMISSION_OVERFLOW_BIT: bigint = 1n << 63n;
 
-// Dynamic permission bit registry (for dynamically registered permissions, bits 43..62)
+// Dynamic permission bit registry (for dynamically registered permissions).
+// Allocate after the highest statically assigned catalog bit (bits 45..62 today)
+// so a dynamic id can never collide with `ai:use`/`ai:admin` or any future bit.
 const _dynamicPermBits = new Map<string, bigint>();
-let _nextDynamicBit = 43n;
+let _nextDynamicBit = (() => {
+  let next = 0n;
+  for (const permission of PERMISSION_CATALOG) {
+    if (permission.bitIndex !== undefined && BigInt(permission.bitIndex) >= next) {
+      next = BigInt(permission.bitIndex) + 1n;
+    }
+  }
+  return next;
+})();
 
 /**
  * Returns the 64-bit BigInt mask for a permission ID.
  * Returns 0n if the permission is unmapped or field-specific.
  */
 export function getPermissionBit(permissionId: string): bigint {
-  const staticBit = PERMISSION_BITS[permissionId];
+  const staticBit =
+    PERMISSION_BITS[permissionId] ?? PERMISSION_BITS[resolvePermissionId(permissionId)];
   if (staticBit !== undefined) return staticBit;
 
   const dynamicBit = _dynamicPermBits.get(permissionId);
   if (dynamicBit !== undefined) return dynamicBit;
 
-  // Dynamically allocate if within the 64-bit window (bits 43..62)
+  // Dynamically allocate if within the 64-bit window (bits 45..62)
   if (_nextDynamicBit < 63n && !permissionId.startsWith("field:")) {
     const bit = 1n << _nextDynamicBit;
     _nextDynamicBit += 1n;

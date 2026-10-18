@@ -31,7 +31,7 @@ import {
   DEFAULT_INTEGRATION_JWT,
   DEFAULT_INTEGRATION_TEST_API_SECRET,
   pinIntegrationSecrets,
-} from "../../scripts/integration-harness.ts";
+} from "../../scripts/runs/integration-harness.ts";
 
 // ── Derived paths ───────────────────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ function generatePrivateTestConfig(privateTestPath: string) {
   const dbPortValue =
     db.type === "sqlite" || !db.port ? "undefined" : String(Number.parseInt(db.port, 10));
 
-  // Shared with scripts/run-integration.ts — pin once; never mint a second secret.
+  // Shared with scripts/runs/run-integration.ts — pin once; never mint a second secret.
   const secrets = pinIntegrationSecrets();
   const jwt = secrets.jwt || DEFAULT_INTEGRATION_JWT;
   const enc = secrets.encryption || DEFAULT_INTEGRATION_ENCRYPTION;
@@ -255,12 +255,12 @@ async function waitForServerReady(maxAttempts = 60): Promise<boolean> {
 }
 
 async function ensureServerRunning(): Promise<void> {
-  // Server must be started BEFORE bun test by scripts/start-integration-server.ts
+  // Server must be started BEFORE bun test by scripts/runs/start-integration-server.ts
   const ready = await waitForServerReady(15); // shorter timeout — server should already be starting
   if (!ready) {
     console.error(
       "\n❌ Server not running at http://127.0.0.1:4173." +
-        "\n   Start it first with: bun run scripts/start-integration-server.ts" +
+        "\n   Start it first with: bun run scripts/runs/start-integration-server.ts" +
         "\n   Or run: bun run test:integration (which handles it automatically)\n",
     );
     throw new Error("Integration server not running");
@@ -323,7 +323,7 @@ async function testingAction(action: "reset" | "seed", preset?: string): Promise
 /**
  * Ensures the integration preview server is running (singleton).
  *
- * Server is started BEFORE bun test by scripts/start-integration-server.ts or
+ * Server is started BEFORE bun test by scripts/runs/start-integration-server.ts or
  * bun run test:integration. This function only waits for it to be ready and
  * seeds the database.
  *
@@ -352,10 +352,10 @@ export async function startIntegrationServer(): Promise<void> {
 
 /**
  * Stops the integration preview server if it is running.
- * Safe to call multiple times. Server is managed by scripts/start-integration-server.ts
+ * Safe to call multiple times. Server is managed by scripts/runs/start-integration-server.ts
  * which handles cleanup via process exit, so this is a no-op.
  */
 export async function stopIntegrationServer(): Promise<void> {
-  // Server lifecycle managed by scripts/start-integration-server.ts — no-op
+  // Server lifecycle managed by scripts/runs/start-integration-server.ts — no-op
   serverPromise = null;
 }

@@ -2,13 +2,15 @@
  * @file src/routes/email-previews/+page.server.ts
  * @description Server-side logic for the email preview page.
  *
- * ### Props
- * - `user`: The authenticated user data.
+ * Renders the selected email template to HTML on the server so the browser
+ * never needs the previewer package (and its Shiki syntax-highlighting
+ * dependency). The page only receives `files`/`path` plus the rendered HTML
+ * and renders it in a sandboxed iframe.
  *
  * ### Features
  * - User authentication and authorization (now tenant-aware)
- * - Proper typing for user data
- *
+ * - Server-side template rendering via the shared email Renderer
+ * - Template selection through `?email=<name>` (defaults to the first file)
  */
 
 // Auth
@@ -23,8 +25,36 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
 
 // System Logger
 import { logger } from "@utils/logger";
+import { getEmailTemplate, renderEmailToStrings } from "@utils/email.server";
 import { createEmail, emailList, sendEmail } from "@better-svelte-email/preview";
 import { LocalCMS } from "@src/services/sdk";
+
+/** Template directory, relative to the project root. */
+const EMAILS_PATH = "src/components/emails";
+
+/**
+ * Representative props so every template can render standalone. Templates
+ * declare their own defaults (`?? ''`), but a few require values — the password
+ * reset/ magic-link flows and the password-updated notice — so the previewer
+ * supplies them explicitly.
+ */
+const PREVIEW_PROPS = {
+  email: "preview@example.com",
+  expiresIn: "3600",
+  expiresInLabel: "1 hour",
+  expiresInMinutes: 15,
+  firstName: "Preview",
+  hostLink: "http://localhost:5173",
+  languageTag: "en",
+  magicLink: "http://localhost:5173/magic-link?token=preview-token",
+  resetLink: "http://localhost:5173/reset-password?token=preview-token",
+  role: "admin",
+  sitename: "SveltyCMS (Preview)",
+  token: "preview-token",
+  tokenLink: "http://localhost:5173/token?token=preview-token",
+  user: { firstName: "Preview", username: "preview", email: "preview@example.com" },
+  username: "Preview User",
+};
 
 // Define the return type for the load function.
 interface PreviewData {
@@ -33,13 +63,21 @@ interface PreviewData {
   files: string[] | null;
   path?: string | null;
   user?: User | null;
+  /** Template currently rendered (null when the directory has no templates). */
+  selectedEmail?: string | null;
+  /** Server-rendered HTML for the selected template. */
+  previewHtml?: string | null;
+  /** Human-readable render failure, shown instead of the iframe. */
+  previewError?: string | null;
   [key: string]: unknown;
 }
 
 export async function load({
   locals,
+  url,
 }: {
   locals: App.Locals;
+  url: URL;
   fetch: typeof globalThis.fetch;
 }): Promise<PreviewData> {
   const { user: userData, isAdmin } = locals;
@@ -55,11 +93,45 @@ export async function load({
     throw error(403, "Insufficient permissions - admin access required");
   }
 
-  const emailListData = await emailList({ path: "src/components/emails" });
+  const emailListData = await emailList({ path: EMAILS_PATH });
+  // Deterministic order (and a predictable default preview) regardless of the
+  // host filesystem's readdir order.
+  const files = emailListData.files ? [...emailListData.files].sort() : null;
+
+  // Keep the URL authoritative, but fall back to the first template and ignore
+  // names that are not part of the directory listing (no path traversal).
+  const requested = url.searchParams.get("email");
+  const selectedEmail =
+    files && files.length > 0
+      ? requested && files.includes(requested)
+        ? requested
+        : files[0]
+      : null;
+
+  let previewHtml: string | null = null;
+  let previewError: string | null = null;
+
+  if (selectedEmail) {
+    try {
+      const component = await getEmailTemplate(selectedEmail);
+      if (!component) {
+        throw new Error(`Email template '${selectedEmail}' was not found.`);
+      }
+      const rendered = await renderEmailToStrings(component, selectedEmail, PREVIEW_PROPS);
+      previewHtml = rendered.html;
+    } catch (err) {
+      previewError = err instanceof Error ? err.message : String(err);
+      logger.warn(`[EmailPreview] Failed to render '${selectedEmail}': ${previewError}`);
+    }
+  }
 
   return {
     user: userData,
     ...emailListData,
+    files,
+    selectedEmail,
+    previewHtml,
+    previewError,
   };
 }
 

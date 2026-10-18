@@ -11,7 +11,7 @@
  * - Comment-safe: class="" inside HTML comments is ignored
  */
 import { describe, expect, it } from "vitest";
-import { auditWidgetA11y } from "../../../scripts/check-widget-a11y.mjs";
+import { auditWidgetA11y } from "../../../scripts/lint/lint-widgets.ts";
 
 function findings(text: string) {
   return auditWidgetA11y(text, "<fixture>");

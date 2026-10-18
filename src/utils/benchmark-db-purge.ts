@@ -13,11 +13,8 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
-import {
-  isBenchmarkArtifact,
-  isMockScanCollection,
-  normalizeCollectionId,
-} from "@src/routes/setup/preset-collections.server";
+import { isBenchmarkArtifact, normalizeCollectionId } from "@utils/benchmark-runtime";
+import { isMockScanCollection } from "@src/routes/setup/preset-collections.server";
 import { logger } from "@utils/logger";
 
 export const DEFAULT_DATABASE_DIR = path.resolve(process.cwd(), "config", "database");

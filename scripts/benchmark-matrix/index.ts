@@ -582,12 +582,16 @@ async function run() {
   try {
     const { spawnSync: sync } = await import("node:child_process");
     // Prefer `bun` on PATH (Windows installs may not expose `bun.cmd` to spawnSync).
-    const verify = sync("bun", ["run", "scripts/verify-prod-build-backdoor.ts", "--mode=bench"], {
-      cwd: process.cwd(),
-      stdio: "pipe",
-      shell: process.platform === "win32",
-      env: process.env,
-    });
+    const verify = sync(
+      "bun",
+      ["run", "scripts/security/verify-prod-build-backdoor.ts", "--mode=bench"],
+      {
+        cwd: process.cwd(),
+        stdio: "pipe",
+        shell: process.platform === "win32",
+        env: process.env,
+      },
+    );
     if (verify.status !== 0) {
       console.error(verify.stderr?.toString() || verify.stdout?.toString());
       console.error(

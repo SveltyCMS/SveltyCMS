@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanupTestArtifacts } from "../../../scripts/integration-harness.ts";
+import { cleanupTestArtifacts } from "../../../scripts/runs/integration-harness.ts";
 
 describe("integration harness cleanup — live folder protection", () => {
   let root: string;

@@ -5,6 +5,8 @@
  */
 import { logger } from "@utils/logger";
 import { browser } from "$app/env";
+import { fetchApi } from "@utils/api";
+import { nowISODateString } from "@utils/date";
 
 export type ConsentCategory = "necessary" | "analytics" | "marketing";
 
@@ -45,6 +47,38 @@ function createConsentStore() {
     }
   }
 
+  function logConsentToServer() {
+    if (!browser) return;
+    try {
+      let consentId = localStorage.getItem("sveltycms_consent_id");
+      if (!consentId) {
+        consentId =
+          typeof globalThis.crypto?.randomUUID === "function"
+            ? globalThis.crypto.randomUUID()
+            : `cid_${Date.now()}`;
+        localStorage.setItem("sveltycms_consent_id", consentId);
+      }
+      void fetchApi("/api/plugins/cookie-consent/consent", {
+        method: "POST",
+        body: JSON.stringify({
+          consentId,
+          categories: {
+            necessary: true,
+            analytics: state.analytics,
+            marketing: state.marketing,
+          },
+          acceptedAt: nowISODateString(),
+          origin: window.location.origin,
+          userAgent: navigator.userAgent,
+        }),
+      }).catch((err) => {
+        logger.debug("[ConsentStore] Non-blocking consent log error:", err);
+      });
+    } catch {
+      // Fire and forget
+    }
+  }
+
   return {
     get necessary() {
       return state.necessary;
@@ -64,6 +98,7 @@ function createConsentStore() {
       state.marketing = true;
       state.responded = true;
       save();
+      logConsentToServer();
     },
 
     rejectAll: () => {
@@ -71,6 +106,7 @@ function createConsentStore() {
       state.marketing = false;
       state.responded = true;
       save();
+      logConsentToServer();
     },
 
     update: (preferences: Partial<ConsentState>) => {
@@ -82,6 +118,7 @@ function createConsentStore() {
       }
       state.responded = true;
       save();
+      logConsentToServer();
     },
 
     reset: () => {

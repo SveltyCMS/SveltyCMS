@@ -31,7 +31,7 @@
 	<Body>
 		<Container>
 			<Section>
-				<Heading>Your order shipped</Heading>
+				<Heading as="h1">Your order shipped</Heading>
 				<Text>Order <strong>{orderNumber}</strong> is on the way.</Text>
 				<Text>{items}</Text>
 				{#if trackingUrl}

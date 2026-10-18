@@ -28,7 +28,7 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
 }
 
 // Resolved once per process: env first, then the shared E2E secret file
-// (tests/e2e/.auth/test-secret.txt) written by scripts/run-e2e.ts. Env changes
+// (tests/e2e/.auth/test-secret.txt) written by scripts/runs/run-e2e.ts. Env changes
 // between tests are not a supported scenario, so the result is cached.
 let cachedMasterSecret: string | null | undefined;
 

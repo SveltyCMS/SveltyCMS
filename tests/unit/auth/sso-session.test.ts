@@ -197,6 +197,22 @@ describe("provider registry", () => {
     expect(getAllSsoProviders()).toEqual([]);
     expect(getSsoProvider("acme")).toBeUndefined();
   });
+
+  it("isolates providers with the same id across tenants", () => {
+    registerSsoProvider({ ...PROVIDER, issuer: "https://id.tenant-a.test" }, "tenant-a");
+    registerSsoProvider({ ...PROVIDER, issuer: "https://id.tenant-b.test" }, "tenant-b");
+
+    expect(getSsoProvider("acme", "tenant-a")?.issuer).toBe("https://id.tenant-a.test");
+    expect(getSsoProvider("acme", "tenant-b")?.issuer).toBe("https://id.tenant-b.test");
+    expect(getAllSsoProviders("tenant-a")).toHaveLength(1);
+    expect(getAllSsoProviders("tenant-b")).toHaveLength(1);
+    expect(getAllSsoProviders()).toHaveLength(2);
+
+    // Clearing one tenant must not touch the other.
+    clearSsoProviders("tenant-a");
+    expect(getSsoProvider("acme", "tenant-a")).toBeUndefined();
+    expect(getSsoProvider("acme", "tenant-b")?.issuer).toBe("https://id.tenant-b.test");
+  });
 });
 
 describe("loadSsoProvidersFromSettings", () => {
@@ -223,6 +239,20 @@ describe("loadSsoProvidersFromSettings", () => {
     h.getUntypedSetting.mockResolvedValueOnce("{not-on-a-json");
     expect((await loadSsoProvidersFromSettings()).map((p) => p.id)).toEqual(["acme"]);
   });
+
+  it("loads only the requested tenant's providers", async () => {
+    registerSsoProvider({ ...PROVIDER, issuer: "https://id.global.test" });
+    registerSsoProvider({ ...PROVIDER, issuer: "https://id.tenant-b.test" }, "tenant-b");
+    h.getUntypedSetting.mockResolvedValueOnce([
+      { ...PROVIDER, issuer: "https://id.tenant-a.test" },
+    ]);
+
+    const providers = await loadSsoProvidersFromSettings("tenant-a");
+
+    expect(providers).toHaveLength(1);
+    expect(providers[0].issuer).toBe("https://id.tenant-a.test");
+    expect(getSsoProvider("acme", "tenant-b")?.issuer).toBe("https://id.tenant-b.test");
+  });
 });
 
 describe("saveSsoProviders", () => {
@@ -234,7 +264,15 @@ describe("saveSsoProviders", () => {
       tenantId: "tenant-2",
     });
     expect(h.invalidateSettingsCache).toHaveBeenCalledWith("tenant-2");
-    expect(getAllSsoProviders()).toEqual([PROVIDER]);
+    expect(getAllSsoProviders("tenant-2")).toEqual([PROVIDER]);
+  });
+
+  it("replaces only the target tenant's providers", async () => {
+    registerSsoProvider({ ...PROVIDER, issuer: "https://id.other.test" }, "tenant-other");
+    await saveSsoProviders([PROVIDER], "tenant-2");
+
+    expect(getSsoProvider("acme", "tenant-other")?.issuer).toBe("https://id.other.test");
+    expect(getSsoProvider("acme", "tenant-2")?.issuer).toBe(PROVIDER.issuer);
   });
 });
 
@@ -471,12 +509,19 @@ describe("verifyJwtWithProviderJwks", () => {
     const provider: SsoProviderConfig = {
       id: "no-jwks",
       issuer: "https://id.no-jwks.test",
+      clientId: "client-no-jwks",
       allowedRedirectUris: [],
     };
     registerSsoProvider(provider);
 
     const header = Buffer.from(JSON.stringify({ alg: "RS256" })).toString("base64url");
-    const payload = Buffer.from(JSON.stringify({ iss: provider.issuer })).toString("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({
+        iss: provider.issuer,
+        aud: provider.clientId,
+        exp: Math.floor(Date.now() / 1000) + 300,
+      }),
+    ).toString("base64url");
     const token = `${header}.${payload}.sig`;
 
     const result = await verifyJwtWithProviderJwks(token, provider);
@@ -484,42 +529,35 @@ describe("verifyJwtWithProviderJwks", () => {
     expect(result.reason).toBe("no_jwks_configured");
   });
 
-  it("verifies HMAC-signed tokens with provider clientSecret", async () => {
+  it("rejects HMAC-signed tokens even when a client secret is configured", async () => {
     const secret = "test-secret-key-12345678901234567890";
     const provider: SsoProviderConfig = {
       id: "hmac-test",
       issuer: "https://id.hmac.test",
+      clientId: "client-hmac",
       clientSecret: secret,
       jwksUri: "https://id.hmac.test/jwks",
       allowedRedirectUris: [],
     };
 
     const header = Buffer.from(JSON.stringify({ alg: "HS256" })).toString("base64url");
-    const payloadObj = { iss: provider.issuer, sub: "user-123", email: "user@test.org" };
+    const payloadObj = {
+      iss: provider.issuer,
+      sub: "user-123",
+      aud: provider.clientId,
+      exp: Math.floor(Date.now() / 1000) + 300,
+    };
     const payload = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");
     const data = `${header}.${payload}`;
 
     const hmac = createHmac("sha256", secret);
     hmac.update(data);
     const validSig = hmac.digest("base64url");
+    const hmacToken = `${data}.${validSig}`;
 
-    const validToken = `${data}.${validSig}`;
-    const result = await verifyJwtWithProviderJwks(validToken, provider);
-    expect(result.valid).toBe(true);
-    expect(result.payload?.sub).toBe("user-123");
-
-    // Altered signature fails
-    const badResult = await verifyJwtWithProviderJwks(`${data}.tampered-sig`, provider);
-    expect(badResult.valid).toBe(false);
-    expect(badResult.reason).toBe("HMAC signature mismatch");
-
-    // Missing client secret fails
-    const noSecretResult = await verifyJwtWithProviderJwks(validToken, {
-      ...provider,
-      clientSecret: undefined,
-    });
-    expect(noSecretResult.valid).toBe(false);
-    expect(noSecretResult.reason).toBe("HS* without clientSecret");
+    const result = await verifyJwtWithProviderJwks(hmacToken, provider);
+    expect(result.valid).toBe(false);
+    expect(result.reason).toMatch(/Unsupported alg/i);
   });
 
   it("verifies RS256 RSA-signed tokens with published JWK key", async () => {
@@ -531,6 +569,7 @@ describe("verifyJwtWithProviderJwks", () => {
     const provider: SsoProviderConfig = {
       id: "rsa-test",
       issuer: "https://id.rsa.test",
+      clientId: "cms",
       jwksUri: "https://id.rsa.test/jwks",
       allowedRedirectUris: [],
     };
@@ -548,7 +587,12 @@ describe("verifyJwtWithProviderJwks", () => {
     const header = Buffer.from(JSON.stringify({ alg: "RS256", kid: "test-rsa-kid-1" })).toString(
       "base64url",
     );
-    const payloadObj = { iss: provider.issuer, sub: "user-rsa", aud: "cms" };
+    const payloadObj = {
+      iss: provider.issuer,
+      sub: "user-rsa",
+      aud: "cms",
+      exp: Math.floor(Date.now() / 1000) + 300,
+    };
     const payload = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");
     const data = `${header}.${payload}`;
 
@@ -563,7 +607,12 @@ describe("verifyJwtWithProviderJwks", () => {
 
     // Tampered payload fails verification
     const tamperedPayload = Buffer.from(
-      JSON.stringify({ iss: provider.issuer, sub: "hacker" }),
+      JSON.stringify({
+        iss: provider.issuer,
+        sub: "hacker",
+        aud: "cms",
+        exp: Math.floor(Date.now() / 1000) + 300,
+      }),
     ).toString("base64url");
     const tamperedToken = `${header}.${tamperedPayload}.${sig}`;
     const tamperedResult = await verifyJwtWithProviderJwks(tamperedToken, provider);
@@ -711,7 +760,13 @@ describe("exchangeOidcCode", () => {
     const header = Buffer.from(JSON.stringify({ alg: "RS256", kid: "kid-ex" })).toString(
       "base64url",
     );
-    const payloadObj = { iss: provider.issuer, sub: "user-sso-1", email: "sso@test.org" };
+    const payloadObj = {
+      iss: provider.issuer,
+      sub: "user-sso-1",
+      email: "sso@test.org",
+      aud: provider.clientId,
+      exp: Math.floor(Date.now() / 1000) + 300,
+    };
     const payload = Buffer.from(JSON.stringify(payloadObj)).toString("base64url");
     const signer = createSign("RSA-SHA256");
     signer.update(`${header}.${payload}`);
@@ -905,6 +960,7 @@ describe("handleBackChannelLogout", () => {
         sub: "user-target",
         aud: "bcl-client",
         iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 300,
         jti: "bcl-jti-1",
         events: { "http://schemas.openid.net/event/backchannel-logout": {} },
       }),
@@ -921,26 +977,69 @@ describe("handleBackChannelLogout", () => {
   });
 
   it("rejects stale iat, a nonce, and a foreign audience", async () => {
-    registerSsoProvider(PROVIDER);
+    const { publicKey, privateKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+    const jwk = publicKey.export({ format: "jwk" }) as any;
+    jwk.kid = "bcl-kid-2";
+    jwk.alg = "RS256";
+
+    const provider: SsoProviderConfig = {
+      ...PROVIDER,
+      id: "bcl-tenant-provider",
+      jwksUri: "https://id.bcl-tenant.test/jwks",
+    };
+    registerSsoProvider(provider);
+
+    h.safeFetch.mockImplementation(async (url: string) => {
+      if (url.includes(".well-known")) {
+        return {
+          success: true,
+          status: 200,
+          body: JSON.stringify({ jwks_uri: provider.jwksUri }),
+          bodyBytes: 100,
+          headers: new Headers(),
+          error: null,
+        };
+      }
+      if (url.includes("/jwks")) {
+        return {
+          success: true,
+          status: 200,
+          body: JSON.stringify({ keys: [jwk] }),
+          bodyBytes: 300,
+          headers: new Headers(),
+          error: null,
+        };
+      }
+      return {
+        success: false,
+        status: 404,
+        body: "",
+        bodyBytes: 0,
+        headers: new Headers(),
+        error: "Not found",
+      };
+    });
+
     const now = Math.floor(Date.now() / 1000);
 
     const sign = (overrides: Record<string, unknown> = {}): string => {
-      const header = Buffer.from(JSON.stringify({ alg: "HS256" })).toString("base64url");
+      const header = Buffer.from(JSON.stringify({ alg: "RS256", kid: "bcl-kid-2" })).toString(
+        "base64url",
+      );
       const payload = Buffer.from(
         JSON.stringify({
           iss: PROVIDER.issuer,
           sub: "user-1",
           aud: PROVIDER.clientId,
           iat: now,
+          exp: now + 300,
           jti: "jti-1",
           events: { "http://schemas.openid.net/event/backchannel-logout": {} },
           ...overrides,
         }),
       ).toString("base64url");
       const data = `${header}.${payload}`;
-      const signature = createHmac("sha256", PROVIDER.clientSecret as string)
-        .update(data)
-        .digest("base64url");
+      const signature = createSign("RSA-SHA256").update(data).sign(privateKey, "base64url");
       return `${data}.${signature}`;
     };
 

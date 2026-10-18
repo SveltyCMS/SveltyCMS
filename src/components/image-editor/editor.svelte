@@ -10,11 +10,32 @@ Comprehensive image editing interface with svelte-canvas integration.
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import { logger } from '@utils/logger';
 	import { normalizeFocalPercent } from '@utils/media/focal-point';
-	import { onDestroy } from 'svelte';
-	import EditorCanvas from './editor-canvas.svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import EditorSidebar from './editor-sidebar.svelte';
 	import EditorMobilePanel from './editor-mobile-panel.svelte';
 	import { editorWidgets } from './widgets/registry';
+
+	// The canvas pulls in svelte-canvas and the full rendering stack (~195 KB).
+	// Load it on the client only so the editor shell paints immediately and SSR
+	// never evaluates browser-only canvas code.
+	type EditorCanvasComponent = typeof import('./editor-canvas.svelte').default;
+	let EditorCanvas = $state<EditorCanvasComponent | null>(null);
+	let canvasLoadError = $state<string | null>(null);
+
+	onMount(() => {
+		let cancelled = false;
+		void import('./editor-canvas.svelte')
+			.then((mod) => {
+				if (!cancelled) EditorCanvas = mod.default;
+			})
+			.catch((err) => {
+				logger.error('[ImageEditor] Failed to load canvas module:', err);
+				if (!cancelled) canvasLoadError = 'Failed to load the editor canvas.';
+			});
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	const MOBILE_BREAKPOINT = imageEditorStore.mobileBreakpoint;
 	const isMobileEditor = $derived(imageEditorStore.state.viewportWidth < MOBILE_BREAKPOINT);
@@ -409,24 +430,45 @@ Comprehensive image editing interface with svelte-canvas integration.
 					<div
 						class="editor-canvas-frame relative flex min-h-0 flex-1 overflow-hidden bg-(--editor-canvas-bg,var(--editor-chrome-bg,#0a0a0a)) border-none rounded-none shadow-none outline-none"
 					>
-						<EditorCanvas
-							bind:containerRef
-							bind:containerWidth
-							bind:containerHeight
-							{hasImage}
-							isLoading={isProcessing}
-							activeTool={activeToolInstance}
-						>
-							{#if hasImage}
-								{#each editorWidgets as widget (widget.key)}
-									{const Component = widget.tool}
-									<Component
-										bind:this={toolInstances[widget.key]}
-										onCancel={() => imageEditorStore.cancelActiveTool()}
-									/>
-								{/each}
-							{/if}
-						</EditorCanvas>
+						{#if EditorCanvas}
+							<EditorCanvas
+								bind:containerRef
+								bind:containerWidth
+								bind:containerHeight
+								{hasImage}
+								isLoading={isProcessing}
+								activeTool={activeToolInstance}
+							>
+								{#if hasImage}
+									{#each editorWidgets as widget (widget.key)}
+										{const Component = widget.tool}
+										<Component
+											bind:this={toolInstances[widget.key]}
+											onCancel={() => imageEditorStore.cancelActiveTool()}
+										/>
+									{/each}
+								{/if}
+							</EditorCanvas>
+						{:else}
+							<div
+								class="flex h-full w-full flex-col items-center justify-center gap-2 text-(--editor-chrome-text,#94a3b8)"
+								role="status"
+								aria-live="polite"
+							>
+								{#if canvasLoadError}
+									<iconify-icon icon="mdi:alert-circle" width="32" class="text-error-500"
+									></iconify-icon>
+									<p class="text-sm text-error-500">{canvasLoadError}</p>
+								{:else}
+									<iconify-icon
+										icon="mdi:loading"
+										width="32"
+										class="animate-spin text-tertiary-500 dark:text-primary-500"
+									></iconify-icon>
+									<span class="text-sm">Loading editor canvas…</span>
+								{/if}
+							</div>
+						{/if}
 						{#if hasImage}
 							<div class="canvas-edge-vignette" aria-hidden="true"></div>
 						{/if}

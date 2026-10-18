@@ -37,6 +37,19 @@ const BLOCKED_IP_RANGES = [
 
 const BLOCKED_HOSTS = new Set(["localhost", "metadata.google.internal", "169.254.169.254"]);
 
+/**
+ * Endpoints that stay blocked even when `allowPrivate` is set. Cloud metadata
+ * and link-local/special-purpose addresses are never legitimate model hosts, so
+ * the local-service opt-in must not re-open that SSRF path.
+ */
+const ALWAYS_BLOCKED_HOSTS = new Set(["metadata.google.internal", "169.254.169.254"]);
+const ALWAYS_BLOCKED_IP_RANGES = [
+  /^169\.254\./, // Link-local (includes the 169.254.169.254 metadata endpoint)
+  /^fe80:/i, // IPv6 link-local
+  /^100\.(6[4-9]|[7-9]\d|1[0-2][0-7])\./, // CGNAT / shared address space
+  /^0\.0\.0\.0/, // Unspecified
+];
+
 // ─── Test-only egress allowlist ───────────────────────────────────────────────
 // Zero-mock integration tests need a real local peer (the in-process OIDC
 // server). Loopback is blocked by design, so a test can opt in to the *exact*
@@ -65,6 +78,20 @@ export function allowTestEgressOrigin(origin: string): () => void {
 
 export interface EgressOptions {
   allowHttp?: boolean;
+  /**
+   * Opt-in SSRF relaxation for admin-configured local services (Ollama and
+   * similar on-box/LAN model endpoints).
+   *
+   * When true, loopback and RFC1918/ULA addresses are accepted so a deployment
+   * can reach a model server on localhost or the local network. Cloud metadata
+   * and link-local/CGNAT ranges remain blocked unconditionally.
+   *
+   * Trust boundary: only pass this for URLs the deployment operator controls
+   * through private settings or trusted connector config. Never pass it for
+   * user-supplied or remote-import URLs — that would re-open the SSRF hole this
+   * guard exists to close. It is deliberately NOT the default.
+   */
+  allowPrivate?: boolean;
   maxRedirects?: number;
   timeoutMs?: number;
   maxSizeBytes?: number;
@@ -88,9 +115,38 @@ export class EgressError extends Error {
   }
 }
 
-function isPrivateIP(ip: string): boolean {
+/**
+ * Collapse IPv4-mapped (`::ffff:a.b.c.d`) and deprecated IPv4-compatible
+ * (`::a.b.c.d`) IPv6 literals to dotted IPv4 so the same range rules apply to
+ * the embedded address. Without this, `::ffff:169.254.169.254` would bypass the
+ * metadata checks (the URL parser normalises it to `::ffff:a9fe:a9fe`).
+ */
+function normalizeEmbeddedIPv4(ip: string): string {
+  const lower = ip.toLowerCase();
+  let rest: string;
+  if (lower.startsWith("::ffff:")) rest = lower.slice("::ffff:".length);
+  else if (lower.startsWith("::")) rest = lower.slice(2);
+  else return ip;
+
+  if (!rest) return ip;
+  if (rest.includes(".")) return rest;
+
+  const parts = rest.split(":");
+  if (parts.length !== 2) return ip;
+
+  const hi = Number.parseInt(parts[0], 16);
+  const lo = Number.parseInt(parts[1], 16);
+  if (Number.isNaN(hi) || Number.isNaN(lo)) return ip;
+
+  return `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`;
+}
+
+function isBlockedIP(ip: string, allowPrivate: boolean): boolean {
   if (!net.isIP(ip)) return false;
-  return BLOCKED_IP_RANGES.some((regex) => regex.test(ip));
+  const address = normalizeEmbeddedIPv4(ip);
+  if (ALWAYS_BLOCKED_IP_RANGES.some((regex) => regex.test(address))) return true;
+  if (allowPrivate) return false;
+  return BLOCKED_IP_RANGES.some((regex) => regex.test(address));
 }
 
 /**
@@ -120,14 +176,23 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
   }
 
   const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const allowPrivate = options.allowPrivate === true;
 
+  if (ALWAYS_BLOCKED_HOSTS.has(hostname)) {
+    throw new EgressError(`Blocked internal host: ${hostname}`);
+  }
+  if (allowPrivate && BLOCKED_HOSTS.has(hostname)) {
+    // Only `localhost` remains here (metadata hosts are always blocked above).
+    // It is a loopback alias, so skip DNS — minimal containers may not resolve it.
+    return parsed;
+  }
   if (BLOCKED_HOSTS.has(hostname)) {
     throw new EgressError(`Blocked internal host: ${hostname}`);
   }
 
   // If it's already an IP, check it directly
   if (net.isIP(hostname)) {
-    if (isPrivateIP(hostname)) {
+    if (isBlockedIP(hostname, allowPrivate)) {
       throw new EgressError(`Blocked private IP: ${hostname}`);
     }
     return parsed;
@@ -137,7 +202,7 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
   try {
     const addresses = await dns.lookup(hostname, { all: true });
     for (const addr of addresses) {
-      if (isPrivateIP(addr.address)) {
+      if (isBlockedIP(addr.address, allowPrivate)) {
         throw new EgressError(
           `Hostname resolves to blocked private IP (${addr.address}): ${hostname}`,
         );
@@ -160,6 +225,7 @@ export async function safeFetch(
 ): Promise<EgressResult> {
   const {
     allowHttp,
+    allowPrivate,
     maxRedirects = DEFAULT_MAX_REDIRECTS,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     maxSizeBytes = DEFAULT_MAX_SIZE_BYTES,
@@ -177,7 +243,7 @@ export async function safeFetch(
     let redirecting = true;
     // Manual redirect loop: re-validate each hop against SSRF rules
     do {
-      const validatedUrl = await validateEgressUrl(currentUrl, { allowHttp });
+      const validatedUrl = await validateEgressUrl(currentUrl, { allowHttp, allowPrivate });
 
       response = await fetch(validatedUrl.toString(), {
         ...fetchOptions,

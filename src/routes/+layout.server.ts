@@ -17,7 +17,8 @@
 
 import { logger } from "@utils/logger";
 import type { NavigationNode } from "@src/content";
-import { contentSystem, contentStore } from "@src/content/index.server";
+import { contentSystem } from "@src/content/index.server";
+import { contentStore } from "@stores/content-registry.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import {

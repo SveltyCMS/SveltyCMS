@@ -15,7 +15,8 @@
  * - Content Versioning is cached
  */
 
-import { contentSystem, contentStore } from "@src/content/index.server";
+import { contentSystem } from "@src/content/index.server";
+import { contentStore } from "@stores/content-registry.svelte";
 import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";

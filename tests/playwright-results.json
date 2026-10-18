@@ -4,7 +4,8 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "D:\\SveltyCMS\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "--project=wizard"
+      "--list",
+      "--grep=(routes[\\\\/]system[\\\\/](permissions|rbac|permission-enforcement)|routes[\\\\/]user[\\\\/](complete-coverage|coverage-100|p0-journeys)|coverage-100|p0-journeys|complete-coverage)"
     ],
     "configFile": "D:\\SveltyCMS\\playwright.config.ts",
     "rootDir": "D:/SveltyCMS/tests/e2e",
@@ -17,18 +18,14 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {
-      "actualWorkers": 1
-    },
+    "metadata": {},
     "preserveOutput": "always",
     "projects": [
       {
         "outputDir": "D:/SveltyCMS/tests/test-results",
         "repeatEach": 1,
         "retries": 2,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "wizard",
         "name": "wizard",
         "testDir": "D:/SveltyCMS/tests/e2e",
@@ -40,9 +37,7 @@
         "outputDir": "D:/SveltyCMS/tests/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "firstuser",
         "name": "firstuser",
         "testDir": "D:/SveltyCMS/tests/e2e",
@@ -54,9 +49,7 @@
         "outputDir": "D:/SveltyCMS/tests/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "oauth",
         "name": "oauth",
         "testDir": "D:/SveltyCMS/tests/e2e",
@@ -68,9 +61,7 @@
         "outputDir": "D:/SveltyCMS/tests/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "auth-setup",
         "name": "auth-setup",
         "testDir": "D:/SveltyCMS/tests/e2e",
@@ -82,9 +73,7 @@
         "outputDir": "D:/SveltyCMS/tests/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "chromium",
         "name": "chromium",
         "testDir": "D:/SveltyCMS/tests/e2e",
@@ -106,9 +95,7 @@
         "outputDir": "D:\\SveltyCMS\\tests\\test-results",
         "repeatEach": 1,
         "retries": 2,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "name": "wizard",
         "testDir": "D:\\SveltyCMS\\tests\\e2e",
         "snapshotDir": "D:\\SveltyCMS\\tests\\e2e",
@@ -116,7 +103,7 @@
         "testMatch": "routes/setup/setup-wizard.spec.ts",
         "timeout": 90000,
         "use": {
-          "baseURL": "http://127.0.0.1:4173",
+          "baseURL": "http://127.0.0.1:5173",
           "extraHTTPHeaders": {
             "x-test-mode": "true",
             "x-test-worker-index": "0",
@@ -133,6 +120,155 @@
         "dependencies": [],
         "ignoreSnapshots": false,
         "__projectId": "wizard"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "D:\\SveltyCMS\\tests\\test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "firstuser",
+        "testDir": "D:\\SveltyCMS\\tests\\e2e",
+        "snapshotDir": "D:\\SveltyCMS\\tests\\e2e",
+        "testIgnore": [],
+        "testMatch": ["**/login/signup.spec.ts"],
+        "timeout": 90000,
+        "use": {
+          "baseURL": "http://127.0.0.1:5173",
+          "extraHTTPHeaders": {
+            "x-test-mode": "true",
+            "x-test-worker-index": "0",
+            "x-test-secret": "SVELTYCMS_TEST_SECRET_2026",
+            "Origin": "http://127.0.0.1:4173"
+          },
+          "launchOptions": {
+            "slowMo": 0
+          },
+          "trace": "on-first-retry",
+          "video": "retain-on-failure",
+          "bypassCSP": true
+        },
+        "dependencies": ["wizard"],
+        "ignoreSnapshots": false,
+        "__projectId": "firstuser"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "D:\\SveltyCMS\\tests\\test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "oauth",
+        "testDir": "D:\\SveltyCMS\\tests\\e2e",
+        "snapshotDir": "D:\\SveltyCMS\\tests\\e2e",
+        "testIgnore": [],
+        "testMatch": ["**/login/oauth.spec.ts"],
+        "timeout": 90000,
+        "use": {
+          "baseURL": "http://127.0.0.1:5173",
+          "extraHTTPHeaders": {
+            "x-test-mode": "true",
+            "x-test-worker-index": "0",
+            "x-test-secret": "SVELTYCMS_TEST_SECRET_2026",
+            "Origin": "http://127.0.0.1:4173"
+          },
+          "launchOptions": {
+            "slowMo": 0
+          },
+          "trace": "on-first-retry",
+          "video": "retain-on-failure",
+          "bypassCSP": true
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "oauth"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "D:\\SveltyCMS\\tests\\test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "auth-setup",
+        "testDir": "D:\\SveltyCMS\\tests\\e2e",
+        "snapshotDir": "D:\\SveltyCMS\\tests\\e2e",
+        "testIgnore": [],
+        "testMatch": [{}, {}],
+        "timeout": 90000,
+        "use": {
+          "baseURL": "http://127.0.0.1:5173",
+          "extraHTTPHeaders": {
+            "x-test-mode": "true",
+            "x-test-worker-index": "0",
+            "x-test-secret": "SVELTYCMS_TEST_SECRET_2026",
+            "Origin": "http://127.0.0.1:4173"
+          },
+          "launchOptions": {
+            "slowMo": 0
+          },
+          "trace": "on-first-retry",
+          "video": "retain-on-failure",
+          "bypassCSP": true
+        },
+        "dependencies": ["firstuser"],
+        "ignoreSnapshots": false,
+        "__projectId": "auth-setup"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "D:\\SveltyCMS\\tests\\test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "chromium",
+        "testDir": "D:\\SveltyCMS\\tests\\e2e",
+        "snapshotDir": "D:\\SveltyCMS\\tests\\e2e",
+        "testIgnore": [
+          "**/setup/setup-wizard.spec.ts",
+          "**/auth.setup.ts",
+          "**/routes/login/login.spec.ts",
+          "**/routes/login/signup.spec.ts",
+          "**/routes/login/oauth.spec.ts"
+        ],
+        "testMatch": "**/*.{test,spec}.ts",
+        "timeout": 90000,
+        "use": {
+          "baseURL": "http://127.0.0.1:5173",
+          "extraHTTPHeaders": {
+            "x-test-mode": "true",
+            "x-test-worker-index": "0",
+            "x-test-secret": "SVELTYCMS_TEST_SECRET_2026",
+            "Origin": "http://127.0.0.1:4173"
+          },
+          "launchOptions": {
+            "slowMo": 0
+          },
+          "trace": "on-first-retry",
+          "video": "retain-on-failure",
+          "bypassCSP": true,
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
+          "viewport": {
+            "width": 1280,
+            "height": 720
+          },
+          "screen": {
+            "width": 1920,
+            "height": 1080
+          },
+          "deviceScaleFactor": 1,
+          "isMobile": false,
+          "hasTouch": false,
+          "defaultBrowserType": "chromium",
+          "headless": false,
+          "storageState": "D:\\SveltyCMS\\tests\\e2e\\.auth\\admin.json"
+        },
+        "dependencies": ["auth-setup"],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium"
       }
     ],
     "quiet": false,
@@ -162,7 +298,21 @@
     "updateSourceMethod": "patch",
     "version": "1.64.1",
     "workers": 4,
-    "webServer": null
+    "webServer": {
+      "command": "bun run dev",
+      "port": 5173,
+      "timeout": 120000,
+      "env": {
+        "PLAYWRIGHT_TEST": "1",
+        "TEST_MODE": "true",
+        "DB_TYPE": "sqlite",
+        "DB_HOST": "127.0.0.1",
+        "DB_NAME": "e2e_auth_test",
+        "JWT_SECRET_KEY": "Integration-Test-JWT-Secret-Key-2026",
+        "ENCRYPTION_KEY": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "reuseExistingServer": true
+    }
   },
   "suites": [
     {
@@ -189,22 +339,8 @@
                   "expectedStatus": "passed",
                   "projectId": "wizard",
                   "projectName": "wizard",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 902,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:27:59.712Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "e77f5b423e0cbe238d53-726c5ac36f4e37dd32c5",
@@ -223,22 +359,8 @@
                   "expectedStatus": "passed",
                   "projectId": "wizard",
                   "projectName": "wizard",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1379,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:28:00.764Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "e77f5b423e0cbe238d53-555307984361224d1fec",
@@ -257,22 +379,8 @@
                   "expectedStatus": "passed",
                   "projectId": "wizard",
                   "projectName": "wizard",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 7447,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:28:02.156Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "e77f5b423e0cbe238d53-f5774d55a97db2b12ada",
@@ -299,22 +407,8 @@
                   "expectedStatus": "passed",
                   "projectId": "wizard",
                   "projectName": "wizard",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1278,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:28:09.613Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "e77f5b423e0cbe238d53-cbc0cce7c79635aa8782",
@@ -333,22 +427,8 @@
                   "expectedStatus": "passed",
                   "projectId": "wizard",
                   "projectName": "wizard",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 560,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:28:10.905Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "e77f5b423e0cbe238d53-221cd19a05e8eec55934",
@@ -370,27 +450,13 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 60000,
+                  "timeout": 90000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "wizard",
                   "projectName": "wizard",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 351,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:28:11.478Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "e77f5b423e0cbe238d53-4fa1a6c034bbfb313080",
@@ -412,79 +478,13 @@
               "tags": [],
               "tests": [
                 {
-                  "timeout": 240000,
+                  "timeout": 90000,
                   "annotations": [],
                   "expectedStatus": "passed",
                   "projectId": "wizard",
                   "projectName": "wizard",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2298,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[sqlite] Configuring database...\n"
-                        },
-                        {
-                          "text": "[sqlite] Creating admin user...\n"
-                        },
-                        {
-                          "text": "[sqlite] Selecting blueprint...\n"
-                        },
-                        {
-                          "text": "[sqlite] Configuring system...\n"
-                        },
-                        {
-                          "text": "[sqlite] Skipping email...\n"
-                        },
-                        {
-                          "text": "[sqlite] Finalizing...\n"
-                        },
-                        {
-                          "text": "✅ SQLITE Wizard flow completed.\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "steps": [
-                        {
-                          "title": "Step 0: Clean Reset (API-seeded)",
-                          "duration": 308
-                        },
-                        {
-                          "title": "Step 1: Database Configuration",
-                          "duration": 760
-                        },
-                        {
-                          "title": "Step 2: Administrator Account",
-                          "duration": 106
-                        },
-                        {
-                          "title": "Step 3: Project Blueprint",
-                          "duration": 313
-                        },
-                        {
-                          "title": "Step 4: System Settings",
-                          "duration": 84
-                        },
-                        {
-                          "title": "Step 5: Email Configuration (Skip)",
-                          "duration": 77
-                        },
-                        {
-                          "title": "Step 6: Review & Finalize",
-                          "duration": 560
-                        }
-                      ],
-                      "startTime": "2026-10-18T15:28:11.839Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
               "id": "e77f5b423e0cbe238d53-fe389363787a53bb4617",
@@ -495,14 +495,1988 @@
           ]
         }
       ]
+    },
+    {
+      "title": "routes\\login\\signup.spec.ts",
+      "file": "routes/login/signup.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Test loading homepage and login screen",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firstuser",
+              "projectName": "firstuser",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "98aa3363788cf83842ac-4fcd6b33d2085c8b8d80",
+          "file": "routes/login/signup.spec.ts",
+          "line": 30,
+          "column": 1
+        },
+        {
+          "title": "Check language selection updates UI text",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firstuser",
+              "projectName": "firstuser",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "98aa3363788cf83842ac-8ac0358b9b93d3a0dcc9",
+          "file": "routes/login/signup.spec.ts",
+          "line": 43,
+          "column": 1
+        },
+        {
+          "title": "SignUp First User",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firstuser",
+              "projectName": "firstuser",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "98aa3363788cf83842ac-bb48cc2b514c345f0d9e",
+          "file": "routes/login/signup.spec.ts",
+          "line": 72,
+          "column": 1
+        },
+        {
+          "title": "Forgot Password Flow",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "firstuser",
+              "projectName": "firstuser",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "98aa3363788cf83842ac-49fc4eb2ee8d2b288d36",
+          "file": "routes/login/signup.spec.ts",
+          "line": 167,
+          "column": 1
+        }
+      ],
+      "suites": [
+        {
+          "title": "SignIn & SignOut Flows",
+          "file": "routes/login/signup.spec.ts",
+          "line": 93,
+          "column": 6,
+          "specs": [
+            {
+              "title": "SignOut after login",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firstuser",
+                  "projectName": "firstuser",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "98aa3363788cf83842ac-c0e3446b22d5dddc0ddc",
+              "file": "routes/login/signup.spec.ts",
+              "line": 108,
+              "column": 3
+            },
+            {
+              "title": "Login First User",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firstuser",
+                  "projectName": "firstuser",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "98aa3363788cf83842ac-ab871d57bfcbc07111ce",
+              "file": "routes/login/signup.spec.ts",
+              "line": 143,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "auth.setup.ts",
+      "file": "auth.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E Role-Based Setup",
+          "file": "auth.setup.ts",
+          "line": 98,
+          "column": 7,
+          "specs": [
+            {
+              "title": "authenticate as admin",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "auth-setup",
+                  "projectName": "auth-setup",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "17e3fe6f4d9d8bd79c6b-39588bb7fb17cdd0a1d1",
+              "file": "auth.setup.ts",
+              "line": 99,
+              "column": 3
+            },
+            {
+              "title": "provision editor and author via test API",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "auth-setup",
+                  "projectName": "auth-setup",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "17e3fe6f4d9d8bd79c6b-88b55a867a4145707a87",
+              "file": "auth.setup.ts",
+              "line": 142,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "routes\\login\\login.spec.ts",
+      "file": "routes/login/login.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Login and Logout Flow",
+          "file": "routes/login/login.spec.ts",
+          "line": 13,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should login and logout successfully",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "auth-setup",
+                  "projectName": "auth-setup",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0193949ab26bd0be5ab2-a5cfe1d98eb15639497a",
+              "file": "routes/login/login.spec.ts",
+              "line": 21,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "routes\\system\\permission-enforcement.spec.ts",
+      "file": "routes/system/permission-enforcement.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Permission Enforcement — Remove & Verify Block",
+          "file": "routes/system/permission-enforcement.spec.ts",
+          "line": 78,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Removing collection:write blocks entry creation via API (403)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f0d03df1120f322b2f9e-9543f856080060bfbc7a",
+              "file": "routes/system/permission-enforcement.spec.ts",
+              "line": 102,
+              "column": 3
+            },
+            {
+              "title": "Removing media:write blocks media upload via API (403)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f0d03df1120f322b2f9e-86e299f144a6419d8775",
+              "file": "routes/system/permission-enforcement.spec.ts",
+              "line": 158,
+              "column": 3
+            },
+            {
+              "title": "Permission removal survives page refresh (persisted to DB)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f0d03df1120f322b2f9e-12b49b1c63472b5da02b",
+              "file": "routes/system/permission-enforcement.spec.ts",
+              "line": 199,
+              "column": 3
+            },
+            {
+              "title": "Permission gating blocks UI navigation to restricted pages",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "f0d03df1120f322b2f9e-3fd75a08bced6dfed073",
+              "file": "routes/system/permission-enforcement.spec.ts",
+              "line": 238,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "routes\\system\\permissions.spec.ts",
+      "file": "routes/system/permissions.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Permission Management Flow",
+          "file": "routes/system/permissions.spec.ts",
+          "line": 185,
+          "column": 6,
+          "specs": [
+            {
+              "title": "toggle permissions and save",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "b1bd661db033181fe902-23c461893ed040453514",
+              "file": "routes/system/permissions.spec.ts",
+              "line": 188,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "routes\\system\\rbac.spec.ts",
+      "file": "routes/system/rbac.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Role-Based Access Control",
+          "file": "routes/system/rbac.spec.ts",
+          "line": 95,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Admin: Full access to all system areas",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0e8087e2fdc3c48e0a6b-be94c5067c9d8625202a",
+              "file": "routes/system/rbac.spec.ts",
+              "line": 113,
+              "column": 3
+            },
+            {
+              "title": "Developer: Can access system config and user management, NOT admin-only areas",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0e8087e2fdc3c48e0a6b-ca7c1e519526ca83737d",
+              "file": "routes/system/rbac.spec.ts",
+              "line": 134,
+              "column": 3
+            },
+            {
+              "title": "Editor: Can access content and user management, NOT system settings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0e8087e2fdc3c48e0a6b-e82778235e82a2e0aac5",
+              "file": "routes/system/rbac.spec.ts",
+              "line": 164,
+              "column": 3
+            },
+            {
+              "title": "Media Ownership: Admins see all, others see only own",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0e8087e2fdc3c48e0a6b-9be26209555ea03c7328",
+              "file": "routes/system/rbac.spec.ts",
+              "line": 189,
+              "column": 3
+            },
+            {
+              "title": "IDOR Prevention: Non-admins cannot access sensitive APIs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0e8087e2fdc3c48e0a6b-771e7ad112f2c4e3ff4f",
+              "file": "routes/system/rbac.spec.ts",
+              "line": 220,
+              "column": 3
+            },
+            {
+              "title": "Verify all roles can login and logout",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "0e8087e2fdc3c48e0a6b-1f7e5057f3c889370a9e",
+              "file": "routes/system/rbac.spec.ts",
+              "line": 254,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "routes\\user\\complete-coverage.spec.ts",
+      "file": "routes/user/complete-coverage.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Auth Toggles",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 61,
+          "column": 6,
+          "specs": [
+            {
+              "title": "passkey toggle sends API call to update-user-attributes with preferences.auth",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-e879f9d58ddb820ce539",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 70,
+              "column": 3
+            },
+            {
+              "title": "magic link toggle sends API call to update-user-attributes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-02fd7860810485410ff8",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 104,
+              "column": 3
+            },
+            {
+              "title": "oauth toggle sends API call to update-user-attributes",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-a868debccc63b15ebed6",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 130,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "User Editing",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 160,
+          "column": 6,
+          "specs": [
+            {
+              "title": "password change workflow opens modal with current password field",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-a0769d658a493d05b96f",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 166,
+              "column": 3
+            },
+            {
+              "title": "email field is disabled in edit modal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-0f31beca0b41b538e3d5",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 193,
+              "column": 3
+            },
+            {
+              "title": "own profile shows role info with 'cannot change your own role' message",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-51c8159e5bb77b5dcd67",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 207,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "2FA",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 225,
+          "column": 6,
+          "specs": [
+            {
+              "title": "2FA button shows 'Setup' when 2FA is not enabled",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-04092ed42202ed962906",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 231,
+              "column": 3
+            },
+            {
+              "title": "2FA modal opens and renders content",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-12c6e2454ba3b25db9f3",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 250,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Admin Table",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 289,
+          "column": 6,
+          "specs": [
+            {
+              "title": "column search triggers API call with search query param",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-4a8342e230a8158bbf56",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 302,
+              "column": 3
+            },
+            {
+              "title": "sort column by clicking header, verify sort indicator appears",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-dc0b0bab281f93e72625",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 334,
+              "column": 3
+            },
+            {
+              "title": "pagination controls are visible and functional",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-5daad0a28cfd2d0c2b38",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 362,
+              "column": 3
+            },
+            {
+              "title": "rows-per-page selector changes items displayed",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-9df14d44b69b500a92e4",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 396,
+              "column": 3
+            },
+            {
+              "title": "density toggle cycles through compact/normal/comfortable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-8eaf01ea229e61b104cd",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 423,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Token Management",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 461,
+          "column": 6,
+          "specs": [
+            {
+              "title": "edit existing token by clicking a token row",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-22f6d1e3f2b3dd77b6fd",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 474,
+              "column": 3
+            },
+            {
+              "title": "delete single token via dialog delete button",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-1b3752cf4f46bbddf236",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 494,
+              "column": 3
+            },
+            {
+              "title": "bulk token delete via Multibutton",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-196b70cd9f499d875628",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 516,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "GDPR Privacy Data",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 553,
+          "column": 6,
+          "specs": [
+            {
+              "title": "open and close privacy data modal",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-b0ce86a21267cf063f08",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 559,
+              "column": 3
+            },
+            {
+              "title": "active sessions section is present and refreshable",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-a7ec71166c30cc1d4aab",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 586,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Responsive Viewports",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 606,
+          "column": 6,
+          "specs": [
+            {
+              "title": "mobile viewport (375x812) renders key elements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-01f44ebb1da255884d3d",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 607,
+              "column": 3
+            },
+            {
+              "title": "tablet viewport (768x1024) renders admin area",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-932cda65c84bbdbbb7d8",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 637,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Accessibility",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 664,
+          "column": 6,
+          "specs": [
+            {
+              "title": "keyboard navigation: Tab through interactive elements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-be29175024ef5e30c725",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 670,
+              "column": 3
+            },
+            {
+              "title": "focus ring is visible on interactive elements",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-6a03f4f52f9f861a8deb",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 700,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Error States",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 733,
+          "column": 6,
+          "specs": [
+            {
+              "title": "submit edit form with empty username shows validation error",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-cca0d2294bad4215e21b",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 739,
+              "column": 3
+            },
+            {
+              "title": "attempt avatar upload with oversized file",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-b6e7ee4daf445be49d4e",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 772,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Page Completeness",
+          "file": "routes/user/complete-coverage.spec.ts",
+          "line": 834,
+          "column": 6,
+          "specs": [
+            {
+              "title": "all auth toggle checkboxes are present",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-2c6f004b2913308dd83c",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 840,
+              "column": 3
+            },
+            {
+              "title": "password field is disabled and masked on main page",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-35359607891815447000",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 850,
+              "column": 3
+            },
+            {
+              "title": "Edit User Settings button is accessible",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\complete-coverage.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "16e249232a28e3b30f70-e1e5fbe66ef37148d2b2",
+              "file": "routes/user/complete-coverage.spec.ts",
+              "line": 861,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "routes\\user\\coverage-100.spec.ts",
+      "file": "routes/user/coverage-100.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Identity display",
+          "file": "routes/user/coverage-100.spec.ts",
+          "line": 38,
+          "column": 6,
+          "specs": [
+            {
+              "title": "shows email, role badge, and user id on profile",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-1f19d82841db1e07ac3e",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 39,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "RTC preferences",
+          "file": "routes/user/coverage-100.spec.ts",
+          "line": 66,
+          "column": 6,
+          "specs": [
+            {
+              "title": "sound toggle persists after reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-0c1a5c19db50f865fa72",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 67,
+              "column": 3
+            },
+            {
+              "title": "real-time editing toggle sends rtc.enabled",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-e76af7293352183ddb55",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 96,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "GDPR privacy flows",
+          "file": "routes/user/coverage-100.spec.ts",
+          "line": 132,
+          "column": 6,
+          "specs": [
+            {
+              "title": "export downloads JSON payload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-7867534d7fdf332b16cb",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 133,
+              "column": 3
+            },
+            {
+              "title": "anonymize secondary user logs them out",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-64fd14b22bb4123780b3",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 174,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "2FA enroll with fixture",
+          "file": "routes/user/coverage-100.spec.ts",
+          "line": 225,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Setup opens modal with secret and completes enroll",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-0b0f04d44bd227302253",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 231,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Permissions list",
+          "file": "routes/user/coverage-100.spec.ts",
+          "line": 328,
+          "column": 6,
+          "specs": [
+            {
+              "title": "admin profile shows permissions badges when granted",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-94086db2ace861dcbb1d",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 329,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Admin table scale",
+          "file": "routes/user/coverage-100.spec.ts",
+          "line": 346,
+          "column": 6,
+          "specs": [
+            {
+              "title": "pagination works with 11+ users",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-e90f6c42f84725e1c5fd",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 347,
+              "column": 3
+            },
+            {
+              "title": "density select applies and persists an appearance preference",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-fafa981f6278e0467c99",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 403,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Sessions and multi-tenant column",
+          "file": "routes/user/coverage-100.spec.ts",
+          "line": 433,
+          "column": 6,
+          "specs": [
+            {
+              "title": "active sessions shows this device",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-cf880ca72cdd821efb6d",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 434,
+              "column": 3
+            },
+            {
+              "title": "tenant column hidden when multi-tenant is off",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\coverage-100.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a019d43a7e7cac0436cc-7f7d047410ad798a3ef2",
+              "file": "routes/user/coverage-100.spec.ts",
+              "line": 470,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "routes\\user\\p0-journeys.spec.ts",
+      "file": "routes/user/p0-journeys.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "P0 — Password change journey",
+          "file": "routes/user/p0-journeys.spec.ts",
+          "line": 49,
+          "column": 6,
+          "specs": [
+            {
+              "title": "editor verifies current password, sets new one, and re-logins",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 180000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\p0-journeys.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "9c7ef5de912eb53863f7-e4e71b8d8c772716cf66",
+              "file": "routes/user/p0-journeys.spec.ts",
+              "line": 71,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "P0 — Non-admin /user profile",
+          "file": "routes/user/p0-journeys.spec.ts",
+          "line": 99,
+          "column": 6,
+          "specs": [
+            {
+              "title": "editor cannot see AdminArea but can edit own profile",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\p0-journeys.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "9c7ef5de912eb53863f7-66a939d90729f3ea4077",
+              "file": "routes/user/p0-journeys.spec.ts",
+              "line": 102,
+              "column": 3
+            },
+            {
+              "title": "admin still sees AdminArea",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\p0-journeys.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "9c7ef5de912eb53863f7-bf584730bb9d3b46113d",
+              "file": "routes/user/p0-journeys.spec.ts",
+              "line": 132,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "P0 — Token management with seed",
+          "file": "routes/user/p0-journeys.spec.ts",
+          "line": 158,
+          "column": 6,
+          "specs": [
+            {
+              "title": "admin can open seeded token and delete it",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\p0-journeys.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "9c7ef5de912eb53863f7-4bd0e9950058aae54f14",
+              "file": "routes/user/p0-journeys.spec.ts",
+              "line": 161,
+              "column": 3
+            },
+            {
+              "title": "admin can open seeded token and save an edit",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 120000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\p0-journeys.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "9c7ef5de912eb53863f7-ea104ae2f75349a062af",
+              "file": "routes/user/p0-journeys.spec.ts",
+              "line": 217,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "P0 — Suite hygiene",
+          "file": "routes/user/p0-journeys.spec.ts",
+          "line": 267,
+          "column": 6,
+          "specs": [
+            {
+              "title": "admin credentials still valid",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [
+                    {
+                      "type": "serial",
+                      "location": {
+                        "file": "D:\\SveltyCMS\\tests\\e2e\\routes\\user\\p0-journeys.spec.ts",
+                        "line": 0,
+                        "column": 0
+                      }
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "9c7ef5de912eb53863f7-e3e64cd84f731efbedb5",
+              "file": "routes/user/p0-journeys.spec.ts",
+              "line": 268,
+              "column": 3
+            }
+          ]
+        }
+      ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-18T15:27:59.123Z",
-    "duration": 15109.180999999999,
-    "expected": 7,
-    "skipped": 0,
+    "startTime": "2026-10-18T19:21:37.455Z",
+    "duration": 725.232,
+    "expected": 0,
+    "skipped": 71,
     "unexpected": 0,
     "flaky": 0
   }

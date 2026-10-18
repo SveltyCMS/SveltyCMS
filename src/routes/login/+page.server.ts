@@ -447,7 +447,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     const { loadSsoProvidersFromSettings, getPublicSsoProviders } = await loadSsoSessionModule();
     await loadSsoProvidersFromSettings(locals.tenantId as string);
-    const ssoProviders = getPublicSsoProviders();
+    const ssoProviders = getPublicSsoProviders(locals.tenantId as string);
 
     return {
       ...errorDefaults,

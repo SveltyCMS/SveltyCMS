@@ -13,6 +13,7 @@
 
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import { safeFetch } from "@utils/egress-guard";
 
 export const WORDPRESS_FIXTURE_SLUG = "wp-articles";
 export const WORDPRESS_FIXTURE_CONNECTOR_ID = "udh-rest-fixture-conn";
@@ -74,10 +75,16 @@ export function getWordPressFixturePort(): number {
 export async function isWordPressRestFixtureReachable(): Promise<boolean> {
   if (!server) return false;
   try {
-    const res = await fetch(`${getWordPressFixtureBaseUrl()}/wp-json/wp/v2/posts?per_page=1`, {
-      signal: AbortSignal.timeout(2000),
+    // Loopback-only test fixture: the private-network allowance is explicit and
+    // still rejects metadata/link-local ranges, so this probe cannot be reused
+    // as a generic SSRF primitive.
+    const res = await safeFetch(`${getWordPressFixtureBaseUrl()}/wp-json/wp/v2/posts?per_page=1`, {
+      allowHttp: true,
+      allowPrivate: true,
+      timeoutMs: 2000,
+      maxSizeBytes: 64 * 1024,
     });
-    return res.ok;
+    return res.success;
   } catch {
     return false;
   }

@@ -249,8 +249,8 @@ export interface FieldInstance {
 
   /**
    * When true, the write pipeline stores an AES-256-GCM envelope
-   * (`v1:iv:tag:ciphertext`) and the read pipeline decrypts for authorized
-   * callers. Incompatible with `unique` / filter / sort — ciphertext is
+   * (`v2:<keyId>:iv:tag:ciphertext`; v1 stays readable) and the read pipeline decrypts
+   * for authorized callers. Incompatible with `unique` / filter / sort — ciphertext is
    * non-deterministic.
    */
   encrypt?: boolean;
@@ -391,6 +391,12 @@ export interface Schema {
    * matches nothing.
    */
   ownership?: { field: string };
+  /**
+   * Public form sink. When `true`, `POST /api/forms/:collection` accepts
+   * unauthenticated submissions for this collection. Defaults to `false` —
+   * every other collection (and every system table) rejects form posts.
+   */
+  formEnabled?: boolean;
   /** Unified Data Hub: virtual enrichment previews in entry editor sidebar */
   federationEnrichments?: FederationEnrichment[];
 }

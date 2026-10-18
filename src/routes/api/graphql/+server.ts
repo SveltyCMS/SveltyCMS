@@ -23,6 +23,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import type { RequestEvent } from "@sveltejs/kit";
+import { getDb, getDbInitPromise, isDbConnected } from "@src/databases/db";
 
 import { createYoga, createSchema } from "graphql-yoga";
 import { GraphQLError, NoSchemaIntrospectionCustomRule, type DocumentNode } from "graphql";
@@ -49,8 +50,8 @@ import {
   resolveAllCollections,
   createCleanTypeName,
 } from "./resolvers/collections";
-import { isDbConnected, getDbInitPromise, getDb } from "@src/databases/db";
-import { contentSystem, contentStore } from "@src/content/index.server";
+import { contentSystem } from "@src/content/index.server";
+import { contentStore } from "@stores/content-registry.svelte";
 import { ensureSchemaHotFlags } from "@src/services/sdk/namespaces/collections/schema-store";
 import { isAdmin } from "@src/databases/auth/constants";
 import { getAllowedFieldSet } from "@src/services/security/field-permission-service";

@@ -53,7 +53,13 @@ test.describe("Session inspection and revocation", () => {
     const sessionsRes = await page.request.get("/api/user/sessions");
     expect(sessionsRes.ok()).toBe(true);
     const sessionsData = await sessionsRes.json();
-    const sessionsList = Array.isArray(sessionsData?.sessions) ? sessionsData.sessions : [];
+    const sessionsList = Array.isArray(sessionsData?.sessions)
+      ? sessionsData.sessions
+      : Array.isArray(sessionsData?.data?.sessions)
+        ? sessionsData.data.sessions
+        : Array.isArray(sessionsData?.data)
+          ? sessionsData.data
+          : [];
     expect(sessionsList.length).toBeGreaterThan(0);
 
     const currentSession = sessionsList.find((s: Record<string, unknown>) => s.isCurrent === true);
@@ -64,7 +70,8 @@ test.describe("Session inspection and revocation", () => {
     const revokeRes = await page.request.delete(`/api/user/sessions/${sessionId}`);
     expect(revokeRes.ok()).toBe(true);
     const revokeBody = await revokeRes.json();
-    expect(revokeBody?.message).toContain("revoked");
+    const revokeMessage = revokeBody?.message || revokeBody?.data?.message || "";
+    expect(revokeMessage).toContain("revoked");
 
     // 6. Assert immediate invalidation: API access with the revoked session returns 401
     const verifyApi = await page.request.get("/api/user/me");

@@ -31,7 +31,7 @@
 	<Body>
 		<Container>
 			<Section>
-				<Heading>Withdrawal received</Heading>
+				<Heading as="h1">Withdrawal received</Heading>
 				<Text>
 					We received your withdrawal for order <strong>{orderNumber}</strong> at {withdrawalAt}.
 				</Text>

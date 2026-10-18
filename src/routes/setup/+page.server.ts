@@ -4,12 +4,7 @@
  * Note: Route protection is handled by the handleSetup middleware in hooks.server.ts
  */
 
-import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { promisify } from "node:util";
 import { version as pkgVersion } from "../../../package.json";
-import { logger } from "@utils/logger";
 import { redirect } from "@sveltejs/kit";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 import type { Actions, PageServerLoad } from "./$types";
@@ -21,42 +16,13 @@ function loadAuthConstantsModule(): Promise<typeof import("@src/databases/auth/c
   return (authConstantsModulePromise ??= import("@src/databases/auth/constants"));
 }
 
-// Delegate core setup logic to setup.remote.ts
-import {
-  testDatabaseConnection,
-  seedDatabase,
-  completeSetup,
-  testEmailConnection,
-  testRedisConnection,
-} from "./setup.server";
-
-// execFile — never exec: package names must never reach a shell.
-// The setup wizard runs pre-auth; a shell-interpolated command here would be
-// an RCE if the DRIVER_PACKAGES allowlist ever regressed.
-const execFileAsync = promisify(execFile);
-
-// Database driver mapping (MongoDB is default, others are optional)
-const DRIVER_PACKAGES = {
-  mongodb: "mongoose",
-  "mongodb+srv": "mongoose",
-  postgresql: "postgres",
-  mysql: "mysql2",
-  mariadb: "mysql2",
-  sqlite: "bun:sqlite",
-} as const;
-
-type DatabaseType = keyof typeof DRIVER_PACKAGES;
+import { testEmailConnection } from "./setup.server";
 
 export const load: PageServerLoad = async ({ locals, cookies }) => {
-  // DB-aware check: `config/private.ts` is written during the DB test/seed (and the
-  // store auto-seeds), i.e. BEFORE the admin account exists — so the file's mere
-  // presence is NOT a completed setup. Only redirect once an admin + roles exist;
-  // otherwise an abandoned half-setup would lock the user out of /setup entirely.
   if ((await getSetupState()) === SetupState.COMPLETE) {
     throw redirect(302, "/login");
   }
 
-  // Clear ALL existing auth session cookie variants to ensure fresh start
   const { clearAllSessionCookies } = await loadAuthConstantsModule();
   clearAllSessionCookies(cookies, "/");
 
@@ -73,117 +39,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
 };
 
 export const actions: Actions = {
-  // Setup actions delegate to setup.remote.ts
-  testDatabase: async ({ request }) => {
-    const fd = await request.formData();
-    const config = JSON.parse(fd.get("config") as string);
-    const createIfMissing = fd.get("createIfMissing") === "true";
-    const allowOverwrite = fd.get("allowOverwrite") === "true";
-    const ownsDatabase = fd.get("ownsDatabase") === "true";
-    return testDatabaseConnection(config, createIfMissing, allowOverwrite, ownsDatabase);
-  },
-  seedDatabase: async ({ request }) => {
-    const fd = await request.formData();
-    const config = JSON.parse(fd.get("config") as string);
-    const system = JSON.parse((fd.get("system") as string) || "{}");
-    return seedDatabase(config, system);
-  },
-  completeSetup: async ({ request, cookies, url }) => {
-    const fd = await request.formData();
-    const payload = JSON.parse(fd.get("data") as string);
-    const result = await completeSetup(
-      payload.database,
-      payload.admin,
-      payload.system || {},
-      payload.emailSettings || {},
-    );
-    if (result.sessionCookie) {
-      const { getSessionCookieName, isSecureCookieContext } = await loadAuthConstantsModule();
-      const isSecure = isSecureCookieContext(url.protocol, url.hostname);
-      const cookieName = getSessionCookieName(isSecure);
-      cookies.set(cookieName, result.sessionCookie.value, {
-        ...result.sessionCookie.attributes,
-        secure: isSecure,
-        sameSite: isSecure ? "strict" : "lax",
-      } as any);
-    }
-    return result;
-  },
   testEmail: async ({ request }) => {
     const fd = await request.formData();
     const config = JSON.parse(fd.get("config") as string);
     return testEmailConnection(config);
-  },
-  testRedis: async ({ request }) => {
-    const fd = await request.formData();
-    const host = (fd.get("host") as string) || "localhost";
-    const port = parseInt((fd.get("port") as string) || "6379", 10);
-    const password = fd.get("security") as string;
-    return testRedisConnection(host, port, password);
-  },
-
-  /**
-   * Installs database drivers (optional)
-   */
-  installDriver: async ({ request }) => {
-    logger.info("🚀 Action: installDriver called");
-    const formData = await request.formData();
-    const dbType = formData.get("dbType") as DatabaseType;
-
-    if (!(dbType && DRIVER_PACKAGES[dbType]) || dbType === "sqlite") {
-      return {
-        success: true,
-        message: "No driver installation needed (or invalid type).",
-      };
-    }
-
-    const packageName = DRIVER_PACKAGES[dbType];
-
-    try {
-      // Check if already installed
-      try {
-        await import(/* @vite-ignore */ packageName);
-        return {
-          success: true,
-          message: `Driver ${packageName} is already installed.`,
-          alreadyInstalled: true,
-          package: packageName,
-        };
-      } catch {
-        // Install needed
-      }
-
-      // Detect package manager
-      const cwd = process.cwd();
-      let pm = "npm";
-      if (existsSync(join(cwd, "bun.lock"))) {
-        pm = "bun";
-      } else if (existsSync(join(cwd, "yarn.lock"))) {
-        pm = "yarn";
-      } else if (existsSync(join(cwd, "pnpm-lock.yaml"))) {
-        pm = "pnpm";
-      }
-
-      logger.info(`Installing ${packageName} using ${pm}...`);
-      // Args array — no shell involved, packageName can never inject commands.
-      const args = pm === "npm" ? ["install", packageName] : ["add", packageName];
-      const { stdout, stderr } = await execFileAsync(pm, args, {
-        cwd,
-        timeout: 120_000,
-      });
-      logger.info("Installation output:", stdout + stderr);
-
-      return {
-        success: true,
-        message: `Successfully installed ${packageName}.`,
-        package: packageName,
-      };
-    } catch (error: any) {
-      logger.error("Driver installation failed:", error);
-      return {
-        success: false,
-        error: `Installation failed: ${error.message}`,
-      };
-    }
   },
 };

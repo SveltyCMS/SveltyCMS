@@ -14,6 +14,8 @@
 import { FederationError } from "../../types";
 import type { ConnectorRecord, FederatedRow } from "../../types";
 import { generateUUID } from "@utils/native-utils";
+import { rethrow } from "@utils/error-handling";
+import { safeFetch, validateEgressUrl } from "@utils/egress-guard";
 import {
   assertConnectorCircuitClosed,
   recordConnectorFailure,
@@ -34,7 +36,10 @@ import { buildRestUrl } from "../ssrf";
 import { BaseConnector, type ConnectorReadContext, type ConnectorWriteContext } from "./base";
 
 const FETCH_TIMEOUT_MS = 15_000;
+const HEALTH_TIMEOUT_MS = 5_000;
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+/** HEAD responses carry no payload; keep the read buffer tiny. */
+const MAX_HEALTH_RESPONSE_BYTES = 64 * 1024;
 
 export class RestOpenApiConnector extends BaseConnector {
   readonly type = "rest" as const;
@@ -90,32 +95,30 @@ export class RestOpenApiConnector extends BaseConnector {
       headers.Authorization = `Bearer ${apiKey}`;
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
     try {
-      const response = await fetch(url.toString(), {
+      // 🛡️ SSRF: connector baseUrl/allowedHosts are admin input and the host may
+      // resolve to a private address — validate DNS before handing it to fetch.
+      const targetUrl = url.toString();
+      await validateEgressUrl(targetUrl, { allowHttp: true });
+      const response = await safeFetch(targetUrl, {
+        allowHttp: true,
         method: "GET",
         headers,
-        signal: controller.signal,
+        timeoutMs: FETCH_TIMEOUT_MS,
+        maxSizeBytes: MAX_RESPONSE_BYTES,
       });
 
-      if (!response.ok) {
+      if (!response.success) {
         recordConnectorFailure(connectorId);
         throw new FederationError(
           "CONNECTOR_QUERY_FAILED",
-          `REST connector returned HTTP ${response.status}`,
+          response.error ?? `REST connector returned HTTP ${response.status ?? "unknown"}`,
           502,
         );
       }
 
-      const contentLength = Number(response.headers.get("content-length") || 0);
-      if (contentLength > MAX_RESPONSE_BYTES) {
-        recordConnectorFailure(connectorId);
-        throw new FederationError("CONNECTOR_QUERY_FAILED", "Response too large", 502);
-      }
-
-      const body = await response.json();
+      // Empty/non-JSON payloads stay a connector failure (same as `response.json()`).
+      const body = JSON.parse(response.body ?? "") as unknown;
       let items = extractItems(body);
       if (request.filter) {
         items = applyInFilters(items, request.filter);
@@ -137,6 +140,7 @@ export class RestOpenApiConnector extends BaseConnector {
       recordConnectorSuccess(connectorId);
       return { rows, total: items.length };
     } catch (err) {
+      rethrow(err);
       if (!(err instanceof FederationError)) {
         recordConnectorFailure(connectorId);
       } else if (err.code === "CONNECTOR_QUERY_FAILED") {
@@ -150,8 +154,6 @@ export class RestOpenApiConnector extends BaseConnector {
         err instanceof Error ? err.message : String(err),
         502,
       );
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -247,17 +249,27 @@ export class RestOpenApiConnector extends BaseConnector {
 
     try {
       const url = buildRestUrl(baseUrl, "/", allowedHosts);
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch(url.toString(), { method: "HEAD", signal: controller.signal });
-      clearTimeout(timer);
-      if (res.ok) {
+      const targetUrl = url.toString();
+      // 🛡️ SSRF: same admin-input boundary as the read path.
+      await validateEgressUrl(targetUrl, { allowHttp: true });
+      const res = await safeFetch(targetUrl, {
+        allowHttp: true,
+        method: "HEAD",
+        timeoutMs: HEALTH_TIMEOUT_MS,
+        maxSizeBytes: MAX_HEALTH_RESPONSE_BYTES,
+      });
+      if (res.success) {
         recordConnectorSuccess(connectorId);
         return { health: "ok" as const };
       }
       recordConnectorFailure(connectorId);
-      return { health: "degraded" as const, message: `HTTP ${res.status}` };
+      // A response was received (degraded); no response means unreachable (down).
+      if (res.status !== undefined) {
+        return { health: "degraded" as const, message: `HTTP ${res.status}` };
+      }
+      return { health: "down" as const, message: res.error ?? "Connection failed" };
     } catch (err) {
+      rethrow(err);
       recordConnectorFailure(connectorId);
       return {
         health: "down" as const,

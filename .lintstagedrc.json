@@ -2,11 +2,11 @@
   "src/**/*.{ts,js}": [
     "bun x oxfmt",
     "bun x oxlint --deny-warnings",
-    "bun run scripts/slop-scanner.ts --strict --files"
+    "bun run scripts/security/slop-scanner.ts --strict --files"
   ],
   "src/**/*.svelte": [
     "bun x oxlint --deny-warnings",
-    "bun run scripts/slop-scanner.ts --strict --files"
+    "bun run scripts/security/slop-scanner.ts --strict --files"
   ],
   "scripts/**/*.ts": ["bun x oxfmt"],
   "docs/**/*.{md,mdx}": ["bun run tests/lint-docs.ts"],

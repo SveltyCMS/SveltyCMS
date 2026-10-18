@@ -58,7 +58,7 @@ export async function checkServer(): Promise<boolean> {
 }
 
 // Waits for the server to become healthy with a timeout.
-// Server must be pre-started via scripts/start-integration-server.ts or
+// Server must be pre-started via scripts/runs/start-integration-server.ts or
 // bun run test:integration (which handles this automatically).
 // On Windows, bun test cannot spawn child processes, so the server
 // MUST be running before bun test starts.
@@ -459,8 +459,8 @@ export async function prepareAuthenticatedContext(
             ? "\n\n💡 /api/testing is missing from this preview build (deploy-stripped).\n" +
               "   Docker containers alone are not enough — rebuild the harness:\n" +
               "   COMPILE_ALL_ADAPTERS=true bun run build\n" +
-              "   # or: bun run scripts/run-integration.ts  (auto-builds)\n" +
-              "   # or: bun run scripts/run-integration.ts --no-build  (auto-rebuilds if stripped)"
+              "   # or: bun run scripts/runs/run-integration.ts  (auto-builds)\n" +
+              "   # or: bun run scripts/runs/run-integration.ts --no-build  (auto-rebuilds if stripped)"
             : "";
           throw new Error(`Seed failed: ${error}${hint}`);
         }

@@ -12,18 +12,27 @@
  * - Generate and verify backup codes
  * - Validate TOTP secret format
  * - AES-256-GCM at rest: hex/base64 keys as-is, passphrase via HKDF-SHA-256 (SHA-256 dual-read)
+ * - AAD binds the TOTP ciphertext to a domain and, when supplied, the user ID
+ * - Fail-closed writes: no encryption key means no secret is persisted
+ * - Legacy plaintext secrets are rejected (force re-enrollment), never returned
  *
  * Note: This implementation avoids external dependencies to keep the bundle size minimal.
  */
 
+import { raise } from "@utils/error-handling";
+import { logger } from "@utils/logger";
 import {
   AES256_HKDF_INFO,
   aesGcmDecryptWithKeys,
   hmacSha256VerifyWithKeys,
-  resolveStaticAesKey,
-  staticAesKeyRing,
-  type ResolvedStaticAesKey,
 } from "@utils/security/crypto";
+import {
+  encodeBinaryEnvelope,
+  keysForEnvelope,
+  parseBinaryEnvelope,
+  resolveKeyRing,
+  type ResolvedKeyRing,
+} from "@utils/security/envelope";
 
 /** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
 let settingsServiceModulePromise:
@@ -68,13 +77,34 @@ function getTotpWindow(): number {
 
 // ─── AES-256-GCM TOTP Secret Encryption ─────────────────────────────────────
 // Uses the same ENCRYPTION_KEY from config/private.ts for TOTP secret at-rest
-// encryption. Falls back gracefully if no encryption key is configured.
+// encryption. Writes fail closed when no key is configured — a TOTP secret is
+// a 2FA bypass token and must never be stored in plaintext.
 
-const TOTP_ENVELOPE_VERSION = 1;
 const TOTP_AES_ALGORITHM = "aes-256-gcm";
 const TOTP_IV_LENGTH = 16; // 128-bit nonce for GCM
 const TOTP_AUTH_TAG_LENGTH = 16; // 128 bits
-let _totpKeys: ResolvedStaticAesKey | null | undefined;
+/** Domain separator for the TOTP AEAD envelope. */
+const TOTP_AAD_PREFIX = "sveltycms:totp-secret:v1";
+let _totpKeys: ResolvedKeyRing | null | undefined;
+
+/**
+ * AAD for a TOTP envelope. Every write carries the domain prefix; when the
+ * user is known the secret is additionally bound to that user, so copying the
+ * ciphertext into another user's record fails authentication.
+ */
+function buildTotpAad(userId?: string): Buffer {
+  return Buffer.from(userId ? `${TOTP_AAD_PREFIX}:${userId}` : TOTP_AAD_PREFIX, "utf8");
+}
+
+/** True when `value` decodes to a v1/v2 binary envelope (not base32 plaintext). */
+function decodeTotpEnvelope(value: string): Buffer | null {
+  if (value.length < 4 || value.length % 4 !== 0) return null;
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) return null;
+
+  const decoded = Buffer.from(value, "base64");
+  if (decoded.length < 2 || (decoded[0] !== 1 && decoded[0] !== 2)) return null;
+  return parseBinaryEnvelope(decoded, TOTP_IV_LENGTH, TOTP_AUTH_TAG_LENGTH) ? decoded : null;
+}
 
 /**
  * Test-only: drop the memoized TOTP key ring so the next call re-reads env.
@@ -84,18 +114,28 @@ export function resetTotpEncryptionKeyCache(): void {
 }
 
 /** Load the TOTP encryption key ring from ENCRYPTION_KEY or SECRET_ENCRYPTION_KEY. */
-async function getTotpKeys(): Promise<ResolvedStaticAesKey | null> {
+async function getTotpKeys(): Promise<ResolvedKeyRing | null> {
   if (_totpKeys !== undefined) return _totpKeys;
   _totpKeys = null;
 
   try {
-    const raw =
-      (typeof process !== "undefined" ? process.env.ENCRYPTION_KEY : undefined) ||
-      (typeof process !== "undefined" ? process.env.SECRET_ENCRYPTION_KEY : undefined);
+    const usesEncryptionKey = Boolean(typeof process !== "undefined" && process.env.ENCRYPTION_KEY);
+    const raw = usesEncryptionKey
+      ? process.env.ENCRYPTION_KEY
+      : typeof process !== "undefined"
+        ? process.env.SECRET_ENCRYPTION_KEY
+        : undefined;
     if (!raw || raw.length < 32) return null;
 
     const cryptoModule = await getCrypto();
-    _totpKeys = resolveStaticAesKey(cryptoModule, raw, AES256_HKDF_INFO.totpSecret);
+    _totpKeys = resolveKeyRing(cryptoModule, raw, AES256_HKDF_INFO.totpSecret, {
+      keyId: usesEncryptionKey
+        ? process.env.ENCRYPTION_KEY_ID
+        : process.env.SECRET_ENCRYPTION_KEY_ID,
+      ringJson: usesEncryptionKey
+        ? process.env.ENCRYPTION_KEY_RING
+        : process.env.SECRET_ENCRYPTION_KEY_RING,
+    });
     return _totpKeys;
   } catch {
     return null;
@@ -105,40 +145,58 @@ async function getTotpKeys(): Promise<ResolvedStaticAesKey | null> {
 /**
  * Encrypt a TOTP secret for storage in the database.
  *
- * Envelope format (base64): version_byte || iv || authTag || ciphertext
- * Returns the encrypted envelope string, or the raw secret if encryption is unavailable.
+ * Envelope format (v2, base64): [2][keyIdLen][keyId][iv][authTag][ciphertext]
+ * v1 (no key ID) stays readable. Writes are AEAD-bound to the TOTP domain and,
+ * when `userId` is supplied, to that user.
+ *
+ * @throws AppError `TOTP_KEY_MISSING` (500) when no encryption key is configured.
  */
-export async function encryptTotpSecret(secret: string): Promise<string> {
+export async function encryptTotpSecret(secret: string, userId?: string): Promise<string> {
   const keys = await getTotpKeys();
-  if (!keys) return secret; // No encryption key — store as plaintext (graceful degradation)
+  if (!keys) {
+    raise(500, "TOTP encryption key unavailable", "TOTP_KEY_MISSING");
+  }
 
   const cryptoModule = await getCrypto();
   const iv = cryptoModule.randomBytes(TOTP_IV_LENGTH);
-  const cipher = cryptoModule.createCipheriv(TOTP_AES_ALGORITHM, keys.primary, iv);
+  const cipher = cryptoModule.createCipheriv(
+    TOTP_AES_ALGORITHM,
+    keys.primary,
+    iv,
+  ) as import("node:crypto").CipherGCM;
+  cipher.setAAD(buildTotpAad(userId));
 
   const encrypted = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  const version = Buffer.from([TOTP_ENVELOPE_VERSION]);
-  const envelope = Buffer.concat([version, iv, authTag, encrypted]);
-  return envelope.toString("base64");
+  return encodeBinaryEnvelope(iv, authTag, encrypted, keys.primaryId).toString("base64");
 }
 
 /**
  * Decrypt a TOTP secret from storage.
  *
- * Detects the envelope format (version byte). If the value is a plain base32
- * string (legacy, unencrypted), returns it as-is for backward compatibility.
+ * Accepts the AAD-bound envelope written by `encryptTotpSecret` (user-bound
+ * when `userId` matches) and legacy encrypted envelopes written before AAD was
+ * introduced. Legacy plaintext base32 values are logged and rejected — the
+ * caller must force re-enrollment rather than silently trusting an unsealed
+ * secret.
  *
  * @param stored - The value from the user.totpSecret field
+ * @param userId - The owning user ID (enables AAD binding checks)
  * @returns The decrypted base32 secret, or null on failure
  */
-export async function decryptTotpSecret(stored: string): Promise<string | null> {
+export async function decryptTotpSecret(stored: string, userId?: string): Promise<string | null> {
   if (!stored) return null;
 
-  // Backward compatibility: if it looks like a base32 TOTP secret and NOT an envelope, it's legacy plaintext
-  if (!stored.startsWith("AQ") && isValidTOTPSecret(stored)) {
-    return stored;
+  const combined = decodeTotpEnvelope(stored);
+  if (!combined) {
+    if (isValidTOTPSecret(stored)) {
+      logger.warn(
+        "[TOTP] Rejected a legacy plaintext TOTP secret — encryption at rest is required; re-enrollment needed",
+        { userId },
+      );
+    }
+    return null;
   }
 
   const keys = await getTotpKeys();
@@ -146,27 +204,46 @@ export async function decryptTotpSecret(stored: string): Promise<string | null> 
 
   try {
     const cryptoModule = await getCrypto();
-    const combined = Buffer.from(stored, "base64");
+    const parsed = parseBinaryEnvelope(combined, TOTP_IV_LENGTH, TOTP_AUTH_TAG_LENGTH);
+    if (!parsed) return null;
 
-    let offset = 0;
-    const version = combined[0];
-    if (version !== TOTP_ENVELOPE_VERSION) return null;
-    offset = 1;
+    const selection = keysForEnvelope(keys, parsed);
+    if (selection.unknownKeyId) return null;
 
-    const iv = combined.subarray(offset, (offset += TOTP_IV_LENGTH));
-    const authTag = combined.subarray(offset, (offset += TOTP_AUTH_TAG_LENGTH));
-    const ciphertext = combined.subarray(offset);
+    // Current envelopes: domain AAD, plus the user ID when the caller knows it.
+    const aadCandidates: Buffer[] = userId
+      ? [buildTotpAad(userId), buildTotpAad()]
+      : [buildTotpAad()];
+    for (const aad of aadCandidates) {
+      const decrypted = aesGcmDecryptWithKeys(cryptoModule, {
+        keys: selection.keys,
+        iv: parsed.iv,
+        authTag: parsed.tag,
+        ciphertext: parsed.ciphertext,
+        aad,
+        algorithm: TOTP_AES_ALGORITHM,
+      });
+      if (decrypted) return decrypted.toString("utf8");
+    }
 
-    const decrypted = aesGcmDecryptWithKeys(cryptoModule, {
-      keys: staticAesKeyRing(keys),
-      iv,
-      authTag,
-      ciphertext,
+    // Legacy compatibility: envelopes written before AAD was introduced.
+    const legacyDecrypted = aesGcmDecryptWithKeys(cryptoModule, {
+      keys: selection.keys,
+      iv: parsed.iv,
+      authTag: parsed.tag,
+      ciphertext: parsed.ciphertext,
       algorithm: TOTP_AES_ALGORITHM,
     });
-    return decrypted ? decrypted.toString("utf8") : null;
+    if (legacyDecrypted) {
+      logger.warn(
+        "[TOTP] Decrypted a legacy non-AAD TOTP envelope — it will be re-sealed on the next write",
+        { userId },
+      );
+      return legacyDecrypted.toString("utf8");
+    }
+    return null;
   } catch {
-    // Fail-closed for tampered envelopes: if input has envelope version byte or minimum envelope length, return null
+    // Fail-closed for tampered envelopes.
     return null;
   }
 }
@@ -236,7 +313,7 @@ export async function verifyTrustedDeviceToken(
     const cryptoModule = await getCrypto();
     if (
       hmacSha256VerifyWithKeys(cryptoModule, {
-        keys: staticAesKeyRing(keys),
+        keys: [...keys.entries.map((entry) => entry.key), ...keys.legacy],
         payload,
         signatureB64url: signature,
       })

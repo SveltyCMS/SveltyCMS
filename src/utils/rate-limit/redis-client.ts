@@ -13,8 +13,22 @@
  * - Kein PII: Keys enthalten nur gehashte Kennungen.
  */
 
-import { createClient, type RedisClientType } from "redis";
+import type { RedisClientType } from "redis";
 import { logger } from "@utils/logger";
+
+/**
+ * Memoized dynamic import for node-redis. The connection manager is only
+ * constructed when Redis is enabled; keeping the package out of module scope
+ * avoids loading it on every process that never uses the Redis store.
+ */
+let redisModulePromise: Promise<typeof import("redis")> | undefined;
+function loadRedis(): Promise<typeof import("redis")> {
+  return (redisModulePromise ??= import("redis").catch((err) => {
+    // Do not cache a failed module load — the next connect() can retry the import.
+    redisModulePromise = undefined;
+    throw err;
+  }));
+}
 
 /** Lua-Script: atomarer Token-Bucket (single key, cluster-slot-sicher). */
 const TOKEN_BUCKET_LUA = `
@@ -135,6 +149,7 @@ export class RedisRateLimitStore {
     const connectTimeout = this.options.connectTimeoutMs ?? 1000;
 
     try {
+      const { createClient } = await loadRedis();
       const client = createClient({
         url,
         socket: {

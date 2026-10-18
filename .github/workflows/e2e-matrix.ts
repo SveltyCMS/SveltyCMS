@@ -44,8 +44,12 @@ const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
     grep: "(routes/collection-builder/|content-smoke|empty-state|structure-persistence|federation)",
   },
   {
-    name: "Users & RBAC",
-    grep: "(routes/user/|routes/system/permissions|routes/system/rbac|routes/system/permission-enforcement|rbac|account-smoke|coverage-100|p0-journeys|complete-coverage)",
+    name: "Users & Profile",
+    grep: "(routes[\\\\/]user[\\\\/](account-smoke|profile|session-revocation|token-actions|management)|account-smoke|session-revocation|token-actions)",
+  },
+  {
+    name: "RBAC & Journeys",
+    grep: "(routes[\\\\/]system[\\\\/](permissions|rbac|permission-enforcement)|routes[\\\\/]user[\\\\/](coverage-100|p0-journeys|complete-coverage)|rbac|coverage-100|p0-journeys|complete-coverage)",
   },
   {
     name: "Media & Dashboard",

@@ -22,7 +22,7 @@
  * - row count / ordering match a sequential control run
  *
  * ### Run
- *   bun run scripts/run-integration.ts --no-build tests/integration/databases/group-commit-correctness.test.ts
+ *   bun run scripts/runs/run-integration.ts --no-build tests/integration/databases/group-commit-correctness.test.ts
  */
 
 import { describe, it, expect } from "vitest";

@@ -96,7 +96,6 @@
 					icon="mdi:key-chain"
 					iconColor="white"
 					textColor="white"
-					passwordIconColor="white"
 					inputClass="text-white"
 					autocomplete="off"
 					minlength={16}

@@ -19,10 +19,23 @@
 import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { Renderer, toPlainText } from "@better-svelte-email/server";
-import nodemailer from "nodemailer";
 import type { TransportOptions, Transporter } from "nodemailer";
 import type { ComponentType } from "svelte";
 import type { IDBAdapter } from "@src/databases/db-interface";
+
+/**
+ * Memoized dynamic import for nodemailer. SMTP is a cold path (transactional
+ * mail only); loading the transport package lazily keeps it out of the boot
+ * work of every route module that also imports the render helpers.
+ */
+let nodemailerPromise: Promise<typeof import("nodemailer")> | undefined;
+function loadNodemailer(): Promise<typeof import("nodemailer")> {
+  return (nodemailerPromise ??= import("nodemailer").catch((err) => {
+    // Do not cache a failed module load — a later send may succeed after a repair.
+    nodemailerPromise = undefined;
+    throw err;
+  }));
+}
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -207,6 +220,7 @@ export async function sendMail({
   const configHash = `${smtpHost}:${smtpPort}:${smtpUser}:${smtpPass}`;
 
   if (!cachedTransporter || currentConfigHash !== configHash) {
+    const { default: nodemailer } = await loadNodemailer();
     cachedTransporter = nodemailer.createTransport({
       host: smtpHost,
       port: Number(smtpPort),

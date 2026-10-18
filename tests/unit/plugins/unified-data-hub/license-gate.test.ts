@@ -3,7 +3,7 @@
  * @description License gate integration for virtual federation reads.
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { DatabaseId } from "@databases/db-interface";
 import { executeVirtualRead } from "@plugins/unified-data-hub/server/virtual-query-engine";
 import {
@@ -23,6 +23,19 @@ vi.mock("@src/plugins/registry", () => ({
     getPluginState: async () => ({ enabled: true }),
   },
 }));
+
+vi.mock("@utils/egress-guard", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/egress-guard")>();
+  return {
+    ...actual,
+    validateEgressUrl: vi.fn(async (url: string) => new URL(url)),
+    safeFetch: vi.fn(async () => ({
+      success: true,
+      status: 200,
+      body: JSON.stringify([{ id: 1, title: "t", slug: "s", status: "publish" }]),
+    })),
+  };
+});
 
 const TENANT = "default";
 const CONNECTOR_ID = "conn-1" as DatabaseId;
@@ -80,19 +93,8 @@ function createMockDb() {
 }
 
 describe("Unified Data Hub license gate", () => {
-  const originalFetch = globalThis.fetch;
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-  });
-
   beforeEach(() => {
     licenseMock.mockReset();
-    globalThis.fetch = vi.fn(async () => ({
-      ok: true,
-      headers: { get: () => "100" },
-      json: async () => [{ id: 1, title: "t", slug: "s", status: "publish" }],
-    })) as unknown as typeof fetch;
   });
 
   it("allows read when trial is active", async () => {

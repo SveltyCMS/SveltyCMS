@@ -11,7 +11,7 @@ import {
   scanGlobalRisk,
   scanSvelteKitRisk,
   scanAstRisk,
-} from "../../../scripts/scan-security-risk";
+} from "../../../scripts/security/scan-security-risk";
 
 describe("scanDbRisk — SQL value interpolation (SQLi class)", () => {
   it("flags interpolated values inside quoted SQL strings", () => {

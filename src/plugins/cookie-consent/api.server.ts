@@ -9,6 +9,8 @@
  */
 
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
+import { nowISODateString } from "@utils/date";
+import { getErrorMessage } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 
 interface ConsentPayload {
@@ -59,7 +61,7 @@ export async function handleConsentLog(
       userAgent: payload.userAgent || "unknown",
       origin: payload.origin || "unknown",
       tenantId: tenantId as DatabaseId,
-      createdAt: new Date().toISOString(),
+      createdAt: nowISODateString(),
     } as Record<string, unknown>);
 
     logger.info("[CookieConsent] Consent decision logged", {
@@ -68,11 +70,12 @@ export async function handleConsentLog(
     });
 
     return { success: true, message: "Consent logged successfully" };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = getErrorMessage(err);
     logger.error("[CookieConsent] Failed to log consent", {
-      error: err,
+      error: message,
       tenantId,
     });
-    return { success: false, message: err.message };
+    return { success: false, message };
   }
 }

@@ -21,6 +21,10 @@ export const CREDENTIAL_AUTH_CACHE_TTL_S = 60;
 export interface CredentialAuthCacheEntry {
   user: Record<string, unknown>;
   tenantId: string;
+  /** Credential expiry, re-checked on every cache hit. */
+  expiresAt?: string | null;
+  /** Revocation flag, re-checked on every cache hit. */
+  revoked?: boolean;
 }
 
 export function websiteTokenCacheKey(tokenHash: string): string {

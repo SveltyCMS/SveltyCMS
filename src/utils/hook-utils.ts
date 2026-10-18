@@ -183,7 +183,7 @@ export interface RequestFlags {
 }
 
 export function classifyRequest(pathname: string, locals: App.Locals): RequestFlags {
-  const existing = (locals as any).__flags as RequestFlags | undefined;
+  const existing = locals.__flags;
   if (existing) return existing;
 
   const isStatic = isStaticOrInternalRequest(pathname);
@@ -209,12 +209,12 @@ export function classifyRequest(pathname: string, locals: App.Locals): RequestFl
     isTestMode: IS_TEST_MODE,
   };
 
-  (locals as any).__flags = flags;
+  locals.__flags = flags;
   return flags;
 }
 
 export function getRequestFlags(locals: App.Locals): RequestFlags {
-  const existing = (locals as any).__flags as RequestFlags | undefined;
+  const existing = locals.__flags;
   if (existing) return existing;
 
   return {

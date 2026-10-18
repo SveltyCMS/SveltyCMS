@@ -32,7 +32,7 @@
 	<Body>
 		<Container>
 			<Section>
-				<Heading>Low stock</Heading>
+				<Heading as="h1">Low stock</Heading>
 				<Text>{title} ({sku}) is at {qty} (threshold {threshold}).</Text>
 			</Section>
 		</Container>

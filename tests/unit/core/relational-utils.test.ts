@@ -298,25 +298,36 @@ describe("relational-utils — tenant filter centralization", () => {
     expect(res).not.toBe(q);
   });
 
-  it("buildRawTenantFilter produces correct fragments (or empty) for the raw SQL atomic paths", () => {
-    expect(utils.buildRawTenantFilter({ tenantId: "t-1" as any }, "sqlite")).toBe(
-      ` AND "tenantId" = 't-1'`,
-    );
-    expect(utils.buildRawTenantFilter({ tenantId: "t-2" as any }, "postgres")).toBe(
-      ` AND "tenantId" = 't-2'`,
-    );
-    expect(utils.buildRawTenantFilter({ tenantId: "t-3" as any }, "mysql")).toBe(
-      ` AND \`tenantId\` = 't-3'`,
-    );
+  it("buildRawTenantClause produces correct unparameterized fragments (or empty) for raw SQL atomic paths", () => {
+    expect(
+      utils.buildRawTenantClause({ tenantId: "t-1" as any }, "sqlite", { parameterized: false })
+        .sql,
+    ).toBe(` AND "tenantId" = 't-1'`);
+    expect(
+      utils.buildRawTenantClause({ tenantId: "t-2" as any }, "postgres", { parameterized: false })
+        .sql,
+    ).toBe(` AND "tenantId" = 't-2'`);
+    expect(
+      utils.buildRawTenantClause({ tenantId: "t-3" as any }, "mysql", { parameterized: false }).sql,
+    ).toBe(` AND \`tenantId\` = 't-3'`);
 
     expect(
-      utils.buildRawTenantFilter({
-        ...withSystemScope("testing"),
-        tenantId: "x" as any,
-      }),
+      utils.buildRawTenantClause(
+        {
+          ...withSystemScope("testing"),
+          tenantId: "x" as any,
+        },
+        "sqlite",
+        { parameterized: false },
+      ).sql,
     ).toBe("");
-    expect(utils.buildRawTenantFilter({ tenantId: "global" as any })).toBe("");
-    expect(utils.buildRawTenantFilter({ tenantId: undefined })).toBe("");
+    expect(
+      utils.buildRawTenantClause({ tenantId: "global" as any }, "sqlite", { parameterized: false })
+        .sql,
+    ).toBe("");
+    expect(
+      utils.buildRawTenantClause({ tenantId: undefined }, "sqlite", { parameterized: false }).sql,
+    ).toBe("");
   });
 
   it("returns the shared empty tenant clause unchanged (same reference) when no scope applies", () => {

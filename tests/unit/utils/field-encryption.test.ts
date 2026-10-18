@@ -28,10 +28,10 @@ describe("field-level AES-256-GCM encryption", () => {
     resetFieldEncryptionKeyCache();
   });
 
-  it("round-trips a string through a v1:iv:tag:ciphertext envelope", async () => {
+  it("round-trips a string through a v2 key-ID envelope", async () => {
     const envelope = await encryptFieldValue("ssn-123", CTX, "ssn");
     expect(isFieldEncryptionEnvelope(envelope)).toBe(true);
-    expect(envelope.startsWith("v1:")).toBe(true);
+    expect(/^v2:[A-Za-z0-9._-]{1,64}:/.test(envelope)).toBe(true);
     expect(envelope).not.toContain("ssn-123");
     expect(await decryptFieldValue(envelope, CTX, "ssn")).toBe("ssn-123");
   });

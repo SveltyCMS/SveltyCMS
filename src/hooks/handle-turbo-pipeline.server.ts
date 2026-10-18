@@ -24,8 +24,9 @@ import {
 } from "@utils/server/setup-check";
 import { getOverallState, getSystemState, isSystemReady } from "@src/stores/system/state.svelte.ts";
 import { generateUUID } from "@utils/native-utils";
-import { isRedirect, isHttpError } from "@sveltejs/kit";
+import { isRedirect, isHttpError, type RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
+import type { DatabaseAdapter } from "@src/databases/db-interface";
 import { readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import {
   isApiLike,
@@ -65,14 +66,14 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
 }
 // Hook is initialized lazily
-let cachedDbAdapter: any = null;
+let cachedDbAdapter: DatabaseAdapter | null = null;
 let healthHeaders: Record<string, string> | null = null;
 
 // 🚀 DEDUP: a single shared init promise prevents concurrent requests from
 // racing `if (!cachedDbAdapter) { await import(...) }` and importing the DB
 // module N times during the same tick (cold-start thundering herd).
-let dbAdapterInitPromise: Promise<any> | null = null;
-async function ensureCachedDbAdapter(): Promise<any> {
+let dbAdapterInitPromise: Promise<DatabaseAdapter | null> | null = null;
+async function ensureCachedDbAdapter(): Promise<DatabaseAdapter | null> {
   // 🐛 FRESHNESS: never reuse a dead adapter — after graceful shutdown, HMR
   // reloads, or failover/reconnection the cached instance holds a defunct
   // connection; health checks would report "healthy" while every query throws.
@@ -115,7 +116,7 @@ const generateRequestId = () => {
 };
 
 /** Logs request performance — ONLY in development mode to avoid string interpolation overhead in production */
-const logRequest = (event: any, duration: number, status: number) => {
+const logRequest = (event: RequestEvent, duration: number, status: number) => {
   if (!dev) return; // No-op in production; avoids string interpolation entirely
   const method = event.request.method;
   const path = event.url.pathname;
@@ -126,7 +127,7 @@ const logRequest = (event: any, duration: number, status: number) => {
 /**
  * Builds a health-check response (de-duplicated from test bypass and regular paths).
  */
-function buildHealthResponse(db: any, searchParams: URLSearchParams): Response {
+function buildHealthResponse(db: DatabaseAdapter | null, searchParams: URLSearchParams): Response {
   if (!healthHeaders) {
     healthHeaders = {
       "Content-Type": "application/json",
@@ -275,7 +276,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
 
   // 🚀 ONE-SHOT CLASSIFICATION: Computes isStatic/isApi/isBootstrap/isPublic once.
   // All downstream hooks read from locals.__flags via getRequestFlags().
-  const flags = classifyRequest(pathname, event.locals as any);
+  const flags = classifyRequest(pathname, event.locals);
 
   // ── 0. STATIC ASSET DELEGATION (before test bypass) ─────────────────────
   // Playwright attaches x-test-secret to every request; test bypass must not
@@ -363,6 +364,7 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
           // already carries so RBAC-aware endpoints see the same privileges as
           // a normal request.
           (event.locals as any).user = user;
+          (event.locals as any).session_id = sessionId;
           (event.locals as any).tenantId = resolveRequestTenant(
             event.request,
             (turboCtx?.tenantId ?? user.tenantId ?? null) as any,

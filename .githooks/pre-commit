@@ -17,7 +17,7 @@ require_bun
 TOTAL=7; OK=0
 
 # Step 1 — Database safety
-if run "🛡️  Database safety" pm_run scripts/check-test-db-safety.ts; then
+if run "🛡️  Database safety" pm_run scripts/check/check-test-db-safety.ts; then
   OK=$((OK + 1))
 fi
 

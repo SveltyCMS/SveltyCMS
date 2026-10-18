@@ -123,7 +123,10 @@ function extractFields(schema: Schema): Map<string, ComparableField> {
  * @param newSchema - The new/updated schema
  * @returns Array of breaking changes detected
  */
-export function compareSchemas(oldSchema: Schema | null, newSchema: Schema): BreakingChange[] {
+export function detectBreakingSchemaChanges(
+  oldSchema: Schema | null,
+  newSchema: Schema,
+): BreakingChange[] {
   // If no old schema, this is a new collection - no breaking changes
   if (!oldSchema) {
     return [];
@@ -227,7 +230,7 @@ export function analyzeSchemaChanges(
   oldSchema: Schema | null,
   newSchema: Schema,
 ): SchemaDiffResult {
-  const breakingChanges = compareSchemas(oldSchema, newSchema);
+  const breakingChanges = detectBreakingSchemaChanges(oldSchema, newSchema);
   const hasDataLoss = breakingChanges.some((c) => c.dataLoss);
   const requiresConfirmation = breakingChanges.length > 0;
 

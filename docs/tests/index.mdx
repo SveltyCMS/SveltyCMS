@@ -118,7 +118,7 @@ bun run test:e2e:quick
 bun run test:smart
 
 # Safety guard for generated test config
-bun run scripts/check-test-db-safety.ts
+bun run scripts/check/check-test-db-safety.ts
 
 # Single integration contract against the active test database
 bun test --timeout 300000 tests/integration/databases/contract.test.ts
@@ -171,19 +171,19 @@ docker compose -f tests/docker-compose.yml --profile redis down
 
 ### Files Used By Each Runner
 
-| Runner      | Main config/scripts                                                        | Test files                                          | Test-only state                                                                                                         |
-| :---------- | :------------------------------------------------------------------------- | :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
-| Unit        | `vitest.config.ts`, `tests/unit/setup.ts`, `tests/unit/bun-preload.ts`     | `tests/unit/**/*.test.ts`                           | In-memory mocks and `$app` / `$env` aliases under `tests/unit/mocks/`                                                   |
-| Integration | `tests/integration/harness.ts`, `scripts/check-test-db-safety.ts`          | `tests/integration/**/*.test.ts`                    | `config/private.test.ts`, `tests/e2e/.auth/test-secret.txt`, `config/collections/test/…`, `.compiledCollections/test/…` |
-| E2E         | `playwright.config.ts`, `scripts/run-e2e.ts`, `tests/e2e/helpers/api.ts`   | `tests/e2e/**/*.spec.ts`, `tests/e2e/auth.setup.ts` | `config/private.test.ts`, `tests/e2e/.auth/`, temp SQLite DB names containing `e2e` or `test`                           |
-| Benchmarks  | `scripts/benchmark-matrix/`, `tests/benchmarks/modules/benchmark-utils.ts` | `tests/benchmarks/**/*.test.ts`                     | `bench_tmp_<db>_<pid>` databases, `tests/benchmarks/results/`, `.compiledCollections/test/<workspace>/`                 |
+| Runner      | Main config/scripts                                                           | Test files                                          | Test-only state                                                                                                         |
+| :---------- | :---------------------------------------------------------------------------- | :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
+| Unit        | `vitest.config.ts`, `tests/unit/setup.ts`, `tests/unit/bun-preload.ts`        | `tests/unit/**/*.test.ts`                           | In-memory mocks and `$app` / `$env` aliases under `tests/unit/mocks/`                                                   |
+| Integration | `tests/integration/harness.ts`, `scripts/check/check-test-db-safety.ts`       | `tests/integration/**/*.test.ts`                    | `config/private.test.ts`, `tests/e2e/.auth/test-secret.txt`, `config/collections/test/…`, `.compiledCollections/test/…` |
+| E2E         | `playwright.config.ts`, `scripts/runs/run-e2e.ts`, `tests/e2e/helpers/api.ts` | `tests/e2e/**/*.spec.ts`, `tests/e2e/auth.setup.ts` | `config/private.test.ts`, `tests/e2e/.auth/`, temp SQLite DB names containing `e2e` or `test`                           |
+| Benchmarks  | `scripts/benchmark-matrix/`, `tests/benchmarks/modules/benchmark-utils.ts`    | `tests/benchmarks/**/*.test.ts`                     | `bench_tmp_<db>_<pid>` databases, `tests/benchmarks/results/`, `.compiledCollections/test/<workspace>/`                 |
 
 ### Live Config Safety Contract
 
 Local tests and benchmarks must not mutate a user's live CMS setup:
 
 - `config/private.ts` is never renamed, copied from, deleted, or used by local integration tests. The integration harness and Vite `TEST_MODE` alias `@config/private` to `config/private.test.ts`.
-- `config/private.test.ts` must contain an isolated DB name. `src/utils/test-db-safety.ts` allows names containing `test`, `bench`, `e2e`, or ending in `_functional`; `scripts/check-test-db-safety.ts` blocks unsafe files.
+- `config/private.test.ts` must contain an isolated DB name. `src/utils/test-db-safety.ts` allows names containing `test`, `bench`, `e2e`, or ending in `_functional`; `scripts/check/check-test-db-safety.ts` blocks unsafe files.
 - `config/collections/` root and `.compiledCollections/` root are user-owned. Test fixtures go under `config/collections/test/`, tenant-specific test paths such as `config/test-setup-presets/collections/`, or `.compiledCollections/test/<workspace>/`.
 - `bun run test:doctor` / hooks / CI use isolated test config and DBs only — they must never back up/replace or connect through live `config/private.ts` (see `private-config-policy.ts`). CI may write an ephemeral `private.ts` on the runner only.
 

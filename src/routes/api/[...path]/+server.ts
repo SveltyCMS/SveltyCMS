@@ -30,6 +30,10 @@ import {
 import { cacheService } from "@src/databases/cache/cache-service";
 import { hasPermissionWithRoles, isMfaRequiredForUser } from "@src/databases/auth/permissions";
 import { getPermissionBit, hasPermissionBitmask } from "@src/databases/auth/permission-bitmask";
+import {
+  AUTHENTICATED_ENDPOINT_PERMISSION,
+  resolvePermissionId,
+} from "@src/databases/auth/permission-catalog";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { pluginRouteRegistry } from "@src/plugins/plugin-route-registry";
 import {
@@ -204,7 +208,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   "import-data": "config:importexport",
   import: "config:importexport",
   export: "config:importexport",
-  ai: "system:settings",
+  ai: "ai:use",
   "ai-builder": "system:settings",
   automations: "config:automations",
   workflows: "config:automations",
@@ -257,7 +261,7 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   commerce: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
   stripe: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
   seo: "collection:read",
-  chat: "system:settings",
+  chat: "ai:use",
   forms: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
 
   // Utility / ops namespaces previously fail-closed to isAdmin() only because
@@ -265,6 +269,10 @@ const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)
   // unknown keys while letting the matching capability through.
   marketplace: (method: string) => (isReadMethod(method) ? "system:read" : "system:settings"),
   "send-mail": "system:settings",
+  // `/api/testing` is admin-only at the dispatcher. The E2E/integration harness
+  // reaches it through `__testBypass` (x-test-secret), which skips this map; a
+  // normal authenticated non-admin must not pass the namespace root gate.
+  testing: "system:admin",
   trash: (method: string) => (isReadMethod(method) ? "collection:read" : "collection:write"),
   debug: "system:admin",
   cache: "system:admin",
@@ -407,7 +415,19 @@ export function _checkEndpointPermission(
     return false;
   }
 
-  const requiredPermission = typeof mapping === "function" ? mapping(method) : mapping;
+  const requiredPermission = resolvePermissionId(
+    typeof mapping === "function" ? mapping(method) : mapping,
+  );
+
+  // Wildcard semantics for `API_PERMISSIONS` entries declared as `["*"]`:
+  // authentication is required, no specific permission grant is.
+  if (requiredPermission === AUTHENTICATED_ENDPOINT_PERMISSION) {
+    return Boolean(user);
+  }
+
+  // A mapped permission is never satisfied by an anonymous caller, even when a
+  // stray permMask reaches this helper.
+  if (!user) return false;
 
   // 🚀 64-bit bitmask fast-path: single CPU register instruction when permMask present
   if (permMask !== undefined) {

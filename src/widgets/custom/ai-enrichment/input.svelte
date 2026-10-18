@@ -1,3 +1,17 @@
+<!--
+	@file src/widgets/custom/ai-enrichment/input.svelte
+	@description AI Enrichment widget input. Sends the configured source field to
+		`/api/ai/enrich` and unwraps the server's `{ success, data }` envelope before
+		writing a string value (or a translated-record entry) into the field.
+
+	Features:
+	- Defensive envelope parsing (`data` | legacy `result`) with server-message errors
+	- Array results (keywords/tags) normalized to a comma-separated string
+	- Client-side guard for the `custom` action's required prompt
+
+	@component
+-->
+
 <script lang="ts">
 	import {
 		common_processing,
@@ -6,6 +20,7 @@
 	} from '@src/paraglide/messages';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import type { AIEnrichmentProps } from './types';
+	import { normalizeEnrichmentResult } from './normalize';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { getFieldName } from '@utils/schema/field-utils';
@@ -28,6 +43,22 @@
 	const inputId = $derived(`ai-enrich-${fieldName}`);
 	const errorId = $derived(`ai-enrich-error-${fieldName}`);
 
+	/** Extract the server's error message from a non-OK response, falling back to the status. */
+	async function readErrorMessage(response: Response): Promise<string> {
+		try {
+			const body = (await response.json()) as {
+				message?: unknown;
+				error?: { message?: unknown };
+			};
+			if (typeof body?.message === 'string' && body.message.trim()) return body.message;
+			if (typeof body?.error?.message === 'string' && body.error.message.trim())
+				return body.error.message;
+		} catch (parseError) {
+			logger.debug('[AIEnrichment] Non-JSON error response body', parseError);
+		}
+		return `AI Enrichment failed (${response.status})`;
+	}
+
 	async function runEnrichment() {
 		if (!field.sourceField) {
 			error = 'No source field configured';
@@ -46,8 +77,14 @@
 				JSON.stringify(sourceData);
 		}
 
-		if (!sourceText) {
+		if (!sourceText.trim()) {
 			error = `Source field '${field.sourceField}' is empty`;
+			return;
+		}
+
+		const customPrompt = typeof field.customPrompt === 'string' ? field.customPrompt.trim() : '';
+		if (field.action === 'custom' && !customPrompt) {
+			error = 'Custom prompt is required';
 			return;
 		}
 
@@ -61,26 +98,32 @@
 				body: JSON.stringify({
 					text: sourceText,
 					action: field.action,
-					customPrompt: field.customPrompt,
+					customPrompt: customPrompt || undefined,
 					language: contentLanguage
 				})
 			});
 
 			if (!response.ok) {
-				throw new Error(await response.text());
+				throw new Error(await readErrorMessage(response));
 			}
 
-			const data = await response.json();
+			const data: unknown = await response.json();
+			const outcome = normalizeEnrichmentResult(data, {
+				translated: Boolean(field.translated),
+				language: contentLanguage,
+				current: value
+			});
 
-			if (field.translated) {
-				value = { ...value, [contentLanguage]: data.result };
-			} else {
-				value = data.result;
+			if (!outcome.ok) {
+				error = outcome.error;
+				return;
 			}
+
+			value = outcome.value;
 
 			logger.info(`[AIEnrichment] Successfully enriched from ${field.sourceField}`);
 		} catch (err: unknown) {
-			error = err instanceof Error ? err.message : String(err) || 'AI Enrichment failed';
+			error = (err instanceof Error ? err.message : String(err)) || 'AI Enrichment failed';
 			logger.error('[AIEnrichment] Error:', err);
 		} finally {
 			loading = false;

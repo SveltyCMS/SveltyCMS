@@ -26,6 +26,11 @@ const proposal: CollectionDesignProposal = {
   ],
 };
 
+/** Header text up to (but excluding) the first comment terminator. */
+function headerOf(source: string): string {
+  return source.slice(0, source.indexOf("*/"));
+}
+
 describe("generateCollectionSourceFromProposal", () => {
   it("emits a typed schema with widget factory calls", () => {
     const source = generateCollectionSourceFromProposal(proposal, {
@@ -53,5 +58,54 @@ describe("generateCollectionSourceFromProposal", () => {
         { displayPath: "config/collections/x.ts" },
       ),
     ).toThrow(AppError);
+  });
+
+  it("neutralizes a comment terminator injected through the label", () => {
+    const source = generateCollectionSourceFromProposal(
+      { ...proposal, label: "Foo */ export const pwned = true; /*" },
+      { displayPath: "config/collections/blog-post.ts" },
+    );
+    const closeIndex = source.indexOf("*/");
+    const header = source.slice(0, closeIndex);
+    const body = source.slice(closeIndex + 2);
+
+    expect(source.startsWith("/**")).toBe(true);
+    expect(header).toContain("Foo * / export const pwned = true; / *");
+    // The header close is still the first terminator; the injected code is not body text.
+    expect(header).toContain("- draft-gated until published in Collection Builder");
+    expect(body.trimStart().startsWith("import ")).toBe(true);
+    expect(source).toContain("export const schema: Schema");
+  });
+
+  it("caps a long label in the header", () => {
+    const longLabel = "A".repeat(500);
+    const source = generateCollectionSourceFromProposal(
+      { ...proposal, label: longLabel },
+      { displayPath: "config/collections/blog-post.ts" },
+    );
+    const header = headerOf(source);
+
+    expect(header).toContain(`Collection file for ${"A".repeat(200)}`);
+    expect(header).not.toContain("A".repeat(201));
+  });
+
+  it("leaves a normal label unchanged", () => {
+    const source = generateCollectionSourceFromProposal(proposal, {
+      displayPath: "config/collections/blog-post.ts",
+    });
+
+    expect(headerOf(source)).toContain("@description Collection file for Blog Post");
+  });
+
+  it("neutralizes a comment terminator injected through displayPath", () => {
+    const source = generateCollectionSourceFromProposal(proposal, {
+      displayPath: "config/collections/x */ pwned /*.ts",
+    });
+    const header = headerOf(source);
+
+    expect(source.startsWith("/**")).toBe(true);
+    expect(header).toContain("@file config/collections/x * / pwned / *.ts");
+    expect(header).toContain("- draft-gated until published in Collection Builder");
+    expect(source).toContain("export const schema: Schema");
   });
 });

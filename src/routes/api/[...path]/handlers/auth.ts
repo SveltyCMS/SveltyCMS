@@ -55,6 +55,7 @@ import {
   handleSAMLResponse,
   generateSAMLAuthUrl,
   createSAMLConnection,
+  getSAMLConnectionConfig,
 } from "@src/databases/auth/saml-auth";
 import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
@@ -95,6 +96,13 @@ const SSO_SECRET_MASK = "••••••••";
 const twoFaLimiter = new RateLimiter({
   IP: [10, "m"],
   IPUA: [10, "m"],
+});
+
+// 🛡️ HARDENING: rate-limit direct API login attempts per client to prevent
+// distributed credential stuffing and password brute-forcing.
+const apiLoginLimiter = new RateLimiter({
+  IP: [15, "m"],
+  IPUA: [15, "m"],
 });
 
 /** Strip sensitive fields from user object before sending to client. */
@@ -386,6 +394,18 @@ export async function handleLogin(
   if ((event.locals as any).__testBypass) {
     result = await handleTestLoginBypass(cms, email || "admin@example.com", tenantId);
   } else {
+    // 🛡️ HARDENING: Rate limit password verification attempts
+    if (process.env.TEST_MODE !== "true" && (await apiLoginLimiter.isLimited(event))) {
+      try {
+        event.setHeaders({ "Retry-After": "60" });
+      } catch {}
+      throw new AppError(
+        "Too many login attempts. Please try again later.",
+        429,
+        "RATE_LIMIT_EXCEEDED",
+      );
+    }
+
     const userAgent = event.request.headers.get("user-agent") || undefined;
     const ipAddress = event.getClientAddress?.() || undefined;
     const loginResult = await cms.auth.login(
@@ -605,7 +625,7 @@ export async function handleOidcLoginStart(event: RequestEvent, tenantId?: Datab
   const { buildOidcAuthorizationUrl, getSsoProvider, loadSsoProvidersFromSettings, generatePkce } =
     await loadSsoSessionModule();
   await loadSsoProvidersFromSettings(tenantId as string);
-  if (!getSsoProvider(providerId)) {
+  if (!getSsoProvider(providerId, tenantId as string)) {
     throw new AppError(`Unknown OIDC provider: ${providerId}`, 404);
   }
 
@@ -629,13 +649,17 @@ export async function handleOidcLoginStart(event: RequestEvent, tenantId?: Datab
     },
   );
 
-  const built = await buildOidcAuthorizationUrl(providerId, {
-    redirectUri,
-    state,
-    nonce,
-    codeChallenge,
-    codeChallengeMethod: "S256",
-  });
+  const built = await buildOidcAuthorizationUrl(
+    providerId,
+    {
+      redirectUri,
+      state,
+      nonce,
+      codeChallenge,
+      codeChallengeMethod: "S256",
+    },
+    tenantId as string,
+  );
   if (!built.success) throw new AppError(built.message, 400);
 
   return new Response(null, {
@@ -685,11 +709,15 @@ export async function handleOidcLoginCallback(
   } = await loadSsoSessionModule();
   await loadSsoProvidersFromSettings(tenantId as string);
 
-  const exchanged = await exchangeOidcCode(stored.providerId, {
-    code,
-    redirectUri: stored.redirectUri,
-    codeVerifier: stored.codeVerifier,
-  });
+  const exchanged = await exchangeOidcCode(
+    stored.providerId,
+    {
+      code,
+      redirectUri: stored.redirectUri,
+      codeVerifier: stored.codeVerifier,
+    },
+    tenantId as string,
+  );
   if (!exchanged.success) throw new AppError(exchanged.message, 401);
 
   // 🔐 OIDC Core 3.1.3.7: the nonce we sent in the authorize request must be
@@ -713,7 +741,7 @@ export async function handleOidcLoginCallback(
     });
   }
 
-  const provider = getSsoProvider(stored.providerId);
+  const provider = getSsoProvider(stored.providerId, tenantId as string);
   const targetRole = provider ? resolveJitRole(exchanged.payload || {}, provider) : "user";
 
   const userRes = await cms.auth.getUserByEmail(email, { tenantId });
@@ -820,6 +848,7 @@ export async function handleOidcLoginCallback(
         sessionId,
         {
           provider: stored.providerId,
+          tenantId: tenantId ? String(tenantId) : undefined,
           idTokenHint: exchanged.idToken,
           createdAt: new Date().toISOString(),
         },
@@ -873,13 +902,13 @@ export async function handleSsoProvidersRoute(
 
   if (reqMethod === "GET") {
     if (isAdmin(user)) {
-      const providers = getAllSsoProviders().map((p) => ({
+      const providers = getAllSsoProviders(tenantId as string).map((p) => ({
         ...p,
         clientSecret: p.clientSecret ? SSO_SECRET_MASK : "",
       }));
       return successResponse(event, providers);
     }
-    return successResponse(event, getPublicSsoProviders());
+    return successResponse(event, getPublicSsoProviders(tenantId as string));
   }
 
   if (reqMethod === "POST") {
@@ -892,7 +921,7 @@ export async function handleSsoProvidersRoute(
       throw new AppError("Payload must be an array of SSO provider configs", 400);
     }
 
-    const currentProviders = getAllSsoProviders();
+    const currentProviders = getAllSsoProviders(tenantId as string);
     const currentMap = new Map(currentProviders.map((p) => [p.id, p]));
 
     const validatedProviders = body.map((p: any) => {
@@ -1225,7 +1254,10 @@ export async function handleSessionsRoutes(
   if (sessionId && event.request.method === "DELETE") {
     const currentSessionId = String(
       event.locals.session_id ??
-        readSessionCookie(event.cookies, event.url.protocol === "https:") ??
+        readSessionCookie(
+          event.cookies,
+          isSecureCookieContext(event.url.protocol, event.url.hostname),
+        ) ??
         "",
     );
     const isCurrent = currentSessionId.length > 0 && sessionId === currentSessionId;
@@ -1243,7 +1275,11 @@ export async function handleSessionsRoutes(
 
     await cms.auth.logout(sessionId);
     invalidateSessionCache(sessionId, tenantId);
-    return successResponse(event, { message: "Session revoked successfully" });
+    return rawResponse(event, {
+      success: true,
+      message: "Session revoked successfully",
+      data: { message: "Session revoked successfully" },
+    });
   }
 
   if (event.request.method === "GET") {
@@ -1258,8 +1294,14 @@ export async function handleSessionsRoutes(
       throw new AppError(result.message || "Failed to retrieve sessions", 500);
     }
     // Cookie is the source of truth for "this request's" session (exactly one current)
-    const cookieName = getSessionCookieName(event.url.protocol === "https:");
-    const currentSessionId = String(event.locals.session_id ?? event.cookies.get(cookieName) ?? "");
+    const currentSessionId = String(
+      event.locals.session_id ??
+        readSessionCookie(
+          event.cookies,
+          isSecureCookieContext(event.url.protocol, event.url.hostname),
+        ) ??
+        "",
+    );
     const sessions = (result.data || [])
       // Soft-rotated sessions are invalid; hide them from the account UI
       .filter((s: any) => !s.rotated)
@@ -1286,7 +1328,11 @@ export async function handleSessionsRoutes(
         else sawCurrent = true;
       }
     }
-    return successResponse(event, { sessions });
+    return rawResponse(event, {
+      success: true,
+      sessions,
+      data: sessions,
+    });
   }
 
   throw notAllowed();
@@ -1501,7 +1547,7 @@ export async function handleSAMLRoutes(
   switch (action) {
     case "acs":
       if (event.request.method !== "POST") throw notAllowed();
-      return await handleSAMLResponse(event);
+      return await handleSAMLResponse(event, tenantId as string);
 
     case "login":
       if (event.request.method !== "GET" && event.request.method !== "POST") {
@@ -1516,24 +1562,60 @@ export async function handleSAMLRoutes(
         event.cookies.set("saml_state", state, {
           path: "/",
           httpOnly: true,
-          sameSite: "lax", // Must be lax to survive IdP redirect
+          // A cross-site IdP POST only carries SameSite=None cookies. In plain
+          // HTTP dev there is no Secure flag, so keep Lax (browsers reject
+          // SameSite=None without Secure).
+          sameSite: isSecure ? "none" : "lax",
           secure: isSecure,
           maxAge: 300, // 5 minutes
         });
 
         const url = await generateSAMLAuthUrl(tenant, product, state);
-        return successResponse(event, { url });
+
+        // Bind the ACS response to this specific AuthnRequest (InResponseTo).
+        // One-time, short-lived, same cookie policy as `saml_state`.
+        event.cookies.set("saml_request_id", url.requestId, {
+          path: "/",
+          httpOnly: true,
+          sameSite: isSecure ? "none" : "lax",
+          secure: isSecure,
+          maxAge: 300, // 5 minutes
+        });
+
+        return successResponse(event, { url: url.url });
       }
 
-    case "config":
+    case "config": {
+      const user = (event.locals as any)?.user;
+      if (!user?._id) throw new AppError("Unauthorized", 401);
+      if (!isAdmin(user)) {
+        throw new AppError("Forbidden: Admin access required to manage SAML configuration", 403);
+      }
+
       if (event.request.method === "GET") {
-        return successResponse(event, { success: true, config: {} });
+        return successResponse(event, getSAMLConnectionConfig(tenantId as string));
       }
       if (event.request.method === "POST") {
-        const params = await event.request.json();
-        return successResponse(event, await createSAMLConnection(params));
+        const parsed = await event.request.json().catch(() => null);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new AppError("Invalid SAML config payload", 400);
+        }
+        const params = parsed as Record<string, unknown>;
+        const result = await createSAMLConnection({
+          // The resolved request tenant is authoritative — an admin must not be
+          // able to write another tenant's IdP configuration via the body.
+          tenant: tenantId as string,
+          product: (params.product as string) || "sveltycms",
+          entryPoint: params.entryPoint as string | undefined,
+          cert: params.cert as string | undefined,
+          issuer: params.issuer as string | undefined,
+          audience: params.audience as string | undefined,
+          rawMetadata: params.rawMetadata as string | undefined,
+        });
+        return successResponse(event, result);
       }
       throw notAllowed();
+    }
 
     default:
       throw new AppError(`SAML action '${action}' not found`, 404);

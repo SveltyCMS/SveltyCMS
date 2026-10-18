@@ -500,6 +500,9 @@ export class PluginRegistry implements IPluginService {
         if ((!plugin.migrations || plugin.migrations.length === 0) && serverMod.migrations) {
           plugin.migrations = serverMod.migrations;
         }
+        if (serverMod.parts) {
+          plugin.parts = [...(plugin.parts || []), ...serverMod.parts];
+        }
       }
     }
 

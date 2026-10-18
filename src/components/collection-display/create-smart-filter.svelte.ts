@@ -31,27 +31,6 @@ import {
   type CollectionFilterMap,
 } from "@utils/collection-query-filters";
 
-// Platform pure helpers (browser-safe)
-export {
-  buildFilterDefinitions,
-  encodeNumberRange,
-  fieldToFilterDefinition,
-  parseNumberRange,
-  type FilterControlType,
-  type SmartFilterDefinition,
-  type SmartFilterOption,
-} from "@utils/collection-filter-defs";
-
-// URL / cache helpers shared with SSR
-export {
-  FILTER_URL_PREFIX,
-  buildCollectionQueryCacheKey,
-  hashQueryPayload,
-  parseCollectionListQuery,
-  parseUrlFilterParams,
-  whitelistFilterParams,
-} from "@utils/collection-query-filters";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface CreateSmartFilterOptions {

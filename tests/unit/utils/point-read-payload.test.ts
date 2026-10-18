@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { trimPointReadEnvelope } from "@src/utils/point-read-payload";
+import { trimListEnvelope, trimPointReadEnvelope } from "@src/utils/point-read-payload";
 
 const fullRow = (): {
   _id: string;
@@ -120,5 +120,70 @@ describe("trimPointReadEnvelope", () => {
     expect(trimPointReadEnvelope("nope")).toBe("nope");
     const failure = { success: false, message: "nope" };
     expect(trimPointReadEnvelope(failure)).toBe(failure);
+  });
+});
+
+describe("trimListEnvelope", () => {
+  it("returns the input envelope by identity when no row has _collection", () => {
+    const rows = [
+      { _id: "1", title: "First" },
+      { _id: "2", title: "Second" },
+    ];
+    const listEnvelope = { success: true, data: rows };
+    const passed = trimListEnvelope(listEnvelope);
+    expect(passed).toBe(listEnvelope);
+    // No clone happened — the caller's array and rows are still the originals.
+    expect((passed as { data: unknown[] }).data).toBe(rows);
+    expect((passed as { data: unknown[] }).data[0]).toBe(rows[0]);
+  });
+
+  it("hoists the first row's _collection onto meta and strips it from every row", () => {
+    const collection = { id: "posts", name: "posts", label: "Posts" };
+    const rows = [
+      { _id: "1", title: "First", _collection: collection },
+      { _id: "2", title: "Second", _collection: collection },
+      { _id: "3", title: "Third" },
+    ];
+    const trimmed = trimListEnvelope({ success: true, data: rows, meta: { hasMore: false } }) as {
+      data: Record<string, unknown>[];
+      meta: Record<string, unknown>;
+    };
+    expect("_collection" in trimmed.data[0]).toBe(false);
+    expect("_collection" in trimmed.data[1]).toBe(false);
+    expect(trimmed.data[2]).toBe(rows[2]);
+    expect(trimmed.meta).toEqual({ hasMore: false, _collection: collection });
+  });
+
+  it("never mutates the caller's rows or envelope", () => {
+    const collection = { id: "posts", name: "posts", label: "Posts" };
+    const rows = [{ _id: "1", title: "First", _collection: collection }];
+    const listEnvelope = { success: true, data: rows };
+    trimListEnvelope(listEnvelope);
+    expect("_collection" in rows[0]).toBe(true);
+    expect(rows[0]._collection).toBe(collection);
+    expect(listEnvelope.data).toBe(rows);
+  });
+
+  it("trims later rows that carry _collection without inventing a hoist", () => {
+    const rows = [
+      { _id: "1", title: "First" },
+      { _id: "2", title: "Second", _collection: { id: "posts" } },
+    ];
+    const trimmed = trimListEnvelope({ success: true, data: rows }) as {
+      data: Record<string, unknown>[];
+      meta?: unknown;
+    };
+    expect(trimmed.data[0]).toBe(rows[0]);
+    expect("_collection" in trimmed.data[1]).toBe(false);
+    expect(trimmed.meta).toBeUndefined();
+  });
+
+  it("passes non-list and empty envelopes through by identity", () => {
+    const empty = { success: true, data: [] };
+    expect(trimListEnvelope(empty)).toBe(empty);
+    const single = { success: true, data: { _id: "1" } };
+    expect(trimListEnvelope(single)).toBe(single);
+    expect(trimListEnvelope(null)).toBeNull();
+    expect(trimListEnvelope("nope")).toBe("nope");
   });
 });

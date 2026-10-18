@@ -53,7 +53,6 @@ import { describeHardware } from "@utils/hardware-profile";
 import { databaseConfigSchema } from "@src/databases/schemas";
 import { setupAdminSchema, smtpConfigSchema } from "@utils/schemas";
 import { safeParse } from "valibot";
-import nodemailer from "nodemailer";
 import type { ISODateString } from "@src/databases/db-interface";
 
 export interface DbConfig {
@@ -744,6 +743,8 @@ export async function testEmailConnection(cfg: {
   if (!safeParse(smtpConfigSchema, cfg).success)
     return { success: false, error: "Invalid SMTP config" };
   try {
+    // Cold path: only the wizard's SMTP self-test needs the transport package.
+    const { default: nodemailer } = await import("nodemailer");
     const t = nodemailer.createTransport({
       host: cfg.host,
       port: cfg.port,

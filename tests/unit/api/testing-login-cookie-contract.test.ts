@@ -10,10 +10,13 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const testingHandler = readFileSync(
-  join(process.cwd(), "src/routes/api/[...path]/handlers/testing.ts"),
-  "utf8",
-);
+const testingHandler = [
+  "src/routes/api/[...path]/handlers/testing.ts",
+  "src/routes/api/[...path]/handlers/testing/testing-auth-session.ts",
+  "src/routes/api/[...path]/handlers/testing/testing-shared.ts",
+]
+  .map((file) => readFileSync(join(process.cwd(), file), "utf8"))
+  .join("\n");
 
 describe("testing API login session dual-write contract", () => {
   it("defines setTestingSessionCookie helper", () => {

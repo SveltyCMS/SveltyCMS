@@ -277,6 +277,7 @@ export const actions: Actions = {
       const defaultSortField = (formData.get("defaultSortField") as string) || "createdAt";
       const defaultSortDir = (formData.get("defaultSortDir") as string) || "desc";
       const apiVisible = formData.get("apiVisible") !== "false";
+      const formEnabled = formData.get("formEnabled") === "true";
 
       const federationEnrichmentsRaw = formData.get("federationEnrichments") as string | null;
       let federationEnrichments: Schema["federationEnrichments"];
@@ -357,6 +358,7 @@ export const actions: Actions = {
         defaultSortField,
         defaultSortDir,
         apiVisible,
+        formEnabled,
         federationEnrichments,
       });
 
@@ -579,6 +581,7 @@ interface CollectionData {
   defaultSortField?: string;
   defaultSortDir?: string;
   apiVisible?: boolean;
+  formEnabled?: boolean;
   federationEnrichments?: Schema["federationEnrichments"];
 }
 
@@ -773,6 +776,14 @@ function createSchemaObjectLiteral(data: CollectionData): ObjectLiteralExpressio
       factory.createPropertyAssignment(
         factory.createIdentifier("apiVisible"),
         factory.createFalse(),
+      ),
+    );
+  }
+  if (data.formEnabled === true) {
+    properties.push(
+      factory.createPropertyAssignment(
+        factory.createIdentifier("formEnabled"),
+        factory.createTrue(),
       ),
     );
   }

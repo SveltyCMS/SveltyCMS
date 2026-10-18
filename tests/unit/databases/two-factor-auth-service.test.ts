@@ -133,7 +133,7 @@ describe("TwoFactorAuthService (real crypto + registry)", () => {
       expect(stored.twoFactorPending).toBe(true);
       expect(stored.is2FAEnabled).toBe(false);
       expect(stored.totpSecret).not.toBe(result.secret);
-      expect(await decryptTotpSecret(stored.totpSecret)).toBe(result.secret);
+      expect(await decryptTotpSecret(stored.totpSecret, USER_ID)).toBe(result.secret);
       expect(fake.spies.updateUserAttributes).toHaveBeenCalledWith(
         USER_ID,
         expect.objectContaining({ twoFactorPending: true, is2FAEnabled: false }),
