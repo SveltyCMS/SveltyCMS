@@ -555,10 +555,14 @@ export async function runProductionBuild(root: string): Promise<void> {
   // Stale `build/` from a previous failed build can cause adapter-node issues
   // or fail to remove a locked tree (ENOTEMPTY build).
   const buildDir = join(root, "build");
+  const svelteKitOutputDir = join(root, ".svelte-kit", "output");
   try {
     rmSync(buildDir, { recursive: true, force: true });
+    rmSync(svelteKitOutputDir, { recursive: true, force: true });
   } catch (err) {
-    console.warn(`⚠️  Could not clear ${buildDir}: ${err instanceof Error ? err.message : err}`);
+    console.warn(
+      `⚠️  Could not clear build directories: ${err instanceof Error ? err.message : err}`,
+    );
   }
 
   // Windows may keep a handle open for a few ms after rmSync; starting the

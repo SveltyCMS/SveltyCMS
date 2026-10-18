@@ -460,7 +460,6 @@ import { AppError } from "@utils/error-handling";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { isSecureCookieContext } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
-import { withMutableHeaders } from "@utils/hook-utils";
 
 import { registerPermission } from "@src/databases/auth/permissions";
 import { PermissionAction, PermissionType } from "@src/databases/auth/types";
@@ -838,7 +837,7 @@ function apqHashMatchesQuery(apqHash: string, query: string): boolean {
   return timingSafeEqual(supplied, expected);
 }
 
-async function handleRequest(event: RequestEvent) {
+async function handleRequest(event: RequestEvent): Promise<Response> {
   const request = event.request;
   const locals = event.locals;
   const url = event.url;
@@ -1165,9 +1164,17 @@ async function handleRequest(event: RequestEvent) {
         metricsService.recordGraphqlResponseMiss(tenant);
       }
 
-      return withMutableHeaders(yogaResponse, (headers) => {
-        if (cacheKey) headers.set("X-Cache", "MISS");
-        if (cacheControl) headers.set("Cache-Control", cacheControl);
+      // SvelteKit requires the route handler to return the platform-native
+      // `Response`. Yoga's `@whatwg-node` Response is a different constructor in
+      // Node, so passing it through (even after mutating headers) trips
+      // `endpoint_invalid_response`. Rebuild the boundary response explicitly.
+      const responseHeaders = new Headers(yogaResponse.headers);
+      if (cacheKey) responseHeaders.set("X-Cache", "MISS");
+      if (cacheControl) responseHeaders.set("Cache-Control", cacheControl);
+      return new Response(yogaResponse.body, {
+        status: yogaResponse.status,
+        statusText: yogaResponse.statusText,
+        headers: responseHeaders,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Internal Server Error";

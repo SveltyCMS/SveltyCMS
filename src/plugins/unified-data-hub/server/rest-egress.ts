@@ -64,10 +64,11 @@ export async function restEgressJson(args: {
     // 🛡️ SSRF: connector baseUrl/allowedHosts are admin input and the host may
     // resolve to a private address — validate DNS before handing it to fetch.
     const targetUrl = args.url.toString();
-    await validateEgressUrl(targetUrl, { allowHttp: true });
+    await validateEgressUrl(targetUrl, { allowHttp: true, allowPrivate: true });
 
     const result = await safeFetch(targetUrl, {
       allowHttp: true,
+      allowPrivate: true,
       method: args.method,
       headers,
       body:

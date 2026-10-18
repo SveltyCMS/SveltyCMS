@@ -22,6 +22,7 @@ async function executeGraphQL(
   query: string,
   variables: Record<string, unknown> = {},
   authCookie?: string,
+  options?: { skipTestSecret?: boolean },
 ) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -35,6 +36,7 @@ async function executeGraphQL(
     method: "POST",
     headers,
     body: JSON.stringify({ query, variables }),
+    skipTestSecret: options?.skipTestSecret ?? !authCookie,
   });
 
   return response;

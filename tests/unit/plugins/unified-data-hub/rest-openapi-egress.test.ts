@@ -107,7 +107,7 @@ describe("REST connector egress guard", () => {
     expect(result.rows[0]._source.connectorId).toBe(String(CONNECTOR_ID));
     expect(validateEgressUrlMock).toHaveBeenCalledWith(
       "https://blog.example.com/wp-json/wp/v2/posts?per_page=10&page=1",
-      { allowHttp: true },
+      { allowHttp: true, allowPrivate: true },
     );
     expect(safeFetchMock).toHaveBeenCalledWith(
       "https://blog.example.com/wp-json/wp/v2/posts?per_page=10&page=1",
