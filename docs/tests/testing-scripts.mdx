@@ -451,6 +451,14 @@ bun run scripts/probe/wait-for-ready.ts tcp:127.0.0.1:5432 --timeout=90000 --int
 bun run scripts/probe/wait-for-ready.ts http://127.0.0.1:4173/api/system/health --pid=1234
 ```
 
+### `scripts/probe/probe-adaptive-update-lane.ts` — UPDATE Lane Micro-Benchmark
+
+Measures an idle single update through `NetworkDbQueueGate` twice: coalesced (`SVELTY_WRITE_COALESCING=1`) vs adaptive (`SVELTY_WRITE_COALESCE_UPDATE=1`). Local runs on 2026-10-18 (5 000 samples, 500 warm-up, no database): coalesced **p50 ≈2–3 µs / p95 ≈6 µs / max 2.3–2.5 ms**; adaptive **p50 ≈0.3–0.4 µs / p95 ≈0.5–0.6 µs / max 11–13 µs**. The adaptive lane removes the scheduler hop only when nothing else is queued or in flight.
+
+```bash
+bun run scripts/probe/probe-adaptive-update-lane.ts
+```
+
 ### `scripts/bundle-stats.ts` — Bundle Analytics
 
 Detailed bundle report with gzip/brotli sizes, history tracking.
