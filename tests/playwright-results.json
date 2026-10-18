@@ -4,9 +4,7 @@
       "C:\\Program Files\\nodejs\\node.exe",
       "D:\\SveltyCMS\\node_modules\\@playwright\\test\\cli.js",
       "test",
-      "--project=chromium",
-      "tests/e2e/smoke.spec.ts",
-      "--workers=1"
+      "--project=wizard"
     ],
     "configFile": "D:\\SveltyCMS\\playwright.config.ts",
     "rootDir": "D:/SveltyCMS/tests/e2e",
@@ -107,21 +105,15 @@
         "grepInvert": null,
         "outputDir": "D:\\SveltyCMS\\tests\\test-results",
         "repeatEach": 1,
-        "retries": 0,
+        "retries": 2,
         "metadata": {
           "actualWorkers": 1
         },
-        "name": "chromium",
+        "name": "wizard",
         "testDir": "D:\\SveltyCMS\\tests\\e2e",
         "snapshotDir": "D:\\SveltyCMS\\tests\\e2e",
-        "testIgnore": [
-          "**/setup/setup-wizard.spec.ts",
-          "**/auth.setup.ts",
-          "**/routes/login/login.spec.ts",
-          "**/routes/login/signup.spec.ts",
-          "**/routes/login/oauth.spec.ts"
-        ],
-        "testMatch": "**/*.{test,spec}.ts",
+        "testIgnore": [],
+        "testMatch": "routes/setup/setup-wizard.spec.ts",
         "timeout": 90000,
         "use": {
           "baseURL": "http://127.0.0.1:4173",
@@ -136,26 +128,11 @@
           },
           "trace": "on-first-retry",
           "video": "retain-on-failure",
-          "bypassCSP": true,
-          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
-          "viewport": {
-            "width": 1280,
-            "height": 720
-          },
-          "screen": {
-            "width": 1920,
-            "height": 1080
-          },
-          "deviceScaleFactor": 1,
-          "isMobile": false,
-          "hasTouch": false,
-          "defaultBrowserType": "chromium",
-          "headless": false,
-          "storageState": "D:\\SveltyCMS\\tests\\e2e\\.auth\\admin.json"
+          "bypassCSP": true
         },
         "dependencies": [],
         "ignoreSnapshots": false,
-        "__projectId": "chromium"
+        "__projectId": "wizard"
       }
     ],
     "quiet": false,
@@ -184,314 +161,336 @@
     "updateSnapshots": "default",
     "updateSourceMethod": "patch",
     "version": "1.64.1",
-    "workers": 1,
+    "workers": 4,
     "webServer": null
   },
   "suites": [
     {
-      "title": "smoke.spec.ts",
-      "file": "smoke.spec.ts",
+      "title": "routes\\setup\\setup-wizard.spec.ts",
+      "file": "routes/setup/setup-wizard.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Pre-Push E2E Smoke Gate",
-          "file": "smoke.spec.ts",
-          "line": 61,
+          "title": "Setup Wizard: Error Handling",
+          "file": "routes/setup/setup-wizard.spec.ts",
+          "line": 164,
           "column": 6,
           "specs": [
             {
-              "title": "1. Admin Authentication & UI Shell Hydration",
+              "title": "should show error on bad database connection",
               "ok": true,
               "tags": [],
               "tests": [
                 {
                   "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
+                  "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
+                  "projectId": "wizard",
+                  "projectName": "wizard",
                   "results": [
                     {
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 848,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [
-                        {
-                          "text": "[smoke] redirect: 302 http://127.0.0.1:4173/ -> /en/collection/pages\n"
-                        }
-                      ],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:18:32.629Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "4219922fea2e2bd3c691-865bb03fa5274cf306e1",
-              "file": "smoke.spec.ts",
-              "line": 64,
-              "column": 3
-            },
-            {
-              "title": "2. Media Gallery — Virtual Folder Creation & CSRF Token",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1484,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:18:33.719Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "4219922fea2e2bd3c691-3894945848ab37a9c2fc",
-              "file": "smoke.spec.ts",
-              "line": 80,
-              "column": 3
-            },
-            {
-              "title": "3. User Management View & Hydration",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 1046,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:18:35.212Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "4219922fea2e2bd3c691-83289290207a0c49ddd6",
-              "file": "smoke.spec.ts",
-              "line": 153,
-              "column": 3
-            },
-            {
-              "title": "4. Collection CRUD UI Journey — Create Entry, Reload & Assert",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 2635,
-                      "errors": [],
-                      "stdout": [
-                        {
-                          "text": "[Auth] Session cookie present but /api/user rejected it — re-authenticating\n"
-                        },
-                        {
-                          "text": "[Auth] ✓ Admin session via testing API\n"
-                        }
-                      ],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-10-18T15:18:36.266Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "4219922fea2e2bd3c691-6b5f2ccfce31eb23a867",
-              "file": "smoke.spec.ts",
-              "line": 174,
-              "column": 3
-            },
-            {
-              "title": "5. System Health & API Readiness",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 90000,
-                  "annotations": [
-                    {
-                      "type": "serial",
-                      "location": {
-                        "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                        "line": 0,
-                        "column": 0
-                      }
-                    }
-                  ],
-                  "expectedStatus": "passed",
-                  "projectId": "chromium",
-                  "projectName": "chromium",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 242,
+                      "duration": 902,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-10-18T15:18:38.908Z",
-                      "annotations": [
-                        {
-                          "type": "serial",
-                          "location": {
-                            "file": "D:\\SveltyCMS\\tests\\e2e\\smoke.spec.ts",
-                            "line": 0,
-                            "column": 0
-                          }
-                        }
-                      ],
+                      "startTime": "2026-10-18T15:27:59.712Z",
+                      "annotations": [],
                       "attachments": []
                     }
                   ],
                   "status": "expected"
                 }
               ],
-              "id": "4219922fea2e2bd3c691-55fe6c681f07276b7fea",
-              "file": "smoke.spec.ts",
-              "line": 215,
+              "id": "e77f5b423e0cbe238d53-726c5ac36f4e37dd32c5",
+              "file": "routes/setup/setup-wizard.spec.ts",
+              "line": 165,
               "column": 3
+            },
+            {
+              "title": "should show error on admin user password mismatch",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "wizard",
+                  "projectName": "wizard",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1379,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-18T15:28:00.764Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e77f5b423e0cbe238d53-555307984361224d1fec",
+              "file": "routes/setup/setup-wizard.spec.ts",
+              "line": 184,
+              "column": 3
+            },
+            {
+              "title": "should show error on invalid SMTP configuration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "wizard",
+                  "projectName": "wizard",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7447,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-18T15:28:02.156Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e77f5b423e0cbe238d53-f5774d55a97db2b12ada",
+              "file": "routes/setup/setup-wizard.spec.ts",
+              "line": 203,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Setup Wizard: Navigation & State",
+          "file": "routes/setup/setup-wizard.spec.ts",
+          "line": 247,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Wizard Navigation: Stepper & Breadcrumbs",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "wizard",
+                  "projectName": "wizard",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1278,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-18T15:28:09.613Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e77f5b423e0cbe238d53-cbc0cce7c79635aa8782",
+              "file": "routes/setup/setup-wizard.spec.ts",
+              "line": 248,
+              "column": 3
+            },
+            {
+              "title": "Wizard: Reset Data Logic",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "wizard",
+                  "projectName": "wizard",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 560,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-18T15:28:10.905Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e77f5b423e0cbe238d53-221cd19a05e8eec55934",
+              "file": "routes/setup/setup-wizard.spec.ts",
+              "line": 268,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Setup Wizard: Pre-Seeded Fast Path",
+          "file": "routes/setup/setup-wizard.spec.ts",
+          "line": 293,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should leave setup after API-seeded ready state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "wizard",
+                  "projectName": "wizard",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 351,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-18T15:28:11.478Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e77f5b423e0cbe238d53-4fa1a6c034bbfb313080",
+              "file": "routes/setup/setup-wizard.spec.ts",
+              "line": 294,
+              "column": 3
+            }
+          ]
+        },
+        {
+          "title": "Setup Wizard: Full Provisioning Flow",
+          "file": "routes/setup/setup-wizard.spec.ts",
+          "line": 328,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Wizard Flow: SQLITE",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 240000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "wizard",
+                  "projectName": "wizard",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 2298,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[sqlite] Configuring database...\n"
+                        },
+                        {
+                          "text": "[sqlite] Creating admin user...\n"
+                        },
+                        {
+                          "text": "[sqlite] Selecting blueprint...\n"
+                        },
+                        {
+                          "text": "[sqlite] Configuring system...\n"
+                        },
+                        {
+                          "text": "[sqlite] Skipping email...\n"
+                        },
+                        {
+                          "text": "[sqlite] Finalizing...\n"
+                        },
+                        {
+                          "text": "✅ SQLITE Wizard flow completed.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "steps": [
+                        {
+                          "title": "Step 0: Clean Reset (API-seeded)",
+                          "duration": 308
+                        },
+                        {
+                          "title": "Step 1: Database Configuration",
+                          "duration": 760
+                        },
+                        {
+                          "title": "Step 2: Administrator Account",
+                          "duration": 106
+                        },
+                        {
+                          "title": "Step 3: Project Blueprint",
+                          "duration": 313
+                        },
+                        {
+                          "title": "Step 4: System Settings",
+                          "duration": 84
+                        },
+                        {
+                          "title": "Step 5: Email Configuration (Skip)",
+                          "duration": 77
+                        },
+                        {
+                          "title": "Step 6: Review & Finalize",
+                          "duration": 560
+                        }
+                      ],
+                      "startTime": "2026-10-18T15:28:11.839Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "e77f5b423e0cbe238d53-fe389363787a53bb4617",
+              "file": "routes/setup/setup-wizard.spec.ts",
+              "line": 334,
+              "column": 5
             }
           ]
         }
@@ -500,9 +499,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-18T15:18:32.169Z",
-    "duration": 7217.131,
-    "expected": 5,
+    "startTime": "2026-10-18T15:27:59.123Z",
+    "duration": 15109.180999999999,
+    "expected": 7,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0
