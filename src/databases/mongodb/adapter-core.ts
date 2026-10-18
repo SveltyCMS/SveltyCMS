@@ -27,6 +27,7 @@ import type { DatabaseCapabilities, DatabaseResult, ConnectionPoolOptions } from
 import { getDatabaseConnectionString } from "../config-state";
 import { isLoopbackHost } from "../db-local-socket";
 import { registerSystemModels } from "./model-registration";
+import { normalizeCollectionName } from "./mongodb-utils";
 
 /** Escapes special regex characters so user input can't inject patterns or ReDoS. */
 function escapeRegExp(str: string): string {
@@ -271,6 +272,10 @@ export abstract class MongoAdapterCore extends BaseAdapter {
       },
     );
     return this._connection.model(collection, genericSchema, collection);
+  }
+
+  public getModel(collection: string): mongoose.Model<any> {
+    return this._getOrCreateModel(normalizeCollectionName(collection));
   }
 
   /**
