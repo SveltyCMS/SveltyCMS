@@ -11,15 +11,20 @@
 // Safe environment detection for SvelteKit and standalone/benchmark environments
 const browser = typeof window !== "undefined";
 import { logger } from "@utils/logger";
-import type { Writable } from "svelte/store";
 import type { AnomalyDetection, SystemStateStore } from "./types";
+
+export interface SystemStateContainerLike {
+  update(fn: (current: SystemStateStore) => SystemStateStore): void;
+  subscribe(fn: (v: SystemStateStore) => void): () => void;
+  state?: SystemStateStore;
+}
 
 /**
  * Self-calibrate anomaly thresholds based on historical performance
  */
 export function calibrateAnomalyThresholds(
   serviceName: keyof SystemStateStore["services"],
-  store: Writable<SystemStateStore>,
+  store: SystemStateContainerLike,
 ): void {
   store.update((current) => {
     const service = { ...current.services[serviceName] };
@@ -175,7 +180,7 @@ export function detectAnomalies(
 /**
  * Save current performance metrics to the database.
  */
-export async function saveCurrentMetrics(store: Writable<SystemStateStore>): Promise<void> {
+export async function saveCurrentMetrics(store: SystemStateContainerLike): Promise<void> {
   if (browser) return;
   try {
     const { performanceService } = await import("@src/services/observability/performance-service");
@@ -190,7 +195,8 @@ export async function saveCurrentMetrics(store: Writable<SystemStateStore>): Pro
 }
 
 // Helper to get state from store for saving (avoids calling get() too much)
-function getSystemStateForSaving(store: Writable<SystemStateStore>): SystemStateStore | undefined {
+function getSystemStateForSaving(store: SystemStateContainerLike): SystemStateStore | undefined {
+  if (store.state) return store.state;
   let state: SystemStateStore | undefined;
   const unsubscribe = store.subscribe((s) => (state = s));
   unsubscribe();

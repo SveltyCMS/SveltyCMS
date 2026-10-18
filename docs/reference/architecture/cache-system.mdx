@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-09-20"
+updated: "2026-10-18"
 tags:
   - "cache"
   - "redis"
@@ -304,16 +304,23 @@ if (!lockOwner) {
 }
 ```
 
-### Negative Caching (Bloom Filter)
+### Negative Caching (Bloom Filter + Exact TTL Map) {#negative-caching-bloom-filter--exact-ttl-map}
 
 A Bloom filter prevents "cache miss storms" — repeated requests for non-existent keys (404s, broken links) bypass the database entirely. Verified **2392x speedup** for repeated misses.
 
+The Bloom filter is a **prefilter only**. A positive is authoritative only while a bounded exact map still holds a live entry for that full key (`NegativeCacheManager`, 60 s TTL, 20 000 keys, oldest-first eviction). This removes the Bloom false-positive rate from the 404 path: a key that was never recorded as missing can never be rejected.
+
 ```typescript
-// Before hitting DB, check Bloom filter
+// Bloom says "maybe"; the exact map decides.
 if (!this.negativeInvalidated.has(fullKey) && this.negativeBloom.has(fullKey)) {
-  return null; // Known non-existent — skip DB entirely
+  const entry = this.exact.get(fullKey); // TTL-checked, tag-indexed
+  if (entry && entry.expiresAt > Date.now()) return null; // known missing
 }
 ```
+
+**Point reads (`findById`)**: a confirmed miss is recorded under the exact point-read cache key (including the publication suffix) and tagged `doc:<collection>:<id>`. A later create/update/delete clears the tag through `clearByTags()` → `invalidateByTags()`, so a freshly written entry is never hidden by a stale 404 marker. Only successful adapter queries can record a miss — transient adapter errors do not poison the cache — and `system` scopes, `disableErrors` existence probes, and `bypassCache` callers never use it.
+
+**List ID fast path**: a bare `_id` lookup (no status constraint) shares the same negative key. Status-constrained lookups keep their own publication suffix and are not admitted.
 
 ### Prefix-Bucketed Invalidation (O(1) Clearing)
 

@@ -34,10 +34,17 @@ import {
 } from "@utils/security/field-encryption";
 import type { SchemaHotFlags } from "./schema-store";
 
+/** Logical combinators — their array values are branches, never relation arrays. */
+const LOGICAL_FILTER_KEYS = new Set(["$and", "$or", "$not", "AND", "OR", "NOT"]);
+
 /**
  * Normalize relationship-style filters into Mongo-ish operators.
  * `{ rel: ["a","b"] }` → `{ rel: { $in: ["a","b"] } }`,
  * `{ rel: { $eq: [...] } }` → `$in`, `{ rel: { $ne: [...] } }` → `$nin`.
+ *
+ * Logical operators (`$and` / `$or` / `$not` and their uppercase spellings) keep
+ * their structure: the operator value is never treated as a relation array, and
+ * branches are normalized recursively so nested relation arrays still rewrite.
  *
  * Uses zero-allocation object traversal with lazy cloning only when an operator is rewritten.
  */
@@ -48,6 +55,32 @@ export function normalizeRelationshipFilter(filter: any): any {
   for (const key in filter) {
     if (!Object.hasOwn(filter, key)) continue;
     const value = filter[key];
+    if (LOGICAL_FILTER_KEYS.has(key)) {
+      if (Array.isArray(value)) {
+        let list: any[] | null = null;
+        for (let i = 0; i < value.length; i++) {
+          const entry = value[i];
+          const next = normalizeRelationshipFilter(entry);
+          if (next !== entry) {
+            if (!list) list = value.slice(0, i);
+            list.push(next);
+          } else if (list) {
+            list.push(entry);
+          }
+        }
+        if (list) {
+          if (!normalized) normalized = { ...filter };
+          normalized![key] = list;
+        }
+      } else if (value && typeof value === "object") {
+        const next = normalizeRelationshipFilter(value);
+        if (next !== value) {
+          if (!normalized) normalized = { ...filter };
+          normalized![key] = next;
+        }
+      }
+      continue;
+    }
     if (Array.isArray(value)) {
       if (!normalized) normalized = { ...filter };
       normalized![key] = { $in: value };

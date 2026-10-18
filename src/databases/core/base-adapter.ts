@@ -29,6 +29,7 @@ function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/c
 // Namespace import on purpose: the module is exposed wholesale as the public `utils` field below.
 import * as relationalUtils from "./relational-utils";
 import { buildCollectionCacheTags } from "./collection-name";
+import type { WriteOperationKind } from "./write-coalescer";
 import { nowISODateString } from "@utils/date";
 
 export type HookType = "before" | "after";
@@ -287,6 +288,9 @@ export abstract class BaseAdapter {
    * `skipMeta + isWrite` (insert/update) skips AsyncLocalStorage trace lookup
    * and slow-query timing — both sat on the same order of magnitude as the
    * raw-db-ceiling INSERT itself. Other ops keep spans + 500ms slow logs.
+   *
+   * `operation` lets the queue gate distinguish updates (latency-sensitive,
+   * eligible for the adaptive no-hop lane) from inserts/batch writes.
    */
   public wrap<T>(
     fn: () => Promise<T>,
@@ -294,6 +298,7 @@ export abstract class BaseAdapter {
     message?: string,
     options?: {
       isWrite?: boolean;
+      operation?: WriteOperationKind;
       transaction?: any;
       skipMeta?: boolean;
       suppressErrorLog?: boolean;
@@ -302,7 +307,10 @@ export abstract class BaseAdapter {
   ): Promise<DatabaseResult<T>> {
     if (this.queueGate && !options?.transaction) {
       if (options?.isWrite) {
-        return this.queueGate.coalesceWrite(() => this.wrapInternal(fn, code, message, options));
+        return this.queueGate.coalesceWrite(
+          () => this.wrapInternal(fn, code, message, options),
+          options?.operation,
+        );
       }
       return this.queueGate.acquire(() => this.wrapInternal(fn, code, message, options));
     }
@@ -315,6 +323,7 @@ export abstract class BaseAdapter {
     message?: string,
     options?: {
       isWrite?: boolean;
+      operation?: WriteOperationKind;
       transaction?: any;
       skipMeta?: boolean;
       suppressErrorLog?: boolean;
@@ -566,6 +575,7 @@ export abstract class DatabaseModule<T extends BaseAdapter = BaseAdapter> {
     message?: string,
     options?: {
       isWrite?: boolean;
+      operation?: WriteOperationKind;
       transaction?: any;
       skipMeta?: boolean;
       suppressErrorLog?: boolean;

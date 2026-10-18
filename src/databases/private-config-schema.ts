@@ -131,6 +131,12 @@ export const privateConfigSchema = object({
   AI_MODEL_CHAT: optional(string()),
   USE_AI_TAGGING: optional(coercedBoolean),
   AI_MODEL_VISION: optional(string()),
+  // Pluggable chat processor id (defaults to the built-in processor when unset).
+  AI_CHAT_PROCESSOR: optional(string()),
+  // Fail-closed moderation provider (opt-in; unset means moderation is skipped).
+  AI_MODERATION_PROVIDER: optional(string()),
+  AI_MODERATION_URL: optional(string()),
+  AI_MODERATION_API_KEY: optional(string()),
 
   // --- Authentication & Security ---
   PASSWORD_MIN_LENGTH: optional(coercedNumber),

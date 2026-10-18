@@ -2785,7 +2785,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       () => this.executeUpdate(collection, id, data, options),
       "UPDATE_FAILED",
       undefined,
-      { ...options, isWrite: true, skipMeta: true },
+      { ...options, isWrite: true, skipMeta: true, operation: "update" },
     );
   }
 

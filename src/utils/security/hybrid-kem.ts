@@ -425,3 +425,10 @@ export async function hybridOpen(
     kek?.fill(0);
   }
 }
+
+/** Check if a value is a valid hybrid ML-KEM envelope (v1:...). */
+export function isHybridEnvelope(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const parts = value.split(":");
+  return parts.length === ENVELOPE_FIELD_COUNT && parts[0] === ENVELOPE_VERSION;
+}

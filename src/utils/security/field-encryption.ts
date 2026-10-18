@@ -25,6 +25,12 @@ import {
   resolveKeyRing,
   type ResolvedKeyRing,
 } from "@utils/security/envelope";
+import {
+  isHybridEnvelope,
+  hybridSeal,
+  hybridOpen,
+  isMlKemAvailable,
+} from "@utils/security/hybrid-kem";
 
 const ALGORITHM = ENCRYPTION_CONFIG.algorithm;
 const IV_LENGTH = ENCRYPTION_CONFIG.ivLength;
@@ -76,9 +82,9 @@ function buildAad(context: FieldEncryptionContext, fieldName: string): Buffer {
   return Buffer.from(`${context.tenantId}:${context.collectionId}:${fieldName}`, "utf8");
 }
 
-/** True when `value` is a v1/v2 field-encryption envelope. */
+/** True when `value` is a v1/v2 field-encryption envelope or hybrid ML-KEM envelope. */
 export function isFieldEncryptionEnvelope(value: unknown): value is string {
-  return isColonEnvelope(value);
+  return isColonEnvelope(value) || isHybridEnvelope(value);
 }
 
 /**
@@ -125,7 +131,10 @@ export function encryptFieldValueSync(
 }
 
 /**
- * Encrypt a JSON-serializable value into a `v2:<keyId>:iv:tag:ciphertext` envelope.
+ * Encrypt a JSON-serializable value into an envelope.
+ * When `PQC_HYBRID_FIELDS=true` and `KEM_PUBLIC_KEY` is present, seals into
+ * a post-quantum hybrid envelope (ML-KEM-768 + AES-256-GCM).
+ * Otherwise seals into a standard `v2:<keyId>:iv:tag:ciphertext` envelope.
  * @throws AppError FIELD_ENCRYPTION_UNAVAILABLE when ENCRYPTION_KEY is missing
  * @throws AppError FIELD_ENCRYPTION_FAILED on cipher errors
  */
@@ -134,6 +143,15 @@ export async function encryptFieldValue(
   context: FieldEncryptionContext,
   fieldName: string,
 ): Promise<string> {
+  if (isFieldEncryptionEnvelope(value)) return value;
+  if (process.env.PQC_HYBRID_FIELDS === "true") {
+    const kemPublicKey = process.env.KEM_PUBLIC_KEY;
+    if (kemPublicKey && (await isMlKemAvailable())) {
+      const plaintext = new TextEncoder().encode(JSON.stringify(value));
+      const aad = buildAad(context, fieldName);
+      return hybridSeal(plaintext, { publicKey: kemPublicKey, aad });
+    }
+  }
   return encryptFieldValueSync(value, context, fieldName);
 }
 
@@ -199,7 +217,7 @@ export function decryptFieldValueSync(
 }
 
 /**
- * Decrypt a `v1`/`v2` envelope. Legacy plaintext is returned as-is.
+ * Decrypt a `v1`/`v2` AES-GCM envelope or a hybrid ML-KEM envelope. Legacy plaintext is returned as-is.
  * Tampered / AAD-mismatched / unknown-key-ID envelopes return `null` (fail-closed per field).
  */
 export async function decryptFieldValue(
@@ -207,6 +225,31 @@ export async function decryptFieldValue(
   context: FieldEncryptionContext,
   fieldName: string,
 ): Promise<unknown> {
+  if (!isFieldEncryptionEnvelope(stored)) return stored;
+  if (isHybridEnvelope(stored)) {
+    const kemPrivateKey = process.env.KEM_PRIVATE_KEY;
+    if (!kemPrivateKey) {
+      logger.error(
+        "[FieldEncryption] Hybrid PQC envelope detected but KEM_PRIVATE_KEY is missing",
+        {
+          fieldName,
+        },
+      );
+      return null;
+    }
+    try {
+      const aad = buildAad(context, fieldName);
+      const plaintextBytes = await hybridOpen(stored, { privateKey: kemPrivateKey, aad });
+      const jsonStr = new TextDecoder().decode(plaintextBytes);
+      return JSON.parse(jsonStr);
+    } catch (err) {
+      logger.error("[FieldEncryption] Hybrid PQC decrypt failed", {
+        fieldName,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }
+  }
   return decryptFieldValueSync(stored, context, fieldName);
 }
 
@@ -235,12 +278,24 @@ export function encryptDocumentFieldsSync(
 
 /**
  * Encrypt flagged fields in place. Skips missing/empty values and envelopes.
+ * When `PQC_HYBRID_FIELDS=true`, applies ML-KEM-768 hybrid envelopes asynchronously.
  */
 export async function encryptDocumentFields(
   doc: Record<string, unknown>,
   fieldNames: readonly string[],
   context: FieldEncryptionContext,
 ): Promise<Record<string, unknown>> {
+  if (!doc || fieldNames.length === 0) return doc;
+  if (process.env.PQC_HYBRID_FIELDS === "true" && process.env.KEM_PUBLIC_KEY) {
+    for (let i = 0; i < fieldNames.length; i++) {
+      const name = fieldNames[i];
+      if (!Object.hasOwn(doc, name)) continue;
+      const value = doc[name];
+      if (isEmptyFieldValue(value) || isFieldEncryptionEnvelope(value)) continue;
+      doc[name] = await encryptFieldValue(value, context, name);
+    }
+    return doc;
+  }
   return encryptDocumentFieldsSync(doc, fieldNames, context);
 }
 
@@ -266,6 +321,7 @@ export function decryptDocumentFieldsSync(
 
 /**
  * Decrypt flagged fields in place. Legacy plaintext is left untouched.
+ * Supports both standard AES-GCM and ML-KEM hybrid envelopes asynchronously.
  * Per-field decrypt failure replaces the value with `null`.
  */
 export async function decryptDocumentFields(
@@ -273,5 +329,24 @@ export async function decryptDocumentFields(
   fieldNames: readonly string[],
   context: FieldEncryptionContext,
 ): Promise<Record<string, unknown>> {
+  if (!doc || fieldNames.length === 0) return doc;
+  let hasHybrid = false;
+  for (let i = 0; i < fieldNames.length; i++) {
+    const name = fieldNames[i];
+    if (Object.hasOwn(doc, name) && isHybridEnvelope(doc[name])) {
+      hasHybrid = true;
+      break;
+    }
+  }
+  if (hasHybrid) {
+    for (let i = 0; i < fieldNames.length; i++) {
+      const name = fieldNames[i];
+      if (!Object.hasOwn(doc, name)) continue;
+      const value = doc[name];
+      if (!isFieldEncryptionEnvelope(value)) continue;
+      doc[name] = await decryptFieldValue(value, context, name);
+    }
+    return doc;
+  }
   return decryptDocumentFieldsSync(doc, fieldNames, context);
 }

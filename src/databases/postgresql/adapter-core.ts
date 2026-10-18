@@ -2087,7 +2087,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
             timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
             name: "PostgreSQL",
-            enableWriteCoalescing: false,
+            enableWriteCoalescing: true,
           });
         }
         logger.info("Connected to PostgreSQL");
@@ -2121,7 +2121,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
                   maxQueue: Number(process.env.DATABASE_MAX_QUEUE) || 500,
                   timeoutMs: Number(process.env.DATABASE_QUEUE_TIMEOUT_MS) || 15_000,
                   name: "PostgreSQL",
-                  enableWriteCoalescing: false,
+                  enableWriteCoalescing: true,
                 });
               }
               logger.info("Connected to PostgreSQL");

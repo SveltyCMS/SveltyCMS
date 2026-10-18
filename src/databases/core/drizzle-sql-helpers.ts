@@ -19,6 +19,7 @@ import {
   type Column,
   eq,
   inArray,
+  notInArray,
   isNull,
   ne,
   gt,
@@ -1062,6 +1063,13 @@ function addSingleCondition(
         }
       }
       conditions.push(inArray(col, list));
+      break;
+    }
+    case "$nin": {
+      const list = Array.isArray(val) ? val : [val];
+      // `$nin: []` matches every row — emitting `NOT IN ()` is invalid SQL.
+      if (list.length === 0) break;
+      conditions.push(notInArray(col, list));
       break;
     }
     case "$regex": {

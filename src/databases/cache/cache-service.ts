@@ -449,9 +449,9 @@ export class CacheService {
     return this.negative.isNegativeHit(fullKey);
   }
 
-  public recordMiss(key: string, tenantId?: string | null) {
+  public recordMiss(key: string, tenantId?: string | null, tags?: readonly string[]) {
     const fullKey = this.generateKey(key, tenantId);
-    this.negative.recordMiss(fullKey);
+    this.negative.recordMiss(fullKey, tags);
     if (this.locks.hasActiveLock(fullKey)) {
       this.locks.releaseLock(this.l2, fullKey).catch(() => {});
     }
@@ -984,6 +984,9 @@ export class CacheService {
 
   async clearByTags(tags: string[], tenantId: string | null = "*") {
     if (!tags || tags.length === 0) return;
+    // Negative entries carry the same tags as their positive counterparts, so a
+    // `doc:<collection>:<id>` write clear also un-negatives that entry.
+    this.negative.invalidateByTags(tags);
     this.clearLocalL1ByTags(tags, tenantId);
     cacheMetrics.recordClear(tags.join(","), CacheCategory.GENERAL, tenantId);
 
@@ -1139,13 +1142,21 @@ export class CacheService {
   }
 
   async clearByPattern(pattern: string, tenantId: string | null = "*") {
+    // Negative keys are enumerable (unlike Bloom bits): drop the ones covered by
+    // this pattern so a tenant-wide flush cannot leave 404 markers behind.
+    const isWildcardTenant =
+      tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
+    const negativePrefix = isWildcardTenant
+      ? pattern === "*" || pattern === ""
+        ? ""
+        : pattern
+      : this.generateKey("", tenantId) + (pattern === "*" ? "" : pattern);
+    this.negative.invalidateByPrefix(negativePrefix);
     this.clearLocalL1ByPattern(pattern, tenantId);
     cacheMetrics.recordClear(pattern, CacheCategory.GENERAL, tenantId);
 
     if (this.isL2Ready()) {
       try {
-        const isWildcardTenant =
-          tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
         const patternCore = pattern.replace(/[*?]+$/, "");
         const fullPattern = isWildcardTenant
           ? `tenant:*:${patternCore}*`

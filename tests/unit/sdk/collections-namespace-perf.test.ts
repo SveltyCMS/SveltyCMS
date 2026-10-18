@@ -24,6 +24,7 @@ import {
 import { hasRequestCache } from "@src/services/sdk/namespaces/collections/request-cache";
 import { publicationCacheSuffix } from "@utils/security/publication-policy";
 import { BaseAdapter } from "@src/databases/core/base-adapter";
+import { cacheService } from "@src/databases/cache/cache-service";
 import type { IBatchAdapter, ICrudAdapter } from "@src/databases/db-interface";
 
 // Workflow module imports resolve against these fakes (same pattern as
@@ -159,6 +160,46 @@ describe("findById point-read cache-key contract", () => {
     const second = await ns.findById("Articles", "doc-1", options as any);
     expect((second.data as { _id?: string })._id).toBe("doc-1");
     expect(findOne).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("findById negative 404 cache", () => {
+  it("records a confirmed miss with the per-doc tag", async () => {
+    const findOne = vi.fn(async () => ({ success: true, data: null }));
+    const crud = crudWith({ findOne });
+    const ns = new CollectionsNamespace(new TestAdapter(crud) as any);
+    await ns.registerSchema("Articles", baseSchema as any);
+    vi.mocked(cacheService.recordMiss).mockClear();
+
+    const result = await ns.findById("Articles", "missing-neg-1", {
+      user: EDITOR,
+      bypassRequestCache: true,
+    } as any);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeNull();
+    expect(cacheService.recordMiss).toHaveBeenCalledWith(
+      expect.stringContaining(":collection:Articles:missing-neg-1"),
+      undefined,
+      ["doc:Articles:missing-neg-1"],
+    );
+  });
+
+  it("short-circuits the adapter when the negative cache reports a hit", async () => {
+    const findOne = vi.fn(async () => ({ success: true, data: null }));
+    const crud = crudWith({ findOne });
+    const ns = new CollectionsNamespace(new TestAdapter(crud) as any);
+    await ns.registerSchema("Articles", baseSchema as any);
+    vi.mocked(cacheService.isNegativeHit).mockReturnValueOnce(true);
+
+    const result = await ns.findById("Articles", "missing-neg-2", {
+      user: EDITOR,
+      bypassRequestCache: true,
+    } as any);
+
+    expect(result.success).toBe(true);
+    expect(result.data).toBeNull();
+    expect(findOne).not.toHaveBeenCalled();
   });
 });
 

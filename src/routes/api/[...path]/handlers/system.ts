@@ -69,6 +69,10 @@ export async function handleSystemRoutes(
       return handleWidgetRoutes(event, cms, tenantId, segments);
     case "system": {
       const action = segments[1] || event.url.searchParams.get("action");
+      // `/api/system/ai/...` alias for the AI namespace (`/api/ai/...`).
+      if (action === "ai") {
+        return handleAiRoutes(event, cms, tenantId, segments.slice(1));
+      }
       if (action === "health") {
         return handleHealthRoutes(event, cms, tenantId, segments);
       }

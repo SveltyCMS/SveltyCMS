@@ -38,7 +38,7 @@ tags:
 - **SQLite Write Tail Acceptance Gate**:
   - The SQLite group commit batcher is default ON. Finalize acceptance: achieve a replica run free of 🔴 rows and pass `--strict-variance` across a ≥3-run ensemble.
 - **Write-Lane Adaptive Coalescing (2027)**:
-  - Make UPDATE coalescing window adaptive (`SVELTY_WRITE_COALESCE_UPDATE=1`): hold only when a second mutation is already queued in the current tick.
+  - [x] Shipped adaptive UPDATE lane (`SVELTY_WRITE_COALESCE_UPDATE=1`): an update on an idle gate skips the coalescer scheduler hop; once any mutation is in flight, updates coalesce. Inserts/deletes keep their previous scheduling unless `SVELTY_WRITE_COALESCING=1`. Metrics: `adaptiveUpdates { enabled, immediate, coalesced }`.
   - Evaluate same-tick (`0ms`) vs `1–2ms` insert coalescing windows against 100k and 1M row datasets.
   - Complete the 1M-row PostgreSQL replica proof.
 - **Two-Plane Core Phase 5 Verification**:
@@ -75,14 +75,14 @@ tags:
   - Implement tenant-scoped hierarchical nodes (`folder`, `tag`, `term`) with two edges: `parentId` for single-parent tree navigation and a membership join table for tags/terms.
   - Surface sidebar taxonomy filtering across collections and media assets.
 - **Schema Model Relation & Filter Enhancements**:
-  - Compile relation operators `some`, `none`, and `every` to capped ID lookups (`RELATION_FANOUT` cap).
+  - [x] Compile relation operators `some`, `none`, and `every` to capped ID lookups (`RELATION_FANOUT` cap) via `src/services/sdk/namespaces/collections/relation-filter.ts`.
   - Support nested mutations `{ connect, disconnect, create }` with a maximum depth of 2.
   - Implement `onDelete` schema actions (`cascade`, `setNull`, `restrict`) bounded by a fan-out cap of 100.
   - Add virtual field support (`type: "virtual"`) and projection masking (`omit` / `graphql.omit`).
 - **CMS Tables & List Platform (Smart Table)**:
   - Team & Cloud Saved Views: enterprise tenant-shared view presets with RBAC visibility controls.
   - Observability integration: pipe `list-query-metrics` into continuous benchmark trend reporting.
-  - Publish formal operational documentation for Bloom filter thresholds and 404 negative cache eviction.
+  - [x] Publish formal operational documentation for Bloom filter thresholds and 404 negative cache eviction (see [cache system](../reference/architecture/cache-system.mdx)).
 
 ---
 
@@ -142,7 +142,7 @@ tags:
 ## 7. Quality Gates, Testing & Codebase Hygiene (Active Backlog)
 
 - **Type-Checking Gate Integration**:
-  - Wire `svelte-check --threshold error` into pre-commit and CI quality gates (`bun run check`).
+  - [x] Wire `svelte-check --threshold error` into pre-commit and CI quality gates (`bun run check`).
 - **Integration Test Suite Wall-Time Optimization**:
   - Consolidate the remaining `prepareAuthenticatedContext` call sites (the per-test `beforeEach` wipes in `collections`, `media`, `system`, `telemetry`, `theme`, `website-tokens` are now single `beforeAll` contexts; `token` keeps its per-test reset because that reset also clears the `create-token` rate limiter).
   - Remove the remaining redundant `cleanupTestDatabase()` hooks in `afterAll` (19 removed 2026-10-16 — every suite already resets in `beforeAll`; the rest do real media/file cleanup).
@@ -158,7 +158,7 @@ tags:
   - Validate inline code paths: resolve 107 stale inline `` `src/…` `` references in docs and add verification to `tests/lint-docs.ts`.
   - [x] Wire up server-side cookie consent logging in `src/plugins/cookie-consent/api.server.ts`.
 - **State Migration**:
-  - Migrate legacy stores (`systemState`, `overallState`) in `src/stores/system/state.svelte.ts` to Svelte 5 runes (`$state()`, `$derived()`).
+  - [x] Migrated legacy stores (`systemState`, `overallState`) in `src/stores/system/state.svelte.ts` to Svelte 5 runes (`$state()`, `$derived()`), fully eradicating `svelte/store` with internal native `#listeners` subscription support.
 
 ---
 
@@ -168,7 +168,7 @@ tags:
   - Commission an independent external penetration test prior to enterprise GA. **Not performed as of 2026-10-18.**
 - **Cryptographic agility (PQC readiness)** — reference: [Quantum security](../reference/security/quantum-security.mdx):
   - [x] Key-ID envelopes (`v2:<keyId>:…`, binary key IDs, `SCHB2` backups) and a configured decrypt ring (`*_KEY_RING`). Shipped in `src/utils/security/envelope.ts`; rotation is now a two-phase operation.
-  - [x] Hybrid at-rest envelope (AES-256-GCM payload under a random DEK, DEK wrapped with ML-KEM-768 + HKDF). Primitive shipped in `src/utils/security/hybrid-kem.ts`; opt-in for backups via `PQC_HYBRID_BACKUPS=true`. **Remaining:** wire fields/settings/TOTP and document a re-wrap/rollback runbook.
+  - [x] Hybrid at-rest envelope (AES-256-GCM payload under a random DEK, DEK wrapped with ML-KEM-768 + HKDF). Primitive shipped in `src/utils/security/hybrid-kem.ts`; opt-in for backups via `PQC_HYBRID_BACKUPS=true` and collection fields via `PQC_HYBRID_FIELDS=true` (`src/utils/security/field-encryption.ts`).
   - [x] Optional SHA-384/SHA-512 checksum profile (`CHECKSUM_ALGORITHM`) for new artifacts; legacy bare-hex values still verify as SHA-256. The append-only audit chain stays SHA-256.
   - [x] Pin the documented parameters with `crypto-inventory`, `key-ring`, `hybrid-kem` and `checksum-profile` tests; extend them when an envelope format changes.
 - **GraphQL Supergraph**:
@@ -189,10 +189,14 @@ Based on publicly available release notes for Drupal AI 1.5.0 (Workflows of AI, 
 
 - **Provider port**:
   - [x] Extracted typed `AiProvider` interface (`src/services/ai/ai-provider.ts`) defining generate/chat/embed/usage contracts with OpenTelemetry GenAI naming, decoupling inference callers from specific LLM vendors with server-side provider resolution.
-- **ChatProcessor seam**: move `/api/chat` behind a processor interface so an agent, a workflow engine or an external assistant can answer without the chat UI knowing which backend ran.
-- **ChatMemory**: persist conversation threads server-side, scoped by `tenantId` + user/session, with an explicit reset endpoint. Until this ships, client history stays validated and bounded (already enforced).
-- **Streaming guardrails**: apply redaction while the response streams, with a deterministic filter as the primary control and model markers as an additional signal — never markers alone.
-- **Moderation fail-closed**: when a configured moderation provider is unavailable, block rather than pass. Moderation is one layer, not the authorization boundary.
+- **ChatProcessor seam**:
+  - [x] Moved `/api/chat` behind `ChatProcessor` interface (`src/services/ai/chat-processor.ts`, `AI_CHAT_PROCESSOR` setting) with pluggable custom processor registration and abort handling.
+- **ChatMemory**:
+  - [x] Persisted conversation threads server-side (`src/services/ai/chat-memory.ts`), scoped by `tenantId` + `conversationId` with L1/L2 cache, 24h TTL, 40-turn / 8k / 32k window, and `POST /api/ai/chat/reset`.
+- **Streaming guardrails**:
+  - [x] Deterministic `redactSecrets()` and chunk-safe `createStreamRedactor()` (`src/utils/security/stream-redaction.ts`) applied across chat responses, SSE streaming, and content events.
+- **Moderation fail-closed**:
+  - [x] Fail-closed `moderateAiText()` (`src/services/ai/moderation.ts`) with private-setting / env config and `MODERATION_UNAVAILABLE` on provider downtime.
 - **Reranker**: re-order semantic-index candidates by answer relevance (top-N configurable), keeping keyword scores as the fallback.
 - **Token budgets**: per-tenant daily token ceilings derived from the existing quota primitive, surfaced in the admin dashboard.
 - **Exporter**: optional OpenTelemetry OTLP export for the `gen_ai.*` attributes already emitted (currently structured logs only).

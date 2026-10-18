@@ -4,7 +4,15 @@
  */
 
 import { logger } from "@src/utils/logger";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise, rethrow } from "@utils/error-handling";
+import { redactSecrets } from "@utils/security/stream-redaction";
+import {
+  assertConversationId,
+  chatMemory,
+  createConversationId,
+} from "@src/services/ai/chat-memory";
+import { getChatProcessor } from "@src/services/ai/chat-processor";
+import { moderateAiText } from "@src/services/ai/moderation";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -47,8 +55,10 @@ const ChatHistoryMessageSchema = object({
 const AiChatRequestSchema = object({
   userMessage: optional(pipe(string(), trim(), maxLength(12_000, "message is too long"))),
   content: optional(pipe(string(), trim(), maxLength(12_000, "message is too long"))),
+  message: optional(pipe(string(), trim(), maxLength(12_000, "message is too long"))),
   history: optional(array(ChatHistoryMessageSchema)),
   room: optional(string()),
+  conversationId: optional(pipe(string(), trim(), maxLength(128, "conversationId is too long"))),
   tab: optional(string()),
 });
 
@@ -76,6 +86,47 @@ const AiEnrichRequestSchema = object({
 
 /** Bound the conversation length before it reaches the model (cost/latency guard). */
 const MAX_CHAT_HISTORY_TURNS = 40;
+const MAX_CHAT_HISTORY_TURN_CHARS = 8_000;
+
+interface ChatHistoryTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/**
+ * Merges persisted memory with client history without exceeding the window.
+ * Duplicate turns (memory replayed by the client) are collapsed; the newest
+ * turns win because the result is sliced to the tail.
+ */
+function mergeChatHistory(
+  memory: readonly ChatHistoryTurn[],
+  clientHistory: readonly ChatHistoryTurn[],
+): ChatHistoryTurn[] {
+  const seen = new Set<string>();
+  const merged: ChatHistoryTurn[] = [];
+
+  for (const turn of [...memory, ...clientHistory]) {
+    const content = turn.content.trim().slice(0, MAX_CHAT_HISTORY_TURN_CHARS);
+    if (!content) continue;
+    const fingerprint = `${turn.role}\u0000${content}`;
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    merged.push({ role: turn.role, content });
+  }
+
+  return merged.slice(-MAX_CHAT_HISTORY_TURNS);
+}
+
+/** Stable conversation id: explicit id/room, then `user-<id>`, then a UUID. */
+function resolveConversationId(
+  explicitId: string | undefined,
+  room: string | undefined,
+  userId: string | null,
+): string {
+  const requested = (explicitId || room || "").trim();
+  if (requested) return assertConversationId(requested);
+  return createConversationId(userId);
+}
 
 /**
  * --- AI ---
@@ -91,9 +142,34 @@ export async function handleAiRoutes(
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
   const action = segments[1];
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const { aiService } = await import("@src/services/core/ai-service");
   const { eventBus } = await loadEventBusModule();
+
+  // POST /api/ai/chat/reset (and /api/system/ai/chat/reset) — caller's tenant + conversation only.
+  if (action === "chat" && segments[2] === "reset") {
+    if (request.method !== "POST") {
+      raise(405, "Method not allowed", "METHOD_NOT_ALLOWED");
+    }
+    const user = locals.user;
+    if (!user) {
+      raise(401, "Authentication required", "UNAUTHORIZED");
+    }
+    if (isMultiTenantEnabled() && !tenantId) {
+      raise(400, "Tenant ID required", "TENANT_REQUIRED");
+    }
+
+    const requestedConversationId =
+      typeof (body as { conversationId?: unknown }).conversationId === "string"
+        ? (body as { conversationId: string }).conversationId.trim()
+        : undefined;
+    const conversationId = requestedConversationId
+      ? assertConversationId(requestedConversationId)
+      : createConversationId(String(user._id));
+
+    await chatMemory.reset(tenantId, conversationId);
+    return successResponse(event, { success: true });
+  }
 
   if (action === "chat") {
     const parsed = safeParse(AiChatRequestSchema, body);
@@ -101,10 +177,21 @@ export async function handleAiRoutes(
       throw new AppError("Invalid chat payload", 400, "VALIDATION_FAILED");
     }
 
-    const { userMessage, content, history = [], room, tab } = parsed.output;
-    const text = (userMessage || content || "").trim();
+    const {
+      userMessage,
+      content,
+      message,
+      history = [],
+      room,
+      tab,
+      conversationId: requestedConversationId,
+    } = parsed.output;
+    const text = (userMessage || content || message || "").trim();
 
     if (!text) throw new AppError("Content is required", 400);
+
+    const userId = locals.user?._id?.toString() ?? null;
+    const conversationId = resolveConversationId(requestedConversationId, room, userId);
 
     const userPayload = locals.user
       ? {
@@ -117,21 +204,87 @@ export async function handleAiRoutes(
 
     eventBus.emit("chat:message", {
       user: userPayload,
-      data: { text, room: room || null, tab: tab || "chat" },
+      data: { text, room: room || null, tab: tab || "chat", conversationId },
       tenantId,
     });
 
     if (!room) {
-      (async () => {
+      void (async () => {
         try {
-          const aiResponse = await aiService.chat(text, history.slice(-MAX_CHAT_HISTORY_TURNS));
+          // Persist the user turn before inference; prior memory is merged with
+          // client history but the current message is supplied separately.
+          const priorTurns = await chatMemory.get(tenantId, conversationId);
+          await chatMemory.append(tenantId, conversationId, { role: "user", content: text });
+          const mergedHistory = mergeChatHistory(priorTurns, history);
+
+          const { getUntypedSetting } = await import("@src/services/core/settings-service");
+          const configuredProcessorId = await getUntypedSetting<string>(
+            "AI_CHAT_PROCESSOR",
+            "private",
+            tenantId ?? undefined,
+          );
+          const processor = getChatProcessor(
+            typeof configuredProcessorId === "string" ? configuredProcessorId.trim() : undefined,
+          );
+
+          const result = await processor.process(
+            {
+              message: text,
+              history: mergedHistory,
+              conversationId,
+              tenantId: tenantId ?? null,
+              userId,
+            },
+            request.signal,
+          );
+
+          // 🛡️ Fail-closed moderation: provider configured + unavailable ⇒ no text.
+          try {
+            const moderation = await moderateAiText(result.text, {
+              tenantId: tenantId ?? null,
+              userId,
+            });
+            if (!moderation.allowed) {
+              eventBus.emit("ai:response", {
+                user: { _id: "ai", username: "SveltyAgent" },
+                data: {
+                  text: "",
+                  done: true,
+                  error: "MODERATION_BLOCKED",
+                  reason: moderation.reason ?? "moderation_flagged",
+                },
+                tenantId,
+              });
+              return;
+            }
+          } catch (moderationError) {
+            rethrow(moderationError);
+            logger.warn("RTC: AI moderation unavailable; response suppressed", { tenantId });
+            eventBus.emit("ai:response", {
+              user: { _id: "ai", username: "SveltyAgent" },
+              data: { text: "", done: true, error: "MODERATION_UNAVAILABLE" },
+              tenantId,
+            });
+            return;
+          }
+
+          const safeText = redactSecrets(result.text);
+          await chatMemory.append(tenantId, conversationId, {
+            role: "assistant",
+            content: safeText,
+          });
+
           eventBus.emit("ai:response", {
             user: { _id: "ai", username: "SveltyAgent" },
-            data: { text: aiResponse, done: true },
+            data: { text: safeText, done: true, redacted: safeText !== result.text },
             tenantId,
           });
         } catch (err) {
-          logger.error("RTC: AI Inference failed:", err);
+          rethrow(err);
+          logger.error("RTC: AI inference failed", {
+            tenantId,
+            message: redactSecrets(err instanceof Error ? err.message : String(err)),
+          });
         }
       })();
     }

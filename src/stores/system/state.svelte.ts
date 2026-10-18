@@ -12,8 +12,6 @@
  */
 
 import { logger } from "@utils/logger";
-import type { Readable, Writable } from "svelte/store";
-import { derived, writable } from "svelte/store";
 import type {
   ServiceHealth,
   ServiceName,
@@ -76,9 +74,20 @@ function syncOverallState(newState: SystemState) {
   setGlobal(OVERALL_STATE_KEY, newState);
 }
 
-// Svelte 5 Reactive Class for Enterprise Performance
-class SystemStateContainer {
+// Svelte 5 Reactive Class for Enterprise Performance (no legacy svelte/store)
+export class SystemStateContainer {
   #state = $state(initialState);
+  #listeners = new Set<(v: SystemStateStore) => void>();
+
+  #notify() {
+    for (const fn of this.#listeners) {
+      try {
+        fn(this.#state);
+      } catch (err) {
+        logger.error("[SystemState] Listener notification error:", err);
+      }
+    }
+  }
 
   get state() {
     return this.#state;
@@ -92,9 +101,20 @@ class SystemStateContainer {
     return deriveOverallState(this.#state.services);
   }
 
-  // Backward compatibility for .subscribe()
-  subscribe(fn: (v: SystemStateStore) => void) {
-    return systemStateStore.subscribe(fn);
+  /**
+   * Observer subscription for reactive or non-reactive listeners.
+   * Immediately yields current state, then notifies on state mutation.
+   */
+  subscribe(fn: (v: SystemStateStore) => void): () => void {
+    this.#listeners.add(fn);
+    try {
+      fn(this.#state);
+    } catch (err) {
+      logger.error("[SystemState] Initial subscriber error:", err);
+    }
+    return () => {
+      this.#listeners.delete(fn);
+    };
   }
 
   update(fn: (v: SystemStateStore) => SystemStateStore) {
@@ -105,7 +125,7 @@ class SystemStateContainer {
   set(val: SystemStateStore) {
     this.#state = val;
     syncOverallState(this.#state.overallState);
-    systemStateStore.set(this.#state);
+    this.#notify();
   }
 
   // High-performance partial update
@@ -113,7 +133,7 @@ class SystemStateContainer {
     Object.assign(this.#state, partial);
     this.#state.overallState = deriveOverallState(this.#state.services);
     syncOverallState(this.#state.overallState);
-    systemStateStore.set(this.#state);
+    this.#notify();
   }
 
   updateService(name: keyof SystemStateStore["services"], health: Partial<ServiceStatus>) {
@@ -136,23 +156,17 @@ class SystemStateContainer {
       this.#state.overallState = deriveOverallState(this.#state.services);
       syncOverallState(this.#state.overallState);
     }
-    systemStateStore.set(this.#state);
+    this.#notify();
   }
 }
 
 const SYSTEM_CONTAINER_KEY = "__SYSTEM_STATE_CONTAINER__";
-const SYSTEM_STORE_KEY = "__SYSTEM_STATE_STORE__";
 
 if (!getGlobal(SYSTEM_CONTAINER_KEY)) {
   setGlobal(SYSTEM_CONTAINER_KEY, new SystemStateContainer());
 }
 export const system: SystemStateContainer = getGlobal(SYSTEM_CONTAINER_KEY);
-
-if (!getGlobal(SYSTEM_STORE_KEY)) {
-  setGlobal(SYSTEM_STORE_KEY, writable(initialState));
-}
-// Keep the legacy store for compatibility with old components
-export const systemStateStore: Writable<SystemStateStore> = getGlobal(SYSTEM_STORE_KEY);
+export const systemStateStore = system;
 
 /**
  * Centralized helper for transitioning a service's state and updating metrics.
@@ -577,20 +591,18 @@ export function resetSystemState(): void {
   });
 }
 
-// Get a readable store for the system state (for Svelte components)
-export const systemState: Readable<SystemStateStore> = derived(systemStateStore, (state) => state);
+// Backward-compatible observer object for system state (for components/subscribers)
+export const systemState = system;
 
 /**
- * Overall system state as a readable store.
- *
- * Still consumed by the boot pipeline (`hooks.server.ts` dynamically imports
- * this module and subscribes here to apply hardware-adaptive tuning / service
- * init on READY) — do not remove without migrating that caller.
+ * Overall system state observer.
+ * Exposes .subscribe(fn) for event-driven readiness detection without legacy stores.
  */
-export const overallState: Readable<SystemState> = derived(
-  systemStateStore,
-  (state) => state.overallState,
-);
+export const overallState = {
+  subscribe(fn: (state: SystemState) => void): () => void {
+    return system.subscribe((st) => fn(st.overallState));
+  },
+};
 
 // NOTE: The former granular `derived()` exports (isReady, isInitializing,
 // isServing, isWarmed, isFailed, isDegraded, servicesStatus, databaseStatus,
