@@ -269,6 +269,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		bind:this={modalContainer}
 		class="image-editor-panel relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden"
 		class:image-editor-panel--mobile={isMobileEditor}
+		data-admin-theme="default"
 		role="dialog"
 		aria-label="Image Editor — edit and transform your image"
 		aria-modal="true"
@@ -364,8 +365,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 	   Binds directly to SveltyCMS admin theme tokens so that light/dark mode and
 	   custom admin themes are fully respected. */
 	.image-editor-panel {
-		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-100));
-		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-50));
+		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-50, #f8fafc));
+		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-50, #ffffff));
 		--editor-chrome-elevated: var(
 			--admin-bg-chip,
 			color-mix(in oklch, var(--admin-text-body, currentColor) 8%, transparent)
@@ -398,6 +399,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 	}
 
 	:global(.dark) .image-editor-panel {
+		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-900, #0f172a));
+		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-950, #09090b));
 		--editor-canvas-bg: var(--color-surface-950, #09090b);
 		--editor-chrome-text: var(--admin-text-muted, #94a3b8);
 		--editor-chrome-text-hover: var(--admin-text-body, #f8fafc);
@@ -418,8 +421,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 	}
 
 	.image-editor-panel--mobile {
-		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-100));
-		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-50));
+		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-50, #f8fafc));
+		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-50, #ffffff));
 		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
 		--editor-chrome-elevated: var(
 			--admin-bg-chip,
@@ -446,6 +449,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 	}
 
 	:global(.dark) .image-editor-panel--mobile {
+		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-900, #0f172a));
+		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-950, #09090b));
 		--editor-canvas-bg: var(--color-surface-950, #09090b);
 	}
 
