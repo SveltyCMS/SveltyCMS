@@ -1187,9 +1187,13 @@
 				{/if}
 			</div>
 
-			<!-- Desktop toolbar: single row -->
-			<div class="hidden items-center gap-2 py-2 sm:flex">
-				<div class="relative min-w-0 flex-1">
+			<!-- Desktop toolbar: wraps instead of collapsing the search field.
+			     `flex-wrap` + `min-w-40` keep the primary search usable at 1280px;
+			     without it the fixed controls squeezed it to ~24px and the
+			     absolutely positioned advanced-search button rendered under the
+			     left sidebar (pointer events hit the aside instead of the button). -->
+			<div class="hidden flex-wrap items-center gap-2 py-2 sm:flex">
+				<div class="relative min-w-40 flex-1">
 					<iconify-icon
 						icon="mdi:magnify"
 						class="pointer-events-none absolute inset-s-3 top-1/2 z-10 -translate-y-1/2 opacity-50"

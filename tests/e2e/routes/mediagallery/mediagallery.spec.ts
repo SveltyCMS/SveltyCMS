@@ -5,82 +5,15 @@
  * Uses data-testid selectors (not role/CSS) so tests survive layout changes.
  */
 
-import sharp from "sharp";
-import { test, expect, type Page } from "@playwright/test";
-import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
+import { test, expect } from "@playwright/test";
+import { waitForHydration } from "../../helpers/auth";
 import { seedMediaWithMetadata } from "../../helpers/api";
-import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
-
-type MediaRow = { _id: string; filename: string };
-
-/** The rendered card for a specific filename (one per upload, deterministic). */
-function mediaCard(page: Page, filename: string) {
-  return page.getByTestId("media-item").filter({ hasText: filename }).first();
-}
-
-async function deleteMediaRow(page: Page, id?: string): Promise<void> {
-  if (!id) return;
-  await page.request.delete(`/api/media/${encodeURIComponent(id)}`).catch(() => undefined);
-}
-
-/** Unique PNG per test — avoids the content-hash dedupe that shared fixtures hit. */
-async function uniquePng(filename: string) {
-  const seed = Math.floor(Math.random() * 200) + 20;
-  const buffer = await sharp({
-    create: {
-      width: 24,
-      height: 24,
-      channels: 3,
-      background: { r: seed, g: (seed * 7) % 255, b: (seed * 13) % 255 },
-    },
-  })
-    .png()
-    .toBuffer();
-  return { name: filename, mimeType: "image/png", buffer };
-}
-
-async function uploadUniqueImage(page: Page, filename: string): Promise<MediaRow> {
-  const file = await uniquePng(filename);
-  const uploadResponse = page.waitForResponse(
-    (res) =>
-      res.request().method() === "POST" &&
-      (res.url().includes("?/upload") || res.url().includes("/api/media")),
-    { timeout: 30_000 },
-  );
-  await page.getByTestId("media-upload-input").setInputFiles(file);
-  const response = await uploadResponse;
-  expect(response.ok(), `upload POST ${response.status()} ${response.url()}`).toBe(true);
-
-  // The gallery revalidates after the action; the rendered card is the contract.
-  const card = mediaCard(page, filename);
-  await expect(card).toBeVisible({ timeout: 25_000 });
-  const id = await card.getAttribute("data-media-id");
-  expect(id, "uploaded card must expose a data-media-id").toBeTruthy();
-  return { _id: id!, filename };
-}
-
-async function openMediaGallery(page: import("@playwright/test").Page) {
-  await seedCookieConsent(page);
-  await loginAsAdmin(page);
-  await dismissCookieConsent(page);
-  await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });
-  if (page.url().includes("/login")) {
-    await loginAsAdmin(page, "/mediagallery");
-    await dismissCookieConsent(page);
-  }
-  await dismissCookieConsent(page);
-  await expect(page).toHaveURL(/\/mediagallery/, { timeout: 15_000 });
-  await expect(page).not.toHaveURL(/\/login/);
-
-  const shell = page
-    .getByTestId("media-gallery-toolbar")
-    .or(page.getByTestId("media-gallery-content"))
-    .or(page.getByTestId("media-grid"))
-    .or(page.getByTestId("admin-page-title"));
-  await expect(shell.first()).toBeVisible({ timeout: 30_000 });
-  // The shell renders in SSR HTML; search/filters/upload need the hydrated tree.
-  await waitForHydration(page);
-}
+import {
+  deleteMediaRow,
+  mediaCard,
+  openMediaGallery,
+  uploadUniqueImage,
+} from "../../helpers/media";
 
 test.describe("Media Gallery", () => {
   test.beforeEach(async ({ page }) => {
