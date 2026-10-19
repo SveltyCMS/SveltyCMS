@@ -89,12 +89,12 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 
 ### CI gate parity (`ci.yml` → local mirror)
 
-CI runs 9 whitebox tasks + harness build + DB ×4 + bench ×4 + 6 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
+CI runs 5 whitebox tasks + harness build + DB ×4 + bench ×4 (perf-path/main only) + 8 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
 
 | CI job (`ci.yml`)                  | Local mirror                                                                                                                                                                                                                       |
 | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 🏁 Bootstrap (paraglide + codegen) | `bun run paraglide`; `bun x svelte-kit sync`                                                                                                                                                                                       |
-| 01-format / 02-lint                | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                                                                                                                                      |
+| 01-format / 02-lint (merged)       | `bun run format`; `bun run lint` (CI `lint:ci` = same rules, github reporter)                                                                                                                                                      |
 | 03-check                           | `bun run check` (format + lint + lockfile + **`typecheck`**: `tsc --noEmit` + `svelte-check`)                                                                                                                                      |
 | 04-unit                            | `bun run test:unit` + `bun run test:unit:components`; CI runs `test:coverage` then components then `test:mutation`                                                                                                                 |
 | 04b-tenant-gate                    | `bun run test:tenant`; on a dirty tree: `bun run lint:tenant -- --full`                                                                                                                                                            |

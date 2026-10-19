@@ -38,7 +38,9 @@ on:
       - "docs/**"
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.ref_protected && github.sha || '' }}
+  # `next` and PR runs cancel superseded pushes. `main` keeps the SHA in the
+  # group so a release run is never cancelled mid-flight by a follow-up push.
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -62,6 +64,8 @@ jobs:
     outputs:
       pw-version: ${{ steps.pw.outputs.version }}
       test-secret: ${{ steps.secret-gen.outputs.secret }}
+      db-matrix: ${{ steps.matrices.outputs.db }}
+      e2e-matrix: ${{ steps.matrices.outputs.e2e }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -72,6 +76,16 @@ jobs:
         with:
           bun-version: "1.3.14"
           node-version: "24"
+
+      # Matrix generation is two `node` invocations over static TS files. Keep
+      # it here instead of spending two extra runners (~7s each) on it.
+      - name: Generate test matrices
+        id: matrices
+        run: |
+          {
+            echo "db=$(node .github/workflows/db-matrix.ts)"
+            echo "e2e=$(node .github/workflows/e2e-matrix.ts)"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Verify Codegen
         run: |
@@ -138,6 +152,42 @@ jobs:
           docker save redis:latest -o /tmp/docker-images/redis.tar
 
   # ------------------------------------------------
+  # 1c. Change scope — benchmarks only for perf-sensitive paths
+  # ------------------------------------------------
+  # The core benchmark matrix is 4 runners and cannot observe UI/docs edits.
+  # `main` always runs it (release gate); `next`/PR runs skip it unless a path
+  # that can affect the persistence/HTTP hot path changed.
+  changes:
+    name: 🔍 Change Scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      bench: ${{ steps.scope.outputs.bench }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: scope
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "bench=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="HEAD^"
+          fi
+          if git diff --name-only "$BASE" HEAD | grep -Eq '^(src/(databases|services/sdk|utils/media|routes/api|hooks|utils/rate-limit|content)/|package\.json|bun\.lock|vite\.config|svelte\.config|tests/benchmarks/|scripts/(runs|benchmark-matrix)/)'; then
+            echo "bench=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bench=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ------------------------------------------------
   # 2. Quality gates (parallel, no artifact deps beyond bootstrap meta)
   # ------------------------------------------------
   whitebox:
@@ -149,43 +199,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Format/lint: summary on success; full diagnostics only when the tool fails.
-          - task: 01-format
-            name: 🖌️ Format Check
+          # Static + policy checks share one runner. Each is seconds of work and
+          # previously paid a full checkout + install (~6 extra runners). Format
+          # and lint stay first so they fail fast.
+          - task: 01-static
+            name: 🖌️ Static & Policy Checks
             run: |
               echo "::group::oxfmt --check"
-              if bun run format --check; then
-                echo "::endgroup::"
-                echo "✅ Format check clean"
-              else
-                echo "::endgroup::"
-                echo "::error::Format check failed — run: bun run format"
-                exit 1
-              fi
-          - task: 02-lint
-            name: 🔎 Lint
-            run: |
-              echo "::group::oxlint"
-              # github format → PR annotations; --quiet suppresses non-error noise
-              if bun run lint:ci; then
-                echo "::endgroup::"
-                echo "✅ Lint clean (0 errors)"
-              else
-                echo "::endgroup::"
-                echo "::error::Lint failed"
-                exit 1
-              fi
-          - task: 03-check
-            name: ✅ Quality Gate (check)
-            run: |
-              echo "::group::format --check"
               bun run format --check
               echo "::endgroup::"
               echo "::group::oxlint"
               bun run lint:ci
               echo "::endgroup::"
+              echo "::group::bun audit"
+              timeout 60s bun audit --severity=high > bun-audit.log 2>&1 || true
+              cat bun-audit.log
+              echo "::endgroup::"
+              echo "::group::secret misuse"
+              bun run scripts/security/scan-secret-misuse.ts --strict
+              echo "::endgroup::"
+              echo "::group::hardware tiers"
+              bun run scripts/probe/probe-hardware-tiers.ts
+              echo "::endgroup::"
+              echo "✅ Static and policy checks clean"
+          - task: 03-check
+            name: ✅ Quality Gate (check)
+            # Format + lint already ran in 01-static; this job owns the
+            # type-level, lockfile, and seam contracts.
+            run: |
               echo "::group::lockfile-sync"
               bun run scripts/check/check-lockfile-sync.ts
+              echo "::endgroup::"
+              echo "::group::seams"
+              bun run check:seams
+              echo "::endgroup::"
+              echo "::group::version:verify"
+              bun run version:verify
               echo "::endgroup::"
               echo "::group::typecheck (tsc + svelte-check)"
               bun run typecheck
@@ -211,25 +260,9 @@ jobs:
               echo "::group::tenant lint + unit"
               bun run test:tenant
               echo "::endgroup::"
-          - task: 05-cve-audit
-            name: 🔒 CVE Dependency Audit
-            run: |
-              echo "::group::bun audit"
-              timeout 60s bun audit --severity=high > bun-audit.log 2>&1 || true
-              cat bun-audit.log
-              echo "::endgroup::"
-          - task: 06-secret-misuse
-            name: 🔑 Secret Misuse Scan
-            run: bun run scripts/security/scan-secret-misuse.ts --strict
           - task: 07-deploy-backdoor
             name: 🚪 Deploy Backdoor Probe (A01)
             run: bun run scripts/probe/probe-deploy-testing-api.ts
-          # Proves the hardware profile follows the cgroup limits (memory + CPU
-          # quota), not the host: the runner has ~16 GB / 4 cores, the probe
-          # asserts the 256 MB / 512 MB rows derive exactly as documented.
-          - task: 08-hardware-tiers
-            name: 🧠 Hardware Tier Derivation (cgroup)
-            run: bun run scripts/probe/probe-hardware-tiers.ts
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -237,10 +270,24 @@ jobs:
           bun-version: "1.3.14"
           node-version: "24"
       - name: Download workspace-meta
-        if: matrix.task != '05-cve-audit'
         uses: actions/download-artifact@v8
         with:
           name: workspace-meta
+      # The static/policy job needs no Redis.
+      - name: Restore cached DB images (Redis)
+        if: matrix.task == '04-unit'
+        uses: actions/cache/restore@v6
+        with:
+          path: /tmp/docker-images
+          key: docker-db-images-${{ runner.os }}-mongo-mariadb-pg18-redis-v1
+          restore-keys: |
+            docker-db-images-${{ runner.os }}-
+      - name: Load cached Redis image
+        if: matrix.task == '04-unit'
+        run: |
+          shopt -s nullglob
+          tars=(/tmp/docker-images/*redis*.tar)
+          for f in "${tars[@]}"; do docker load -i "$f" >/dev/null; done
       # The CacheService L2 contract suite
       # (tests/unit/databases/cache-service-l2-contract.test.ts) drives a REAL Redis
       # across two service instances: tenant isolation, cross-instance invalidation,
@@ -258,7 +305,7 @@ jobs:
           # suite loudly, not be swallowed as another silent skip. Empty elsewhere.
           TEST_REDIS_URL: ${{ matrix.task == '04-unit' && 'redis://127.0.0.1:6379' || '' }}
       - name: CVE Audit Summary
-        if: matrix.task == '05-cve-audit'
+        if: matrix.task == '01-static'
         run: |
           echo "### 🔒 Dependency Audit (CVE Check)" >> $GITHUB_STEP_SUMMARY
           echo "| Tool | Status |" >> $GITHUB_STEP_SUMMARY
@@ -315,40 +362,17 @@ jobs:
             build-checksum.txt
           retention-days: 1
 
-  # ------------------------------------------------
-  # 4. DB Matrix — TS config
-  # ------------------------------------------------
-  db-matrix:
-    name: 📋 DB Matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.generate.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: |
-            .github/workflows
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-
-      - name: Generate E2E Matrix
-        id: generate
-        run: |
-          matrix=$(node .github/workflows/db-matrix.ts)
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-
-  # ------------------------------------------------
+  # ---------------------------------------------
   # 5. DB Integration Tests (Docker Compose profiles)
   # ------------------------------------------------
   db-tests:
     name: 🧪 DB (${{ matrix.db }})
-    needs: [build, db-matrix, docker-cache]
+    needs: [bootstrap, build, docker-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.bootstrap.outputs.db-matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -439,12 +463,13 @@ jobs:
   # ------------------------------------------------
   bench-core:
     name: 📊 Bench (${{ matrix.db }})
-    needs: [build, db-matrix, docker-cache]
+    needs: [bootstrap, build, docker-cache, changes]
+    if: needs.changes.outputs.bench == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.db-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.bootstrap.outputs.db-matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -597,6 +622,10 @@ jobs:
       HOST: 127.0.0.1
       PORT: 4173
       ORIGIN: http://127.0.0.1:4173
+      # Tests must never be throttled. This is configuration, not a code bypass:
+      # L1/L2 buckets still run and still enforce whatever ceiling is configured.
+      RATE_LIMIT_MAX_REQUESTS: "1000000"
+      RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000"
       NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v7
@@ -762,40 +791,18 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
-  # 7. E2E Matrix — named shard groups
-  # ------------------------------------------------
-  e2e-matrix:
-    name: 📋 E2E Matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.generate.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          sparse-checkout: |
-            .github/workflows
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-      - name: Generate E2E Matrix
-        id: generate
-        run: |
-          matrix=$(node .github/workflows/e2e-matrix.ts)
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
-
-  # ------------------------------------------------
-  # 8. E2E Tests — named groups with grep filtering
+  # 7. E2E Tests — named groups with grep filtering
   # ------------------------------------------------
   # wizard + firstuser + auth-setup run sequentially in e2e-prep.
   # All other CMS route tests run here via named chromium shards.
   e2e:
     name: 🧪 E2E — ${{ matrix.name }}
-    needs: [bootstrap, e2e-prep, e2e-matrix]
+    needs: [bootstrap, e2e-prep]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.e2e-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.bootstrap.outputs.e2e-matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -858,6 +865,9 @@ jobs:
           PORT: 4173
           ORIGIN: http://127.0.0.1:4173
           SKIP_E2E_DEPS: "true"
+          # Tests must never be throttled (configuration, not a code bypass).
+          RATE_LIMIT_MAX_REQUESTS: "1000000"
+          RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000"
           NODE_OPTIONS: "--max-old-space-size=4096"
         run: |
           if [ -z "${TEST_API_SECRET}" ]; then
@@ -926,9 +936,9 @@ jobs:
       - bootstrap
       - build
       - docker-cache
+      - changes
       - whitebox
       - e2e-prep
-      - e2e-matrix
       - e2e
       - db-tests
     steps:
@@ -946,7 +956,6 @@ jobs:
           RESULT_BUILD: ${{ needs.build.result }}
           RESULT_WHITEBOX: ${{ needs.whitebox.result }}
           RESULT_E2E_PREP: ${{ needs.e2e-prep.result }}
-          RESULT_E2E_MATRIX: ${{ needs.e2e-matrix.result }}
           RESULT_E2E: ${{ needs.e2e.result }}
           RESULT_DB_TESTS: ${{ needs.db-tests.result }}
         run: bun run scripts/ci/ci-report-all-green.ts

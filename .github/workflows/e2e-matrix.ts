@@ -8,8 +8,12 @@
  *   chromium → parallel named groups partitioned by --grep only
  *
  * IMPORTANT: Each group uses shard=1/1. Grep already partitions the suite.
- * Combining --grep with --shard=N/6 drops ~5/6 of each group's tests
+ * Combining --grep with --shard=N/M drops ~(M-1)/M of each group's tests
  * (and empty shards fail), which made CI look "elementary" and flaky.
+ *
+ * Groups must form a partition: every chromium spec matches exactly one grep,
+ * otherwise it silently never runs. When splitting a group, split its regex
+ * into two disjoint expressions instead of adding a second broad match.
  *
  * Usage:
  *   node .github/workflows/e2e-matrix.ts
@@ -48,8 +52,12 @@ const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
     grep: "(routes[\\\\/]user[\\\\/](account-smoke|profile|session-revocation|token-actions|management)|account-smoke|session-revocation|token-actions)",
   },
   {
-    name: "RBAC & Journeys",
-    grep: "(routes[\\\\/]system[\\\\/](permissions|rbac|permission-enforcement)|routes[\\\\/]user[\\\\/](coverage-100|p0-journeys|complete-coverage)|rbac|coverage-100|p0-journeys|complete-coverage)",
+    name: "RBAC & Enforcement",
+    grep: "(routes[\\\\/]system[\\\\/](permissions|rbac|permission-enforcement)|rbac)",
+  },
+  {
+    name: "User Journeys",
+    grep: "(routes[\\\\/]user[\\\\/](coverage-100|p0-journeys|complete-coverage)|coverage-100|p0-journeys|complete-coverage)",
   },
   {
     name: "Media & Dashboard",

@@ -36,11 +36,6 @@ const JOBS: Array<{ key: string; label: string; fix: string }> = [
     fix: "Open playwright-report-Wizard-Auth + preview-log-prep; verify admin.json has auth_sessions",
   },
   {
-    key: "RESULT_E2E_MATRIX",
-    label: "e2e-matrix",
-    fix: "Matrix generator failed — check .github/workflows/e2e-matrix.ts",
-  },
-  {
     key: "RESULT_E2E",
     label: "e2e shards",
     fix: "Open failed shard job summary + playwright-report-* + preview-log-*; start with first ::error annotation",

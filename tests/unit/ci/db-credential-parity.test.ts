@@ -60,14 +60,18 @@ describe("Docker default DB credential parity", () => {
     expect(ci).toContain("sveltycms_udh_fixture");
   });
 
-  it("ci.yml db-tests and bench-core use matrix db_user/db_password from db-matrix", () => {
+  it("ci.yml db-tests and bench-core use matrix db_user/db_password from the bootstrap db-matrix output", () => {
     const ci = readRepoFile(".github/workflows/ci.yml");
 
     expect(ci).toContain("DB_USER: ${{ matrix.db_user }}");
     expect(ci).toContain("DB_PASSWORD: ${{ matrix.db_password }}");
     expect(ci).not.toContain("Create MongoDB test user");
+    // The matrix generator moved into bootstrap to avoid two extra runners.
     expect(ci).toMatch(
-      /bench-core:[\s\S]*matrix: \$\{\{ fromJson\(needs\.db-matrix\.outputs\.matrix\) \}\}/,
+      /db-tests:[\s\S]*matrix: \$\{\{ fromJson\(needs\.bootstrap\.outputs\.db-matrix\) \}\}/,
+    );
+    expect(ci).toMatch(
+      /bench-core:[\s\S]*matrix: \$\{\{ fromJson\(needs\.bootstrap\.outputs\.db-matrix\) \}\}/,
     );
     expect(ci).toContain("- bench-core");
   });

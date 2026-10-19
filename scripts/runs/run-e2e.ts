@@ -258,6 +258,10 @@ async function startDevServer(): Promise<ChildProcess> {
         ADMIN_PASSWORD: "Password123!",
         PASSWORD_MIN_LENGTH: "8",
         PREVIEW_SECRET: "Integration-Preview-Secret-2026",
+        // Tests must never be throttled. Configuration only — the limiter still
+        // runs and still enforces the configured ceiling.
+        RATE_LIMIT_MAX_REQUESTS: "1000000",
+        RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000",
       },
     },
   );
@@ -300,6 +304,10 @@ async function startPreviewServer(): Promise<ChildProcess> {
     DB_NAME: "e2e_auth_test",
     DB_USER: "",
     DB_PASSWORD: "",
+    // Tests must never be throttled. Configuration only — the limiter still
+    // runs and still enforces the configured ceiling.
+    RATE_LIMIT_MAX_REQUESTS: "1000000",
+    RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000",
   } as Record<string, string>;
   const proc = spawn("node", [entry], {
     cwd: ROOT,
