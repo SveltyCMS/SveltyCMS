@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-account"
 author: "SveltyCMS Team"
 created: "2026-02-03"
-updated: "2026-07-07"
+updated: "2026-10-19"
 tags:
   - "security"
   - "roles"
@@ -19,7 +19,7 @@ tags:
 
 SveltyCMS provides a robust **Role-Based Access Control (RBAC)** system combined with granular permissions to secure your content and sensitive settings.
 
-The Access Management dashboard is located at `/config/accessManagement`.
+The Access Management dashboard is located at `/config/access-management`. The page is **admin-only**: the load function hard-gates on `isAdmin` (the `config:accessManagement` permission alone does not grant entry).
 
 ---
 
@@ -46,25 +46,27 @@ For non-admin roles, you must explicitly grant permissions. The system organizes
 
 Control access to specific content types.
 
-- **read**: View entries in the collection.
-- **create**: Add new entries.
-- **update**: Edit existing entries.
-- **delete**: Remove entries.
-- **publish**: (If enabled) Publish/Unpublish entries.
+- **read** (`collection:read`): View entries in the collection.
+- **create / update** (`collection:write`): Add and edit entries.
+- **delete** (`collection:delete`): Remove entries.
+- **collection definitions** (`collections:write`): Create and modify collection schemas. The create/update/delete definition verbs are aliases of this grant.
+
+> [!NOTE]
+> There is no separate `publish` permission in the current catalog. Publishing is a status transition on an entry that still requires `collection:write` plus the server-side workflow and required-field gates.
 
 #### 2. System Permissions
 
 Control access to core system features:
 
-- **User Management**: Create, edit, or delete users (`user:create`, `user:read`, etc.).
-- **Configuration**: Access system settings, logs, and server info.
-- **Content Management**: General content access (`content:files`, etc.).
-- **Media Management**: Upload and manage files in the Media Library.
+- **User Management**: Create, edit, or delete users (`user:create`, `user:read`, `user:write`, `user:delete`, `user:manage`).
+- **Configuration**: Access system settings, logs, and server info (`config:read`, `config:write`, `config:settings`, `config:audit`, `config:systemHealth`).
+- **Content Management**: Read/write/export/import/sync content (`content:read`, `content:write`, `content:export`, `content:import`, `content:sync`).
+- **Media Management**: Upload and manage files in the Media Library (`media:read`, `media:write`, `media:delete`).
   - **Admins**: Can view, edit, and delete all media files in the system.
-  - **Other Roles**: Are restricted to viewing and managing only the media they have personally uploaded (via the Media Gallery or MediaUpload widget).
+  - **Other Roles**: The media **list** is owner-filtered when the UI passes the user, but the API routes authorize by permission and tenant scope — a role holding `media:write` can mutate another user's asset by ID. Treat media grants as tenant-wide unless you add a custom ownership gate.
 
 - **Webhooks Management**: Configure and secure external HTTP triggers (`config:webhooks`).
-- **API Access**: Permission to use system API endpoints (`api:read`, `api:write`).
+- **API Access**: Grant specific endpoint families (`api:graphql`, `api:collections`, `api:media`, `api:website-tokens`, …). The catalog uses endpoint names; there is no blanket `api:read` / `api:write` pair.
 
 > [!TIP]
 > Changes to permissions take effect immediately for new requests, but users may need to refresh their session (logout/login) for UI elements to update fully.
@@ -106,7 +108,7 @@ Control access to core system features:
 
 ### Permissions for Tokens
 
-You can now assign **Granular Permissions** to Website Tokens. By default, a token has **Read Only** access. During creation, you can select specific permissions (e.g., `user:create`, `collection:update`) to grant precise access rights.
+You can now assign **Granular Permissions** to Website Tokens. By default a token is created with an **empty permission list** — it is fail-closed and can access nothing until you grant permissions (e.g. `collection:read`, `media:read`). Administrators explicitly choose the grants during creation.
 
 ### Token Expiration
 
@@ -124,7 +126,7 @@ Tokens nearing expiration (less than 7 days) are highlighted in the management t
 
 ## 🛡️ Enterprise SSO & OIDC Identity Providers
 
-SveltyCMS includes native **Single Sign-On (SSO)** support for **OpenID Connect (OIDC)** and **SAML 2.0**, accessible directly from **Config > Access Management** (Tab 4: _SSO & OIDC_).
+SveltyCMS includes native **Single Sign-On (SSO)** support for **OpenID Connect (OIDC)** and **SAML 2.0**. OIDC providers are configured from **Config > Access Management** (Tab 4: _SSO & OIDC_). SAML 2.0 is configured separately through the `/api/auth/saml/*` endpoints (see the [Authentication API Reference](../../reference/api/auth.mdx)); it is not rendered in Tab 4.
 
 ```mermaid
 sequenceDiagram

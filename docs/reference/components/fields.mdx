@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:form-textbox"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-03-27"
+updated: "2026-10-19"
 tags:
   - "components"
   - "fields"
@@ -191,10 +191,11 @@ The save functionality is split between mobile and desktop views:
 
 Visible on screens < 1024px. Provides:
 
-- **Save Button**: Disabled when `validationStore.isValid === false`
+- **Save Button**: Disabled when `validationStore.isValid === false` or the user lacks write access
 - **Cancel/Delete**: With confirmation modals
 - **Clone**: Duplicate entry functionality
-- **Scheduling**: Publish/unpublish scheduling
+- **Status toggle**: Binary publish/unpublish (PATCHes immediately, throttled to 500 ms)
+- **Scheduling**: Date/time/action modal in the overflow menu; the action is not persisted (see caveats below)
 
 ```
 // Save validation gating
@@ -205,11 +206,78 @@ const canSave = $derived(validationStore.isValid && dataChangeStore.hasChanges);
 
 Visible on screens >= 1024px. Additionally provides:
 
-- **Entry Status**: Draft/Published/Scheduled
+- **Entry Status**: Binary publish/unpublish toggle (only in `edit`/`create` with write access)
 - **Metadata Display**: Created/Updated timestamps
-- **Scheduling Panel**: Date/time pickers for publish schedule
+- **Scheduling Panel**: Date/time picker plus change/cancel controls; the selected action is not persisted
 
 Both components integrate with `validationStore` to prevent saving invalid entries.
+
+---
+
+## Draft, Publish & Scheduling
+
+### Status model
+
+`status` is a system column (`StatusTypes`), not a schema field. The canonical values are:
+
+| Stored value | Label       | Badge presentation    |
+| ------------ | ----------- | --------------------- |
+| `draft`      | Draft       | outline + pencil      |
+| `publish`    | Published   | primary + thumbs-up   |
+| `unpublish`  | Unpublished | warning + pause       |
+| `schedule`   | Scheduled   | error + clock         |
+| `archive`    | Archived    | surface + archive     |
+| `clone`      | Clone       | secondary + clipboard |
+| `delete`     | Delete      | surface + trash       |
+
+Scheduling metadata:
+
+- `_scheduled` is stored in the entry data payload as epoch milliseconds.
+- `_scheduledBy` is stamped server-side from the authenticated actor; clients cannot supply it.
+- `publishDate` in the demo blog schema is an ordinary user-defined DateTime field. It is **not** connected to scheduling.
+- `publishedAt` is **not** automatically stamped by the status/publish path.
+
+### Editors and permissions
+
+- **Desktop**: right-sidebar (>= 1024 px) in `edit` / `create`, when the user has write access.
+- **Mobile**: `header-edit` overflow menu (< 1024 px).
+- The status toggle is binary (publish/unpublish). It PATCHes immediately, is throttled to one change per 500 ms, and is disabled while a status request is in flight.
+- Save is disabled when `validationStore.isValid === false` or the user lacks write access.
+- Collection mutations require `collections:write`; creating a scheduled job requires `system:settings` (administrators bypass both checks).
+
+### Scheduling workflow
+
+1. Open **Schedule publication…** in the right-sidebar, or the clock action in the mobile overflow menu.
+2. Choose a future date and time and an action (publish / unpublish / delete). Past dates are rejected client-side.
+3. The modal updates local form state only: `status` becomes `schedule` and `_scheduled` is set. Nothing is persisted until **Save**.
+4. Save writes `status: "schedule"` and `_scheduled`; the server stamps `_scheduledBy`; the editor then POSTs a `status-transition` job to `/api/system-jobs` with `runAt` set to the chosen time.
+5. The scheduler polls `svelty_jobs` (1 s while jobs are queued, 30 s when idle) and transitions the entry on its next poll after `runAt`. It clears `_scheduled`, runs the workflow publish gate, invalidates caches, and emits an `entry:update` event.
+6. Administrators can inspect, retry, or delete jobs at `/config/queue`.
+
+> [!WARNING]
+> Scheduling is only partially wired today:
+>
+> - The action selected in the modal is **not persisted**. Every scheduled job targets `publish`; scheduled unpublish and delete do not work.
+> - Scheduling a **new** entry in create mode does not create a job (the entry id is not available when the job request is built). The entry is saved as Scheduled but never transitions.
+> - **Cancel Schedule** clears the local timestamp only. It does not delete the already-created job, which still publishes at its original time.
+> - Saving again while `_scheduled` is present creates another job; jobs are not deduplicated.
+> - Creating the job requires `system:settings`. With the built-in editor/developer roles the entry is saved as Scheduled but no job is enqueued.
+> - A scheduled publish that lacks required fields, or whose workflow is not in a final state, fails when the job runs (3 attempts, then `failed`; visible in the queue).
+> - A path field on an entry can make the scheduler update `content_nodes` instead of the collection row.
+> - `_scheduled` is not in `SYSTEM_WRITABLE_FIELDS`; a collection with `strict: true` prunes it.
+
+### Autosave / navigation guard
+
+There is no timed autosave. On SvelteKit navigation away from `edit` / `create` with unsaved changes, the guard:
+
+1. cancels navigation,
+2. force-saves the entry as `draft` (bypassing required-field validation),
+3. shows a toast, switches to view mode, and re-issues the navigation.
+
+There is no `beforeunload` / tab-close guard and no localStorage draft restore in this editor.
+
+> [!WARNING]
+> The navigation guard writes `status: 'draft'` even for entries that are currently published or scheduled. Navigating away from a published entry with unsaved edits unpublishes it. A scheduled entry may also be demoted to draft while its pending job still fires.
 
 ---
 
