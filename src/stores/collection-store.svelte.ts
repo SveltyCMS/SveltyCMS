@@ -382,10 +382,6 @@ export const applyRemoteContentStructure = (v: ContentNode[]) =>
 /** Current structure revision — see `CollectionState.structureRevision`. */
 export const getStructureRevision = () => collections.structureRevision;
 export const setTargetWidget = (v: Widget) => collections.setTargetWidget(v);
-export const modeTransitionGuard = {
-  setMode: (mode: ModeType) => collections.setMode(mode),
-  transitionTo: (mode: ModeType) => collections.transitionTo(mode),
-};
 
 // ─── Favorites, tags & pinned items (user-scoped decoration) ────────────────
 

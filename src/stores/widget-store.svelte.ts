@@ -487,10 +487,6 @@ export function canDisableWidget(name: string): boolean {
   return !dependents.some(isWidgetActive);
 }
 
-export function isWidgetAvailable(name: string): boolean {
-  return !!getWidgetFunction(name) && isWidgetActive(name);
-}
-
 // HMR
 if (import.meta.hot) {
   import.meta.hot.accept(() => {

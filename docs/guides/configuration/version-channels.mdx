@@ -216,7 +216,7 @@ The script:
 For **media file** version tracking (distinct from CMS release versioning), SveltyCMS uses `src/utils/media/version-history.ts` which provides:
 
 - `createVersion()` — records file create/update/replace actions with change diffs
-- `compareVersions()` — compares two file versions for content and metadata changes
+- `compareMediaVersions()` — compares two file versions for content and metadata changes
 - `detectChanges()` — deep-diff comparison between old and new file metadata
 - `getVersionStats()` — aggregates version counts, sizes, and user activity
 

@@ -491,7 +491,7 @@ export function createVersion(
   };
 }
 
-export function compareVersions(
+export function compareMediaVersions(
   fromVersion: FileVersion,
   toVersion: FileVersion,
 ): VersionComparison {

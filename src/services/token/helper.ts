@@ -11,11 +11,7 @@
 import type { User } from "@src/databases/auth/types";
 import { logger } from "@utils/logger";
 import { replaceTokens } from "./engine";
-import { containsTokens, extractTokenPaths, validateTokenSyntax } from "./token-utils";
 import type { TokenContext } from "./types";
-
-// Re-export pure utils
-export { validateTokenSyntax, extractTokenPaths, containsTokens };
 
 // Recursively processes tokens in an object or array
 export async function processTokensInResponse(

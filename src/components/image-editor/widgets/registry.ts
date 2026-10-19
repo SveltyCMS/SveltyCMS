@@ -88,19 +88,6 @@ export const editorWidgets: EditorWidget[] = Object.entries(modules)
     return a.title.localeCompare(b.title);
   });
 
-/**
- * Check if a widget is available (not disabled, not experimental in production)
- */
-export function isWidgetAvailable(widget: EditorWidget): boolean {
-  if (widget.disabled) {
-    return false;
-  }
-  if (widget.experimental && !import.meta.env.DEV) {
-    return false;
-  }
-  return true;
-}
-
 // Development mode logging
 if (import.meta.env.DEV) {
   // Only log widgets in development/benchmark mode if needed

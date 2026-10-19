@@ -258,9 +258,9 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
     let skipBenchmarks = false;
     let isBenchmarkArtifact = (_name: string) => false;
     try {
-      const presets = await import("@src/routes/setup/preset-collections.server");
-      skipBenchmarks = !presets.isBenchmarkRuntime();
-      isBenchmarkArtifact = presets.isBenchmarkArtifact;
+      const benchmarkRuntime = await import("@utils/benchmark-runtime");
+      skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
+      isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
     } catch {} // module unavailable (stripped/embedded build) — scan everything
 
     async function walk(dir: string) {
@@ -541,9 +541,9 @@ async function bootstrapCollectionFilesFromDb(
   let skipBenchmarks = false;
   let isBenchmarkArtifact = (_name: string) => false;
   try {
-    const presets = await import("@src/routes/setup/preset-collections.server");
-    skipBenchmarks = !presets.isBenchmarkRuntime();
-    isBenchmarkArtifact = presets.isBenchmarkArtifact;
+    const benchmarkRuntime = await import("@utils/benchmark-runtime");
+    skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
+    isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
   } catch {} // module unavailable (stripped build) — bootstrap everything
 
   for (const schema of dbSchemas) {

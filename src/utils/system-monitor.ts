@@ -234,7 +234,7 @@ export function getPressureMultiplier(): number {
   }
 }
 
-export function shouldRejectMutations(): boolean {
+function shouldRejectMutations(): boolean {
   if (!_started || !_lastSnapshot) return false;
   return _lastSnapshot.heapUsedPercent > PRESSURE_THRESHOLDS.rejectHeap;
 }

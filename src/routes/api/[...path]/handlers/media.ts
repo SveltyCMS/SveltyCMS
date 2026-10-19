@@ -35,7 +35,7 @@ import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-l
 import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
 import { formatBytes } from "@utils/file";
 import {
-  compareVersions,
+  compareMediaVersions,
   createVersion,
   getVersionStats,
 } from "@src/utils/media/media-storage.server";
@@ -1215,7 +1215,7 @@ export async function handleMediaVersionCompare(
   if (!from || !to)
     throw new AppError("Target operational reference validation index point split missing", 404);
 
-  return successResponse(event, compareVersions(from, to));
+  return successResponse(event, compareMediaVersions(from, to));
 }
 
 // ─── Advanced Search ─────────────────────────────────────────────────────────
