@@ -29,6 +29,30 @@ function formatBytes(bytes: number): string {
 /** Windows reserved filenames (case-insensitive). */
 const RESERVED_WINDOWS = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
+/**
+ * Clamp a manipulated image's output dimensions to the shared transform ceiling.
+ * The longest edge is scaled down, preserving aspect ratio. Invalid/zero inputs
+ * are returned unchanged so the caller's existing validation owns that case.
+ */
+export function clampManipulatedDimensions(
+  width: number,
+  height: number,
+  maxDimension: number,
+): { width: number; height: number } {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return { width, height };
+  }
+  const longest = Math.max(width, height);
+  if (!Number.isFinite(maxDimension) || maxDimension <= 0 || longest <= maxDimension) {
+    return { width, height };
+  }
+  const scale = maxDimension / longest;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
 /** Robust filename sanitizer — blocks null bytes, control chars, path separators,
  *  Unicode homoglyphs used in spoofing attacks, reserved Windows names,
  *  and leading/trailing dots/spaces. */

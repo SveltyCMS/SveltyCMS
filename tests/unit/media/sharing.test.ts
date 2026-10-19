@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
+import { scryptSync } from "node:crypto";
 import {
   createLink,
   validateLink,
@@ -19,7 +20,7 @@ import {
 } from "../../../src/utils/media/share-link-hash.server";
 
 // The global settings mock (tests/unit/setup.ts) reads JWT_SECRET_KEY from
-// globalThis.privateEnv — required by the share-link HMAC derivation. A global
+// globalThis.privateEnv — required by the share-link pepper. A global
 // beforeEach in setup.ts wipes privateEnv before every test, so it must be
 // re-seeded here per test.
 const TEST_JWT_SECRET = "unit-test-jwt-secret-for-share-link-hmac";
@@ -154,28 +155,41 @@ describe("sharing — newToken", () => {
   });
 });
 
-describe("sharing — password hashing (HMAC)", () => {
-  it("hashSharePassword produces a deterministic 64-char hex HMAC", () => {
+describe("sharing — password hashing (scrypt + pepper)", () => {
+  it("stores a per-link salt and a 64-char hash", () => {
+    const a = hashSharePassword("hunter2");
+    expect(a).toMatch(/^scrypt\$[0-9a-f]{32}\$[0-9a-f]{64}$/);
+  });
+
+  it("uses a fresh salt for every hash", () => {
     const a = hashSharePassword("hunter2");
     const b = hashSharePassword("hunter2");
-    expect(a).toBe(b);
-    expect(a).toMatch(/^[0-9a-f]{64}$/);
+    expect(a).not.toBe(b);
   });
 
   it("produces different hashes for different passwords", () => {
     expect(hashSharePassword("alpha")).not.toBe(hashSharePassword("beta"));
   });
 
-  it("verifySharePassword accepts the stored HMAC value", () => {
+  it("verifySharePassword accepts the stored value", () => {
     const stored = hashSharePassword("correct horse");
     expect(verifySharePassword("correct horse", stored)).toBe(true);
     expect(verifySharePassword("wrong horse", stored)).toBe(false);
+  });
+
+  it("verifies legacy static-salt hashes during the link TTL", () => {
+    const legacy = scryptSync("correct horse", `sharelink-hmac:${TEST_JWT_SECRET}`, 32).toString(
+      "hex",
+    );
+    expect(verifySharePassword("correct horse", legacy)).toBe(true);
+    expect(verifySharePassword("wrong horse", legacy)).toBe(false);
   });
 
   it("verifySharePassword rejects malformed stored hashes without throwing", () => {
     expect(verifySharePassword("x", "")).toBe(false);
     expect(verifySharePassword("x", "not-a-hex-hash")).toBe(false);
     expect(verifySharePassword("x", hashSharePassword("y"))).toBe(false);
+    expect(verifySharePassword("x", "scrypt$zzzz$zzzz")).toBe(false);
   });
 
   it("fails closed when JWT_SECRET_KEY is unavailable", () => {

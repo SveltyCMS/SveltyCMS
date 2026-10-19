@@ -6,7 +6,7 @@ order: 45
 icon: "mdi:share-chart-outline"
 author: "SveltyCMS Team"
 created: "2026-05-23"
-updated: "2026-07-15"
+updated: "2026-10-19"
 tags:
   - "api"
   - "media"
@@ -138,6 +138,7 @@ Immediately deactivates the token. The link record is removed from `metadata.sha
 
 - **Tenant isolation**: All share lookups are scoped by `tenantId` on the media record to prevent cross-tenant token reuse.
 - **Published-reference gate**: Share link creation does not mutate file bytes; version/delete/manipulate operations on shared assets remain subject to the [published-reference protection](../architecture/media-system.mdx#-published-reference-protection-media-integrity-gate).
+- **Password storage**: share-link passwords use scrypt with a **per-link random salt** plus a server-side pepper (`scrypt$<saltHex>$<hashHex>`). Legacy static-salt hashes remain verifiable until their 24 h TTL expires. Share **tokens** are separate high-entropy values stored as unsalted SHA-256 digests.
 - **Virtual folder moves**: `POST /api/media/move` only updates logical `folderId`. Storage paths and share tokens remain valid — reorganizing assets in the gallery does not revoke or break active share links.
 - **Related DAM UI**: Bulk download, storage analytics, version compare, and virtual-folder drag-and-drop are documented in [Media Reference](./media.mdx) and [Media System Architecture](../architecture/media-system.mdx).
 

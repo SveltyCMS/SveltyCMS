@@ -15,7 +15,12 @@ import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
 import { AppError, raise } from "@utils/error-handling";
 import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
-import { processImageWithPresets, type ImageVariant } from "@src/services/media/image-processor";
+import {
+  processImageWithPresets,
+  MAX_OUTPUT_DIMENSION,
+  type ImageVariant,
+} from "@src/services/media/image-processor";
+import type sharp from "sharp";
 import { deleteAllVariants } from "@src/services/media/image-variant-storage";
 import type {
   IDBAdapter,
@@ -30,6 +35,7 @@ import { normalizeFocalPercent } from "./focal-point";
 import { mediaTypeFromMime, type MediaItem } from "./media-models";
 import {
   buildOriginalRelPath,
+  clampManipulatedDimensions,
   getMimeType,
   isAllowedUploadMime,
   normalizeMime,
@@ -62,6 +68,20 @@ const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 
 /** Only allow plain numeric strings (no expressions, no units) in SVG attributes. */
 const SAFE_NUMBER = /^-?\d+(\.\d+)?$/;
+
+type SharpPipeline = ReturnType<typeof sharp>;
+
+/** One encoder configuration for manipulated output and the optional cap pass. */
+function encodeManipulatedOutput(
+  pipeline: SharpPipeline,
+  ext: string,
+  isCircle: boolean,
+): Promise<Buffer> {
+  if (isCircle || ext === "png") return pipeline.png({ compressionLevel: 8 }).toBuffer();
+  if (ext === "webp") return pipeline.webp({ quality: 90 }).toBuffer();
+  if (ext === "avif") return pipeline.avif({ quality: 80 }).toBuffer();
+  return pipeline.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
+}
 
 /**
  * Validate a value against a regex; return a safe fallback when it fails.
@@ -1619,12 +1639,29 @@ export class MediaService {
     // 5. Encode — circular crop forces PNG (needs alpha channel); otherwise preserve original format
     const ext = (existing.filename.split(".").pop() ?? "jpg").toLowerCase();
     const isCircle = crop?.shape === "circle";
-    const outputBuffer: Buffer = await (() => {
-      if (isCircle || ext === "png") return pipeline.png({ compressionLevel: 8 }).toBuffer();
-      if (ext === "webp") return pipeline.webp({ quality: 90 }).toBuffer();
-      if (ext === "avif") return pipeline.avif({ quality: 80 }).toBuffer();
-      return pipeline.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
-    })();
+    const encoded = await encodeManipulatedOutput(pipeline, ext, isCircle);
+
+    // SECURITY: cap the editor output at the same ceiling as on-demand transforms.
+    // A second pass is deliberate — Sharp applies `resize` before `composite`
+    // regardless of chain order, so resizing after the overlay build would shift
+    // watermark/annotation coordinates. Normal-size outputs still encode once.
+    const capped = clampManipulatedDimensions(workW, workH, MAX_OUTPUT_DIMENSION);
+    let outputBuffer: Buffer = encoded;
+    if (capped.width !== workW || capped.height !== workH) {
+      const downscaled = sharp(encoded, {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "none",
+      }).resize({
+        width: capped.width,
+        height: capped.height,
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+      outputBuffer = await encodeManipulatedOutput(downscaled, ext, isCircle);
+      logger.debug(
+        `[manipulateMedia] Capped output ${workW}x${workH} → ${capped.width}x${capped.height} (max ${MAX_OUTPUT_DIMENSION}px)`,
+      );
+    }
 
     // 6. Hash, persist, update DB
     // Circular crop outputs PNG — rename file accordingly

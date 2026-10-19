@@ -14,6 +14,7 @@ import {
   validateBuffer,
   resolveMediaRelPath,
   buildOriginalRelPath,
+  clampManipulatedDimensions,
   mediaDisplayUrl,
 } from "../../../src/utils/media/media-utils";
 
@@ -111,6 +112,35 @@ describe("media-utils — filename sanitization", () => {
     const result = getSanitizedFileName("test.PNG");
     expect(result.fileNameWithoutExt).toBe("test");
     expect(result.ext).toBe("png");
+  });
+});
+
+describe("media-utils — output dimension clamp", () => {
+  it("leaves dimensions below the cap untouched", () => {
+    expect(clampManipulatedDimensions(1920, 1080, 6000)).toEqual({ width: 1920, height: 1080 });
+  });
+
+  it("scales the longest edge down and preserves aspect ratio", () => {
+    expect(clampManipulatedDimensions(12000, 8000, 6000)).toEqual({
+      width: 6000,
+      height: 4000,
+    });
+    expect(clampManipulatedDimensions(3000, 12000, 6000)).toEqual({
+      width: 1500,
+      height: 6000,
+    });
+  });
+
+  it("never produces a zero-pixel edge", () => {
+    expect(clampManipulatedDimensions(12000, 1, 10)).toEqual({ width: 10, height: 1 });
+  });
+
+  it("passes invalid dimensions through for the caller to validate", () => {
+    expect(clampManipulatedDimensions(0, 100, 6000)).toEqual({ width: 0, height: 100 });
+    expect(clampManipulatedDimensions(Number.NaN, 100, 6000)).toEqual({
+      width: Number.NaN,
+      height: 100,
+    });
   });
 });
 

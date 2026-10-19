@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-09-22"
+updated: "2026-10-19"
 tags:
   - "architecture"
   - "media"
@@ -353,6 +353,8 @@ Every skip logs at **debug** level and falls back to streaming the original — 
 
 Assets live in **virtual folders**: a logical `folderId` on each media row, not a physical directory tree. Folder definitions are stored as system virtual folders (`/api/system-virtual-folder`). Moving media updates metadata only — blobs and share URLs stay put.
 
+Folder-tree mutations are cycle-guarded server-side: `PATCH` reorder rejects a move into the folder itself or one of its descendants, and the recursive path updater carries a visited set so a corrupt hierarchy cannot cause unbounded recursion.
+
 ### Data model
 
 | Field on media | Meaning                                             |
@@ -455,6 +457,7 @@ The gallery is deeply integrated with the canvas-based Image Editor:
 - **Non-Destructive Editing**: Originals are preserved; edits are saved as linked variants.
 - **Interactive Focal Points**: Visual crosshair selection for art-directed cropping.
 - **Watermark Caching**: Pre-rendered watermark buffers are cached in-memory to avoid redundant re-scaling.
+- **Bounded Output**: editor saves are capped at `MAX_OUTPUT_DIMENSION` (6000 px default, env-overridable). Normal-size edits still encode once; only oversized results take a second downscale pass so watermark/annotation coordinates stay correct.
 
 ---
 
