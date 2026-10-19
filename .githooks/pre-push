@@ -78,6 +78,25 @@ if [ "$ONLY_FAILURES" = true ]; then
   exit $?
 fi
 
+# ── Smart skip: CI/workflow-only changes are validated by GitHub Actions ──
+# A workflow/action edit cannot be exercised by the local build, integration,
+# or browser smoke gate; running them only burns ~4 minutes. `main` releases
+# keep the full gate, and any change outside `.github/` keeps it too.
+if has_push_changes '^\.github/' \
+  && ! has_push_changes '^(src/|tests/|scripts/|package\.json|bun\.lock|vite\.config|svelte\.config|path-aliases\.ts)'; then
+  case " $PUSHED_BRANCHES " in
+    *" main "*)
+      info "CI-only change on main — keeping the full release gate"
+      ;;
+    *)
+      warn "Only CI/workflow files changed — GitHub Actions validates this; skipping build/integration/smoke"
+      echo ""
+      summary 1 1
+      exit 0
+      ;;
+  esac
+fi
+
 if [ "$HAS_CODE_CHANGES" = false ]; then
   warn "Only docs changed — skipping build and integration tests"
   echo ""
