@@ -26,6 +26,7 @@
 	import { refreshAll } from '$app/navigation';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { formatDate, formatDateTime } from '@utils/format-date';
+	import { normalizeProcessingStatus } from '@utils/media/media-models';
 
 	// Props
 	let {
@@ -57,6 +58,11 @@
 		file?.metadata?.focalPoint
 			? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
 			: 'center'
+	);
+
+	/** Derivative pipeline state — legacy rows without the field are treated as ready. */
+	const processingStatus = $derived(
+		normalizeProcessingStatus(file?.metadata?.processingStatus) ?? 'ready'
 	);
 
 	// Tab State
@@ -843,6 +849,30 @@
 								<dt class="text-(--admin-text-muted)">File Size</dt>
 								<dd class="min-w-0 text-end tabular-nums text-surface-600 dark:text-surface-100">
 									{formatBytes(file.size)}
+								</dd>
+							</div>
+							<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+								<dt class="text-(--admin-text-muted)">Processing</dt>
+								<dd class="flex min-w-0 flex-col items-end gap-0.5">
+									<Badge
+										variant={processingStatus === 'failed'
+											? 'error'
+											: processingStatus === 'processing'
+												? 'warning'
+												: 'success'}
+										preset="tonal"
+										size="sm"
+										class="gap-1"
+									>
+										{#if processingStatus === 'processing'}
+											<iconify-icon icon="mdi:loading" class="animate-spin" width="12"
+											></iconify-icon>
+										{/if}
+										{processingStatus}
+									</Badge>
+									{#if processingStatus === 'failed' && file.metadata?.processingError}
+										<span class="text-[10px] text-error-500">{file.metadata.processingError}</span>
+									{/if}
 								</dd>
 							</div>
 							{#if file.width && file.height}

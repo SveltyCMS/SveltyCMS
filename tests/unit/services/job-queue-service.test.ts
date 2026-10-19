@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const createJobMock = vi.fn();
 const getNextReadyMock = vi.fn();
 const updateJobMock = vi.fn();
+const listJobMock = vi.fn();
 const getDbMock = vi.fn();
 
 vi.mock("@src/databases/db", () => ({
@@ -60,6 +61,7 @@ describe("JobQueueService", () => {
         jobs: {
           create: createJobMock,
           getNextReady: getNextReadyMock,
+          list: listJobMock,
           update: updateJobMock,
         },
       },
@@ -70,6 +72,60 @@ describe("JobQueueService", () => {
     jobQueue.stopPolling();
     delete process.env.BENCHMARK;
     delete process.env.DISABLE_JOBS;
+  });
+
+  describe("reapStaleRunningJobs", () => {
+    const staleJob = {
+      _id: "job-stale",
+      taskType: "process-media",
+      payload: {},
+      status: "running" as const,
+      attempts: 1,
+      maxAttempts: 3,
+      updatedAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+    };
+
+    it("requeues a stale running job", async () => {
+      listJobMock.mockResolvedValue({ success: true, data: [staleJob] });
+      updateJobMock.mockResolvedValue({ success: true });
+
+      const count = await jobQueue.reapStaleRunningJobs(5 * 60_000);
+
+      expect(count).toBe(1);
+      expect(updateJobMock).toHaveBeenCalledWith(
+        "job-stale",
+        expect.objectContaining({ status: "pending" }),
+        expect.anything(),
+      );
+    });
+
+    it("fails a stale job that exhausted its attempts", async () => {
+      listJobMock.mockResolvedValue({
+        success: true,
+        data: [{ ...staleJob, attempts: 3 }],
+      });
+      updateJobMock.mockResolvedValue({ success: true });
+
+      await jobQueue.reapStaleRunningJobs(5 * 60_000);
+
+      expect(updateJobMock).toHaveBeenCalledWith(
+        "job-stale",
+        expect.objectContaining({ status: "failed" }),
+        expect.anything(),
+      );
+    });
+
+    it("ignores fresh running jobs", async () => {
+      listJobMock.mockResolvedValue({
+        success: true,
+        data: [{ ...staleJob, updatedAt: new Date().toISOString() }],
+      });
+
+      const count = await jobQueue.reapStaleRunningJobs(5 * 60_000);
+
+      expect(count).toBe(0);
+      expect(updateJobMock).not.toHaveBeenCalled();
+    });
   });
 
   describe("registerHandler + dispatch", () => {

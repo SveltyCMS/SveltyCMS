@@ -49,4 +49,23 @@ describe("toGalleryListItem", () => {
     expect(toGalleryListItem({ hash: "x", mimeType: "image/jpeg" })).toBeNull();
     expect(toGalleryListItem({})).toBeNull();
   });
+
+  it("exposes the derivative processing status for the gallery facet", () => {
+    const base = {
+      _id: "m2",
+      hash: "def",
+      filename: "hero.jpg",
+      mimeType: "image/jpeg",
+      path: "global",
+      url: "/files/global/original/hero.jpg",
+    };
+    expect(
+      toGalleryListItem({ ...base, metadata: { processingStatus: "processing" } })
+        ?.processingStatus,
+    ).toBe("processing");
+    expect(
+      toGalleryListItem({ ...base, metadata: { processingStatus: "failed" } })?.processingStatus,
+    ).toBe("failed");
+    expect(toGalleryListItem({ ...base, metadata: {} })?.processingStatus).toBeUndefined();
+  });
 });

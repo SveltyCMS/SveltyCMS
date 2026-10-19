@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:image-multiple-outline"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-10-11"
+updated: "2026-10-19"
 tags:
   - "api"
   - "media"
@@ -24,27 +24,33 @@ The Media API provides a centralized interface for managing all assets within Sv
 
 ## ⚡ Quick Reference
 
-| Feature             | HTTP Endpoint                       | Method     | Permission Required |
-| :------------------ | :---------------------------------- | :--------- | :------------------ |
-| **List Media**      | `/api/media`                        | `GET`      | `media:read`        |
-| **Get Manifest**    | `/api/media/{id}`                   | `GET`      | `media:read`        |
-| **Upload Media**    | `/api/media` or `/api/media/upload` | `POST`     | `media:write`       |
-| **Stream Upload**   | `/api/media/stream`                 | `POST`     | `media:write`       |
-| **Move Media**      | `/api/media/move`                   | `POST`     | `media:write`       |
-| **Update Metadata** | `/api/media/{id}`                   | `PATCH`    | `media:write`       |
-| **Delete Media**    | `/api/media/{id}`                   | `DELETE`   | `media:delete`      |
-| **Bulk Download**   | `/api/media/bulk-download`          | `GET/POST` | `media:read`        |
-| **Batch Process**   | `/api/media/process`                | `POST`     | `media:write`       |
-| **Analytics**       | `/api/media/analytics`              | `GET`      | `media:read`        |
-| **Version List**    | `/api/media/version/{id}/list`      | `GET`      | `media:read`        |
-| **Version Compare** | `/api/media/version/{id}/compare`   | `GET`      | `media:read`        |
-| **Version Upload**  | `/api/media/version/{id}/upload`    | `POST`     | `media:write`       |
-| **Version Restore** | `/api/media/version/{id}/restore`   | `POST`     | `media:write`       |
-| **Create Share**    | `/api/media/share/{id}`             | `POST`     | `media:write`       |
-| **Access Share**    | `/api/media/share?id=&token=`       | `GET`      | Public (token)      |
-| **Revoke Share**    | `/api/media/share/{id}/{token}`     | `DELETE`   | `media:write`       |
-| **References Scan** | `/api/media/references/{id}`        | `GET`      | `media:read`        |
-| **Job Status**      | `/api/media/jobs/{id}`              | `GET`      | `media:read`        |
+| Feature                 | HTTP Endpoint                       | Method              | Permission Required |
+| :---------------------- | :---------------------------------- | :------------------ | :------------------ |
+| **List Media**          | `/api/media`                        | `GET`               | `media:read`        |
+| **Get Manifest**        | `/api/media/{id}`                   | `GET`               | `media:read`        |
+| **Upload Media**        | `/api/media` or `/api/media/upload` | `POST`              | `media:write`       |
+| **Stream Upload**       | `/api/media/stream`                 | `POST`              | `media:write`       |
+| **Move Media**          | `/api/media/move`                   | `POST`              | `media:write`       |
+| **Update Metadata**     | `/api/media/{id}`                   | `PATCH`             | `media:write`       |
+| **Delete Media**        | `/api/media/{id}`                   | `DELETE`            | `media:delete`      |
+| **Bulk Download**       | `/api/media/bulk-download`          | `GET/POST`          | `media:read`        |
+| **Batch Process**       | `/api/media/process`                | `POST`              | `media:write`       |
+| **Analytics**           | `/api/media/analytics`              | `GET`               | `media:read`        |
+| **Version List**        | `/api/media/version/{id}/list`      | `GET`               | `media:read`        |
+| **Version Compare**     | `/api/media/version/{id}/compare`   | `GET`               | `media:read`        |
+| **Version Upload**      | `/api/media/version/{id}/upload`    | `POST`              | `media:write`       |
+| **Version Restore**     | `/api/media/version/{id}/restore`   | `POST`              | `media:write`       |
+| **Create Share**        | `/api/media/share/{id}`             | `POST`              | `media:write`       |
+| **Access Share**        | `/api/media/share?id=&token=`       | `GET`               | Public (token)      |
+| **Revoke Share**        | `/api/media/share/{id}/{token}`     | `DELETE`            | `media:write`       |
+| **References Scan**     | `/api/media/references/{id}`        | `GET`               | `media:read`        |
+| **Status Sync**         | `/api/media/sync-status`            | `POST`              | `media:write`       |
+| **Lifecycle GC**        | `/api/media/cleanup`                | `POST`              | `media:delete`      |
+| **Upload Instructions** | `/api/media/upload-instructions`    | `POST`              | `media:write`       |
+| **Direct Complete**     | `/api/media/direct-upload/complete` | `POST`              | `media:write`       |
+| **TUS Create**          | `/api/media/tus`                    | `POST`              | `media:write`       |
+| **TUS Continue**        | `/api/media/tus/{id}`               | `HEAD/PATCH/DELETE` | `media:write`       |
+| **Job Status**          | `/api/media/jobs/{id}`              | `GET`               | `media:read`        |
 
 > Byte delivery and on-demand image transforms live on `/files/**?w=&h=&q=&fmt=` — see [§5 Delivery — On-Demand Image Transforms](#5-delivery-on-demand-image-transforms).
 
@@ -366,6 +372,68 @@ GET /files/tenant-a/9f2c…/original/hero-9f2c….jpg?sig=…&exp=…&w=640   # 
 **Never transformed (original streamed instead, logged at debug):** SVG, GIF, animated WebP/AVIF, TIFF/BMP/HEIC/PDF/video, sources above 40 MB, non-canonical paths, unencodable `fmt`, and any encoder/disk failure. Cloud backends (`s3`, `r2`, `cloudinary`) keep their `302` redirect to the CDN public URL and never pull bytes through Node for a transform.
 
 **Permissions**: none beyond the route's existing access rules — public/global assets stay public, tenant assets still require the matching `tenantId`, and `MEDIA_SIGNED_URL_ENABLED` still requires `sig`/`exp` (the signature is not part of the variant key).
+
+---
+
+## 6. Lifecycle — Processing Status, Retention & Cleanup
+
+### `metadata.processingStatus`
+
+Every stored media document carries a derivative pipeline state:
+
+| Value        | Meaning                                                                    |
+| :----------- | :------------------------------------------------------------------------- |
+| `processing` | The original is safe; deferred renditions are still being written.         |
+| `ready`      | Every rendition the pipeline produces is available.                        |
+| `failed`     | Derivation failed (`metadata.processingError`); the original still serves. |
+
+Uploads start as `processing` for raster images and `ready` for everything else. The deferred variant job flips the value; `POST /api/media/sync-status` repairs legacy rows and can re-queue missing work. The gallery exposes a status facet and the details modal renders the same state.
+
+### `POST /api/media/sync-status`
+
+Derives status from actual derivative evidence (`metadata.imageVariants` / `thumbnails`) instead of trusting the stored value.
+
+```json
+{
+  "mediaId": "optional — scope to one asset",
+  "persist": true,
+  "requeue": false
+}
+```
+
+`requeue: true` schedules variant generation for raster images that are `processing`/`failed` and marks them `processing`. Response: `{ scanned, ready, processing, failed, updated, queued }`.
+
+### `POST /api/media/cleanup`
+
+Reference-aware version retention + orphan blob release, runnable without the job queue (works with `DISABLE_JOBS` or a stuck worker).
+
+```json
+{
+  "keepVersions": 10,
+  "mediaId": "optional — scope to one asset",
+  "dryRun": false
+}
+```
+
+Rules:
+
+- The newest `keepVersions` historical entries (default **10**) are retained per asset.
+- A content hash is released **only** when no record still references it — as the active original or through any retained version. Shared hashes survive.
+- Released hashes delete their variant directory and original blobs together.
+- `dryRun: true` reports the plan without mutating the database or storage.
+
+Response: `{ dryRun, scanned, versionsPruned, hashesReleased, variantSetsDeleted, originalsDeleted, keepVersions }`.
+
+---
+
+## 7. Direct & Resumable Uploads
+
+Two additional lanes cover the large-file path:
+
+- **Presigned direct (S3 / R2)** — `POST /api/media/upload-instructions` returns a SigV4-presigned `PUT` URL, a tenant-scoped staging key, and an HMAC token. The client uploads bytes directly to the bucket, then calls `POST /api/media/direct-upload/complete` to validate size/MIME and ingest.
+- **TUS 1.0.0** — `POST /api/media/tus` creates a resumable session; `HEAD`/`PATCH`/`DELETE /api/media/tus/{id}` inspect, continue, or abort it. Sessions are owner-bound (HMAC token + tenant + user), capped at the API body limit, and expire after 24 hours. The browser client resumes from `localStorage` after a reload.
+
+Both lanes reuse `MediaService.saveMedia`, so dedupe, magic-byte validation, derivatives and tenant scoping are unchanged. Full contract, headers, limits and security model: [Direct & Resumable Uploads](./media-uploads.mdx).
 
 ---
 

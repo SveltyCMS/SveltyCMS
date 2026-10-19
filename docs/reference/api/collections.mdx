@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-03"
+updated: "2026-10-19"
 tags:
   - "api"
   - "collections"
@@ -89,7 +89,7 @@ This is a **self-described** control in SveltyCMS core (September 2026). It is n
 
 ### Modifying Content
 
-SveltyCMS enforces schema validation (via Valibot) on every write operation.
+SveltyCMS runs each widget's Valibot `validationSchema` on the server for every non-system create/update. Only fields present in the payload are checked, so partial `PATCH` requests stay partial. Internal/import/benchmark callers can opt out with `skipValidation: true`; system writes bypass the gate.
 
 - **Create**: `POST /api/collections/{collectionId}`
 - **Update**: `PATCH /api/collections/{collectionId}/{entryId}`

@@ -271,13 +271,14 @@ Scheduling metadata:
 There is no timed autosave. On SvelteKit navigation away from `edit` / `create` with unsaved changes, the guard:
 
 1. cancels navigation,
-2. force-saves the entry as `draft` (bypassing required-field validation),
-3. shows a toast, switches to view mode, and re-issues the navigation.
+2. saves the current form state while **preserving the loaded status** (only a brand-new entry is saved as `draft`),
+3. preserves an existing `_scheduled` timestamp and drops a schedule added only in the form,
+4. shows a toast, switches to view mode, and re-issues the navigation.
 
 There is no `beforeunload` / tab-close guard and no localStorage draft restore in this editor.
 
-> [!WARNING]
-> The navigation guard writes `status: 'draft'` even for entries that are currently published or scheduled. Navigating away from a published entry with unsaved edits unpublishes it. A scheduled entry may also be demoted to draft while its pending job still fires.
+> [!NOTE]
+> Autosave does not bypass the publish gate for an already-published entry. If the edited payload no longer satisfies the gate (for example, a required field was cleared), the autosave fails and navigation stays on the form with “Failed to auto-save. Please save manually.”
 
 ---
 

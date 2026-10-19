@@ -22,6 +22,7 @@
 		mediagallery_download_archive,
 		mediagallery_drop,
 		mediagallery_drop_move_hint,
+		mediagallery_filter_status,
 		mediagallery_filter_type,
 		mediagallery_folder_drop_path,
 		mediagallery_grid_size,
@@ -37,6 +38,11 @@
 		mediagallery_selected,
 		mediagallery_sort,
 		mediagallery_sort_by,
+		mediagallery_status_all,
+		mediagallery_status_failed,
+		mediagallery_status_processing,
+		mediagallery_status_placeholder,
+		mediagallery_status_ready,
 		mediagallery_table_view,
 		mediagallery_tap_parent_hint,
 		mediagallery_title,
@@ -68,7 +74,8 @@
 		type MediaBase,
 		type MediaImage,
 		type StoredMediaBase,
-		MediaTypeEnum
+		MediaTypeEnum,
+		normalizeProcessingStatus
 	} from '@utils/media/media-models';
 	import { droppable, dndState, type DragDropState } from '@thisux/sveltednd';
 	import {
@@ -98,6 +105,7 @@
 	let files = $state<Array<MediaBase | MediaImage>>([]);
 	let globalSearchValue = $state('');
 	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
+	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>('all');
 	let view = $state<'grid' | 'table'>('grid');
 	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
 	let selectedFiles = $state(new SvelteSet<string>());
@@ -130,6 +138,7 @@
 		return {
 			filters: {
 				type: selectedMediaType,
+				status: selectedProcessingStatus,
 				jsonPath: jsonPathFilter,
 				view,
 				gridSize
@@ -146,6 +155,7 @@
 		if (saved.filters) {
 			const f = saved.filters as Record<string, any>;
 			if (f.type) selectedMediaType = f.type;
+			if (f.status) selectedProcessingStatus = f.status;
 			if (f.jsonPath !== undefined) jsonPathFilter = f.jsonPath;
 			if (f.view === 'grid' || f.view === 'table') view = f.view;
 			if (f.gridSize) gridSize = f.gridSize;
@@ -185,6 +195,13 @@
 		label: type.label
 	}));
 
+	const processingStatusOptions = $derived([
+		{ value: 'all', label: mediagallery_status_all() },
+		{ value: 'processing', label: mediagallery_status_processing() },
+		{ value: 'ready', label: mediagallery_status_ready() },
+		{ value: 'failed', label: mediagallery_status_failed() }
+	]);
+
 	// Published media reference gating
 	const publishedMediaIds = $derived(
 		new SvelteSet<string>((data as { publishedMediaIds?: string[] }).publishedMediaIds ?? [])
@@ -201,6 +218,13 @@
 			}
 			if (selectedMediaType !== 'All' && file.type !== selectedMediaType) {
 				return false;
+			}
+			if (selectedProcessingStatus !== 'all') {
+				const status =
+					normalizeProcessingStatus(
+						(file.metadata as Record<string, unknown> | undefined)?.processingStatus
+					) ?? 'ready';
+				if (status !== selectedProcessingStatus) return false;
 			}
 
 			if (searchCriteria) {
@@ -1053,6 +1077,18 @@
 									class="flex-1"
 								/>
 							{/if}
+							<label for="media-status-filter-m" class="sr-only"
+								>{mediagallery_filter_status()}</label
+							>
+							<Select
+								id="media-status-filter-m"
+								bind:value={selectedProcessingStatus}
+								options={processingStatusOptions}
+								placeholder={mediagallery_status_placeholder()}
+								aria-label={mediagallery_filter_status()}
+								data-testid="media-status-filter-m"
+								class="flex-1"
+							/>
 							<label for="sort-by-filter-m" class="sr-only">{mediagallery_sort_by()}</label>
 							<Select
 								id="sort-by-filter-m"
@@ -1193,6 +1229,17 @@
 						/>
 					</div>
 				{/if}
+
+				<div class="w-28 shrink-0">
+					<label for="media-status-filter" class="sr-only">{mediagallery_filter_status()}</label>
+					<Select
+						id="media-status-filter"
+						bind:value={selectedProcessingStatus}
+						options={processingStatusOptions}
+						placeholder={mediagallery_status_placeholder()}
+						data-testid="media-status-filter"
+					/>
+				</div>
 
 				<div class="w-36 shrink-0">
 					<label for="sort-by-filter" class="sr-only">{mediagallery_sort_by()}</label>

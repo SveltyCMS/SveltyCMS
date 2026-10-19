@@ -32,7 +32,7 @@ import type {
   EntityUpdate,
 } from "@src/databases/db-interface";
 import { normalizeFocalPercent } from "./focal-point";
-import { mediaTypeFromMime, type MediaItem } from "./media-models";
+import { MediaProcessingStatus, mediaTypeFromMime, type MediaItem } from "./media-models";
 import {
   buildOriginalRelPath,
   clampManipulatedDimensions,
@@ -52,6 +52,7 @@ import { MediaReferenceIndex, type MediaReference } from "./media-reference-inde
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { HANDLER_NAME_PATTERN } from "@src/utils/sanitize-html";
 import { scheduleVariantJob } from "./variant-job-scheduler.server";
+import { isHashReferenced, isRasterImage } from "./media-lifecycle.server";
 
 /** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
 let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
@@ -293,6 +294,9 @@ interface MediaVersionEntry {
   createdAt?: string;
   createdBy?: string;
   action?: string;
+  /** Derivative set captured with this version so restore can reinstate it. */
+  thumbnails?: Record<string, unknown>;
+  imageVariants?: ImageVariant[];
 }
 
 // MediaReference is now imported from ./media-reference-index
@@ -437,6 +441,20 @@ const UNSAFE_OBJECT_KEYS: ReadonlySet<string> = new Set(["__proto__", "construct
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Coerce index-signature values (`unknown`) back to the string/number shape a version entry stores. */
+function textOr(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value ? value : fallback;
+}
+
+function firstText(...values: unknown[]): string {
+  for (const value of values) if (typeof value === "string" && value) return value;
+  return "";
+}
+
+function numberOr(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 /**
@@ -627,47 +645,56 @@ export class MediaService {
     relPath: string,
     _mimeType: string,
     _filename: string,
-    uploadResult: DatabaseResult<MediaItem>,
+    recordId: DatabaseId | null | undefined,
     tenantId?: DatabaseId | null,
   ): void {
+    if (!recordId) return;
     scheduleVariantJob({
       hash,
       relPath,
       tenantId,
       onVariants: async (variants) => {
         try {
-          if (!uploadResult.success) {
-            logger.warn(
-              "[MediaService] Cannot generate variants — upload result indicates failure",
-            );
+          const current = await this.db.crud.findOne<DbMediaItem>(
+            "media",
+            { _id: recordId },
+            { tenantId: tenantId },
+          );
+          const metadata: Record<string, unknown> = {
+            ...(current.success ? current.data?.metadata : undefined),
+            processingStatus:
+              variants.length > 0 ? MediaProcessingStatus.Ready : MediaProcessingStatus.Failed,
+          };
+          if (variants.length > 0) {
+            metadata.imageVariants = variants.map((v) => ({
+              preset: v.preset,
+              width: v.width,
+              height: v.height,
+              format: v.format,
+              quality: v.quality,
+              path: v.path,
+              size: v.size,
+            }));
+            delete metadata.processingError;
+          } else {
+            metadata.processingError = "No variants generated";
+          }
+
+          const update = await this.db.crud.update(
+            "media",
+            recordId,
+            { metadata } as unknown as EntityUpdate<DbMediaItem>,
+            { tenantId: tenantId },
+          );
+          if (!update.success) {
+            logger.warn("[Media] Variant status update failed", update.message);
             return;
           }
-          if (variants.length > 0 && uploadResult.data) {
-            const recordId = (uploadResult.data as { _id?: DatabaseId })._id;
-            if (recordId) {
-              await this.db.crud.update(
-                "media_items",
-                recordId as DatabaseId,
-                {
-                  metadata: {
-                    imageVariants: variants.map((v) => ({
-                      preset: v.preset,
-                      width: v.width,
-                      height: v.height,
-                      format: v.format,
-                      quality: v.quality,
-                      path: v.path,
-                      size: v.size,
-                    })),
-                  },
-                } as unknown as EntityUpdate<DbMediaItem>,
-              );
-              logger.debug("[Media] Variants generated for streamed upload", {
-                hash: hash.slice(0, 12),
-                count: variants.length,
-              });
-            }
-          }
+          logger.debug("[Media] Variants generated for streamed upload", {
+            hash: hash.slice(0, 12),
+            count: variants.length,
+            status: variants.length > 0 ? "ready" : "failed",
+          });
         } catch (err) {
           logger.warn(
             "[Media] Background variant generation for streamed upload failed — original intact",
@@ -992,7 +1019,9 @@ export class MediaService {
             relPath,
             effectiveType,
             file.name,
-            repaired,
+            repaired.success
+              ? ((repaired.data as { _id?: DatabaseId } | undefined)?._id ?? null)
+              : null,
             tenantId,
           );
           return repaired;
@@ -1008,7 +1037,13 @@ export class MediaService {
             path: relPath,
             createdBy: _userId as DatabaseId,
             updatedBy: _userId as DatabaseId,
-            metadata: imageMetadata,
+            metadata: {
+              ...imageMetadata,
+              processingStatus:
+                effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)
+                  ? MediaProcessingStatus.Processing
+                  : MediaProcessingStatus.Ready,
+            },
             thumbnails: imageThumbnails,
             access: _access,
             folderId,
@@ -1028,7 +1063,9 @@ export class MediaService {
             relPath,
             file.type,
             file.name,
-            uploadResult,
+            uploadResult.success
+              ? ((uploadResult.data as { _id?: DatabaseId } | undefined)?._id ?? null)
+              : null,
             tenantId,
           );
         }
@@ -1119,7 +1156,9 @@ export class MediaService {
                 relPath,
                 largeType,
                 file.name,
-                reused,
+                reused.success
+                  ? ((reused.data as { _id?: DatabaseId } | undefined)?._id ?? null)
+                  : null,
                 tenantId,
               );
             }
@@ -1139,7 +1178,12 @@ export class MediaService {
             path: relPath,
             createdBy: _userId as DatabaseId,
             updatedBy: _userId as DatabaseId,
-            metadata: {},
+            metadata: {
+              processingStatus:
+                largeType.startsWith("image/") && !isSvgFile(largeType, file.name)
+                  ? MediaProcessingStatus.Processing
+                  : MediaProcessingStatus.Ready,
+            },
             thumbnails: {},
             access: _access,
             folderId,
@@ -1160,7 +1204,9 @@ export class MediaService {
             relPath,
             largeType,
             file.name,
-            uploadResult as unknown as DatabaseResult<MediaItem>,
+            uploadResult.success
+              ? ((uploadResult.data as { _id?: DatabaseId } | undefined)?._id ?? null)
+              : null,
             tenantId,
           );
         }
@@ -1326,30 +1372,54 @@ export class MediaService {
   }
 
   public async deleteMedia(fileId: string, tenantId?: DatabaseId | null): Promise<void> {
-    // Fetch the media record before deletion to get the hash for variant cleanup
+    // Collect every content hash this row owns BEFORE deleting it. Only hashes
+    // that no other record (active or retained version) still points at are
+    // released from storage — variants are content-addressed, so a shared hash
+    // must survive a sibling row's deletion.
+    let hashesToRelease: string[] = [];
     try {
       const existing = await this.db.crud.findOne<DbMediaItem>(
         "media",
         { _id: fileId as DatabaseId },
         { tenantId: tenantId },
       );
-      if (existing.success && existing.data?.hash) {
-        // Clean up responsive image variants asynchronously
-        deleteAllVariants(existing.data.hash, tenantId?.toString()).catch((err) => {
-          logger.warn("[Media] Variant cleanup failed during delete", {
-            fileId,
-            error: err instanceof Error ? err.message : String(err),
-          });
-        });
+      if (existing.success && existing.data) {
+        const record = existing.data as unknown as EnrichableRecord;
+        const versions = (record.metadata?.versions as MediaVersionEntry[] | undefined) ?? [];
+        hashesToRelease = [
+          ...new Set(
+            [existing.data.hash, ...versions.map((version) => version.hash ?? "")].filter(Boolean),
+          ),
+        ];
       }
-    } catch {
-      // Ignore errors during pre-delete lookup — the actual delete should still proceed
+    } catch (err: unknown) {
+      logger.debug("[Media] Pre-delete variant lookup failed", {
+        fileId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     const res = await this.files.delete(fileId as DatabaseId, {
       tenantId: tenantId,
     });
     if (!res.success) throw new Error(res.message);
+
+    if (hashesToRelease.length > 0) {
+      void (async () => {
+        for (const hash of hashesToRelease) {
+          try {
+            if (await isHashReferenced(this.db, hash, tenantId)) continue;
+            await deleteAllVariants(hash, tenantId?.toString());
+          } catch (err: unknown) {
+            logger.warn("[Media] Variant cleanup failed during delete", {
+              fileId,
+              hash: hash.slice(0, 12),
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        }
+      })();
+    }
   }
 
   public async manipulateMedia(
@@ -1671,9 +1741,39 @@ export class MediaService {
         : existing.filename;
     const outputMime = isCircle ? "image/png" : existing.mimeType;
     const newHash = await hashFileContent(outputBuffer);
-    const relPath = buildOriginalRelPath(newHash, outputFilename);
+    const relPath = buildOriginalRelPath(newHash, outputFilename, tenantId);
     await saveFile(outputBuffer, relPath);
     const now = new Date().toISOString();
+
+    // Rebuild the derivative set for the edited bytes. Without this the record
+    // kept the pre-edit ladder/thumbnail URLs after `thumbnails: {}` was written,
+    // so the gallery served renditions of the replaced original.
+    const { metadata: derivativeMetadata, thumbnails: derivativeThumbnails } =
+      await this.buildDerivativeSet(outputBuffer, newHash, outputFilename, outputMime, tenantId);
+    let editedVariants: ImageVariant[] = [];
+    try {
+      editedVariants = await processImageWithPresets(
+        outputBuffer,
+        newHash,
+        ["thumbnail", "card", "default"],
+        tenantId,
+      );
+    } catch (variantErr) {
+      logger.warn("[Media] Variant generation failed during image edit — original intact", {
+        error: variantErr instanceof Error ? variantErr.message : String(variantErr),
+      });
+    }
+    const editedVariantMetadata = editedVariants.map((v) => ({
+      preset: v.preset,
+      width: v.width,
+      height: v.height,
+      format: v.format,
+      quality: v.quality,
+      path: v.path,
+      size: v.size,
+    }));
+    const editedStatus =
+      editedVariantMetadata.length > 0 ? MediaProcessingStatus.Ready : MediaProcessingStatus.Failed;
 
     if (saveBehavior === "new") {
       const uploadResult = await this.files.upload(
@@ -1687,10 +1787,16 @@ export class MediaService {
           createdBy: userId,
           updatedBy: userId,
           metadata: {
+            ...derivativeMetadata,
             versions: [],
             ...(storedFocal ? { focalPoint: storedFocal } : {}),
+            imageVariants: editedVariantMetadata,
+            processingStatus: editedStatus,
+            ...(editedStatus === MediaProcessingStatus.Failed
+              ? { processingError: "No variants generated" }
+              : {}),
           },
-          thumbnails: {},
+          thumbnails: derivativeThumbnails,
           access: existing.access || "public",
           folderId: existing.folderId ?? undefined,
           originalId: id,
@@ -1713,31 +1819,43 @@ export class MediaService {
         hash: newHash,
         path: relPath,
         size: outputBuffer.byteLength,
-        thumbnails: {},
+        thumbnails: derivativeThumbnails,
         updatedBy: userId,
         updatedAt: now,
         metadata: {
           ...existing.metadata,
+          ...derivativeMetadata,
           ...(storedFocal ? { focalPoint: storedFocal } : {}),
+          imageVariants: editedVariantMetadata,
+          processingStatus: editedStatus,
+          ...(editedStatus === MediaProcessingStatus.Failed
+            ? { processingError: "No variants generated" }
+            : {}),
           versions: [
             ...versions,
             {
               version: versions.length + 1,
               url: (existing as unknown as EnrichableRecord).url || "",
               path: (existing as unknown as EnrichableRecord).path,
-              hash: (existing as unknown as EnrichableRecord).hash,
-              size: (existing as unknown as EnrichableRecord).size,
-              filename: (existing as unknown as EnrichableRecord).filename,
-              mimeType: (existing as unknown as EnrichableRecord).mimeType,
-              createdAt:
-                (existing as unknown as EnrichableRecord).updatedAt ||
-                (existing as unknown as EnrichableRecord).createdAt ||
+              hash: textOr((existing as unknown as EnrichableRecord).hash),
+              size: numberOr((existing as unknown as EnrichableRecord).size),
+              filename: textOr((existing as unknown as EnrichableRecord).filename),
+              mimeType: textOr((existing as unknown as EnrichableRecord).mimeType),
+              createdAt: firstText(
+                (existing as unknown as EnrichableRecord).updatedAt,
+                (existing as unknown as EnrichableRecord).createdAt,
                 now,
-              createdBy:
-                (existing as unknown as EnrichableRecord).updatedBy ||
-                (existing as unknown as EnrichableRecord).createdBy ||
+              ),
+              createdBy: firstText(
+                (existing as unknown as EnrichableRecord).updatedBy,
+                (existing as unknown as EnrichableRecord).createdBy,
                 userId,
+              ),
               action: "edit",
+              thumbnails: (existing as unknown as EnrichableRecord).thumbnails || {},
+              imageVariants: Array.isArray(existing.metadata?.imageVariants)
+                ? (existing.metadata.imageVariants as ImageVariant[])
+                : [],
             },
           ],
         },
@@ -2034,10 +2152,26 @@ export class MediaService {
         hash = await hashStream(s1, API_MAX_BODY_SIZE_BYTES);
       }
 
-      // Generate responsive variants for small files (buffer available)
+      const isRaster = file.type.startsWith("image/") && !isSvgFile(file.type, file.name);
+
+      // Generate derivatives for small files (buffer available). The same set is
+      // written under the new content hash so the gallery can render the new
+      // version immediately — and captured on the OLD version entry so a later
+      // restore reinstates the matching derivatives instead of the replaced ones.
       let versionVariants: ImageVariant[] = [];
-      if (buffer && file.type.startsWith("image/") && !isSvgFile(file.type, file.name)) {
+      let versionThumbnails: Record<string, unknown> = {};
+      let versionImageMetadata: Record<string, unknown> = {};
+      if (buffer && isRaster) {
         try {
+          const { metadata, thumbnails } = await this.buildDerivativeSet(
+            buffer,
+            hash,
+            file.name,
+            file.type,
+            tenantId,
+          );
+          versionImageMetadata = metadata;
+          versionThumbnails = thumbnails;
           versionVariants = await processImageWithPresets(
             buffer,
             hash,
@@ -2057,22 +2191,29 @@ export class MediaService {
         }
       }
 
-      const versionMetadata =
-        versionVariants.length > 0
-          ? {
-              imageVariants: versionVariants.map((v) => ({
-                preset: v.preset,
-                width: v.width,
-                height: v.height,
-                format: v.format,
-                quality: v.quality,
-                path: v.path,
-                size: v.size,
-              })),
-            }
-          : {};
+      const versionVariantsMetadata = versionVariants.map((v) => ({
+        preset: v.preset,
+        width: v.width,
+        height: v.height,
+        format: v.format,
+        quality: v.quality,
+        path: v.path,
+        size: v.size,
+      }));
 
-      // Check if hash is exactly the same as current: if so, no-op or proceed.
+      const versionMetadata = {
+        ...versionImageMetadata,
+        ...(versionVariantsMetadata.length > 0 ? { imageVariants: versionVariantsMetadata } : {}),
+        processingStatus: isRaster
+          ? versionVariantsMetadata.length > 0 || buffer
+            ? versionVariantsMetadata.length > 0
+              ? MediaProcessingStatus.Ready
+              : MediaProcessingStatus.Failed
+            : MediaProcessingStatus.Processing
+          : MediaProcessingStatus.Ready,
+      };
+
+      const newRelPath = buildOriginalRelPath(hash, file.name, tenantId);
       const uploadRes = await this.files.upload(
         {
           filename: file.name,
@@ -2080,11 +2221,11 @@ export class MediaService {
           mimeType: file.type,
           size: file.size,
           hash,
-          path: buildOriginalRelPath(hash, file.name),
+          path: newRelPath,
           createdBy: userId,
           updatedBy: userId,
           metadata: versionMetadata,
-          thumbnails: {},
+          thumbnails: versionThumbnails,
           access: existing.access || "public",
           tenantId: tenantId,
           stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
@@ -2103,31 +2244,53 @@ export class MediaService {
       }
       const uploadedFile = uploadRes.data;
 
+      // `files.upload` inserts a staging row so the storage write reuses the
+      // adapter path. The active record is updated below — the staging row must
+      // not survive as a duplicate gallery entry.
+      if (String(uploadedFile._id) !== String(mediaId)) {
+        const stagingDelete = await this.files.delete(uploadedFile._id, { tenantId: tenantId });
+        if (!stagingDelete.success) {
+          logger.warn("[Media] Version staging row cleanup failed", stagingDelete.message);
+        }
+      }
+
       // 3. Create version record from the OLD properties
       const existingR = existing as unknown as EnrichableRecord;
       const versions = (existingR.metadata?.versions as MediaVersionEntry[] | undefined) || [];
       const newVersionNum = versions.length + 1;
-      const oldVersionEntry = {
+      const oldVersionEntry: MediaVersionEntry = {
         version: newVersionNum,
         url: existingR.url || "",
         path: existingR.path || "",
-        hash: existingR.hash || "",
-        size: existingR.size ?? 0,
-        filename: existingR.filename || "",
-        mimeType: existingR.mimeType || "",
-        createdAt: existingR.updatedAt || existingR.createdAt || new Date().toISOString(),
-        createdBy: existingR.updatedBy || existingR.createdBy || userId,
+        hash: textOr(existingR.hash),
+        size: numberOr(existingR.size),
+        filename: textOr(existingR.filename),
+        mimeType: textOr(existingR.mimeType),
+        createdAt: firstText(existingR.updatedAt, existingR.createdAt, new Date().toISOString()),
+        createdBy: firstText(existingR.updatedBy, existingR.createdBy, userId),
         action: "replace",
+        thumbnails: (existingR.thumbnails as Record<string, unknown>) || {},
+        imageVariants: Array.isArray(existingR.metadata?.imageVariants)
+          ? (existingR.metadata.imageVariants as ImageVariant[])
+          : [],
       };
 
       // Push old version to the history array
       const updatedVersions = [...versions, oldVersionEntry];
 
       // 4. Update the existing database record with the new file properties
-      const updatedMetadata = {
+      const updatedMetadata: Record<string, unknown> = {
         ...(existingR.metadata as Record<string, unknown>),
+        ...versionImageMetadata,
         versions: updatedVersions,
+        imageVariants: versionVariantsMetadata,
+        processingStatus: versionMetadata.processingStatus,
       };
+      if (versionVariantsMetadata.length === 0 && isRaster && buffer) {
+        updatedMetadata.processingError = "No variants generated";
+      } else {
+        delete updatedMetadata.processingError;
+      }
 
       const updateData = {
         filename: file.name,
@@ -2136,13 +2299,26 @@ export class MediaService {
         size: file.size,
         hash: uploadedFile.hash,
         path: uploadedFile.path,
-        thumbnails: uploadedFile.thumbnails || {},
+        thumbnails: versionThumbnails,
         metadata: updatedMetadata,
         updatedBy: userId,
         updatedAt: new Date().toISOString(),
       };
 
       await this.updateMedia(mediaId, updateData, tenantId, { internal: true });
+
+      // Large streamed images never had a buffer — generate their derivatives
+      // off the request path and flip `processingStatus` when they land.
+      if (isRaster && !buffer) {
+        this.generateVariantsForStreamedFile(
+          hash,
+          uploadedFile.path,
+          file.type,
+          file.name,
+          mediaId as DatabaseId,
+          tenantId,
+        );
+      }
 
       // Return the updated media item enriched
       const finalRes = await this.db.crud.findOne<DbMediaItem>(
@@ -2200,39 +2376,77 @@ export class MediaService {
 
       // 2. Create a version entry from the CURRENT active state
       const currentVersionNum = versions.length + 1;
-      const currentVersionEntry = {
+      const currentVersionEntry: MediaVersionEntry = {
         version: currentVersionNum,
         url: existingR.url || "",
         path: existingR.path || "",
-        hash: existingR.hash || "",
-        size: existingR.size ?? 0,
-        filename: existingR.filename || "",
-        mimeType: existingR.mimeType || "",
-        createdAt: existingR.updatedAt || existingR.createdAt || new Date().toISOString(),
-        createdBy: existingR.updatedBy || existingR.createdBy || userId,
+        hash: textOr(existingR.hash),
+        size: numberOr(existingR.size),
+        filename: textOr(existingR.filename),
+        mimeType: textOr(existingR.mimeType),
+        createdAt: firstText(existingR.updatedAt, existingR.createdAt, new Date().toISOString()),
+        createdBy: firstText(existingR.updatedBy, existingR.createdBy, userId),
         action: "restore",
+        thumbnails: (existingR.thumbnails as Record<string, unknown>) || {},
+        imageVariants: Array.isArray(existingR.metadata?.imageVariants)
+          ? (existingR.metadata.imageVariants as ImageVariant[])
+          : [],
       };
 
       // 3. Update the active record to point back to the restored version
       const updatedVersions = [...versions, currentVersionEntry];
-      const updatedMetadata = {
+      const restoredHash = textOr(targetVersion.hash, textOr(existingR.hash));
+      const isRaster = isRasterImage(
+        targetVersion.mimeType || textOr(existingR.mimeType),
+        targetVersion.filename,
+      );
+      const restoredVariants = Array.isArray(targetVersion.imageVariants)
+        ? targetVersion.imageVariants
+        : [];
+      const restoredThumbnails =
+        targetVersion.thumbnails && typeof targetVersion.thumbnails === "object"
+          ? targetVersion.thumbnails
+          : {};
+      // Legacy entries predate derivative capture: never keep the replaced
+      // version's renditions — clear them and regenerate from the restored bytes.
+      const needsDerivativeRepair = isRaster && restoredVariants.length === 0;
+      const updatedMetadata: Record<string, unknown> = {
         ...(existingR.metadata as Record<string, unknown>),
         versions: updatedVersions,
+        imageVariants: restoredVariants,
+        processingStatus: !isRaster
+          ? MediaProcessingStatus.Ready
+          : needsDerivativeRepair
+            ? MediaProcessingStatus.Processing
+            : MediaProcessingStatus.Ready,
       };
+      if (!needsDerivativeRepair) delete updatedMetadata.processingError;
 
       const updateData = {
-        filename: targetVersion.filename || existingR.filename,
-        originalFilename: targetVersion.filename || existingR.filename,
-        mimeType: targetVersion.mimeType || existingR.mimeType,
-        size: targetVersion.size || existingR.size,
-        hash: targetVersion.hash,
+        filename: targetVersion.filename || textOr(existingR.filename),
+        originalFilename: targetVersion.filename || textOr(existingR.filename),
+        mimeType: targetVersion.mimeType || textOr(existingR.mimeType),
+        size: targetVersion.size ?? numberOr(existingR.size),
+        hash: restoredHash,
         path: targetVersion.path,
+        thumbnails: restoredThumbnails,
         metadata: updatedMetadata,
         updatedBy: userId,
         updatedAt: new Date().toISOString(),
       };
 
       await this.updateMedia(mediaId, updateData, tenantId, { internal: true });
+
+      if (needsDerivativeRepair && restoredHash && targetVersion.path) {
+        this.generateVariantsForStreamedFile(
+          restoredHash,
+          targetVersion.path,
+          targetVersion.mimeType || textOr(existingR.mimeType) || "image/*",
+          targetVersion.filename || textOr(existingR.filename) || "restored",
+          mediaId as DatabaseId,
+          tenantId,
+        );
+      }
 
       const finalRes = await this.db.crud.findOne<DbMediaItem>(
         "media",

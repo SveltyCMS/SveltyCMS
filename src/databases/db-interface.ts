@@ -538,6 +538,9 @@ export interface CmsMediaMetadata {
   keywords?: string[];
   location?: { latitude?: number; longitude?: number; altitude?: number };
   originalFilename?: string;
+  processingError?: string;
+  /** Derivative pipeline state — `processing` until every rendition exists. */
+  processingStatus?: "processing" | "ready" | "failed";
   processingTimeMs?: number;
   software?: string;
   tags?: string[];
@@ -570,9 +573,22 @@ export interface MediaItem extends BaseEntity {
     path?: string;
     hash?: string;
     size?: number;
+    filename?: string;
+    mimeType?: string;
     createdAt: ISODateString;
     createdBy: DatabaseId;
     action?: string;
+    /** Derivative set captured with this version, so restore can reinstate it. */
+    thumbnails?: Record<string, { url: string; width: number; height: number } | undefined>;
+    imageVariants?: Array<{
+      preset: string;
+      width: number;
+      height: number;
+      format: string;
+      quality: number;
+      path: string;
+      size: number;
+    }>;
   }>;
 }
 

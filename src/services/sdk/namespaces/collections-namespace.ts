@@ -1959,6 +1959,7 @@ export class CollectionsNamespace {
       system,
       operation: "create",
       tenantId,
+      skipValidation: options.skipValidation,
     });
     if (isThenable(entryData)) entryData = await entryData;
     m1?.();
@@ -2136,6 +2137,7 @@ export class CollectionsNamespace {
       operation: "update",
       tenantId,
       entryId,
+      skipValidation: options.skipValidation,
     });
     if (isThenable(updateData)) updateData = await updateData;
     m1u?.();
@@ -2317,9 +2319,11 @@ export class CollectionsNamespace {
       ? result
       : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
-      // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
+      // 🛡️ REVISION TRACKING: persist the pre-write snapshot before the request
+      // returns. The write itself is already durable, but a fire-and-forget call
+      // could be dropped by teardown and lose the revision entirely.
       if (revisionEnabled && previousSnapshot) {
-        void this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
+        await this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
       }
       // Resolved once — the three side-effect schedules below shared the same
       // `decryptedUpdate?.data ?? result.data` expression.
@@ -2351,7 +2355,9 @@ export class CollectionsNamespace {
 
   /**
    * Persist a revision snapshot for a revision-enabled collection update.
-   * Fire-and-forget — revision history must never block or fail the write path.
+   * Awaited after the primary write so request teardown cannot drop it;
+   * failures are logged and do not fail the content write. Full transaction
+   * wiring requires the revisions adapter to accept `BaseQueryOptions`.
    * The version is derived from the latest existing revision (+1).
    */
   private async recordRevision(

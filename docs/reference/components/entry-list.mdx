@@ -355,7 +355,7 @@ Known limitations of the list surface:
 
 ### Autosave interaction
 
-Leaving the editor with unsaved changes auto-saves the entry as `draft` (see [fields](./fields.mdx#autosave-navigation-guard)). A published or scheduled row can therefore appear as Draft in this list after navigating away.
+Leaving the editor with unsaved changes runs the navigation-guard autosave. Existing entries keep their loaded status (and schedule timestamp); only new entries are saved as `draft`. If the edited payload fails the publish gate, the autosave is rejected and navigation stays on the form. See [fields](./fields.mdx#autosave-navigation-guard).
 
 ### Archive toggle
 

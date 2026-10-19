@@ -28,6 +28,7 @@ import { hasIsoDateTimePrefix, nowISODateString, toISOString } from "@src/utils/
 import { assertWriteAllowed } from "@src/services/security/field-permission-service";
 import { isAdmin } from "@src/databases/auth/constants";
 import { sanitizeObject } from "@utils/security/input-sanitizer";
+import { safeParse } from "valibot";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { FieldInstance, Schema } from "@src/content/types";
@@ -57,6 +58,8 @@ export interface PrepareWritePayloadOptions {
   tenantId: DatabaseId | null | undefined;
   /** Entry id for the update path (field-permission context). */
   entryId?: string;
+  /** Skip widget Valibot validation (internal/import/benchmark writes). */
+  skipValidation?: boolean;
 }
 
 export const SYSTEM_WRITABLE_FIELDS = new Set([
@@ -233,6 +236,26 @@ export function prepareWritePayload(
           delete entryData[k];
         }
       }
+    }
+  }
+
+  // Server-side widget validation: the same Valibot schemas the client uses.
+  // Only fields present in the payload are checked (partial updates stay
+  // partial), and system writes bypass this gate (imports/scheduler/sync).
+  if (!system && !opts.skipValidation && hot._hasFieldValidators && hot._fieldValidators?.length) {
+    const errors: string[] = [];
+    for (const validator of hot._fieldValidators) {
+      if (!Object.hasOwn(entryData, validator.key)) continue;
+      const parsed = safeParse(
+        validator.schema as Parameters<typeof safeParse>[0],
+        entryData[validator.key],
+      );
+      if (!parsed.success) {
+        errors.push(`${validator.name}: ${parsed.issues[0]?.message ?? "Invalid value"}`);
+      }
+    }
+    if (errors.length > 0) {
+      throw fieldValidationError(errors);
     }
   }
 
