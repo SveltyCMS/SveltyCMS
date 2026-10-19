@@ -235,6 +235,19 @@ test.describe("Image Editor", () => {
     await openImageEditor(page, filename);
     await waitForEditorReady(page);
 
+    // Ensure the dock controls have rendered before inspecting computed styles
+    await expect(page.locator(".editor-bottom-dock button").first()).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+
+    // Ensure deterministic light mode on the DOM
+    await page.evaluate(() => {
+      localStorage.setItem("theme", "light");
+      document.cookie = "theme=light; path=/; max-age=31536000";
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    });
+
     const contrast = await page.evaluate(() => {
       const canvas = document.createElement("canvas");
       canvas.width = canvas.height = 1;
@@ -258,12 +271,19 @@ test.describe("Image Editor", () => {
         return (la! + 0.05) / (lb! + 0.05);
       };
 
-      const sidebar = document.querySelector(".editor-sidebar") as HTMLElement;
-      const tool = document.querySelector(".editor-sidebar .tool-item") as HTMLElement;
-      const dock = document.querySelector(".editor-bottom-dock") as HTMLElement;
-      const dockButton = ([...dock.querySelectorAll("button")].find(
+      const sidebar = document.querySelector(".editor-sidebar") as HTMLElement | null;
+      const tool = (document.querySelector(".editor-sidebar .tool-item:not(.tool-active)") ??
+        document.querySelector(".editor-sidebar .tool-item")) as HTMLElement | null;
+      const dock = document.querySelector(".editor-bottom-dock") as HTMLElement | null;
+      const dockButton = ([...(dock?.querySelectorAll("button") ?? [])].find(
         (button) => button.getAttribute("aria-pressed") !== "true",
-      ) ?? dock.querySelector("button")) as HTMLButtonElement;
+      ) ?? dock?.querySelector("button")) as HTMLButtonElement | null;
+
+      if (!sidebar || !tool || !dock || !dockButton) {
+        throw new Error(
+          `Image editor elements missing: sidebar=${!!sidebar}, tool=${!!tool}, dock=${!!dock}, dockButton=${!!dockButton}`,
+        );
+      }
 
       return {
         sidebar: ratio(getComputedStyle(tool).color, getComputedStyle(sidebar).backgroundColor),
