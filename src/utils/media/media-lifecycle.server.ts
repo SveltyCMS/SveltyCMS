@@ -120,6 +120,30 @@ async function scanMediaRows(
 }
 
 /**
+ * Collect every content hash still reachable from a tenant's media records —
+ * active originals plus retained version entries.
+ *
+ * Callers that release several hashes at once (asset deletion, cleanup) should
+ * build this once instead of re-scanning the library per hash.
+ */
+export async function collectReferencedHashes(
+  db: IDBAdapter,
+  tenantId?: DatabaseId | null,
+  excludeId?: DatabaseId,
+): Promise<Set<string>> {
+  const rows = await scanMediaRows(db, tenantId);
+  const live = new Set<string>();
+  for (const row of rows) {
+    if (excludeId != null && String(row._id) === String(excludeId)) continue;
+    if (row.hash) live.add(row.hash);
+    for (const version of versionList(row.metadata)) {
+      if (version.hash) live.add(version.hash);
+    }
+  }
+  return live;
+}
+
+/**
  * True when a content hash is still reachable from any media record — as an
  * active original or from a retained version entry.
  *
@@ -132,13 +156,7 @@ export async function isHashReferenced(
   excludeId?: DatabaseId,
 ): Promise<boolean> {
   if (!hash) return false;
-  const rows = await scanMediaRows(db, tenantId);
-  for (const row of rows) {
-    if (excludeId != null && String(row._id) === String(excludeId)) continue;
-    if (row.hash === hash) return true;
-    if (versionList(row.metadata).some((version) => version.hash === hash)) return true;
-  }
-  return false;
+  return (await collectReferencedHashes(db, tenantId, excludeId)).has(hash);
 }
 
 /** Hashes still reachable from the supplied (post-prune) rows. */

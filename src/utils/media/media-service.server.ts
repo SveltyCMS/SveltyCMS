@@ -52,7 +52,7 @@ import { MediaReferenceIndex, type MediaReference } from "./media-reference-inde
 import { eventBus, SystemEvents } from "@utils/event-bus";
 import { HANDLER_NAME_PATTERN } from "@src/utils/sanitize-html";
 import { scheduleVariantJob } from "./variant-job-scheduler.server";
-import { isHashReferenced, isRasterImage } from "./media-lifecycle.server";
+import { collectReferencedHashes, isRasterImage } from "./media-lifecycle.server";
 
 /** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
 let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
@@ -1406,9 +1406,12 @@ export class MediaService {
 
     if (hashesToRelease.length > 0) {
       void (async () => {
+        // One library scan for every hash this row owned, instead of one scan
+        // per hash (multi-version assets previously paid O(N × versions)).
+        const liveHashes = await collectReferencedHashes(this.db, tenantId);
         for (const hash of hashesToRelease) {
           try {
-            if (await isHashReferenced(this.db, hash, tenantId)) continue;
+            if (liveHashes.has(hash)) continue;
             await deleteAllVariants(hash, tenantId?.toString());
           } catch (err: unknown) {
             logger.warn("[Media] Variant cleanup failed during delete", {
@@ -2214,44 +2217,23 @@ export class MediaService {
       };
 
       const newRelPath = buildOriginalRelPath(hash, file.name, tenantId);
-      const uploadRes = await this.files.upload(
-        {
-          filename: file.name,
-          originalFilename: file.name,
-          mimeType: file.type,
-          size: file.size,
+      // Write straight to the canonical content-addressed path. The previous
+      // implementation inserted a staging media row only to reuse the adapter
+      // upload path, then deleted it — an extra DB round-trip and a transient
+      // gallery row for every version upload.
+      if (buffer) {
+        await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
+      } else if (typeof file.stream === "function") {
+        await this.ensureOriginalOnDisk(hash, file.name, file.stream(), tenantId);
+      } else if (typeof file.arrayBuffer === "function") {
+        await this.ensureOriginalOnDisk(
           hash,
-          path: newRelPath,
-          createdBy: userId,
-          updatedBy: userId,
-          metadata: versionMetadata,
-          thumbnails: versionThumbnails,
-          access: existing.access || "public",
-          tenantId: tenantId,
-          stream: typeof file.stream === "function" ? file.stream.bind(file) : undefined,
-          arrayBuffer:
-            typeof file.arrayBuffer === "function" ? file.arrayBuffer.bind(file) : undefined,
-        } as unknown as EntityCreate<DbMediaItem>,
-        { tenantId: tenantId },
-      );
-
-      if (!uploadRes.success || !uploadRes.data) {
-        const errMsg =
-          !uploadRes.success && uploadRes.error
-            ? String(uploadRes.error.message || uploadRes.error)
-            : "Failed to upload new version file";
-        throw new Error(errMsg);
-      }
-      const uploadedFile = uploadRes.data;
-
-      // `files.upload` inserts a staging row so the storage write reuses the
-      // adapter path. The active record is updated below — the staging row must
-      // not survive as a duplicate gallery entry.
-      if (String(uploadedFile._id) !== String(mediaId)) {
-        const stagingDelete = await this.files.delete(uploadedFile._id, { tenantId: tenantId });
-        if (!stagingDelete.success) {
-          logger.warn("[Media] Version staging row cleanup failed", stagingDelete.message);
-        }
+          file.name,
+          Buffer.from(await file.arrayBuffer()),
+          tenantId,
+        );
+      } else {
+        throw new Error("Version upload requires a readable file stream");
       }
 
       // 3. Create version record from the OLD properties
@@ -2297,8 +2279,8 @@ export class MediaService {
         originalFilename: file.name,
         mimeType: file.type,
         size: file.size,
-        hash: uploadedFile.hash,
-        path: uploadedFile.path,
+        hash,
+        path: newRelPath,
         thumbnails: versionThumbnails,
         metadata: updatedMetadata,
         updatedBy: userId,
@@ -2312,7 +2294,7 @@ export class MediaService {
       if (isRaster && !buffer) {
         this.generateVariantsForStreamedFile(
           hash,
-          uploadedFile.path,
+          newRelPath,
           file.type,
           file.name,
           mediaId as DatabaseId,

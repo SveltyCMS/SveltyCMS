@@ -56,7 +56,10 @@ export const TUS_PATCH_CONTENT_TYPE = "application/offset+octet-stream";
 export const TUS_DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const TUS_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_METADATA_BYTES = 8 * 1024;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+let lastCleanupAt = 0;
 
 export interface TusSession {
   id: string;
@@ -290,7 +293,14 @@ export async function createTusSession(input: TusCreateInput): Promise<TusSessio
   }
 
   await ensureSpoolDir();
-  void cleanupExpiredTusSessions();
+  // Creating a session must stay O(1): a full spool scan on every upload would
+  // make bulk creation quadratic. Expired sessions are reaped at most every
+  // five minutes (and lazily on access).
+  const nowMs = Date.now();
+  if (nowMs - lastCleanupAt >= CLEANUP_INTERVAL_MS) {
+    lastCleanupAt = nowMs;
+    void cleanupExpiredTusSessions();
+  }
 
   const now = nowISODateString();
   const session: TusSession = {

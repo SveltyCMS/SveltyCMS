@@ -40,8 +40,12 @@ vi.mock("@utils/media/variant-job-scheduler.server", () => ({
   },
 }));
 
-const { cleanupMediaVersions, deriveMediaProcessingStatus, syncMediaProcessingStatus } =
-  await import("@src/utils/media/media-lifecycle.server");
+const {
+  cleanupMediaVersions,
+  deriveMediaProcessingStatus,
+  syncMediaProcessingStatus,
+  collectReferencedHashes,
+} = await import("@src/utils/media/media-lifecycle.server");
 
 const TENANT_ID = "tenant" as unknown as DatabaseId;
 
@@ -185,6 +189,26 @@ describe("cleanupMediaVersions", () => {
     expect(result.hashesReleased).toEqual(["hash-1"]);
     expect((row.metadata.versions as unknown[]).length).toBe(2);
     expect(storage.variantsDeleted).toEqual([]);
+  });
+});
+
+describe("collectReferencedHashes", () => {
+  it("returns active and retained-version hashes, excluding the requested row", async () => {
+    const row = imageRow({
+      metadata: { versions: [version(1, "old-hash"), version(2, "active-hash")] },
+    });
+    const sibling = imageRow({ _id: "media-2", hash: "sibling-hash", metadata: {} });
+    const db = makeDb([row, sibling]);
+
+    const live = await collectReferencedHashes(db, TENANT_ID);
+    expect([...live].sort()).toEqual(["active-hash", "old-hash", "sibling-hash"]);
+
+    const withoutRow = await collectReferencedHashes(
+      db,
+      TENANT_ID,
+      "media-1" as unknown as DatabaseId,
+    );
+    expect([...withoutRow]).toEqual(["sibling-hash"]);
   });
 });
 
