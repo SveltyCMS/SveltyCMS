@@ -387,6 +387,10 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chrome-text: var(--admin-text-body, #0f172a);
 		--editor-chrome-text-hover: var(--admin-text-body, #0f172a);
 		--editor-chrome-text-active: var(--admin-text-body, #0f172a);
+		/* Active-chip pair: inverted on purpose so one class works in light and dark. */
+		--editor-chip-active-bg: var(--admin-text-body, #0f172a);
+		--editor-chip-active-text: var(--editor-chrome-bg, #f8fafc);
+		--editor-slider-track: color-mix(in oklch, var(--editor-chrome-text, #0f172a) 24%, transparent);
 		--editor-accent: var(--color-primary-500, #3b82f6);
 		--editor-accent-hover: var(--color-primary-600, #2563eb);
 		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
@@ -405,6 +409,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chrome-text: var(--admin-text-muted, #94a3b8);
 		--editor-chrome-text-hover: var(--admin-text-body, #f8fafc);
 		--editor-chrome-text-active: var(--admin-text-body, #f8fafc);
+		--editor-chip-active-bg: var(--admin-text-body, #f8fafc);
+		--editor-chip-active-text: var(--editor-chrome-bg, #0f172a);
 	}
 
 	/* Shared active-state classes for widget pills (Svelte class directives cannot
@@ -424,6 +430,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-50, #f8fafc));
 		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-50, #ffffff));
 		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
+		--editor-slider-track: color-mix(in oklch, var(--editor-chrome-text, #0f172a) 24%, transparent);
 		--editor-chrome-elevated: var(
 			--admin-bg-chip,
 			color-mix(in oklch, var(--admin-text-body, currentColor) 8%, transparent)

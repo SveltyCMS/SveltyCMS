@@ -203,7 +203,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 </script>
 
 <div
-	class="flex shrink-0 flex-col gap-0 w-full max-h-[min(36dvh,16.5rem)] min-h-0 z-30 bg-(--editor-chrome-bg)"
+	class="flex shrink-0 flex-col gap-0 w-full max-h-[min(42dvh,19rem)] min-h-0 z-30 bg-(--editor-chrome-bg)"
 >
 	<div
 		class="flex-[0_1_auto] min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-none] [&::-webkit-scrollbar]:hidden"
@@ -269,7 +269,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 					>
 						<button
 							type="button"
-							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
+							class="min-h-10 py-1.25 px-4 text-[13px] font-medium leading-[1.2] text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
 							'rotation'
 								? 'bg-(--editor-chrome-elevated)'
 								: ''}"
@@ -282,7 +282,7 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 						</button>
 						<button
 							type="button"
-							class="py-1.25 px-3.5 text-[13px] font-medium leading-[1.2] text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
+							class="min-h-10 py-1.25 px-4 text-[13px] font-medium leading-[1.2] text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color] duration-150 {adjustMode ===
 							'scale'
 								? 'bg-(--editor-chrome-elevated)'
 								: ''}"
@@ -610,6 +610,8 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		--editor-chrome-text-hover: rgba(255, 255, 255, 0.92);
 		--editor-chrome-elevated: var(--mc-chip);
 		--editor-chrome-border: transparent;
+		--editor-chip-active-bg: var(--mc-chip-active);
+		--editor-chip-active-text: var(--mc-chip-text-active);
 		color: var(--mc-chip-text);
 	}
 
@@ -628,6 +630,8 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 		--editor-chrome-text-hover: var(--admin-text-body, #0f172a);
 		--editor-chrome-elevated: var(--mc-chip);
 		--editor-chrome-border: color-mix(in oklch, var(--admin-text-body, #0f172a) 14%, transparent);
+		--editor-chip-active-bg: var(--admin-text-body, #0f172a);
+		--editor-chip-active-text: var(--admin-bg-card, #fff);
 	}
 
 	/* ── Slider visual dots background (can't inline gradient) ── */

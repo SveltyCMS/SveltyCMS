@@ -191,7 +191,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 <style>
 	.editor-toolbar-solo-btn-active {
 		color: var(--editor-chrome-text-active, #fff);
-		background: rgba(255, 255, 255, 0.12);
-		border-color: rgba(255, 255, 255, 0.14);
+		background: var(--editor-chrome-elevated, rgba(255, 255, 255, 0.12));
+		border-color: var(--editor-chrome-border, rgba(255, 255, 255, 0.14));
 	}
 </style>

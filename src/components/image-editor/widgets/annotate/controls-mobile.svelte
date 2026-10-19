@@ -177,11 +177,11 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 	.annotate-mobile-strip {
 		display: inline-flex;
 		flex-wrap: nowrap;
-		gap: 0.1875rem;
+		gap: 0.375rem;
 		align-items: center;
 		width: fit-content;
 		max-width: 100%;
-		padding: 0.1875rem 0.25rem;
+		padding: 0.25rem 0.375rem;
 		overflow-x: auto;
 		overflow-y: hidden;
 		-webkit-overflow-scrolling: touch;
@@ -189,8 +189,15 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		overscroll-behavior-x: contain;
 		scroll-snap-type: x proximity;
 		scrollbar-width: none;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.07);
+		background: var(
+			--editor-chrome-elevated,
+			color-mix(in oklch, var(--editor-chrome-text, #fff) 8%, transparent)
+		);
+		border: 1px solid
+			var(
+				--editor-chrome-border,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 12%, transparent)
+			);
 		border-radius: var(--editor-radius-pill, 9999px);
 		backdrop-filter: blur(10px);
 		box-sizing: border-box;
@@ -205,7 +212,7 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		padding-inline: 0.125rem 0.0625rem;
 		font-size: 0.5625rem;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.42);
+		color: color-mix(in oklch, var(--editor-chrome-text, #fff) 58%, transparent);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		white-space: nowrap;
@@ -215,9 +222,9 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		flex: 0 0 1px;
 		align-self: stretch;
 		width: 1px;
-		min-height: 1.125rem;
-		margin-inline: 0.0625rem;
-		background: rgba(255, 255, 255, 0.14);
+		min-height: 1.25rem;
+		margin-inline: 0.1875rem;
+		background: color-mix(in oklch, var(--editor-chrome-text, #fff) 18%, transparent);
 	}
 
 	.annotate-mobile-pill {
@@ -226,12 +233,12 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		align-items: center;
 		justify-content: center;
 		scroll-snap-align: center;
-		height: 1.75rem;
-		padding-inline: 0.5625rem;
-		font-size: 0.75rem;
+		min-height: 2.5rem;
+		padding-inline: 0.75rem;
+		font-size: 0.8125rem;
 		font-weight: 500;
 		line-height: 1;
-		color: rgba(255, 255, 255, 0.72);
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.72));
 		white-space: nowrap;
 		cursor: pointer;
 		background: transparent;
@@ -245,13 +252,13 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 	}
 
 	.annotate-mobile-tool-pill {
-		width: 1.875rem;
-		min-width: 1.875rem;
+		width: 2.5rem;
+		min-width: 2.5rem;
 		padding-inline: 0;
 	}
 
 	.annotate-mobile-delete-pill {
-		padding-inline: 0.4375rem;
+		padding-inline: 0.5rem;
 	}
 
 	.annotate-mobile-pill:active:not(:disabled) {
@@ -259,8 +266,8 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 	}
 
 	.annotate-mobile-pill-active {
-		color: #141414;
-		background: rgba(255, 255, 255, 0.94);
+		color: var(--editor-chip-active-text, #141414);
+		background: var(--editor-chip-active-bg, rgba(255, 255, 255, 0.94));
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
 	}
 
@@ -272,12 +279,12 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 
 	.annotate-mobile-swatch-btn {
 		flex: 0 0 auto;
-		width: 1.375rem;
-		height: 1.375rem;
+		width: 1.75rem;
+		height: 1.75rem;
 		padding: 0;
 		cursor: pointer;
 		background: var(--swatch-color, #fff);
-		border: 2px solid rgba(255, 255, 255, 0.22);
+		border: 2px solid color-mix(in oklch, var(--editor-chrome-text, #fff) 28%, transparent);
 		border-radius: 50%;
 		box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
 		transition:
@@ -290,17 +297,17 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		background:
 			linear-gradient(
 				135deg,
-				rgba(255, 255, 255, 0.14) 46%,
-				rgba(255, 255, 255, 0.45) 48%,
-				rgba(255, 255, 255, 0.14) 50%
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 14%, transparent) 46%,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 45%, transparent) 48%,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 14%, transparent) 50%
 			),
-			rgba(255, 255, 255, 0.06);
+			color-mix(in oklch, var(--editor-chrome-text, #fff) 6%, transparent);
 	}
 
 	.annotate-mobile-swatch-btn-active {
-		border-color: rgba(255, 255, 255, 0.92);
+		border-color: var(--editor-chip-active-bg, rgba(255, 255, 255, 0.92));
 		box-shadow:
-			0 0 0 1px rgba(255, 255, 255, 0.35),
+			0 0 0 1px color-mix(in oklch, var(--editor-chrome-text, #fff) 35%, transparent),
 			inset 0 1px 2px rgba(0, 0, 0, 0.18);
 	}
 
@@ -308,9 +315,13 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		color: rgba(255, 255, 255, 0.72);
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.72));
 		background:
-			linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.14)),
+			linear-gradient(
+				135deg,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 8%, transparent),
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 16%, transparent)
+			),
 			var(--swatch-color, transparent);
 	}
 

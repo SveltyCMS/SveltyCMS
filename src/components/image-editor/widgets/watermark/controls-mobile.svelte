@@ -160,11 +160,11 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 	.watermark-mobile-strip {
 		display: inline-flex;
 		flex-wrap: nowrap;
-		gap: 0.125rem;
+		gap: 0.25rem;
 		align-items: center;
 		width: fit-content;
 		max-width: 100%;
-		padding: 0.125rem;
+		padding: 0.25rem;
 		overflow-x: auto;
 		overflow-y: hidden;
 		-webkit-overflow-scrolling: touch;
@@ -172,8 +172,15 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 		overscroll-behavior-x: contain;
 		scroll-snap-type: x proximity;
 		scrollbar-width: none;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.07);
+		background: var(
+			--editor-chrome-elevated,
+			color-mix(in oklch, var(--editor-chrome-text, #fff) 8%, transparent)
+		);
+		border: 1px solid
+			var(
+				--editor-chrome-border,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 12%, transparent)
+			);
 		border-radius: var(--editor-radius-pill, 9999px);
 		backdrop-filter: blur(10px);
 		box-sizing: border-box;
@@ -188,7 +195,7 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 		padding-inline: 0.3125rem 0.125rem;
 		font-size: 0.5625rem;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.42);
+		color: color-mix(in oklch, var(--editor-chrome-text, #fff) 58%, transparent);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		white-space: nowrap;
@@ -201,12 +208,12 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 		align-items: center;
 		justify-content: center;
 		scroll-snap-align: center;
-		height: 1.75rem;
-		padding-inline: 0.5625rem;
-		font-size: 0.75rem;
+		min-height: 2.5rem;
+		padding-inline: 0.75rem;
+		font-size: 0.8125rem;
 		font-weight: 500;
 		line-height: 1;
-		color: rgba(255, 255, 255, 0.72);
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.72));
 		white-space: nowrap;
 		cursor: pointer;
 		background: transparent;
@@ -229,8 +236,8 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 	}
 
 	.watermark-mobile-pill-active {
-		color: #141414;
-		background: rgba(255, 255, 255, 0.94);
+		color: var(--editor-chip-active-text, #141414);
+		background: var(--editor-chip-active-bg, rgba(255, 255, 255, 0.94));
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
 	}
 
@@ -254,11 +261,18 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 
 	.watermark-mobile-position-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1.875rem);
+		grid-template-columns: repeat(3, 2.25rem);
 		gap: 0.1875rem;
 		padding: 0.1875rem;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.07);
+		background: var(
+			--editor-chrome-elevated,
+			color-mix(in oklch, var(--editor-chrome-text, #fff) 8%, transparent)
+		);
+		border: 1px solid
+			var(
+				--editor-chrome-border,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 12%, transparent)
+			);
 		border-radius: 0.75rem;
 		backdrop-filter: blur(10px);
 	}
@@ -267,14 +281,14 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 1.875rem;
-		height: 1.875rem;
+		width: 2.25rem;
+		height: 2.25rem;
 		padding: 0;
 		font-size: 0.8125rem;
 		line-height: 1;
-		color: rgba(255, 255, 255, 0.78);
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.78));
 		cursor: pointer;
-		background: rgba(255, 255, 255, 0.04);
+		background: color-mix(in oklch, var(--editor-chrome-text, #fff) 6%, transparent);
 		border: none;
 		border-radius: 0.4375rem;
 		transition:
@@ -288,8 +302,8 @@ Mobile watermark controls — action/size strips + position grid; opacity slider
 	}
 
 	.watermark-mobile-position-btn-active {
-		color: #141414;
-		background: rgba(255, 255, 255, 0.94);
+		color: var(--editor-chip-active-text, #141414);
+		background: var(--editor-chip-active-bg, rgba(255, 255, 255, 0.94));
 		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 	}
 </style>

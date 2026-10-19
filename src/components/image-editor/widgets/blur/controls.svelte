@@ -85,8 +85,9 @@ Pintura-style blur bottom dock — glass pills, aligned slider, no solid CMS but
 					oninput={handleStrengthInput}
 					class="flex-1 h-1 m-0 appearance-none cursor-pointer rounded-full [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:bg-(--editor-accent-hover,var(--color-warning-400,#ffd43b)) [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)] [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:bg-(--editor-accent-hover,var(--color-warning-400,#ffd43b)) [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[rgba(0,0,0,0.15)] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:[box-shadow:0_0_0_1px_rgba(0,0,0,0.2)]"
 					style:background="linear-gradient(to right, var(--editor-accent, #f5c518) 0%,
-					var(--editor-accent, #f5c518) {sliderProgress * 100}%, rgba(255, 255, 255, 0.16) {sliderProgress *
-						100}%, rgba(255, 255, 255, 0.16) 100%)"
+					var(--editor-accent, #f5c518) {sliderProgress * 100}%, var(--editor-slider-track,
+					color-mix(in oklch, currentColor 24%, transparent)) {sliderProgress * 100}%,
+					var(--editor-slider-track, color-mix(in oklch, currentColor 24%, transparent)) 100%)"
 					aria-valuemin={5}
 					aria-valuemax={100}
 					aria-valuenow={blurStrength}
