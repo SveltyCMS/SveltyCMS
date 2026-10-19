@@ -420,6 +420,8 @@ export const MEDIA_UPDATE_METADATA_FIELDS = [
   "name",
   "originalFilename",
   "placeholder",
+  "processingError",
+  "processingStatus",
   "processingTimeMs",
   "sharedLinks",
   "software",
@@ -493,6 +495,17 @@ function sanitizeMediaUpdateMetadata(value: unknown): Record<string, unknown> {
     if (UNSAFE_OBJECT_KEYS.has(key)) continue;
     if (!MEDIA_UPDATE_METADATA_FIELD_SET.has(key)) {
       raise(400, `Unsupported media metadata field: ${key}`, "INVALID_MEDIA_METADATA_FIELD");
+    }
+    // Server-owned pipeline state may be round-tripped but never invented.
+    if (key === "processingStatus") {
+      if (entry === "processing" || entry === "ready" || entry === "failed") {
+        metadata[key] = entry;
+      }
+      continue;
+    }
+    if (key === "processingError") {
+      if (typeof entry === "string") metadata[key] = entry.slice(0, 500);
+      continue;
     }
     metadata[key] = entry;
   }

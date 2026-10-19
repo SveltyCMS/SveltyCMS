@@ -73,6 +73,43 @@ Control access to core system features:
 
 ---
 
+## 🧭 Row-Level Access Rules (`ACCESS_RULES`)
+
+Endpoint RBAC answers _whether_ a role may read a collection. `ACCESS_RULES` answers _which rows_ — as a **query constraint**, so pagination, keyset cursors, `COUNT(*)` and streaming all reflect the caller's real view instead of filtering after the page was computed.
+
+Configure it in `config/private.ts` (or the private system settings):
+
+```ts
+ACCESS_RULES: {
+  posts: {
+    editor: { read: { authorId: "$user._id" } },
+    reviewer: { read: { status: ["draft", "review"] } },
+    regional: { read: { tenantId: "$tenant.id", status: "published" } },
+  },
+}
+```
+
+| Value                         | Meaning                                                |
+| :---------------------------- | :----------------------------------------------------- |
+| `"published"` / `42` / `true` | Literal equality.                                      |
+| `["draft", "review"]`         | Translated to `$in`.                                   |
+| `"$user._id"`                 | The authenticated user's id.                           |
+| `"$user.role"`                | The authenticated user's role.                         |
+| `"$tenant.id"`                | The resolved tenant id (`global` when tenancy is off). |
+
+**Semantics**
+
+- The rule is merged as the **left side of `$and`**, so a caller-supplied filter can never widen the scope.
+- Admins, system callers, and roles without an entry are unrestricted (backward compatible; no rule = no cost beyond a memoized lookup).
+- Point reads, list reads, streaming exports, `count`/`total`, single updates/deletes and bulk updates/deletes all enforce the same rule. A hidden row returns `404` on mutation, so existence is not revealed.
+- Only top-level fields are supported. Rules are declarative so they can be indexed; there is no expression language.
+- The config is memoized for 60 seconds and invalidated immediately when settings are saved.
+
+> [!TIP]
+> Pair a rule with an index on the constrained field (e.g. `authorId`) — the fragment is merged into the normal query, so the existing index plans apply unchanged.
+
+---
+
 ## 🔑 Website Tokens
 
 **Website Tokens** are persistent API keys designed for **machine-to-machine** communication. They are ideal for:

@@ -44,7 +44,6 @@ graph TB
         UW[local-upload.svelte]
         UPLOAD[upload-client.ts]
         DASH[media-storage-analytics-widget]
-        VGRID[virtual-media-grid.svelte]
         EDITOR[ImageEditor Shell]
         WGPU[WebGPU/WASM Optimizer]
     end
@@ -88,8 +87,7 @@ graph TB
     CRUMB --> DND
     DND --> API6
     FOLDERS --> API7
-    UI --> VGRID
-    VGRID --> API1
+
     UI --> MODAL
     MODAL --> API5
     UI --> UPLOAD
@@ -243,7 +241,7 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 - **On-Demand Transforms**: `/files/**?w=&h=&q=&fmt=` produces cached raster variants on the delivery route (no separate `/api/media/*` transform endpoint exists). See [On-Demand Image Transforms](#-on-demand-image-transforms) below for the parameter contract, clamps, cache layout and fallback rules.
 - **Focal Points**: Visual crosshair coordinates are injected into delivery APIs to support art-directed cropping in the frontend.
-- **Lazy Loading**: lazy thumbnail decoding in `media-grid.svelte` / `media-table.svelte` keeps the gallery responsive with thousands of files using Svelte 5 runes. (`virtual-media-grid.svelte` implements a windowed grid but is **unmounted** today.)
+- **Lazy Loading**: lazy thumbnail decoding in `media-grid.svelte` / `media-table.svelte` keeps the gallery responsive with thousands of files using Svelte 5 runes.
 
 ### Processing status, version retention & cleanup
 

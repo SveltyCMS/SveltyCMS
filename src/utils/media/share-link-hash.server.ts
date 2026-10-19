@@ -22,18 +22,9 @@
  * - Fail-closed when `JWT_SECRET_KEY` is not configured
  */
 
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scryptSync } from "node:crypto";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-
-/** Constant-time compare that pads to the longer input (no length leak). */
-function constantTimeBufferEqual(a: Buffer, b: Buffer): boolean {
-  const maxLen = Math.max(a.length, b.length);
-  const paddedA = Buffer.alloc(maxLen, 0);
-  const paddedB = Buffer.alloc(maxLen, 0);
-  a.copy(paddedA);
-  b.copy(paddedB);
-  return timingSafeEqual(paddedA, paddedB);
-}
+import { constantTimeBufferEqual } from "@utils/security/constant-time";
 
 /**
  * Server pepper for share-link passwords. Domain-prefixed so a leaked JWT

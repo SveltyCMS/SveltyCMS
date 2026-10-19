@@ -171,6 +171,11 @@ tags:
 
 ## 8. Enterprise, Security & Community (Active Backlog)
 
+- **Row-level access as a query constraint**:
+  - [x] `ACCESS_RULES` private setting compiles per-collection/per-role read rules into a WHERE fragment merged before pagination, keyset cursors, `COUNT(*)` and streaming; also enforced on single/bulk update and delete. Dynamic tokens: `$user._id`, `$user.role`, `$tenant.id`. Shipped 2026-10-19 (`src/services/security/access-rule-service.ts`).
+  - [ ] Write rules beyond read (create/update/delete per row) and operator support (`$ne`, `$in` beyond arrays, relation traversal).
+  - [ ] Admin UI for rule authoring with validation and a preview of the generated filter.
+
 - **Third-Party Security Audit** — posture: [Security posture](../reference/security/security-posture.mdx):
   - Commission an independent external penetration test prior to enterprise GA. **Not performed as of 2026-10-18.**
 - **Cryptographic agility (PQC readiness)** — reference: [Quantum security](../reference/security/quantum-security.mdx):

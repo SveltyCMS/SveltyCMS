@@ -1078,6 +1078,11 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
   - **Multi-Column Sort & Ordinal Ranks**: Composed multi-column sorting via `Shift + Click` with visual rank indicators (`1`, `2`, `3`), cascading client-side comparators, and query serialization.
   - **Compound Filter Logic**: Schema-aware `AdvancedFilterModal` with `AND`/`OR` multi-clause conditions and contextual operators.
   - **Grid Accessibility & View Modes**: WCAG 2.2 AA roving tabindex cell/row keyboard traversal, `Alt + X` selection export, and dynamic `table` / `card` view mode switching. Tests: `tests/unit/components/smart-table-advanced-ux.test.ts`.
+- **Row-Level Access as a Query Constraint (October 2026)**:
+  - **`ACCESS_RULES`** compiles `{ collection: { role: { read: { field: value } } } }` into a WHERE fragment merged **before** pagination, keyset cursors, `COUNT(*)` and streaming. Page sizes, totals and next-cursor semantics now describe the caller's actual view; the previous post-fetch strip could not scope a count.
+  - **Cannot be widened by the caller**: the rule is the left side of `$and`, and the same constraint is enforced on point reads, single updates/deletes and bulk update/delete (hidden rows return `404`, not `403`, so existence is not revealed).
+  - **Dynamic tokens**: `$user._id`, `$user.role`, `$tenant.id`; arrays compile to `$in`. Config is memoized for 60 s and invalidated on settings save.
+  - **Verification**: `tests/unit/security/access-rules.test.ts` (10: literal/array/token resolution, admin/role bypass, prototype-key rejection, merge precedence, row evaluation). Docs: [Access Management](../guides/configuration/access-management.mdx).
 - **Media Write-Path Cleanup (October 2026)**:
   - **Version uploads skip the staging row**: `uploadNewVersion` now writes the new bytes straight to the canonical content-addressed path (`ensureOriginalOnDisk`) instead of inserting a temporary media row just to reuse the adapter upload path and then deleting it. One fewer DB write per version, one fewer transient gallery row, and no window where a staging record is visible.
   - **Deletion scans references once**: `deleteMedia` builds a single `collectReferencedHashes()` set for every hash the deleted row owned, instead of re-scanning the library per hash — O(N) instead of O(N × versions) for multi-version assets.

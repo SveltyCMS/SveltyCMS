@@ -18,6 +18,7 @@ import {
   toBoolean,
   toNumber,
   union,
+  unknown,
 } from "valibot";
 import type { InferOutput } from "valibot";
 
@@ -188,6 +189,12 @@ export const privateConfigSchema = object({
   // `{ [collection]: { [role]: string[] } }` — role may READ only listed fields.
   // Admin + roles without an entry keep full access. Empty/absent = disabled.
   FIELD_PERMISSIONS: optional(record(string(), record(string(), array(string())))),
+
+  // `{ [collection]: { [role]: { read: { field: value } } } }` — row-level read
+  // rules merged into the DB query before pagination/count. A rule value may be
+  // a literal, an array (=> `$in`), or `$user._id` / `$user.role` / `$tenant.id`.
+  // Admins and roles without an entry keep full access.
+  ACCESS_RULES: optional(record(string(), record(string(), record(string(), unknown())))),
 
   // --- Signed Media URLs ---
   MEDIA_SIGNED_URL_SECRET: optional(pipe(string(), minLength(1))),

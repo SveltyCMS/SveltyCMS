@@ -110,12 +110,15 @@ export async function handleSettingsRoutes(
       tenantId: tenantId as any,
     });
 
-    // 🚀 Invalidate the field-permission memo so a saved FIELD_PERMISSIONS
-    // policy takes effect immediately (no up-to-60s stale window).
+    // 🚀 Invalidate the field-permission + access-rule memos so a saved policy
+    // takes effect immediately (no up-to-60s stale window).
     try {
       const { invalidateFieldPermissionCache } =
         await import("@src/services/security/field-permission-service");
       invalidateFieldPermissionCache();
+      const { invalidateAccessRuleCache } =
+        await import("@src/services/security/access-rule-service");
+      invalidateAccessRuleCache();
     } catch {
       /* best effort */
     }
