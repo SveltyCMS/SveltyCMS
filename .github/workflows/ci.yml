@@ -152,13 +152,15 @@ jobs:
           docker save redis:latest -o /tmp/docker-images/redis.tar
 
   # ------------------------------------------------
-  # 1c. Change scope — benchmarks only for perf-sensitive paths
+  # 1c. Benchmark scope — perf-sensitive paths only
   # ------------------------------------------------
   # The core benchmark matrix is 4 runners and cannot observe UI/docs edits.
   # `main` always runs it (release gate); `next`/PR runs skip it unless a path
-  # that can affect the persistence/HTTP hot path changed.
-  changes:
-    name: 🔍 Change Scope
+  # that can affect the persistence/HTTP hot path changed. The filter is
+  # deliberately narrow: test-runner scripts (e.g. run-e2e.ts) must not wake
+  # the benchmark matrix.
+  bench-scope:
+    name: 🔍 Benchmark Scope
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -181,7 +183,7 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             BASE="HEAD^"
           fi
-          if git diff --name-only "$BASE" HEAD | grep -Eq '^(src/(databases|services/sdk|utils/media|routes/api|hooks|utils/rate-limit|content)/|package\.json|bun\.lock|vite\.config|svelte\.config|tests/benchmarks/|scripts/(runs|benchmark-matrix)/)'; then
+          if git diff --name-only "$BASE" HEAD | grep -Eq '^(src/(databases|services/(sdk|media)|utils/media|routes/api|hooks|utils/rate-limit|content)/|package\.json|bun\.lock|vite\.config|svelte\.config|tests/benchmarks/|scripts/(runs/(run-core-benchmarks|integration-harness)|benchmark-matrix)/)'; then
             echo "bench=true" >> "$GITHUB_OUTPUT"
           else
             echo "bench=false" >> "$GITHUB_OUTPUT"
@@ -463,8 +465,8 @@ jobs:
   # ------------------------------------------------
   bench-core:
     name: 📊 Bench (${{ matrix.db }})
-    needs: [bootstrap, build, docker-cache, changes]
-    if: needs.changes.outputs.bench == 'true'
+    needs: [bootstrap, build, docker-cache, bench-scope]
+    if: needs.bench-scope.outputs.bench == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -596,6 +598,14 @@ jobs:
       - name: Generate CI Summary
         continue-on-error: true
         run: node scripts/benchmark-matrix/generate-ci-markdown.ts
+      # Absorbed from the former `bench-green` job: a benchmark failure already
+      # fails the run via bench-core, so this is an informational summary only.
+      - if: ${{ needs.bench-core.result == 'skipped' }}
+        run: echo "⏭️ Benchmarks skipped (no perf-sensitive changes)"
+      - if: ${{ needs.bench-core.result == 'failure' || needs.bench-core.result == 'cancelled' }}
+        run: echo "::warning::One or more benchmark jobs failed (see the 📊 Bench job logs)"
+      - if: ${{ needs.bench-core.result == 'success' }}
+        run: echo "✅ All benchmarks passed"
 
   # ------------------------------------------------
   # 6. E2E Prep — auth state only (single artifact)
@@ -936,7 +946,7 @@ jobs:
       - bootstrap
       - build
       - docker-cache
-      - changes
+      - bench-scope
       - whitebox
       - e2e-prep
       - e2e
@@ -965,17 +975,3 @@ jobs:
           exit 1
       - if: ${{ !cancelled() && !failure() }}
         run: echo "✅ All checks passed"
-
-  bench-green:
-    name: 📊 Bench Green
-    if: always()
-    runs-on: ubuntu-latest
-    needs:
-      - bench-core
-      - bench-summary
-    steps:
-      - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
-        run: |
-          echo "::warning::One or more benchmarks failed (non-blocking)"
-      - if: ${{ !cancelled() && !failure() }}
-        run: echo "✅ All benchmarks passed"

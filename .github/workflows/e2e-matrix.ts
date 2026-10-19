@@ -38,7 +38,7 @@ interface E2eMatrix {
  * Named groups — Playwright --grep matches file path + title.
  * Keep anchors path-based so unrelated specs (e.g. "journey" in user/p0) don't leak.
  */
-const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
+export const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   {
     name: "Config & System",
     grep: "(routes/config/|config/|operations|system-settings|monitor|queue|extensions|unified-hub|workflows)",
@@ -69,7 +69,7 @@ const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   },
   {
     name: "Admin & Catch-All",
-    grep: "(routes/admin/|routes/system/settings|admin/tenants|catch-all|isolation|routes/site/|multi-tenancy)",
+    grep: "(routes/admin/|routes/system/settings|routes/system/hooks-lane-smoke|admin/tenants|catch-all|isolation|routes/site/|multi-tenancy)",
   },
 ];
 
@@ -96,4 +96,9 @@ const e2eMatrix: E2eMatrix = {
 };
 
 // biome-ignore lint: top-level console for CI script output
-console.log(JSON.stringify(e2eMatrix));
+// Print only when executed as the matrix generator; unit tests import
+// SHARD_GROUPS and must not emit a matrix JSON into their output.
+const isEntrypoint = process.argv[1]
+  ?.replaceAll("\\", "/")
+  .endsWith(".github/workflows/e2e-matrix.ts");
+if (isEntrypoint) console.log(JSON.stringify(e2eMatrix));

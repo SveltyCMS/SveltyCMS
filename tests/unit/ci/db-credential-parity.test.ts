@@ -73,6 +73,6 @@ describe("Docker default DB credential parity", () => {
     expect(ci).toMatch(
       /bench-core:[\s\S]*matrix: \$\{\{ fromJson\(needs\.bootstrap\.outputs\.db-matrix\) \}\}/,
     );
-    expect(ci).toContain("- bench-core");
+    expect(ci).toMatch(/bench-summary:[\s\S]*needs: \[bench-core\]/);
   });
 });
