@@ -108,7 +108,7 @@ jobs:
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
             BASE="HEAD^"
           fi
-          if git diff --name-only "$BASE" HEAD | grep -Eq '^(src/(databases|services/(sdk|media)|utils/media|routes/api|hooks|utils/rate-limit|content)/|package\.json|bun\.lock|vite\.config|svelte\.config|tests/benchmarks/|scripts/(runs/(run-core-benchmarks|integration-harness)|benchmark-matrix)/)'; then
+          if git diff --name-only "$BASE" HEAD | grep -Eq '^(src/(databases|services/(sdk|media)|utils/media|routes/api|hooks|utils/rate-limit|content)/|package\.json|bun\.lock|vite\.config|svelte\.config|tests/benchmarks/|scripts/(runs/(run-core-benchmarks|integration-harness)\.ts|benchmark-matrix/))'; then
             echo "bench=true" >> "$GITHUB_OUTPUT"
           else
             echo "bench=false" >> "$GITHUB_OUTPUT"
