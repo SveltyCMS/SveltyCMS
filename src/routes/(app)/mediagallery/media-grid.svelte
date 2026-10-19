@@ -427,7 +427,7 @@
 									<table class="w-full text-start border-collapse mt-2">
 										<thead>
 											<tr
-												class="border-b border-(--admin-border-default) text-primary-600 dark:text-primary-500"
+												class="border-b border-(--admin-border-default) text-tertiary-500 dark:text-primary-500"
 											>
 												<th
 													class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-start"
@@ -445,7 +445,7 @@
 										<tbody class="text-(--admin-text-muted)">
 											<tr class="border-b border-(--admin-border-default)">
 												<td
-													class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
+													class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
 													>{mediagallery_original()}</td
 												>
 												<td class="py-1 px-2 text-center border-e border-(--admin-border-default)"
@@ -473,7 +473,7 @@
 													{@const thumb = file.thumbnails[sizeKey]!}
 													<tr class="border-b border-(--admin-border-default) last:border-0">
 														<td
-															class="py-1 px-2 font-bold text-primary-600 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
+															class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
 															>{sizeKey}</td
 														>
 														<td

@@ -37,6 +37,19 @@ describe("sanitizeMediaUpdatePayload", () => {
     });
   });
 
+  it("round-trips server-owned processing state without accepting invented values", () => {
+    expect(
+      sanitizeMediaUpdatePayload({
+        metadata: { name: "renamed", processingStatus: "ready", processingError: "boom" },
+      }),
+    ).toEqual({
+      metadata: { name: "renamed", processingStatus: "ready", processingError: "boom" },
+    });
+    expect(sanitizeMediaUpdatePayload({ metadata: { processingStatus: "admin" } })).toEqual({
+      metadata: {},
+    });
+  });
+
   it("strips tenant, identity, ownership and storage columns", () => {
     const payload = sanitizeMediaUpdatePayload({
       tenantId: "tenant-B",

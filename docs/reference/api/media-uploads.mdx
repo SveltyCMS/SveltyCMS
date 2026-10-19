@@ -1,0 +1,219 @@
+---
+path: "docs/reference/api/media-uploads.mdx"
+title: "Direct & Resumable Uploads"
+description: "Presigned direct-to-storage upload instructions and the TUS 1.0.0 resumable upload endpoint for media assets."
+order: 12
+icon: "mdi:cloud-upload-outline"
+author: "SveltyCMS Team"
+created: "2026-10-19"
+updated: "2026-10-19"
+tags:
+  - "api"
+  - "media"
+  - "uploads"
+  - "tus"
+  - "s3"
+---
+
+# Direct & Resumable Uploads
+
+SveltyCMS exposes two upload lanes beyond the standard form/stream path:
+
+| Lane                 | Endpoint                                                                         | Use when                                                                            |
+| :------------------- | :------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
+| **Presigned direct** | `POST /api/media/upload-instructions` → `POST /api/media/direct-upload/complete` | Storage is S3 or R2; the browser/clients should write bytes directly to the bucket. |
+| **TUS resumable**    | `POST /api/media/tus` → `HEAD`/`PATCH` `/api/media/tus/{id}`                     | Local or Cloudinary storage, unreliable networks, and reload-safe resume.           |
+
+Both lanes converge on the normal `MediaService.saveMedia` pipeline, so deduplication, magic-byte MIME validation, derivative ladders, tenant scoping and audit still run exactly once.
+
+---
+
+## 1. Upload Instructions
+
+`POST /api/media/upload-instructions` (permission: `media:write`)
+
+```json
+{
+  "filename": "launch-video.mp4",
+  "mimeType": "video/mp4",
+  "size": 12582912,
+  "folder": "campaigns",
+  "access": "private"
+}
+```
+
+The server rejects a missing filename/size (`400`), a disallowed MIME (`415`), and anything above `API_MAX_BODY_SIZE_BYTES` (`413`).
+
+### Response — S3 / R2
+
+```json
+{
+  "strategy": "s3-presigned",
+  "uploadId": "5c2e…",
+  "key": "tenant-a/staging/5c2e…/launch-video.mp4",
+  "method": "PUT",
+  "url": "https://media-bucket.s3.eu-central-1.amazonaws.com/tenant-a/staging/…?X-Amz-Algorithm=…&X-Amz-Signature=…",
+  "headers": { "Content-Type": "video/mp4" },
+  "expiresAt": "2026-10-19T13:15:00.000Z",
+  "maxBytes": 15728640,
+  "token": "…",
+  "completeUrl": "/api/media/direct-upload/complete",
+  "tus": {
+    "creationUrl": "/api/media/tus",
+    "version": "1.0.0",
+    "maxBytes": 15728640,
+    "extensions": ["creation", "termination"]
+  }
+}
+```
+
+The client `PUT`s the bytes to `url` with the provided headers, then calls:
+
+```http
+POST /api/media/direct-upload/complete
+Content-Type: application/json
+
+{ "uploadId": "5c2e…", "key": "tenant-a/staging/5c2e…/launch-video.mp4", "size": 12582912, "token": "…" }
+```
+
+### Response — local / Cloudinary
+
+```json
+{
+  "strategy": "tus",
+  "uploadId": "5c2e…",
+  "url": "/api/media/tus",
+  "completeUrl": "/api/media/direct-upload/complete",
+  "tus": {
+    "creationUrl": "/api/media/tus",
+    "version": "1.0.0",
+    "maxBytes": 15728640,
+    "extensions": ["creation", "termination"]
+  }
+}
+```
+
+Use the TUS lane below. `url` is relative because no privileged storage endpoint is exposed.
+
+### Security model
+
+- **Server-chosen paths.** The staging key is always `{tenantId}/staging/{uploadId}/{sanitized-filename}` and lives outside the canonical `{tenant}/{hash}/original/…` namespace, so `/files` never serves an unfinished object.
+- **Bound token.** `token` is an HMAC-SHA-256 token over `(uploadId, tenantId, userId, key, size)` with a 6-hour TTL. Completion requires the same authenticated principal, tenant, key and size; nothing in the client body is trusted on its own.
+- **Completion re-validates.** The staged bytes are downloaded, the declared size must match exactly, MIME is resolved from magic bytes (polyglot rejection), and only then is the normal ingestion path called.
+- **Staging cleanup.** The staged object is deleted after successful ingestion. A failed finalize keeps it so the client can retry.
+- **Presigning.** SigV4 query presigning (PUT, `UNSIGNED-PAYLOAD`, 15-minute expiry) is implemented with `node:crypto`; no second AWS SDK package is added to the server graph. Content-Type is not part of the signature — the finalize sniff is authoritative.
+
+> [!NOTE]
+> Cloudinary does not use a presigned PUT here because unsigned uploads require an account-level preset. It uses the TUS lane instead; a signed Cloudinary direct-upload preset can be added without changing the finalize contract.
+
+---
+
+## 2. TUS 1.0.0 Resumable Uploads
+
+Discovery:
+
+```http
+OPTIONS /api/media/tus
+Tus-Resumable: 1.0.0
+```
+
+```http
+204 No Content
+Tus-Version: 1.0.0
+Tus-Extension: creation,termination
+Tus-Max-Size: 15728640
+```
+
+### Create
+
+```http
+POST /api/media/tus
+Tus-Resumable: 1.0.0
+Upload-Length: 12582912
+Upload-Metadata: filename bGF1bmNoLXZpZGVvLm1wNA==,filetype dmlkZW8vbXA0,folder Y2FtcGFpZ25z,access cHJpdmF0ZQ==
+```
+
+```http
+201 Created
+Location: /api/media/tus/{id}?token=…
+Upload-Offset: 0
+Upload-Length: 12582912
+Tus-Resumable: 1.0.0
+```
+
+`Upload-Metadata` is the standard comma-separated `key base64(value)` format. Extra keys: `folder` and `access` (`public` | `private`). `Upload-Defer-Length` is not advertised.
+
+### Continue
+
+```http
+HEAD /api/media/tus/{id}?token=…
+```
+
+```http
+200 OK
+Upload-Offset: 5242880
+Upload-Length: 12582912
+Tus-Resumable: 1.0.0
+Cache-Control: no-store
+```
+
+```http
+PATCH /api/media/tus/{id}?token=…
+Tus-Resumable: 1.0.0
+Upload-Offset: 5242880
+Content-Type: application/offset+octet-stream
+
+<binary chunk>
+```
+
+```http
+204 No Content
+Upload-Offset: 10485760
+Tus-Resumable: 1.0.0
+```
+
+The final chunk returns `X-Media-Id` after ingestion. A zero-byte PATCH at `offset === length` retries finalization, so a transient ingestion failure is recoverable without re-uploading bytes.
+
+| Behaviour                      | Result                                         |
+| :----------------------------- | :--------------------------------------------- |
+| `Upload-Offset` does not match | `409` with the expected `Upload-Offset` header |
+| Chunk exceeds `Upload-Length`  | `413`                                          |
+| Wrong `Content-Type`           | `415`                                          |
+| Another user or tenant         | `403`                                          |
+| Expired/unknown session        | `404`                                          |
+| `DELETE /api/media/tus/{id}`   | `204` (owner only)                             |
+
+Sessions expire after **24 hours**; the spool directory defaults to `os.tmpdir()/sveltycms-tus` and can be moved with `TUS_SPOOL_DIR` (use a shared volume if several instances must serve the same upload).
+
+### Browser client with resume
+
+`upload-client.ts` routes **6–15 MiB** files through TUS automatically (`resumable: false` restores the legacy routing). `tus-upload-client.ts` persists `{ url, offset }` in `localStorage`, keyed by `name|size|lastModified`:
+
+- page reload or network drop → `HEAD` returns the committed offset and the upload continues from there;
+- `AbortSignal` cancellation keeps the resume state;
+- 5 MiB chunks, three retries per chunk with backoff;
+- cancel/abort state is cleared only after a successful `X-Media-Id`.
+
+```ts
+import { uploadFileViaTus } from "@utils/media/tus-upload-client";
+
+const result = await uploadFileViaTus(file, {
+  folder: "campaigns",
+  onProgress: (percent) => (bar.value = percent),
+});
+if (result.success) console.log(result.mediaId);
+```
+
+---
+
+## Limits & performance
+
+| Limit                              | Value                                        |
+| :--------------------------------- | :------------------------------------------- |
+| Max object size (all upload lanes) | `API_MAX_BODY_SIZE_BYTES` (15 MB by default) |
+| TUS chunk size (browser client)    | 5 MiB                                        |
+| Presigned URL TTL                  | 15 minutes                                   |
+| TUS session TTL                    | 24 hours                                     |
+| Token TTL                          | 6 hours                                      |
+
+The direct/TUS lanes do not change the hot paths of existing uploads: files below the TUS threshold keep the form/stream routing, and TUS/direct only run when explicitly selected. The finalize step reuses `MediaService.saveMedia`, so dedupe and derivative costs are identical to a normal upload.

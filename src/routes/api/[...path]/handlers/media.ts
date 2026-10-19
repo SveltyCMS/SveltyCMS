@@ -35,7 +35,7 @@ import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-l
 import { analyze, insights, trends, quota } from "@src/utils/media/storage-analytics";
 import { formatBytes } from "@utils/file";
 import {
-  compareVersions,
+  compareMediaVersions,
   createVersion,
   getVersionStats,
 } from "@src/utils/media/media-storage.server";
@@ -45,6 +45,27 @@ import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
 import { sanitizeMediaUpdatePayload } from "@utils/media/media-service.server";
 import type { MediaItem } from "@utils/media/media-models";
+import {
+  createUploadInstruction,
+  filenameFromStagingKey,
+  verifyDirectUploadToken,
+} from "@utils/media/direct-upload.server";
+import { getStorageAdapter } from "@utils/media/storage-adapters";
+import { resolveRemoteAssetMime } from "@utils/media/slim-sniffer.server";
+import {
+  appendTusChunk,
+  createTusSession,
+  deleteTusSession,
+  getTusSession,
+  parseTusMetadata,
+  signTusToken,
+  TUS_EXTENSIONS,
+  TUS_MAX_BYTES,
+  TUS_PATCH_CONTENT_TYPE,
+  TUS_VERSION,
+  TusError,
+} from "@src/services/media/tus-upload.server";
+import { readFile } from "node:fs/promises";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
 let cacheServiceModulePromise:
@@ -133,9 +154,25 @@ export async function handleMediaRoutes(
   }
 
   try {
+    // Resumable uploads use PUT-style verbs that are not part of the generic
+    // media CRUD switch. Ownership + token checks live in the TUS handler.
+    if (method === "tus" && request.method !== "POST") {
+      return await handleMediaTus(event, cms, tenantId, user, segments);
+    }
+
     switch (request.method) {
       case "GET":
         return await handleGetRoutes(event, cms, tenantId, user, method, url, segments);
+      case "HEAD":
+        if (method === "tus") return await handleMediaTus(event, cms, tenantId, user, segments);
+        throw new AppError(
+          "HEAD is only supported for resumable uploads",
+          405,
+          "METHOD_NOT_ALLOWED",
+        );
+      case "OPTIONS":
+        if (method === "tus") return await handleMediaTus(event, cms, tenantId, user, segments);
+        return new Response(null, { status: 204 });
       case "POST":
         return await handlePostRoutes(event, cms, tenantId, user, method, segments);
       case "PATCH":
@@ -224,6 +261,12 @@ async function handlePostRoutes(
   if (method === "share") return handleMediaShareCreate(event, cms, tenantId, user, segments);
   if (method === "stream") return handleMediaStreamUpload(event, cms, tenantId, user);
   if (method === "move") return handleMediaMove(event, cms, tenantId, user);
+  if (method === "tus") return handleMediaTusCreate(event, tenantId, user);
+  if (method === "upload-instructions") return handleMediaUploadInstructions(event, tenantId, user);
+  if (method === "direct-upload" && segments[2] === "complete")
+    return handleMediaDirectUploadComplete(event, cms, tenantId, user);
+  if (method === "cleanup") return handleMediaCleanup(event, cms, tenantId, user);
+  if (method === "sync-status") return handleMediaSyncStatus(event, cms, tenantId, user);
   if (method === "version") {
     if (segments[3] === "restore")
       return handleMediaVersionRestore(event, cms, tenantId, user, segments);
@@ -1023,6 +1066,79 @@ export async function handleMediaBulkDownload(
   });
 }
 
+/**
+ * POST /api/media/cleanup — prune old versions and release unreferenced blobs.
+ * Deliberately not queued: runs even when `DISABLE_JOBS` is set or a job is stuck.
+ */
+export async function handleMediaCleanup(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!hasMediaPermission(event, user, "media:delete")) {
+    throw new AppError("Insufficient permissions for media cleanup", 403, "FORBIDDEN");
+  }
+
+  const body = (await event.request.json().catch(() => ({}))) as {
+    dryRun?: unknown;
+    keepVersions?: unknown;
+    mediaId?: unknown;
+  };
+
+  const keepVersions =
+    typeof body.keepVersions === "number" && Number.isFinite(body.keepVersions)
+      ? Math.min(Math.max(0, Math.floor(body.keepVersions)), 1_000)
+      : undefined;
+  const mediaId =
+    typeof body.mediaId === "string" && body.mediaId.trim() ? body.mediaId.trim() : undefined;
+
+  const result = await cms.media.cleanup({
+    tenantId,
+    keepVersions,
+    mediaId,
+    dryRun: body.dryRun === true,
+  });
+  if (!result.success) {
+    throw result.error || new AppError(result.message || "Media cleanup failed", 500);
+  }
+  return successResponse(event, result.data);
+}
+
+/**
+ * POST /api/media/sync-status — reconcile processingStatus with derivative
+ * evidence and optionally re-queue missing variant generation.
+ */
+export async function handleMediaSyncStatus(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media status sync", 403, "FORBIDDEN");
+  }
+
+  const body = (await event.request.json().catch(() => ({}))) as {
+    mediaId?: unknown;
+    persist?: unknown;
+    requeue?: unknown;
+  };
+  const mediaId =
+    typeof body.mediaId === "string" && body.mediaId.trim() ? body.mediaId.trim() : undefined;
+
+  const result = await cms.media.syncStatus({
+    tenantId,
+    mediaId,
+    persist: body.persist !== false,
+    requeue: body.requeue === true,
+  });
+  if (!result.success) {
+    throw result.error || new AppError(result.message || "Media status sync failed", 500);
+  }
+  return successResponse(event, result.data);
+}
+
 export async function handleMediaAnalytics(
   event: RequestEvent,
   cms: LocalCMS,
@@ -1099,7 +1215,7 @@ export async function handleMediaVersionCompare(
   if (!from || !to)
     throw new AppError("Target operational reference validation index point split missing", 404);
 
-  return successResponse(event, compareVersions(from, to));
+  return successResponse(event, compareMediaVersions(from, to));
 }
 
 // ─── Advanced Search ─────────────────────────────────────────────────────────
@@ -1293,4 +1409,353 @@ export async function handleMediaStreamUpload(
     status: "completed",
     files: uploaded,
   });
+}
+
+// ─── Resumable (TUS) + direct-to-storage uploads ─────────────────────────────
+
+const TUS_HEADERS = {
+  "Tus-Resumable": TUS_VERSION,
+  "Cache-Control": "no-store",
+  "X-Content-Type-Options": "nosniff",
+};
+
+function tusResponse(status: number, headers: Record<string, string> = {}): Response {
+  return new Response(null, { status, headers: { ...TUS_HEADERS, ...headers } });
+}
+
+function tusErrorResponse(error: unknown): Response {
+  if (error instanceof TusError) {
+    return new Response(
+      JSON.stringify({ success: false, error: { message: error.message, code: error.code } }),
+      {
+        status: error.status,
+        headers: {
+          ...TUS_HEADERS,
+          "Content-Type": "application/json",
+          ...(error.expectedOffset !== undefined
+            ? { "Upload-Offset": String(error.expectedOffset) }
+            : {}),
+        },
+      },
+    );
+  }
+  if (error instanceof AppError) {
+    return new Response(
+      JSON.stringify({ success: false, error: { message: error.message, code: error.code } }),
+      { status: error.status, headers: { ...TUS_HEADERS, "Content-Type": "application/json" } },
+    );
+  }
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: {
+        message: error instanceof Error ? error.message : "Upload failed",
+        code: "TUS_ERROR",
+      },
+    }),
+    { status: 500, headers: { ...TUS_HEADERS, "Content-Type": "application/json" } },
+  );
+}
+
+/** `POST /api/media/tus` — create a resumable upload session. */
+export async function handleMediaTusCreate(
+  event: RequestEvent,
+  tenantId: DatabaseId,
+  user: any,
+): Promise<Response> {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
+  }
+  if (!user?._id) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+
+  try {
+    const metadata = parseTusMetadata(event.request.headers.get("upload-metadata"));
+    const lengthHeader = event.request.headers.get("upload-length");
+    const size = Number(lengthHeader);
+    if (!lengthHeader || !Number.isInteger(size)) {
+      return tusErrorResponse(
+        new TusError(400, "Upload-Length header is required", "TUS_LENGTH_REQUIRED"),
+      );
+    }
+
+    const session = await createTusSession({
+      tenantId: String(tenantId ?? "global"),
+      userId: String(user._id),
+      filename: metadata.filename || "upload",
+      mimeType: metadata.filetype || "application/octet-stream",
+      size,
+      folder: metadata.folder,
+      access: metadata.access === "public" ? "public" : "private",
+    });
+    const token = signTusToken(session.id, session.tenantId, session.userId);
+
+    return tusResponse(201, {
+      Location: `/api/media/tus/${session.id}?token=${encodeURIComponent(token)}`,
+      "Upload-Offset": "0",
+      "Upload-Length": String(session.size),
+    });
+  } catch (err: unknown) {
+    rethrow(err);
+    return tusErrorResponse(err);
+  }
+}
+
+/**
+ * `HEAD|PATCH|DELETE|OPTIONS /api/media/tus/{id}` — continue, inspect, abort or
+ * discover a resumable upload. Ownership is enforced by the signed token and by
+ * the authenticated caller's `(tenantId, userId)`.
+ */
+export async function handleMediaTus(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  segments: string[],
+): Promise<Response> {
+  const id = segments[2] || "";
+  const token = event.url.searchParams.get("token");
+
+  if (event.request.method === "OPTIONS") {
+    return tusResponse(204, {
+      "Tus-Version": TUS_VERSION,
+      "Tus-Extension": TUS_EXTENSIONS.join(","),
+      "Tus-Max-Size": String(TUS_MAX_BYTES),
+    });
+  }
+
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
+  }
+  if (!user?._id) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+  if (!id) return tusErrorResponse(new TusError(404, "Upload not found", "TUS_NOT_FOUND"));
+
+  try {
+    if (event.request.method === "HEAD") {
+      const session = await getTusSession(
+        id,
+        token,
+        String(tenantId ?? "global"),
+        String(user._id),
+      );
+      if (!session) return tusResponse(404);
+      return tusResponse(200, {
+        "Upload-Offset": String(session.offset),
+        "Upload-Length": String(session.size),
+        ...(session.finalized && session.mediaId ? { "X-Media-Id": session.mediaId } : {}),
+      });
+    }
+
+    if (event.request.method === "DELETE") {
+      const session = await getTusSession(
+        id,
+        token,
+        String(tenantId ?? "global"),
+        String(user._id),
+      );
+      if (!session) return tusResponse(404);
+      await deleteTusSession(id);
+      return tusResponse(204);
+    }
+
+    if (event.request.method === "PATCH") {
+      const contentType = event.request.headers.get("content-type") || "";
+      if (!contentType.toLowerCase().startsWith(TUS_PATCH_CONTENT_TYPE)) {
+        return tusErrorResponse(
+          new TusError(
+            415,
+            `PATCH requires Content-Type: ${TUS_PATCH_CONTENT_TYPE}`,
+            "TUS_INVALID_CONTENT_TYPE",
+          ),
+        );
+      }
+      const offsetHeader = event.request.headers.get("upload-offset");
+      const offset = Number(offsetHeader);
+      if (!offsetHeader || !Number.isInteger(offset) || offset < 0) {
+        return tusErrorResponse(
+          new TusError(400, "Upload-Offset header is required", "TUS_OFFSET_REQUIRED"),
+        );
+      }
+
+      const body = Buffer.from(await event.request.arrayBuffer());
+      if (body.length > TUS_MAX_BYTES) {
+        return tusErrorResponse(
+          new TusError(413, "Chunk exceeds the upload limit", "TUS_CHUNK_TOO_LARGE"),
+        );
+      }
+
+      const session = await appendTusChunk(
+        id,
+        token,
+        String(tenantId ?? "global"),
+        String(user._id),
+        offset,
+        body,
+        async (pending, filePath) => {
+          const buffer = await readFile(filePath);
+          const declaredMime =
+            pending.mimeType && pending.mimeType !== "application/octet-stream"
+              ? pending.mimeType
+              : undefined;
+          const mime = resolveRemoteAssetMime({
+            filename: pending.filename,
+            declaredMime,
+            buffer,
+          });
+          const result = await cms.media.upload(
+            new File([new Uint8Array(buffer)], pending.filename, { type: mime }),
+            {
+              userId: pending.userId,
+              tenantId,
+              folder: pending.folder,
+              access: pending.access,
+            },
+          );
+          if (!result.success) {
+            throw new AppError(
+              result.message || "Resumable upload ingestion failed",
+              500,
+              "TUS_FINALIZE_FAILED",
+            );
+          }
+          return {
+            mediaId: String((result.data as { _id?: unknown } | undefined)?._id ?? ""),
+            result: result.data,
+          };
+        },
+      );
+
+      return tusResponse(204, {
+        "Upload-Offset": String(session.offset),
+        ...(session.finalized && session.mediaId ? { "X-Media-Id": session.mediaId } : {}),
+      });
+    }
+
+    return tusResponse(405);
+  } catch (err: unknown) {
+    rethrow(err);
+    return tusErrorResponse(err);
+  }
+}
+
+/** `POST /api/media/upload-instructions` — presigned PUT or TUS fallback. */
+export async function handleMediaUploadInstructions(
+  event: RequestEvent,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
+  }
+  if (!user?._id) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+
+  const body = (await event.request.json().catch(() => ({}))) as {
+    access?: unknown;
+    filename?: unknown;
+    folder?: unknown;
+    mimeType?: unknown;
+    size?: unknown;
+  };
+  const filename = typeof body.filename === "string" ? body.filename.trim() : "";
+  const size = typeof body.size === "number" ? body.size : Number(body.size);
+  if (!filename || !Number.isFinite(size)) {
+    throw new AppError("filename and size are required", 400, "INVALID_UPLOAD_REQUEST");
+  }
+
+  const instruction = createUploadInstruction({
+    tenantId: String(tenantId ?? "global"),
+    userId: String(user._id),
+    filename,
+    mimeType: typeof body.mimeType === "string" ? body.mimeType : "application/octet-stream",
+    size,
+    folder: typeof body.folder === "string" ? body.folder : undefined,
+    access: body.access === "public" ? "public" : "private",
+  });
+  return successResponse(event, instruction);
+}
+
+/** `POST /api/media/direct-upload/complete` — validate + ingest a staged object. */
+export async function handleMediaDirectUploadComplete(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+) {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for media upload", 403, "FORBIDDEN");
+  }
+  if (!user?._id) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+
+  const body = (await event.request.json().catch(() => ({}))) as {
+    access?: unknown;
+    folder?: unknown;
+    key?: unknown;
+    size?: unknown;
+    token?: unknown;
+    uploadId?: unknown;
+  };
+  const uploadId = typeof body.uploadId === "string" ? body.uploadId : "";
+  const key = typeof body.key === "string" ? body.key : "";
+  const size = typeof body.size === "number" ? body.size : Number(body.size);
+  const token = typeof body.token === "string" ? body.token : null;
+  if (!uploadId || !key || !Number.isFinite(size)) {
+    throw new AppError("uploadId, key and size are required", 400, "INVALID_UPLOAD_REQUEST");
+  }
+
+  if (
+    !verifyDirectUploadToken({
+      uploadId,
+      tenantId: String(tenantId ?? "global"),
+      userId: String(user._id),
+      key,
+      size,
+      token,
+    })
+  ) {
+    throw new AppError("Invalid or expired upload token", 403, "DIRECT_UPLOAD_INVALID_TOKEN");
+  }
+
+  let buffer: Buffer;
+  try {
+    buffer = await getStorageAdapter().download(key);
+  } catch (err: unknown) {
+    throw new AppError(
+      err instanceof Error ? err.message : "Staged object is not readable",
+      404,
+      "DIRECT_UPLOAD_NOT_FOUND",
+    );
+  }
+
+  if (buffer.length !== size) {
+    throw new AppError(
+      `Uploaded size ${buffer.length} does not match the declared ${size}`,
+      400,
+      "DIRECT_UPLOAD_SIZE_MISMATCH",
+    );
+  }
+
+  const filename = filenameFromStagingKey(key);
+  const mime = resolveRemoteAssetMime({ filename, declaredMime: undefined, buffer });
+  const result = await cms.media.upload(
+    new File([new Uint8Array(buffer)], filename, { type: mime }),
+    {
+      userId: String(user._id),
+      tenantId,
+      folder: typeof body.folder === "string" ? body.folder : undefined,
+      access: body.access === "public" ? "public" : "private",
+    },
+  );
+  if (!result.success) {
+    throw result.error || new AppError(result.message || "Direct upload ingestion failed", 500);
+  }
+
+  await getStorageAdapter()
+    .remove(key)
+    .catch((err: unknown) => {
+      logger.warn("[Media] Staging object cleanup failed after direct upload", {
+        key,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
+
+  return successResponse(event, result.data);
 }

@@ -59,6 +59,11 @@ import { nowISODateString } from "@src/utils/date";
 import { clampPageSize } from "@utils/api-params";
 import { redactReadEnvelope, redactRecord } from "@utils/field-access";
 import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
+import {
+  getReadConstraint,
+  mergeAccessConstraint,
+  rowMatchesConstraint,
+} from "@src/services/security/access-rule-service";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
 import { evaluateCondition } from "@src/widgets/desugar-field";
@@ -550,17 +555,30 @@ export class CollectionsNamespace {
     system?: boolean,
   ): void | Promise<void> {
     const scope = ownershipFilter(schema, user, system);
-    if (scope === false) return;
     if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    const field = Object.keys(scope)[0];
-    if (!field) return;
+    const access = getReadConstraint(schema.name || String(schema._id), {
+      user: user as { _id?: unknown; role?: unknown } | null | undefined,
+      role: (user as { role?: string } | undefined)?.role,
+      tenantId: tenantId ? String(tenantId) : null,
+    });
+    if (scope === false && !access) return;
+    const field = scope ? Object.keys(scope)[0] : "";
     return this._dbAdapter.crud
-      .findOne(this.getCollectionName(schema._id as string), { _id: entryId } as any, {
-        tenantId: tenantId as DatabaseId,
-      })
+      .findOne(
+        this.getCollectionName(schema._id as string),
+        mergeAccessConstraint({ _id: entryId }, access) as never,
+        {
+          tenantId: tenantId as DatabaseId,
+        },
+      )
       .then((existing) => {
-        if (!existing?.success || !existing.data) return;
-        const value = ownerValue(existing.data, field);
+        if (!existing?.success || !existing.data) {
+          // A row hidden by an access rule must look absent, not forbidden.
+          if (access) throw new AppError("Entry not found", 404, "NOT_FOUND");
+          return;
+        }
+        if (!scope) return;
+        const value = field ? ownerValue(existing.data, field) : undefined;
         if (value === undefined || value === null || String(value) !== String(scope[field])) {
           throw new AppError("Entry not found", 404, "NOT_FOUND");
         }
@@ -775,9 +793,14 @@ export class CollectionsNamespace {
         // re-used a second `ensureSchemaHotFlags` call on the same schema.
         const hot = ensureSchemaHotFlags(collection);
         assertEncryptedFieldsNotQueried(baseFilter, hot);
+        const accessConstraint = getReadConstraint(collection.name || String(collection._id), {
+          user,
+          role: user?.role,
+          tenantId: tenantId ? String(tenantId) : null,
+        });
         const result = await this._dbAdapter.crud.findMany(
           this.getCollectionName(collection._id as string),
-          baseFilter,
+          mergeAccessConstraint(baseFilter, accessConstraint),
           {
             limit: 100,
             tenantId: tenantId as DatabaseId,
@@ -879,6 +902,11 @@ export class CollectionsNamespace {
     // Ownership declared but the caller has no user id: fail closed, never fall
     // back to an unscoped list.
     if (ownership === null) return { success: true, data: [] };
+    const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
+      user: options.user,
+      role: (options.user as { role?: string } | undefined)?.role,
+      tenantId: tenantId ? String(tenantId) : null,
+    });
     const decodedCursor = decodePageCursor(options.cursor);
     // A supplied cursor that fails to decode must fail the request, not
     // silently fall back to an offset page (which would return duplicates).
@@ -909,8 +937,12 @@ export class CollectionsNamespace {
     const baseQuery: any = decodedCursor
       ? mergeKeysetFilter(resolvedFilter as Record<string, unknown>, decodedCursor)
       : resolvedFilter;
-    // Ownership wins over a caller-supplied field of the same name.
-    const scopedQuery = ownership ? { ...baseQuery, ...ownership } : baseQuery;
+    // Ownership wins over a caller-supplied field of the same name; the access
+    // constraint is merged as `$and` so a caller filter can never widen it.
+    const scopedQuery = mergeAccessConstraint(
+      ownership ? { ...baseQuery, ...ownership } : baseQuery,
+      accessConstraint,
+    );
 
     const { query, effectiveFilter: effectivePublicationFilter } = buildTenantQuery(
       scopedQuery,
@@ -1206,6 +1238,11 @@ export class CollectionsNamespace {
 
     const ownership = ownershipFilter(schema, user, options.system);
     if (ownership === null) return (async function* emptyStream() {})();
+    const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
+      user,
+      role: user?.role,
+      tenantId: tenantId ? String(tenantId) : null,
+    });
     const resolvedStreamFilter = await compileRelationFilters(normalizedStreamFilter, schema, {
       dbAdapter: this._dbAdapter.crud,
       getCollectionName: (id) => this.getCollectionName(id),
@@ -1214,9 +1251,10 @@ export class CollectionsNamespace {
       user,
       system: options.system,
     });
-    const scopedStreamFilter = ownership
-      ? { ...resolvedStreamFilter, ...ownership }
-      : resolvedStreamFilter;
+    const scopedStreamFilter = mergeAccessConstraint(
+      ownership ? { ...resolvedStreamFilter, ...ownership } : resolvedStreamFilter,
+      accessConstraint,
+    );
 
     const { query } = buildTenantQuery(
       scopedStreamFilter,
@@ -1286,6 +1324,11 @@ export class CollectionsNamespace {
 
     const ownership = ownershipFilter(schema, options.user, options.system);
     if (ownership === null) return { success: true, data: 0 };
+    const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
+      user: options.user,
+      role: (options.user as { role?: string } | undefined)?.role,
+      tenantId: tenantId ? String(tenantId) : null,
+    });
     const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
       dbAdapter: this._dbAdapter.crud,
       getCollectionName: (id) => this.getCollectionName(id),
@@ -1294,7 +1337,10 @@ export class CollectionsNamespace {
       user: options.user,
       system: options.system,
     });
-    const scopedFilter = ownership ? { ...resolvedFilter, ...ownership } : resolvedFilter;
+    const scopedFilter = mergeAccessConstraint(
+      ownership ? { ...resolvedFilter, ...ownership } : resolvedFilter,
+      accessConstraint,
+    );
 
     const { query } = buildTenantQuery(
       scopedFilter,
@@ -1495,12 +1541,18 @@ export class CollectionsNamespace {
     const schema = await this.schemaOf(collectionId, tenantId);
     const hot = ensureSchemaHotFlags(schema);
 
-    // 🛡️ Row ownership check across all target IDs (mirrors bulkDelete)
+    // 🛡️ Row ownership + access-rule check across all target IDs (mirrors bulkDelete)
     const scope = ownershipFilter(schema, user, system);
     if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    if (scope && updates.length > 0) {
-      const field = Object.keys(scope)[0];
-      const ownerId = field ? String(scope[field]) : "";
+    const access = getReadConstraint(schema.name || String(schema._id), {
+      user,
+      role: user?.role,
+      tenantId: tenantId ? String(tenantId) : null,
+    });
+    const ownershipScope = scope === false ? null : scope;
+    if ((ownershipScope || access) && updates.length > 0) {
+      const field = ownershipScope ? Object.keys(ownershipScope)[0] : "";
+      const ownerId = field && ownershipScope ? String(ownershipScope[field]) : "";
       const targetIds = updates.map((u) => u.id as DatabaseId);
       const found = await this._dbAdapter.crud.findByIds(
         this.getCollectionName(schema._id as string),
@@ -1509,14 +1561,18 @@ export class CollectionsNamespace {
       );
       const rows = found?.success && Array.isArray(found.data) ? found.data : [];
       const wanted = new Set(updates.map((u) => String(u.id)));
-      let owned = 0;
+      let permitted = 0;
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i] as { _id?: unknown };
         if (!wanted.has(String(row?._id ?? ""))) continue;
-        const value = field ? ownerValue(row, field) : undefined;
-        if (value !== undefined && value !== null && String(value) === ownerId) owned++;
+        if (access && !rowMatchesConstraint(row, access)) continue;
+        if (field) {
+          const value = ownerValue(row, field);
+          if (value === undefined || value === null || String(value) !== ownerId) continue;
+        }
+        permitted++;
       }
-      if (owned !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
+      if (permitted !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
     }
 
     if (
@@ -1622,9 +1678,15 @@ export class CollectionsNamespace {
 
     const scope = ownershipFilter(schema, user, options.system);
     if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    if (scope) {
-      const field = Object.keys(scope)[0];
-      const ownerId = field ? String(scope[field]) : "";
+    const access = getReadConstraint(schema.name || String(schema._id), {
+      user,
+      role: user?.role,
+      tenantId: tenantId ? String(tenantId) : null,
+    });
+    const ownershipScope = scope === false ? null : scope;
+    if (ownershipScope || access) {
+      const field = ownershipScope ? Object.keys(ownershipScope)[0] : "";
+      const ownerId = field && ownershipScope ? String(ownershipScope[field]) : "";
       const found = await this._dbAdapter.crud.findByIds(
         this.getCollectionName(schema._id as string),
         ids as DatabaseId[],
@@ -1632,14 +1694,18 @@ export class CollectionsNamespace {
       );
       const rows = found?.success && Array.isArray(found.data) ? found.data : [];
       const wanted = new Set(ids);
-      let owned = 0;
+      let permitted = 0;
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i] as { _id?: unknown };
         if (!wanted.has(String(row?._id ?? ""))) continue;
-        const value = field ? ownerValue(row, field) : undefined;
-        if (value !== undefined && value !== null && String(value) === ownerId) owned++;
+        if (access && !rowMatchesConstraint(row, access)) continue;
+        if (field) {
+          const value = ownerValue(row, field);
+          if (value === undefined || value === null || String(value) !== ownerId) continue;
+        }
+        permitted++;
       }
-      if (owned !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
+      if (permitted !== wanted.size) throw new AppError("Entry not found", 404, "NOT_FOUND");
     }
 
     // Single DELETE WHERE _id IN (...) with tenant isolation via mapQuery.
@@ -1959,6 +2025,7 @@ export class CollectionsNamespace {
       system,
       operation: "create",
       tenantId,
+      skipValidation: options.skipValidation,
     });
     if (isThenable(entryData)) entryData = await entryData;
     m1?.();
@@ -2136,6 +2203,7 @@ export class CollectionsNamespace {
       operation: "update",
       tenantId,
       entryId,
+      skipValidation: options.skipValidation,
     });
     if (isThenable(updateData)) updateData = await updateData;
     m1u?.();
@@ -2317,9 +2385,11 @@ export class CollectionsNamespace {
       ? result
       : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
-      // 🛡️ REVISION TRACKING: persist the pre-write snapshot (fire-and-forget).
+      // 🛡️ REVISION TRACKING: persist the pre-write snapshot before the request
+      // returns. The write itself is already durable, but a fire-and-forget call
+      // could be dropped by teardown and lose the revision entirely.
       if (revisionEnabled && previousSnapshot) {
-        void this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
+        await this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
       }
       // Resolved once — the three side-effect schedules below shared the same
       // `decryptedUpdate?.data ?? result.data` expression.
@@ -2351,7 +2421,9 @@ export class CollectionsNamespace {
 
   /**
    * Persist a revision snapshot for a revision-enabled collection update.
-   * Fire-and-forget — revision history must never block or fail the write path.
+   * Awaited after the primary write so request teardown cannot drop it;
+   * failures are logged and do not fail the content write. Full transaction
+   * wiring requires the revisions adapter to accept `BaseQueryOptions`.
    * The version is derived from the latest existing revision (+1).
    */
   private async recordRevision(

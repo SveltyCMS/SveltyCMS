@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:table"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-09-20"
+updated: "2026-10-19"
 tags:
   - "components"
   - "entry-list"
@@ -70,6 +70,7 @@ flowchart LR
 | **Smart column filters**    | `createSmartFilter` maps widgets → text/select/date/numberRange/boolean; URL keys `filter_{name}`                                                                      |
 | **Advanced filters modal**  | `AdvancedFilterModal` compound `AND`/`OR` multi-clause query builder across all schema fields with type-aware operators                                                |
 | **Active filter badges**    | Dismissible chips + clear-all + advanced count badge; `aria-live` count for accessibility                                                                              |
+| **Status badges**           | System `status` column + `<Status>` badge (`draft`, `publish`, `unpublish`, `schedule`, `archive`) unless the schema declares its own `status` field                   |
 | **Status facets**           | `statusFacets` from `getStatusFacets` → `SmartTableStatusFacets` chips                                                                                                 |
 | **Saved views**             | `SmartTableSavedViewsMenu` — named filter/sort/layout presets per collection                                                                                           |
 | **Column resize**           | Header drag handles via `ColumnResizeHandle` + `layoutKey: entry-list:{id}`                                                                                            |
@@ -80,8 +81,8 @@ flowchart LR
 | **Export filtered data**    | `Alt+X` keyboard shortcut and MultiButton action for streaming CSV export bounded to selected entries or active filter query. Formula-leading text cells are prefixed. |
 | **Pagination**              | `TablePagination`; page sizes via `rowsPerPage` URL param                                                                                                              |
 | **Multi-select**            | Shift+click range selection; select-all checkbox; ID-based virtualization-safe selection                                                                               |
-| **Bulk actions**            | `POST /api/collections/:id/batch` (`delete`, `status`, `clone`, `bulkEdit`, `export`) via `entry-list-multi-button`                                                    |
-| **Archived view**           | `showDeleted` toggles active vs archived entries                                                                                                                       |
+| **Bulk actions**            | `POST /api/collections/:id/batch` (`delete`, `status`, `clone`, `bulkEdit`) via `entry-list-multi-button`; CSV export is client-side (`Alt+X`)                         |
+| **Archive semantics**       | `showDeleted` changes delete behavior (archive vs permanent) and the toolbar icon; it does **not** filter the list                                                     |
 | **Column manager**          | Show/hide columns; **drag-and-drop reorder** (`@thisux/sveltednd`)                                                                                                     |
 | **Density**                 | `normal` / `compact` / `comfortable` via `TableFilter` → `entryListPaginationSettings.density`                                                                         |
 | **localStorage**            | Per-collection `entryListPaginationSettings_{collectionId}` + Smart Table layout prefs (`viewMode`, `density`, `columnWidths`)                                         |
@@ -307,9 +308,58 @@ Key state variables:
 > [!TIP]
 > Virtualization is **opt-in** — it only activates when `pageSize > 25`. Below that threshold, the table renders all rows directly with no overhead from scroll tracking.
 
-## Scheduling Note
+## Draft, Status & Scheduled Publishing
 
-Bulk **Schedule** from MultiButton calls `onSchedule(date)` which sets a `_scheduled` timestamp payload on selected entries. The full **schedule-modal** (date/time/action picker) is opened from **header-edit** / **right-sidebar** / `entry-actions.ts` via `showScheduleModal()`, not from the bulk schedule stub.
+The list always renders a system `status` column unless the collection schema already declares a field named `status`. The row badge maps the stored values as follows:
+
+| Stored value | Label       | Badge presentation    |
+| ------------ | ----------- | --------------------- |
+| `draft`      | Draft       | outline + pencil      |
+| `publish`    | Published   | primary + thumbs-up   |
+| `unpublish`  | Unpublished | warning + pause       |
+| `schedule`   | Scheduled   | error + clock         |
+| `archive`    | Archived    | surface + archive     |
+| `clone`      | Clone       | secondary + clipboard |
+| `delete`     | Delete      | surface + trash       |
+
+The schedule timestamp `_scheduled` lives inside the entry data payload and is **not** shown in the list.
+
+### Changing status from the list
+
+- Clicking the status cell proposes the next status and asks for confirmation:
+  `draft → publish`, `publish → unpublish`, `unpublish → publish`, `schedule → publish`, any other value → `publish`.
+- The update is a single-entry `PATCH /api/collections/:id/:entryId/status` with `{ status }`. Publishing is gated server-side by required-field validation and the workflow publication gate.
+- Bulk **Published** / **Unpublished** / **Draft** actions and `Alt+P` / `Alt+U` / `Alt+D` send one `POST /api/collections/:id/batch` with `action: "status"`. Bulk status changes do not ask for confirmation.
+- Collection mutations require `collections:write`; administrators bypass endpoint permission checks.
+
+### Status facets
+
+- Facet counts are streamed from the server and are tenant-wide. They are **not** narrowed by the current search, column filters, or advanced filters.
+- Counts cover `publish`, `draft`, `unpublish`, `schedule`, and `archive` only. Zero-count chips are hidden unless they are the active filter.
+- Selecting a chip writes `filter_status` and opens the filter row.
+- The legacy importer value `"published"` is not counted by the `Published` facet or filter — only `"publish"` is.
+
+### Scheduled publishing
+
+The date/time/action picker is opened from the **single-entry editor** (`header-edit` on mobile, `right-sidebar` on desktop), not from the list. See [fields](./fields.mdx#draft-publish-scheduling) for the full workflow.
+
+> [!WARNING]
+> The list's **Schedule** action is not a scheduler. It immediately sends the current timestamp with `status: draft` through the batch status endpoint, opens no modal, and creates no `status-transition` job. Entries handled this way are not published later.
+
+Known limitations of the list surface:
+
+- Bulk scheduling has no future-date picker.
+- Cancelling a schedule is only available from the desktop sidebar and does not delete the already-created job.
+- Re-saving a scheduled entry creates another job; jobs are not deduplicated.
+- Scheduled unpublish/delete selections are not persisted — the job always targets `publish`.
+
+### Autosave interaction
+
+Leaving the editor with unsaved changes runs the navigation-guard autosave. Existing entries keep their loaded status (and schedule timestamp); only new entries are saved as `draft`. If the edited payload fails the publish gate, the autosave is rejected and navigation stays on the form. See [fields](./fields.mdx#autosave-navigation-guard).
+
+### Archive toggle
+
+`showDeleted` does **not** switch the list to archived entries. It only changes delete semantics (archive vs permanent delete) and the toolbar icon; the SSR loader ignores it.
 
 ---
 

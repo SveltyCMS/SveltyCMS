@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:graphql"
 author: "SveltyCMS Team"
 created: "2026-04-05"
-updated: "2026-09-18"
+updated: "2026-10-19"
 tags:
   - "graphql"
   - "query"
@@ -16,138 +16,693 @@ tags:
 
 # GraphQL API Reference
 
-> [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
+> [!NOTE]
+> This reference reflects the current implementation. Performance claims are intentionally sourced from the benchmark harness rather than copied numbers — run the suites listed in [Testing & benchmarks](#16-testing-benchmarks) on your hardware before quoting a figure.
 
-The GraphQL API provides a powerful, flexible query language for accessing and manipulating data in SveltyCMS. It features dynamic schema generation based on your collections, widgets, and content structure, optimized with a Just-In-Time (JIT) execution engine. Powered by **GraphQL Yoga**, it supports the latest incremental delivery standards and high-performance server-sent events.
-
----
-
-## ⚡ Quick Reference
-
-| Feature                 | HTTP Endpoint                   | High-Performance Alternative                                                                                        |
-| :---------------------- | :------------------------------ | :------------------------------------------------------------------------------------------------------------------ |
-| **Queries / Mutations** | `POST /api/graphql`             | [**Local SDK QueryBuilder**](../../development/local-vs-http-api.mdx)                                               |
-| **Real-Time Updates**   | `GET /api/content/events` (SSE) | Yjs collaboration (`/api/collaboration/yjs` + optional `ws://[domain]/ws`) — [details](./graphql-subscriptions.mdx) |
-| **Playground**          | `/api/graphql` (GET)            | N/A (Dev only)                                                                                                      |
+The GraphQL API exposes the CMS content model through a dynamically generated schema and a **GraphQL Yoga** server with **unconditional JIT** execution, batching, persisted queries, response caching, and per-tenant schema isolation.
 
 ---
 
-## 1. The Goal
+## 1. At a glance
 
-Fetch complex, relational data structures in a single request while minimizing overfetching and maintaining strict type safety. This pattern is ideal for external clients (Mobile, SPA frontends) that benefit from a consistent, type-safe API contract.
+| Concern       | Implementation                                                                    |
+| :------------ | :-------------------------------------------------------------------------------- |
+| **Endpoint**  | `POST /api/graphql` and `GET /api/graphql`                                        |
+| **Server**    | GraphQL Yoga with `@envelop/graphql-jit`                                          |
+| **Schema**    | Generated per tenant from the registered collections and widget definitions       |
+| **Auth**      | Session cookie, API key (`x-api-key` / Bearer), website token (`x-website-token`) |
+| **Batching**  | Up to 10 operations per HTTP request                                              |
+| **Caching**   | Per-tenant APQ store + response cache + per-tenant schema cache                   |
+| **Real-time** | SSE (`/api/content/events`) and Yjs — **not** GraphQL over WebSocket              |
 
 ---
 
-## 2. Access Patterns (Local SDK vs GraphQL)
+## 2. Transport
 
-SveltyCMS provides two primary methods for querying data:
+### POST
 
-### A. GraphQL (External API)
+Send a standard GraphQL JSON body:
 
-Use standard GraphQL syntax to retrieve exactly the fields you need. This is mandatory for external clients that do not run in the SvelteKit backend.
+```json
+{
+  "query": "query { contentSystemHealth { state } }",
+  "variables": {},
+  "operationName": "Health"
+}
+```
 
-**Endpoint**: `POST /api/graphql`
-**Example Query**:
+The route accepts `query`, `variables`, and `operationName`. It also accepts APQ fields described in [Automatic Persisted Queries](#9-automatic-persisted-queries-apq).
+
+### GET
+
+`GET /api/graphql` accepts:
+
+| Parameter    | Meaning                                 |
+| :----------- | :-------------------------------------- |
+| `query`      | GraphQL document                        |
+| `variables`  | JSON-encoded variables object           |
+| `extensions` | JSON-encoded extensions (including APQ) |
+| `hash`       | APQ SHA-256 digest shorthand            |
+| `sha256Hash` | APQ SHA-256 digest shorthand            |
+
+GET is a safe method for queries. It still passes through the authentication and publication-filter pipeline.
+
+### Batching
+
+The Yoga instance enables HTTP batching with a hard limit of **10 operations**. Send a JSON array:
+
+```json
+[
+  { "query": "query { contentSystemHealth { state } }" },
+  { "query": "query { allCollections { _id name } }" }
+]
+```
+
+> [!IMPORTANT]
+> Batched requests bypass APQ resolution and the GraphQL response cache in the current route, because the route parses a single object. Treat batching as a transport-level convenience, not a cached path.
+
+### Other verbs
+
+Only `GET` and `POST` are exported. `PUT`, `PATCH`, and `DELETE` are not valid GraphQL transport methods here.
+
+### Playground
+
+Yoga serves its landing page/playground in non-production environments. Playground CSP is relaxed only when `ALLOW_GRAPHQL_PLAYGROUND` is not `"false"`; production keeps a strict CSP. Introspection is still subject to the rules in [Limits & security](#11-limits-security).
+
+---
+
+## 3. Authentication & authorization
+
+### Credentials
+
+| Caller              | Credential                                          | Notes                                                               |
+| :------------------ | :-------------------------------------------------- | :------------------------------------------------------------------ |
+| Browser session     | Session cookie                                      | Normal admin/editor login                                           |
+| Machine client      | `x-api-key: <key>` or `Authorization: Bearer <key>` | `POST` requires the key to carry the `write` scope                  |
+| Website integration | `x-website-token: <token>`                          | Token permissions are enforced by the shared authorization pipeline |
+
+### Anonymous guest semantics
+
+A request with **no** credential is converted into an ephemeral guest for `/api/graphql` unless `x-test-secret` is present. The guest role is `guest` with `isAnonymous: true` and a read-oriented permission set (`collections:read`, `api:collections`, `api:media`, `media:read`, `graphql:read`, `api:graphql`). An **invalid** credential is not promoted — it returns `401`.
+
+This means GraphQL read queries can work without a session. Mutations and per-resolver privileged operations still require a real user with the relevant permission.
+
+### CSRF
+
+Every authenticated `POST /api/graphql` must pass either:
+
+- the same-origin fast path, or
+- the double-submit token pair `X-CSRF-Token` + `csrf_token` / `__Host-csrf_token` cookie.
+
+CSRF is exempt for `GET`, server-to-server API-key/token callers, and `TEST_MODE`.
+
+### Per-resolver permissions
+
+GraphQL does not use the REST `ENDPOINT_PERMISSIONS` map for the dedicated route; authorization is enforced inside resolvers and the surrounding hook pipeline.
+
+| Surface                                         | Requirement                                         |
+| :---------------------------------------------- | :-------------------------------------------------- |
+| `me`, collection queries                        | Authenticated `locals.user` (guest has read access) |
+| `users`                                         | `user:read`                                         |
+| Media queries                                   | `media:read`                                        |
+| `contentSystemDiagnostics`, metrics, validation | Administrator                                       |
+| Data-operation resolvers                        | Administrator or the specific operation permission  |
+| Subscriptions                                   | Authenticated `ctx.user`                            |
+| SEO `redirect`                                  | Tenant-scoped read; no additional permission gate   |
+
+Permission failures inside a resolver surface as ordinary GraphQL errors in a `200` response, not as HTTP `403`.
+
+### CORS
+
+Yoga's own CORS is disabled. The shared security pipeline applies the configured origin allowlist; the `Origin` header is never reflected blindly.
+
+---
+
+## 4. Tenancy & publication visibility
+
+### Tenant resolution
+
+The active tenant comes from the host/session/turbo context. In `TEST_MODE`, `x-tenant-id` and `x-test-tenant-id` can override it.
+
+Tenant isolation is applied to:
+
+- the generated schema (one schema per tenant, bounded LRU of 32),
+- APQ keys (`apq:{sha256}`),
+- response-cache keys,
+- loaders and collection queries.
+
+Collection resolvers reject a request when the server tenant, context tenant, and user tenant disagree (multi-tenancy enabled).
+
+### Publication filter
+
+Privileged callers (system/admin/editor, or a user with `content:read_drafts` / `collections:read_drafts` / `admin`) may request `published`, `draft`, or `all` (default `all`). Everyone else is clamped to `published`.
+
+Request it with either:
+
+- `?publicationFilter=published|draft|all`
+- `x-publication-filter: published|draft|all`
+
+---
+
+## 5. Schema model
+
+### Generation
+
+The schema is generated from `contentSystem.getCollections(tenantId)` plus each widget's `GraphqlSchema()` definition. Test/benchmark collections (`bench_*`, `test-*`, `test_*`, and mock scan artifacts) are filtered out unless the benchmark runtime is active.
+
+### Type and field naming
+
+Root collection fields and object types use `createCleanTypeName()`:
+
+1. PascalCase the collection name.
+2. Prefix `_` when the name starts with a digit.
+3. Append `_<id-prefix>` only when the normalized name and the collection `_id` differ.
+
+Examples:
+
+| Collection `_id` | Collection `name` | GraphQL root field / type |
+| :--------------- | :---------------- | :------------------------ |
+| `posts`          | `Posts`           | `Posts`                   |
+| `blog-posts`     | `Blog Posts`      | `BlogPosts`               |
+| `posts`          | `Articles`        | `Articles_posts`          |
+
+Discover collections and their metadata with `allCollections` (it returns `_id`, `name`, `slug`, `icon`, `description`, `fieldCount`; it does **not** return the generated GraphQL type name).
+
+### Base fields
+
+Every generated collection type includes, when absent from the schema:
+
+`_id`, `status`, `createdAt`, `updatedAt`, `createdBy`, `updatedBy` — all `String`.
+
+### Widget type mapping
+
+| Widget                                      | GraphQL type                               |
+| :------------------------------------------ | :----------------------------------------- |
+| Input, Email, Slug, Select, Radio, DateTime | `String`                                   |
+| Number, Currency                            | `Float`                                    |
+| Checkbox                                    | `Boolean`                                  |
+| Rating                                      | `Int`                                      |
+| Tags                                        | `[String]`                                 |
+| BlockBuilder                                | `[JSON]`                                   |
+| MediaUpload                                 | `MediaImage` / `[MediaImage]`              |
+| Relation                                    | Target collection type (fallback `String`) |
+| RichText, Geolocation, Price, RemoteVideo   | Custom generated types                     |
+
+### Relations and inverse relations
+
+- A `Relation` field resolves the target document through a request-scoped `BatchLoader`.
+- A multiple relation resolves an array.
+- Inverse relation fields are generated as `<InverseType>(where: JSON): [<OtherType>]`.
+
+### Schema cache
+
+- One schema per root adapter + tenant.
+- Invalidated when `contentSystem.version` changes or `_refreshSchema()` is called.
+- Bounded to 32 tenants.
+- A failed build is purged so the next request retries.
+- The schema is pre-warmed at boot.
+
+---
+
+## 6. Queries
+
+### Collection query signature
 
 ```graphql
-query GetPosts {
-  posts(limit: 5, filter: { status: "published" }) {
+Posts(
+  pagination: PaginationInput
+  limit: Int
+  page: Int
+  where: JSON
+  orderBy: String
+  take: Int
+): [Posts]
+```
+
+Resolution order for the page size: `take`, then `pagination.limit`, then `limit`. The default is **50** and the maximum is **200**. `page` (or `pagination.page`) is 1-based.
+
+Collection queries return an array only. There is **no** `total`, `pageInfo`, or cursor for regular collections. Virtual collections expose `total`, `nextCursor`, and `cursorOffset`.
+
+### Filtering (`where`)
+
+`where` is a JSON scalar passed to the collection filter engine. Supported operators:
+
+`eq`, `ne`, `in`, `nin`, `gt`, `gte`, `lt`, `lte`, `contains`, `some`, `none`, `every`.
+
+Logical operators:
+
+`AND`, `OR`, `NOT`, `$and`, `$or`, `$not`.
+
+Example:
+
+```graphql
+query PublishedPosts {
+  publishedPosts: Posts(where: { status: "publish" }, orderBy: "title", limit: 5) {
+    _id
+    status
+    title
+  }
+}
+```
+
+> [!WARNING]
+> The Yoga-bypass fast path handles flat, single-root collection queries with no relations. In that path only `limit`, `page`, `sort`, `sortDirection`, and `filter` are folded into the underlying query; `where`, `orderBy`, and `take` are ignored. Use an alias (as above) or a nested selection when those arguments must be honored, or wait for the fast-path fix.
+
+### Sorting (`orderBy`)
+
+Accepted forms:
+
+`field`, `+field`, `-field`, `field:asc`, `field:desc`, `field asc`, `field desc`.
+
+Only one sort term is supported. The field must be declared on the collection and orderable (`isOrderable`); unknown fields are rejected. The current lookup only scans declared collection fields, so some base/system fields may be rejected.
+
+### Pagination
+
+```graphql
+query PageTwo {
+  Posts(pagination: { page: 2, limit: 20 }) {
+    _id
+    title
+  }
+}
+```
+
+Variables work for the input object:
+
+```graphql
+query Page($pagination: PaginationInput) {
+  Posts(pagination: $pagination) {
+    _id
+  }
+}
+```
+
+```json
+{ "pagination": { "page": 2, "limit": 20 } }
+```
+
+### Relation population
+
+Only nested selections trigger relation loading. A flat query stays on the fast path.
+
+```graphql
+query PostsWithAuthor {
+  Posts(limit: 5) {
     _id
     title
     author {
-      username
-      email
+      _id
     }
   }
 }
 ```
 
-### B. Local SDK (Internal Server-Side API) **(Recommended)**
+Multiple relations return arrays; media fields resolve to `MediaImage` / `[MediaImage]`.
 
-In SvelteKit `+page.server.ts`, **always prefer the Local SDK QueryBuilder**. It provides identical flexibility to GraphQL but achieves **0ms network latency** by making direct function calls that bypass the entire HTTP/JSON stack.
+### Inverse relations
 
+```graphql
+query AuthorsWithPosts {
+  Authors(limit: 5) {
+    _id
+    Posts(where: { status: "publish" }) {
+      _id
+    }
+  }
+}
 ```
-// Faster, typed, and direct in +page.server.ts
-const posts = await locals.cms
-  .queryBuilder("posts")
-  .where({ status: "published" })
-  .select(["title", "author"])
-  .limit(5)
-  .execute();
+
+Inverse-relation `where` is evaluated in memory by the schema model.
+
+### System queries
+
+| Field                      | Notes                                                          |
+| :------------------------- | :------------------------------------------------------------- |
+| `contentSystemHealth`      | `state`, `nodeCount`, `collectionCount`, `cacheAge`, `version` |
+| `contentSystemDiagnostics` | Administrator only                                             |
+| `contentSystemMetrics`     | Administrator only                                             |
+| `validateContentStructure` | Administrator only                                             |
+| `collectionStats`          | Per-collection statistics                                      |
+| `allCollectionStats`       | All collection statistics                                      |
+| `entries`                  | Requires `collection` + `limit`                                |
+| `navigationStructure`      | Navigation tree                                                |
+| `nodeChildren`             | Children of a structure node                                   |
+| `breadcrumb`               | Breadcrumb for a path                                          |
+
+### Media queries
+
+`mediaImages`, `mediaDocuments`, `mediaAudio`, `mediaVideos`, `mediaRemote` — all require `media:read`.
+
+`mediaFolders` is declared in the schema but has no resolver in the current release.
+
+### Users
+
+`me` returns the current user. `users(pagination: PaginationInput)` requires `user:read` and defaults to a limit of 10. Unlike collection queries, the users resolver does not clamp the limit to 200.
+
+### SEO
+
+`redirect(from: String!): Redirect` reads tenant-scoped redirects.
+
+### Virtual collections and data operations
+
+- `virtualCollections`
+- `virtualCollection(slug, limit, offset, cursor, include, bypassCache)`
+- `virtualEnrich(slug, keys, field)`
+- `configStatus`, `backupList`, `channelList`, `migrationStatus`
+
+### Localization caveat
+
+Resolvers call `getLocalizedValue(parent[field], ctx.locale)`, but the Yoga context does not currently set `locale`, so localized values resolve to the default (`en`). Do not rely on GraphQL for per-locale projection in this release.
+
+---
+
+## 7. Mutations
+
+There are **no generated per-collection `createX` / `updateX` / `deleteX` mutations**. Mutations are limited to collection actions and administrative operations.
+
+| Mutation                | Purpose                                                                               |
+| :---------------------- | :------------------------------------------------------------------------------------ |
+| `runCollectionAction`   | Run an action declared by a collection (`collectionId`, `action`, `entryId`, `input`) |
+| `createVirtualEntry`    | Create a virtual collection entry                                                     |
+| `updateVirtualEntry`    | Update a virtual collection entry                                                     |
+| `deleteVirtualEntry`    | Delete a virtual collection entry                                                     |
+| `configExport`          | Export configuration package                                                          |
+| `configPlan`            | Plan a configuration change                                                           |
+| `configApply`           | Apply a configuration change                                                          |
+| `contentExportValidate` | Validate a content export                                                             |
+| `contentExportRun`      | Run a content export                                                                  |
+| `contentImportValidate` | Validate a content import                                                             |
+| `backupCreate`          | Create a backup                                                                       |
+| `backupRestore`         | Restore a backup                                                                      |
+| `migrationPlan`         | Plan a migration                                                                      |
+| `migrationApply`        | Apply a migration                                                                     |
+| `contentSyncPush`       | Push content to a remote environment                                                  |
+| `contentSyncPull`       | Pull content from a remote environment                                                |
+
+Administrative mutations require an administrator. `runCollectionAction` delegates to `LocalCMS.collections.runAction()` and enforces the collection's declared action and permissions.
+
+### Mutation replay protection
+
+When a client sends `x-idempotency-key` or `x-mutation-id`, a duplicate mutation within **5 minutes** is rejected with HTTP `409`. Without either header, replay detection is not applied.
+
+---
+
+## 8. Variables, fragments, and batching
+
+Variables and fragments are standard GraphQL. Use variables for pagination and filters rather than interpolating strings.
+
+> [!NOTE]
+> `operationName` is forwarded when the POST body contains a full `query`. APQ hash-only requests are rebuilt as `{ query, variables }`, so `operationName` and arbitrary extensions are dropped. Avoid multi-operation documents on the APQ cache-hit path.
+
+Batching is limited to 10 operations and bypasses APQ/response caching as noted in [Transport](#2-transport).
+
+---
+
+## 9. Automatic Persisted Queries (APQ)
+
+APQ follows the standard three-step handshake.
+
+1. **Miss** — send only the hash. If it is not stored, the gateway returns `PERSISTED_QUERY_NOT_FOUND` and registers nothing.
+2. **Register** — send the query plus the hash. The gateway verifies `sha256(query)` against the hash using a constant-time comparison, then stores the query per tenant.
+3. **Hit** — send only the hash; the stored document executes.
+
+Accepted key locations:
+
+- `extensions.persistedQuery.sha256Hash`
+- `extensions.persistedQuery.hash`
+- top-level `hash`
+- GET `extensions`, `hash`, or `sha256Hash`
+
+Rules:
+
+- The key must be exactly **64 hex characters**.
+- A mismatched digest returns `PERSISTED_QUERY_HASH_MISMATCH`; a malformed key returns `PERSISTED_QUERY_HASH_INVALID`.
+- Stored under `apq:{sha256}` in the shared cache with a **7-day TTL**, tagged `graphql` / `apq`.
+- Keys are tenant-scoped.
+
+Example for the exact document `query { contentSystemHealth { state } }`:
+
+```text
+sha256 = 2bc7e01cee3ed7f70d4e8ed0ced29590381154f0b7f011de7d31a7b6df31c7ca
+```
+
+Miss:
+
+```json
+{
+  "extensions": {
+    "persistedQuery": {
+      "version": 1,
+      "sha256Hash": "2bc7e01cee3ed7f70d4e8ed0ced29590381154f0b7f011de7d31a7b6df31c7ca"
+    }
+  }
+}
+```
+
+```json
+{
+  "errors": [
+    {
+      "message": "PersistedQueryNotFound",
+      "extensions": { "code": "PERSISTED_QUERY_NOT_FOUND" }
+    }
+  ]
+}
+```
+
+Register:
+
+```json
+{
+  "query": "query { contentSystemHealth { state } }",
+  "extensions": {
+    "persistedQuery": {
+      "version": 1,
+      "sha256Hash": "2bc7e01cee3ed7f70d4e8ed0ced29590381154f0b7f011de7d31a7b6df31c7ca"
+    }
+  }
+}
+```
+
+Hit: send the hash-only body again and receive the normal `data` envelope.
+
+---
+
+## 10. Performance & caching
+
+### Execution
+
+- **JIT** — `@envelop/graphql-jit` is always active with a bounded 1000-entry LRU per Yoga app. Introspection operations skip JIT.
+- **Parse cache** — parsed ASTs are cached up to 1000 entries.
+- **Cost cache** — 500 current + 500 previous entries.
+- **Validation cache** — valid documents skip re-validation until the schema epoch changes.
+- **Request-scoped loaders** — `collectionLoader`, `userLoader`, `mediaLoader`, and inverse-relation loaders batch by primary key and eliminate N+1 loops.
+
+### Response cache
+
+- Key = raw query string + deep-sorted variables + publication filter + user + tenant.
+- TTL = **60 seconds**.
+- Only read-only queries are cacheable.
+- Skipped for mutations, subscriptions, error-shaped bodies, bodies containing an empty array, and responses whose resolver `Cache-Control` starts with `private`.
+- Concurrent identical reads are coalesced (up to 64 in flight).
+
+> [!IMPORTANT]
+> The key uses the **raw query string**, not a normalized document. Changing whitespace or comments produces a different cache entry.
+
+### Cache headers and bypass
+
+| Header / parameter                        | Meaning                                       |
+| :---------------------------------------- | :-------------------------------------------- |
+| `X-Cache: MISS`                           | Executed and cached                           |
+| `X-Cache: HIT`                            | Served from the GraphQL response cache        |
+| `X-Cache: TURBO-HIT`                      | Served by the turbo GET hook before the route |
+| `ETag`                                    | Present on cached responses                   |
+| `Cache-Control: private, no-store`        | GraphQL cache hits                            |
+| `Cache-Control: private, must-revalidate` | Turbo GET hits                                |
+| `?refresh=true`                           | Bypass the response cache                     |
+| `?nocache=true`                           | Bypass the response cache                     |
+| `?bypassCache=true`                       | Bypass the response cache                     |
+
+The GraphQL path emits an `ETag` but does not currently honor `If-None-Match` to return `304`.
+
+### Fast path
+
+Three system queries (`contentSystemHealth`, `allCollections`, `allCollectionStats`) have an in-memory fast path with a 2-second JSON cache (64 entries). Flat single-root collection queries with no relations can also bypass Yoga and stream list results.
+
+The fast path is the reason for the `where` / `orderBy` / `take` caveat in [Filtering](#filtering-where).
+
+### Benchmarks
+
+Measure changes with the existing harness rather than quoting numbers from this page:
+
+- `tests/benchmarks/graphql-api-performance.test.ts`
+- `tests/benchmarks/graphql-cache-hit.test.ts`
+- `tests/benchmarks/graphql-local-sdk.test.ts`
+- `tests/benchmarks/graphql-stress.test.ts`
+
+The canonical local commands are `bun run test:unit` for logic and `bun run benchmark` / `bun run scripts/benchmark-matrix/index.ts` for the recorded matrix. Set `BENCHMARK_RECORD=1` when producing fresh reports under `docs/project/benchmarks/`.
+
+---
+
+## 11. Limits & security
+
+### Two enforcement layers
+
+| Layer                     | Limits                                                 |
+| :------------------------ | :----------------------------------------------------- |
+| Pre-Yoga security hook    | 100 KB query/body cap, brace depth 12, complexity 1000 |
+| GraphQL validation plugin | Depth 8, aliases 15, query cost 1000                   |
+
+The pre-Yoga layer rejects oversized/complex documents with HTTP `400`. The GraphQL layer returns `QUERY_TOO_EXPENSIVE` in a standard GraphQL error envelope.
+
+### Introspection
+
+Introspection (`__schema`, `__type`) is blocked when **any** of the following is true:
+
+- `NODE_ENV=production`
+- `BLOCK_GRAPHQL_INTROSPECTION=true`
+- `DEMO_MODE=true`
+
+### Other protections
+
+- Global WAF/security response service and rate limiter run before the route.
+- Mutation replay detection with idempotency headers.
+- Strict CSP in production; relaxed playground CSP only in non-production.
+- CORS via the shared origin allowlist.
+- Hint suppression in GraphQL error responses.
+
+---
+
+## 12. Errors
+
+| Case                            | Envelope                                                                                         |
+| :------------------------------ | :----------------------------------------------------------------------------------------------- |
+| Validation/execution error      | `{ "errors": [{ "message", "locations"?, "path"?, "extensions"? }], "data"? }`, usually HTTP 200 |
+| Cost budget exceeded            | HTTP 200, `extensions.code = "QUERY_TOO_EXPENSIVE"`                                              |
+| APQ miss                        | HTTP 200, `extensions.code = "PERSISTED_QUERY_NOT_FOUND"`                                        |
+| APQ malformed hash              | HTTP 200, `extensions.code = "PERSISTED_QUERY_HASH_INVALID"`                                     |
+| APQ digest mismatch             | HTTP 200, `extensions.code = "PERSISTED_QUERY_HASH_MISMATCH"`                                    |
+| Mutation replay                 | HTTP 409, GraphQL error envelope                                                                 |
+| Pre-route auth/CSRF/size reject | REST envelope `{ success: false, message, code, issues? }`                                       |
+| Resolver permission failure     | GraphQL error in HTTP 200                                                                        |
+
+Examples:
+
+```json
+{
+  "errors": [
+    {
+      "message": "Query exceeds maximum allowed depth of 8. Current depth: 9 at field \"me\". Reduce nesting or contact support."
+    }
+  ]
+}
+```
+
+```json
+{
+  "errors": [
+    {
+      "message": "GraphQL query cost (1550) exceeds the maximum allowed budget (1000). Reduce the number of requested fields, limit nesting depth, or use pagination for connection fields.",
+      "extensions": { "code": "QUERY_TOO_EXPENSIVE" }
+    }
+  ]
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "Security violation: CSRF token required",
+  "code": "CSRF_VIOLATION"
+}
 ```
 
 ---
 
-## 3. The Mechanics
+## 13. Real-time
 
-SveltyCMS uses a **JIT (Just-In-Time) Execution Engine** to ensure your GraphQL queries run at native speeds, which is critical for enterprise performance. JIT compilation is **unconditional** (always active, no feature flag required).
+The schema declares subscription fields (`contentStructureUpdated`, `entryUpdated`, `onPing`), and every subscribe handler requires an authenticated user and filters cross-tenant payloads.
 
-### Performance Optimizations
+However, **GraphQL over WebSocket is not shipped**. `graphql-ws` / `graphql-sse` are not dependencies, and no GraphQL subscription transport is configured. Production live updates use:
 
-- **Unconditional JIT**: The `@envelop/graphql-jit` plugin is always active — queries are compiled to native JS functions on first execution and cached for subsequent requests. No `USE_GRAPHQL_JIT` env flag needed.
-- **Parse Cache**: Parsed GraphQL documents are cached in-memory, eliminating re-parsing overhead for repeated queries (~25% avg latency reduction).
-- **HTTP Batching**: Clients can batch up to **10 queries per request** via the `batching` middleware. Send an array of GraphQL requests in a single HTTP POST for reduced round-trips.
-- **Lazy Request-Scoped Batching**: Cross-collection relational widget schemas dynamically fetch target documents via lazy-initialized, request-scoped `BatchLoader` instances, eliminating N+1 query loops. By switching to database-agnostic direct primary key `findByIds` queries, nested relation queries are **64% faster** (average latency reduced from 10.76ms to 3.82ms) and connection capacity is upgraded by **+400%** (handling up to 100 concurrent connections).
-- **Response Cache**: Successful read-only queries are cached with a content ETag (`60s` TTL, `stale-while-revalidate`), keyed by normalized query + variables + publication filter + user. Mutations, subscriptions, error-shaped responses, and empty collection results are never cached. Cached hits short-circuit the entire content/DB/Yoga pipeline.
+- **SSE** — `GET /api/content/events` streams EventBus events.
+- **Yjs** — `/api/collaboration/yjs` (SSE) plus the optional WebSocket sync server at `ws://[domain]/ws`.
 
-```mermaid
-graph TD
-    A[GraphQL Request] --> B[Security Response Service]
-    B --> C{Threats detected?}
-    C -- Yes --> D[Block IP / 403]
-    C -- No --> E{Response Cache HIT?}
-    E -- Yes --> F[Return cached body + ETag]
-    E -- No --> G[AST Validation: Depth / Aliases / Cost / Introspection]
-    G --> H[Parse Cache: Reuse parsed AST]
-    H --> I[JIT Compiler: Compile to JS Function]
-    I --> J[Execute with Database Adapter]
-    J --> K[JSON Response + populate cache]
-```
-
-### Automatic Persisted Queries (APQ)
-
-Clients can send a SHA-256 digest instead of the full query document via `extensions.persistedQuery.sha256Hash`, following the standard APQ handshake:
-
-- **Miss**: only the hash is sent and nothing is registered under it — the gateway answers with a `PERSISTED_QUERY_NOT_FOUND` GraphQL error.
-- **Register**: the client repeats the request with both `query` and `extensions.persistedQuery.sha256Hash`; the gateway verifies the pair, stores the query per tenant in the L1 RAM / L2 Redis store (`apq:{hash}`, 7-day TTL, tagged `graphql`/`apq`), then executes it.
-- **Hit**: later requests send the hash alone; the stored document is resolved and executed.
-
-The gateway also accepts `extensions.persistedQuery.hash`, a top-level `hash` field, and the GET `extensions` / `hash` / `sha256Hash` parameters.
-
-**Hash binding**: an APQ key is accepted only when it is **exactly 64 hex characters**, and when a `query` accompanies it, `sha256(query)` must equal that key under a constant-time comparison (`timingSafeEqual`) **before** anything is stored. A malformed key fails with `PERSISTED_QUERY_HASH_INVALID`; a non-matching digest fails with `PERSISTED_QUERY_HASH_MISMATCH`; neither response reads from or writes to the APQ store. This closes cache poisoning (a client registering a query under a hash another client will later request) and unbounded persisted-query growth from arbitrary client-chosen keys.
-
-Implementation: `src/routes/api/graphql/+server.ts` (`APQ_HASH_PATTERN`, `apqHashMatchesQuery`). Regression suite: `tests/unit/api/graphql-apq.test.ts`. See also [API Security §3.2 GraphQL Authentication](../security/api-security.mdx#32-graphql-authentication).
-
-### Schema Caching (per tenant)
-
-The Yoga schema is built **once per tenant** and reused across requests:
-
-- **Identity-stable cache keys** — per-request tenant wrappers and the self-healing root proxy are unwrapped (`unscoped()`) to the raw adapter instance, so proxy↔raw identity flips can never invalidate the cache (previously rebuilt the schema on every turbo-auth request).
-- **Version-gated** — the cache is invalidated when `contentSystem.version` changes (schema/collection edits) or when `_refreshSchema` is explicitly invoked.
-- **Bounded LRU (32 tenants)** — the oldest tenant entry is evicted beyond capacity.
-- **Self-healing** — a failed schema build is purged from the cache so the next request retries instead of reusing a rejected promise.
-
-### Security Throttling
-
-The gateway enforces strict limits to prevent malicious queries:
-
-- **Depth Limit**: Maximum 8 levels deep.
-- **Alias Limit**: Maximum 15 aliases per query.
-- **Query Cost Budget**: Static cost analysis runs at parse time; queries over the budget (1000) are rejected with a `QUERY_TOO_EXPENSIVE` GraphQL error before validation/execution.
-- **Introspection Block**: `__schema`/`__type` introspection is blocked unconditionally in production (`NODE_ENV=production`) — also via `BLOCK_GRAPHQL_INTROSPECTION=true` in any environment. This is belt-and-suspenders on top of Yoga's default.
-- **Payload Anomaly Detection**: Native recursive scanning for SQLi and XSS before execution (see the WAF layer in the security hooks).
-- **CSRF (parity with REST, 2026-09-24)**: every authenticated `POST /api/graphql` must pass the same-origin fast path or the double-submit token (`X-CSRF-Token` + `csrf_token` cookie, constant-time, rotated on use) — Yoga batching means a POST can hide mutations, so the gate covers every POST rather than only parsed mutation operations. Exempt: `GET` (safe method, queries only), server-to-server API-key/token callers (no cookie an attacker can ride), and `TEST_MODE`. Cross-origin browser clients should use API keys for mutations or send the token; same-origin clients are unaffected.
+See [Real-Time Updates](./graphql-subscriptions.mdx) for client integration.
 
 ---
 
-## Real-Time Updates
+## 14. Environment & request configuration
 
-GraphQL over WebSocket subscriptions are **not shipped** in the current release. Live updates use adapter-node-compatible transports instead:
+| Name / header                                  | Effect                                                           | Default                                  |
+| :--------------------------------------------- | :--------------------------------------------------------------- | :--------------------------------------- |
+| `NODE_ENV`                                     | `production` blocks introspection and applies strict CSP         | unset                                    |
+| `BLOCK_GRAPHQL_INTROSPECTION`                  | `"true"` blocks introspection in any environment                 | unset/false                              |
+| `DEMO_MODE`                                    | `"true"` also blocks introspection                               | unset/false                              |
+| `ALLOW_GRAPHQL_PLAYGROUND`                     | Non-production: `"false"` removes relaxed playground CSP         | enabled                                  |
+| `TEST_MODE`                                    | Skips GraphQL CSRF/replay checks and enables test tenant headers | unset/false                              |
+| `BENCHMARK_DEBUG`                              | Logs collection registration details                             | unset/false                              |
+| `SVELTY_L1_MAX_MB`                             | List-tier L1 response-cache byte budget                          | hardware profile, floor 16 MB            |
+| `SVELTY_L1_POINT_MAX_MB`                       | Point-read L1 byte budget                                        | hardware profile, floor 8 MB             |
+| `x-publication-filter` / `?publicationFilter=` | Requested publication filter, clamped for unprivileged users     | `all` privileged / `published` otherwise |
+| `x-idempotency-key` / `x-mutation-id`          | Enables 5-minute mutation replay detection                       | unset                                    |
+| `X-CSRF-Token` + `csrf_token` cookie           | Double-submit CSRF for authenticated POST                        | required on cookie auth                  |
+| `x-api-key` / Bearer                           | API-key auth                                                     | —                                        |
+| `x-website-token`                              | Website-token auth                                               | —                                        |
 
-- **SSE** — `GET /api/content/events` streams EventBus events (content updates, cache invalidation, settings changes) over plain HTTP.
-- **Yjs collaboration** — CRDT sync for concurrent editing via `collaboration-service` (SSE transport) and the optional WebSocket server at `ws://[domain]/ws` (`yjs-sync-server`).
+### Hard-coded limits
 
-See the [Real-Time Updates](./graphql-subscriptions.mdx) guide for client integration and server architecture.
+| Knob                       | Value               |
+| :------------------------- | :------------------ |
+| GraphQL depth              | 8                   |
+| GraphQL aliases            | 15                  |
+| GraphQL cost budget        | 1000                |
+| Pre-Yoga query length      | 100 KB              |
+| Pre-Yoga brace depth       | 12                  |
+| Pre-Yoga complexity        | 1000                |
+| Batching                   | 10 operations       |
+| JIT cache                  | 1000 entries        |
+| Parse cache                | 1000 entries        |
+| Cost cache                 | 500 + 500 entries   |
+| Schema cache               | 32 tenants          |
+| Response-cache TTL         | 60 s                |
+| APQ TTL                    | 7 days              |
+| In-flight coalescing       | 64                  |
+| Collection page size       | default 50, max 200 |
+| Users default limit        | 10 (no max clamp)   |
+| Media default limit        | 50 (no max clamp)   |
+| Virtual collection default | 25                  |
+| Collection catalog cache   | 5 s                 |
+
+---
+
+## 15. Known implementation gaps
+
+These are current behaviors, not recommended patterns:
+
+- `mediaFolders` is declared but has no resolver.
+- `contentSystemDiagnostics` requires non-null `maps`/`cache` fields, but the health resolver does not return them.
+- `users` and media pagination are not clamped to `MAX_PAGE_SIZE`.
+- Localized fields always resolve to `en` because the Yoga context does not set `locale`.
+- The fast path ignores `where`, `orderBy`, and `take` on flat single-root collection queries.
+- APQ hash-only rebuilds drop `operationName` and arbitrary extensions.
+- Batched requests bypass APQ, response caching, and replay keying.
+- GraphQL cache hits do not return `304` for `If-None-Match`.
+- Data-operation resolvers accept a caller-supplied `tenantId` without comparing it to `ctx.tenantId` (most are administrator-only).
+
+---
+
+## 16. Testing & benchmarks
+
+Relevant suites:
+
+- `tests/unit/api/graphql-apq.test.ts`
+- `tests/unit/api/graphql-security.test.ts`
+- `tests/unit/graphql/`
+- `tests/integration/api/graphql.test.ts`
+- `tests/benchmarks/graphql-*.test.ts`
+
+Run logic tests with `bun run test:unit`. Run the recorded performance matrix with `bun run benchmark` or `bun run scripts/benchmark-matrix/index.ts`; use `BENCHMARK_RECORD=1` to write fresh reports.
 
 ---
 
@@ -156,3 +711,4 @@ See the [Real-Time Updates](./graphql-subscriptions.mdx) guide for client integr
 - [Collection API](./collections.mdx)
 - [Local SDK vs HTTP API](../../development/local-vs-http-api.mdx)
 - [GraphQL Subscriptions](./graphql-subscriptions.mdx)
+- [API Security](../security/api-security.mdx)

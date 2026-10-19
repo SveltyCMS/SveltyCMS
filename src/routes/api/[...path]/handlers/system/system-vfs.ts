@@ -4,6 +4,7 @@
  */
 
 import { AppError } from "@utils/error-handling";
+import { buildFolderParentMap, folderMoveCreatesCycle } from "@utils/media/folder-tree";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -81,9 +82,25 @@ export async function handleSystemVirtualFolderRoutes(
         throw new AppError("orderUpdates exceeds maximum limit of 100 items", 400);
       }
 
+      // One snapshot for the whole request: cycle checks are O(depth), and the
+      // map is updated after each accepted move so later updates in the same
+      // batch cannot introduce a cycle either.
+      const allFoldersResult = await cms.db.system.virtualFolder.getAll(tenantOpts);
+      if (!allFoldersResult.success || !allFoldersResult.data) {
+        throw new AppError("Unable to validate the folder hierarchy", 500);
+      }
+      const parentById = buildFolderParentMap(allFoldersResult.data);
+
       for (const update of orderUpdates) {
         const folderId = update.folderId;
+        if (!folderId) continue;
         const targetParentId = parentId !== undefined ? parentId : update.parentId;
+        const movingId = String(folderId);
+        const targetId = targetParentId ? String(targetParentId) : null;
+
+        if (folderMoveCreatesCycle(parentById, movingId, targetId)) {
+          throw new AppError("Cannot move a folder into itself or one of its descendants", 400);
+        }
 
         const folderResult = await cms.db.system.virtualFolder.getById(
           folderId as DatabaseId,
@@ -116,6 +133,7 @@ export async function handleSystemVirtualFolderRoutes(
           },
           tenantOpts,
         );
+        parentById.set(movingId, targetId);
 
         await updateFolderPathsRecursive(cms, folderId as DatabaseId, newPath, tenantId);
       }
@@ -201,6 +219,12 @@ async function updateFolderPathsRecursive(
   const allFolders = allFoldersResult.data;
 
   async function updateChildren(currentParentId: DatabaseId, currentParentPath: string) {
+    // Guard against a pre-existing corrupt cycle: without this, a folder whose
+    // ancestor chain loops would recurse until the stack overflowed.
+    const visitedKey = String(currentParentId);
+    if (visited.has(visitedKey)) return;
+    visited.add(visitedKey);
+
     const children = allFolders.filter(
       (f) => f.parentId && f.parentId.toString() === currentParentId.toString(),
     );
@@ -212,5 +236,6 @@ async function updateFolderPathsRecursive(
     }
   }
 
+  const visited = new Set<string>();
   await updateChildren(parentId, parentPath);
 }

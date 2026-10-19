@@ -17,15 +17,7 @@ import type { Schema } from "@src/content/types";
 import type { CollectionPreset, FieldTemplate } from "./presets";
 import { PRESETS } from "./presets";
 import { logger } from "@utils/logger";
-import {
-  isBenchmarkArtifact,
-  isBenchmarkRuntime,
-  normalizeCollectionId,
-} from "@utils/benchmark-runtime";
-
-// Re-exported for the collection scan/bootstrap dynamic imports, which treat this
-// module as the preset/benchmark runtime surface.
-export { isBenchmarkArtifact, isBenchmarkRuntime };
+import { isBenchmarkArtifact, normalizeCollectionId } from "@utils/benchmark-runtime";
 
 /**
  * Content-scan / scale-stress debris that must never bloat the GraphQL schema,

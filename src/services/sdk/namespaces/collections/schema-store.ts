@@ -82,6 +82,10 @@ export type SchemaHotFlags = {
   _hasGuardedFields?: boolean;
   /** db_fieldName of guarded fields. Empty when `_hasGuardedFields` is false. */
   _guardedFieldNames?: string[];
+  /** True when at least one widget exposes a Valibot `validationSchema`. */
+  _hasFieldValidators?: boolean;
+  /** Pre-compiled per-field Valibot validators (create/update payload). */
+  _fieldValidators?: Array<{ key: string; name: string; schema: unknown }>;
 };
 
 const _schemaCache = new FastLRU<string, Schema>({ max: 500 });
@@ -175,6 +179,7 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   let hasAfterOperationHooks = false;
   let hasGuardedFields = false;
   const guardedFieldNames: string[] = [];
+  const fieldValidators: Array<{ key: string; name: string; schema: unknown }> = [];
 
   // Single-pass inspection. The legacy shape was a pending-widget probe loop
   // followed by a second full flag-compile loop (two field scans and two
@@ -183,8 +188,8 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   // ensureWidgets, re-inspect and see modifyRequest.
   for (const f of fields) {
     const widgetName = f.widget?.Name;
+    const wFn = widgetName ? widgetRegistryService.getWidgetSync(widgetName) : undefined;
     if (widgetName && !INLINE_MODIFY_WIDGETS.has(widgetName)) {
-      const wFn = widgetRegistryService.getWidgetSync(widgetName);
       if (!wFn) {
         if (widgetRegistryService.canLoad(widgetName)) {
           // Factory chunk is not evaluated yet. Leave the flags unset so the
@@ -195,6 +200,24 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
         const dbName = (f as { db_fieldName?: string }).db_fieldName;
         const fieldName = dbName || widgetName;
         if (fieldName) activeWidgetFieldNames.push(fieldName);
+      }
+    }
+
+    const validationSchema = (wFn as { validationSchema?: unknown } | undefined)?.validationSchema;
+    if (widgetName && wFn && validationSchema) {
+      const key = String((f as { db_fieldName?: string }).db_fieldName || f.name || "");
+      if (key) {
+        try {
+          const schemaForField =
+            typeof validationSchema === "function"
+              ? (validationSchema as (field: FieldInstance) => unknown)(f)
+              : validationSchema;
+          if (schemaForField) {
+            fieldValidators.push({ key, name: String(f.name || key), schema: schemaForField });
+          }
+        } catch {
+          // A widget schema that cannot be built for this field stays client-only.
+        }
       }
     }
     const dbName = (f as { db_fieldName?: string }).db_fieldName;
@@ -282,6 +305,8 @@ export function ensureSchemaHotFlags(schema: Schema): Schema & SchemaHotFlags {
   s._encryptedFieldNames = encryptedFieldNames;
   s._hasRequiredFields = requiredFields.length > 0;
   s._requiredFields = requiredFields;
+  s._hasFieldValidators = fieldValidators.length > 0;
+  s._fieldValidators = fieldValidators;
   s._hasConditionallyRequiredFields = conditionallyRequiredFields.length > 0;
   s._conditionallyRequiredFields = conditionallyRequiredFields;
   s._hasGuardedFields = hasGuardedFields;

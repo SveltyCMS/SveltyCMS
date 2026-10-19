@@ -86,6 +86,7 @@ export async function processMediaHandler(payload: { fileId: string; basePath?: 
     if (Object.keys(thumbnails).length > 0) {
       await db.crud.update("media", dbId, {
         thumbnails: { ...media.thumbnails, ...thumbnails },
+        metadata: { ...media.metadata, processingStatus: "ready" },
         updatedAt: new Date().toISOString(),
       } as any);
     }

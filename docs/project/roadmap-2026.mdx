@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-15"
+updated: "2026-10-19"
 tags:
   - "roadmap"
   - "backlog"
@@ -92,9 +92,16 @@ tags:
   - Collapse the SIZES ladder and deferred preset passes into a single consolidated, deduplicated pipeline.
   - Background precompilation for operator-defined SIZES presets.
 - **Delivery Boundary & Storage GC**:
-  - Implement directory-aware deletion and an automated derivative GC sweep that reclaims disk for deleted parent media.
+  - [x] Reference-aware version retention and orphan blob release (`media:cleanup`, `media:sync-status`, `metadata.processingStatus`) — shipped 2026-10-19; see [Media System → Processing status, version retention & cleanup](../reference/architecture/media-system.mdx).
+  - [ ] Implement directory-aware deletion for adapters that support prefix removal (current release is DB-reference-driven because object stores cannot list a prefix portably).
+  - [ ] Automated derivative GC sweep that reclaims disk for deleted parent media beyond the explicit admin command.
   - Surface focal-point and watermark coordinates directly in REST/GraphQL image payloads.
   - Add ThumbHash LQIP support via the `thumbhash` package.
+- **Large-file upload lanes**:
+  - [x] TUS 1.0.0 resumable uploads (`POST/HEAD/PATCH/DELETE /api/media/tus`) with a reload-safe browser client — shipped 2026-10-19.
+  - [x] SigV4 presigned direct-to-storage instructions for S3/R2 (`upload-instructions` + `direct-upload/complete`) — shipped 2026-10-19.
+  - [ ] Cloudinary signed direct-upload preset (currently the TUS fallback lane).
+  - [ ] Multi-instance TUS spool: a shared volume or Redis-backed session store instead of the local spool directory.
 
 ---
 
@@ -163,6 +170,11 @@ tags:
 ---
 
 ## 8. Enterprise, Security & Community (Active Backlog)
+
+- **Row-level access as a query constraint**:
+  - [x] `ACCESS_RULES` private setting compiles per-collection/per-role read rules into a WHERE fragment merged before pagination, keyset cursors, `COUNT(*)` and streaming; also enforced on single/bulk update and delete. Dynamic tokens: `$user._id`, `$user.role`, `$tenant.id`. Shipped 2026-10-19 (`src/services/security/access-rule-service.ts`).
+  - [ ] Write rules beyond read (create/update/delete per row) and operator support (`$ne`, `$in` beyond arrays, relation traversal).
+  - [ ] Admin UI for rule authoring with validation and a preview of the generated filter.
 
 - **Third-Party Security Audit** — posture: [Security posture](../reference/security/security-posture.mdx):
   - Commission an independent external penetration test prior to enterprise GA. **Not performed as of 2026-10-18.**

@@ -92,17 +92,17 @@ Mobile focal point controls — preset strip + reset; X/Y sliders live in editor
 		font-size: 0.6875rem;
 		font-weight: 500;
 		line-height: 1.2;
-		color: rgba(255, 255, 255, 0.48);
+		color: color-mix(in oklch, var(--editor-chrome-text, #fff) 62%, transparent);
 	}
 
 	.focal-mobile-strip {
 		display: inline-flex;
 		flex-wrap: nowrap;
-		gap: 0.125rem;
+		gap: 0.25rem;
 		align-items: center;
 		width: fit-content;
 		max-width: 100%;
-		padding: 0.125rem;
+		padding: 0.25rem;
 		overflow-x: auto;
 		overflow-y: hidden;
 		-webkit-overflow-scrolling: touch;
@@ -110,8 +110,15 @@ Mobile focal point controls — preset strip + reset; X/Y sliders live in editor
 		overscroll-behavior-x: contain;
 		scroll-snap-type: x proximity;
 		scrollbar-width: none;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.07);
+		background: var(
+			--editor-chrome-elevated,
+			color-mix(in oklch, var(--editor-chrome-text, #fff) 8%, transparent)
+		);
+		border: 1px solid
+			var(
+				--editor-chrome-border,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 12%, transparent)
+			);
 		border-radius: var(--editor-radius-pill, 9999px);
 		backdrop-filter: blur(10px);
 		box-sizing: border-box;
@@ -125,9 +132,9 @@ Mobile focal point controls — preset strip + reset; X/Y sliders live in editor
 		flex: 0 0 1px;
 		align-self: stretch;
 		width: 1px;
-		min-height: 1.125rem;
-		margin-inline: 0.0625rem;
-		background: rgba(255, 255, 255, 0.14);
+		min-height: 1.25rem;
+		margin-inline: 0.25rem;
+		background: color-mix(in oklch, var(--editor-chrome-text, #fff) 18%, transparent);
 	}
 
 	.focal-mobile-pill {
@@ -136,12 +143,12 @@ Mobile focal point controls — preset strip + reset; X/Y sliders live in editor
 		align-items: center;
 		justify-content: center;
 		scroll-snap-align: center;
-		height: 1.75rem;
-		padding-inline: 0.5625rem;
-		font-size: 0.75rem;
+		min-height: 2.5rem;
+		padding-inline: 0.75rem;
+		font-size: 0.8125rem;
 		font-weight: 500;
 		line-height: 1;
-		color: rgba(255, 255, 255, 0.72);
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.72));
 		white-space: nowrap;
 		cursor: pointer;
 		background: transparent;
@@ -158,8 +165,8 @@ Mobile focal point controls — preset strip + reset; X/Y sliders live in editor
 	}
 
 	.focal-mobile-pill-active {
-		color: #141414;
-		background: rgba(255, 255, 255, 0.94);
+		color: var(--editor-chip-active-text, #141414);
+		background: var(--editor-chip-active-bg, rgba(255, 255, 255, 0.94));
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
 	}
 </style>

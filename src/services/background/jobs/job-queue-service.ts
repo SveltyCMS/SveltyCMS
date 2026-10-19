@@ -41,6 +41,7 @@ class JobQueueService {
   private currentRunning = 0;
   private lastScheduleCheck = 0;
   private lastCleanupCheck = 0;
+  private lastReapCheck = 0;
 
   // 🧠 HARDWARE-ADAPTIVE concurrency: 50% of detected cores, min 5, max 50 —
   // from the shared boot-time profile so the whole CMS agrees on one number.
@@ -273,6 +274,53 @@ class JobQueueService {
   }
 
   /**
+   * Requeue or fail jobs stuck in `running` past their lease. A crash between
+   * the atomic claim and the completion update otherwise leaves a row that no
+   * consumer ever retries.
+   *
+   * @returns Number of jobs whose state was changed.
+   */
+  async reapStaleRunningJobs(maxAgeMs = 15 * 60_000): Promise<number> {
+    const db = getDb();
+    if (!db?.system?.jobs) return 0;
+
+    const listed = await db.system.jobs.list({
+      status: "running",
+      limit: 100,
+      ...withSystemScope("scheduler"),
+    });
+    if (!listed.success || !listed.data?.length) return 0;
+
+    const cutoff = Date.now() - maxAgeMs;
+    let reaped = 0;
+    for (const job of listed.data) {
+      const updatedAt = job.updatedAt ? new Date(job.updatedAt as string).getTime() : 0;
+      if (!updatedAt || updatedAt > cutoff) continue;
+
+      const attempts = job.attempts ?? 0;
+      const exhausted = attempts >= (job.maxAttempts || 3);
+      const result = await db.system.jobs.update(
+        job._id,
+        exhausted
+          ? {
+              status: "failed",
+              lastError: `Stale running job reaped after ${Math.round(maxAgeMs / 60_000)} min`,
+            }
+          : {
+              status: "pending",
+              nextRunAt: new Date(),
+              lastError: "Stale running job requeued after lease expiry",
+            },
+        withSystemScope("scheduler", {
+          filter: { _id: job._id, status: "running" },
+        }),
+      );
+      if (result.success) reaped++;
+    }
+    return reaped;
+  }
+
+  /**
    * Start the background polling worker.
    */
   startPolling(intervalMs = 10000) {
@@ -309,7 +357,17 @@ class JobQueueService {
         );
       }
 
-      // 4. Clean up temp store every ~10 cycles
+      // 4. Reap jobs whose worker crashed mid-run (every 60s)
+      if (now - this.lastReapCheck >= 60000) {
+        this.lastReapCheck = now;
+        this.reapStaleRunningJobs()
+          .then((count) => {
+            if (count > 0) logger.warn(`[JobQueue] Reaped ${count} stale running job(s)`);
+          })
+          .catch((err) => logger.error("[JobQueue] Stale job reaper failed", err));
+      }
+
+      // 5. Clean up temp store every ~10 cycles
       // cleanupTempStore is synchronous — never call .catch on its void return
       // (that threw TypeError and crashed the process via uncaughtException).
       if (Math.random() > 0.9) {

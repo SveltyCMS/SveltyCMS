@@ -51,7 +51,7 @@ Pintura-style rotate dock — compact glass pills, inline accent slider, single 
 		const center = 50;
 		const thumb = sliderProgress * 100;
 		const accent = 'var(--editor-accent, #f5c518)';
-		const track = 'rgba(255, 255, 255, 0.16)';
+		const track = 'var(--editor-slider-track, color-mix(in oklch, currentColor 24%, transparent))';
 
 		if (Math.abs(displayAngle) < 0.05) {
 			return `linear-gradient(to right, ${track} 0%, ${track} 100%)`;

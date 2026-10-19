@@ -409,6 +409,12 @@ export function _checkEndpointPermission(
     return !!user;
   }
 
+  // Aborting one's own resumable upload is an upload capability, not a
+  // delete capability: the TUS handler enforces session ownership.
+  if (namespace === "media" && segments[1] === "tus" && method === "DELETE") {
+    return !!user && hasPermissionWithRoles(user, "media:write", roles);
+  }
+
   const mapping = ENDPOINT_PERMISSIONS[namespace];
   if (!mapping) {
     // Fail-closed: unmapped namespace

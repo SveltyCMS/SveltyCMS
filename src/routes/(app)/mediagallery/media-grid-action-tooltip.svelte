@@ -56,9 +56,22 @@ floating/anchor bugs when multiple icons stack in a column.
 		if (!triggerEl || !panelEl) return;
 		const trigger = triggerEl.getBoundingClientRect();
 		const panel = panelEl.getBoundingClientRect();
-		panelLeft = trigger.left - panel.width - gutter;
-		panelTop = trigger.top + trigger.height / 2 - panel.height / 2;
-		arrowTop = trigger.top + trigger.height / 2 - panelTop;
+		const edge = 8;
+
+		// Open to the inline-start of the trigger, then clamp inside the viewport so a
+		// tile near the top/edge never pushes the panel off-screen (narrow gallery).
+		panelLeft = Math.max(edge, trigger.left - panel.width - gutter);
+		panelTop = Math.max(
+			edge,
+			Math.min(
+				trigger.top + trigger.height / 2 - panel.height / 2,
+				window.innerHeight - panel.height - edge
+			)
+		);
+		arrowTop = Math.max(
+			12,
+			Math.min(trigger.top + trigger.height / 2 - panelTop, panel.height - 12)
+		);
 		positioned = true;
 	}
 
@@ -95,13 +108,13 @@ floating/anchor bugs when multiple icons stack in a column.
 
 	const panelClass = $derived(
 		theme === 'light'
-			? 'min-w-[10.5rem] rounded-md border border-surface-500/30 bg-surface-500/10 px-3 py-2.5 text-(--admin-text-muted) shadow-lg dark:bg-surface-900 dark:text-(--admin-text-muted)'
+			? 'min-w-[10.5rem] rounded-md border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-2.5 text-(--admin-text-body) shadow-lg'
 			: 'rounded bg-surface-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-2xl dark:bg-surface-500/10 dark:text-(--admin-text-body)'
 	);
 
 	const arrowClass = $derived(
 		theme === 'light'
-			? 'border-s-surface-50 dark:border-s-surface-500/40'
+			? 'border-s-(--admin-bg-card)'
 			: 'border-s-surface-500/40 dark:border-s-surface-100'
 	);
 </script>

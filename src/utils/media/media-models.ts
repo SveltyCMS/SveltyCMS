@@ -51,6 +51,30 @@ export type StorageType = (typeof STORAGE_TYPES)[number];
 export const REMOTE_VIDEO_PROVIDERS = ["youtube", "vimeo"] as const;
 export type RemoteVideoProvider = (typeof REMOTE_VIDEO_PROVIDERS)[number] | (string & {});
 
+/**
+ * Derivative pipeline state stored on the media document.
+ *
+ * `processing` — the original is safe, derived renditions are still being written.
+ * `ready`      — every rendition the pipeline produces is available.
+ * `failed`     — derivation failed; the original remains servable.
+ */
+export const MediaProcessingStatus = {
+  Processing: "processing",
+  Ready: "ready",
+  Failed: "failed",
+} as const;
+
+export type MediaProcessingStatusValue =
+  (typeof MediaProcessingStatus)[keyof typeof MediaProcessingStatus];
+
+/** Normalise a persisted status value; `undefined` means "not recorded yet". */
+export function normalizeProcessingStatus(value: unknown): MediaProcessingStatusValue | undefined {
+  if (value === MediaProcessingStatus.Processing) return MediaProcessingStatus.Processing;
+  if (value === MediaProcessingStatus.Ready) return MediaProcessingStatus.Ready;
+  if (value === MediaProcessingStatus.Failed) return MediaProcessingStatus.Failed;
+  return undefined;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Derivative output formats                                                  */
 /* -------------------------------------------------------------------------- */

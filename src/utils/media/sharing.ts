@@ -12,7 +12,7 @@
  * - Stats & cleanup
  */
 
-import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import type { DatabaseId, ISODateString } from "@src/content/types";
 import { nowISODateString } from "@src/utils/date";
 import { createReadStream, createWriteStream } from "node:fs";
@@ -23,22 +23,10 @@ import { createGzip } from "node:zlib";
 import { logger } from "@utils/logger";
 import { raise } from "@utils/error-handling";
 import type { StoredMedia } from "./media-models";
+import { constantTimeBufferEqual } from "@utils/security/constant-time";
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
-}
-
-/**
- * Constant-time buffer comparison that pads shorter inputs to the length
- * of the longer one — prevents timing leaks from length short-circuiting.
- */
-function constantTimeBufferEqual(a: Buffer, b: Buffer): boolean {
-  const maxLen = Math.max(a.length, b.length);
-  const paddedA = Buffer.alloc(maxLen, 0);
-  const paddedB = Buffer.alloc(maxLen, 0);
-  a.copy(paddedA);
-  b.copy(paddedB);
-  return timingSafeEqual(paddedA, paddedB);
 }
 
 export interface ShareLink {

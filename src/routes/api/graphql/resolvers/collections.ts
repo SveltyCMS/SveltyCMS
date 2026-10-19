@@ -128,8 +128,8 @@ export async function resolveAllCollections(
 
   const { contentSystem } = await loadContentModule();
   const all: Schema[] = await contentSystem.getCollections(tenantId);
-  const { isMockScanCollection, isBenchmarkRuntime } =
-    await import("@src/routes/setup/preset-collections.server");
+  const { isMockScanCollection } = await import("@src/routes/setup/preset-collections.server");
+  const { isBenchmarkRuntime } = await import("@utils/benchmark-runtime");
   const isBenchmark = isBenchmarkRuntime();
   const result: CollectionInfoRow[] = [];
   for (const col of all) {
@@ -195,8 +195,8 @@ export async function registerCollections(tenantId?: string | null) {
   await contentSystem.initialize(tenantId);
   await widgets.initialize(tenantId || "default");
 
-  const { isMockScanCollection, isBenchmarkRuntime } =
-    await import("@src/routes/setup/preset-collections.server");
+  const { isMockScanCollection } = await import("@src/routes/setup/preset-collections.server");
+  const { isBenchmarkRuntime } = await import("@utils/benchmark-runtime");
   const isBenchmark = isBenchmarkRuntime();
 
   const collections: Schema[] = await contentSystem.getCollections(tenantId);

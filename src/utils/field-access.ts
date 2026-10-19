@@ -17,8 +17,6 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import { fieldDeclaresGuard } from "@utils/field-guard";
 import { isAdmin } from "@src/databases/auth/constants";
 
-export { fieldDeclaresGuard };
-
 /**
  * Helper to safely delete nested fields using dot notation (e.g., 'author.role').
  */

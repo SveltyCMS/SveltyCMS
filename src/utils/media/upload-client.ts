@@ -9,6 +9,8 @@
  * - optional client-side type filtering via `allowedTypes`
  */
 
+import { shouldUseTusUpload, uploadFileViaTus } from "./tus-upload-client";
+
 /** Use streaming endpoint when any file or total batch exceeds this size */
 export const STREAM_UPLOAD_THRESHOLD_BYTES = 10 * 1024 * 1024;
 
@@ -50,6 +52,11 @@ export interface MediaUploadOptions {
   allowedTypes?: string[];
   /** Abort in-flight XHR when aborted (user cancel / navigate away). */
   signal?: AbortSignal;
+  /**
+   * Route 6–15 MiB files through TUS so a reload can resume. Defaults to true;
+   * set `false` to keep the legacy form/stream routing.
+   */
+  resumable?: boolean;
 }
 
 export interface MediaUploadResult {
@@ -254,6 +261,150 @@ export async function uploadMediaFiles(
 }
 
 /**
+ * Sequential per-file upload that uses TUS for 6–15 MiB files and the existing
+ * form/stream path for everything else. Per-file progress is preserved.
+ */
+export function uploadMediaFilesResumable(
+  files: File[],
+  options: MediaUploadOptions,
+): MediaUploadHandle {
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0) || 1;
+  let cancelled = false;
+  let activeCancel: (() => void) | null = null;
+  const outcomes: Array<{ name: string; success: boolean; message?: string }> = [];
+
+  const cancel = () => {
+    cancelled = true;
+    activeCancel?.();
+  };
+
+  if (options.signal) {
+    if (options.signal.aborted) {
+      return {
+        promise: Promise.resolve({
+          success: false,
+          message: "Upload cancelled",
+          aborted: true,
+        }),
+        cancel,
+      };
+    }
+    options.signal.addEventListener("abort", cancel, { once: true });
+  }
+
+  const promise = (async (): Promise<MediaUploadResult> => {
+    let completedBytes = 0;
+
+    for (let index = 0; index < files.length; index++) {
+      if (cancelled) {
+        return {
+          success: false,
+          message: "Upload cancelled",
+          aborted: true,
+          files: outcomes,
+        };
+      }
+
+      const file = files[index]!;
+      const controller = new AbortController();
+      const onOuterAbort = () => controller.abort();
+      options.signal?.addEventListener("abort", onOuterAbort, { once: true });
+
+      const report = (filePercent: number) => {
+        const overall = Math.min(
+          100,
+          Math.round(
+            ((completedBytes + (file.size * Math.min(100, Math.max(0, filePercent))) / 100) /
+              totalBytes) *
+              100,
+          ),
+        );
+        options.onProgress?.(overall);
+        options.onFileProgress?.({
+          fileIndex: index,
+          fileCount: files.length,
+          fileName: file.name,
+          overallPercent: overall,
+          filePercent,
+        });
+      };
+
+      let result: MediaUploadResult;
+      if (shouldUseTusUpload(file)) {
+        activeCancel = () => controller.abort();
+        const tusResult = await uploadFileViaTus(file, {
+          folder: options.folder,
+          csrfToken: options.csrfToken,
+          signal: controller.signal,
+          onProgress: (percent) => report(percent),
+        });
+        result = {
+          success: tusResult.success,
+          message: tusResult.message,
+          aborted: tusResult.aborted,
+        };
+      } else {
+        const handle =
+          file.size >= STREAM_UPLOAD_THRESHOLD_BYTES
+            ? uploadViaStreamApiHandle([file], {
+                folder: options.folder,
+                csrfToken: options.csrfToken,
+                signal: controller.signal,
+                onProgress: report,
+              })
+            : uploadViaFormActionHandle([file], {
+                ...options,
+                signal: controller.signal,
+                onProgress: report,
+              });
+        activeCancel = handle.cancel;
+        result = await handle.promise;
+      }
+
+      activeCancel = null;
+      options.signal?.removeEventListener("abort", onOuterAbort);
+
+      if (result.aborted || cancelled) {
+        outcomes.push({ name: file.name, success: false, message: "cancelled" });
+        return {
+          success: false,
+          message: "Upload cancelled",
+          aborted: true,
+          files: outcomes,
+        };
+      }
+
+      outcomes.push({
+        name: file.name,
+        success: result.success,
+        message: result.message,
+      });
+      completedBytes += file.size;
+      options.onProgress?.(Math.min(100, Math.round((completedBytes / totalBytes) * 100)));
+      options.onFileProgress?.({
+        fileIndex: index,
+        fileCount: files.length,
+        fileName: file.name,
+        overallPercent: Math.min(100, Math.round((completedBytes / totalBytes) * 100)),
+        filePercent: result.success ? 100 : 0,
+      });
+
+      if (!result.success) {
+        return {
+          success: false,
+          message: result.message || `Failed on ${file.name}`,
+          files: outcomes,
+        };
+      }
+    }
+
+    return { success: true, files: outcomes };
+  })();
+
+  return { promise, cancel };
+}
+
+/**
  * Sequential multi-file upload with per-file + overall progress.
  * Prefer for galleries when users select many medium files.
  */
@@ -385,6 +536,11 @@ export function uploadMediaFilesHandle(
         cancel: () => {},
       };
     }
+  }
+
+  // 6–15 MiB single files (and batches containing one) get a resumable lane.
+  if (options.resumable !== false && filtered.some((file) => shouldUseTusUpload(file))) {
+    return uploadMediaFilesResumable(filtered, options);
   }
 
   // Sequential multi-file for accurate per-file progress (skip for huge stream batches)

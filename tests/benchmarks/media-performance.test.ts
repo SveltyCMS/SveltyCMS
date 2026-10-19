@@ -55,7 +55,17 @@ const IS_CI =
 const GALLERY_ROWS = IS_CI ? 1_200 : 4_000;
 const GALLERY_FOLDERS = 40;
 const GALLERY_PAGE_SIZE = 100;
-const GALLERY_BATCH = 250;
+/**
+ * `insertMany` stamps every row in a batch with a single `writeNow()` value.
+ * The measured folder therefore sees at most one distinct `updatedAt` per
+ * batch, so the batch size controls sort cardinality. CI seeds fewer rows;
+ * size its batch so the folder still spans at least this many batches (+2
+ * margin for same-millisecond collisions).
+ */
+const GALLERY_MIN_DISTINCT_TIMESTAMPS = 10;
+const GALLERY_BATCH = IS_CI
+  ? Math.max(1, Math.ceil(GALLERY_ROWS / (GALLERY_MIN_DISTINCT_TIMESTAMPS + 2)))
+  : 250;
 
 function forceGarbageCollection() {
   if (typeof Bun !== "undefined" && typeof (Bun as any).gc === "function") {
@@ -880,8 +890,10 @@ async function runGalleryIndexAudit(db: DatabaseAdapter): Promise<{
   const seededIds: string[] = [];
 
   try {
-    // ── Seed: spread GALLERY_ROWS across the folder pool, one row per second of
-    // synthetic upload history so `ORDER BY updatedAt DESC` is a real ordering.
+    // ── Seed: spread GALLERY_ROWS across the folder pool. `insertMany` stamps
+    // every row in a batch with one write timestamp, so distinct
+    // `updatedAt` values equal the number of batches that touch the measured
+    // folder. GALLERY_BATCH is sized per profile to keep ORDER BY meaningful.
     const base = Date.now() - GALLERY_ROWS * 1_000;
     for (let offset = 0; offset < GALLERY_ROWS; offset += GALLERY_BATCH) {
       const batch: GalleryRowShape[] = [];
@@ -905,8 +917,9 @@ async function runGalleryIndexAudit(db: DatabaseAdapter): Promise<{
           access: "public",
           folderId,
           tenantId,
-          // `EntityCreate` omits timestamps, but the index claim is about ORDER BY
-          // updatedAt — rows sharing one timestamp would measure a degenerate sort.
+          // Supplied timestamps are advisory: `insertMany` stamps the whole
+          // batch with one write time. GALLERY_BATCH guarantees enough
+          // distinct batches for the sort-cardinality assertion.
           createdAt: ts,
           updatedAt: ts,
         });
@@ -948,9 +961,11 @@ async function runGalleryIndexAudit(db: DatabaseAdapter): Promise<{
       );
     }
     const timestamps = new Set(probeItems.map((item) => String(item.updatedAt)));
-    if (timestamps.size < Math.min(10, folderRows)) {
+    if (timestamps.size < Math.min(GALLERY_MIN_DISTINCT_TIMESTAMPS, folderRows)) {
       throw new Error(
-        `gallery seed timestamps collapsed (${timestamps.size} distinct of ${folderRows} rows) — ORDER BY updatedAt would be trivial`,
+        `gallery seed timestamps collapsed (${timestamps.size} distinct of ${folderRows} rows, ` +
+          `expected ${Math.min(GALLERY_MIN_DISTINCT_TIMESTAMPS, folderRows)}) — ` +
+          `ORDER BY updatedAt would be trivial`,
       );
     }
 

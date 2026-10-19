@@ -3,10 +3,10 @@ import {
   collectionPresetToSchema,
   generateCollectionFileContent,
   getWizardPresetSchemas,
-  isBenchmarkArtifact,
   isMockScanCollection,
   purgeBenchmarkCollectionArtifacts,
 } from "@src/routes/setup/preset-collections.server";
+import { isBenchmarkArtifact } from "@utils/benchmark-runtime";
 import { PRESETS } from "@src/routes/setup/presets";
 
 interface NamedField {

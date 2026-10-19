@@ -5,6 +5,14 @@
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { MediaService } from "@utils/media/media-service.server";
+import {
+  cleanupMediaVersions,
+  syncMediaProcessingStatus,
+  type MediaCleanupOptions,
+  type MediaCleanupResult,
+  type MediaStatusSyncOptions,
+  type MediaStatusSyncResult,
+} from "@utils/media/media-lifecycle.server";
 import { AppError } from "@utils/error-handling";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { FastLRU } from "@utils/native-utils";
@@ -501,6 +509,45 @@ export class MediaNamespace {
       );
       this.invalidateCache(tenantId, mediaId);
       return result;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
+    }
+  }
+
+  /**
+   * Release derivatives/version blobs that no media record references any more.
+   * Runs without the job queue so it still works when `DISABLE_JOBS` is set or a
+   * background job is stuck.
+   */
+  async cleanup(options: MediaCleanupOptions = {}): Promise<DatabaseResult<MediaCleanupResult>> {
+    try {
+      const data = await cleanupMediaVersions(this._dbAdapter, options);
+      if (!options.dryRun) this.invalidateCache(options.tenantId);
+      return { success: true, data };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
+    }
+  }
+
+  /**
+   * Reconcile persisted `processingStatus` values with the derivatives that
+   * actually exist; optionally re-queue missing variant generation.
+   */
+  async syncStatus(
+    options: MediaStatusSyncOptions = {},
+  ): Promise<DatabaseResult<MediaStatusSyncResult>> {
+    try {
+      const data = await syncMediaProcessingStatus(this._dbAdapter, options);
+      if (options.persist !== false || options.requeue) this.invalidateCache(options.tenantId);
+      return { success: true, data };
     } catch (err: any) {
       return {
         success: false,

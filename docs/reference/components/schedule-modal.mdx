@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:calendar-clock"
 author: "SveltyCMS Team"
 created: "2026-01-04"
-updated: "2026-06-27"
+updated: "2026-10-19"
 tags:
   - "components"
   - "scheduling"
@@ -86,21 +86,18 @@ sequenceDiagram
 
 ---
 
-## Draft Relation Validation
+## Known limitations
 
-When scheduling a publish action, the background scheduler (see `scheduled-jobs.ts`) now validates that all relation fields on the entry reference only **published** content. If any referenced entry is still in `draft` status, the publish is **skipped** and a warning is logged.
+The modal returns `{ confirmed, date, action }`, but the current callers persist only the date:
 
-```mermaid
-flowchart LR
-    SP[Schedule Publish] --> RV[Validate Relations]
-    RV -->|All published| P[Publish Entry]
-    RV -->|Has draft refs| S[Skip + Log Warning]
-    P --> CI[Cache Invalidation]
-```
+- The selected **action is not stored**. Every scheduled job targets `publish`; scheduled unpublish and delete do not work.
+- Scheduling a **new** entry in create mode does not enqueue a job because no entry id exists yet. The entry is saved as `schedule` but never transitions.
+- **Cancel Schedule** clears local state only; it does not delete the already-created job, which still runs at its original time.
+- Re-saving a scheduled entry creates another job; jobs are not deduplicated.
+- The `scheduled-jobs` sweep does **not** provide draft-relation validation for collection entries: it scans `content_nodes`, while entries live in `collection_<id>` tables, and its relation matcher expects 24-hex ObjectIds while generated ids are UUIDv7.
+- The working `status-transition` scheduler path emits `entry:update`, not `entry:publish`.
 
-This prevents broken front-end experiences where an entry is published but references content not yet visible to visitors.
-
-**Cache invalidation**: After a successful scheduled publish, the collection's cache is automatically invalidated to prevent stale relation data from being served.
+Cache invalidation still happens after the scheduled update through the normal post-write pipeline; it is not conditional on relation validation.
 
 ---
 

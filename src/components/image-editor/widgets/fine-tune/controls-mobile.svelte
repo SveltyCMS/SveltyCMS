@@ -49,17 +49,24 @@ Mobile fine-tune pill strip — slider lives in editor-mobile-panel (same as cro
 	.finetune-mobile-strip {
 		display: inline-flex;
 		flex-wrap: nowrap;
-		gap: 0.125rem;
+		gap: 0.25rem;
 		align-items: center;
 		width: fit-content;
 		max-width: 100%;
-		padding: 0.125rem;
+		padding: 0.25rem;
 		overflow-x: auto;
 		-webkit-overflow-scrolling: touch;
 		scroll-snap-type: x proximity;
 		scrollbar-width: none;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.07);
+		background: var(
+			--editor-chrome-elevated,
+			color-mix(in oklch, var(--editor-chrome-text, #fff) 8%, transparent)
+		);
+		border: 1px solid
+			var(
+				--editor-chrome-border,
+				color-mix(in oklch, var(--editor-chrome-text, #fff) 12%, transparent)
+			);
 		border-radius: var(--editor-radius-pill, 9999px);
 		backdrop-filter: blur(10px);
 	}
@@ -74,12 +81,12 @@ Mobile fine-tune pill strip — slider lives in editor-mobile-panel (same as cro
 		align-items: center;
 		justify-content: center;
 		scroll-snap-align: center;
-		height: 1.75rem;
-		padding-inline: 0.5625rem;
-		font-size: 0.75rem;
+		min-height: 2.5rem;
+		padding-inline: 0.75rem;
+		font-size: 0.8125rem;
 		font-weight: 500;
 		line-height: 1;
-		color: rgba(255, 255, 255, 0.72);
+		color: var(--editor-chrome-text, rgba(255, 255, 255, 0.72));
 		white-space: nowrap;
 		cursor: pointer;
 		background: transparent;
@@ -92,7 +99,7 @@ Mobile fine-tune pill strip — slider lives in editor-mobile-panel (same as cro
 	}
 
 	.finetune-mobile-pill-changed {
-		color: rgba(255, 255, 255, 0.92);
+		color: var(--editor-chrome-text-active, rgba(255, 255, 255, 0.92));
 	}
 
 	.finetune-mobile-pill:active:not(:disabled) {
@@ -100,12 +107,12 @@ Mobile fine-tune pill strip — slider lives in editor-mobile-panel (same as cro
 	}
 
 	.finetune-mobile-pill-active {
-		color: #141414;
-		background: rgba(255, 255, 255, 0.94);
+		color: var(--editor-chip-active-text, #141414);
+		background: var(--editor-chip-active-bg, rgba(255, 255, 255, 0.94));
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
 	}
 
 	.finetune-mobile-pill-active.finetune-mobile-pill-changed {
-		color: #141414;
+		color: var(--editor-chip-active-text, #141414);
 	}
 </style>

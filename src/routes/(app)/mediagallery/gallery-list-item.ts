@@ -9,6 +9,8 @@
  * - metadata keep-list for focal point, tags, EXIF search, share links
  */
 
+import { normalizeProcessingStatus } from "@utils/media/media-models";
+
 const META_KEEP = new Set([
   "focalPoint",
   "placeholder",
@@ -19,6 +21,8 @@ const META_KEEP = new Set([
   "name",
   "caption",
   "exif",
+  "processingError",
+  "processingStatus",
   "sharedLinks",
   "width",
   "height",
@@ -45,6 +49,7 @@ export interface GalleryListItem {
   name: string;
   originalFilename?: string;
   path: string;
+  processingStatus?: "processing" | "ready" | "failed";
   size?: number;
   tenantId?: string | null;
   thumbnail: { url: string };
@@ -143,6 +148,9 @@ export function toGalleryListItem(item: Record<string, unknown>): GalleryListIte
     name: filename,
     originalFilename: typeof item.originalFilename === "string" ? item.originalFilename : undefined,
     path: asString(item.path) || "global",
+    processingStatus: normalizeProcessingStatus(
+      (item.metadata as Record<string, unknown> | undefined)?.processingStatus,
+    ),
     size: typeof item.size === "number" ? item.size : undefined,
     tenantId: item.tenantId == null ? undefined : asString(item.tenantId),
     thumbnail: { url: thumbnailEntry?.url || publicUrl },

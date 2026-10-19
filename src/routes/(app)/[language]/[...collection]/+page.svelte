@@ -37,6 +37,8 @@ This page dynamically switches between List views and Field editors based on the
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { createEntry, updateEntry } from '@utils/api';
 	import { getFieldName } from '@utils/schema/field-utils';
+	import { nowISODateString } from '@utils/date';
+	import { buildAutosavePayload } from '@utils/entry-autosave';
 	import { onMount, untrack } from 'svelte';
 	import { beforeNavigate, refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -414,12 +416,17 @@ This page dynamically switches between List views and Field editors based on the
 				return false;
 			}
 
-			// FORCE 'draft' status for auto-saves to bypass validation for required fields
-			const draftData = {
-				...entryData,
-				status: 'draft',
-				updatedAt: new Date().toISOString()
-			};
+			// Preserve the loaded status for existing entries. Forcing `draft` here
+			// silently unpublishes a live row; only a brand-new entry defaults to draft.
+			let loadedData: Record<string, unknown> | null = null;
+			try {
+				loadedData = initialCollectionValue
+					? (JSON.parse(initialCollectionValue) as Record<string, unknown>)
+					: null;
+			} catch {
+				loadedData = null;
+			}
+			const draftData = buildAutosavePayload(entryData, loadedData, nowISODateString());
 
 			const isNewEntry = !entryData._id;
 			const result = isNewEntry
@@ -497,7 +504,7 @@ This page dynamically switches between List views and Field editors based on the
 				const saved = await autoSaveDraft();
 
 				if (saved) {
-					toast.success('Changes auto-saved as draft');
+					toast.success('Changes auto-saved');
 					// Update initial value to prevent re-saving on the resumed navigation
 					initialCollectionValue = JSON.stringify(collections.activeValue);
 					collections.setMode('view');

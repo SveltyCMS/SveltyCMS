@@ -376,7 +376,7 @@ Comprehensive image editing interface with svelte-canvas integration.
 
 <div
 	bind:this={editorRootRef}
-	class="image-editor flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent text-white"
+	class="image-editor flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent text-(--editor-chrome-text)"
 	class:image-editor--mobile={isMobileEditor}
 	role="application"
 	aria-label="Image editor"

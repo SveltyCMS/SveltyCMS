@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-09-22"
+updated: "2026-10-19"
 tags:
   - "architecture"
   - "media"
@@ -44,7 +44,6 @@ graph TB
         UW[local-upload.svelte]
         UPLOAD[upload-client.ts]
         DASH[media-storage-analytics-widget]
-        VGRID[virtual-media-grid.svelte]
         EDITOR[ImageEditor Shell]
         WGPU[WebGPU/WASM Optimizer]
     end
@@ -88,8 +87,7 @@ graph TB
     CRUMB --> DND
     DND --> API6
     FOLDERS --> API7
-    UI --> VGRID
-    VGRID --> API1
+
     UI --> MODAL
     MODAL --> API5
     UI --> UPLOAD
@@ -220,7 +218,8 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 ### Phase I: Ingestion (Client-Side & Hashing)
 
 - **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser _before_ upload, saving >90% bandwidth (`local-upload.svelte`).
-- **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved. Both paths share one hard ceiling: the dispatcher bounds the request at `API_MAX_BODY_SIZE_BYTES` (**15 MB**, `Content-Length` and chunked alike) and `parseMultipartStream` receives the same cap for `maxFileSize`/`maxTotalSize`, aborting incrementally with `413 PAYLOAD_TOO_LARGE` instead of buffering toward the parser defaults.
+- **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved. Both paths share one hard ceiling: the dispatcher bounds the request at `API_MAX_BODY_SIZE_BYTES` (**15 MB**, `Content-Length` and chunked alike) and `parseMultipartStream` receives the same cap for `maxFileSize`/`maxTotalSize`, aborting incrementally with `413 PAYLOAD_TOO_LARGE` instead of buffering toward the parser defaults. Files between **6 MB and 15 MB** take the **TUS resumable** lane (`POST /api/media/tus` + `PATCH`) so a reload or network drop resumes from the last committed offset; `resumable: false` restores the legacy routing.
+- **Direct-to-storage (S3 / R2)**: `POST /api/media/upload-instructions` issues a 15-minute SigV4 presigned `PUT` for a tenant-scoped staging key plus an HMAC token; `POST /api/media/direct-upload/complete` downloads the staged object, enforces the declared size, re-sniffs MIME (polyglot rejection), and runs the normal ingestion path. Local and Cloudinary installs fall back to TUS because no privileged storage endpoint is exposed. Contract: [Direct & Resumable Uploads](../api/media-uploads.mdx).
 - **Hash-First Approach**: Every file is identified by the full 64-character hex **SHA-256** digest of its bytes (`hashFileContent()` in `src/utils/media/media-processing.server.ts`). The hash is both the deduplication key and the storage directory of the file: `{tenantId}/{hash}/original/<name>-<hash>.<ext>`. The lookup happens **before any derivative work** and is scoped to the tenant — see _Storage & Deduplication_ below.
 - **SlimSniffer + unified allowlist**: `slim-sniffer.server.ts` (~2KB, no `mime-types`/`mrmime`) inspects magic bytes. Uploads use `isAllowedUploadMime()` (from `MIME_MAP`, minus scriptable/office types) and `assertMimeAgreement()` at write time. `/files` resolves Content-Type via extension → stored MIME → 512-byte sniff. Remote imports and `saveRemoteMedia` share `resolveRemoteAssetMime()`. All media responses send `X-Content-Type-Options: nosniff`.
 
@@ -228,7 +227,7 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 - **Deep Metadata Extraction (opt-in)**: EXIF/IPTC/XMP, dominant colour and the 32 px WebP placeholder are extracted by `MediaProcessingService.getMetadata()` — called by `POST /api/media/process` and the SDK, not on every serve. The deep pass is more than a header read: `metadata()` **plus** `stats()` and a `resize(32,32).webp()` thumbnail (a full decode). Results are cached 24 h per file hash; `fastPath: true` returns the header-only fields (`format`, `width`, `height`, `space`, `channels`) without the decode.
 - **Derivative ladder (SIZES)**: `saveResized()` (`media-storage.server.ts`) writes one output per configured `SIZES` step into `{tenantId}/{size}/<name>-<hash>.<ext>` — **JPEG by default**, see [Derivative output format](#derivative-output-format) for the setting, the opt-ins and the measured cost. Two invariants hold: a step **wider than the decoded source is dropped** (plus `withoutEnlargement` at the encoder), so a 400 px icon produces the 200 px step only, and **each resolved path is written once** — a source that is already WebP no longer encodes its own primary twice. The `thumbnails` map records the encoder's real output dimensions; steps that were clamped away are simply absent, which `mediaUrl`/`mediaDisplayUrl` fall back from. Measured 2026-09-22: a 400 px source went from 8 files / 16,984 B to 2 files / 600 B.
-- **Responsive variants (deferred coalescer)**: after the record exists, deferred jobs derive `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` through a single-flight FIFO coalescer (`variant-job-scheduler.server.ts`, bounded by `SVELTY_VARIANT_JOBS`, default 2). Concurrent uploads of identical bytes share a single preset pipeline run, and bulk imports queue in waves to protect memory and CPU. Full consolidation of this pass into the SIZES ladder is tracked in [2026 Roadmap](../../project/roadmap-2026.mdx).
+- **Responsive variants (deferred coalescer)**: after the record exists, deferred jobs derive `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` through a single-flight FIFO coalescer (`variant-job-scheduler.server.ts`, bounded by `SVELTY_VARIANT_JOBS`, default 2). Concurrent uploads of identical bytes share a single preset pipeline run, and bulk imports queue in waves to protect memory and CPU. Every upload lands with `metadata.processingStatus: "processing"`; the job flips it to `ready` (or `failed`, with `processingError`) in the media document. Full consolidation of this pass into the SIZES ladder is tracked in [2026 Roadmap](../../project/roadmap-2026.mdx).
 - **AI-Native Tagging [WIP]**: A conceptual background task that hooks into local Ollama (`llava`) for privacy-first image analysis.
 - **Document Thumbnails**: Automated extraction of PDF first-pages (requires `imagemagick`).
 
@@ -242,7 +241,22 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 - **On-Demand Transforms**: `/files/**?w=&h=&q=&fmt=` produces cached raster variants on the delivery route (no separate `/api/media/*` transform endpoint exists). See [On-Demand Image Transforms](#-on-demand-image-transforms) below for the parameter contract, clamps, cache layout and fallback rules.
 - **Focal Points**: Visual crosshair coordinates are injected into delivery APIs to support art-directed cropping in the frontend.
-- **Lazy Loading**: lazy thumbnail decoding in `media-grid.svelte` / `media-table.svelte` keeps the gallery responsive with thousands of files using Svelte 5 runes. (`virtual-media-grid.svelte` implements a windowed grid but is **unmounted** today.)
+- **Lazy Loading**: lazy thumbnail decoding in `media-grid.svelte` / `media-table.svelte` keeps the gallery responsive with thousands of files using Svelte 5 runes.
+
+### Processing status, version retention & cleanup
+
+Derivatives are content-addressed (`{tenantId}/{hash}/…`), so replacing a source with new bytes always produces a new key — a cached transform can never serve a stale original. The lifecycle layer (`src/utils/media/media-lifecycle.server.ts`) makes the surrounding metadata and storage collection honest:
+
+| Concern                       | Behaviour                                                                                                                                                                                                                                                                                                                                                             |
+| :---------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**                    | `metadata.processingStatus` is `processing` until every deferred rendition lands, then `ready`; a failed derivation keeps the original servable and records `processingError`. Non-raster assets are `ready` immediately. The gallery exposes a status facet (`ready` / `processing` / `failed`), and the details modal shows the same value with the failure reason. |
+| **Replacement**               | Uploading a new version or saving an edit commits the new content hash **and** the matching `thumbnails` / `metadata.imageVariants`, so the record never advertises the replaced file's renditions. The outgoing derivative set is captured on the version entry.                                                                                                     |
+| **Restore**                   | Restoring a version reinstates its captured `thumbnails` and `imageVariants`. Legacy entries without that capture are cleared and regenerated from the restored bytes (status returns to `processing` until the job lands).                                                                                                                                           |
+| **Reference-aware retention** | `media:cleanup` keeps the newest `keepVersions` entries per asset (default **10**) and releases a content hash only when no record still points at it — as the active original or through any retained version. Shared hashes are never released; variant directories and originals are deleted together.                                                             |
+| **Deletion**                  | Deleting a media record releases its hashes only when no sibling record or retained version still references them.                                                                                                                                                                                                                                                    |
+| **Admin commands**            | `POST /api/media/cleanup` and `POST /api/media/sync-status` run outside the job queue, so they work with `DISABLE_JOBS` or a stuck worker. `sync-status` derives status from actual derivative evidence and can re-queue missing work (`requeue: true`).                                                                                                              |
+
+The cleanup pass is **dry-run first** by design: `{ "dryRun": true }` reports the version count and hash list it _would_ release without touching the DB or storage.
 
 ### Derivative output format
 
@@ -353,6 +367,8 @@ Every skip logs at **debug** level and falls back to streaming the original — 
 
 Assets live in **virtual folders**: a logical `folderId` on each media row, not a physical directory tree. Folder definitions are stored as system virtual folders (`/api/system-virtual-folder`). Moving media updates metadata only — blobs and share URLs stay put.
 
+Folder-tree mutations are cycle-guarded server-side: `PATCH` reorder rejects a move into the folder itself or one of its descendants, and the recursive path updater carries a visited set so a corrupt hierarchy cannot cause unbounded recursion.
+
 ### Data model
 
 | Field on media | Meaning                                             |
@@ -414,17 +430,19 @@ On `/mediagallery`, the left sidebar shows virtual folders and a back-to-collect
 
 The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third-party asset browser required.
 
-| Feature                   | UI Surface                                               | API / Utility                                           |
-| :------------------------ | :------------------------------------------------------- | :------------------------------------------------------ |
-| **Virtual folder move**   | Grid/table drag → sidebar folders or breadcrumb parents  | `POST /api/media/move` via `media-dnd.ts`               |
-| **Folder tree CRUD**      | Sidebar `media-folders.svelte` + gallery “New Folder”    | `/api/system-virtual-folder`                            |
-| **Bulk archive download** | Selection toolbar in `mediagallery/+page.svelte`         | `GET /api/media/bulk-download?id=…` → TAR.GZ            |
-| **Bulk delete**           | Selection toolbar in `media.svelte` (4× concurrency)     | `POST /api/media/delete` (per-item, with publish gate)  |
-| **Storage analytics**     | Dashboard widget `media-storage-analytics-widget.svelte` | `GET /api/media/analytics` (60s poll)                   |
-| **Version diff**          | Versions tab in `media-details-modal.svelte`             | `GET /api/media/version/{id}/compare?from=&to=`         |
-| **Version history**       | Versions tab (upload, restore, download)                 | `POST /api/media/version/{id}`, `/restore`, `/upload`   |
-| **Secure share links**    | Share tab in `media-details-modal.svelte`                | `POST /api/media/share/{id}`, `DELETE …/{token}`        |
-| **Streaming upload**      | Gallery toolbar + `local-upload.svelte`                  | `upload-client.ts` → form action or `/api/media/stream` |
+| Feature                   | UI Surface                                               | API / Utility                                              |
+| :------------------------ | :------------------------------------------------------- | :--------------------------------------------------------- |
+| **Virtual folder move**   | Grid/table drag → sidebar folders or breadcrumb parents  | `POST /api/media/move` via `media-dnd.ts`                  |
+| **Folder tree CRUD**      | Sidebar `media-folders.svelte` + gallery “New Folder”    | `/api/system-virtual-folder`                               |
+| **Bulk archive download** | Selection toolbar in `mediagallery/+page.svelte`         | `GET /api/media/bulk-download?id=…` → TAR.GZ               |
+| **Bulk delete**           | Selection toolbar in `media.svelte` (4× concurrency)     | `POST /api/media/delete` (per-item, with publish gate)     |
+| **Storage analytics**     | Dashboard widget `media-storage-analytics-widget.svelte` | `GET /api/media/analytics` (60s poll)                      |
+| **Version diff**          | Versions tab in `media-details-modal.svelte`             | `GET /api/media/version/{id}/compare?from=&to=`            |
+| **Version history**       | Versions tab (upload, restore, download)                 | `POST /api/media/version/{id}`, `/restore`, `/upload`      |
+| **Processing status**     | Gallery status facet + details modal badge               | `metadata.processingStatus`; `POST /api/media/sync-status` |
+| **Lifecycle maintenance** | Admin/ops command (no UI required)                       | `POST /api/media/cleanup` (dry-run supported)              |
+| **Secure share links**    | Share tab in `media-details-modal.svelte`                | `POST /api/media/share/{id}`, `DELETE …/{token}`           |
+| **Streaming upload**      | Gallery toolbar + `local-upload.svelte`                  | `upload-client.ts` → form action or `/api/media/stream`    |
 
 ### Media Details Modal
 
@@ -445,6 +463,7 @@ Heavy processing tasks (AI analysis, bulk variant generation, video transcoding)
 2. **Background Execution**: The `Job Queue Service` picks up the task and executes it across multiple worker threads.
 3. **Polling/SSE**: The client polls the **`/api/media/jobs/:id`** endpoint or listens via SSE for the completion event.
 4. **Metadata Update**: Once complete, the `MediaItem` metadata in the database is atomically updated.
+5. **Crash recovery**: Every polling worker reaps jobs that have been stuck in `running` for 15 minutes. They are requeued with `pending`, or marked `failed` once their attempts are exhausted, so a killed worker cannot strand a job forever.
 
 ---
 
@@ -455,6 +474,7 @@ The gallery is deeply integrated with the canvas-based Image Editor:
 - **Non-Destructive Editing**: Originals are preserved; edits are saved as linked variants.
 - **Interactive Focal Points**: Visual crosshair selection for art-directed cropping.
 - **Watermark Caching**: Pre-rendered watermark buffers are cached in-memory to avoid redundant re-scaling.
+- **Bounded Output**: editor saves are capped at `MAX_OUTPUT_DIMENSION` (6000 px default, env-overridable). Normal-size edits still encode once; only oversized results take a second downscale pass so watermark/annotation coordinates stay correct.
 
 ---
 
