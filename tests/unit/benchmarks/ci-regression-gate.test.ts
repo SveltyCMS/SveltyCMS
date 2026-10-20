@@ -7,14 +7,23 @@
  * threshold behaviour without touching the filesystem.
  */
 
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   budgetFor,
+  evaluateBenchmarkGate,
   evaluateSamples,
+  renderGateMarkdown,
+  type GateBaseline,
+  type GateResult,
   type GateSample,
 } from "../../../scripts/benchmark-matrix/ci-regression-gate";
 
 const LABEL = "REST list p95";
+const REST_TEST_FILE = "tests/benchmarks/rest-api-performance.test.ts";
+const REST_LIST_METRIC = "Collection Find (List Limit 20)";
 
 function sample(value: number, budget = 5): GateSample {
   return { label: LABEL, value, budget };
@@ -85,5 +94,133 @@ describe("CI performance gate", () => {
     expect(budgetFor("sqlite", "dbRaw")).toBe(80);
     expect(budgetFor("postgresql", "dbRaw")).toBe(30);
     expect(budgetFor("sqlite", "collections")).toBe(5);
+  });
+});
+
+/**
+ * End-to-end gate runs against a temp results directory. This is the sequence a
+ * fresh CI runner performs: run 1 writes the baseline, run 2 compares against it
+ * (the cache restored in between is just that file copied onto the runner).
+ */
+describe("CI performance gate (filesystem)", () => {
+  let resultsDir: string;
+
+  afterEach(() => {
+    if (resultsDir) rmSync(resultsDir, { recursive: true, force: true });
+  });
+
+  function freshDir(): string {
+    resultsDir = mkdtempSync(join(tmpdir(), "gate-"));
+    return resultsDir;
+  }
+
+  function historyLine(overrides: Record<string, unknown> = {}): string {
+    return JSON.stringify({
+      db: "sqlite",
+      testFile: REST_TEST_FILE,
+      metric: REST_LIST_METRIC,
+      p95Ms: 2,
+      timestamp: "2026-10-20T10:00:00.000Z",
+      status: "SUCCESS",
+      runMode: "standalone",
+      serverMode: "production",
+      ...overrides,
+    });
+  }
+
+  function writeHistory(dir: string, lines: readonly string[]): void {
+    writeFileSync(join(dir, "history.jsonl"), `${lines.join("\n")}\n`);
+  }
+
+  function baseline(dir: string): GateBaseline {
+    return JSON.parse(readFileSync(join(dir, "gate-baseline-sqlite.json"), "utf8")) as GateBaseline;
+  }
+
+  it("starts comparing once two prior samples exist", () => {
+    const dir = freshDir();
+    const run = (p95Ms: number, at: string, sinceIso: string): GateResult => {
+      // Each invocation rewrites history; on CI the cache supplies the baseline.
+      writeHistory(dir, [historyLine({ p95Ms, timestamp: at })]);
+      return evaluateBenchmarkGate({ db: "sqlite", sinceIso, policy: "fail", resultsDir: dir });
+    };
+
+    const first = run(2, "2026-10-20T10:00:00.000Z", "2026-10-20T09:59:00.000Z");
+
+    expect(first.metrics.map((m) => m.label)).toEqual([LABEL]);
+    expect(first.baselineRuns).toBe(0);
+    expect(first.metrics[0]?.changePct).toBeNull();
+    expect(baseline(dir).series[LABEL]).toEqual([2]);
+
+    // Second run: one prior sample, so drift is still not judged.
+    const second = run(3, "2026-10-20T11:00:00.000Z", "2026-10-20T10:30:00.000Z");
+
+    expect(second.baselineRuns).toBe(1);
+    expect(second.metrics[0]?.baseline).toBeNull();
+    expect(second.metrics[0]?.changePct).toBeNull();
+    expect(renderGateMarkdown(second)).toContain("building (1/2 samples)");
+    expect(baseline(dir).series[LABEL]).toEqual([2, 3]);
+
+    // Third run: two prior samples are enough to judge.
+    const third = run(4, "2026-10-20T12:00:00.000Z", "2026-10-20T11:30:00.000Z");
+
+    expect(third.baselineRuns).toBe(2);
+    expect(third.metrics[0]?.current).toBe(4);
+    expect(third.metrics[0]?.baseline).toBe(2.5);
+    expect(third.metrics[0]?.changePct).toBeCloseTo(60, 5);
+    expect(third.status).toBe("warn");
+    expect(third.passed).toBe(true);
+    expect(baseline(dir).series[LABEL]).toEqual([2, 3, 4]);
+  });
+
+  it("keeps one row per metric when history and matrix exports overlap", () => {
+    const dir = freshDir();
+    writeHistory(dir, [historyLine()]);
+    // `exportMetric()` writes into `<results>/<db>/`; the metricKey fallback must
+    // not add a second row for a label the history source already produced.
+    mkdirSync(join(dir, "sqlite"), { recursive: true });
+    writeFileSync(
+      join(dir, "sqlite", "matrix_metrics.json"),
+      JSON.stringify({
+        "rest.list.p95_ms": { _type: "numeric-metric", value: 9.9 },
+      }),
+    );
+
+    const result = evaluateBenchmarkGate({
+      db: "sqlite",
+      sinceIso: "2026-10-20T09:59:00.000Z",
+      policy: "fail",
+      resultsDir: dir,
+    });
+
+    const labels = result.metrics.map((m) => m.label);
+    expect(labels).toEqual([LABEL]);
+    expect(new Set(labels).size).toBe(labels.length);
+    // History wins over the export fallback, so the value is 2ms, not 9.9ms.
+    expect(result.metrics[0]?.current).toBe(2);
+  });
+
+  it("discards a baseline recorded in a different execution mode", () => {
+    const dir = freshDir();
+    const stored: GateBaseline = {
+      version: 1,
+      db: "sqlite",
+      mode: { runMode: "matrix", serverMode: "development" },
+      updatedAt: "2026-10-19T10:00:00.000Z",
+      series: { [LABEL]: [1, 1] },
+    };
+    writeFileSync(join(dir, "gate-baseline-sqlite.json"), JSON.stringify(stored));
+    writeHistory(dir, [historyLine({ p95Ms: 4 })]);
+
+    const result = evaluateBenchmarkGate({
+      db: "sqlite",
+      sinceIso: "2026-10-20T09:59:00.000Z",
+      policy: "fail",
+      resultsDir: dir,
+    });
+
+    expect(result.metrics[0]?.baseline).toBeNull();
+    expect(result.metrics[0]?.changePct).toBeNull();
+    expect(result.status).toBe("pass");
+    expect(baseline(dir).series[LABEL]).toEqual([4]);
   });
 });

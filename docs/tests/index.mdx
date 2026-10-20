@@ -203,7 +203,7 @@ bun run gate
 # Tier 3: Manual local health (before PR)
 bun run test:doctor                 # unit + SQLite integration + gate map
 bun run test:e2e                    # optional full browser suite
-# Full multi-DB + benches + 6 E2E groups: GitHub Actions only
+# Full multi-DB + benches + 8 E2E groups: GitHub Actions only
 ```
 
 | Command                     |   Build    | SQLite integration | Multi-DB / benches / E2E |
@@ -223,8 +223,8 @@ The `next` branch workflow currently validates changes in this order:
 2. `whitebox` — two runners: **policy/quality** (format, lint, check/typecheck, CVE audit, secret misuse, deploy-backdoor probe, hardware tier probe, tenant gate) and **unit** (coverage + component interaction + mutation).
 3. `build` — Production bundle (`COMPILE_ALL_ADAPTERS=true`).
 4. `db-tests` — Black-box integration matrix across SQLite, MongoDB, MariaDB, and PostgreSQL.
-5. `bench-core` — Core performance benchmarks per adapter (CI-only; not pre-push).
-6. `e2e-prep` — wizard + auth-setup, then `e2e` × 6 named groups (Playwright).
+5. `bench-core` — Core performance benchmarks per adapter, then the regression gate. Every push/PR runs it; the gate compares against the cached per-adapter baseline and annotates (`::warning`/`::error`) or fails on a budget breach. CI-only; not pre-push.
+6. `e2e-prep` — wizard + auth-setup, then `e2e` × 8 named groups (Playwright).
 7. `all-green` — consolidates job results.
 
 Pre-push locally is **build + SQLite integration only**. Multi-DB, benchmarks, and E2E remain GitHub-only unless you run them manually (`test:e2e`, `DB_TYPE=… bun test tests/integration/`).
