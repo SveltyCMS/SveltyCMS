@@ -10,9 +10,31 @@
  *   RESULT_BUILD=success RESULT_E2E=failure bun run scripts/ci/ci-report-all-green.ts
  */
 
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 
 type Outcome = "success" | "failure" | "cancelled" | "skipped" | "unknown";
+
+interface GateMetric {
+  label: string;
+  current: number;
+  baseline: number | null;
+  changePct: number | null;
+  budget: number;
+  severity: "ok" | "warn" | "fail";
+  reason: string | null;
+}
+
+interface GateReport {
+  db: string;
+  policy: "warn" | "fail";
+  passed: boolean;
+  status: "pass" | "warn" | "fail";
+  baselineRuns: number;
+  metrics: GateMetric[];
+  warnings: number;
+  failures: number;
+}
 
 const JOBS: Array<{ key: string; label: string; fix: string }> = [
   {
@@ -45,6 +67,11 @@ const JOBS: Array<{ key: string; label: string; fix: string }> = [
     label: "db-tests (4 adapters)",
     fix: "Open 📋 DB Summary + db-results-*; fix adapter-specific contract/API failures",
   },
+  {
+    key: "RESULT_BENCH_CORE",
+    label: "bench-core (performance gate)",
+    fix: "Open the 📊 Bench job log; fix the budget breach or regression, or re-run if it is runner noise",
+  },
 ];
 
 function outcome(v: string | undefined): Outcome {
@@ -66,6 +93,59 @@ function icon(o: Outcome): string {
     default:
       return "❔";
   }
+}
+
+/** Gate reports uploaded by the bench matrix (`benchmark-gate-*` artifacts). */
+function readGateReports(): GateReport[] {
+  const dir = path.resolve("tests/benchmarks/results/gates");
+  if (!existsSync(dir)) return [];
+
+  const reports: GateReport[] = [];
+  for (const entry of readdirSync(dir)) {
+    if (!/^gate-report-[a-z0-9-]+\.json$/i.test(entry)) continue;
+    try {
+      const report = JSON.parse(readFileSync(path.join(dir, entry), "utf8")) as GateReport;
+      if (report && Array.isArray(report.metrics)) reports.push(report);
+    } catch {
+      /* malformed report — skip */
+    }
+  }
+  return reports.sort((a, b) => a.db.localeCompare(b.db));
+}
+
+function buildGateSection(reports: readonly GateReport[]): string {
+  if (reports.length === 0) return "";
+
+  let md = `### 🚦 Performance gate\n\n`;
+  md += `| Adapter | Policy | Baseline | Failures | Warnings | Verdict |\n`;
+  md += `| :--- | :--- | :--- | ---: | ---: | :--- |\n`;
+  for (const report of reports) {
+    const verdict =
+      report.status === "fail" ? "🔴 fail" : report.status === "warn" ? "🟠 warn" : "🟢 pass";
+    const baseline = report.baselineRuns === 0 ? "building" : `${report.baselineRuns} prior run(s)`;
+    md += `| **${report.db.toUpperCase()}** | \`${report.policy}\` | ${baseline} | ${report.failures} | ${report.warnings} | ${verdict} |\n`;
+  }
+
+  const flagged = reports.flatMap((report) =>
+    report.metrics
+      .filter((metric) => metric.severity !== "ok")
+      .map((metric) => ({ db: report.db, metric })),
+  );
+  if (flagged.length > 0) {
+    md += `\n| Adapter | Metric | Current | Baseline | Δ | Budget | Verdict |\n`;
+    md += `| :--- | :--- | ---: | ---: | ---: | ---: | :--- |\n`;
+    for (const { db, metric } of flagged) {
+      const baseline = metric.baseline === null ? "—" : `${metric.baseline.toFixed(3)}ms`;
+      const change =
+        metric.changePct === null
+          ? "—"
+          : `${metric.changePct >= 0 ? "+" : ""}${metric.changePct.toFixed(0)}%`;
+      const verdict = metric.severity === "fail" ? "🔴 fail" : "🟠 warn";
+      md += `| ${db} | ${metric.label} | ${metric.current.toFixed(3)}ms | ${baseline} | ${change} | ${metric.budget}ms | ${verdict} |\n`;
+    }
+  }
+
+  return `${md}\n`;
 }
 
 function main(): number {
@@ -98,6 +178,15 @@ function main(): number {
     md += `\n_Expand the failed job’s **Summary** tab for pass/fail tables and error snippets._\n\n`;
   } else {
     md += `_All required jobs succeeded._\n\n`;
+  }
+
+  const gateReports = readGateReports();
+  const gateWarnings = gateReports.reduce((sum, report) => sum + report.warnings, 0);
+  const gateFailures = gateReports.reduce((sum, report) => sum + report.failures, 0);
+  if (gateReports.length > 0) {
+    const gateIcon = gateFailures > 0 ? "🔴" : gateWarnings > 0 ? "🟠" : "🟢";
+    md += `_Performance gate: ${gateIcon} ${gateFailures} failure(s), ${gateWarnings} warning(s) across ${gateReports.length} adapter(s). See the table below._\n\n`;
+    md += buildGateSection(gateReports);
   }
 
   const summary = process.env.GITHUB_STEP_SUMMARY;

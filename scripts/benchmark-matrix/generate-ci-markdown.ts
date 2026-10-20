@@ -21,6 +21,28 @@ interface DbSummary {
   status: string;
 }
 
+interface GateMetric {
+  label: string;
+  current: number;
+  baseline: number | null;
+  changePct: number | null;
+  budget: number;
+  budgetExceeded: boolean;
+  severity: "ok" | "warn" | "fail";
+  reason: string | null;
+}
+
+interface GateReport {
+  db: string;
+  policy: "warn" | "fail";
+  passed: boolean;
+  status: "pass" | "warn" | "fail";
+  baselineRuns: number;
+  metrics: GateMetric[];
+  warnings: number;
+  failures: number;
+}
+
 function formatValue(val: string): string {
   if (!val || val === "-" || val.toUpperCase() === "N/A") return "N/A";
   // Remove existing 'ms' suffix if present, to avoid doubling it
@@ -120,6 +142,80 @@ async function parseMdxReport(filePath: string): Promise<DbSummary | null> {
   }
 }
 
+/**
+ * Aggregate the per-adapter gate reports emitted by `ci-regression-gate.ts`.
+ * Returns an empty string when benchmarks were skipped (no reports uploaded).
+ */
+async function buildGateSection(): Promise<string> {
+  const dirs = [
+    path.resolve("tests/benchmarks/results/gates"),
+    path.resolve("tests/benchmarks/results"),
+    REPORTS_DIR,
+  ];
+  const seen = new Set<string>();
+  const reports: GateReport[] = [];
+
+  for (const dir of dirs) {
+    let entries: string[];
+    try {
+      entries = await fs.readdir(dir);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const match =
+        /^gate-report-([a-z0-9-]+)\.json$/i.exec(entry) ?? /^gate_([a-z0-9-]+)\.json$/i.exec(entry);
+      if (!match) continue;
+      const db = match[1]!;
+      if (seen.has(db)) continue;
+      try {
+        const report = JSON.parse(await fs.readFile(path.join(dir, entry), "utf8")) as GateReport;
+        if (!report || !Array.isArray(report.metrics)) continue;
+        seen.add(db);
+        reports.push(report);
+      } catch {
+        /* malformed report — skip */
+      }
+    }
+  }
+
+  if (reports.length === 0) return "";
+  reports.sort((a, b) => a.db.localeCompare(b.db));
+
+  let md = "\n## 🚦 Performance Gate\n\n";
+  md += "| Database | Policy | Baseline | Failures | Warnings | Verdict |\n";
+  md += "| :--- | :--- | :--- | ---: | ---: | :--- |\n";
+  for (const report of reports) {
+    const icon = report.status === "fail" ? "🔴" : report.status === "warn" ? "🟠" : "🟢";
+    const baseline = report.baselineRuns === 0 ? "building" : `${report.baselineRuns} prior run(s)`;
+    md += `| **${report.db.toUpperCase()}** | \`${report.policy}\` | ${baseline} | ${report.failures} | ${report.warnings} | ${icon} ${report.status} |\n`;
+  }
+
+  const flagged = reports.flatMap((report) =>
+    report.metrics
+      .filter((metric) => metric.severity !== "ok")
+      .map((metric) => ({ db: report.db, metric })),
+  );
+
+  if (flagged.length === 0) {
+    return `${md}\nNo budget breaches or drift beyond the thresholds.\n`;
+  }
+
+  md += "\n| Database | Metric | Current | Baseline | Δ | Budget | Verdict |\n";
+  md += "| :--- | :--- | ---: | ---: | ---: | ---: | :--- |\n";
+  for (const { db, metric } of flagged) {
+    const baseline = metric.baseline === null ? "—" : `${metric.baseline.toFixed(3)}ms`;
+    const change =
+      metric.changePct === null
+        ? "—"
+        : `${metric.changePct >= 0 ? "+" : ""}${metric.changePct.toFixed(0)}%`;
+    const icon = metric.severity === "fail" ? "🔴" : "🟠";
+    md += `| ${db} | ${metric.label} | ${metric.current.toFixed(3)}ms | ${baseline} | ${change} | ${metric.budget}ms | ${icon} ${metric.severity} |\n`;
+  }
+
+  return `${md}\n`;
+}
+
 async function main() {
   const reports = ["sqlite", "mariadb", "postgresql", "mongodb"];
   const results: DbSummary[] = [];
@@ -150,6 +246,8 @@ async function main() {
             : "⏳";
     md += `| **${r.db.toUpperCase()}** | ${r.coldStart} | ${r.truthHttp} | ${r.crudInsert} | ${r.hooks} | ${icon} ${r.status} |\n`;
   }
+
+  md += await buildGateSection();
 
   // Write to GITHUB_STEP_SUMMARY if running in CI
   if (process.env.GITHUB_STEP_SUMMARY) {

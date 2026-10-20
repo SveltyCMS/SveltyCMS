@@ -36,6 +36,8 @@ on:
     paths-ignore:
       - "**.md"
       - "docs/**"
+  # Manual run: benchmarks always execute (there is no path gate).
+  workflow_dispatch:
 
 concurrency:
   # `next` and PR runs cancel superseded pushes. `main` keeps the SHA in the
@@ -66,13 +68,8 @@ jobs:
       test-secret: ${{ steps.secret-gen.outputs.secret }}
       db-matrix: ${{ steps.matrices.outputs.db }}
       e2e-matrix: ${{ steps.matrices.outputs.e2e }}
-      bench: ${{ steps.scope.outputs.bench }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Full history: the benchmark scope diffs against the push base
-          # (and the PR base SHA), so the base commit must be present.
-          fetch-depth: 0
 
       - name: Setup Environment
         uses: ./.github/actions/setup-sveltycms
@@ -89,30 +86,6 @@ jobs:
             echo "db=$(node .github/workflows/db-matrix.ts)"
             echo "e2e=$(node .github/workflows/e2e-matrix.ts)"
           } >> "$GITHUB_OUTPUT"
-
-      # Benchmark scope lives here too: bootstrap already has a checkout and
-      # Node, so a separate 11s runner only adds queue noise. `main` always
-      # benchmarks; `next`/PR runs only when a hot-path file changed.
-      - name: Determine benchmark scope
-        id: scope
-        run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "bench=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
-          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-            BASE="HEAD^"
-          fi
-          if git diff --name-only "$BASE" HEAD | grep -Eq '^(src/(databases|services/(sdk|media)|utils/media|routes/api|hooks|utils/rate-limit|content)/|package\.json|bun\.lock|vite\.config|svelte\.config|tests/benchmarks/|scripts/(runs/(run-core-benchmarks|integration-harness)\.ts|benchmark-matrix/))'; then
-            echo "bench=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "bench=false" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Verify Codegen
         run: |
@@ -453,9 +426,8 @@ jobs:
   # 8. Core Benchmarks (fast perf gate per DB adapter)
   # ------------------------------------------------
   bench-core:
-    name: 📊 Bench (${{ matrix.db }})
+    name: 📊 Bench + gate (${{ matrix.db }})
     needs: [bootstrap, build, docker-cache]
-    if: needs.bootstrap.outputs.bench == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -503,6 +475,17 @@ jobs:
           docker compose -f tests/docker-compose.yml --profile postgresql up -d --wait
           bun run scripts/probe/wait-for-ready.ts tcp:127.0.0.1:5432 --timeout=90000 --interval=2000
 
+      # Rolling per-adapter baseline for the performance gate. Fresh runners have
+      # no `tests/benchmarks/results` (gitignored), so without this every run
+      # looked like a first run and drift could never be detected.
+      - name: Restore benchmark baseline
+        uses: actions/cache/restore@v6
+        with:
+          path: tests/benchmarks/results/gate-baseline-${{ matrix.db }}.json
+          key: bench-baseline-${{ runner.os }}-${{ matrix.db }}-${{ github.base_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            bench-baseline-${{ runner.os }}-${{ matrix.db }}-${{ github.base_ref || github.ref_name }}-
+
       - name: Run Core Benchmarks
         env:
           DB_TYPE: ${{ matrix.db }}
@@ -524,6 +507,9 @@ jobs:
           BENCHMARK_PROFILE: "ci-fresh"
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
+          # Fail the run on push regressions so the author is notified; PRs warn
+          # only so a noisy runner cannot block review. Absolute budgets always fail.
+          BENCHMARK_GATE_POLICY: ${{ github.event_name == 'pull_request' && 'warn' || 'fail' }}
           TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
           UDH_PG_DATABASE: ${{ matrix.db == 'postgresql' && 'sveltycms_udh_fixture' || 'sveltycms_test' }}
         run: |
@@ -555,6 +541,25 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Upload performance gate
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-gate-${{ matrix.db }}
+          path: tests/benchmarks/results/gate-report-${{ matrix.db }}.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+      # Save even when the gate fails: a regression must stay in the trend so the
+      # next run can confirm it instead of comparing against a stale baseline.
+      - name: Save benchmark baseline
+        if: always()
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: tests/benchmarks/results/gate-baseline-${{ matrix.db }}.json
+          key: bench-baseline-${{ runner.os }}-${{ matrix.db }}-${{ github.base_ref || github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+
       - name: Dump Docker Logs on Failure
         if: failure() && matrix.db != 'sqlite'
         run: docker compose -f tests/docker-compose.yml --profile ${{ matrix.db }} logs
@@ -569,8 +574,9 @@ jobs:
   bench-summary:
     name: 📊 Bench Summary
     needs: [bench-core]
-    # Nothing to summarize when the matrix was skipped (no perf-sensitive paths).
-    if: always() && needs.bench-core.result != 'skipped'
+    # Benchmarks run on every event; still summarize a failed matrix so the gate
+    # verdict is visible next to the failure.
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -584,6 +590,13 @@ jobs:
         with:
           pattern: benchmark-report-*
           path: docs/project/benchmarks
+          merge-multiple: true
+      - name: Download performance gate reports
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: benchmark-gate-*
+          path: tests/benchmarks/results/gates
           merge-multiple: true
       - name: Generate CI Summary
         continue-on-error: true
@@ -938,6 +951,7 @@ jobs:
       - e2e-prep
       - e2e
       - db-tests
+      - bench-core
     steps:
       - uses: actions/checkout@v7
         with:
@@ -946,6 +960,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.3.14"
+      # The gate report is the actionable part of a red bench run; pull it into
+      # this summary so reviewers do not have to open four matrix jobs.
+      - name: Download performance gate reports
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          pattern: benchmark-gate-*
+          path: tests/benchmarks/results/gates
+          merge-multiple: true
       - name: Job results dashboard
         if: always()
         env:
@@ -955,6 +978,7 @@ jobs:
           RESULT_E2E_PREP: ${{ needs.e2e-prep.result }}
           RESULT_E2E: ${{ needs.e2e.result }}
           RESULT_DB_TESTS: ${{ needs.db-tests.result }}
+          RESULT_BENCH_CORE: ${{ needs.bench-core.result }}
         run: bun run scripts/ci/ci-report-all-green.ts
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |

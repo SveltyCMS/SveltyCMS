@@ -473,14 +473,30 @@ bun run build:stats
 
 ### `scripts/runs/run-core-benchmarks.ts` — CI-Core Benchmarks
 
-Runs core benchmarks for one or all adapters.
+Runs the 8 core benchmarks for one or all adapters, then enforces the performance gate.
 
 ```bash
 bun run scripts/runs/run-core-benchmarks.ts              # All adapters
 bun run scripts/runs/run-core-benchmarks.ts --db=sqlite  # Single adapter
 ```
 
+The gate (`scripts/benchmark-matrix/ci-regression-gate.ts`) compares the current run against
+`PERFORMANCE_BUDGET` and a rolling per-adapter baseline. `BENCHMARK_GATE_POLICY=fail|warn`
+overrides the default (warn locally and on PRs, fail on `next`/`main` pushes).
+
 **Used by**: CI `bench-core` job.
+
+### `scripts/benchmark-matrix/ci-regression-gate.ts` — Performance Gate
+
+Reads `tests/benchmarks/results/history.jsonl` + `<db>/matrix_metrics.json`, evaluates budgets
+and drift, writes `gate-baseline-<db>.json` / `gate-report-<db>.json`, and emits GitHub
+annotations + a step-summary table.
+
+```bash
+bun run benchmark:gate --db=sqlite --policy=warn
+# or directly:
+bun run scripts/benchmark-matrix/ci-regression-gate.ts --db=sqlite --policy=warn
+```
 
 ### `scripts/verify-benchmark-local.ts` — Local Benchmark Preflight
 

@@ -443,7 +443,7 @@ sequenceDiagram
     GH->>Bench: Run per-adapter
     Bench->>DB: Start Docker container
     DB-->>Bench: Ready
-    Bench->>Bench: Run 6 core benchmarks
+    Bench->>Bench: Run 8 core benchmarks
     Bench->>Report: Write results to benchmark_*.mdx
     Bench-->>GH: Upload report artifact
     GH->>Summary: Aggregate all adapters
@@ -476,17 +476,27 @@ flowchart LR
 
 **`bench-core` job (per-adapter):**
 
-1. Runs 6 core benchmarks per adapter (truth-latency, database-performance, transaction-acid, cache-performance, hooks-performance, rest-api-performance)
-2. Reports pass/fail via `generate-ci-markdown.ts`
+1. Runs 8 core benchmarks per adapter (cold-start-phased, truth-latency, database-performance, transaction-acid, cache-performance, hooks-performance, rest-api-performance, virtual-query-federation)
+2. Runs `scripts/benchmark-matrix/ci-regression-gate.ts` after the tests:
+   - absolute ceilings from `PERFORMANCE_BUDGET` / `ADAPTER_BUDGET_OVERRIDES` always fail
+   - relative drift is compared against a rolling baseline (median of the last runs)
+   - policy: **fail** on push runs (`next`/`main`), **warn-only** on PRs (`BENCHMARK_GATE_POLICY` overrides)
+   - emits `::warning`/`::error` annotations, a `$GITHUB_STEP_SUMMARY` table, and `gate-report-<db>.json`
+3. Persists `gate-baseline-<db>.json` through `actions/cache` (per adapter + branch) so a fresh runner keeps its trend history
+4. Reports pass/fail via `generate-ci-markdown.ts`
+
+Benchmarks run on **every** push and PR — there are no skipped bench placeholders. The first run on a branch records the baseline and says so; later runs compare against it.
 
 **`bench-summary` job (post-matrix):**
 
 1. Aggregates all per-adapter MDX reports
-2. Produces `ci-summary.json` and `$GITHUB_STEP_SUMMARY`
+2. Aggregates the per-adapter gate reports into a single performance-gate table
+3. Produces `ci-summary.json` and `$GITHUB_STEP_SUMMARY`
 
 **Quality gate (hooks + CI — no separate precheck-shared.ts):**
 
-- `push` tier: runs `bench-core` on changed code
+- `push` tier: `bench-core` runs on **every** `next`/`main` push, then the performance gate fails the run on a budget breach or severe drift
+- PR tier: `bench-core` runs on every PR; the gate warns instead of blocking review
 - `full` tier: runs complete bench matrix
 
 ## Commands Reference

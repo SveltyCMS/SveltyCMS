@@ -12,11 +12,11 @@ updated: 2026-06-28
 
 SveltyCMS has three benchmark execution modes that share a **single data pipeline**:
 
-| Mode        | Command                                                 | Use Case      | Server                          | MDX Write                          |
-| ----------- | ------------------------------------------------------- | ------------- | ------------------------------- | ---------------------------------- |
-| **Single**  | `bun test tests/benchmarks/my-test.test.ts`             | Dev iteration | Starts own server               | `finalizeReport()` in `afterAll`   |
-| **Matrix**  | `bun run scripts/benchmark-matrix/index.ts --db=sqlite` | Full audit    | Shared across 57 tests          | `finalizeReport()` after all tests |
-| **CI Core** | `bun run benchmark-core` (ci.yml)                       | PR gating     | 6 core tests with shared server | `finalizeReport()` after group     |
+| Mode        | Command                                                 | Use Case      | Server                         | MDX Write                           |
+| ----------- | ------------------------------------------------------- | ------------- | ------------------------------ | ----------------------------------- |
+| **Single**  | `bun test tests/benchmarks/my-test.test.ts`             | Dev iteration | Starts own server              | `finalizeReport()` in `afterAll`    |
+| **Matrix**  | `bun run scripts/benchmark-matrix/index.ts --db=sqlite` | Full audit    | Shared across 57 tests         | `finalizeReport()` after all tests  |
+| **CI Core** | `bun run benchmark:core` (ci.yml)                       | PR gating     | 8 core tests, one process each | `ci-regression-gate.ts` after tests |
 
 **All three write to the same `history.jsonl`.** The `runMode` field keeps data isolated — matrix runs never mix with standalone runs in trend calculations.
 
@@ -27,7 +27,7 @@ flowchart TD
     subgraph Run["EXECUTION MODES"]
         A["bun test my.test.ts<br/>(standalone)"] --> D
         B["benchmark-matrix --db=sqlite<br/>(matrix, 57 tests)"] --> D
-        C["CI: bench-core job<br/>(6 core tests × 4 DBs)"] --> D
+        C["CI: bench-core job<br/>(8 core tests × 4 DBs)"] --> D
     end
 
     subgraph Collect["DATA COLLECTION (per test)"]
@@ -298,7 +298,7 @@ This writes one line to `tests/benchmarks/results/history.jsonl`:
 
 **Matrix mode**: Called by the matrix orchestrator AFTER all 57 tests complete, not per-test. This prevents duplicate MDX writes.
 
-**CI mode**: Called after the 6 core tests complete.
+**CI mode**: `run-core-benchmarks.ts` runs the 8 core tests, then `ci-regression-gate.ts` evaluates budgets and drift.
 
 ### What `finalizeReport()` does:
 
@@ -373,20 +373,23 @@ Each report shows **mode-aware** sections:
 
 ## CI Integration (ci.yml)
 
-The `bench-core` job runs 6 core tests across 4 databases:
+The `bench-core` job runs 8 core tests across 4 databases:
 
 ```
-Core tests: truth-latency, database-performance, transaction-acid,
-            cache-performance, hooks-performance, rest-api-performance
+Core tests: cold-start-phased, truth-latency, database-performance,
+            transaction-acid, cache-performance, hooks-performance,
+            rest-api-performance, virtual-query-federation
 ```
 
-These are the same `CORE_BENCHMARKS` defined in `tests/benchmarks/core.ts`. The CI job:
+The CI job:
 
-1. Starts ONE server per DB (SQLite, MariaDB, PostgreSQL, MongoDB)
-2. Seeds data once
-3. Runs the 6 core tests against the shared server
-4. Calls `finalizeReport()` after all 6 complete
-5. Writes results to `$GITHUB_STEP_SUMMARY` as Markdown
+1. Restores the rolling per-adapter baseline (`gate-baseline-<db>.json`) from `actions/cache`
+2. Runs each core test in its own process (lingering servers are killed between files)
+3. Reads the metrics those tests exported to `history.jsonl` / `matrix_metrics.json`
+4. Calls `ci-regression-gate.ts` to enforce absolute budgets and compare against the rolling baseline
+5. Writes results to `$GITHUB_STEP_SUMMARY` as Markdown (`::warning`/`::error` annotations for flagged metrics)
+
+The gate fails on budget breaches for every branch; relative drift fails on push runs (`next`/`main`) and warns on PRs. On a cold cache it records the baseline and says so instead of guessing.
 
 CI runs take ~4 minutes total (vs ~10 hours old way).
 
@@ -415,13 +418,15 @@ bun run scripts/benchmark-matrix/index.ts
 ### CI simulation:
 
 ```bash
-# Run just the core 6 tests (what CI does)
-bun test tests/benchmarks/truth-latency.test.ts \
+# Run just the core 8 tests (what CI does)
+bun test tests/benchmarks/cold-start-phased.test.ts \
+       tests/benchmarks/truth-latency.test.ts \
        tests/benchmarks/database-performance.test.ts \
        tests/benchmarks/transaction-acid.test.ts \
        tests/benchmarks/cache-performance.test.ts \
        tests/benchmarks/hooks-performance.test.ts \
        tests/benchmarks/rest-api-performance.test.ts \
+       tests/benchmarks/virtual-query-federation.test.ts \
        --timeout 120000
 ```
 

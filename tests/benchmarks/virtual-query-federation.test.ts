@@ -8,7 +8,13 @@
  * Record with: BENCHMARK_RECORD=1 bun test tests/benchmarks/virtual-query-federation.test.ts
  */
 
-import { test, runBenchmark, getDbType, printTruthTable } from "./modules/benchmark-utils";
+import {
+  test,
+  runBenchmark,
+  getDbType,
+  printTruthTable,
+  exportResult,
+} from "./modules/benchmark-utils";
 import "../unit/bun-preload.ts";
 import { vi } from "vitest";
 
@@ -130,6 +136,7 @@ async function runVirtualFederationBenchmark() {
     title: "Virtual Query Federation (Mock REST)",
     results: [{ ...result, layer: "Federation", shortLabel: "Passthrough" }],
   });
+  await exportResult(result);
   console.log("\n✅ Phase 0 benchmark baseline recorded (mock REST connector).");
   console.log("   Target v1.0: p95 < 50ms LocalCMS + local DB; < 500ms with external REST.\n");
 
@@ -183,6 +190,7 @@ async function runLivePostgresFederationBenchmark() {
     title: "Virtual Query Federation (Live Postgres)",
     results: [{ ...result, layer: "Federation", shortLabel: "Postgres 100 rows" }],
   });
+  await exportResult(result);
 
   const p95 = result.p95Ms ?? 0;
   if (p95 > 50) {
@@ -298,6 +306,7 @@ async function runLiveWordPressRestFederationBenchmark() {
     title: "Virtual Query Federation (Live WordPress REST)",
     results: [{ ...result, layer: "Federation", shortLabel: "REST 25 rows" }],
   });
+  await exportResult(result);
 
   const p95 = result.p95Ms ?? 0;
   console.log(`✅ Live WordPress REST p95 ${p95.toFixed(2)}ms (target < 500ms external REST).\n`);

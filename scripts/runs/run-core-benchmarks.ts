@@ -19,6 +19,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { join } from "node:path";
 import { getBenchmarkTestEnv } from "../../src/utils/test-db-credentials";
 import { printBenchmarkIsolationBanner } from "../../src/utils/benchmark-sandbox";
+import {
+  evaluateBenchmarkGate,
+  reportBenchmarkGate,
+  type GatePolicy,
+} from "../benchmark-matrix/ci-regression-gate";
 
 const ROOT = process.cwd();
 const VALID_DBS = ["sqlite", "mongodb", "mariadb", "postgresql"] as const;
@@ -103,7 +108,19 @@ function assertBuildIncludesAdapter(db: (typeof VALID_DBS)[number]): boolean {
   return false;
 }
 
+/** Push runs fail on drift so the author is notified; PRs only warn. */
+function resolveGatePolicy(): GatePolicy {
+  const raw = process.env.BENCHMARK_GATE_POLICY?.toLowerCase();
+  if (raw === "fail" || raw === "warn") return raw;
+  const event = process.env.GITHUB_EVENT_NAME;
+  return event && event !== "pull_request" ? "fail" : "warn";
+}
+
 async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boolean> {
+  // Timestamp the invocation so the gate only compares metrics this run exported
+  // (the results directory may hold samples from earlier local/CI runs).
+  const runStartedAt = new Date(Date.now() - 10_000).toISOString();
+
   if (!existsSync(join(ROOT, "build", "index.js"))) {
     console.error("❌ build/index.js missing. Run COMPILE_ALL_ADAPTERS=true bun run build first.");
     return false;
@@ -170,10 +187,22 @@ async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boole
 
   if (failures > 0) {
     console.error(`\n❌ ${failures} benchmark test(s) failed for ${db}`);
+    console.error("   Performance gate skipped — fix the failing benchmark(s) first.");
     return false;
   }
 
-  console.log(`\n✅ All core benchmarks passed for ${db}`);
+  console.log(`\n✅ All core benchmark tests passed for ${db}`);
+
+  // Tests only fail on functional errors. The gate is what turns latency drift
+  // into a visible signal (budgets + rolling baseline).
+  const gate = evaluateBenchmarkGate({
+    db,
+    sinceIso: runStartedAt,
+    policy: resolveGatePolicy(),
+  });
+  reportBenchmarkGate(gate);
+
+  if (!gate.passed) return false;
   return true;
 }
 
