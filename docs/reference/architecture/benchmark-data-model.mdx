@@ -389,7 +389,7 @@ The CI job:
 4. Calls `ci-regression-gate.ts` to enforce absolute budgets and compare against the rolling baseline
 5. Writes results to `$GITHUB_STEP_SUMMARY` as Markdown (`::warning`/`::error` annotations for flagged metrics)
 
-The gate fails on budget breaches for every branch; relative drift fails on push runs (`next`/`main`) and warns on PRs. On a cold cache it records the baseline and says so instead of guessing.
+The gate fails on budget breaches for every branch; relative drift fails on push runs (`next`/`main`) and warns on PRs. On a cold cache it records baseline samples (two are required before drift is judged) and shows the progress instead of guessing.
 
 CI runs take ~4 minutes total (vs ~10 hours old way).
 

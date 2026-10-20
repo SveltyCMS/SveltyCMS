@@ -485,7 +485,7 @@ flowchart LR
 3. Persists `gate-baseline-<db>.json` through `actions/cache` (per adapter + branch) so a fresh runner keeps its trend history
 4. Reports pass/fail via `generate-ci-markdown.ts`
 
-Benchmarks run on **every** push and PR — there are no skipped bench placeholders. The first run on a branch records the baseline and says so; later runs compare against it.
+Benchmarks run on **every** push and PR — there are no skipped bench placeholders. The first two runs record baseline samples (`building (1/2)` → `building (2/2)`); the third compares against the median. Absolute budgets are enforced from run one.
 
 **`bench-summary` job (post-matrix):**
 

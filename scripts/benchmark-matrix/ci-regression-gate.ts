@@ -72,6 +72,7 @@ export const GATE_METRICS: readonly GateMetricSpec[] = [
   {
     testFile: "truth-latency",
     metric: "HTTP End-to-End",
+    metricKey: "truth.http.p95",
     stat: "p95",
     budgetKey: "collections",
     label: "Truth HTTP p95",
@@ -79,6 +80,7 @@ export const GATE_METRICS: readonly GateMetricSpec[] = [
   {
     testFile: "rest-api-performance",
     metric: "Collection Find (List Limit 20)",
+    metricKey: "rest.list.p95_ms",
     stat: "p95",
     budgetKey: "collections",
     label: "REST list p95",
@@ -86,6 +88,7 @@ export const GATE_METRICS: readonly GateMetricSpec[] = [
   {
     testFile: "rest-api-performance",
     metric: "Single Document Read",
+    metricKey: "rest.point_read.p95_ms",
     stat: "p95",
     budgetKey: "collections",
     label: "REST point read p95",
@@ -100,6 +103,7 @@ export const GATE_METRICS: readonly GateMetricSpec[] = [
   {
     testFile: "hooks-performance",
     metric: "Full Security + Auth Pipeline",
+    metricKey: "middleware.hooks.full_p95",
     stat: "p95",
     budgetKey: "securityMs",
     label: "Hooks/security p95",
@@ -138,30 +142,6 @@ export const GATE_METRICS: readonly GateMetricSpec[] = [
     stat: "p95",
     budgetKey: "indexPressure",
     label: "UDH WordPress REST p95",
-  },
-  {
-    metricKey: "truth.http.p95",
-    stat: "avg",
-    budgetKey: "collections",
-    label: "Truth HTTP p95 (exportMetric)",
-  },
-  {
-    metricKey: "rest.list.p95_ms",
-    stat: "avg",
-    budgetKey: "collections",
-    label: "REST list p95 (exportMetric)",
-  },
-  {
-    metricKey: "rest.point_read.p95_ms",
-    stat: "avg",
-    budgetKey: "collections",
-    label: "REST point read p95 (exportMetric)",
-  },
-  {
-    metricKey: "middleware.hooks.full_p95",
-    stat: "avg",
-    budgetKey: "securityMs",
-    label: "Hooks/security p95 (exportMetric)",
   },
   {
     metricKey: "adapter.read.avg",
@@ -234,6 +214,8 @@ export interface GateResult {
   status: GateStatus;
   generatedAt: string;
   baselineRuns: number;
+  /** Samples required before drift is judged (UI progress: `building (1/2)`). */
+  baselineTarget: number;
   metrics: GateMetricResult[];
   warnings: number;
   failures: number;
@@ -300,7 +282,7 @@ export function evaluateSamples(
     const baseline = hasBaseline ? median(history) : null;
     const budgetExceeded = sample.value > sample.budget;
 
-    if (hasBaseline) baselineRuns = Math.max(baselineRuns, history.length);
+    baselineRuns = Math.max(baselineRuns, history.length);
 
     let severity: GateSeverity = "ok";
     let reason: string | null = null;
@@ -349,6 +331,7 @@ export function evaluateSamples(
     status: failures > 0 ? "fail" : warnings > 0 ? "warn" : "pass",
     generatedAt: new Date().toISOString(),
     baselineRuns,
+    baselineTarget: MIN_BASELINE_RUNS,
     metrics,
     warnings,
     failures,
@@ -488,10 +471,11 @@ export function evaluateBenchmarkGate(options: GateOptions): GateResult {
 /** Human-readable table shared by the CLI and the CI step summary. */
 export function renderGateMarkdown(result: GateResult): string {
   const icon = result.status === "fail" ? "🔴" : result.status === "warn" ? "🟠" : "🟢";
-  const baselineText =
-    result.baselineRuns === 0
-      ? "building (no prior runs yet)"
-      : `${result.baselineRuns} prior run(s)`;
+  const target = result.baselineTarget ?? 2;
+  const building = result.baselineRuns < target;
+  const baselineText = building
+    ? `building (${result.baselineRuns}/${target} samples)`
+    : `${result.baselineRuns} prior run(s)`;
 
   let md = `### ${icon} Performance gate — ${result.db.toUpperCase()}\n\n`;
   md += `Policy: \`${result.policy}\` · Baseline: ${baselineText}\n\n`;
@@ -509,8 +493,8 @@ export function renderGateMarkdown(result: GateResult): string {
     md += `| ${metric.label} | ${metric.current.toFixed(3)}ms | ${baseline} | ${change} | ${metric.budget}ms | ${verdict} |\n`;
   }
 
-  if (result.baselineRuns === 0) {
-    md += `\n> Baseline building: the next run(s) will be compared against this sample. Absolute budgets are already enforced.\n`;
+  if (building) {
+    md += `\n> Baseline building (${result.baselineRuns}/${target}): ${target - result.baselineRuns} more run(s) before drift is judged. Absolute budgets are already enforced.\n`;
   }
   return `${md}\n`;
 }

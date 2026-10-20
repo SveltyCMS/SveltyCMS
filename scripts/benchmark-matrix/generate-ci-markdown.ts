@@ -38,6 +38,7 @@ interface GateReport {
   passed: boolean;
   status: "pass" | "warn" | "fail";
   baselineRuns: number;
+  baselineTarget?: number;
   metrics: GateMetric[];
   warnings: number;
   failures: number;
@@ -143,10 +144,10 @@ async function parseMdxReport(filePath: string): Promise<DbSummary | null> {
 }
 
 /**
- * Aggregate the per-adapter gate reports emitted by `ci-regression-gate.ts`.
- * Returns an empty string when benchmarks were skipped (no reports uploaded).
+ * Read the per-adapter gate reports emitted by `ci-regression-gate.ts`.
+ * Later directories do not overwrite a DB already found in an earlier one.
  */
-async function buildGateSection(): Promise<string> {
+async function readGateReports(): Promise<GateReport[]> {
   const dirs = [
     path.resolve("tests/benchmarks/results/gates"),
     path.resolve("tests/benchmarks/results"),
@@ -179,15 +180,29 @@ async function buildGateSection(): Promise<string> {
     }
   }
 
+  return reports.sort((a, b) => a.db.localeCompare(b.db));
+}
+
+/** Current value of a gate metric, formatted for the audit table. */
+function gateValue(report: GateReport | undefined, label: string): string | null {
+  const metric = report?.metrics.find((m) => m.label === label);
+  return metric ? `${metric.current.toFixed(3)}ms` : null;
+}
+
+/** Aggregate the per-adapter gate reports. Empty string when benchmarks did not run. */
+function buildGateSection(reports: readonly GateReport[]): string {
   if (reports.length === 0) return "";
-  reports.sort((a, b) => a.db.localeCompare(b.db));
 
   let md = "\n## 🚦 Performance Gate\n\n";
   md += "| Database | Policy | Baseline | Failures | Warnings | Verdict |\n";
   md += "| :--- | :--- | :--- | ---: | ---: | :--- |\n";
   for (const report of reports) {
     const icon = report.status === "fail" ? "🔴" : report.status === "warn" ? "🟠" : "🟢";
-    const baseline = report.baselineRuns === 0 ? "building" : `${report.baselineRuns} prior run(s)`;
+    const target = report.baselineTarget ?? 2;
+    const baseline =
+      report.baselineRuns < target
+        ? `building (${report.baselineRuns}/${target})`
+        : `${report.baselineRuns} prior run(s)`;
     md += `| **${report.db.toUpperCase()}** | \`${report.policy}\` | ${baseline} | ${report.failures} | ${report.warnings} | ${icon} ${report.status} |\n`;
   }
 
@@ -231,6 +246,9 @@ async function main() {
     return;
   }
 
+  const gateReports = await readGateReports();
+  const gateByDb = new Map(gateReports.map((report) => [report.db, report]));
+
   let md = "## 📊 Core Performance Audit\n\n";
   md += "| Database | Cold Start | HTTP E2E | INSERT | Hooks | Status |\n";
   md += "| :--- | :--- | :--- | :--- | :--- | :--- |\n";
@@ -244,10 +262,15 @@ async function main() {
           : r.status.includes("WARN")
             ? "🔴"
             : "⏳";
-    md += `| **${r.db.toUpperCase()}** | ${r.coldStart} | ${r.truthHttp} | ${r.crudInsert} | ${r.hooks} | ${icon} ${r.status} |\n`;
+    const gate = gateByDb.get(r.db);
+    // The gate metrics are fresh and exact; the MDX audit only carries values
+    // that happen to be in markdown tables (ASCII ledger blocks show as “-”).
+    const httpE2e = gateValue(gate, "Truth HTTP p95") ?? r.truthHttp;
+    const hooks = gateValue(gate, "Hooks/security p95") ?? r.hooks;
+    md += `| **${r.db.toUpperCase()}** | ${r.coldStart} | ${httpE2e} | ${r.crudInsert} | ${hooks} | ${icon} ${r.status} |\n`;
   }
 
-  md += await buildGateSection();
+  md += buildGateSection(gateReports);
 
   // Write to GITHUB_STEP_SUMMARY if running in CI
   if (process.env.GITHUB_STEP_SUMMARY) {

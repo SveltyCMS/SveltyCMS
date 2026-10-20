@@ -31,6 +31,7 @@ interface GateReport {
   passed: boolean;
   status: "pass" | "warn" | "fail";
   baselineRuns: number;
+  baselineTarget?: number;
   metrics: GateMetric[];
   warnings: number;
   failures: number;
@@ -122,7 +123,11 @@ function buildGateSection(reports: readonly GateReport[]): string {
   for (const report of reports) {
     const verdict =
       report.status === "fail" ? "🔴 fail" : report.status === "warn" ? "🟠 warn" : "🟢 pass";
-    const baseline = report.baselineRuns === 0 ? "building" : `${report.baselineRuns} prior run(s)`;
+    const target = report.baselineTarget ?? 2;
+    const baseline =
+      report.baselineRuns < target
+        ? `building (${report.baselineRuns}/${target})`
+        : `${report.baselineRuns} prior run(s)`;
     md += `| **${report.db.toUpperCase()}** | \`${report.policy}\` | ${baseline} | ${report.failures} | ${report.warnings} | ${verdict} |\n`;
   }
 

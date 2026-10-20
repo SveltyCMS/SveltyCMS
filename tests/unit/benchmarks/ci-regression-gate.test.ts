@@ -77,6 +77,8 @@ describe("CI performance gate", () => {
 
     expect(result.status).toBe("pass");
     expect(result.metrics[0]?.baseline).toBeNull();
+    expect(result.baselineRuns).toBe(1);
+    expect(result.baselineTarget).toBe(2);
   });
 
   it("resolves adapter budget overrides", () => {
