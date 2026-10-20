@@ -175,7 +175,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 			<iconify-icon
 				icon="mdi:chevron-down"
 				width={sizeTokens.icon}
-				class="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-400 transition-transform peer-focus:rotate-180"
+				class="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-500 dark:text-surface-400 transition-transform peer-focus:rotate-180"
 				aria-hidden="true"
 			></iconify-icon>
 		</div>
@@ -230,7 +230,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 			<iconify-icon
 				icon="mdi:chevron-down"
 				width={sizeTokens.icon}
-				class="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-400"
+				class="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-surface-500 dark:text-surface-400"
 				aria-hidden="true"
 			></iconify-icon>
 		</div>

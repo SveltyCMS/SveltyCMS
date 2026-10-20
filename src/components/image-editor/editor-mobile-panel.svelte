@@ -598,9 +598,9 @@ Mobile bottom chrome — slider, mode pills, compact tool controls, icon rail.
 	.editor-mobile-tool-sheet {
 		--mc-chip: rgba(255, 255, 255, 0.09);
 		--mc-chip-active: rgba(255, 255, 255, 0.94);
-		--mc-chip-text: rgba(255, 255, 255, 0.62);
+		--mc-chip-text: rgba(255, 255, 255, 0.82);
 		--mc-chip-text-active: #141414;
-		--mc-label: rgba(255, 255, 255, 0.45);
+		--mc-label: rgba(255, 255, 255, 0.7);
 		--mc-field: rgba(255, 255, 255, 0.08);
 		--mc-field-focus: rgba(255, 255, 255, 0.13);
 		--mc-pill-h: 2.125rem;

@@ -392,6 +392,8 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chip-active-text: var(--editor-chrome-bg, #f8fafc);
 		--editor-slider-track: color-mix(in oklch, var(--editor-chrome-text, #0f172a) 24%, transparent);
 		--editor-accent: var(--color-primary-500, #3b82f6);
+		/* Accent used as TEXT/icon colour: darkened in light mode so it reads on its own pale wash (>=4.5:1). */
+		--editor-accent-text: color-mix(in oklch, var(--editor-accent) 45%, #000);
 		--editor-accent-hover: var(--color-primary-600, #2563eb);
 		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
 		--editor-control-h: 2.25rem;
@@ -406,7 +408,13 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-chrome-bg: var(--admin-bg-card, var(--color-surface-900, #0f172a));
 		--editor-chrome-surface: var(--admin-bg-page, var(--color-surface-950, #09090b));
 		--editor-canvas-bg: var(--color-surface-950, #09090b);
-		--editor-chrome-text: var(--admin-text-muted, #94a3b8);
+		/* Muted chrome text, lifted so small labels clear 4.5:1 on the elevated dark chips (was surface-400, ~3.5:1). */
+		--editor-chrome-text: color-mix(
+			in oklch,
+			var(--admin-text-body, #f8fafc) 90%,
+			var(--editor-chrome-bg)
+		);
+		--editor-accent-text: var(--editor-accent);
 		--editor-chrome-text-hover: var(--admin-text-body, #f8fafc);
 		--editor-chrome-text-active: var(--admin-text-body, #f8fafc);
 		--editor-chip-active-bg: var(--admin-text-body, #f8fafc);

@@ -240,16 +240,18 @@ and first/last navigation used by the admin CMS.
 
 	<!-- Desktop -->
 	<div
-		class="hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs text-surface-500 md:flex dark:text-surface-400 md:text-sm"
+		class="hidden flex-wrap items-center gap-x-3 gap-y-1 text-xs text-(--admin-text-body) md:flex dark:text-surface-400 md:text-sm"
 		role="status"
 		aria-live="polite"
 	>
 		{#if canPaginate}
 			<span>
 				{entrylist_page()}
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+				<span class="font-semibold text-(--admin-text-body) dark:text-primary-500"
+					>{currentPage}</span
+				>
 				{entrylist_of()}
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500"
+				<span class="font-semibold text-(--admin-text-body) dark:text-primary-500"
 					>{computedPagesCount}</span
 				>
 			</span>
@@ -261,11 +263,13 @@ and first/last navigation used by the admin CMS.
 		<span aria-label="Current items shown">
 			{#if totalItems > 0}
 				{entrylist_showing()}
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500">{startItem}</span>–<span
-					class="font-semibold text-tertiary-500 dark:text-primary-500">{endItem}</span
+				<span class="font-semibold text-(--admin-text-body) dark:text-primary-500">{startItem}</span
+				>–<span class="font-semibold text-(--admin-text-body) dark:text-primary-500">{endItem}</span
 				>
 				{entrylist_of()}
-				<span class="font-semibold text-tertiary-500 dark:text-primary-500">{totalItems}</span>
+				<span class="font-semibold text-(--admin-text-body) dark:text-primary-500"
+					>{totalItems}</span
+				>
 				{entrylist_items()}
 			{:else}
 				{entrylist_showing()} 0 {entrylist_of()} 0 {entrylist_items()}
@@ -396,7 +400,7 @@ and first/last navigation used by the admin CMS.
 				aria-label="Previous page"
 			/>
 			<div class="flex items-center gap-1 px-2">
-				<span class="font-bold text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+				<span class="font-bold text-(--admin-text-body) dark:text-primary-500">{currentPage}</span>
 				<span class="opacity-50">/</span>
 				<span>{computedPagesCount}</span>
 			</div>

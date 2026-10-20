@@ -212,7 +212,7 @@ Mobile annotate controls — single centered scroll strip; preset swatches + cus
 		padding-inline: 0.125rem 0.0625rem;
 		font-size: 0.5625rem;
 		font-weight: 500;
-		color: color-mix(in oklch, var(--editor-chrome-text, #fff) 58%, transparent);
+		color: color-mix(in oklch, var(--editor-chrome-text, #fff) 92%, transparent);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 		white-space: nowrap;

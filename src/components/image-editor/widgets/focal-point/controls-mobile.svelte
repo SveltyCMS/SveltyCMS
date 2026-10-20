@@ -92,7 +92,7 @@ Mobile focal point controls — preset strip + reset; X/Y sliders live in editor
 		font-size: 0.6875rem;
 		font-weight: 500;
 		line-height: 1.2;
-		color: color-mix(in oklch, var(--editor-chrome-text, #fff) 62%, transparent);
+		color: color-mix(in oklch, var(--editor-chrome-text, #fff) 80%, transparent);
 	}
 
 	.focal-mobile-strip {
