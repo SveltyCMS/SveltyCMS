@@ -49,20 +49,59 @@ describe("CI performance gate", () => {
     expect(result.metrics[0]?.severity).toBe("warn");
   });
 
-  it("fails severe drift on the fail policy", () => {
+  it("warns but waits for confirmation on the first severe drift", () => {
     const result = evaluateSamples("sqlite", "fail", [sample(3)], { [LABEL]: [1, 1] });
+
+    expect(result.status).toBe("warn");
+    expect(result.passed).toBe(true);
+    expect(result.metrics[0]?.severe).toBe(true);
+    expect(result.metrics[0]?.streak).toBe(1);
+    expect(result.metrics[0]?.reason).toContain("pending confirmation (1/2)");
+  });
+
+  it("fails severe drift on the fail policy once confirmed", () => {
+    const result = evaluateSamples(
+      "sqlite",
+      "fail",
+      [sample(3)],
+      { [LABEL]: [1, 1] },
+      { [LABEL]: 1 },
+    );
 
     expect(result.status).toBe("fail");
     expect(result.passed).toBe(false);
     expect(result.failures).toBe(1);
+    expect(result.metrics[0]?.streak).toBe(2);
+    expect(result.metrics[0]?.reason).toContain("confirmed 2 runs");
   });
 
-  it("downgrades severe drift to a warning under the warn policy", () => {
-    const result = evaluateSamples("sqlite", "warn", [sample(3)], { [LABEL]: [1, 1] });
+  it("downgrades a confirmed severe drift to a warning under the warn policy", () => {
+    const result = evaluateSamples(
+      "sqlite",
+      "warn",
+      [sample(3)],
+      { [LABEL]: [1, 1] },
+      { [LABEL]: 1 },
+    );
 
     expect(result.status).toBe("warn");
     expect(result.passed).toBe(true);
     expect(result.failures).toBe(0);
+    expect(result.metrics[0]?.streak).toBe(2);
+  });
+
+  it("clears the streak when the metric recovers", () => {
+    const result = evaluateSamples(
+      "sqlite",
+      "fail",
+      [sample(1)],
+      { [LABEL]: [1, 1] },
+      { [LABEL]: 1 },
+    );
+
+    expect(result.status).toBe("pass");
+    expect(result.metrics[0]?.severe).toBe(false);
+    expect(result.metrics[0]?.streak).toBe(0);
   });
 
   it("always fails an absolute budget breach", () => {
@@ -197,6 +236,39 @@ describe("CI performance gate (filesystem)", () => {
     expect(new Set(labels).size).toBe(labels.length);
     // History wins over the export fallback, so the value is 2ms, not 9.9ms.
     expect(result.metrics[0]?.current).toBe(2);
+  });
+
+  it("freezes the baseline until a severe drift is confirmed", () => {
+    const dir = freshDir();
+    const stored: GateBaseline = {
+      version: 1,
+      db: "sqlite",
+      mode: { runMode: "standalone", serverMode: "production" },
+      updatedAt: "2026-10-19T10:00:00.000Z",
+      series: { [LABEL]: [1, 1] },
+    };
+    writeFileSync(join(dir, "gate-baseline-sqlite.json"), JSON.stringify(stored));
+
+    const run = (at: string, sinceIso: string): GateResult => {
+      writeHistory(dir, [historyLine({ p95Ms: 3, timestamp: at })]);
+      return evaluateBenchmarkGate({ db: "sqlite", sinceIso, policy: "fail", resultsDir: dir });
+    };
+
+    const first = run("2026-10-20T10:00:00.000Z", "2026-10-20T09:59:00.000Z");
+
+    expect(first.status).toBe("warn");
+    expect(first.passed).toBe(true);
+    expect(first.metrics[0]?.streak).toBe(1);
+    // A single noisy sample must not re-baseline the metric.
+    expect(baseline(dir).series[LABEL]).toEqual([1, 1]);
+    expect(baseline(dir).severeStreak?.[LABEL]).toBe(1);
+
+    const second = run("2026-10-20T11:00:00.000Z", "2026-10-20T10:30:00.000Z");
+
+    expect(second.status).toBe("fail");
+    expect(second.passed).toBe(false);
+    expect(second.metrics[0]?.streak).toBe(2);
+    expect(baseline(dir).series[LABEL]).toEqual([1, 1, 3]);
   });
 
   it("discards a baseline recorded in a different execution mode", () => {

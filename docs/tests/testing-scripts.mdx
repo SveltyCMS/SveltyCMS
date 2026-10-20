@@ -481,7 +481,9 @@ bun run scripts/runs/run-core-benchmarks.ts --db=sqlite  # Single adapter
 ```
 
 The gate (`scripts/benchmark-matrix/ci-regression-gate.ts`) compares the current run against
-`PERFORMANCE_BUDGET` and a rolling per-adapter baseline. `BENCHMARK_GATE_POLICY=fail|warn`
+`PERFORMANCE_BUDGET` and a rolling per-adapter baseline. Drift warns at ≥25 % + ≥0.25 ms and
+fails at ≥100 % + ≥1 ms, but a severe drift must repeat on the next run (the first observation
+freezes the baseline and reports `pending confirmation`). `BENCHMARK_GATE_POLICY=fail|warn`
 overrides the default (warn locally and on PRs, fail on `next`/`main` pushes).
 
 **Used by**: CI `bench-core` job.
@@ -490,7 +492,8 @@ overrides the default (warn locally and on PRs, fail on `next`/`main` pushes).
 
 Reads `tests/benchmarks/results/history.jsonl` + `<db>/matrix_metrics.json`, evaluates budgets
 and drift, writes `gate-baseline-<db>.json` / `gate-report-<db>.json`, and emits GitHub
-annotations + a step-summary table.
+annotations + a step-summary table. Severe drift is confirmed across two runs before it fails;
+the baseline is frozen in between so one noisy runner cannot re-baseline the metric.
 
 ```bash
 bun run benchmark:gate --db=sqlite --policy=warn

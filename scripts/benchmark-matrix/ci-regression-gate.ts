@@ -18,6 +18,8 @@
  * - Baseline-building grace: the first runs only record the baseline, never fail on it
  * - Mode parity: a baseline recorded against a different server mode is discarded
  * - Warn-only on PRs, hard-fail on push runs (`BENCHMARK_GATE_POLICY` overrides)
+ * - Severe drift needs two consecutive observations; the first one freezes the
+ *   baseline so a noisy runner cannot both warn and re-baseline the value
  * - Pure `evaluateSamples()` core so the thresholds are unit-testable without I/O
  */
 
@@ -34,6 +36,13 @@ const WARN_PCT = 25;
 const WARN_MIN_DELTA_MS = 0.25;
 const FAIL_PCT = 100;
 const FAIL_MIN_DELTA_MS = 1;
+
+/**
+ * Severe drift must be observed this many runs in a row before it fails the
+ * build. Parallel CI runners routinely shift a sub-5 ms metric by >100 % for one
+ * run; a single sample is not evidence of a code regression.
+ */
+const SEVERE_CONFIRMATIONS = 2;
 
 /** Samples kept per metric in the rolling baseline. */
 const BASELINE_WINDOW = 7;
@@ -197,6 +206,10 @@ export interface GateMetricResult {
   budgetExceeded: boolean;
   severity: GateSeverity;
   reason: string | null;
+  /** Raw severe threshold met, independent of policy and confirmation. */
+  severe: boolean;
+  /** Consecutive severe observations, including this one. */
+  streak: number;
 }
 
 export interface GateBaseline {
@@ -205,6 +218,8 @@ export interface GateBaseline {
   mode: { runMode: string; serverMode: string };
   updatedAt: string;
   series: Record<string, number[]>;
+  /** Consecutive severe observations carried into the next run. */
+  severeStreak?: Record<string, number>;
 }
 
 export interface GateResult {
@@ -270,6 +285,7 @@ export function evaluateSamples(
   policy: GatePolicy,
   current: readonly GateSample[],
   series: Record<string, number[]>,
+  priorStreak: Record<string, number> = {},
 ): GateResult {
   const metrics: GateMetricResult[] = [];
   let warnings = 0;
@@ -287,16 +303,25 @@ export function evaluateSamples(
     let severity: GateSeverity = "ok";
     let reason: string | null = null;
     let changePct: number | null = null;
+    let severe = false;
+    let streak = 0;
 
     if (baseline !== null && baseline > 0) {
       const delta = sample.value - baseline;
       changePct = (delta / baseline) * 100;
-      const severe = changePct >= FAIL_PCT && delta >= FAIL_MIN_DELTA_MS;
+      severe = changePct >= FAIL_PCT && delta >= FAIL_MIN_DELTA_MS;
       const moderate = changePct >= WARN_PCT && delta >= WARN_MIN_DELTA_MS;
+      streak = severe ? (priorStreak[sample.label] ?? 0) + 1 : 0;
 
       if (severe) {
-        severity = policy === "fail" ? "fail" : "warn";
-        reason = `regressed ${changePct.toFixed(0)}% vs ${baseline.toFixed(3)}ms baseline`;
+        if (streak >= SEVERE_CONFIRMATIONS) {
+          severity = policy === "fail" ? "fail" : "warn";
+          reason = `regressed ${changePct.toFixed(0)}% vs ${baseline.toFixed(3)}ms baseline (confirmed ${streak} runs)`;
+        } else {
+          // First observation: notify, but do not fail a single noisy run.
+          severity = "warn";
+          reason = `regressed ${changePct.toFixed(0)}% vs ${baseline.toFixed(3)}ms baseline — pending confirmation (${streak}/${SEVERE_CONFIRMATIONS})`;
+        }
       } else if (moderate) {
         severity = "warn";
         reason = `drifted ${changePct.toFixed(0)}% vs ${baseline.toFixed(3)}ms baseline`;
@@ -321,6 +346,8 @@ export function evaluateSamples(
       budgetExceeded,
       severity,
       reason,
+      severe,
+      streak,
     });
   }
 
@@ -442,12 +469,20 @@ export function evaluateBenchmarkGate(options: GateOptions): GateResult {
   const modeMatches =
     stored?.mode.runMode === mode.runMode && stored?.mode.serverMode === mode.serverMode;
   const series = modeMatches ? { ...stored.series } : {};
+  const priorStreak = modeMatches ? (stored?.severeStreak ?? {}) : {};
 
-  const result = evaluateSamples(db, policy, samples, series);
+  const result = evaluateSamples(db, policy, samples, series, priorStreak);
 
   if (write) {
     mkdirSync(resultsDir, { recursive: true });
+    const severeStreak: Record<string, number> = {};
     for (const metric of result.metrics) {
+      if (metric.streak > 0) severeStreak[metric.label] = metric.streak;
+      // Freeze the baseline on an unconfirmed severe drift so the next run
+      // compares against the pre-regression level instead of re-baselining it.
+      const awaitingConfirmation =
+        policy === "fail" && metric.severe && metric.streak < SEVERE_CONFIRMATIONS;
+      if (awaitingConfirmation) continue;
       const next = [...(series[metric.label] ?? []), metric.current].slice(-BASELINE_WINDOW);
       series[metric.label] = next;
     }
@@ -457,6 +492,7 @@ export function evaluateBenchmarkGate(options: GateOptions): GateResult {
       mode,
       updatedAt: result.generatedAt,
       series,
+      severeStreak,
     };
     writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
     writeFileSync(
