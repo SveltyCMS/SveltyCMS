@@ -24,14 +24,10 @@ import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
 import { readSessionCookie, isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
 import { getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
 import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
-import {
-  decideSessionRisk,
-  evaluateSessionAnomaly,
-  type SessionRiskAction,
-} from "@src/databases/auth/session-user";
+import { isSurfaceStepUp, type SessionRiskAction } from "@src/databases/auth/session-user";
 import { resolveRequestTenant } from "./request-tenant";
 import { applyAllSecurityHeaders } from "./handle-security-headers";
-import { getClientIp, getRequestFlags } from "@utils/hook-utils";
+import { getRequestFlags } from "@utils/hook-utils";
 import {
   negotiateEncoding,
   hasNativeCompression,
@@ -232,15 +228,9 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
 
   // 🛡️ Session-surface risk parity with the write lane: a different browser on
   // a live session must step up, so the cached response is not served.
-  const risk = decideSessionRisk(
-    evaluateSessionAnomaly({
-      currentIp: getClientIp(event),
-      currentUserAgent: request.headers.get("user-agent"),
-      storedIp: turboCtx.boundIp,
-      storedUserAgent: turboCtx.boundUserAgent,
-    }),
-  );
-  if (risk === "step-up") return resolve(event);
+  if (isSurfaceStepUp(request.headers.get("user-agent"), turboCtx.boundUserAgent)) {
+    return resolve(event);
+  }
 
   locals.user = turboCtx.user;
   locals.roles = turboCtx.roles;

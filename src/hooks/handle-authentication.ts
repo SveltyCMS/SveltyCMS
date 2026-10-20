@@ -55,6 +55,7 @@ import { CacheCategory } from "@src/databases/cache/types";
 import {
   decideSessionRisk,
   evaluateSessionAnomaly,
+  isSurfaceStepUp,
   toSafeSessionUser,
   type SessionRiskAction,
 } from "@src/databases/auth/session-user";
@@ -955,12 +956,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       Date.now() < turboCtx.expiresAt &&
       turboCtx.mfaPolicyKnown === true &&
       validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr) &&
-      riskFromSurface(
-        getClientIp(event),
-        event.request.headers.get("user-agent"),
-        turboCtx.boundIp,
-        turboCtx.boundUserAgent,
-      ) !== "step-up"
+      !isSurfaceStepUp(event.request.headers.get("user-agent"), turboCtx.boundUserAgent)
     ) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
@@ -1008,12 +1004,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       Date.now() < turboCtx.expiresAt &&
       turboCtx.mfaPolicyKnown === true &&
       validateSessionMfaRequirement(turboCtx.user, turboCtx.roles, turboCtx.amr) &&
-      riskFromSurface(
-        getClientIp(event),
-        event.request.headers.get("user-agent"),
-        turboCtx.boundIp,
-        turboCtx.boundUserAgent,
-      ) !== "step-up"
+      !isSurfaceStepUp(event.request.headers.get("user-agent"), turboCtx.boundUserAgent)
     ) {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
@@ -1262,7 +1253,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
                     mfaVerifiedAt: resolution.mfaVerifiedAt,
                     // The session branch has not loaded the full role list yet;
                     // handleAuthorization flips this to true on the same request.
-                    mfaPolicyKnown: ((locals as any).roles?.length ?? 0) > 0,
+                    mfaPolicyKnown:
+                      ((locals as any).roles?.length ?? 0) > 0 ||
+                      isAdmin(user) ||
+                      (user as { role?: string }).role === "admin",
                   }
                 : undefined,
             );
@@ -1758,9 +1752,10 @@ export function primeSessionMemoryCache(
   setSessionInCache(sessionId, entry);
   const resolvedTenant = tenantId ?? (safeUser as User).tenantId ?? null;
   const safeRoles = roles ?? [];
+  const userAdmin = isAdmin(safeUser) || (safeUser as { role?: string }).role === "admin";
   setTurboAuthContext(sessionId, safeUser, safeRoles, resolvedTenant, undefined, undefined, {
     amr,
     mfaVerifiedAt,
-    mfaPolicyKnown: safeRoles.length > 0,
+    mfaPolicyKnown: safeRoles.length > 0 || userAdmin,
   });
 }

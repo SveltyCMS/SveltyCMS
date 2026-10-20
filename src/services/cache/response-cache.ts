@@ -488,6 +488,7 @@ class ResponseCacheService {
    * nursery + mature rotation completely avoids iterator and eviction allocation churn.
    */
   private admitPointRead(fullKey: string): boolean {
+    if (this.pointL1.has(fullKey)) return true;
     if (this.pointAdmissionMature.has(fullKey) || this.pointAdmissionNursery.has(fullKey)) {
       return true;
     }

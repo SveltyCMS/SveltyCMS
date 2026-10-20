@@ -41,9 +41,8 @@ import {
   hasPermissionBitmask,
   isPermissionBitsetStale,
 } from "@src/databases/auth/permission-bitmask";
-import { getClientIp } from "@utils/hook-utils";
 import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
-import { decideSessionRisk, evaluateSessionAnomaly } from "@src/databases/auth/session-user";
+import { isSurfaceStepUp } from "@src/databases/auth/session-user";
 import { recordAuditEntry } from "./handle-audit-logging";
 
 /**
@@ -335,15 +334,7 @@ function openWarmMutation(
   // GraphQL POST validates CSRF again. The token rotates on a successful
   // header check, so a second call would reject the request it just accepted.
   (locals as { __laneCsrfChecked?: boolean }).__laneCsrfChecked = true;
-  const risk = decideSessionRisk(
-    evaluateSessionAnomaly({
-      currentIp: getClientIp(event),
-      currentUserAgent: request.headers.get("user-agent"),
-      storedIp: turbo.boundIp,
-      storedUserAgent: turbo.boundUserAgent,
-    }),
-  );
-  if (risk === "step-up") {
+  if (isSurfaceStepUp(request.headers.get("user-agent"), turbo.boundUserAgent)) {
     throw new AppError(
       "Sign in again to continue. This session was presented by a different browser.",
       403,

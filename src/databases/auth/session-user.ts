@@ -109,6 +109,22 @@ export function decideSessionRisk(drift: {
 }
 
 /**
+ * Fast-path check for session risk step-up.
+ * Step-up is required if and only if the stored user-agent was recorded
+ * and the current request's user-agent differs from it.
+ */
+export function isSurfaceStepUp(
+  currentUserAgent?: string | null,
+  storedUserAgent?: string | null,
+): boolean {
+  if (!storedUserAgent || !currentUserAgent) return false;
+  if (storedUserAgent === currentUserAgent) return false;
+  const sUa = storedUserAgent.trim().toLowerCase();
+  const cUa = currentUserAgent.trim().toLowerCase();
+  return sUa.length > 0 && cUa.length > 0 && sUa !== cUa;
+}
+
+/**
  * Authentication Methods References (RFC 8176) evaluation helpers.
  *
  * Supported AMR identifiers:

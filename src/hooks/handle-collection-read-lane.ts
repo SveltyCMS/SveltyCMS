@@ -683,9 +683,6 @@ async function executeWarmCollectionRead(
   // session: detecting it is one `Atomics.load`, not a database round-trip.
   if (isPermissionBitsetStale(turbo.permRev)) return null;
 
-  const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
-  if (tenantP) await tenantP;
-
   const userId = turbo.userId;
   const pathKey = turbo.userSegment
     ? `${turbo.userSegment}:${url.pathname}${url.search}`
@@ -740,6 +737,10 @@ async function executeWarmCollectionRead(
     }
     return res;
   }
+
+  // 🚀 Fast-path cache miss: sync DB adapter tenant context only when touching the database.
+  const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
+  if (tenantP) await tenantP;
 
   const listParams = !entryId ? parseCollectionQueryParams(url.searchParams) : null;
   if (listParams && (listParams.stream || listParams.limit >= MAX_PAGE_SIZE)) {

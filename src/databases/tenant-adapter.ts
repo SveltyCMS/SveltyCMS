@@ -141,7 +141,10 @@ export function applyAdapterTenantContext(
       ? (adapter as TenantBoundAdapter).unscoped()
       : adapter;
   const targetTenant = (tenantId ?? null) as string | null;
-  if ((raw as any)._currentTenantId === targetTenant) {
+  const current =
+    (raw as { currentTenantId?: string | null }).currentTenantId ??
+    (raw as { _currentTenantId?: string | null })._currentTenantId;
+  if (current === targetTenant) {
     return;
   }
   const fn = (raw as { setTenantContext?: (id: string | null) => Promise<void> }).setTenantContext;
