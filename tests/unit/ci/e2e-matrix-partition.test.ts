@@ -20,18 +20,24 @@ const E2E_DIR = join(ROOT, "tests/e2e");
 
 /** Mirrors the chromium project's testIgnore; smoke.spec.ts is pre-push only. */
 const NOT_IN_SHARDS = [
-  /setup-wizard\.spec\.ts$/,
-  /routes[\\/]login[\\/](login|signup|oauth)\.spec\.ts$/,
-  /tests[\\/]e2e[\\/]smoke\.spec\.ts$/,
+  "setup-wizard.spec.ts",
+  "/routes/login/login.spec.ts",
+  "/routes/login/signup.spec.ts",
+  "/routes/login/oauth.spec.ts",
+  "/tests/e2e/smoke.spec.ts",
 ];
 
 function collectSpecs(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) collectSpecs(full, out);
-    else if (entry.name.endsWith(".spec.ts") && !NOT_IN_SHARDS.some((re) => re.test(full))) {
-      out.push(full.replaceAll("\\", "/"));
+    if (entry.isDirectory()) {
+      collectSpecs(full, out);
+      continue;
     }
+    if (!entry.name.endsWith(".spec.ts")) continue;
+    const normalized = full.replaceAll("\\", "/");
+    if (NOT_IN_SHARDS.some((suffix) => normalized.endsWith(suffix))) continue;
+    out.push(normalized);
   }
   return out;
 }
