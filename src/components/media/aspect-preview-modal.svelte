@@ -131,7 +131,7 @@ with interactive focal point adjustment that persists to the server.
 		></button>
 
 		<div
-			class="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-surface-500/10 shadow-2xl dark:bg-surface-900 mx-4"
+			class="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-(--admin-bg-card) shadow-2xl mx-4"
 			transition:scale={{ start: 0.95, duration: 150 }}
 		>
 			<!-- Header -->
@@ -197,7 +197,7 @@ with interactive focal point adjustment that persists to the server.
 
 				<div class="flex gap-2">
 					<Button variant="outline" onclick={handleClose}>Cancel</Button>
-					<Button variant="tertiary" onclick={handleSave} disabled={isSaving}>
+					<Button variant="primary" onclick={handleSave} disabled={isSaving}>
 						{#if isSaving}
 							<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>
 						{/if}

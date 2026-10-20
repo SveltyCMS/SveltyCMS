@@ -90,7 +90,7 @@ Pintura-style focal point bottom dock controls.
 		</div>
 
 		<span
-			class="text-[10px] italic text-(--editor-chrome-text) opacity-50 whitespace-nowrap gap-[0.35rem] items-center hidden sm:inline-flex"
+			class="text-[10px] italic text-(--editor-chrome-text) opacity-80 whitespace-nowrap gap-[0.35rem] items-center hidden sm:inline-flex"
 		>
 			<iconify-icon icon="mdi:mouse-left-click-outline" width="14" aria-hidden="true"
 			></iconify-icon>

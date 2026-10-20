@@ -175,7 +175,7 @@ Active tool uses a soft rounded square highlight only.
 
 <style>
 	.tool-active {
-		color: var(--editor-accent, var(--color-primary-500));
+		color: var(--editor-accent-text, var(--editor-accent, var(--color-primary-500)));
 		background: color-mix(
 			in oklch,
 			var(--editor-accent, var(--color-primary-500)) 12%,

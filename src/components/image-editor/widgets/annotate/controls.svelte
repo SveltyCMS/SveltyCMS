@@ -50,7 +50,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full gap-1.5 px-2"
 		>
 			<span
-				class="text-[10px] font-normal text-(--editor-chrome-text) opacity-60 lowercase whitespace-nowrap"
+				class="text-[10px] font-normal text-(--editor-chrome-text) opacity-80 lowercase whitespace-nowrap"
 				>line</span
 			>
 			<label class="relative block size-5.5 shrink-0 cursor-pointer" title="Stroke color">
@@ -72,7 +72,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 			class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full gap-1.5 px-2"
 		>
 			<span
-				class="text-[10px] font-normal text-(--editor-chrome-text) opacity-60 lowercase whitespace-nowrap"
+				class="text-[10px] font-normal text-(--editor-chrome-text) opacity-80 lowercase whitespace-nowrap"
 				>fill</span
 			>
 			<label class="relative block size-5.5 shrink-0 cursor-pointer" title="Fill color">
@@ -95,7 +95,7 @@ Pintura-style annotate bottom dock — single centered row with colors, text, an
 				class="inline-flex flex-[0_0_auto] items-center h-auto min-h-0 p-0.5 bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-full gap-1.5 px-2"
 			>
 				<span
-					class="text-[10px] font-normal text-(--editor-chrome-text) opacity-60 lowercase whitespace-nowrap"
+					class="text-[10px] font-normal text-(--editor-chrome-text) opacity-80 lowercase whitespace-nowrap"
 					>text</span
 				>
 				<input

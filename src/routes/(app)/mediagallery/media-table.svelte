@@ -407,7 +407,7 @@
 				<col class="media-table-col-type" style={smartTable.getColumnWidthStyle('type')} />
 				<col class="media-table-col-actions" style={smartTable.getColumnWidthStyle('_actions')} />
 			</colgroup>
-			<thead class="{SMART_TABLE_THEAD} backdrop-blur-sm">
+			<thead class="{SMART_TABLE_THEAD} text-(--admin-text-body)! backdrop-blur-sm">
 				<tr class="text-[10px] font-semibold uppercase tracking-wider">
 					<th
 						class="media-table-select {SMART_TABLE_TH} {pinCellClass('start')} w-9 shrink-0"

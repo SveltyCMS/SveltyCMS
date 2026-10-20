@@ -192,7 +192,7 @@ aspect-preview plugin and Drupal's focal point preview.
 				</div>
 
 				<!-- Ratio label -->
-				<div class="px-2 py-1.5 text-center text-xs font-semibold text-(--admin-text-muted)">
+				<div class="px-2 py-1.5 text-center text-xs font-semibold text-(--admin-text-body)">
 					{ratio.label}
 				</div>
 			</div>
