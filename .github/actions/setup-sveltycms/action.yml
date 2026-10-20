@@ -48,8 +48,11 @@ runs:
       uses: actions/cache/restore@v6
       with:
         path: .bun-cache
-        # v3: bust legacy dual-path / corrupt digests; include bun version for runtime skew
-        key: bun-v3-${{ runner.os }}-${{ inputs.bun-version }}-${{ hashFiles('bun.lock', 'package.json') }}
+        # v3: bust legacy dual-path / corrupt digests; include bun version for runtime skew.
+        # Hash the dependency graph only: package.json script edits (e.g. adding a
+        # test alias) do not change what `bun install` downloads, but hashing it
+        # forced a full cache restore + save on every such change.
+        key: bun-v3-${{ runner.os }}-${{ inputs.bun-version }}-${{ hashFiles('bun.lock', 'bunfig.toml', '.npmrc', 'patches/**') }}
         restore-keys: |
           bun-v3-${{ runner.os }}-${{ inputs.bun-version }}-
           bun-v3-${{ runner.os }}-
@@ -62,6 +65,9 @@ runs:
       run: |
         echo "::group::bun install"
         bun install --frozen-lockfile --prefer-offline --cache-dir .bun-cache
+        # Visibility for the dominant setup cost: a multi-hundred-MB archive turns
+        # the restore step into a 40s+ download on every matrix job.
+        du -sh .bun-cache 2>/dev/null || true
         echo "::endgroup::"
 
     - name: Install dependencies (pnpm fallback)

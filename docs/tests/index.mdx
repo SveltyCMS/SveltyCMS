@@ -220,7 +220,7 @@ See **[Git Workflow & Quality Gate](./git-workflow.mdx)** for Docker prerequisit
 The `next` branch workflow currently validates changes in this order:
 
 1. `bootstrap` — Bun install, codegen verification, E2E secret generation.
-2. `whitebox` — format, lint, check, unit, CVE audit, secret misuse, deploy-backdoor probe, hardware tier probe (cgroup).
+2. `whitebox` — two runners: **policy/quality** (format, lint, check/typecheck, CVE audit, secret misuse, deploy-backdoor probe, hardware tier probe, tenant gate) and **unit** (coverage + component interaction + mutation).
 3. `build` — Production bundle (`COMPILE_ALL_ADAPTERS=true`).
 4. `db-tests` — Black-box integration matrix across SQLite, MongoDB, MariaDB, and PostgreSQL.
 5. `bench-core` — Core performance benchmarks per adapter (CI-only; not pre-push).

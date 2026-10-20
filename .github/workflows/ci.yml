@@ -163,11 +163,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Static + policy checks share one runner. Each is seconds of work and
-          # previously paid a full checkout + install (~6 extra runners). Format
-          # and lint stay first so they fail fast.
-          - task: 01-static
-            name: 🖌️ Static & Policy Checks
+          # Static + policy + type/tenant/backdoor checks share one runner. Each is
+          # seconds-to-minutes of work and previously paid a full checkout + Bun
+          # install on four separate VMs. Unit stays separate because coverage +
+          # mutation is the long pole. Keep format/lint first so they fail fast.
+          - task: 01-policy
+            name: 🖌️ Static, Policy & Quality
             run: |
               echo "::group::oxfmt --check"
               bun run format --check
@@ -185,12 +186,6 @@ jobs:
               echo "::group::hardware tiers"
               bun run scripts/probe/probe-hardware-tiers.ts
               echo "::endgroup::"
-              echo "✅ Static and policy checks clean"
-          - task: 03-check
-            name: ✅ Quality Gate (check)
-            # Format + lint already ran in 01-static; this job owns the
-            # type-level, lockfile, and seam contracts.
-            run: |
               echo "::group::lockfile-sync"
               bun run scripts/check/check-lockfile-sync.ts
               echo "::endgroup::"
@@ -203,7 +198,13 @@ jobs:
               echo "::group::typecheck (tsc + svelte-check)"
               bun run typecheck
               echo "::endgroup::"
-              echo "✅ Quality gate clean"
+              echo "::group::tenant lint + unit"
+              bun run test:tenant
+              echo "::endgroup::"
+              echo "::group::deploy backdoor probe"
+              bun run scripts/probe/probe-deploy-testing-api.ts
+              echo "::endgroup::"
+              echo "✅ Static, policy, and quality gates clean"
           - task: 04-unit
             name: ⚡ Unit Tests
             # --coverage runs the exact suite `bun run test:unit` (the pre-commit hook) runs
@@ -218,15 +219,7 @@ jobs:
               bun run test:unit:coverage
               bun run test:unit:components
               bun run test:mutation
-          - task: 04b-tenant-gate
-            name: 🛡️ Tenant Isolation Gate
-            run: |
-              echo "::group::tenant lint + unit"
-              bun run test:tenant
-              echo "::endgroup::"
-          - task: 07-deploy-backdoor
-            name: 🚪 Deploy Backdoor Probe (A01)
-            run: bun run scripts/probe/probe-deploy-testing-api.ts
+            # (tenant + deploy backdoor moved into 01-policy)
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms
@@ -957,9 +950,11 @@ jobs:
         with:
           sparse-checkout: |
             scripts/ci/ci-report-all-green.ts
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v7
         with:
-          bun-version: "1.3.14"
+          node-version: 24
+      # The dashboard is a plain Node script (node:fs/node:path). Node 24 runs the
+      # TypeScript directly, so this job does not need a Bun toolchain at all.
       # The gate report is the actionable part of a red bench run; pull it into
       # this summary so reviewers do not have to open four matrix jobs.
       - name: Download performance gate reports
@@ -979,7 +974,7 @@ jobs:
           RESULT_E2E: ${{ needs.e2e.result }}
           RESULT_DB_TESTS: ${{ needs.db-tests.result }}
           RESULT_BENCH_CORE: ${{ needs.bench-core.result }}
-        run: bun run scripts/ci/ci-report-all-green.ts
+        run: node scripts/ci/ci-report-all-green.ts
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |
           echo "::error::One or more required jobs failed or were cancelled — see All-Green Gate summary for fix order"

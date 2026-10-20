@@ -89,7 +89,7 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 
 ### CI gate parity (`ci.yml` → local mirror)
 
-CI runs 5 whitebox tasks + harness build + DB ×4 + bench ×4 + 8 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
+CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 8 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
 
 | CI job (`ci.yml`)                  | Local mirror                                                                                                                                                                                                                       |
 | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
