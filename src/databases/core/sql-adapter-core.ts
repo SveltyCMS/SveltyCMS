@@ -77,6 +77,7 @@ import {
   assertFilteredDelete,
   getEffectiveTenantId,
   getTenantCondition,
+  registerNestedDataTable,
   registerTableSchema,
   shouldBypassTenantCheck,
   validateId,
@@ -143,6 +144,13 @@ import { isSoftDeletedRow, queryHasSoftDeleteKey } from "../sql/read-predicates"
 for (const [tableName, columns] of Object.entries(SYSTEM_LITERAL_COLUMNS)) {
   registerTableSchema(tableName, columns as string[]);
 }
+
+// The `data` column on the version tables IS the document snapshot, not a
+// row-store blob: flattening it let the snapshot's `_id` overwrite the version
+// row's primary key (revision pruning deleted nothing) and removed `data` from
+// the API response.
+registerNestedDataTable("contentRevisions");
+registerNestedDataTable("contentDrafts");
 
 // The curated literal lists predate a few physical columns of the auth tables.
 // Register the schema-authoritative superset so the fast branch sees exactly the
@@ -1413,10 +1421,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
     if (hasDataCol && (!isUpdate || hasDynamicKeys || "data" in data)) {
       const resolvedDynamic = dynamicData ?? {};
-      if (this.shouldJsonSerializeInPrepare) {
-        values.data = hasDynamicKeys ? JSON.stringify(resolvedDynamic) || "{}" : "{}";
-      } else {
-        values.data = resolvedDynamic;
+      // A caller that passed `data` as a physical column (content revisions,
+      // drafts, jobs) already set `values.data` in the column loop above. The
+      // old code re-entered here with an empty `dynamicData` and overwrote the
+      // snapshot with `{}` — every revision was stored empty.
+      const suppliedPhysicalData = values.data !== undefined;
+      if (!suppliedPhysicalData) {
+        values.data = this.shouldJsonSerializeInPrepare
+          ? JSON.stringify(resolvedDynamic) || "{}"
+          : resolvedDynamic;
       }
       // Partial updates merge into the stored blob instead of replacing it. Only an
       // explicit `replaceData: true` opts out — a partial payload must never delete the
@@ -1429,6 +1442,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       // synthesized response reports only what the caller sent, i.e. it under-reports
       // instead of claiming writes it did not make.
       if (
+        !suppliedPhysicalData &&
         isUpdate &&
         hasDynamicKeys &&
         (options as { replaceData?: boolean })?.replaceData !== true

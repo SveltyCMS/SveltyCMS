@@ -1189,6 +1189,12 @@ export interface IContentAdapter {
       contentId: DatabaseId,
       options?: PaginationOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentRevision>>>;
+    /** One revision of a document, or `null` when that version does not exist. */
+    get(
+      contentId: DatabaseId,
+      version: number,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentRevision | null>>;
     restore(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
     delete(revisionId: DatabaseId): Promise<DatabaseResult<void>>;
     deleteMany(revisionIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;

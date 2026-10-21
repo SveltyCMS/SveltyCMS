@@ -34,7 +34,7 @@ import {
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { logger } from "@utils/logger";
-import { AppError } from "@utils/error-handling";
+import { AppError, raise } from "@utils/error-handling";
 import { isAdmin } from "@src/databases/auth/constants";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
@@ -66,6 +66,12 @@ import {
 } from "@src/services/security/access-rule-service";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
+import { matchesVersion, normalizeExpectedVersion } from "@utils/optimistic-lock";
+import {
+  getAllowedFilterFieldIds,
+  getNestedFilterPaths,
+  rejectedFilterKeys,
+} from "@utils/collection-query-filters";
 import { evaluateCondition } from "@src/widgets/desugar-field";
 
 import {
@@ -296,6 +302,82 @@ const DECRYPT_CLONE_OPTIONS: Readonly<{ clone: true }> = Object.freeze({ clone: 
 
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
 const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
+
+/** Revisions kept per entry when the schema does not set `revisionLimit`. */
+const DEFAULT_REVISION_LIMIT = 100;
+
+/** Effective, sane revision bound for a schema (`revisionLimit` is author-controlled). */
+function revisionLimitOf(schema: Schema): number {
+  const configured = schema.revisionLimit;
+  if (!Number.isFinite(configured) || (configured as number) < 5) return DEFAULT_REVISION_LIMIT;
+  return Math.floor(configured as number);
+}
+
+/** Revision-row columns that are storage metadata, never part of the snapshot. */
+const REVISION_META_KEYS = new Set([
+  "_id",
+  "contentId",
+  "version",
+  "commitMessage",
+  "authorId",
+  "tenantId",
+  "createdAt",
+  "updatedAt",
+]);
+
+/**
+ * Extract the content snapshot from a revision row.
+ *
+ * SQL adapters flatten the JSON `data` blob into the row root and drop the blob
+ * (`flattenDataColumn`), so the snapshot IS the row minus its metadata. Mongo
+ * returns the raw `{ data: {...} }` document. Both shapes are accepted.
+ */
+function revisionSnapshot(row: Record<string, unknown>): Record<string, unknown> | null {
+  const blob = row.data;
+  if (blob && typeof blob === "object" && !Array.isArray(blob)) {
+    return { ...(blob as Record<string, unknown>) };
+  }
+  if (typeof blob === "string") {
+    try {
+      const parsed = JSON.parse(blob) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return { ...(parsed as Record<string, unknown>) };
+      }
+    } catch {
+      /* fall through to the flattened shape */
+    }
+  }
+
+  const snapshot: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (!REVISION_META_KEYS.has(key)) snapshot[key] = value;
+  }
+  return Object.keys(snapshot).length > 0 ? snapshot : null;
+}
+
+/**
+ * Reject filter keys that the schema cannot address.
+ *
+ * A misspelled key used to reach the query builder: a silently empty list, or an
+ * engine-specific error / unindexed scan for a deep path. Naming every invalid
+ * key turns that into an actionable 400.
+ */
+function assertFilterableFields(schema: Schema, filter: unknown): void {
+  if (!filter || typeof filter !== "object" || Array.isArray(filter)) return;
+  const rejected = rejectedFilterKeys(
+    filter as Record<string, unknown>,
+    getAllowedFilterFieldIds(schema),
+    getNestedFilterPaths(schema),
+  );
+  if (rejected.length > 0) {
+    raise(
+      400,
+      `Unknown filter field${rejected.length > 1 ? "s" : ""}: ${rejected.join(", ")}`,
+      "FILTER_UNKNOWN_FIELD",
+      { fields: rejected },
+    );
+  }
+}
 
 /** Status/schedule patches have no nested arrays — skip recursive row-id walks. */
 function isShallowPatch(data: Record<string, unknown>): boolean {
@@ -896,6 +978,7 @@ export class CollectionsNamespace {
     const limit = clampPageSize(requestedLimit, 50);
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = await this.schemaOf(collectionId, tenantId);
+    if (options.validateFilter === true) assertFilterableFields(schema, filter);
     const guarded = blockedGuardedNames(schema, options.user, options.system);
     const normalizedFilter = stripGuardedFilter(normalizeRelationshipFilter(filter), guarded);
     const ownership = ownershipFilter(schema, options.user, options.system);
@@ -1216,6 +1299,8 @@ export class CollectionsNamespace {
       sortDirection?: "asc" | "desc";
       filter?: any;
       skipValidation?: boolean;
+      /** HTTP callers opt in: unknown filter keys become `400 FILTER_UNKNOWN_FIELD`. */
+      validateFilter?: boolean;
       publicationFilter?: "published" | "draft" | "all";
     } = {},
   ) {
@@ -1223,6 +1308,7 @@ export class CollectionsNamespace {
     // Shared getSchema path — findStreaming previously bypassed the schema cache
     // via cs.getCollection, causing duplicate resolution per stream.
     const schema = await this.schemaOf(collectionId, tenantId);
+    if (options.validateFilter === true) assertFilterableFields(schema, options.filter);
     const hot = ensureSchemaHotFlags(schema);
     const encCtx = readEncryptionContext(schema, tenantId, hot);
     // 🚀 Avoid the `{ ...options.filter }` spread allocation when filter is empty or
@@ -1311,11 +1397,13 @@ export class CollectionsNamespace {
       filter?: any;
       user?: any;
       system?: boolean;
+      validateFilter?: boolean;
       publicationFilter?: "published" | "draft" | "all";
     } = {},
   ) {
     const { tenantId, filter = {} } = options;
     const schema = await this.schemaOf(collectionId, tenantId);
+    if (options.validateFilter === true) assertFilterableFields(schema, filter);
     const normalizedFilter = stripGuardedFilter(
       normalizeRelationshipFilter(filter),
       blockedGuardedNames(schema, options.user, options.system),
@@ -2212,6 +2300,35 @@ export class CollectionsNamespace {
 
     let preloadedExisting: Awaited<ReturnType<IDBAdapter["crud"]["findOne"]>> | null = null;
 
+    // 🔒 OPTIMISTIC LOCKING: the caller tells us which version it loaded.
+    // `casRowVersion` is the value the UPDATE must still match — the comparison
+    // happens inside the write (compare-and-set), this pre-check only fails
+    // fast so a stale edit never reaches validation/hooks.
+    const expectedVersion = normalizeExpectedVersion(options.expectedVersion);
+    let casRowVersion: unknown = null;
+    if (expectedVersion !== null) {
+      const tableName = this.getCollectionName(schema._id as string);
+      if (!preloadedExisting) {
+        preloadedExisting = await this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
+          tenantId: tenantId as DatabaseId,
+        });
+      }
+      if (!preloadedExisting.success || !preloadedExisting.data) {
+        raise(404, `Entry ${entryId} was not found.`, "NOT_FOUND");
+      }
+      const currentRow = preloadedExisting.data as unknown as Record<string, unknown>;
+      const currentVersion = currentRow.updatedAt ?? null;
+      if (!matchesVersion(currentVersion, expectedVersion)) {
+        raise(
+          409,
+          "This entry was changed by someone else. Reload it and apply your changes again.",
+          "VERSION_CONFLICT",
+          { currentVersion },
+        );
+      }
+      casRowVersion = currentVersion;
+    }
+
     // 🚪 Publication gate: workflows with gatePublication only allow status
     // "publish" while the entry's workflow instance is in a final state.
     // System writes (scheduled publishing, sync, imports) bypass the gate.
@@ -2352,24 +2469,61 @@ export class CollectionsNamespace {
     markWritePhase(options, "encrypt", tEnc);
     const tDb = writePhaseT0(options);
     const m3u = PROFILE_WRITE_ENABLED ? profileMark("ns:persist") : null;
+    const writeOptions = {
+      tenantId: tenantId as DatabaseId,
+      // 🌐 ADAPTER-AGNOSTIC WRITE ACK: forwarded to every adapter so the row read-back
+      // (SQL `RETURNING`, Mongo `findOneAndUpdate`) is skipped when the caller only
+      // wants to know the write landed — see `LocalApiOptions.skipReturning`.
+      ...(options.skipReturning ? { skipReturning: true } : {}),
+      ...((options as any).fields ? { fields: (options as any).fields } : {}),
+      ...((options as any).skipJson ? { skipJson: (options as any).skipJson } : {}),
+    };
     const result = await persistWithOutbox(
       "update",
-      async (txOpts) =>
-        this._dbAdapter.crud.update(
+      async (txOpts) => {
+        if (casRowVersion === null) {
+          return this._dbAdapter.crud.update(
+            this.getCollectionName(schema._id as string),
+            entryId as DatabaseId,
+            finalData,
+            { ...writeOptions, ...txOpts },
+          );
+        }
+        // 🔒 Compare-and-set: one `UPDATE … WHERE _id = ? AND updatedAt = ?`.
+        // Zero matched rows means another writer won the race after the fast
+        // pre-check, so this is a genuine conflict, not a missing row.
+        const cas = await this._dbAdapter.crud.updateMany(
           this.getCollectionName(schema._id as string),
-          entryId as DatabaseId,
-          finalData,
-          {
-            tenantId: tenantId as DatabaseId,
-            ...txOpts,
-            // 🌐 ADAPTER-AGNOSTIC WRITE ACK: forwarded to every adapter so the row read-back
-            // (SQL `RETURNING`, Mongo `findOneAndUpdate`) is skipped when the caller only
-            // wants to know the write landed — see `LocalApiOptions.skipReturning`.
-            ...(options.skipReturning ? { skipReturning: true } : {}),
-            ...((options as any).fields ? { fields: (options as any).fields } : {}),
-            ...((options as any).skipJson ? { skipJson: (options as any).skipJson } : {}),
-          },
-        ),
+          { _id: entryId, updatedAt: casRowVersion } as any,
+          finalData as any,
+          { ...writeOptions, ...txOpts },
+        );
+        if (!cas.success) return cas;
+        if ((cas.data?.modifiedCount ?? 0) === 0) {
+          const current = await this._dbAdapter.crud.findOne(
+            this.getCollectionName(schema._id as string),
+            { _id: entryId } as any,
+            { tenantId: tenantId as DatabaseId },
+          );
+          raise(
+            409,
+            "This entry was changed by someone else. Reload it and apply your changes again.",
+            "VERSION_CONFLICT",
+            {
+              currentVersion: current.success
+                ? ((current.data as unknown as Record<string, unknown> | null)?.updatedAt ?? null)
+                : null,
+            },
+          );
+        }
+        // `updateMany` reports a count, not the row — read it once for the
+        // response and the post-write side effects.
+        return this._dbAdapter.crud.findOne(
+          this.getCollectionName(schema._id as string),
+          { _id: entryId } as any,
+          { tenantId: tenantId as DatabaseId, ...txOpts },
+        );
+      },
       schema,
       tenantId,
       effectiveUser,
@@ -2389,7 +2543,13 @@ export class CollectionsNamespace {
       // returns. The write itself is already durable, but a fire-and-forget call
       // could be dropped by teardown and lose the revision entirely.
       if (revisionEnabled && previousSnapshot) {
-        await this.recordRevision(entryId, previousSnapshot, effectiveUser, tenantId);
+        await this.recordRevision(
+          entryId,
+          previousSnapshot,
+          effectiveUser,
+          tenantId,
+          revisionLimitOf(schema),
+        );
       }
       // Resolved once — the three side-effect schedules below shared the same
       // `decryptedUpdate?.data ?? result.data` expression.
@@ -2420,17 +2580,96 @@ export class CollectionsNamespace {
   }
 
   /**
+   * Roll an entry back to a stored revision.
+   *
+   * The snapshot is replayed through {@link update}, so:
+   * - the current row is validated against today's schema (a restore cannot write
+   *   fields that no longer exist or bypass required-field rules);
+   * - the *pre-restore* content is itself snapshotted as a new revision, which makes
+   *   the restore undoable;
+   * - `expectedVersion` is honoured, so a restore cannot clobber a concurrent edit.
+   *
+   * The content write is one statement (atomic). The history snapshot follows it and
+   * is best-effort, exactly like every other revision-recording write.
+   */
+  async restoreRevision(
+    collectionId: string,
+    entryId: string,
+    version: number,
+    options: LocalApiOptions = {},
+  ) {
+    const { user, tenantId, system } = options;
+    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    if (!Number.isInteger(version) || version < 1) {
+      raise(400, "A positive revision version is required.", "BAD_REQUEST");
+    }
+
+    const schema = await this.schemaOf(collectionId, tenantId);
+    if (schema.revision !== true) {
+      raise(400, `Collection '${collectionId}' does not track revisions.`, "REVISIONS_DISABLED");
+    }
+    if (!system) {
+      const own = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+      if (own) await own;
+    }
+
+    const revision = await this._dbAdapter.content.revisions.get(entryId as DatabaseId, version, {
+      tenantId: tenantId as DatabaseId,
+    });
+    if (!revision.success) {
+      throw new AppError(
+        revision.message || "Failed to read the revision.",
+        500,
+        "REVISION_READ_FAILED",
+      );
+    }
+    if (!revision.data) {
+      raise(404, `Revision ${version} of entry ${entryId} was not found.`, "NOT_FOUND");
+    }
+
+    const row = revision.data as unknown as Record<string, unknown>;
+    const snapshot = revisionSnapshot(row);
+    if (!snapshot) {
+      raise(422, `Revision ${version} does not contain a restorable snapshot.`, "INVALID_REVISION");
+    }
+
+    // Replay content only. Identity/timestamps are owned by the row, and keeping the
+    // current `status` means a restore can never silently republish (or unpublish) an
+    // entry as a side effect — publishing stays an explicit act.
+    const restoreData: Record<string, unknown> = { ...snapshot };
+    for (const key of [
+      "_id",
+      "createdAt",
+      "updatedAt",
+      "tenantId",
+      "isDeleted",
+      "deletedAt",
+      "_scheduled",
+      "status",
+    ]) {
+      delete restoreData[key];
+    }
+
+    return this.update(collectionId, entryId, restoreData, options);
+  }
+
+  /**
    * Persist a revision snapshot for a revision-enabled collection update.
    * Awaited after the primary write so request teardown cannot drop it;
-   * failures are logged and do not fail the content write. Full transaction
-   * wiring requires the revisions adapter to accept `BaseQueryOptions`.
-   * The version is derived from the latest existing revision (+1).
+   * failures are logged and do not fail the content write. The version is
+   * derived from the latest existing revision (+1).
+   *
+   * Growth is bounded by `revisionLimit` (default 100): once the new version
+   * reaches twice the limit, older snapshots are pruned back to the limit. That
+   * keeps the table under `2 × limit` rows while paying the history read only
+   * once per `limit` writes instead of on every write.
    */
   private async recordRevision(
     entryId: string,
     previousData: any,
     user: any,
     tenantId: DatabaseId | null | undefined,
+    revisionLimit: number = DEFAULT_REVISION_LIMIT,
   ): Promise<void> {
     try {
       const history = await this._dbAdapter.content.revisions.getHistory(entryId as DatabaseId, {
@@ -2446,6 +2685,12 @@ export class CollectionsNamespace {
         version: latestVersion + 1,
         tenantId: tenantId ?? undefined,
       });
+
+      // Bound the history once it would cross 2× the limit; keeps the newest
+      // `revisionLimit` snapshots.
+      if (latestVersion + 1 >= revisionLimit * 2) {
+        await this._dbAdapter.content.revisions.cleanup(entryId as DatabaseId, revisionLimit);
+      }
     } catch (err) {
       logger.debug(
         `[Revisions] Failed to record revision for ${entryId}: ${(err as Error)?.message ?? err}`,

@@ -122,6 +122,28 @@ export function hashQueryPayload(payload: unknown): string {
   return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
+/** Field names a schema field can be addressed by (storage name, label, name/path/key). */
+function fieldStorageNames(
+  field: Partial<FieldInstance> & { label?: string; db_fieldName?: string },
+): string[] {
+  const names = new Set<string>();
+  if (field.db_fieldName) names.add(field.db_fieldName);
+  if (field.label) {
+    try {
+      const name = getFieldName(field as Partial<FieldInstance> & { label: string });
+      if (name) names.add(name);
+    } catch {
+      // ignore malformed field
+    }
+  }
+  const asRecord = field as Record<string, unknown>;
+  for (const key of ["name", "path", "key"] as const) {
+    const value = asRecord[key];
+    if (typeof value === "string" && value) names.add(value);
+  }
+  return [...names];
+}
+
 /**
  * Field ids allowed for filtering: schema fields + system columns.
  * Media / rich-text etc. may still appear in schema; callers that want
@@ -142,27 +164,112 @@ export function getAllowedFilterFieldIds(collection: Schema | null | undefined):
 
   for (const raw of collection.fields) {
     const field = raw as Partial<FieldInstance> & { label?: string; db_fieldName?: string };
-    if (field.db_fieldName) {
-      allowed.add(field.db_fieldName);
-    }
-    if (field.label) {
-      try {
-        const name = getFieldName(field as Partial<FieldInstance> & { label: string });
-        if (name) allowed.add(name);
-      } catch {
-        // ignore malformed field
-      }
-    }
-    const asRecord = field as Record<string, unknown>;
-    for (const key of ["name", "path", "key"] as const) {
-      const v = asRecord[key];
-      if (typeof v === "string" && v) allowed.add(v);
-    }
+    for (const name of fieldStorageNames(field)) allowed.add(name);
   }
 
   (collection as any)._allowedFilterFieldIds = allowed;
   return allowed;
 }
+
+/**
+ * Nested-path index: top-level root → every addressable child path below it.
+ * Cached on the schema (like the field allow-list) because it is only rebuilt
+ * when the schema object is replaced by a recompile.
+ */
+export type NestedFilterIndex = ReadonlyMap<string, ReadonlySet<string>>;
+
+/** Relative paths of every declared field below `fields`, recursively. */
+function collectChildPaths(fields: readonly unknown[]): Set<string> {
+  const out = new Set<string>();
+  for (const raw of fields) {
+    const field = raw as Record<string, unknown>;
+    const names = fieldStorageNames(
+      field as Partial<FieldInstance> & { label?: string; db_fieldName?: string },
+    );
+    for (const name of names) out.add(name);
+    if (Array.isArray(field.fields)) {
+      const children = collectChildPaths(field.fields);
+      for (const name of names) {
+        for (const child of children) out.add(`${name}.${child}`);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Roots whose stored value is a nested object, mapped to the child paths that
+ * exist beneath them, so `meta.title` is accepted and `meta.typo` is not.
+ */
+export function getNestedFilterPaths(collection: Schema | null | undefined): NestedFilterIndex {
+  if (!collection) return new Map<string, ReadonlySet<string>>();
+  const cached = (collection as any)._nestedFilterPaths;
+  if (cached instanceof Map) return cached as NestedFilterIndex;
+
+  const index = new Map<string, ReadonlySet<string>>();
+  for (const raw of collection.fields ?? []) {
+    const field = raw as Record<string, unknown>;
+    if (!(field.type === "object" || Array.isArray(field.fields))) continue;
+    const children = Array.isArray(field.fields)
+      ? collectChildPaths(field.fields)
+      : new Set<string>();
+    for (const name of fieldStorageNames(
+      field as Partial<FieldInstance> & { label?: string; db_fieldName?: string },
+    )) {
+      index.set(name, children);
+    }
+  }
+
+  (collection as any)._nestedFilterPaths = index;
+  return index;
+}
+
+/** Mongo-style logical operators that may appear at the top level of a filter. */
+const LOGICAL_OPERATOR_KEYS = new Set(["$and", "$or", "$nor", "$not"]);
+
+/** Remove array-index segments (`items.0.title` → `items.title`). */
+function withoutArrayIndices(path: string): string {
+  if (!path.includes(".")) return path;
+  return path
+    .split(".")
+    .filter((segment) => !/^\d+$/.test(segment))
+    .join(".");
+}
+
+/**
+ * True when `key` addresses a filterable field: an allow-listed name, a logical
+ * operator, or a declared dotted path under a nested (object/repeater) root.
+ */
+export function isFilterablePath(
+  key: string,
+  allowed: Set<string>,
+  nested: NestedFilterIndex,
+): boolean {
+  if (LOGICAL_OPERATOR_KEYS.has(key)) return true;
+  if (allowed.has(key)) return true;
+  const dot = key.indexOf(".");
+  if (dot <= 0 || dot === key.length - 1) return false;
+  const children = nested.get(key.slice(0, dot));
+  if (!children) return false;
+  return children.has(withoutArrayIndices(key.slice(dot + 1)));
+}
+
+/** Keys a caller sent that this schema cannot filter on (empty when all are valid). */
+export function rejectedFilterKeys(
+  raw: Record<string, unknown> | null | undefined,
+  allowed: Set<string>,
+  nested: NestedFilterIndex,
+): string[] {
+  if (!raw || typeof raw !== "object") return [];
+  const rejected: string[] = [];
+  for (const key of Object.keys(raw)) {
+    if (!isFilterablePath(key, allowed, nested)) rejected.push(key);
+  }
+  return rejected;
+}
+
+/** Shared empty index — callers without a schema should not allocate per query. */
+const EMPTY_NESTED: NestedFilterIndex = new Map<string, ReadonlySet<string>>();
 
 /**
  * Drop filter keys not in the schema whitelist.
@@ -172,12 +279,13 @@ export function getAllowedFilterFieldIds(collection: Schema | null | undefined):
 export function whitelistFilterParams(
   raw: CollectionFilterMap | Record<string, unknown>,
   allowed: Set<string>,
+  nested: NestedFilterIndex = EMPTY_NESTED,
 ): CollectionFilterMap {
   const out: CollectionFilterMap = Object.create(null);
   if (!raw || typeof raw !== "object") return out;
 
   for (const [key, op] of Object.entries(raw)) {
-    if (!allowed.has(key)) continue;
+    if (!isFilterablePath(key, allowed, nested)) continue;
     if (op == null) continue;
 
     if (typeof op === "string") {
@@ -249,7 +357,8 @@ export function parseCollectionListQuery(
   const search = (searchParams.get("search") || "").trim();
   const rawFilters = parseUrlFilterParams(searchParams);
   const allowed = getAllowedFilterFieldIds(collection);
-  const filter = whitelistFilterParams(rawFilters, allowed);
+  const nestedPaths = getNestedFilterPaths(collection);
+  const filter = whitelistFilterParams(rawFilters, allowed, nestedPaths);
 
   const rawSort =
     searchParams.get("sort") || searchParams.get("sortField") || defaults.sortField || "createdAt";
@@ -268,12 +377,12 @@ export function parseCollectionListQuery(
   let orGroups: Array<Record<string, string | number | boolean | null>> = [];
   if (filterLogic) {
     const compiledLogic = compileBooleanFilterGroup(filterLogic);
-    Object.assign(filter, whitelistFilterParams(compiledLogic.andFilter, allowed));
+    Object.assign(filter, whitelistFilterParams(compiledLogic.andFilter, allowed, nestedPaths));
     orGroups = compiledLogic.orGroups
       .map((group) => {
         const next: Record<string, string | number | boolean | null> = {};
         for (const [k, v] of Object.entries(group)) {
-          if (allowed.has(k)) next[k] = v;
+          if (isFilterablePath(k, allowed, nestedPaths)) next[k] = v;
         }
         return next;
       })

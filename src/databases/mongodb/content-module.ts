@@ -602,6 +602,29 @@ export class MongoContentModule
         };
       }
     },
+    get: async (
+      contentId: DatabaseId,
+      version: number,
+    ): Promise<DatabaseResult<ContentRevision | null>> => {
+      try {
+        const { revisionsRepo } = await this._ensureRepos();
+        const res = await revisionsRepo.findOne({
+          contentId,
+          version,
+        } as QueryFilter<ContentRevision>);
+        if (!res.success) return res;
+        return {
+          success: true,
+          data: res.data ? (processDates([res.data])[0] as ContentRevision) : null,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: "Failed to fetch revision.",
+          error: createDatabaseError(error, "REVISION_FETCH_ERROR", "Failed to fetch revision."),
+        };
+      }
+    },
     restore: async (revisionId: DatabaseId) => {
       const { revisionsRepo } = await this._ensureRepos();
       const res = await revisionsRepo.restore(revisionId);

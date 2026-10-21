@@ -199,6 +199,43 @@ export function getTableMergeSkipKeys(table: string): Set<string> | undefined {
 }
 
 /**
+ * Tables whose JSON `data` column is a DOCUMENT SNAPSHOT, not row-store fields.
+ *
+ * For collection rows the blob is a storage detail whose keys belong at the row
+ * root. For `content_revisions` it is the revision payload itself: flattening it
+ * would let the snapshot's `_id` overwrite the revision row's own primary key —
+ * `cleanup()` then deleted nothing and the history grew unbounded — and would
+ * delete `data`, leaving the UI's `revision.data` undefined.
+ */
+const _nestedDataTables = new Set<string>();
+
+/** Mark a table's JSON `data` column as nested (parsed but never flattened). */
+export function registerNestedDataTable(table: string): void {
+  if (!table) return;
+  const addVariants = (key: string) => {
+    _nestedDataTables.add(key);
+    _nestedDataTables.add(normalizeCollectionTableName(key));
+    _nestedDataTables.add(key.startsWith("collection_") ? key.slice(11) : collectionTableName(key));
+  };
+  addVariants(table);
+  // System tables are camelCase properties in the Drizzle schema (`contentRevisions`)
+  // but snake_case tables on disk (`content_revisions`). The lookup above is exact-key,
+  // so register both spellings instead of making every caller remember which to pass.
+  const snake = table.replace(/([a-z0-9])([A-Z])/g, "$1_$2").toLowerCase();
+  if (snake !== table) addVariants(snake);
+  _dateMetaCache.clear();
+}
+
+function isNestedDataTable(table: string | undefined): boolean {
+  if (!table) return false;
+  return (
+    _nestedDataTables.has(table) ||
+    _nestedDataTables.has(normalizeCollectionTableName(table)) ||
+    (table.startsWith("collection_") && _nestedDataTables.has(table.slice(11)))
+  );
+}
+
+/**
  * Boolean columns per table — the raw read paths return 0/1 for INTEGER/TINYINT
  * columns; the API contract expects real booleans (parity with the Drizzle
  * mode:"boolean" path). Conversion coerces 0/1 → false/true for these.
@@ -416,6 +453,8 @@ export interface DateConversionMeta {
   jsonCols: string[] | null;
   skipMerge: Set<string> | null;
   bools: Set<string> | undefined;
+  /** Parse the JSON `data` column but keep it nested (snapshot tables). */
+  nestedData: boolean;
 }
 
 const _dateMetaCache = new Map<string, DateConversionMeta>();
@@ -432,6 +471,7 @@ export function resolveDateConversionMeta(
       jsonCols: null,
       skipMerge: null,
       bools: undefined,
+      nestedData: false,
     };
   }
   const cacheKey = skipJson ? `${rawTable}:1` : rawTable;
@@ -450,7 +490,16 @@ export function resolveDateConversionMeta(
   const jsonCols = hasSchema && !skipJson ? getTableJsonColumns(table) : null;
   const skipMerge = getTableMergeSkipKeys(table) ?? null;
   const bools = getTableBooleanColumns(table);
-  const meta: DateConversionMeta = { table, hasSchema, dateCols, jsonCols, skipMerge, bools };
+  const nestedData = isNestedDataTable(table);
+  const meta: DateConversionMeta = {
+    table,
+    hasSchema,
+    dateCols,
+    jsonCols,
+    skipMerge,
+    bools,
+    nestedData,
+  };
   if (_dateMetaCache.size < 512) {
     _dateMetaCache.set(cacheKey, meta);
   }
@@ -532,7 +581,7 @@ export function convertDatesToISO(
   }
 
   const meta = cachedMeta ?? resolveDateConversionMeta(options?.table, options?.skipJson === true);
-  const { table, hasSchema, dateCols, jsonCols, skipMerge, bools } = meta;
+  const { table, hasSchema, dateCols, jsonCols, skipMerge, bools, nestedData } = meta;
   const skipJson = options?.skipJson === true;
 
   if (options?.inPlace && hasSchema && dateCols) {
@@ -561,7 +610,7 @@ export function convertDatesToISO(
       // Zero-work fast path — but an already-parsed blob (PostgreSQL jsonb
       // arrives as an object, not a string) still needs its fields flattened
       // into the row; skipping it left blob fields invisible on PG reads.
-      if (!skipJson && jsonCols && jsonCols.length > 0) {
+      if (!skipJson && !nestedData && jsonCols && jsonCols.length > 0) {
         for (let i = 0; i < jsonCols.length; i++) {
           const k = jsonCols[i];
           const v = row[k];
@@ -593,7 +642,7 @@ export function convertDatesToISO(
       for (let i = 0; i < jsonCols.length; i++) {
         const k = jsonCols[i];
         const v = normalizeJsonFieldValue(row[k], options);
-        if (!flattenDataColumn(row, k, v, skipMerge)) row[k] = v;
+        if (nestedData || !flattenDataColumn(row, k, v, skipMerge)) row[k] = v;
       }
     }
     coerceBooleanCols(row, table, bools);
@@ -625,7 +674,7 @@ export function convertDatesToISO(
     for (let i = 0; i < jsonCols.length; i++) {
       const k = jsonCols[i];
       const v = normalizeJsonFieldValue(row[k], options);
-      if (!flattenDataColumn(result, k, v, skipMerge)) result[k] = v;
+      if (nestedData || !flattenDataColumn(result, k, v, skipMerge)) result[k] = v;
     }
   }
 
@@ -656,6 +705,11 @@ export function convertDatesToISO(
         v = normalizeJsonFieldValue(v, options);
         // A `data` blob is merged into the root by `flattenDataColumn` (returns true) and
         // must not be copied back as a raw nested object; every other key is copied below.
+        // Snapshot tables keep the parsed blob nested instead.
+        if (nestedData) {
+          result[k] = v;
+          continue;
+        }
         if (flattenDataColumn(result, k, v)) continue;
       }
       result[k] = v;

@@ -124,6 +124,61 @@ describe("relational-utils — convertDatesToISO json flattening", () => {
     expect("data" in converted).toBe(false);
   });
 
+  it("keeps the data blob nested for snapshot tables (content revisions)", () => {
+    utils.registerTableSchema("contentRevisions", [
+      "_id",
+      "contentId",
+      "data",
+      "version",
+      "createdAt",
+    ]);
+    utils.registerNestedDataTable("contentRevisions");
+
+    // SQLite/MariaDB shape: the snapshot arrives as a JSON string.
+    const stored = utils.convertDatesToISO(
+      {
+        _id: "rev-1",
+        contentId: "entry-1",
+        version: 3,
+        data: '{"_id":"entry-1","title":"v2"}',
+        createdAt: 1786272221268,
+      },
+      { table: "contentRevisions" },
+    );
+
+    // The snapshot's `_id` must never overwrite the revision row's own id —
+    // pruning deletes by id, and a clobbered id deleted nothing.
+    expect(stored._id).toBe("rev-1");
+    expect(stored.contentId).toBe("entry-1");
+    expect(stored.version).toBe(3);
+    expect(stored.data).toEqual({ _id: "entry-1", title: "v2" });
+    expect(stored.title).toBeUndefined();
+    expect(stored.createdAt).toBe(new Date(1786272221268).toISOString());
+
+    // The physical (snake_case) spelling must resolve to the same mode.
+    const physical = utils.convertDatesToISO(
+      { _id: "rev-3", contentId: "entry-1", version: 5, data: '{"_id":"entry-1"}' },
+      { table: "content_revisions" },
+    );
+    expect(physical._id).toBe("rev-3");
+    expect(physical.data).toEqual({ _id: "entry-1" });
+
+    // PostgreSQL shape: jsonb arrives already parsed.
+    const native = utils.convertDatesToISO(
+      {
+        _id: "rev-2",
+        contentId: "entry-1",
+        version: 4,
+        data: { _id: "entry-1", title: "v3" },
+        createdAt: "2026-03-01T12:00:00.000Z",
+      },
+      { table: "contentRevisions" },
+    );
+
+    expect(native._id).toBe("rev-2");
+    expect(native.data).toEqual({ _id: "entry-1", title: "v3" });
+  });
+
   it("normalizes SQLite INTEGER-ms timestamps to ISODateString (raw reads)", () => {
     utils.registerTableSchema("collection_sqlite_raw", ["_id", "createdAt", "updatedAt"]);
 

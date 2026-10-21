@@ -113,6 +113,54 @@ Prefer: return=minimal
 
 The preference is honoured on both write paths (the warm-session write lane and the API dispatcher) and, crucially, **it is not only a response-shape trick**: the flag reaches the adapter contract as `BaseQueryOptions.skipReturning`, which every engine implements — the SQL adapters skip `RETURNING` and reconstruct the acks from the payload, MongoDB skips `findOneAndUpdate` and echoes the `$set`. So the document read, its serialization and the wider response are all skipped, on all four engines (measured on the competitive update lane: ~1.8 KB of representation → 70 B ack). Absent or unknown `Prefer` values keep the full representation, so existing clients cannot be affected.
 
+### Optimistic locking (`If-Match`)
+
+`PATCH` without a version keeps last-write-wins. To protect against a lost update, send the version the client loaded — the entry response's `ETag`, an `updatedAt` ISO timestamp, epoch milliseconds, or `*`:
+
+```http
+PATCH /api/collections/articles/0192…-abc
+If-Match: "0192…-abc|2026-10-21T16:49:39.333Z"
+
+{"title": "New title"}
+```
+
+- The request fails fast, then the write is a compare-and-set (`UPDATE … WHERE _id = ? AND updatedAt = ?` / the engine equivalent), so the check and the write cannot be separated by another writer.
+- A stale version returns **`409`** with `code: "VERSION_CONFLICT"` and `details.currentVersion` (the value to reload).
+- Body `expectedVersion` is accepted as an alternative to the header.
+- Requests without a version are unchanged — the legacy write lane pays no extra read.
+
+### Entry revisions
+
+Collections with `revision: true` snapshot the pre-write content on every update:
+
+| Endpoint                                                   | Method | Purpose                                                    |
+| :--------------------------------------------------------- | :----- | :--------------------------------------------------------- |
+| `/api/collections/{colId}/{entryId}/revisions`             | `GET`  | History (newest first); each item's `data` is the snapshot |
+| `/api/collections/{colId}/{entryId}/revisions/{v}/restore` | `POST` | Roll the entry back to version `v`                         |
+
+A restore replays the snapshot through the normal update path, so today's schema validation applies, the pre-restore state is itself recorded as a new revision (the restore is undoable), and `If-Match` prevents clobbering a concurrent edit. Identity, timestamps and `status` are never taken from the snapshot — a restore cannot silently publish or unpublish. The collection status does not change; publishing stays an explicit act. Unknown versions return `404`; a collection without revisions returns `400 REVISIONS_DISABLED`.
+
+History is bounded by `revisionLimit` (default `100`, minimum `5`): once the version number reaches twice the limit, older snapshots are deleted in one bounded statement.
+
+### Filter validation
+
+List/filter requests validate keys against the schema before the query builder runs:
+
+```http
+GET /api/collections/articles?filter[titel]=Hello
+```
+
+```json
+{
+  "success": false,
+  "message": "Unknown filter field: titel",
+  "code": "FILTER_UNKNOWN_FIELD",
+  "details": { "fields": ["titel"] }
+}
+```
+
+Unknown root keys and unaddressable nested paths return **`400`** naming every rejected key, instead of a silently empty list or an engine-specific error. The allow-list is cached per schema revision, so valid queries pay nothing.
+
 ### Streamed export
 
 **Endpoint**: `GET /api/collections/{collectionId}/export`

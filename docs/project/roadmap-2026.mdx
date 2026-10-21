@@ -79,6 +79,13 @@ tags:
   - Support nested mutations `{ connect, disconnect, create }` with a maximum depth of 2.
   - Implement `onDelete` schema actions (`cascade`, `setNull`, `restrict`) bounded by a fan-out cap of 100.
   - Add virtual field support (`type: "virtual"`) and projection masking (`omit` / `graphql.omit`).
+- **Content write & read correctness**:
+  - [x] Optimistic locking on entry updates (`If-Match` / `expectedVersion` → compare-and-set, `409 VERSION_CONFLICT` with `details.currentVersion`); legacy writes stay last-write-wins.
+  - [x] Revision restore (`POST /api/collections/:c/:id/revisions/:version/restore`) plus bounded pruning (`revisionLimit`, default 100).
+  - [x] Filter-path validation (`400 FILTER_UNKNOWN_FIELD`) for unknown keys and unaddressable nested paths.
+  - [ ] Access predicate → WHERE fragment merged before count + page (field stripping stays a separate layer).
+  - [ ] Draft version row + publish promotion/rollback (reuse `content_drafts`).
+  - [ ] `enforceAccess` by default for every CRUD call, with a logged `system: true` escape for system callers.
 - **CMS Tables & List Platform (Smart Table)**:
   - Team & Cloud Saved Views: enterprise tenant-shared view presets with RBAC visibility controls.
   - Observability integration: pipe `list-query-metrics` into continuous benchmark trend reporting.

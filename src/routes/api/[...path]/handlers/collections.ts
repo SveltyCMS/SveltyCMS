@@ -163,6 +163,30 @@ export async function handleCollectionsRoutes(
       );
     }
 
+    // ── Restore a revision ──
+    // POST /api/collections/:id/:entryId/revisions/:version/restore
+    if (
+      request.method === "POST" &&
+      collectionId &&
+      entryId &&
+      subAction === "revisions" &&
+      segments[5] === "restore"
+    ) {
+      const version = Number(segments[4]);
+      if (!Number.isInteger(version) || version < 1) {
+        throw new AppError("A positive revision version is required", 400, "BAD_REQUEST");
+      }
+      const ifMatch = request.headers.get("if-match");
+      return successResponse(
+        event,
+        await cms.collections.restoreRevision(collectionId, entryId, version, {
+          user,
+          tenantId,
+          ...(ifMatch ? { expectedVersion: ifMatch } : {}),
+        }),
+      );
+    }
+
     // ── CRUD routing ──
     switch (request.method) {
       case "GET":
@@ -355,6 +379,7 @@ export async function handleCollectionFind(
       sortField: params.sortField,
       sortDirection: params.sortDirection,
       filter: params.filter,
+      validateFilter: true,
       publicationFilter: params.publicationFilter,
     });
 
@@ -383,6 +408,7 @@ export async function handleCollectionFind(
     sortField: params.sortField,
     sortDirection: params.sortDirection,
     filter: params.filter,
+    validateFilter: true,
     publicationFilter: params.publicationFilter,
     bypassCache: params.bypassCache,
     populate: params.populate,
@@ -425,6 +451,7 @@ export async function handleCollectionExport(
     sortField: params.sortField,
     sortDirection: params.sortDirection,
     filter: params.filter,
+    validateFilter: true,
     publicationFilter: params.publicationFilter,
   });
 
@@ -584,6 +611,23 @@ export async function handleCollectionUpdate(
         : await event.request.json()),
   );
   const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
+  // 🔒 OPTIMISTIC LOCKING: the version the client loaded. `If-Match` wins over a
+  // body field (HTTP semantics); the query param is the escape hatch for clients
+  // that cannot set headers. `expectedVersion` is stripped from the payload so it
+  // is never mistaken for a schema field.
+  const bodyExpected =
+    rawData && typeof rawData === "object"
+      ? (rawData as Record<string, unknown>).expectedVersion
+      : undefined;
+  if (bodyExpected !== undefined && rawData && typeof rawData === "object") {
+    delete (rawData as Record<string, unknown>).expectedVersion;
+  }
+  const expectedVersion =
+    event.request.headers.get("if-match") ??
+    (typeof bodyExpected === "string" || typeof bodyExpected === "number"
+      ? bodyExpected
+      : undefined) ??
+    event.url.searchParams.get("expectedVersion");
   // 🔭 FIELD PROJECTION: `?fields=_id,count,updatedAt` prunes the UPDATE's
   // RETURNING read-back to the requested columns — a caller that only needs
   // the changed fields skips re-reading (and de-TOASTing) the JSON `data`
@@ -592,21 +636,20 @@ export async function handleCollectionUpdate(
   const projection = !isMinimal
     ? parseCollectionQueryParams(event.url.searchParams).fields
     : undefined;
+  const writeOptions = {
+    user: user!,
+    tenantId,
+    ...(isMinimal ? { skipReturning: true } : {}),
+    ...(projection ? { fields: projection } : {}),
+    ...(expectedVersion !== null && expectedVersion !== undefined && expectedVersion !== ""
+      ? { expectedVersion }
+      : {}),
+  };
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
-        cms.collections.update(collectionId, entryId, rawData, {
-          user: user!,
-          tenantId,
-          ...(isMinimal ? { skipReturning: true } : {}),
-          ...(projection ? { fields: projection } : {}),
-        }),
+        cms.collections.update(collectionId, entryId, rawData, writeOptions),
       )
-    : await cms.collections.update(collectionId, entryId, rawData, {
-        user: user!,
-        tenantId,
-        ...(isMinimal ? { skipReturning: true } : {}),
-        ...(projection ? { fields: projection } : {}),
-      });
+    : await cms.collections.update(collectionId, entryId, rawData, writeOptions);
 
   // RFC 7240: `Prefer: return=minimal` asks for a status-only ack. The default body is the
   // whole merged document (~3.5 KB for a partial PATCH on the competitive update lane),

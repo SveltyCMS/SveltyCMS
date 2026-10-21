@@ -18,6 +18,21 @@ export interface LocalApiOptions {
   bypassRequestCache?: boolean;
   system?: boolean;
   skipValidation?: boolean;
+  /**
+   * Optimistic-locking token for `update`: the `updatedAt` the caller loaded
+   * (ISO string, epoch ms, or the wire ETag `"<id>-<updatedAt>"`).
+   *
+   * The write only applies when the row still carries that version; otherwise
+   * it raises `409 VERSION_CONFLICT` with `details.currentVersion`. Omitted →
+   * the historical last-write-wins behaviour, on the unchanged fast path.
+   */
+  expectedVersion?: string | number | null;
+  /**
+   * Validate caller-supplied filter keys against the schema and raise
+   * `400 FILTER_UNKNOWN_FIELD` listing them. Opt-in: HTTP query params set it,
+   * internal SDK calls (which may filter on physical columns) do not.
+   */
+  validateFilter?: boolean;
   disableErrors?: boolean;
   populate?: string[];
   publicationFilter?: PublicationFilter | string;

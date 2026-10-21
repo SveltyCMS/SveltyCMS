@@ -8,9 +8,12 @@ import type { Schema } from "@src/content/types";
 import {
   buildCollectionQueryCacheKey,
   getAllowedFilterFieldIds,
+  getNestedFilterPaths,
   hashQueryPayload,
+  isFilterablePath,
   parseCollectionListQuery,
   parseUrlFilterParams,
+  rejectedFilterKeys,
   stableSerialize,
   whitelistFilterParams,
 } from "@utils/collection-query-filters";
@@ -136,6 +139,54 @@ describe("collection-query-filters", () => {
         { field: "createdAt", direction: "desc" },
       ]);
       expect(q.sort).toEqual({ field: "title", direction: "asc" });
+    });
+  });
+
+  describe("nested filter paths and rejection reporting", () => {
+    const nestedCollection = {
+      _id: "col_nested",
+      name: "Nested",
+      fields: [
+        { label: "Title", db_fieldName: "title" },
+        {
+          label: "SEO",
+          db_fieldName: "seo",
+          type: "object",
+          fields: [{ label: "Description", db_fieldName: "description" }],
+        },
+      ],
+    } as unknown as Schema;
+
+    it("allows dotted paths under an object root only", () => {
+      const allowed = getAllowedFilterFieldIds(nestedCollection);
+      const nested = getNestedFilterPaths(nestedCollection);
+      expect(nested.has("seo")).toBe(true);
+      expect(isFilterablePath("seo.description", allowed, nested)).toBe(true);
+      expect(isFilterablePath("seo.missing", allowed, nested)).toBe(false);
+      expect(isFilterablePath("title.description", allowed, nested)).toBe(false);
+      expect(isFilterablePath("seo.", allowed, nested)).toBe(false);
+    });
+
+    it("keeps valid nested keys and drops unknown ones when whitelisting", () => {
+      const allowed = getAllowedFilterFieldIds(nestedCollection);
+      const nested = getNestedFilterPaths(nestedCollection);
+      const out = whitelistFilterParams(
+        { "seo.description": "x", "seo.nope": "y", nope: "z" },
+        allowed,
+        nested,
+      );
+      expect(Object.keys(out)).toEqual(["seo.description"]);
+    });
+
+    it("names every rejected key (logical operators stay allowed)", () => {
+      const allowed = getAllowedFilterFieldIds(nestedCollection);
+      const nested = getNestedFilterPaths(nestedCollection);
+      const rejected = rejectedFilterKeys(
+        { titel: "x", "seo.nope": "y", title: "ok", $and: [] },
+        allowed,
+        nested,
+      );
+      expect(rejected).toEqual(["titel", "seo.nope"]);
     });
   });
 

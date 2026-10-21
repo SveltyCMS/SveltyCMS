@@ -1007,6 +1007,8 @@ async function rebuildWarmCollectionRead(
         sortField: listParams!.sortField,
         sortDirection: listParams!.sortDirection,
         filter: listParams!.filter,
+        // HTTP query params opt into strict filter checking (`400 FILTER_UNKNOWN_FIELD`).
+        validateFilter: true,
         publicationFilter: listParams!.publicationFilter,
         bypassCache: listParams!.bypassCache,
         populate: listParams!.populate,

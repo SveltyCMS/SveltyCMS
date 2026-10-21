@@ -1797,6 +1797,15 @@ Catalog prices on `/shop` are gross. Checkout shows the trader, the VAT breakdow
 - **Universal AI Provider Port**: Extracted `AiProvider` interface (`src/services/ai/ai-provider.ts`) standardizing generation, multi-turn chat, embeddings, and OpenTelemetry GenAI usage telemetry across vendors and test doubles.
 - **4-DB Engine Parity**: Validated complete adapter contract, fail-closed security, and differential parity compliance across SQLite, PostgreSQL, MariaDB, and MongoDB via `bun run test:parity`.
 
+### 3.56 October 2026 — Concurrency, revision recovery, and query validation (2026-10-21)
+
+- **Optimistic locking**: `PATCH` accepts `If-Match` (wire ETag, ISO timestamp, epoch ms, or `*`) or body `expectedVersion`. The pre-check fails fast, then the write is a compare-and-set (`UPDATE … WHERE _id = ? AND updatedAt = ?`); zero matched rows returns `409 VERSION_CONFLICT` with `details.currentVersion`. Requests without a token keep the unchanged last-write-wins path, so the legacy write lane pays nothing.
+- **Revision restore**: `POST /api/collections/:collection/:entryId/revisions/:version/restore` replays the snapshot through the normal update path — current-schema validation applies, the pre-restore state is snapshotted (the restore is undoable), and `If-Match` prevents clobbering a concurrent edit. Non-revision collections return `400 REVISIONS_DISABLED`.
+- **Bounded history**: `revisionLimit` (default 100, minimum 5) prunes older snapshots by version once the history approaches twice the limit. Pruning is a single bounded `DELETE`, not an id list.
+- **Filter validation**: unknown filter keys and unaddressable nested paths now return `400 FILTER_UNKNOWN_FIELD` with the rejected keys in `details.fields`, replacing silent empty lists and accidental full scans. The allow-list is cached per schema revision.
+- **Adapter fixes found by the new tests**: SQL adapters overwrote a revision's snapshot with `{}` when `data` was passed as a physical column (every stored revision was empty), and JSON blob flattening let a snapshot's `_id` overwrite the version row's own primary key (pruning deleted nothing). Snapshot tables (`content_revisions`, `content_drafts`) now keep `data` nested and column values authoritative.
+- **Verification**: 7/7 HTTP contract tests on the SQLite harness (locking, conflict envelope, restore, pruning, filter 400); unit suite 699 files / 6 613 tests; component interactions 139 tests; tenant lint and risk audit clean.
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)

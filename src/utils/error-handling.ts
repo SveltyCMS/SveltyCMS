@@ -53,12 +53,16 @@ export type KnownAppErrorCode =
   | "UNEXPECTED_SYSTEM_ERROR"
   | "FIELD_ENCRYPTION_UNAVAILABLE"
   | "FIELD_ENCRYPTION_FAILED"
-  | "ENCRYPTED_FIELD_NOT_QUERYABLE";
+  | "ENCRYPTED_FIELD_NOT_QUERYABLE"
+  | "VERSION_CONFLICT"
+  | "FILTER_UNKNOWN_FIELD";
 
 export type AppErrorCode = KnownAppErrorCode | (string & {});
 
 export interface ApiErrorResponse {
   code: AppErrorCode;
+  /** Structured, non-sensitive context (e.g. `{ currentVersion }` on a 409). */
+  details?: unknown;
   issues?: string[];
   message: string;
   stack?: string;
@@ -181,6 +185,7 @@ export function handleApiError(err: unknown, event: RequestEvent) {
   let message = "Internal Server Error";
   let code = "INTERNAL_SERVER_ERROR";
   let issues: string[] | undefined;
+  let details: unknown;
 
   const requestPath = event.url.pathname;
 
@@ -194,6 +199,8 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     status = err.status;
     message = err.message;
     code = err.code;
+    // Only client errors get to publish structured context; 5xx details stay in the log.
+    if (status < 500) details = err.details;
 
     if (status >= 500) {
       logger.error(`AppError [${requestPath}]: ${message}`, {
@@ -255,6 +262,7 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     success: false,
     message,
     code,
+    ...(details !== undefined && { details }),
     ...(issues && { issues }),
   };
 
@@ -299,8 +307,13 @@ export function getErrorMessage(err: unknown): string {
   return String(err);
 }
 
-export function raise(status: number, message: string, code?: AppErrorCode): never {
-  throw new AppError(message, status, code);
+export function raise(
+  status: number,
+  message: string,
+  code?: AppErrorCode,
+  details?: unknown,
+): never {
+  throw new AppError(message, status, code, details);
 }
 
 export function isAppError(err: unknown): err is AppError {

@@ -472,6 +472,21 @@ async function executeWarmCollectionWrite(
   const tParse = STAMP_WRITE_SPLIT ? performance.now() : 0;
   const raw = (locals as any).__parsedJsonBody || (await request.json());
   const data = unwrapWritePayload(raw);
+  // 🔒 Optimistic-locking parity with the dispatcher: `If-Match` wins over a body
+  // field, and the field is stripped so it is never written as a schema field.
+  const bodyExpected =
+    data && typeof data === "object"
+      ? (data as Record<string, unknown>).expectedVersion
+      : undefined;
+  if (bodyExpected !== undefined && data && typeof data === "object") {
+    delete (data as Record<string, unknown>).expectedVersion;
+  }
+  const expectedVersion =
+    request.headers.get("if-match") ??
+    (typeof bodyExpected === "string" || typeof bodyExpected === "number"
+      ? bodyExpected
+      : undefined) ??
+    url.searchParams.get("expectedVersion");
   if (marks) marks.set("parse", performance.now() - tParse);
   const cms = getLaneCms();
   if (!cms) return null;
@@ -502,6 +517,9 @@ async function executeWarmCollectionWrite(
       ...(marks ? { __phaseMarks: marks } : {}),
       ...(minimal ? { skipReturning: true } : {}),
       ...(projection ? { fields: projection } : {}),
+      ...(expectedVersion !== null && expectedVersion !== undefined && expectedVersion !== ""
+        ? { expectedVersion }
+        : {}),
     });
   }
   marks?.set("persist", performance.now() - t0);

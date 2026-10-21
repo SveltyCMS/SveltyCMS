@@ -190,7 +190,9 @@ export class RelationalContentModule implements IContentAdapter {
             .orderBy(desc(this.schema.contentDrafts.version));
 
           return {
-            items: convertArrayDatesToISO(results) as unknown as ContentDraft[],
+            items: convertArrayDatesToISO(results, {
+              table: "contentDrafts",
+            }) as unknown as ContentDraft[],
             total: results.length,
             page: options?.page || 1,
             pageSize: limit,
@@ -620,7 +622,9 @@ export class RelationalContentModule implements IContentAdapter {
           .orderBy(desc(this.schema.contentRevisions.version));
 
         return {
-          items: convertArrayDatesToISO(results) as unknown as ContentRevision[],
+          items: convertArrayDatesToISO(results, {
+            table: "contentRevisions",
+          }) as unknown as ContentRevision[],
           total: results.length,
           page: options?.page || 1,
           pageSize: limit,
@@ -628,6 +632,41 @@ export class RelationalContentModule implements IContentAdapter {
           hasPreviousPage: false,
         };
       }, "GET_REVISIONS_FAILED");
+    },
+
+    /**
+     * One revision by document + version number.
+     *
+     * Indexed lookup (`content_idx` + `content_version_unique`) so restoring a
+     * version never scans the history.
+     */
+    get: async (
+      contentId: DatabaseId,
+      version: number,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentRevision | null>> => {
+      return this.adapter.wrap(
+        async () => {
+          const rows = await this.getDb(options)
+            .select(this.adapter.getPhysicalSelection(this.schema.contentRevisions))
+            .from(this.schema.contentRevisions)
+            .where(
+              and(
+                eq(this.schema.contentRevisions.contentId, contentId as string),
+                eq(this.schema.contentRevisions.version, version),
+              ),
+            )
+            .limit(1);
+
+          const first = rows[0];
+          return first
+            ? (convertArrayDatesToISO([first], { table: "contentRevisions" })[0] as ContentRevision)
+            : null;
+        },
+        "GET_REVISION_FAILED",
+        undefined,
+        { transaction: options?.transaction },
+      );
     },
 
     restore: async (revisionId: DatabaseId): Promise<DatabaseResult<void>> => {
@@ -655,8 +694,14 @@ export class RelationalContentModule implements IContentAdapter {
           pageSize: 1000,
         });
         if (!history.success || history.data.items.length <= keepLatest) return { deletedCount: 0 };
-        const toDelete = history.data.items.slice(keepLatest).map((i) => i._id);
-        const deleteRes = await this.revisions.deleteMany(toDelete);
+        // `getHistory` is newest-first, so the item at the window edge is the
+        // oldest version kept. Pruning by version keeps the DELETE bounded and
+        // independent of how a row's `_id` is produced or projected.
+        const oldestKept = history.data.items[keepLatest - 1].version;
+        const deleteRes = await this.crud.deleteMany("content_revisions", {
+          contentId,
+          version: { $lt: oldestKept },
+        } as any);
         if (!deleteRes.success) throw deleteRes.error;
         return deleteRes.data;
       }, "CLEANUP_REVISIONS_FAILED");
