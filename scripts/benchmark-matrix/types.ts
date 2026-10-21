@@ -38,6 +38,13 @@ export interface BenchmarkScript {
   timeoutMs?: number;
   desc: string;
   strategy: "all" | "sql" | "once";
+  /**
+   * Extra substrings that identify this script's saved `.table.txt` results.
+   * The file is named from the table TITLE (`printTruthTable`), which does not
+   * always contain `shortLabel` — without an alias the ledger reports a test
+   * that ran as "Pending execution".
+   */
+  tableMatch?: string[];
   tags: string[];
   metricCategory: string;
   requiredCapabilities?: string[];

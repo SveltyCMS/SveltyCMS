@@ -42,9 +42,9 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-(21/10/2026, 18:59:13)
+(21/10/2026, 19:28:22)
 
-**✅ PASS** · 56/62 tests · 6 skipped · **SQLITE** · Bun 1.4.2
+**✅ PASS** · 61/61 tests · **SQLITE** · Bun 1.4.2
 
 ### Dimension health
 
@@ -52,7 +52,7 @@ tags:
 | -------------- | ----: | ------ | ------- | ------ |
 | **Core**       |    21 | 🟢     | +5683%  | 0      |
 | **API**        |    16 | 🟢     | +1420%  | 0      |
-| **Scale**      |    20 | 🟢     | +105%   | 0      |
+| **Scale**      |    19 | 🟢     | +105%   | 0      |
 | **Resilience** |     5 | 🟢     | -19%    | 0      |
 
 ### Issues (action required)
@@ -290,7 +290,7 @@ Expand dimension groups, then any row, for ASCII truth tables. Executive summary
 <!-- LEDGER_DIMENSION:CORE:START -->
 
 <details id="ledger-dimension-core">
-<summary><strong>Core</strong> · 92 tests</summary>
+<summary><strong>Core</strong> · 93 tests</summary>
 
 <!-- SECTION:API_LATENCY:START -->
 <details id="section-api_latency">
@@ -692,8 +692,18 @@ Throughput dropped 64% — check connection pool saturation or lock contention.
 <details id="section-dx_tooling">
 <summary><strong>🏷️ DX Toolchain Performance</strong> · ⚪ ⏳ pending · ➡️ — · <a href="../../../tests/benchmarks/dev-dependency-load.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-> ⏳ **DX Toolchain Performance**: Pending execution.
-> 🎯 Measures overhead of the build, sync, and lint toolchain.
+```text
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                        DX Tooling Performance                                         ║
+║                          File: tests/benchmarks/dev-dependency-load.test.ts                           ║
+║                                       Ran: 2026-10-21 17:28:21                                        ║
+║         Measures type-check, format, and lint toolchain overhead for peak developer velocity.         ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Fast Format (oxfmt)            │     3677.745 ms │ p95:     3677.745 ms │ RPS:          0 ║
+║ Type Check (svelte-check)      │    71482.682 ms │ p95:    71482.682 ms │ RPS:          0 ║
+║ Fast Lint (oxlint)             │      129.903 ms │ p95:      129.903 ms │ RPS:          0 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -2385,8 +2395,18 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 <details id="section-real_time">
 <summary><strong>🏷️ WebSocket & Realtime Latency</strong> · ⚪ ⏳ pending · ➡️ — · <a href="../../../tests/benchmarks/realtime-performance.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-> ⏳ **WebSocket & Realtime Latency**: Pending execution.
-> 🎯 Benchmarks WebSocket connection/broadcast latency.
+```text
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                SVELTYCMS — REALTIME PERFORMANCE AUDIT                                 ║
+║                          File: tests/benchmarks/realtime-performance.test.ts                          ║
+║                                       Ran: 2026-10-06 17:50:35                                        ║
+║Measures EventBus prefix filter throughput, sliding-window rate limiters, and real-time event frame generation.║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ EventBus Prefix Filter       │ Cold:     0.04 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 2,447,681 RPS ║
+║ Chat RPC Validation & Dispatch │ Cold:     0.11 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 2,231,271 RPS ║
+║ System Event Instantiation   │ Cold:     0.11 ms │ Warm:     0.000 ms │ p95:     0.000 ms │ 2,708,706 RPS ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -2428,7 +2448,7 @@ Throughput dropped 12% — check connection pool saturation or lock contention.
 <!-- LEDGER_DIMENSION:SCALE:START -->
 
 <details id="ledger-dimension-scale">
-<summary><strong>Scale</strong> · 20 tests</summary>
+<summary><strong>Scale</strong> · 19 tests</summary>
 
 <!-- SECTION:NEGATIVE_CACHE:START -->
 <details id="section-negative_cache">
@@ -2773,31 +2793,38 @@ Throughput dropped 64% — check connection pool saturation or lock contention.
 
 <!-- LEDGER_TRUTH_START -->
 
-> ⏳ **Max Throughput — No Throttle**: Pending execution.
-> 🎯 1000 concurrent writes across 100 docs — no semaphore.
+```text
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                  SVELTYCMS — MAX THROUGHPUT (SQLITE)                                  ║
+║                            File: tests/benchmarks/concurrency-max.test.ts                             ║
+║                                       Ran: 2026-10-06 17:52:48                                        ║
+║           Eliminates wave synchronization barriers and measures exact per-request latency.            ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Full Blast                     │      236.984 ms │ p95:      434.550 ms │ RPS:      2,167 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- LEDGER_TRUTH_END -->
 
 </details>
 <!-- SECTION:MAXRPS:END -->
 
-<!-- SECTION:LOCALSDK:START -->
-<details id="section-localsdk">
-<summary><strong>🏷️ Local SDK Throughput</strong> · ⚪ 0.327ms · ➡️ — · <a href="../../../tests/benchmarks/local-api-throughput.test.ts">source</a></summary>
-<!-- LEDGER_TRUTH_START -->
-> ⏳ **Local SDK Throughput**: Pending execution.
-> 🎯 1000 direct adapter calls — no HTTP, no middleware.
-<!-- LEDGER_TRUTH_END -->
-
-</details>
-<!-- SECTION:LOCALSDK:END -->
-
 <!-- SECTION:FAST_FAIL:START -->
 <details id="section-fast_fail">
 <summary><strong>🏷️ Failure Propagation & Fast-Fail Audit</strong> · ⚪ ⏳ pending · ➡️ — · <a href="../../../tests/benchmarks/failure-propagation.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-> ⏳ **Failure Propagation & Fast-Fail Audit**: Pending execution.
-> 🎯 Measures system overhead when downstream dependencies (DB/Redis) fail or timeout.
+```text
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                 SVELTYCMS — FAILURE PROPAGATION AUDIT                                 ║
+║                          File: tests/benchmarks/failure-propagation.test.ts                           ║
+║                                       Ran: 2026-09-26 09:49:55                                        ║
+║     Measures the system's ability to reject invalid requests quickly with minimal resource waste.     ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Success: Health Check @ 4c   │ Cold:     4.37 ms │ Warm:     3.074 ms │ p95:     4.961 ms │   1,246 RPS ║
+║ Fast-Fail: Invalid Auth @ 4c │ Cold:     5.73 ms │ Warm:     5.210 ms │ p95:     7.749 ms │     741 RPS ║
+║ Deep-Fail: 404 Collection @ 4c │ Cold:     8.54 ms │ Warm:     7.156 ms │ p95:    11.106 ms │     534 RPS ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -2832,8 +2859,21 @@ Throughput dropped 64% — check connection pool saturation or lock contention.
 
 <!-- LEDGER_TRUTH_START -->
 
-> ⏳ **Production Day Simulation**: Pending execution.
-> 🎯 Full production day with mixed workload, 100% reliability.
+```text
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                   SVELTYCMS — PRODUCTION DAY AUDIT                                    ║
+║                             File: tests/benchmarks/production-day.test.ts                             ║
+║                                       Ran: 2026-10-06 17:51:11                                        ║
+║Simulates a realistic multi-user workload with a weighted mix of read, list, update, media, and GraphQL operations with per-tier latency telemetry.║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
+║ Production Day Composite     │ Cold:     6.97 ms │ Warm:     1.014 ms │ p95:     2.239 ms │     157 RPS ║
+║ Day: READ_LIST                 │        0.608 ms │ p95:        1.118 ms │ RPS:        838 ║
+║ Day: READ_ENTRY                │        0.673 ms │ p95:        1.043 ms │ RPS:        443 ║
+║ Day: UPDATE                    │        1.550 ms │ p95:        2.108 ms │ RPS:        542 ║
+║ Day: MEDIA                     │        2.013 ms │ p95:        2.821 ms │ RPS:        204 ║
+║ Day: GQL                       │        2.064 ms │ p95:        3.075 ms │ RPS:        114 ║
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 
 <!-- LEDGER_TRUTH_END -->
 

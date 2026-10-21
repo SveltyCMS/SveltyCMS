@@ -55,11 +55,19 @@ import {
   patchExecutivePartialWatermark,
   replaceLatestAuditHeading,
   replaceZone,
+  pruneRetiredLedgerSections,
   stripLatestOutsideExecutive,
   upsertLedgerSection,
   ZONE_MARKERS,
 } from "../../tests/benchmarks/modules/benchmark-mdx";
 import { writeHistoryArchive } from "../../tests/benchmarks/modules/benchmark-reporting";
+
+/**
+ * Ledger sections whose benchmark script was decommissioned (moved to
+ * `tests/benchmarks/archive/` or removed). Regeneration prunes their stale
+ * "Pending execution" blocks instead of leaving them in every ledger.
+ */
+const RETIRED_LEDGER_TAGS: readonly string[] = ["LOCALSDK"];
 
 /**
  * Best-effort oxfmt pass on a freshly written report. The generated MDX must stay
@@ -1492,10 +1500,15 @@ tags:
       try {
         const dbResultsDir = path.join(ROOT_RESULTS_DIR, dbKey);
         const allFiles = await findFilesRecursive(dbResultsDir, ".table.txt");
+        // The saved file is named from the table TITLE, not the registry's
+        // shortLabel — accept explicit aliases so a test that ran is not shown
+        // as "Pending execution".
+        const targetSlugs = [script.shortLabel, ...(script.tableMatch ?? [])].map((label) =>
+          label.toLowerCase().replace(/[^a-z0-9]/g, "_"),
+        );
         const tableFile = allFiles.find((f) => {
           const baseName = path.basename(f).toLowerCase();
-          const targetSlug = script.shortLabel.toLowerCase().replace(/[^a-z0-9]/g, "_");
-          return baseName.includes(targetSlug);
+          return targetSlugs.some((slug) => baseName.includes(slug));
         });
         if (tableFile) {
           const rawTable = await fs.readFile(tableFile, "utf8");
@@ -1536,6 +1549,10 @@ tags:
 
       doc = upsertLedgerSection(doc, tagSlug, tableContent);
     }
+
+    // Sections for decommissioned scripts (`tests/benchmarks/archive/`) are not
+    // in the registry anymore, so the loop above can never replace them.
+    doc = pruneRetiredLedgerSections(doc, RETIRED_LEDGER_TAGS);
 
     // ── Patch dimension summary table and auto-open degraded dimension groups ──
     const dimStatuses: Partial<Record<LedgerDimension, DimensionStatus>> = {};

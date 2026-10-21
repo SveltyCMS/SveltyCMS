@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import { test, expect } from "vitest";
 import path from "node:path";
 import fs from "node:fs";
+import { printTruthTable } from "./modules/benchmark-utils";
 
 interface ToolResult {
   task: string;
@@ -192,6 +193,32 @@ test("DX Toolchain Performance (Sync + Format + Lint)", async () => {
   );
 
   console.log(`⏱️  Total Toolchain Latency: ${totalDurationMs.toFixed(2)}ms\n`);
+
+  // Record the run: without a truth table the ledger can only report this
+  // script as "Pending execution" even though it just measured all three tools.
+  printTruthTable({
+    title: "DX Tooling Performance",
+    shortLabel: "DX-Tooling",
+    subtitle: "Sync + format + type-check + lint",
+    results: results.map((r) => ({
+      name: r.task,
+      db: "-",
+      avgMs: r.durationMs,
+      p50Ms: r.durationMs,
+      p95Ms: r.durationMs,
+      p99Ms: r.durationMs,
+      minMs: r.durationMs,
+      maxMs: r.durationMs,
+      rps: 0,
+      iterations: 1,
+      runs: 1,
+      concurrency: 1,
+      cv: 0,
+      totalMs: r.durationMs,
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version ?? "",
+    })),
+  });
 
   expect(totalDurationMs).toBeLessThan(120_000);
 }, 120_000);

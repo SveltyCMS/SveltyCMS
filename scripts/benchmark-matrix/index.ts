@@ -269,7 +269,6 @@ const GROUPS = [
     name: "SDK Write/Mutation",
     parallel: false,
     tests: [
-      "local-api-throughput",
       "database-performance",
       "transaction-acid",
       "security-audit",

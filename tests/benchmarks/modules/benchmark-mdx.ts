@@ -1135,6 +1135,28 @@ export function stripLedgerDimensionMarkup(preamble: string): string {
 }
 
 /**
+ * Remove per-test sections for scripts that no longer exist.
+ *
+ * `upsertLedgerSection` only adds or replaces, so a decommissioned benchmark
+ * (e.g. a suite moved to `tests/benchmarks/archive/`) keeps a stale
+ * "Pending execution" block in every ledger it ever ran in.
+ */
+export function pruneRetiredLedgerSections(doc: string, retiredTags: readonly string[]): string {
+  const [ls, le] = ZONE_MARKERS.ledger;
+  const ledger = extractZone(doc, ls, le);
+  if (!ledger || retiredTags.length === 0) return doc;
+
+  const retired = new Set(retiredTags);
+  const pruned = ledger.replace(
+    /<!-- SECTION:([A-Z0-9_]+):START -->[\s\S]*?<!-- SECTION:\1:END -->\n*/g,
+    (block, tag: string) => (retired.has(tag) ? "" : block),
+  );
+  if (pruned === ledger) return doc;
+
+  return replaceZone(doc, ls, le, pruned) ?? doc;
+}
+
+/**
  * B. Deduplicate per-test sections — one `*_TABLE_*` pair per tag in LEDGER;
  * strip live TABLE tags from EDUCATIONAL and other zones.
  */
