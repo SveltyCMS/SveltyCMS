@@ -166,6 +166,17 @@ bulk actions, and predictive preloading.
 	const pagesCount = $derived(serverPagination.pagesCount);
 	const totalItems = $derived(serverPagination.totalItems);
 
+	/**
+	 * Collection id for all per-collection persistence keys.
+	 *
+	 * Derived from the prop (not `collections.active`) because the store is
+	 * populated by the route's `$effect.pre`, i.e. *after* this component is
+	 * created — reading it here produced the generic `entry-list` layout key.
+	 */
+	const initialCollectionId = untrack(() =>
+		propCollection?._id ? String(propCollection._id) : null
+	);
+
 	// =================================================================
 	// 3. URL-BASED NAVIGATION (Replaces All Client-Side Fetching)
 	// =================================================================
@@ -187,7 +198,7 @@ bulk actions, and predictive preloading.
 	// layoutKey is per-collection (EntryList remounts via {#key collectionSchema?._id})
 	const smartTable = createSmartTable<CollectionEntry>({
 		mode: 'server',
-		layoutKey: collections.active?._id ? `entry-list:${collections.active._id}` : 'entry-list',
+		layoutKey: initialCollectionId ? `entry-list:${initialCollectionId}` : 'entry-list',
 		onQueryChange: (updates) => updateURL(updates),
 		getRowId: (row) => String(row._id ?? '')
 	});
@@ -633,34 +644,36 @@ bulk actions, and predictive preloading.
 		filters: {}, // Will be populated by an effect based on tableHeaders
 		displayTableHeaders: []
 	});
-	let entryListPaginationSettings = $state(
-		defaultPaginationSettings(collections.active?._id ?? null)
-	);
 
-	// Load settings from localStorage
-	$effect(() => {
-		if (browser && collections.active?._id) {
-			const key = `entryListPaginationSettings_${collections.active._id}`;
-			const saved = localStorage.getItem(key);
-			if (saved) {
-				try {
-					const parsed = JSON.parse(saved);
-					// Ensure we don't overwrite with stale data structure, merge carefully if needed
-					// For now, assume saved state is valid but ensure collectionId matches
-					if (parsed.collectionId === collections.active._id) {
-						// We need to match the Shape of PaginationSettings
-						entryListPaginationSettings = {
-							...defaultPaginationSettings(collections.active._id),
-							...parsed
-							// Ensure displayTableHeaders are re-verified against current schema later by existing effects
-						};
-					}
-				} catch (e) {
-					logger.error('Failed to load entry list settings', e);
-				}
-			}
+	/**
+	 * Read the persisted entry-list settings for a collection.
+	 *
+	 * Called during component initialisation (never from an effect): the first
+	 * render must already carry the user's rows/order/density, otherwise the
+	 * table paints the defaults and visibly reflows once hydration finishes.
+	 */
+	function loadPaginationSettings(collectionId: string | null): PaginationSettings {
+		// `createSmartTable` already resolved its own persisted layout (density,
+		// view mode, widths) during creation — start from that value so the two
+		// stores cannot fight on the first effect flush.
+		const base = { ...defaultPaginationSettings(collectionId), density: smartTable.density };
+		if (!browser || !collectionId) return base;
+
+		try {
+			const saved = localStorage.getItem(`entryListPaginationSettings_${collectionId}`);
+			if (!saved) return base;
+
+			const parsed = JSON.parse(saved) as Partial<PaginationSettings> | null;
+			if (!parsed || parsed.collectionId !== collectionId) return base;
+
+			return { ...base, ...parsed };
+		} catch (e) {
+			logger.error('Failed to load entry list settings', e);
+			return base;
 		}
-	});
+	}
+
+	let entryListPaginationSettings = $state(loadPaginationSettings(initialCollectionId));
 
 	// Save settings to localStorage
 	$effect(() => {
@@ -824,50 +837,82 @@ bulk actions, and predictive preloading.
 		return [...schemaHeaders, ...filteredSystemHeaders];
 	});
 
-	// displayTableHeaders are the actual headers shown, considering user's order/visibility preferences from localStorage
-	let displayTableHeaders: TableHeader[] = $state([]);
+	/**
+	 * Reconcile the schema headers with the user's saved order/visibility.
+	 * Pure: it seeds the initial render *and* re-runs when the schema changes.
+	 */
+	function reconcileTableHeaders(
+		headers: TableHeader[],
+		settings: PaginationSettings,
+		collectionId: string | null
+	): TableHeader[] {
+		if (headers.length === 0) return [];
+
+		if (
+			collectionId &&
+			settings.collectionId === collectionId &&
+			Array.isArray(settings.displayTableHeaders) &&
+			settings.displayTableHeaders.length > 0
+		) {
+			const schemaHeaderMap = new SvelteMap(headers.map((th) => [th.name, th]));
+			const reconciledHeaders: TableHeader[] = [];
+			const addedNames = new SvelteSet<string | undefined>();
+
+			for (const savedHeader of settings.displayTableHeaders) {
+				const schemaHeader = schemaHeaderMap.get(savedHeader.name);
+				if (schemaHeader) {
+					reconciledHeaders.push({
+						...schemaHeader,
+						id: savedHeader.id || schemaHeader.id,
+						visible:
+							typeof savedHeader.visible === 'boolean' ? savedHeader.visible : schemaHeader.visible
+					});
+					addedNames.add(savedHeader.name);
+				}
+			}
+			for (const schemaHeader of headers) {
+				if (!addedNames.has(schemaHeader.name)) {
+					reconciledHeaders.push({ ...schemaHeader, visible: true });
+				}
+			}
+			return reconciledHeaders;
+		}
+
+		return headers.map((h) => ({ ...h, visible: true }));
+	}
+
+	/** Cheapest equality check that still catches reorders/visibility flips. */
+	function sameTableHeaders(a: TableHeader[], b: TableHeader[]): boolean {
+		if (a.length !== b.length) return false;
+		return a.every(
+			(header, index) =>
+				header.id === b[index].id &&
+				header.name === b[index].name &&
+				header.visible === b[index].visible
+		);
+	}
+
+	// displayTableHeaders are the actual headers shown, considering the user's
+	// order/visibility preferences from localStorage. Seeded during init so SSR
+	// emits the real column set — an effect left the server-rendered table with
+	// a single checkbox column that expanded on hydration (a whole-table reflow).
+	let displayTableHeaders: TableHeader[] = $state(
+		untrack(() =>
+			reconcileTableHeaders(tableHeaders, entryListPaginationSettings, initialCollectionId)
+		)
+	);
 
 	$effect(() => {
-		// Sync displayTableHeaders with settings or defaults from tableHeaders
-		const currentCollId = currentCollection?._id;
-		const settings = entryListPaginationSettings;
+		// Re-sync only when the schema or the saved settings actually changed.
+		const currentCollId = currentCollection?._id ? String(currentCollection._id) : null;
+		const nextHeaders = reconcileTableHeaders(
+			tableHeaders,
+			entryListPaginationSettings,
+			currentCollId
+		);
 
-		if (tableHeaders.length > 0) {
-			if (
-				settings.collectionId === currentCollId &&
-				Array.isArray(settings.displayTableHeaders) &&
-				settings.displayTableHeaders.length > 0
-			) {
-				const schemaHeaderMap = new SvelteMap(tableHeaders.map((th) => [th.name, th]));
-				const reconciledHeaders: TableHeader[] = [];
-				const addedNames = new SvelteSet();
-
-				for (const savedHeader of settings.displayTableHeaders) {
-					const schemaHeader = schemaHeaderMap.get(savedHeader.name);
-					if (schemaHeader) {
-						reconciledHeaders.push({
-							...schemaHeader,
-							id: savedHeader.id || schemaHeader.id,
-							visible:
-								typeof savedHeader.visible === 'boolean'
-									? savedHeader.visible
-									: schemaHeader.visible
-						});
-						addedNames.add(savedHeader.name);
-					}
-				}
-				for (const schemaHeader of tableHeaders) {
-					if (!addedNames.has(schemaHeader.name)) {
-						reconciledHeaders.push({ ...schemaHeader, visible: true });
-					}
-				}
-				displayTableHeaders = reconciledHeaders;
-			} else {
-				displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
-			}
-		} else {
-			displayTableHeaders = [];
-		}
+		if (sameTableHeaders(displayTableHeaders, nextHeaders)) return;
+		displayTableHeaders = nextHeaders;
 	});
 
 	const visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
@@ -1276,7 +1321,7 @@ bulk actions, and predictive preloading.
 	</div>
 {:else}
 	<!-- Header Bar -->
-	<div class="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
+	<div class="mb-3 flex flex-wrap items-center justify-between gap-3 ps-1 pe-1 md:ps-8">
 		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
 		<div class="flex flex-1 items-center gap-3 min-w-0">
 			{#if ui.state.leftSidebar === 'hidden'}

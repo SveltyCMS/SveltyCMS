@@ -180,53 +180,55 @@
 					aria-label={widget_audit_entries_aria()}
 				>
 					{#each logs as log (log._id || log.timestamp)}
-						<a
-							href="/config/monitor"
-							aria-label={log.action || log.eventType || widget_audit_system_event()}
-							class="group flex gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
-						>
-							<!-- Icon -->
-							<div class="shrink-0 mt-0.5">
-								<iconify-icon
-									icon={actionIcon(log.action)}
-									class="text-lg {actionColor(log.action, log.result)}"
-								></iconify-icon>
-							</div>
-
-							<!-- Content -->
-							<div class="min-w-0 flex-1">
-								<div class="flex items-baseline justify-between gap-2">
-									<span
-										class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
-									>
-										{log.action || log.eventType || widget_audit_system_event()}
-									</span>
-									<span class="shrink-0 text-[11px] tabular-nums text-(--admin-text-muted)">
-										{formatTime(log.timestamp)}
-									</span>
+						<div role="listitem">
+							<a
+								href="/config/monitor"
+								aria-label={log.action || log.eventType || widget_audit_system_event()}
+								class="group flex gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
+							>
+								<!-- Icon -->
+								<div class="shrink-0 mt-0.5">
+									<iconify-icon
+										icon={actionIcon(log.action)}
+										class="text-lg {actionColor(log.action, log.result)}"
+									></iconify-icon>
 								</div>
 
-								<div class="mt-1 flex items-center gap-2">
-									<span class="text-xs text-(--admin-text-muted)">
-										{actorName(log.actorEmail || log.userEmail)}
-									</span>
-									{#if log.result}
+								<!-- Content -->
+								<div class="min-w-0 flex-1">
+									<div class="flex items-baseline justify-between gap-2">
 										<span
-											class="rounded-full px-1.5 py-px text-[10px] font-medium {resultBadgeClass(
-												log.result
-											)}"
+											class="truncate text-sm font-medium text-(--admin-text-body) group-hover:text-tertiary-600 dark:group-hover:text-primary-400 transition-colors"
 										>
-											{log.result}
+											{log.action || log.eventType || widget_audit_system_event()}
 										</span>
-									{/if}
-									{#if log.message}
-										<span class="truncate text-[10px] text-(--admin-text-muted)">
-											{log.message}
+										<span class="shrink-0 text-[11px] tabular-nums text-(--admin-text-muted)">
+											{formatTime(log.timestamp)}
 										</span>
-									{/if}
+									</div>
+
+									<div class="mt-1 flex items-center gap-2">
+										<span class="text-xs text-(--admin-text-muted)">
+											{actorName(log.actorEmail || log.userEmail)}
+										</span>
+										{#if log.result}
+											<span
+												class="rounded-full px-1.5 py-px text-[10px] font-medium {resultBadgeClass(
+													log.result
+												)}"
+											>
+												{log.result}
+											</span>
+										{/if}
+										{#if log.message}
+											<span class="truncate text-[10px] text-(--admin-text-muted)">
+												{log.message}
+											</span>
+										{/if}
+									</div>
 								</div>
-							</div>
-						</a>
+							</a>
+						</div>
 					{/each}
 				</div>
 			</div>

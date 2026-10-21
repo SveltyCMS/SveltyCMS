@@ -59,7 +59,7 @@
 
 {#if bridgeActive}
 	<div
-		class="pointer-events-none fixed bottom-3 end-3 z-50 rounded-full bg-primary-500/90 px-3 py-1 text-xs font-medium text-white shadow-lg"
+		class="pointer-events-none fixed bottom-3 inset-e-3 z-50 rounded-full bg-primary-500/90 px-3 py-1 text-xs font-medium text-white shadow-lg"
 		role="status"
 		aria-live="polite"
 	>

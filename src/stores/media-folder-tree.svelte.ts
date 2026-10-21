@@ -56,17 +56,44 @@ class MediaFolderTreeStore {
     this.error = null;
     try {
       const res = await fetch(`/api/system-virtual-folder?t=${Date.now()}`);
-      if (!res.ok) throw new Error("Network error");
-      const { success, data } = await res.json();
-      if (!(success && data)) throw new Error("Invalid response");
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
 
-      this.folders = (data as RawFolder[])
-        .filter((f) => f.path?.startsWith("/"))
+      const payload: unknown = await res.json();
+      // The endpoint may answer with the raw array, a `{ success, data }`
+      // envelope, or a paginated `{ items }` payload depending on the adapter.
+      // Normalize all three instead of assuming one shape — a shape mismatch
+      // used to surface as the misleading "Failed to load folders" toast even
+      // though the request succeeded.
+      const envelope = (payload ?? {}) as {
+        data?: unknown;
+        items?: unknown;
+      };
+      const payloadData = envelope.data;
+      const dataEnvelope = (payloadData ?? {}) as { items?: unknown; data?: unknown };
+      const rows: unknown[] = Array.isArray(payloadData)
+        ? payloadData
+        : Array.isArray(dataEnvelope.items)
+          ? dataEnvelope.items
+          : Array.isArray(dataEnvelope.data)
+            ? dataEnvelope.data
+            : Array.isArray(payload)
+              ? payload
+              : [];
+
+      this.folders = rows
+        .filter((value): value is RawFolder => {
+          if (!value || typeof value !== "object") return false;
+          const folder = value as Partial<RawFolder>;
+          return typeof folder.path === "string" && folder.path.length > 0;
+        })
+        .filter((f) => f.path.startsWith("/"))
         .map((f) => ({
-          id: f._id,
+          id: String(f._id),
           name: f.name,
           path: f.path,
-          parentId: f.parentId,
+          parentId: f.parentId ?? null,
           order: f.order ?? 0,
         }));
     } catch (err) {

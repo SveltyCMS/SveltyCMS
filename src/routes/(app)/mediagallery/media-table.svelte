@@ -286,14 +286,15 @@
 
 			{#each paginatedFiles as file (file._id || file.filename)}
 				{@const fileId = file._id?.toString() || file.filename}
-				{@const isSelected = selectedFiles.has(fileId)}
 
 				<div
 					class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
-							{isSelected ? `border-s-primary-500 ${SMART_TABLE_ROW_SELECTED}` : SMART_TABLE_ROW_HOVER}"
+							{selectedFiles.has(fileId)
+						? `border-s-primary-500 ${SMART_TABLE_ROW_SELECTED}`
+						: SMART_TABLE_ROW_HOVER}"
 					role="row"
 					tabindex="0"
-					aria-selected={isSelected}
+					aria-selected={selectedFiles.has(fileId)}
 					use:liftAndCarry={{
 						container: MEDIA_DRAG_CONTAINER,
 						dragData: {
@@ -324,7 +325,7 @@
 					>
 						<Checkbox
 							class="w-auto"
-							checked={isSelected}
+							checked={selectedFiles.has(fileId)}
 							onchange={() => toggleSelection(file)}
 							label="Select {file.filename}"
 							hideLabel
@@ -508,15 +509,14 @@
 			<tbody>
 				{#each paginatedFiles as file (file._id || file.filename)}
 					{@const fileId = file._id?.toString() || file.filename}
-					{@const isSelected = selectedFiles.has(fileId)}
 
 					<tr
 						class="group cursor-grab border-b border-surface-500/30 align-middle active:cursor-grabbing dark:border-surface-500/40
-								{isSelected ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
+								{selectedFiles.has(fileId) ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 						tabindex="0"
-						aria-selected={isSelected}
+						aria-selected={selectedFiles.has(fileId)}
 						use:draggable={{
 							container: MEDIA_DRAG_CONTAINER,
 							dragData: {
@@ -536,7 +536,7 @@
 						<td
 							class="media-table-select {SMART_TABLE_TD} {pinCellClass(
 								'start'
-							)} w-9 shrink-0 border-s-2! {isSelected
+							)} w-9 shrink-0 border-s-2! {selectedFiles.has(fileId)
 								? 'border-s-primary-500!'
 								: 'border-s-transparent!'}"
 							data-no-drag
@@ -545,7 +545,7 @@
 							<div class="flex justify-center">
 								<Checkbox
 									class="w-auto"
-									checked={isSelected}
+									checked={selectedFiles.has(fileId)}
 									onchange={() => toggleSelection(file)}
 									label="Select {file.filename}"
 									hideLabel

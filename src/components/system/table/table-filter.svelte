@@ -75,20 +75,28 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	// Storage key for user settings
 	const USER_SETTINGS_KEY = 'userTableSettings';
 
-	// Load density from localStorage on component mount
-	$effect(() => {
-		if (browser) {
-			try {
-				const settings = JSON.parse(localStorage.getItem(USER_SETTINGS_KEY) || '{}');
-				if (settings.density && densityOptions.includes(settings.density)) {
-					density = settings.density;
-				}
-			} catch (e) {
-				logger.error('Failed to load user table settings', e);
-				// Keep default if error
-			}
+	/**
+	 * Read the persisted density preference.
+	 *
+	 * Called from component initialisation, not an effect: applying the saved
+	 * density after mount changes every row's padding at once (a visible reflow
+	 * on every collection/user/access table).
+	 */
+	function readSavedDensity(): string | null {
+		if (!browser) return null;
+		try {
+			const settings = JSON.parse(localStorage.getItem(USER_SETTINGS_KEY) || '{}');
+			return typeof settings.density === 'string' ? settings.density : null;
+		} catch (e) {
+			logger.error('Failed to load user table settings', e);
+			return null;
 		}
-	});
+	}
+
+	const savedDensity = readSavedDensity();
+	if (savedDensity && densityOptions.includes(savedDensity) && savedDensity !== density) {
+		density = savedDensity;
+	}
 
 	// Store user settings when density changes
 	$effect(() => {

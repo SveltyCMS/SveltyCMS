@@ -1,26 +1,27 @@
 <!--
-@files src/routes/(app)/mediagallery/uploadMedia/LocalUpload.svelte
+@files src/routes/(app)/mediagallery/upload-media/local-upload.svelte
 @component
-**This page is used to local upload media to the media gallery**
+**Local media upload queue and drop zone**
 
 ## Props
--
+- `folder`: Target virtual folder (`global` keeps the media root).
+- `onUploadComplete`: Called after a successful batch.
+- `redirectOnSuccess`: Navigate to `/mediagallery` when true.
 
 ### Features:
-- Drag and drop file upload
-- File validation (size, type)
-- Duplicate file detection
-- Thumbnail generation
-- File upload progress
-- Cancel upload
-
+- Drag and drop file upload with a full-height, non-clipped drop zone
+- File validation (size, type) and duplicate detection
+- Synchronous image/audio previews (no missing thumbnails on first paint)
+- Shared `formatBytes` / MIME-subtype labels with the media gallery
+- File upload progress and cancel
 -->
+
 <script lang="ts">
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
-	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { formatBytes } from '@utils/file';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { optimizeImage } from '@src/utils/media/webgpu-processor';
 	import { uploadMediaFilesHandle } from '@utils/media/upload-client';
@@ -31,6 +32,7 @@
 		mediagallery_add_files,
 		mediagallery_browse_files,
 		mediagallery_cancel_upload,
+		mediagallery_clear_queue,
 		mediagallery_drag_files_hint,
 		mediagallery_dropzone_aria,
 		mediagallery_file,
@@ -60,23 +62,24 @@
 		folder = 'global'
 	}: Props = $props();
 
-	let files: File[] = $state([]);
+	interface QueuedFile {
+		file: File;
+		key: string;
+		previewUrl?: string;
+	}
+
+	let files = $state<QueuedFile[]>([]);
 	let input: HTMLInputElement | null = $state(null);
-	let dropZone: HTMLDivElement | null = $state(null);
 	let uploadProgress = $state(0);
 	let uploadSpeed = $state(0);
 	let uploadFileLabel = $state('');
 	let isUploading = $state(false);
 	let uploadCancel: (() => void) | null = $state(null);
 	let optimizeBeforeUpload = $state(true); // Default to on for 2026 performance
-	let optimizationStats = $state({ saved: 0, count: 0 });
+	let dragActive = $state(false);
 
-	// Internal state moved from ModalUploadMedia
-	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-	let fileSet = $state(new SvelteSet<string>());
-
-	// eslint-disable-next-line svelte/no-unnecessary-state-wrap
-	let objectUrls = $state(new SvelteMap<string, string>());
+	/** Duplicate guard — the array itself is the rendered state. */
+	const fileSet = new SvelteSet<string>();
 
 	const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 	const ALLOWED_TYPES = [
@@ -94,59 +97,42 @@
 		'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 	];
 
-	// Async Thumbnail Generation Effect
-	$effect(() => {
-		const currentFiles = files;
-		let isActive = true;
+	function fileKey(file: File): string {
+		return `${file.name}-${file.size}`;
+	}
 
-		async function generateThumbnails() {
-			for (const file of currentFiles) {
-				if (!isActive) {
-					return;
-				}
-
-				const fileKey = `${file.name}-${file.size}`;
-
-				// Skip if we already have a URL for this file
-				if (
-					!objectUrls.has(fileKey) &&
-					(file.type?.startsWith('image/') || file.type?.startsWith('audio/'))
-				) {
-					const url = URL.createObjectURL(file);
-					objectUrls.set(fileKey, url);
-
-					// Yield to main thread to allow UI rendering
-					await new Promise((resolve) => requestAnimationFrame(resolve));
-				}
-			}
-
-			// Cleanup phase: Remove URLs for files that are no longer present
-			if (isActive) {
-				const currentFileKeys = new Set(currentFiles.map((f) => `${f.name}-${f.size}`));
-				for (const [key, url] of objectUrls) {
-					if (!currentFileKeys.has(key)) {
-						URL.revokeObjectURL(url);
-						objectUrls.delete(key);
-					}
-				}
-			}
+	/**
+	 * Create the preview URL while the file is being queued (synchronously).
+	 * The previous `$effect`-driven SvelteMap filled after the render that
+	 * needed it, so the first frame showed a broken-image icon.
+	 */
+	function createPreview(file: File): string | undefined {
+		if (file.type?.startsWith('image/') || file.type?.startsWith('audio/')) {
+			return URL.createObjectURL(file);
 		}
+		return undefined;
+	}
 
-		generateThumbnails();
+	function revokePreview(entry: QueuedFile): void {
+		if (entry.previewUrl?.startsWith('blob:')) {
+			URL.revokeObjectURL(entry.previewUrl);
+		}
+	}
 
-		return () => {
-			isActive = false;
-		};
-	});
+	function revokeAllPreviews(): void {
+		for (const entry of files) revokePreview(entry);
+	}
 
-	// Cleanup on destroy
+	// Release blob URLs when the component unmounts.
 	$effect(() => {
 		return () => {
-			objectUrls.forEach((url) => URL.revokeObjectURL(url));
+			for (const entry of files) {
+				if (entry.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(entry.previewUrl);
+			}
 		};
 	});
 
-	// Helper: Get icon string
+	/** Get icon string. */
 	function getFileIcon(file: File): string {
 		const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 		switch (true) {
@@ -173,7 +159,7 @@
 		}
 	}
 
-	// Format MIME type for display
+	/** Human-readable MIME subtype — same label the gallery tiles use. */
 	function formatMimeType(mime: string | undefined = undefined): string {
 		if (!mime) {
 			return 'Unknown';
@@ -188,18 +174,17 @@
 			return;
 		}
 
-		const validFiles: File[] = [];
+		const validFiles: QueuedFile[] = [];
 		const errors: string[] = [];
 
 		newFiles.forEach((file) => {
+			const key = fileKey(file);
 			if (file.size > MAX_FILE_SIZE) {
 				errors.push(`${file.name} exceeds maximum file size of 50MB`);
 			} else if (ALLOWED_TYPES.includes(file.type)) {
-				// Check for duplicates
-				const fileKey = `${file.name}-${file.size}`;
-				if (!fileSet.has(fileKey)) {
-					validFiles.push(file);
-					fileSet.add(fileKey);
+				if (!fileSet.has(key)) {
+					validFiles.push({ file, key, previewUrl: createPreview(file) });
+					fileSet.add(key);
 				}
 			} else {
 				errors.push(`${file.name} is not an allowed file type`);
@@ -219,12 +204,24 @@
 
 	function handleFileDrop(event: DragEvent) {
 		event.preventDefault();
-		dropZone?.style.removeProperty('border-color');
+		dragActive = false;
 		if (!event.dataTransfer || !event.dataTransfer.files || event.dataTransfer.files.length === 0) {
 			toast.warning({ description: 'No files recognized in drop' });
 			return;
 		}
 		validateAndAddFiles(Array.from(event.dataTransfer.files));
+	}
+
+	/** Paste images from the clipboard straight into the queue. */
+	function handlePaste(event: ClipboardEvent) {
+		const target = event.target as HTMLElement | null;
+		// Never steal a paste from a text field or rich-text editor.
+		if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+
+		const pasted = Array.from(event.clipboardData?.files ?? []);
+		if (pasted.length === 0) return;
+		event.preventDefault();
+		validateAndAddFiles(pasted);
 	}
 
 	function onChange() {
@@ -240,41 +237,28 @@
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
-		if (dropZone) {
-			dropZone.style.borderColor = '#5fd317';
-		}
+		dragActive = true;
 	}
 
 	function handleDragLeave(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
-		dropZone?.style.removeProperty('border-color');
+		dragActive = false;
 	}
 
-	function handleDeleteFile(file: File) {
-		const fileKey = `${file.name}-${file.size}`;
-		files = files.filter((f) => f !== file);
-		fileSet.delete(fileKey);
+	function handleDeleteFile(entry: QueuedFile) {
+		files = files.filter((f) => f !== entry);
+		fileSet.delete(entry.key);
+		revokePreview(entry);
 	}
 
 	function handleCancel() {
+		revokeAllPreviews();
 		files = [];
 		fileSet.clear();
-		// Revoke immediately
-		objectUrls.forEach((url) => URL.revokeObjectURL(url));
-		objectUrls.clear();
 	}
 
-	// Format bytes for display
-	function formatBytes(bytes: number): string {
-		if (bytes === 0) {
-			return '0 Bytes';
-		}
-		const k = 1024;
-		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${Number.parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
-	}
+	const totalQueuedSize = $derived(files.reduce((sum, entry) => sum + entry.file.size, 0));
 
 	async function uploadLocalFiles() {
 		if (files.length === 0) {
@@ -285,19 +269,18 @@
 		isUploading = true;
 		uploadProgress = 0;
 		const startTime = Date.now();
+		const sourceFiles = files.map((entry) => entry.file);
 
 		// --- WebGPU OPTIMIZATION STEP ---
-		let filesToUpload = [...files];
+		let filesToUpload = [...sourceFiles];
 		if (optimizeBeforeUpload) {
 			toast.info('Optimizing media via WebGPU...');
-			const optimized = [];
-			for (const file of files) {
+			const optimized: File[] = [];
+			for (const file of sourceFiles) {
 				if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
 					try {
 						const result = await optimizeImage(file);
 						optimized.push(result.file);
-						optimizationStats.saved += file.size - result.processedSize;
-						optimizationStats.count++;
 					} catch (err) {
 						logger.warn(`Optimization failed for ${file.name}, using original.`, err);
 						optimized.push(file);
@@ -307,11 +290,6 @@
 				}
 			}
 			filesToUpload = optimized;
-			if (optimizationStats.count > 0) {
-				toast.success(
-					`Optimized ${optimizationStats.count} images. Saved ${(optimizationStats.saved / 1024).toFixed(2)} KB`
-				);
-			}
 		}
 
 		const controller = new AbortController();
@@ -354,7 +332,7 @@
 				handleCancel();
 				onUploadComplete();
 				if (redirectOnSuccess) {
-					goto('/mediagallery', { refreshAll: true });
+					void goto('/mediagallery', { refreshAll: true });
 				}
 			} else {
 				throw new Error(result.message || 'Upload failed');
@@ -373,18 +351,22 @@
 	}
 </script>
 
+<svelte:window onpaste={handlePaste} />
+
 {#if files.length === 0}
 	<!-- Drop Zone State -->
 	<div
-		bind:this={dropZone}
 		ondrop={handleFileDrop}
 		ondragover={handleDragOver}
 		ondragleave={handleDragLeave}
-		class="mt-2 flex h-50 w-full max-w-full select-none flex-col items-center justify-center gap-4 overflow-x-auto rounded border-2 border-dashed border-surface-600 bg-secondary-500/10 px-2 sm:flex-row dark:border-surface-500 dark:bg-surface-700"
+		class="mt-2 flex min-h-56 w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed px-4 py-6 transition-colors sm:flex-row {dragActive
+			? 'border-tertiary-500 bg-tertiary-500/10'
+			: 'border-surface-600 bg-secondary-500/10 dark:border-surface-500 dark:bg-surface-700'}"
 		role="region"
 		aria-label={mediagallery_dropzone_aria()}
+		data-testid="media-upload-dropzone"
 	>
-		<div class="flex w-full flex-col items-center gap-4 p-4 sm:flex-row">
+		<div class="flex w-full flex-col items-center gap-4 p-2 sm:flex-row sm:p-4">
 			<iconify-icon icon="fa6-solid:file-arrow-up" width={32} class="shrink-0 sm:w-12"
 			></iconify-icon>
 
@@ -412,11 +394,11 @@
 					onclick={() => input?.click()}
 					disabled={isUploading}
 					class="mt-3"
+					data-testid="media-upload-browse"
 				>
 					{mediagallery_browse_files()}
 				</Button>
 
-				<!-- File Size Limit -->
 				<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">
 					{mediagallery_max_file_size()}
 				</p>
@@ -437,22 +419,30 @@
 		/>
 	</div>
 {:else}
-	<div class="mb-5 text-center sm:text-start">
-		<p class="text-center text-tertiary-500 dark:text-primary-500">
+	<div class="mb-5 flex flex-wrap items-center justify-between gap-2 text-center sm:text-start">
+		<p class="text-tertiary-500 dark:text-primary-500" aria-live="polite">
 			{mediagallery_queue_hint()}
 		</p>
+		<p class="text-xs text-(--admin-text-muted)" data-testid="media-upload-summary">
+			{files.length}
+			{files.length === 1 ? mediagallery_file() : mediagallery_files()} ·
+			{formatBytes(totalQueuedSize)}
+		</p>
+		<Button variant="ghost" size="sm" type="button" onclick={handleCancel} class="shrink-0">
+			{mediagallery_clear_queue()}
+		</Button>
 	</div>
 	<!-- Grid View State -->
-	<div class="flex flex-col space-y-4 overflow-x-auto pb-2">
+	<div class="flex flex-col space-y-4 pb-2">
 		<!-- File Grid -->
 		<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-			{#each files as file (file.name + file.size)}
-				{const fileKey = `${file.name}-${file.size}`}
-				{const previewUrl = objectUrls.get(fileKey)}
+			{#each files as entry (entry.key)}
+				{const file = entry.file}
 				{const iconName = getFileIcon(file)}
 
 				<div
-					class="group relative overflow-hidden rounded border border-surface-500/30 shadow-sm transition-all hover:shadow-md dark:border-surface-50"
+					class="group relative flex flex-col overflow-hidden rounded-lg border border-surface-500/30 shadow-sm transition-all hover:shadow-md dark:border-surface-500/40"
+					data-testid="media-upload-queued"
 				>
 					<!-- Delete button -->
 					<div class="absolute inset-e-1 top-1 z-10 flex cursor-pointer shadow-sm">
@@ -460,8 +450,8 @@
 							<Button
 								variant="ghost"
 								type="button"
-								onclick={() => handleDeleteFile(file)}
-								aria-label={mediagallery_remove_file()}
+								onclick={() => handleDeleteFile(entry)}
+								aria-label={`${mediagallery_remove_file()} ${file.name}`}
 								class="p-0! min-w-0 bg-error-500 rounded-full"
 							>
 								<iconify-icon icon="material-symbols:delete" width={24} class="text-white"
@@ -471,20 +461,29 @@
 					</div>
 
 					<!-- Preview -->
-					<div class="flex aspect-square items-center justify-center">
-						{#if file.type?.startsWith('image/') && previewUrl}
-							<img src={previewUrl} alt={file.name} class="h-full w-full object-contain" />
-						{:else if file.type?.startsWith('audio/') && previewUrl}
+					<div class="media-queue-checkerboard flex aspect-square items-center justify-center">
+						{#if file.type?.startsWith('image/') && entry.previewUrl}
+							<img
+								src={entry.previewUrl}
+								alt={file.name}
+								title={file.name}
+								class="h-full w-full object-contain"
+								loading="lazy"
+								decoding="async"
+								data-testid="media-upload-preview"
+							/>
+						{:else if file.type?.startsWith('audio/') && entry.previewUrl}
 							<audio controls class="max-w-full">
-								<source src={previewUrl} type={file.type} />
+								<source src={entry.previewUrl} type={file.type} />
 							</audio>
 						{:else}
-							<iconify-icon icon={iconName} width="48" class="opacity-50"></iconify-icon>
+							<iconify-icon icon={iconName} width="48" class="text-(--admin-text-muted)"
+							></iconify-icon>
 						{/if}
 					</div>
 
 					<!-- Media Filename -->
-					<div class="w-full px-2 py-1 text-center h-10 flex flex-col justify-center">
+					<div class="flex h-10 w-full flex-col justify-center px-2 py-1 text-center">
 						<SystemTooltip title={file.name} positioning={{ placement: 'top' }}>
 							<div
 								class="text-xs font-bold leading-tight line-clamp-2 overflow-hidden overflow-wrap-anywhere"
@@ -494,25 +493,22 @@
 						</SystemTooltip>
 					</div>
 
-					<!-- Media Type & Size (Footer) -->
-					<div class="flex grow items-center justify-between p-1 text-white font-bold">
-						<!-- Type -->
+					<!-- Media Type & Size (Footer) — mirrors the gallery tile labels -->
+					<div class="flex items-center justify-between gap-1 p-1 text-white">
 						<SystemTooltip title={file.type} positioning={{ placement: 'top' }}>
-							<div
-								class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex items-center gap-1 overflow-hidden"
+							<span
+								class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 overflow-hidden"
 							>
 								<iconify-icon icon={iconName} width="12"></iconify-icon>
-								<span class="truncate text-[10px] uppercase">{formatMimeType(file.type)}</span>
-							</div>
+								<span class="truncate">{formatMimeType(file.type)}</span>
+							</span>
 						</SystemTooltip>
-						<!-- Size -->
 						<SystemTooltip title={mediagallery_size()} positioning={{ placement: 'top' }}>
-							<p
-								class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2.5 py-0.5 font-bold uppercase tracking-wider flex shrink-0 items-center gap-1 text-[10px]"
+							<span
+								class="bg-tertiary-500 dark:bg-primary-500/50 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 font-mono"
 							>
-								<span class="">{(file.size / 1024).toFixed(2)}</span>
-								KB
-							</p>
+								{formatBytes(file.size)}
+							</span>
 						</SystemTooltip>
 					</div>
 				</div>
@@ -523,10 +519,11 @@
 				variant="surface"
 				type="button"
 				onclick={() => input?.click()}
-				class="flex-col items-center gap-2"
+				class="flex h-auto! min-h-0 w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-(--admin-border-default) py-4 whitespace-normal"
+				data-testid="media-upload-add-files"
 			>
 				<iconify-icon icon="mingcute:add-fill" width={24}></iconify-icon>
-				<span class="font-bold">{mediagallery_add_files()}</span>
+				<span class="text-center text-sm font-bold leading-tight">{mediagallery_add_files()}</span>
 			</Button>
 		</div>
 
@@ -542,16 +539,23 @@
 
 		<!-- Actions Footer -->
 		<div
-			class="flex items-center justify-between border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
+			class="flex items-center justify-between gap-3 border-t border-surface-500/30 pt-4 dark:border-surface-500/40"
 		>
 			<Button variant="outline" type="button" onclick={handleCancel}>{button_cancel()}</Button>
-			<Button variant="tertiary" type="button" onclick={uploadLocalFiles} disabled={isUploading}>
+			<Button
+				variant="tertiary"
+				type="button"
+				onclick={uploadLocalFiles}
+				disabled={isUploading}
+				class="min-w-0"
+				data-testid="media-upload-submit"
+			>
 				{#if isUploading}
 					<iconify-icon icon="eos-icons:loading" width={24} class="animate-spin"></iconify-icon>
-					<span class="truncate">{useravatar_uploading()} {uploadProgress}%</span>
+					<span class="whitespace-nowrap">{useravatar_uploading()} {uploadProgress}%</span>
 				{:else}
 					<iconify-icon icon="mingcute:check-fill" width={24}></iconify-icon>
-					<span class="truncate"
+					<span class="whitespace-nowrap"
 						>{mediagallery_upload_action()}
 						{files.length}{' '}{files.length !== 1
 							? mediagallery_files()
@@ -563,12 +567,11 @@
 	</div>
 {/if}
 
-<!-- Upload Progress Overlay (Optional, or keep inline in button) -->
+<!-- Upload Progress -->
 {#if isUploading}
 	<div
-		class="mt-4 w-full overflow-x-auto rounded border border-surface-500 bg-surface-500/10 p-4 dark:bg-surface-700"
+		class="mt-4 w-full rounded-lg border border-surface-500 bg-surface-500/10 p-4 dark:bg-surface-700"
 	>
-		<!-- Progress Bar -->
 		<div
 			class="mb-2 h-2 w-full overflow-hidden rounded-full bg-surface-300 dark:bg-surface-600"
 			role="progressbar"
@@ -602,3 +605,36 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	.media-queue-checkerboard {
+		background-color: color-mix(in srgb, var(--admin-bg-card, #ffffff) 92%, black);
+		background-image:
+			linear-gradient(
+				45deg,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 25%,
+				transparent 25%
+			),
+			linear-gradient(
+				-45deg,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 25%,
+				transparent 25%
+			),
+			linear-gradient(
+				45deg,
+				transparent 75%,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 75%
+			),
+			linear-gradient(
+				-45deg,
+				transparent 75%,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 75%
+			);
+		background-size: 12px 12px;
+		background-position:
+			0 0,
+			0 6px,
+			6px -6px,
+			-6px 0;
+	}
+</style>

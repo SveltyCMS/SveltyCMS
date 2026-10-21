@@ -17,6 +17,7 @@
 	import Button from '@components/ui/button.svelte';
 	// Components
 	import Toggle from '@components/ui/toggle.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJs
 	import {
@@ -274,32 +275,45 @@
 </script>
 
 {#if showSidebar || showCollectionsHere}
-	<div class="flex h-full flex-col justify-between px-3 py-4">
+	<div class="flex h-full flex-col gap-4 overflow-y-auto px-3 py-4">
 		<!-- Collections tree (when theme moves it to end sidebar) -->
 		{#if showCollectionsHere}
-			<div class="mb-3">
+			<div class="shrink-0">
 				<Collections />
 			</div>
 			{#if showSidebar}
-				<hr class="my-2 border-(--admin-border-default)" />
+				<hr class="border-(--admin-border-default)" />
 			{/if}
 		{/if}
 
 		{#if showSidebar}
 			<!-- Special "Next" button for Menu wizard -->
 			{#if ui.wizard.shouldShowNextButton && currentMode === 'create' && isMenuCollection}
-				<Button
-					variant="tertiary"
-					type="button"
-					onclick={nextAction!}
-					class="w-full gap-2 shadow-lg"
-				>
+				<Button variant="tertiary" type="button" onclick={nextAction!} class="w-full gap-2">
 					<iconify-icon icon="carbon:next-filled" width="20"></iconify-icon>
 					{button_next()}
 				</Button>
 			{:else}
-				<!-- Main actions -->
-				<header class="flex flex-col gap-3">
+				<!-- Primary action + status -->
+				<section
+					class="shrink-0 rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-3 shadow-xs"
+				>
+					<div class="mb-3 flex items-center justify-between gap-2">
+						<div class="min-w-0">
+							<p
+								class="text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
+							>
+								Status
+							</p>
+							<p class="mt-0.5 truncate text-xs font-medium text-(--admin-text-body)">
+								{hasChanges ? 'Unsaved changes' : 'All changes saved'}
+							</p>
+						</div>
+						<Badge variant={collections.isPublish ? 'success' : 'warning'} size="sm">
+							{collections.isPublish ? status_publish() : status_unpublish()}
+						</Badge>
+					</div>
+
 					<Button
 						variant="primary"
 						type="button"
@@ -307,13 +321,15 @@
 						disabled={!isFormValid || !canWrite}
 						aria-label="Save"
 						title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
-						class="w-full gap-2 shadow-lg transition-all"
+						class="w-full gap-2"
 					>
 						<iconify-icon icon="material-symbols:save" width="20"></iconify-icon>
 						{button_save()}
 					</Button>
 
-					<div class="gradient-secondary w-full gap-2 rounded p-2 shadow-md">
+					<div
+						class="mt-3 rounded-lg border border-(--admin-border-default) bg-(--admin-bg-chip) px-2 py-1.5"
+					>
 						<Toggle
 							value={collections.isPublish}
 							label={collections.isPublish ? status_publish() : status_unpublish()}
@@ -326,126 +342,122 @@
 							onToggle={toggleStatus}
 						/>
 					</div>
+				</section>
 
-					{#if currentMode === 'edit'}
-						<div class="flex w-full flex-col gap-2">
-							<Button
-								variant="outline"
-								type="button"
-								onclick={handleClone}
-								disabled={!canCreate}
-								class="gradient-secondary gradient-secondary-hover w-full gap-2 text-white shadow-md"
-							>
-								<iconify-icon icon="bi:clipboard-data-fill" width="18"></iconify-icon>
-								Clone <span class="font-semibold text-white">{currentCollection?.name}</span>
-							</Button>
+				{#if currentMode === 'edit'}
+					<section class="shrink-0 space-y-2" aria-label="Entry actions">
+						<Button
+							variant="outline"
+							type="button"
+							onclick={handleClone}
+							disabled={!canCreate}
+							class="w-full justify-start gap-2"
+						>
+							<iconify-icon icon="bi:clipboard-data" width="16"></iconify-icon>
+							<span class="truncate">Clone {currentCollection?.name}</span>
+						</Button>
 
-							<Button
-								variant="error"
-								type="button"
-								onclick={handleDelete}
-								disabled={!canDelete}
-								class="w-full gap-2 shadow-md"
-							>
-								<iconify-icon icon="icomoon-free:bin" width="18"></iconify-icon>
-								{button_delete()}
-							</Button>
-						</div>
-					{/if}
-				</header>
+						<Button
+							variant="error"
+							type="button"
+							onclick={handleDelete}
+							disabled={!canDelete}
+							class="w-full justify-start gap-2"
+						>
+							<iconify-icon icon="icomoon-free:bin" width="16"></iconify-icon>
+							{button_delete()}
+						</Button>
+					</section>
+				{/if}
 
 				<Slot name="entry_edit_sidebar" props={{ collection: currentCollection, currentEntry }} />
 
-				<main class="mt-6 flex w-full flex-col gap-4 text-start">
-					<div class="border-b border-surface-500/30 pb-2 dark:border-surface-600">
-						<h3
-							class="text-center text-sm font-bold uppercase tracking-wide text-tertiary-500 dark:text-primary-500"
-						>
-							{siedabar_publish_options()}
-						</h3>
-					</div>
+				<!-- Publishing -->
+				<section class="shrink-0 space-y-2">
+					<h3 class="text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)">
+						{siedabar_publish_options()}
+					</h3>
 
-					<div class="space-y-2">
-						{#if scheduleTimestamp}
-							<p class="text-sm font-medium text-(--admin-text-muted)">
+					{#if scheduleTimestamp}
+						<div
+							class="rounded-lg border border-(--admin-border-default) bg-(--admin-bg-chip) px-3 py-2"
+						>
+							<p class="text-xs font-medium text-(--admin-text-muted)">
 								{sidebar_will_publish_on()}
 							</p>
-							<p class="text-xs font-semibold text-tertiary-500 dark:text-primary-500">
+							<p class="mt-0.5 text-xs font-semibold text-tertiary-500 dark:text-primary-500">
 								{formatDisplayDate(scheduleTimestamp)}
 							</p>
-						{/if}
-						<Button
-							variant="outline"
-							onclick={openSchedule}
-							class="w-full justify-start gap-2 text-start text-surface-600 dark:text-surface-100"
-						>
-							<iconify-icon icon="bi:clock" width="16"></iconify-icon>
-							<span class="text-sm font-medium text-surface-600 dark:text-surface-100">
-								{scheduleTimestamp ? 'Change schedule...' : 'Schedule publication...'}
-							</span>
-						</Button>
-						{#if scheduleTimestamp}
-							<Button
-								variant="error"
-								onclick={() => {
-									collections.activeValue = {
-										...currentEntry!,
-										_scheduled: undefined,
-										status: StatusTypes.draft
-									};
-									toast.success('Schedule cancelled');
-								}}
-								class="w-full justify-start gap-2 text-start text-sm"
-							>
-								<iconify-icon icon="material-symbols:cancel" width="16"></iconify-icon>
-								<span>Cancel Schedule</span>
-							</Button>
-						{/if}
-					</div>
+						</div>
+					{/if}
 
-					<div class="space-y-3">
-						<div class="space-y-1">
-							<p class="text-sm font-medium text-(--admin-text-muted)">
-								{sidebar_createdby()}
-							</p>
-							<div
-								class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800"
-							>
-								<span class="text-sm font-semibold text-surface-600 dark:text-surface-100">
-									{getDisplayName(currentEntry?.createdBy as string)}
-								</span>
-							</div>
+					<Button variant="outline" onclick={openSchedule} class="w-full justify-start gap-2">
+						<iconify-icon icon="bi:clock" width="16"></iconify-icon>
+						<span class="truncate text-sm font-medium">
+							{scheduleTimestamp ? 'Change schedule...' : 'Schedule publication...'}
+						</span>
+					</Button>
+
+					{#if scheduleTimestamp}
+						<Button
+							variant="ghost"
+							onclick={() => {
+								collections.activeValue = {
+									...currentEntry!,
+									_scheduled: undefined,
+									status: StatusTypes.draft
+								};
+								toast.success('Schedule cancelled');
+							}}
+							class="w-full justify-start gap-2 text-error-500"
+						>
+							<iconify-icon icon="material-symbols:cancel" width="16"></iconify-icon>
+							<span class="text-sm">Cancel Schedule</span>
+						</Button>
+					{/if}
+				</section>
+
+				<!-- Authorship -->
+				<section class="shrink-0 space-y-2">
+					<h3 class="text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)">
+						Authorship
+					</h3>
+
+					<div
+						class="divide-y divide-(--admin-border-default) rounded-lg border border-(--admin-border-default) bg-(--admin-bg-card)"
+					>
+						<div class="flex items-center justify-between gap-2 px-3 py-2">
+							<span class="text-xs text-(--admin-text-muted)">{sidebar_createdby()}</span>
+							<span class="truncate text-xs font-semibold text-(--admin-text-body)">
+								{getDisplayName(currentEntry?.createdBy as string)}
+							</span>
 						</div>
 
 						{#if currentEntry?.updatedBy}
-							<div class="space-y-1">
-								<p class="text-sm font-medium text-(--admin-text-muted)">Last updated by</p>
-								<div
-									class="rounded-lg border border-surface-500/30 bg-surface-500/10 px-3 py-2 text-center dark:border-surface-500/40 dark:bg-surface-800"
-								>
-									<span class="text-sm font-semibold text-surface-600 dark:text-surface-100">
-										{getDisplayName(currentEntry?.updatedBy as string)}
-									</span>
-								</div>
+							<div class="flex items-center justify-between gap-2 px-3 py-2">
+								<span class="text-xs text-(--admin-text-muted)">Last updated by</span>
+								<span class="truncate text-xs font-semibold text-(--admin-text-body)">
+									{getDisplayName(currentEntry?.updatedBy as string)}
+								</span>
 							</div>
 						{/if}
 					</div>
-				</main>
+				</section>
 
-				<footer class="mt-6 border-t border-surface-500/30 pt-4 dark:border-surface-600">
-					<div class="space-y-2 text-xs">
-						<div class="flex items-center justify-between">
-							<span class="font-medium capitalize">Created:</span>
-							<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.created}</span>
+				<footer class="mt-auto shrink-0 border-t border-(--admin-border-default) pt-3">
+					<div class="space-y-1.5 text-xs">
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-(--admin-text-muted)">Created</span>
+							<span class="font-medium text-(--admin-text-body)">{dates.created}</span>
 						</div>
-						<div class="flex items-center justify-between">
-							<span class="font-medium capitalize">Updated:</span>
-							<span class="font-bold text-tertiary-500 dark:text-primary-500">{dates.updated}</span>
+						<div class="flex items-center justify-between gap-2">
+							<span class="text-(--admin-text-muted)">Updated</span>
+							<span class="font-medium text-(--admin-text-body)">{dates.updated}</span>
 						</div>
 					</div>
 
 					{#if currentMode === 'create'}
-						<div class="mt-3 text-center text-xs text-tertiary-500 dark:text-primary-500">
+						<div class="mt-2 text-center text-xs text-(--admin-text-muted)">
 							{formatDisplayDate(Date.now(), undefined, {
 								year: 'numeric',
 								month: 'short',

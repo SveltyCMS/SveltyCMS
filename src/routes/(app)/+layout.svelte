@@ -29,7 +29,11 @@ This layout provides the administrative shell, including sidebars and header con
 	import { isAdmin } from '@src/databases/auth/constants';
 	import type { ContentNode } from '@src/content/types';
 	// Stores
-	import { applyRemoteContentStructure, setMode } from '@src/stores/collection-store.svelte.ts';
+	import {
+		applyRemoteContentStructure,
+		collections,
+		setMode
+	} from '@src/stores/collection-store.svelte.ts';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { initializeDarkMode } from '@src/stores/theme-store.svelte.ts';
@@ -227,6 +231,40 @@ This layout provides the administrative shell, including sidebars and header con
 			root.removeAttribute('data-density');
 			root.removeAttribute('data-reduced-motion');
 		};
+	});
+
+	// ── Page header (HeaderEdit) visibility ──
+	//
+	// HeaderEdit is an edit-mode toolbar, but the store default is
+	// `pageheader: 'full'`. That default was painted by SSR on every view-mode
+	// page and then corrected by `updateFromContext` after hydration, removing
+	// a 56px toolbar from the flow — measured 0.066 CLS on /config. Deriving the
+	// edit-ness from the URL too keeps the server response and the first client
+	// render identical (the route is the only mode signal available to SSR).
+	const editingRoute = $derived(
+		page.url.searchParams.has('edit') || page.url.searchParams.get('create') === 'true'
+	);
+	const showPageHeader = $derived(
+		editingRoute || ['edit', 'create', 'modify'].includes(collections.mode)
+	);
+
+	/**
+	 * Sidebar state the server and the first client render must agree on.
+	 *
+	 * `updateFromContext` opens the right sidebar and collapses the left one for
+	 * edit/create on desktop, but that runs *after* hydration. Rendering the
+	 * store defaults on the server therefore snapped both sidebars into place on
+	 * a cold edit load (256px + 120px of content movement). Route defaults are
+	 * applied here until the user moves a sidebar themselves.
+	 */
+	const leftSidebarState = $derived.by(() => {
+		if (ui.leftSidebarTouched || !editingRoute) return ui.state.leftSidebar;
+		return screen.isDesktop ? 'collapsed' : 'hidden';
+	});
+	const rightSidebarState = $derived.by(() => {
+		if (ui.rightSidebarTouched) return ui.state.rightSidebar;
+		if (editingRoute && screen.isDesktop) return 'full';
+		return ui.state.rightSidebar;
 	});
 
 	// ── Layout state: tenant defaults, then per-user overrides ──
@@ -539,11 +577,15 @@ This layout provides the administrative shell, including sidebars and header con
 				{/if}
 
 				<div class="flex flex-1 overflow-hidden">
-					<!-- Desktop / tablet: inline sidebar (inside flex flow) -->
-					{#if !screen.isMobile && ui.state.leftSidebar !== 'hidden'}
+					<!-- Desktop / tablet: inline sidebar (inside flex flow).
+					     `max-md:hidden` matters for SSR: the server cannot know the
+					     viewport, so it renders this branch for phones too. Hiding it in
+					     CSS means hydration removes nothing that was ever painted. -->
+					{#if !screen.isMobile && leftSidebarState !== 'hidden'}
 						<aside
-							class="max-h-dvh border-e bg-surface-500/10 text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible"
-							style="width: {ui.state.leftSidebar === 'full'
+							data-testid="app-left-sidebar"
+							class="max-md:hidden max-h-dvh shrink-0 border-e bg-surface-500/10 text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible"
+							style="width: {leftSidebarState === 'full'
 								? 'var(--admin-sidebar-width, 240px)'
 								: 'var(--admin-sidebar-compact-width, 120px)'}"
 							aria-label={applayout_left_sidebar_nav()}
@@ -552,8 +594,11 @@ This layout provides the administrative shell, including sidebars and header con
 						</aside>
 					{/if}
 
-					<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col">
-						{#if ui.state.pageheader !== 'hidden'}
+					<!-- `overflow-x-clip` keeps wide author content (tables, embeds) from
+					     painting underneath the end sidebar; vertical scroll stays owned
+					     by each route so sticky bars are unaffected. -->
+					<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col overflow-x-clip">
+						{#if showPageHeader && ui.state.pageheader !== 'hidden'}
 							<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
 						{/if}
 
@@ -594,10 +639,13 @@ This layout provides the administrative shell, including sidebars and header con
 						{/if}
 					</main>
 
-					<!-- Desktop: inline right sidebar -->
-					{#if !screen.isMobile && ui.state.rightSidebar !== 'hidden'}
+					<!-- Desktop: inline right sidebar (hidden below md for the same
+					     SSR reason as the left aside; tablets never show it, matching
+					     `updateFromContext`). -->
+					{#if !screen.isMobile && rightSidebarState !== 'hidden'}
 						<aside
-							class="max-h-dvh w-60 border-s bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							data-testid="app-right-sidebar"
+							class="max-md:hidden max-h-dvh w-64 shrink-0 border-s bg-white bg-linear-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900 md:max-lg:hidden"
 							aria-label={applayout_right_sidebar()}
 						>
 							<RightSidebar />

@@ -39,7 +39,7 @@ const RAW_FOLDERS = FOLDERS.map((f) => ({
   order: f.order,
 }));
 
-const network = vi.hoisted(() => ({ fetchData: [] as unknown[] }));
+const network = vi.hoisted(() => ({ fetchData: [] as unknown[], nested: false }));
 
 function treeNode(target: HTMLElement, id: string): HTMLElement {
   const node = target.querySelector<HTMLElement>(`#treenode-${CSS.escape(id)}`);
@@ -69,14 +69,22 @@ async function mount(): Promise<ReturnType<typeof renderComponent>> {
 beforeEach(() => {
   ui.state.leftSidebar = "full";
   network.fetchData = RAW_FOLDERS;
+  network.nested = false;
   vi.stubGlobal(
     "fetch",
     vi.fn(
       async () =>
-        new Response(JSON.stringify({ success: true, data: network.fetchData }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify(
+            network.nested
+              ? { success: true, data: { items: network.fetchData } }
+              : { success: true, data: network.fetchData },
+          ),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        ),
     ),
   );
   mediaFolderTree.folders = FOLDERS;
@@ -182,5 +190,19 @@ describe("Media folders tree (client interaction)", () => {
     } finally {
       cleanup();
     }
+  });
+
+  it("normalizes a nested items envelope instead of reporting a load error", async () => {
+    network.nested = true;
+    mediaFolderTree.hasLoaded = false;
+
+    await mediaFolderTree.load();
+
+    expect(mediaFolderTree.error).toBeNull();
+    expect(mediaFolderTree.folders.map((folder) => folder.id)).toEqual([
+      "parent",
+      "child",
+      "sibling",
+    ]);
   });
 });

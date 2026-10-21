@@ -31,9 +31,29 @@ export function getScreenSize(width: number): ScreenSize {
   return ScreenSize.XS;
 }
 
+/**
+ * Viewport captured at module-evaluation time.
+ *
+ * The singleton is imported before the first client render, so seeding it here
+ * makes hydration evaluate `screen.isMobile` / `isDesktop` against the real
+ * viewport. Mounting in `onMount` instead painted the SSR 1024px layout first
+ * and flipped the sidebars one frame later (measured on the admin shell).
+ */
+function initialViewport(): { width: number; height: number } {
+  if (typeof window === "undefined") {
+    return { width: 1024, height: 768 };
+  }
+  return {
+    width: window.innerWidth || 1024,
+    height: window.innerHeight || 768,
+  };
+}
+
+const INITIAL_VIEWPORT = initialViewport();
+
 class ScreenSizeStore {
-  width = $state(1024);
-  height = $state(768);
+  width = $state(INITIAL_VIEWPORT.width);
+  height = $state(INITIAL_VIEWPORT.height);
   prefersReducedMotion = $state(false);
 
   get size(): ScreenSize {

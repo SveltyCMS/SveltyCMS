@@ -93,12 +93,15 @@
 	>
 		<iconify-icon icon="mdi:bookmark-outline" width={18}></iconify-icon>
 		<span class="hidden sm:inline">Views</span>
-		{#if views.length > 0}
-			<span
-				class="rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold dark:bg-primary-500/20"
-				>{views.length}</span
-			>
-		{/if}
+		<!-- Always reserve the badge slot: appearing after hydration used to widen
+		     the button and reflow the `flex-wrap` toolbar. -->
+		<span
+			class="min-w-4 rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold dark:bg-primary-500/20 {views.length ===
+			0
+				? 'invisible'
+				: ''}"
+			aria-hidden={views.length === 0}>{views.length}</span
+		>
 	</Button>
 
 	{#if open}

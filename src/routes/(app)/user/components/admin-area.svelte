@@ -230,7 +230,10 @@
 	const smartTable = createSmartTable({
 		mode: 'server',
 		pageSize: 10,
-		layoutKey: 'admin-area-users-tokens',
+		// Match the effect below (which switches layout per view) so the initial
+		// render already resolves the right persisted layout — switching keys
+		// after mount changed density/widths on an already-painted table.
+		layoutKey: untrack(() => (showUserList ? 'admin-area-users' : 'admin-area-tokens')),
 		getRowId: (row: Record<string, unknown>) => getAdminRowId(row as TableDataType),
 		onQueryChange: () => {
 			fetchData().catch((err) => logger.error('AdminArea smartTable query change:', err));
@@ -414,30 +417,50 @@
 		})()
 	);
 
-	// Initialize displayTableHeaders with a safe default
-	let displayTableHeaders: TableHeader[] = $state([]);
+	// Initialize displayTableHeaders from the initial view
+	let displayTableHeaders: TableHeader[] = $state(untrack(() => buildTableHeaders(showUserList)));
 
-	$effect(() => {
-		// Update displayTableHeaders when view changes.
-		// 🛡️ The controller calls below mutate smart-table state (lay-out key, columns,
-		// widths) — run them untracked so this effect depends only on the view flags and
-		// never on state it writes. Tracked writes here re-schedule the effect that made
-		// them (effect_update_depth_exceeded).
-		const targetLayoutKey = showUserList ? 'admin-area-users' : 'admin-area-tokens';
-		const baseHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
+	/**
+	 * Build the header set for one view (users or tokens).
+	 *
+	 * Shared by the initial render and the view-switch effect: the initial
+	 * render used to start from an empty array, so SSR emitted a table without
+	 * columns that grew into the full grid on hydration.
+	 */
+	function buildTableHeaders(usersView: boolean): TableHeader[] {
+		const baseHeaders = usersView ? tableHeadersUser : tableHeaderToken;
 		const relevantHeaders = isMultiTenant
 			? baseHeaders
 			: baseHeaders.filter((h) => h.key !== 'tenantId');
 		// Essential columns only visible by default — rest available via column toggle
-		const essentialKeys = showUserList
+		const essentialKeys = usersView
 			? ['avatar', 'email', 'username', 'role', 'createdAt', 'blocked']
 			: ['email', 'role', 'token', 'expires', 'createdAt', 'blocked'];
-		const newHeaders = relevantHeaders.map((header) => ({
+
+		return relevantHeaders.map((header) => ({
 			label: header.label,
 			key: header.key,
 			visible: essentialKeys.includes(header.key),
 			id: `header-${header.key}`
 		}));
+	}
+
+	// Skip the first effect run: the header set above is already applied, and
+	// re-applying it would re-render every row right after hydration.
+	let appliedHeaderView = untrack(() => `${showUserList ? 'users' : 'tokens'}:${isMultiTenant}`);
+
+	$effect(() => {
+		// Update displayTableHeaders when the view changes.
+		// 🛡️ The controller calls below mutate smart-table state (lay-out key, columns,
+		// widths) — run them untracked so this effect depends only on the view flags and
+		// never on state it writes. Tracked writes here re-schedule the effect that made
+		// them (effect_update_depth_exceeded).
+		const viewKey = `${showUserList ? 'users' : 'tokens'}:${isMultiTenant}`;
+		if (viewKey === appliedHeaderView) return;
+		appliedHeaderView = viewKey;
+
+		const targetLayoutKey = showUserList ? 'admin-area-users' : 'admin-area-tokens';
+		const newHeaders = buildTableHeaders(showUserList);
 
 		untrack(() => {
 			smartTable.setLayoutKey(targetLayoutKey);

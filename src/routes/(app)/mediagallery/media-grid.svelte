@@ -15,6 +15,11 @@
 	import {
 		button_edit,
 		builder_tag_input_label,
+		mediagallery_copy_url,
+		mediagallery_copy_url_aria,
+		mediagallery_copy_url_failed,
+		mediagallery_copy_url_missing,
+		mediagallery_copy_url_success,
 		mediagallery_drag_to_folder,
 		mediagallery_drop_files,
 		mediagallery_file_name_label,
@@ -41,6 +46,8 @@
 	} from '@utils/media/media-dnd';
 	import { liftAndCarry } from '@utils/media/media-lift-drag';
 	import { formatBytes } from '@utils/file';
+	import { logger } from '@utils/logger';
+	import { toast } from '@src/stores/toast.svelte.ts';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
@@ -87,6 +94,7 @@
 	let visibleCount = $state(BATCH_SIZE);
 	let scrollRoot = $state<HTMLElement>();
 	let sentinel = $state<HTMLElement>();
+	let lastFilterKey = '';
 
 	const visibleFiles = $derived(filteredFiles.slice(0, visibleCount));
 	const hasMore = $derived(visibleCount < filteredFiles.length);
@@ -95,7 +103,12 @@
 	);
 
 	$effect(() => {
-		void filteredFiles;
+		// Reset batching only when the visible set actually changes. The parent
+		// recreates the array after every reload, and resetting on identity alone
+		// made the grid snap back to the first page (and replay its fade-in).
+		const filterKey = filteredFiles.map((file) => file._id ?? file.filename).join('|');
+		if (filterKey === lastFilterKey) return;
+		lastFilterKey = filterKey;
 		visibleCount = BATCH_SIZE;
 		scrollRoot?.scrollTo({ top: 0 });
 	});
@@ -266,14 +279,13 @@
 	{:else}
 		{#each visibleFiles as file (file._id || file.filename)}
 			{@const fileId = file._id?.toString() || file.filename}
-			{@const isSelected = selectedFiles.has(fileId)}
 
 			<div
 				class="group relative flex h-full flex-col focus-within:outline-none cursor-grab active:cursor-grabbing
-          {isSelected ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
+          {selectedFiles.has(fileId) ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
 				role="gridcell"
 				tabindex="-1"
-				aria-selected={isSelected}
+				aria-selected={selectedFiles.has(fileId)}
 				use:liftAndCarry={{
 					container: MEDIA_DRAG_CONTAINER,
 					dragData: {
@@ -297,14 +309,14 @@
 					touchActiveId = fileId;
 				}}
 			>
-				{#if isSelected}
+				{#if selectedFiles.has(fileId)}
 					<div
 						class="absolute inset-y-0 inset-s-0 z-10 w-0.5 bg-primary-500"
 						aria-hidden="true"
 					></div>
 				{/if}
 
-				{#if isSelectionMode || isSelected}
+				{#if isSelectionMode || selectedFiles.has(fileId)}
 					<div
 						class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
 						data-no-drag
@@ -316,7 +328,7 @@
 						}}
 					>
 						<Checkbox
-							checked={isSelected}
+							checked={selectedFiles.has(fileId)}
 							onchange={() => toggleSelection(file)}
 							label="Select {file.filename}"
 							hideLabel
@@ -548,6 +560,36 @@
 								{/snippet}
 							</MediaGridActionTooltip>
 						{/if}
+
+						<MediaGridActionTooltip
+							title={mediagallery_copy_url()}
+							ariaLabel={mediagallery_copy_url_aria({ name: file.filename })}
+							class={actionBtnClass}
+							data-testid="media-copy-url"
+							onclick={async (e) => {
+								e.stopPropagation();
+								const raw = file.url || mediaDisplayUrl(file);
+								if (!raw) {
+									toast.error(mediagallery_copy_url_missing());
+									return;
+								}
+								try {
+									const absolute = raw.startsWith('http')
+										? raw
+										: new URL(raw, window.location.origin).toString();
+									await navigator.clipboard.writeText(absolute);
+									toast.success(mediagallery_copy_url_success());
+								} catch (error) {
+									logger.warn('Clipboard write failed', error);
+									toast.error(mediagallery_copy_url_failed());
+								}
+							}}
+						>
+							{#snippet children()}
+								<iconify-icon icon="mdi:link-variant" width={15} class="text-surface-300"
+								></iconify-icon>
+							{/snippet}
+						</MediaGridActionTooltip>
 
 						<MediaGridActionTooltip
 							title="Delete"

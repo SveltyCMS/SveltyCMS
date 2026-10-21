@@ -30,7 +30,7 @@
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
-	import { getMimeType, isAllowedUploadMime } from '@utils/media/media-utils';
+	import { getMimeType, isAllowedUploadMime, mediaDisplayUrl } from '@utils/media/media-utils';
 	import Portal from '@components/ui/portal.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import { flip } from 'svelte/animate';
@@ -40,6 +40,7 @@
 	import { page } from '$app/state';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
+	import { mediaCache } from './media-cache';
 	import AspectPreviewModal from '@components/media/aspect-preview-modal.svelte';
 	import 'iconify-icon';
 
@@ -100,43 +101,65 @@
 		}
 	}
 
+	/** Normalize path to ensure consistent `/files/` prefix without duplicates. */
+	function normalizePath(p: string | undefined | null): string {
+		if (!p) return '';
+		if (p.startsWith('/files/')) return p;
+		if (p.startsWith('http://') || p.startsWith('https://')) return p;
+		return `/files/${p
+			.replace(/^mediaFolder\//, '')
+			.replace(/^files\//, '')
+			.replace(/^\/+/, '')}`;
+	}
+
+	/**
+	 * Map an API media document to the widget DTO.
+	 *
+	 * `/api/media/:id` answers with `{ success, data }`; reading fields off the
+	 * envelope (the old behaviour) produced `undefined` for every field and a
+	 * broken preview on reload.
+	 */
+	function toMediaFile(found: Record<string, unknown>, fallbackId: string): MediaFile {
+		const original = normalizePath(
+			typeof found.url === 'string' ? found.url : (found.path as string | undefined)
+		);
+		return {
+			_id: String(found._id ?? fallbackId),
+			name: String(found.filename ?? found.name ?? ''),
+			type: String(found.mimeType ?? found.type ?? ''),
+			size: typeof found.size === 'number' ? found.size : 0,
+			url: original,
+			thumbnailUrl: mediaDisplayUrl(found as { url?: string | null }, 'sm') || original,
+			aiTags: Array.isArray((found.metadata as Record<string, unknown> | undefined)?.aiTags)
+				? ((found.metadata as Record<string, unknown>).aiTags as string[])
+				: []
+		} as MediaFile;
+	}
+
 	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
 		logger.debug('Fetching data for IDs:', ids);
 		try {
 			const fetchedFiles: MediaFile[] = [];
 
-			// Normalize path to ensure consistent `/files/` prefix without duplicates
-			const normalizePath = (p: string | undefined | null): string => {
-				if (!p) return '';
-				// If already normalized with /files/, return as-is
-				if (p.startsWith('/files/')) return p;
-				// If it's an absolute URL, return as-is
-				if (p.startsWith('http://') || p.startsWith('https://')) return p;
-				// Remove any existing prefix and normalize
-				let path = p.replace(/^mediaFolder\//, '').replace(/^files\//, '');
-				path = path.replace(/^\/+/, '');
-				return `/files/${path}`;
-			};
-
 			for (const id of ids) {
-				const response = await fetch(`/api/media/${id}`);
-				if (response.ok) {
-					const found = await response.json();
-					if (found) {
-						fetchedFiles.push({
-							_id: found._id,
-							name: found.filename,
-							type: found.mimeType,
-							size: found.size,
-							url: normalizePath(found.path),
-							thumbnailUrl:
-								normalizePath(found.thumbnails?.md?.url) ||
-								normalizePath(found.thumbnails?.sm?.url) ||
-								normalizePath(found.path),
-							aiTags: found.metadata?.aiTags || []
-						} as any);
-					}
+				const cached = mediaCache.get(id);
+				if (cached) {
+					fetchedFiles.push(cached);
+					continue;
 				}
+
+				const response = await fetch(`/api/media/${encodeURIComponent(id)}`);
+				if (!response.ok) continue;
+
+				const payload = (await response.json()) as
+					| Record<string, unknown>
+					| { data?: Record<string, unknown> };
+				const found = (payload?.data ?? payload) as Record<string, unknown> | null;
+				if (!found || typeof found !== 'object') continue;
+
+				const file = toMediaFile(found, id);
+				mediaCache.set(id, file);
+				fetchedFiles.push(file);
 			}
 			return fetchedFiles;
 		} catch (e) {
@@ -173,7 +196,16 @@
 	}
 
 	$effect(() => {
-		const ids = Array.isArray(value) ? value : value ? [value] : [];
+		const rawValues = Array.isArray(value) ? value : value ? [value] : [];
+		const ids = rawValues
+			.map((entry) =>
+				typeof entry === 'string'
+					? entry
+					: entry && typeof entry === 'object'
+						? String((entry as { _id?: unknown })._id ?? '')
+						: ''
+			)
+			.filter(Boolean);
 		if (ids.length > 0) {
 			// Check if we need to fetch - either missing IDs or selectedFiles is empty
 			const missingIds = ids.filter((id) => !selectedFiles.some((f) => f._id === id));
@@ -182,16 +214,26 @@
 					// Merge with existing files, avoiding duplicates
 					const existingIds = new Set(selectedFiles.map((f) => f._id));
 					const newFiles = files.filter((f) => !existingIds.has(f._id));
-					selectedFiles = [...selectedFiles, ...newFiles];
+					if (newFiles.length > 0) {
+						selectedFiles = [...selectedFiles, ...newFiles];
+					}
 				});
 			}
-		} else {
-			selectedFiles = [];
 		}
 	});
 
 	$effect(() => {
-		const newIds = selectedFiles.map((file) => file._id);
+		const newIds = selectedFiles.map((file) => file._id).filter(Boolean);
+		const currentIds = Array.isArray(value) ? value : value ? [value] : [];
+
+		// Idempotence guard: `syncCollectionValue` writes the reactive store, which
+		// feeds `value` back into this effect. Without the equality check the
+		// create form hits `effect_update_depth_exceeded`.
+		const sameValue = field.multiupload
+			? currentIds.length === newIds.length && currentIds.every((id, index) => id === newIds[index])
+			: (currentIds[0] ?? null) === (newIds[0] ?? null);
+		if (sameValue) return;
+
 		if (field.multiupload) {
 			syncCollectionValue(newIds);
 		} else {
@@ -329,7 +371,17 @@
 						aria-label={`Change media for ${file.name}`}
 					>
 						{#if file.type?.startsWith('image/') || (file.thumbnailUrl && !file.thumbnailUrl.endsWith('.pdf'))}
-							<img src={file.thumbnailUrl} alt={file.name} class="h-30 w-full object-cover" />
+							<div class="media-widget-checkerboard flex h-30 w-full items-center justify-center">
+								<img
+									src={file.thumbnailUrl}
+									alt={file.name}
+									title={file.name}
+									class="h-full w-full object-contain"
+									loading="lazy"
+									decoding="async"
+									data-testid="media-widget-preview"
+								/>
+							</div>
 						{:else}
 							<div class="flex h-30 w-full items-center justify-center bg-(--admin-bg-card)">
 								<iconify-icon icon={getFileIcon(file)} width="48"></iconify-icon>
@@ -337,7 +389,9 @@
 						{/if}
 					</button>
 					<div class="p-1">
-						<span class="block truncate text-center text-xs font-bold">{file.name}</span>
+						<span class="block truncate text-center text-xs font-bold" title={file.name}
+							>{file.name}</span
+						>
 						{#if (file as any).aiTags?.length}
 							<div class="mt-1 flex flex-wrap justify-center gap-0.5">
 								{#each (file as any).aiTags.slice(0, 3) as tag, i (tag + i)}
@@ -431,3 +485,37 @@
 		}}
 	/>
 {/if}
+
+<style>
+	/* Neutral checkerboard so transparent PNGs read against any admin theme. */
+	.media-widget-checkerboard {
+		background-color: color-mix(in srgb, var(--admin-bg-card, #ffffff) 92%, black);
+		background-image:
+			linear-gradient(
+				45deg,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 25%,
+				transparent 25%
+			),
+			linear-gradient(
+				-45deg,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 25%,
+				transparent 25%
+			),
+			linear-gradient(
+				45deg,
+				transparent 75%,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 75%
+			),
+			linear-gradient(
+				-45deg,
+				transparent 75%,
+				color-mix(in srgb, var(--admin-border-default, #e5e7eb) 55%, transparent) 75%
+			);
+		background-size: 12px 12px;
+		background-position:
+			0 0,
+			0 6px,
+			6px -6px,
+			-6px 0;
+	}
+</style>

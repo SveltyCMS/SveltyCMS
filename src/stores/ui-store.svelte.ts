@@ -80,6 +80,13 @@ class UIStore {
 
   // UI toggles
   manualOverrideActive = $state(false);
+  /**
+   * Set once the user explicitly moves a sidebar. The shell uses these to keep
+   * the route-derived SSR default (edit routes open the right sidebar, collapse
+   * the left) from overriding a manual choice after hydration.
+   */
+  leftSidebarTouched = $state(false);
+  rightSidebarTouched = $state(false);
   headerShowMore = $state(false);
   /** Unified global search / command palette visibility */
   isCommandBarVisible = $state(false);
@@ -225,6 +232,9 @@ class UIStore {
    */
   toggle(element: keyof UIState, visibility: UIVisibility): void {
     this.state[element] = visibility;
+
+    if (element === "leftSidebar") this.leftSidebarTouched = true;
+    if (element === "rightSidebar") this.rightSidebarTouched = true;
 
     // Prevent auto-updates for 600ms after manual toggle
     if (element === "leftSidebar" || element === "rightSidebar") {

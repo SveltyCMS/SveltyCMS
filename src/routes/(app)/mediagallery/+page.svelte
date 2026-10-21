@@ -19,6 +19,7 @@
 		mediagallery_cancel_upload,
 		mediagallery_create_folder,
 		mediagallery_del_esc_hint,
+		mediagallery_done_button,
 		mediagallery_download_archive,
 		mediagallery_drop,
 		mediagallery_drop_move_hint,
@@ -36,6 +37,7 @@
 		mediagallery_search_assets,
 		mediagallery_search_modf,
 		mediagallery_selected,
+		mediagallery_select_button,
 		mediagallery_sort,
 		mediagallery_sort_by,
 		mediagallery_status_all,
@@ -434,6 +436,10 @@
 	}
 
 	onMount(() => {
+		// Prefetch the table chunk so the first grid → table toggle does not
+		// flash the `{#await}` placeholder (a visible layout jump).
+		setTimeout(() => void import('./media-table.svelte'), 0);
+
 		// Register Keyboard Shortcuts
 		registerHotkey(
 			'mod+f',
@@ -1172,9 +1178,9 @@
 									onclick={() => (isSelectionMode = !isSelectionMode)}
 									aria-label={mediagallery_toggle_selection()}
 									aria-pressed={isSelectionMode}
-									class="h-10 px-3"
+									class="h-10 min-w-20 px-3"
 								>
-									{isSelectionMode ? 'Done' : 'Select'}
+									{isSelectionMode ? mediagallery_done_button() : mediagallery_select_button()}
 								</Button>
 							{/if}
 							<SmartTableSavedViewsMenu
@@ -1329,9 +1335,9 @@
 						aria-label={mediagallery_toggle_selection()}
 						aria-pressed={isSelectionMode}
 						data-testid="media-selection-toggle"
-						class="h-10 shrink-0 text-sm"
+						class="h-10 min-w-20 shrink-0 text-sm"
 					>
-						{isSelectionMode ? 'Exit Selection' : 'Select'}
+						{isSelectionMode ? mediagallery_done_button() : mediagallery_select_button()}
 					</Button>
 				{/if}
 				<SmartTableSavedViewsMenu

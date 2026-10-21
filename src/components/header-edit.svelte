@@ -289,7 +289,10 @@
 </script>
 
 <header
-	class="border-(--admin-border-default) sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14"
+	class="border-(--admin-border-default) sticky top-0 z-20 flex w-full items-center justify-between border-b bg-white px-2 py-1 shadow-sm dark:bg-surface-700 h-14 {ui
+		.state.leftSidebar !== 'hidden'
+		? 'md:ps-7'
+		: ''}"
 	class:border-b-0={showMore}
 >
 	<div class="flex items-center gap-2 flex-1 min-w-0">
