@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:134b5a70-d068-4135-bfad-557bd2602258",
+  "serialNumber": "urn:uuid:07f78e69-8e54-4f8c-8b3c-2047d115eb55",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-21T17:52:05.091Z",
+    "timestamp": "2026-10-21T18:29:49.169Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -13,9 +13,9 @@
     ],
     "component": {
       "name": "create-sveltycms",
-      "version": "0.9.0",
+      "version": "0.10.0",
       "type": "application",
-      "purl": "pkg:npm/create-sveltycms@0.9.0"
+      "purl": "pkg:npm/create-sveltycms@0.10.0"
     }
   },
   "components": [
