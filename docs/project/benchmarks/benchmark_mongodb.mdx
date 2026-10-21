@@ -42,19 +42,18 @@ tags:
 
 <!-- EXECUTIVE_FIX_NOTES_END -->
 
-> [!NOTE]
-> **Partial update** — dimension rollups and issues reflect only tests invoked in this run.
+(21/10/2026, 18:35:49)
 
-**✅ PASS** _(partial invocation)_ · 1/39 tests · 38 skipped · **mongodb** · standalone run
+**✅ PASS** · 33/39 tests · 6 skipped · **MONGODB** · Bun 1.4.2
 
 ### Dimension health
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    19 | 🟢     | +100%   | 0      |
-| **API**        |     0 | ⚪     | —       | 0      |
-| **Scale**      |     0 | ⚪     | —       | 0      |
-| **Resilience** |     0 | ⚪     | —       | 0      |
+| **Core**       |    10 | 🟢     | +21550% | 0      |
+| **API**        |     9 | 🟢     | +42%    | 0      |
+| **Scale**      |    15 | 🟢     | -100%   | 0      |
+| **Resilience** |     5 | 🟢     | —       | 0      |
 
 ### Issues (action required)
 
@@ -62,44 +61,28 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                 | Latency | Trend                                       | Budget | Result |
-| ------------------------ | ------- | ------------------------------------------- | ------ | ------ |
-| **Database Performance** | 0.758ms | ⚪ stable at 0.611ms (±0.241ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 0.777ms | ⚪ stable at 0.617ms (±0.279ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 1.172ms | ⚪ stable at 0.925ms (±0.328ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 3.363ms | ⚪ stable at 2.73ms (±0.891ms) (3 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 5.941ms | ⚪ stable at 4.68ms (±1.65ms) (3 runs)      | < 5ms  | 🟢     |
-| **Database Performance** | 1.170ms | ⚪ stable at 0.925ms (±0.360ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 1.088ms | ⚪ stable at 0.889ms (±0.336ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 1.009ms | ⚪ stable at 0.802ms (±0.309ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 2.617ms | ⚪ stable at 2.00ms (±0.786ms) (3 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.894ms | ⚪ stable at 0.765ms (±0.242ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 0.887ms | ⚪ stable at 0.735ms (±0.300ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 0.939ms | ⚪ stable at 0.784ms (±0.241ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 2.224ms | ⚪ stable at 1.75ms (±0.599ms) (3 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 0.613ms | ⚪ stable at 0.468ms (±0.280ms) (3 runs)    | < 5ms  | 🟢     |
-| **Database Performance** | 0.002ms | ⚪ stable at 0.001ms (3 runs)               | < 5ms  | 🟢     |
-| **Database Performance** | 1.756ms | ⚪ stable at 1.49ms (±0.550ms) (3 runs)     | < 5ms  | 🟢     |
-| **Database Performance** | 4.435ms | ⚪ stable at 3.49ms (±1.32ms) (3 runs)      | < 5ms  | 🟢     |
-| **Database Performance** | 6.432ms | 🟢 faster: 12.83ms → 6.43ms (-50%) (3 runs) | < 5ms  | 🟢     |
-| **Database Performance** | 4.672ms | 🟢 faster: 12.63ms → 4.67ms (-63%) (3 runs) | < 5ms  | 🟢     |
+| Scenario               | Latency | Trend  | Budget   | Result |
+| ---------------------- | ------- | ------ | -------- | ------ |
+| **Cold Start**         | N/A     | ⚪ (—) | < 5000ms | ⚪ N/A |
+| **REST (Collections)** | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
+| **Middleware Hooks**   | N/A     | ⚪     | < 2ms    | ⚪ N/A |
+| **GraphQL (Avg)**      | N/A     | ⚪ (—) | < 5ms    | ⚪ N/A |
+| **Million-Row Index**  | N/A     | ⚪     | < 250ms  | ⚪ N/A |
+| **DB Raw (p95)**       | N/A     | ⚪     | < 50ms   | ⚪ N/A |
 
 ### Historical pulse
 
 > **Scope:** Sparklines only — full run tables: [`tests/benchmarks/results/history.sqlite`](../../../tests/benchmarks/results/history.sqlite)
 
-| Metric                                           | Trend | Sparkline | Latest  |
-| ------------------------------------------------ | ----- | --------- | ------- |
-| api latency (HTTP: findById @ 8c (Cold)) (warm)  | 🟢    | `█▁`      | 3.269ms |
-| auth performance (Auth (full chain) @ 1c) (warm) | 🟢    | `▁`       | 0.327ms |
-| database performance (BULK INSERT (100)) (warm)  | 🟢    | `▃▁██`    | 4.435ms |
+| Metric | Trend | Sparkline | Latest |
+| ------ | ----- | --------- | ------ |
 
 <details>
 <summary>📈 Latency trend chart (last 10 runs)</summary>
 
 ```mermaid
 xychart-beta
-  title "mongodb REST p95 (last 10 runs)"
+  title "MONGODB REST p95 (last 10 runs)"
   x-axis ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"]
   y-axis "Latency (ms)"
   line "p95" : [0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000, 0.000]
@@ -118,24 +101,43 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Database Performance: [0.12, 0.24]
-    Database Performance: [0.12, 0.26]
-    Database Performance: [0.18, 0.27]
-    Database Performance: [0.52, 0.23]
-    Database Performance: [0.92, 0.27]
-    Database Performance: [0.18, 0.26]
-    Database Performance: [0.17, 0.22]
-    Database Performance: [0.16, 0.26]
+    API LAYER LATENCY: [0.19, 0.05]
+    SRE TRUTH AUDIT: [0.12, 0.95]
+    COMPETITIVE 9-WORKLOAD REPLI: [0.08, 0.05]
+    MIDDLEWARE FLAMEGRAPH PROFIL: [0.13, 0.05]
+    Incremental Content Reload: [0.06, 0.05]
+    Database Adapter Raw CRUD: [0.05, 0.05]
+    REST API Performance: [0.19, 0.05]
+    GraphQL API Performance: [0.07, 0.05]
 ```
 
 </details>
 
 <!-- EXECUTIVE_PARTIAL_WATERMARK -->
 
-<!-- EXECUTIVE_ALERTS_START -->
-<!-- EXECUTIVE_ALERTS_END -->
+> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
 
-<!-- EXECUTIVE_END -->
+<!-- EXECUTIVE_ALERTS_START -->
+
+> 📋 **Partial report** — run full matrix for complete cross-DB analysis.
+
+### 🔴 Top Regressions
+
+> **🔴 graphql-cache-hit [Q2: Collections (L1 Hit)]** (mongodb): +97% | 2.10ms vs 1.07ms baseline
+> **🔴 graphql-cache-hit [Q1: Health (L1 Hit)]** (mongodb): +57% | 2.24ms vs 1.43ms baseline
+> **🔴 graphql-cache-hit [Q2: Collections (Cold Miss)]** (mongodb): +56% | 3.11ms vs 2.00ms baseline
+> **🔴 websocket-broadcast [Yjs CRDT Propagation]** (mongodb): +29% | 0.16ms vs 0.13ms baseline
+> **🔴 api-latency [HTTP: findById TURBO-HIT @ 8c (Warm)]** (mongodb): +29% | 0.99ms vs 0.77ms baseline
+
+### 🟢 Top Improvements
+
+> **sharp-vs-bun-image [Bun.Image Metadata (header-only)]** (mongodb): -59% | 0.00ms vs 0.01ms baseline
+> **entry-edit-hydration [Widget Prefetch (5 types)]** (mongodb): -57% | 0.02ms vs 0.04ms baseline
+> **scale-spectrum [listFilterSort @ 50000]** (mongodb): -53% | 0.88ms vs 1.87ms baseline
+> **competitive-workload-replica [update (Warm Concurrent 8c)]** (mongodb): -53% | 2.80ms vs 6.00ms baseline
+> **competitive-workload-replica [findById (Warm Sequential)]** (mongodb): -50% | 0.11ms vs 0.23ms baseline
+
+<!-- EXECUTIVE_ALERTS_END --><!-- EXECUTIVE_END -->
 
 <!-- SUMMARY_START -->
 <!-- SUMMARY_RUN_OVERLAY_START -->
@@ -174,7 +176,7 @@ quadrantChart
 
 <!-- SUMMARY_HISTORY_START -->
 
-### Historical Trends (2026-10-18)
+### Historical Trends (2026-10-21)
 
 > **Mode:** production-parity matrix runs only (`run_mode='matrix'` + `server_mode='production'` — `NODE_ENV=production`, no `TEST_MODE`). Standalone/mode-variant samples are recorded but never trended here.
 
@@ -196,7 +198,7 @@ quadrantChart
 | CACHE PERFORMANCE (warm)            | 🟢    | `▁█▁█`             | 0.913ms   |
 | CACHE SERVICE (warm)                | 🟢    | `▁▆█▁▅▅`           | 0.605ms   |
 | CLIENT JOURNEY (warm)               | 🟢    | `█▁`               | 3.859ms   |
-| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▅▂█▃`          | 1.060ms   |
+| COMPETITIVE WORKLOAD REPLICA (warm) | 🟢    | `▁▂▁▆▂█▃`          | 0.889ms   |
 | CONCURRENCY MAX (warm)              | 🟢    | `█▁`               | 73.933ms  |
 | CONFIG PROMOTION (warm)             | 🟢    | `▁▁▄▆▅█▁`          | 5.778ms   |
 | CONTENT GUI SAVE (warm)             | 🟢    | `█▁`               | 1.563ms   |
@@ -451,8 +453,14 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:DB_RAW_P95:START -->
 <details id="section-db_raw_p95">
-<summary><strong>🏷️ database performance</strong> · 🟢 4.672ms · ➡️ ⚪ established at 4.67ms (1 run) (2026-10-18 21:38:08) · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<summary><strong>🏷️ Database Adapter Raw CRUD</strong> · ⚪ 0.601ms · ↘️ — · <a href="../../../tests/benchmarks/database-performance.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                          SVELTYCMS — DATABASE ADAPTER PERFORMANCE (MONGODB)                           ║
@@ -481,6 +489,7 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 ║ BULK UPDATE (100 homogeneous) │ Cold:    21.77 ms │ Warm:     4.672 ms │ p95:     5.734 ms │     200 RPS ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -723,12 +732,12 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 1.060ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ COMPETITIVE 9-WORKLOAD REPLICA</strong> · ⚪ 0.889ms · ↗️ — · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_INSIGHT_START -->
 > [!NOTE]
 > **Specific to this test**: Avg degraded but p95 stable — possible cold-start effect, GC pause, or warmup variance.  
-Throughput dropped 84% — check connection pool saturation or lock contention.  
-**Severe degradation** (+80%) — review recent commits immediately.
+Throughput dropped 86% — check connection pool saturation or lock contention.  
+**Severe degradation** (+97%) — review recent commits immediately.
 <!-- LEDGER_INSIGHT_END -->
 
 <!-- LEDGER_TRUTH_START -->
