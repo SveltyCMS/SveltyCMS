@@ -371,10 +371,12 @@
 			></iconify-icon>
 
 			<div class="min-w-0 flex-1 space-y-4 text-center sm:text-start">
-				<p class="font-bold">
-					<span class="text-tertiary-500 dark:text-primary-500">{mediagallery_upload_title()}</span>
-					{mediagallery_drag_files_hint()}
-				</p>
+				<div class="space-y-1">
+					<p class="font-bold text-tertiary-500 dark:text-primary-500">
+						{mediagallery_upload_title()}
+					</p>
+					<p class="text-sm">{mediagallery_drag_files_hint()}</p>
+				</div>
 
 				<label class="flex items-center gap-2 cursor-pointer justify-center mt-2 sm:justify-start">
 					<input

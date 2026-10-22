@@ -209,7 +209,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			<div class="mb-4 rounded-md border border-surface-500/20 bg-surface-500/10 p-4">
 				<p class="text-surface-600 dark:text-surface-400 text-sm">
 					{sync_intro_part1()}{' '}<strong>{sync_schema_code()}</strong>{sync_intro_part2()}
-					<code>{sync_sync_path()}</code>{sync_intro_part3()}
+					<code>{sync_sync_path()}</code>{' '}{sync_intro_part3()}
 				</p>
 			</div>
 
