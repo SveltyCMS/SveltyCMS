@@ -64,6 +64,8 @@
 	} from '@widgets/widget-loader-registry';
 	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-module';
 	import WidgetLoader from './widget-loader.svelte';
+	import { CONTENT_PADDING } from './content-classes';
+	import { buildFieldSkeleton } from './field-skeleton';
 
 	import Portal from '@components/ui/portal.svelte';
 	import RevisionDiffModal from './revision-diff-modal.svelte';
@@ -124,8 +126,27 @@
 	let localTabSet = $state('0');
 	let apiUrl = $state('');
 
+	/**
+	 * Seed every declared field before the first render.
+	 *
+	 * Widgets that declare a prop fallback (`value = $bindable([])`, e.g. Tags)
+	 * throw `props_invalid_value` when the parent binds `undefined`. A create
+	 * session starts from an empty store, so the skeleton must be built
+	 * synchronously here — the effects below run after the first mount, which is
+	 * too late for a freshly created `<Fields>` (SPA "Create" click).
+	 */
+	const initialFieldList: readonly any[] = untrack(() => fields ?? propCollection?.fields ?? []);
+	const initialEntryValue = untrack(() => collections.activeValue) as
+		| Record<string, any>
+		| undefined;
+
 	// This is form state, not fetched data, so it remains.
-	let currentCollectionValue = $state<Record<string, any>>({});
+	let currentCollectionValue = $state<Record<string, any>>(
+		buildFieldSkeleton(initialEntryValue, initialFieldList, {
+			locale: untrack(() => contentLanguage.value) as string,
+			isNewEntry: !initialEntryValue?._id
+		}) as Record<string, any>
+	);
 
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
@@ -160,6 +181,14 @@
 		const currentIdx = langs.indexOf(currentLocale);
 		const nextIdx = (currentIdx + 1) % langs.length;
 		const nextLocale = langs[nextIdx];
+
+		// The widget remounts bound to `record[nextLocale]`; a missing key would
+		// hand `undefined` to a prop with a fallback (props_invalid_value).
+		const record = currentCollectionValue[fieldName];
+		if (isLocaleRecord(record) && record[nextLocale] === undefined) {
+			record[nextLocale] = '';
+		}
+
 		fieldLocaleOverrides.set(fieldName, nextLocale);
 		manuallyOverridden.add(fieldName);
 	}
@@ -362,6 +391,10 @@
 
 			if (isNewEntry && (value === null || value === undefined) && defaultValue !== undefined) {
 				data[fieldName] = defaultValue;
+			} else if (value === undefined) {
+				// Same invariant as buildFieldSkeleton(): a declared field must never
+				// reach a `bind:value` as `undefined` (props_invalid_value).
+				data[fieldName] = null;
 			}
 		}
 		return data;
@@ -603,7 +636,7 @@
 
 {#if collaborationService.isCollaborative && collaborationService.activeUsers.length > 0}
 	<div
-		class="mb-2 flex flex-wrap items-center gap-2 rounded border border-tertiary-500/30 bg-tertiary-500/10 px-3 py-1.5 text-xs dark:border-primary-500/30 dark:bg-primary-500/10"
+		class="mb-2 flex flex-wrap items-center gap-2 {CONTENT_PADDING} rounded border border-tertiary-500/30 bg-tertiary-500/10 px-3 py-1.5 text-xs dark:border-primary-500/30 dark:bg-primary-500/10"
 		role="status"
 		aria-live="polite"
 	>
@@ -630,7 +663,7 @@
 	<Tabs
 		value={localTabSet}
 		onValueChange={(e) => (localTabSet = e.value)}
-		class="flex flex-1 flex-col items-center"
+		class="flex flex-1 flex-col items-center {CONTENT_PADDING}"
 	>
 		<Tabs.List class="flex justify-between md:justify-around w-full">
 			<Tabs.Trigger value="0" class="flex-1">
@@ -666,16 +699,17 @@
 				</Tabs.Trigger>
 			{/each}
 
+			<!-- Required legend lives in the tab strip: as its own centered row it
+			     pushed the first field a full line away from the header. -->
+			<span class="ms-auto shrink-0 self-center whitespace-nowrap text-xs text-error-500">
+				{form_required()}
+			</span>
+
 			<Tabs.Indicator />
 		</Tabs.List>
 
 		<Tabs.Content value="0" class="w-full">
-			<div class="mb-1 text-center text-xs text-error-500">
-				{form_required()}
-			</div>
-			<div
-				class="rounded border bg-white px-3 py-4 drop-shadow-2xl sm:px-4 dark:border-surface-500 dark:bg-surface-900"
-			>
+			<div class="rounded bg-white px-3 py-4 drop-shadow-2xl sm:px-4 dark:bg-surface-900">
 				<div class="flex w-full flex-col gap-1">
 					{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
 						{#if field.widget && isFieldVisible(field, currentCollectionValue)}
@@ -733,8 +767,8 @@
 												<!-- Locale badge / switcher -->
 												<Button
 													variant="ghost"
-													class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
-													style="background: var(--color-surface-200, #e5e7eb); color: var(--color-tertiary-500, #6b7280)"
+													class="flex h-7 items-center gap-0.5 rounded-full px-1.5 text-xs font-medium transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
+													style="color: var(--color-tertiary-500)"
 													onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
 													aria-label="Switch locale for {field.label ||
 														fieldName}. Current: {currentFieldLocale.toUpperCase()}"
@@ -753,7 +787,7 @@
 												{#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
 													<Button
 														variant="ghost"
-														class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
+														class="flex h-7 items-center gap-0.5 rounded-full px-1.5 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
 														style="color: var(--color-tertiary-500)"
 														onclick={() =>
 															aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}

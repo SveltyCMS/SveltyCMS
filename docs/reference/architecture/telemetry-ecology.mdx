@@ -190,9 +190,8 @@ sequenceDiagram
     Note over CMS: Save secret as TELEMETRY_CLIENT_SECRET
 
     Note over CMS, Server: Subsequent Telemetry Checks
-    CMS->>CMS: Encrypt payload with AES-256-GCM using client_secret
-    CMS->>CMS: Sign envelope with HMAC-SHA256 (client_secret & timestamp)
-    CMS->>Server: POST /api/check-update { installation_id, encrypted, ciphertext, iv, tag, signature, timestamp }
+    CMS->>CMS: Sign request with HMAC-SHA256 (client_secret & timestamp)
+    CMS->>Server: POST /api/check-update { payload, signature, timestamp }
     alt Signature & Decryption Valid
         Server-->>CMS: 200 OK { latest_version, ... }
     else Signature Invalid (403 / DB Reset)
@@ -209,8 +208,8 @@ sequenceDiagram
 1.  **First Boot**: On the very first telemetry check, the CMS calls `/api/register` on the telemetry server.
 2.  **Secret Issuance**: The server generates a **Unique, Cryptographically Secure Secret** (64-character hex) and returns it to the CMS.
 3.  **Local Storage**: The CMS saves this secret securely in its own database (`TELEMETRY_CLIENT_SECRET`).
-4.  **Encryption & Signing**: Every subsequent payload is encrypted at the application level using **AES-256-GCM** (with a unique 12-byte IV and 16-byte authentication tag) and signed with **HMAC-SHA256**.
-5.  **Validation & Decryption**: The telemetry server fetches the secret associated with the `installation_id`, decrypts and verifies the ciphertext with AES-256-GCM, and checks the HMAC signature.
+4.  **Signing**: Every subsequent request is signed with **HMAC-SHA256**. The metrics are sent inside `payload` **in plaintext** — the receiver validates `payload.current_version` and `payload.node_version` before it verifies the signature, so a ciphertext-only envelope is rejected with `400 {"error":"Invalid version"}`. Encryption is not part of the wire contract today.
+5.  **Validation**: The telemetry server fetches the secret associated with the `installation_id` and checks the HMAC signature.
 
 ### Benefits and Resilience of this Architecture
 

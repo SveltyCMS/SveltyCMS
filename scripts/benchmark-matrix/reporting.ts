@@ -34,6 +34,7 @@ import {
 } from "./config";
 import { extractMetrics, getTrendDetails } from "./utils";
 import { detectRegressions } from "./regression-detector";
+import { pruneBenchmarkHistory } from "./history-retention";
 import type { BenchmarkResult, RunConfig, RegressionResult } from "./types";
 import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from "ts-morph";
 import { collectHostInfo } from "./cli";
@@ -778,6 +779,12 @@ export async function generateFinalReport(
     } else {
       log.warn("Could not acquire lock for MDX report. Skipping incremental update.");
     }
+
+    // 🧹 Retention LAST: every read above (trend tables, per-adapter ledgers, ranked
+    // executive summary) queries the history window this prunes. Running after the
+    // report pass means a published report is never generated from a truncated
+    // window. Never fatal — see history-retention.ts.
+    pruneBenchmarkHistory(db);
 
     return perfRegressions;
   } finally {

@@ -1225,7 +1225,7 @@
   "mediagallery_new_folder": "Nowy folder",
   "mediagallery_no_media": "Nie znaleziono mediów",
   "mediagallery_nomedia": "Brak mediów",
-  "mediagallery_optimize_webgpu": "Optymalizuj obrazy przed przesłaniem (WebGPU)",
+  "mediagallery_optimize_before_upload": "Optymalizuj obrazy przed przesłaniem",
   "mediagallery_original": "oryginalny",
   "mediagallery_output_format": "Format wyjściowy",
   "mediagallery_pagetitle": "Pliki mediów",

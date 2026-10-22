@@ -532,7 +532,7 @@
 				? entrylist_multibutton_viewing_archived()
 				: entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
-			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted
+			class="h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border transition-all active:scale-95 {!showDeleted
 				? 'border-(--admin-border-default) bg-(--admin-bg-card)/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
 				: 'border-error-500/80 bg-error-500/10 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}"
 		>
@@ -570,17 +570,21 @@
 				<span>{dynamicLabel}</span>
 			</Button>
 		{:else}
-			<!-- Split Action Button with Dropdown when entries are selected -->
-			<div class="flex items-center rounded-xl overflow-hidden border border-white/20 shadow-md">
+			<!-- Split Action Button + dropdown: one surface, no seam.
+			     The gradient lives on the group so both halves are identical; the
+			     inner borders that painted the white divider are gone. -->
+			<div
+				class="flex items-center rounded-xl overflow-hidden border border-white/20 shadow-md transition-all duration-200 hover:brightness-110 {currentConfig.gradient}"
+			>
 				<Button
 					variant="ghost"
 					data-testid="entry-list-action-{currentAction}"
 					onclick={handleMainButtonClick}
 					disabled={isProcessing}
-					class="h-10 px-4 rounded-s-xl rounded-e-none font-semibold text-sm transition-all duration-200
+					class="h-10 px-4 rounded-s-xl rounded-e-none bg-transparent! font-semibold text-sm transition-all duration-200
 						active:scale-95
-						{currentConfig.gradient} {currentConfig.textColor}
-						flex items-center gap-2 border-e border-white/20
+						{currentConfig.textColor}
+						flex items-center gap-2
 						disabled:opacity-50 disabled:cursor-not-allowed"
 					aria-label={dynamicLabel}
 					aria-busy={isProcessing}
@@ -593,25 +597,25 @@
 						<iconify-icon icon={currentConfig.icon} width="20"></iconify-icon>
 					{/if}
 					<span>{dynamicLabel}</span>
+					<!-- Selection count lives inside the button: the old absolutely
+					     positioned badge sat above the toolbar and was clipped at the
+					     viewport edge. -->
+					{#if selectedCount > 0}
+						<span
+							class="ms-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-black/25 px-1.5 text-[10px] font-bold leading-none text-white ring-1 ring-white/25"
+							data-testid="entry-list-multi-button-count"
+						>
+							{selectedCount}
+						</span>
+					{/if}
 				</Button>
-
-				<!-- Selection Badge -->
-				{#if selectedCount > 0}
-					<span
-						class="absolute -top-2 inset-s-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-900 border border-white/20 text-[10px] font-bold text-white shadow-xl z-20 px-1.5"
-						transition:scale={{ duration: 200, easing: quintOut }}
-					>
-						{selectedCount}
-					</span>
-				{/if}
 
 				<!-- Dropdown Toggle -->
 				<Button
 					variant="ghost"
 					onclick={toggleDropdown}
 					disabled={isProcessing}
-					class="h-10 w-9 rounded-e-xl rounded-s-none border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center
-						{currentConfig.gradient} hover:brightness-110 active:scale-95 cursor-pointer"
+					class="h-10 w-9 rounded-e-xl rounded-s-none bg-transparent! transition-all duration-200 {currentConfig.textColor} flex items-center justify-center active:scale-95 cursor-pointer"
 					aria-haspopup="menu"
 					aria-expanded={isDropdownOpen}
 					aria-label={entrylist_multibutton_toggle_menu()}

@@ -219,7 +219,10 @@ class UIStore {
     }
 
     // Desktop
-    this.state.leftSidebar = isViewMode ? "full" : "collapsed";
+    // The left sidebar stays full in every mode. Collapsing it on edit/create
+    // only bought the inspector ~120px and cost the navigation context; compact
+    // navigation is a tablet affordance (MD branch above), not a desktop one.
+    this.state.leftSidebar = "full";
     this.state.rightSidebar = isViewMode ? "hidden" : "full";
     this.state.pageheader = showPageHeader ? "full" : "hidden";
     this.state.pagefooter = "hidden";

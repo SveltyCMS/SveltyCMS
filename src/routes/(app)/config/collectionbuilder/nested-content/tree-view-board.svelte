@@ -40,7 +40,7 @@ offset within the row on the native `dragover` event — that event carries
 	import type { ContentNode, DatabaseId } from '@databases/db-interface';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { droppable, dndState } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 	import { liftAndCarry } from '@utils/media/media-lift-drag';
@@ -155,9 +155,28 @@ offset within the row on the native `dragover` event — that event carries
 		showTagModal = true;
 	}
 
-	let treeRoots = $state<TreeNode[]>([]);
-	let expandedNodes = $state(new SvelteSet<string>());
-	let initialized = $state(false);
+	/**
+	 * Build the tree at init (SSR included) instead of waiting for the rebuild
+	 * effect: effects never run on the server, so an empty seed rendered the
+	 * board without rows and then grew in after hydration.
+	 */
+	const initialRoots = untrack(() => buildTree(contentNodes));
+
+	function allNodeIds(nodes: TreeNode[]): string[] {
+		const ids: string[] = [];
+		const walk = (list: TreeNode[]) => {
+			for (const n of list) {
+				ids.push(n.id);
+				walk(n.children);
+			}
+		};
+		walk(nodes);
+		return ids;
+	}
+
+	let treeRoots = $state<TreeNode[]>(initialRoots);
+	let expandedNodes = $state(new SvelteSet<string>(allNodeIds(initialRoots)));
+	let initialized = $state(initialRoots.length > 0);
 
 	const treeStats = $derived.by(() => {
 		let collections = 0;
@@ -179,7 +198,7 @@ offset within the row on the native `dragover` event — that event carries
 	 * clobbered by the pre-save props still sitting in the parent.
 	 */
 	let pendingPushHash = $state('');
-	let lastRenderedHash = $state('');
+	let lastRenderedHash = $state(untrack(() => hashNodes(contentNodes)));
 	let lastStructureKey = $state(0);
 
 	/**
@@ -187,7 +206,9 @@ offset within the row on the native `dragover` event — that event carries
 	 * fields; save and the sidebar need collectionDef / source / translations.
 	 * Plain Map on purpose — it is written during rebuild, never read reactively.
 	 */
-	let sourceNodesById = new Map<string, ContentNode>();
+	let sourceNodesById = new Map<string, ContentNode>(
+		untrack(() => contentNodes.map((n) => [String(n._id), n] as [string, ContentNode]))
+	);
 
 	// --- Drag state ---
 	/** Category the pointer is over the middle of; dropping now nests inside it. */
@@ -219,7 +240,7 @@ offset within the row on the native `dragover` event — that event carries
 	// --- Accessibility state ---
 	let announcement = $state('');
 	let announcementId = $state(0);
-	let rovingTabIndex = $state<string | null>(null);
+	let rovingTabIndex = $state<string | null>(initialRoots[0]?.id ?? null);
 	let typeaheadBuffer = '';
 	let typeaheadTimeout: ReturnType<typeof setTimeout> | null = null;
 

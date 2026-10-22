@@ -799,20 +799,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 		position: relative;
 	}
 
-	.sidebar-root::after {
-		content: '';
-		position: absolute;
-		inset-inline-end: -0.5rem;
-		top: 3.5rem;
-		bottom: 0;
-		width: 1px;
-		background-color: var(--color-surface-200, #e2e8f0);
-		pointer-events: none;
-	}
-
-	:global(.dark) .sidebar-root::after {
-		background-color: var(--color-surface-500, #64748b);
-	}
+	/* The old `.sidebar-root::after` 1px rule lived here. It painted a vertical
+	   "white line" at the aside edge in both themes; the sidebar/main separation is
+	   now carried by the surface tokens alone. */
 
 	/* Scrollbar styling */
 	.overflow-y-auto {

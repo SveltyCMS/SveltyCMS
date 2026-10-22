@@ -114,67 +114,70 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     // the documented global scope for the global administrator.
     const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
     const vfCacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
-    let virtualFoldersData: any[] = [];
-    try {
-      virtualFoldersData =
-        (await cacheService.getOrSetSWR<any[]>(
-          vfCacheKey,
-          async () => {
-            const result = await dbAdapter.system.virtualFolder.getAll({ tenantId });
-            if (!result.success) {
-              logger.warn("Virtual folder fetch failed — returning empty list");
-              return [];
-            }
-            return Array.isArray(result.data) ? result.data : [];
-          },
-          300_000, // Fresh: 5 min
-          1_800_000, // Stale: 30 min (serve stale while refreshing)
-        )) || [];
-    } catch (vfErr) {
-      logger.warn(
-        `Virtual folder load failed (non-fatal): ${vfErr instanceof Error ? vfErr.message : String(vfErr)}`,
-      );
-      virtualFoldersData = [];
-    }
 
-    const virtualFolders = virtualFoldersData || [];
+    // 🚀 The folder tree and the media listing are independent reads — run them
+    // together instead of paying both round-trips back to back. Each branch keeps
+    // its own soft-fail (an empty tree/list beats a 500 on the whole gallery).
+    const [virtualFolders, allMediaResults] = await Promise.all([
+      (async (): Promise<SystemVirtualFolder[]> => {
+        try {
+          const cached = await cacheService.getOrSetSWR<SystemVirtualFolder[]>(
+            vfCacheKey,
+            async () => {
+              const result = await dbAdapter.system.virtualFolder.getAll({ tenantId });
+              if (!result.success) {
+                logger.warn("Virtual folder fetch failed — returning empty list");
+                return [];
+              }
+              return Array.isArray(result.data) ? result.data : [];
+            },
+            300_000, // Fresh: 5 min
+            1_800_000, // Stale: 30 min (serve stale while refreshing)
+          );
+          return cached ?? [];
+        } catch (vfErr) {
+          logger.warn(
+            `Virtual folder load failed (non-fatal): ${vfErr instanceof Error ? vfErr.message : String(vfErr)}`,
+          );
+          return [];
+        }
+      })(),
+      (async (): Promise<Record<string, unknown>[]> => {
+        // Use db-agnostic adapter method to fetch media (soft-fail: empty list > 500)
+        try {
+          const getByFolder = dbAdapter.media?.files?.getByFolder;
+          if (typeof getByFolder !== "function") {
+            logger.warn("media.files.getByFolder is unavailable — returning empty media list");
+            return [];
+          }
+          const mediaResult = await getByFolder(folderId as DatabaseId | undefined, {
+            pageSize: 100,
+            page: 1,
+            sortField: allowMediaSortField(url.searchParams.get("sort")),
+            sortDirection: allowMediaSortDirection(url.searchParams.get("dir")),
+            recursive,
+            user, // Pass user for ownership filtering
+            tenantId, // Explicit scope (raw adapter — see note above)
+            // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
+            ...(jsonPath ? { jsonPath } : {}),
+          });
+          return mediaResult?.success && mediaResult.data
+            ? (mediaResult.data.items as unknown as Record<string, unknown>[]) || []
+            : [];
+        } catch (mediaErr) {
+          logger.warn(
+            `Media getByFolder failed (non-fatal): ${mediaErr instanceof Error ? mediaErr.message : String(mediaErr)}`,
+          );
+          return [];
+        }
+      })(),
+    ]);
 
     // Determine current folder (id compare without a JSON round-trip per folder)
     const currentFolder = folderId
-      ? virtualFolders.find(
-          (f) => String((f as Record<string, unknown>)?._id ?? "") === folderId,
-        ) || null
+      ? virtualFolders.find((f) => String(f?._id ?? "") === folderId) || null
       : null;
     logger.trace("Current folder determined:", currentFolder);
-
-    // Use db-agnostic adapter method to fetch media (soft-fail: empty list > 500)
-    let allMediaResults: Record<string, unknown>[] = [];
-    try {
-      const getByFolder = dbAdapter.media?.files?.getByFolder;
-      if (typeof getByFolder !== "function") {
-        logger.warn("media.files.getByFolder is unavailable — returning empty media list");
-      } else {
-        const mediaResult = await getByFolder(folderId as DatabaseId | undefined, {
-          pageSize: 100,
-          page: 1,
-          sortField: allowMediaSortField(url.searchParams.get("sort")),
-          sortDirection: allowMediaSortDirection(url.searchParams.get("dir")),
-          recursive,
-          user, // Pass user for ownership filtering
-          tenantId, // Explicit scope (raw adapter — see note above)
-          // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
-          ...(jsonPath ? { jsonPath } : {}),
-        });
-        if (mediaResult?.success && mediaResult.data) {
-          allMediaResults = (mediaResult.data.items as unknown as Record<string, unknown>[]) || [];
-        }
-      }
-    } catch (mediaErr) {
-      logger.warn(
-        `Media getByFolder failed (non-fatal): ${mediaErr instanceof Error ? mediaErr.message : String(mediaErr)}`,
-      );
-      allMediaResults = [];
-    }
 
     logger.debug(`Fetched ${allMediaResults.length} media items for folder ${folderId || "root"}`);
 
@@ -237,17 +240,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     // Force JSON-safe payload — Buffers/ObjectIds in avatar or media metadata
     // previously crashed SvelteKit serialization after a successful load (500 UI).
     // One stringify for the whole tree (not once per folder).
+    //
+    // NOTE: do not return `user` here. Page data merges over layout data, and this
+    // load used to return a slim `{ role, _id, avatar }` object that shadowed the
+    // layout's full `safeUser` — which is why the sidebar footer lost the username
+    // on /mediagallery only. Nothing in this route reads `data.user`.
     return serializeIds({
-      user: {
-        role: user.role,
-        _id: String(user._id),
-        avatar:
-          typeof user.avatar === "string"
-            ? user.avatar
-            : user.avatar
-              ? String((user.avatar as any).url || (user.avatar as any).toString?.() || "")
-              : undefined,
-      },
       media: processedMedia,
       systemVirtualFolders: virtualFolders as SystemVirtualFolder[],
       currentFolder: currentFolder as SystemVirtualFolder | null,

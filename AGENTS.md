@@ -160,6 +160,7 @@ Pipeline: pre-commit = test-db-safety → format/lint/**typecheck** → risk aud
 - **Windows `bun install` corruption** (upstream Bun bug) → use `npm install`; runtime still works. NEVER `rm -rf node_modules bun.lock` together — incremental `bun install`; if corrupted: `git checkout HEAD -- bun.lock` then `bun install` (`repair:drizzle` for drizzle-orm).
 - **`bun:test` imports fail under the gate** → Vitest is canonical: import from `"vitest"` always (see §3.5).
 - **TS errors** → `bun x svelte-kit sync` to regenerate types.
+- **Stale "no exported member" in `@src/paraglide/messages`** → `bun dev` writes `src/paraglide` in `locale-modules` shape while `bun run paraglide`/`bun run build` write `message-modules`; running the CLI while the dev server is up is what leaves editors reporting stale missing exports — let dev (or a fresh `bun run paraglide`) rewrite it, never run the CLI against a live dev server.
 - **Upgrade** → clean worktree, `bun run scripts/upgrade.ts`, then `bun run check && bun run test:unit`.
 
 ## 8. Version Control & Releases

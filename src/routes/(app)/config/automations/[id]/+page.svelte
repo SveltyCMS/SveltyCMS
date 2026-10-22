@@ -34,11 +34,10 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	} from '@src/services/background/automation/types';
 	import { AUTOMATION_EVENTS, OPERATION_TYPES } from '@src/services/background/automation/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { onMount, untrack } from 'svelte';
+	import { untrack } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { generateUUID as uuidv4 } from '@utils/native-utils';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
 	import { draggable, droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 	import Badge from '@components/ui/badge.svelte';
@@ -128,12 +127,14 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		common_insert_token,
 		common_saving
 	} from '@src/paraglide/messages';
-	import { getAutomation, saveAutomation, testAutomation, unwrapFlow } from '../automations-api';
+	import { saveAutomation, testAutomation } from '../automations-api';
 
 	// ── State ──
 
-	let isNew = $derived(page.params.id === 'new');
-	let isLoading = $state(true);
+	let { data } = $props();
+
+	let isNew = $derived(data.isNew);
+	let isLoading = $state(false);
 	let isSaving = $state(false);
 	let isTesting = $state(false);
 	let activeStep = $state(1);
@@ -148,39 +149,20 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		}[];
 	} | null = $state(null);
 
-	let flow: AutomationFlow = $state({
-		id: '',
-		name: '',
-		description: '',
-		active: true,
-		trigger: { type: 'event', events: [], collections: [] },
-		operations: [],
-		createdAt: '',
-		updatedAt: '',
-		tenantId: ''
-	});
-	// ── Lifecycle ──
-
-	onMount(async () => {
-		if (!isNew) {
-			try {
-				const result = await getAutomation(page.params.id ?? '');
-				const loaded = unwrapFlow(result);
-				if (result.success && loaded) {
-					flow = loaded;
-				} else {
-					toast.error('Automation not found');
-					goto('/config/automations');
-					return;
-				}
-			} catch (_err) {
-				toast.error('Failed to load automation');
-				goto('/config/automations');
-				return;
-			}
+	let flow: AutomationFlow = $state(
+		data.flow ?? {
+			id: '',
+			name: '',
+			description: '',
+			active: true,
+			trigger: { type: 'event', events: [], collections: [] },
+			operations: [],
+			createdAt: '',
+			updatedAt: '',
+			tenantId: ''
 		}
-		isLoading = false;
-	});
+	);
+	// ── Lifecycle ──
 
 	// ── Save & Test ──
 

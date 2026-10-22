@@ -21,10 +21,7 @@
 	import Tabs from '@components/ui/tabs';
 	import {
 		access_intro,
-		access_loading_admin_role,
-		access_loading_roles,
-		access_loading_sso,
-		access_loading_website_tokens,
+		access_permissions_role_all,
 		access_reset,
 		access_reset_changes_aria,
 		access_save_all_aria,
@@ -34,10 +31,18 @@
 		access_tab_admin,
 		access_tab_sso,
 		access_tab_website_tokens,
-		common_loading_permissions,
 		system_permission,
 		system_roles
 	} from '@src/paraglide/messages';
+	// Statically imported on purpose: `{#await import(...)}` renders the pending
+	// branch during SSR, so every hard reload painted "Loading permissions…"
+	// until the whole client module graph had hydrated. The tab payload is
+	// `page.data` (already server-loaded), so the table must be in the SSR HTML.
+	import AdminRole from './admin-role.svelte';
+	import Permissions from './permissions.svelte';
+	import Roles from './roles.svelte';
+	import SsoProviders from './sso-providers.svelte';
+	import WebsiteTokens from './website-tokens.svelte';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -53,6 +58,12 @@
 
 	// Use $state for page data that needs to be mutable
 	let rolesData = $state(untrack(() => page.data.roles)); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
+
+	// Admin role hint shown in the tab strip (permissions tab). The tab body no
+	// longer repeats the page title, so this is the only "admin is implicit" note.
+	const adminRole = $derived(
+		(rolesData as { name?: string; isAdmin?: boolean }[] | undefined)?.find((role) => role.isAdmin)
+	);
 
 	// Track the number of modified permissions/roles for the "Save" button
 	let modifiedCount = $state(0);
@@ -230,66 +241,62 @@
 						></iconify-icon>
 						{access_tab_sso()}
 					</Tabs.Trigger>
+
+					<!-- Admin-role hint lives in the tab strip: as a centered row inside
+					     the permissions tab it duplicated the page title block and pushed
+					     the table down. -->
+					{#if currentTab === '0' && adminRole}
+						<span
+							class="ms-auto hidden shrink-0 self-center whitespace-nowrap px-2 text-xs text-(--admin-text-muted) lg:inline"
+							data-testid="access-permissions-admin-hint"
+						>
+							<span class="font-extrabold text-error-500" aria-hidden="true">*</span>
+							<span class="font-semibold text-tertiary-600 dark:text-primary-600"
+								>{adminRole.name}</span
+							>
+							{access_permissions_role_all()}
+						</span>
+					{/if}
 				</Tabs.List>
 			</div>
 
 			<Tabs.Content value="0">
 				<div class="p-2">
 					{#if currentTab === '0'}
-						{#await import('./permissions.svelte')}
-							<p class="text-sm text-(--admin-text-muted)">{common_loading_permissions()}</p>
-						{:then mod}
-							<mod.default roleData={rolesData} {setRoleData} {updateModifiedCount} />
-						{/await}
+						<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
 					{/if}
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="1">
 				<div class="p-2">
 					{#if currentTab === '1'}
-						{#await import('./roles.svelte')}
-							<p class="text-sm text-(--admin-text-muted)">{access_loading_roles()}</p>
-						{:then mod}
-							<mod.default
-								roleData={rolesData}
-								{setRoleData}
-								{updateModifiedCount}
-								permissions={page.data.permissions}
-							/>
-						{/await}
+						<Roles
+							roleData={rolesData}
+							{setRoleData}
+							{updateModifiedCount}
+							permissions={page.data.permissions}
+						/>
 					{/if}
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="2">
 				<div class="p-2">
 					{#if currentTab === '2'}
-						{#await import('./admin-role.svelte')}
-							<p class="text-sm text-(--admin-text-muted)">{access_loading_admin_role()}</p>
-						{:then mod}
-							<mod.default roleData={rolesData} {setRoleData} />
-						{/await}
+						<AdminRole roleData={rolesData} {setRoleData} />
 					{/if}
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="3">
 				<div class="p-2">
 					{#if currentTab === '3'}
-						{#await import('./website-tokens.svelte')}
-							<p class="text-sm text-(--admin-text-muted)">{access_loading_website_tokens()}</p>
-						{:then mod}
-							<mod.default permissions={page.data.permissions} />
-						{/await}
+						<WebsiteTokens permissions={page.data.permissions} />
 					{/if}
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="4">
 				<div class="p-2">
 					{#if currentTab === '4'}
-						{#await import('./sso-providers.svelte')}
-							<p class="text-sm text-(--admin-text-muted)">{access_loading_sso()}</p>
-						{:then mod}
-							<mod.default availableRoles={rolesData} />
-						{/await}
+						<SsoProviders availableRoles={rolesData} />
 					{/if}
 				</div>
 			</Tabs.Content>

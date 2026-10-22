@@ -27,8 +27,8 @@ export async function saveRemoteMediaUrls(args: {
   const access: MediaAccess = "public";
   const folder = args.folder || "global";
 
-  await Promise.allSettled(
-    urls.map(async (url) => {
+  const outcomes = await Promise.all(
+    urls.map(async (url): Promise<{ ok: boolean; error?: string }> => {
       try {
         const result = await mediaService.saveRemoteMedia(
           url.trim(),
@@ -39,9 +39,10 @@ export async function saveRemoteMediaUrls(args: {
         );
         if (!result.success) {
           logger.warn(`Failed to fetch remote URL: ${url} — ${result.message}`);
-          return;
+          return { ok: false, error: result.message || "Remote fetch failed" };
         }
         logger.debug(`Remote file uploaded successfully to ${folder}: ${url}`);
+        return { ok: true };
       } catch (fileError) {
         const errorMessage = fileError instanceof Error ? fileError.message : String(fileError);
         if (errorMessage.includes("duplicate")) {
@@ -49,9 +50,21 @@ export async function saveRemoteMediaUrls(args: {
         } else {
           logger.error(`Failed to upload file from ${url}: ${errorMessage}`);
         }
+        return { ok: false, error: errorMessage };
       }
     }),
   );
+
+  // `Promise.allSettled` used to swallow every failure and still answer
+  // `success: true`, so the UI reported a successful import for URLs the SSRF
+  // guard had rejected. A batch with no stored asset is a failure.
+  const succeeded = outcomes.filter((outcome) => outcome.ok).length;
+  if (succeeded === 0) {
+    return {
+      success: false,
+      error: outcomes[0]?.error || "Could not fetch any of the provided URLs",
+    };
+  }
 
   return { success: true };
 }

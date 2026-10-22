@@ -5,12 +5,15 @@
  * mobile drag folder rail. One fetch, many consumers.
  *
  * ### Features:
- * - cache-busted GET /api/system-virtual-folder
+ * - seeds from the SSR payload (`page.data.systemVirtualFolders`) on a cold
+ *   `/mediagallery` load — the page load already fetched the tree
+ * - cache-busted GET /api/system-virtual-folder as the fallback / refresh path
  * - childrenOf / getFolder helpers for rail drill-in
  * - event-driven refresh (folderCreated / Updated / Deleted)
  */
 
 import { logger } from "@utils/logger";
+import { page } from "$app/state";
 
 export interface MediaFolderRecord {
   id: string;
@@ -28,12 +31,58 @@ interface RawFolder {
   path: string;
 }
 
+/**
+ * Normalize any folder payload (API rows or the SSR `systemVirtualFolders`) into
+ * the flat record list. Rows without an absolute path are not tree nodes.
+ */
+function toFolderRecords(rows: unknown[]): MediaFolderRecord[] {
+  return rows
+    .filter((value): value is RawFolder => {
+      if (!value || typeof value !== "object") return false;
+      const folder = value as Partial<RawFolder>;
+      return typeof folder.path === "string" && folder.path.length > 0;
+    })
+    .filter((f) => f.path.startsWith("/"))
+    .map((f) => ({
+      id: String(f._id),
+      name: f.name,
+      path: f.path,
+      parentId: f.parentId ?? null,
+      order: f.order ?? 0,
+    }));
+}
+
 class MediaFolderTreeStore {
   folders = $state.raw<MediaFolderRecord[]>([]);
   isLoading = $state(false);
   error = $state<string | null>(null);
   /** A load has been attempted (success or failure) — see ensureLoaded. */
   hasLoaded = $state(false);
+
+  /**
+   * Seed the list from the current route's SSR payload.
+   *
+   * `/mediagallery` already loads the full folder tree server-side
+   * (`systemVirtualFolders`), so the sidebar's mount-time `ensureLoaded()` used to
+   * issue a second, cache-busted request for data the page had just sent. Seeding
+   * is only taken when the payload carries rows — an empty/absent tree falls back
+   * to the network so a genuinely empty tenant still gets the API's error state.
+   *
+   * @returns true when the store was populated from page data.
+   */
+  seedFromPageData(): boolean {
+    const source = (page.data as { systemVirtualFolders?: unknown } | undefined)
+      ?.systemVirtualFolders;
+    if (!Array.isArray(source) || source.length === 0) return false;
+
+    const rows = toFolderRecords(source);
+    if (rows.length === 0) return false;
+
+    this.folders = rows;
+    this.error = null;
+    this.hasLoaded = true;
+    return true;
+  }
 
   /**
    * Load once per session. Callers that only need the list to *exist* must use
@@ -43,6 +92,8 @@ class MediaFolderTreeStore {
    */
   async ensureLoaded(): Promise<void> {
     if (this.hasLoaded || this.isLoading) return;
+    // Cold /mediagallery load: the page load already shipped the tree.
+    if (this.seedFromPageData()) return;
     await this.load();
   }
 
@@ -82,20 +133,7 @@ class MediaFolderTreeStore {
               ? payload
               : [];
 
-      this.folders = rows
-        .filter((value): value is RawFolder => {
-          if (!value || typeof value !== "object") return false;
-          const folder = value as Partial<RawFolder>;
-          return typeof folder.path === "string" && folder.path.length > 0;
-        })
-        .filter((f) => f.path.startsWith("/"))
-        .map((f) => ({
-          id: String(f._id),
-          name: f.name,
-          path: f.path,
-          parentId: f.parentId ?? null,
-          order: f.order ?? 0,
-        }));
+      this.folders = toFolderRecords(rows);
     } catch (err) {
       this.error = "Failed to load folders";
       logger.error("[MediaFolderTree] Load error:", err);

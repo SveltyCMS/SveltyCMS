@@ -145,7 +145,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
-				{#if !options.some((o) => o.value === '')}
+				{#if placeholder && !options.some((o) => o.value === '')}
 					<option value="" disabled={!allowEmptySelection}>{placeholder}</option>
 				{/if}
 				{#each options as opt (opt.value)}
@@ -219,7 +219,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 					disabled && 'opacity-50 cursor-not-allowed'
 				)}
 			>
-				{#if !options.some((o) => o.value === '')}
+				{#if placeholder && !options.some((o) => o.value === '')}
 					<option value="" disabled={!allowEmptySelection}>{placeholder}</option>
 				{/if}
 				{#each options as opt (opt.value)}

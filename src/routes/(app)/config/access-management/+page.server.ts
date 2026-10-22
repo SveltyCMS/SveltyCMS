@@ -76,11 +76,10 @@ export const load: PageServerLoad = async ({ locals }) => {
     const permissions = getAllPermissions().map(slimPermission);
 
     return {
-      user: {
-        _id: user._id.toString(),
-        email: user.email,
-        role: user.role,
-      },
+      // No `user` key on purpose: SvelteKit merges page data over layout data, so
+      // returning a slim `{ _id, email, role }` here shadowed the layout's full
+      // user snapshot and the left sidebar lost the username/avatar on this
+      // route. The layout (src/routes/(app)/+layout.server.ts) owns `user`.
       roles: tenantRoles.map(slimRole),
       permissions,
     };

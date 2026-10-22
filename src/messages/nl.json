@@ -1225,7 +1225,7 @@
   "mediagallery_new_folder": "Nieuwe map",
   "mediagallery_no_media": "Geen media gevonden",
   "mediagallery_nomedia": "Geen media",
-  "mediagallery_optimize_webgpu": "Afbeeldingen optimaliseren vóór upload (WebGPU)",
+  "mediagallery_optimize_before_upload": "Afbeeldingen optimaliseren vóór upload",
   "mediagallery_original": "origineel",
   "mediagallery_output_format": "Uitvoerformaat",
   "mediagallery_pagetitle": "Mediabestanden",

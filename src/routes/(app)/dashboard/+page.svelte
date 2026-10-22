@@ -17,6 +17,7 @@
 - Layout switching (e.g., default, compact)
 - Accessible widget addition, removal, and layout switching
 - Lazy loading with Intersection Observer — Svelte modules load only when visible
+- First-screen widgets are bundled eagerly (widget-ssr.ts) so they are part of the SSR payload
 - Picker metadata from server widget.json (no eager glob of every widget)
 -->
 <script lang="ts">
@@ -39,6 +40,7 @@
 	import type { DashboardWidgetPickerInfo } from './widget-runtime';
 
 	import { systemPreferences } from './dashboard-preferences.svelte';
+	import { getFirstScreenWidget } from './widget-ssr';
 	import { themeStore } from '@src/stores/theme-store.svelte.ts';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
 
@@ -328,8 +330,16 @@
 		}
 	}
 
-	function setupWidgetObserver(element: HTMLElement, params: [string, string]) {
-		const [widgetId, componentName] = params;
+	function setupWidgetObserver(element: HTMLElement, params: [string, string, boolean]) {
+		const [widgetId, componentName, firstScreen] = params;
+
+		// First-screen widgets are statically bundled and already in the SSR payload —
+		// there is nothing left to observe (see widget-ssr.ts).
+		if (firstScreen) {
+			return {
+				destroy() {}
+			};
+		}
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -697,6 +707,39 @@
 	});
 </script>
 
+{#snippet widgetSkeleton()}
+	<div class="widget-placeholder h-full p-4">
+		<Loader variant="card" height="h-full" ariaLabel="Loading widget" />
+	</div>
+{/snippet}
+
+{#snippet widgetLoadError(item: DashboardWidgetConfig)}
+	<AdminCard class="flex h-full flex-col items-center justify-center p-4">
+		<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"></iconify-icon>
+		<h3 class="h4 mb-2">{dashboard_widget_load_error()}</h3>
+		<p class="text-sm">
+			{dashboard_widget_failed_load({ component: item.component })}
+		</p>
+		<Button variant="error" onclick={() => removeWidget(item.id)} size="sm" class="mt-4"
+			>{dashboard_remove_widget()}</Button
+		>
+	</AdminCard>
+{/snippet}
+
+{#snippet widgetTile(Widget: Component, item: DashboardWidgetConfig)}
+	<Widget
+		config={item}
+		label={item.label}
+		icon={item.icon}
+		widgetId={item.id}
+		size={item.size}
+		onRemove={() => removeWidget(item.id)}
+		onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
+		theme={currentTheme}
+		currentUser={data.pageData?.user}
+	/>
+{/snippet}
+
 <div>
 	<AdminPageShell
 		title={dashboard_title()}
@@ -748,7 +791,7 @@
 					{/if}
 					{#if dropdownOpen}
 						<div
-							class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded border bg-(--admin-bg-card,var(--color-surface-50)) shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
+							class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded-(--admin-radius-card) border bg-(--admin-bg-card,var(--color-surface-50)) shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
 							role="menu"
 							data-testid="dashboard-widget-menu"
 						>
@@ -867,6 +910,10 @@
 						{#each sortedPreferences as item, i (item.id)}
 							{@const widgetName = item.label || item.component}
 							{@const WidgetComponent = loadedWidgets.get(item.id)}
+							{@const FirstScreenWidget = getFirstScreenWidget(
+								item.component,
+								widgetRegistry[item.component]?.entryFile
+							)}
 							<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 							<div
@@ -885,39 +932,16 @@
 								in:adminStagger={{ index: i, rise: 0 }}
 								onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
 								onkeydown={(event) => handleWidgetKeydown(event, item)}
-								use:setupWidgetObserver={[item.id, item.component]}
+								use:setupWidgetObserver={[item.id, item.component, FirstScreenWidget !== null]}
 							>
-								{#if WidgetComponent === undefined}
-									<div class="widget-placeholder h-full p-4">
-										<Loader variant="card" height="h-full" ariaLabel="Loading widget" />
-									</div>
-								{:else if WidgetComponent === null}
-									<AdminCard class="flex h-full flex-col items-center justify-center p-4">
-										<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"
-										></iconify-icon>
-										<h3 class="h4 mb-2">{dashboard_widget_load_error()}</h3>
-										<p class="text-sm">
-											{dashboard_widget_failed_load({ component: item.component })}
-										</p>
-										<Button
-											variant="error"
-											onclick={() => removeWidget(item.id)}
-											size="sm"
-											class="mt-4">{dashboard_remove_widget()}</Button
-										>
-									</AdminCard>
+								{#if WidgetComponent === null}
+									{@render widgetLoadError(item)}
+								{:else if WidgetComponent}
+									{@render widgetTile(WidgetComponent, item)}
+								{:else if FirstScreenWidget}
+									{@render widgetTile(FirstScreenWidget, item)}
 								{:else}
-									<WidgetComponent
-										config={item}
-										label={item.label}
-										icon={item.icon}
-										widgetId={item.id}
-										size={item.size}
-										onRemove={() => removeWidget(item.id)}
-										onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
-										theme={currentTheme}
-										currentUser={data.pageData?.user}
-									/>
+									{@render widgetSkeleton()}
 								{/if}
 								{#if dropIndicator}
 									{@const currentIndex = sortedPreferences.findIndex(

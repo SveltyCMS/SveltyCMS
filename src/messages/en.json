@@ -1236,7 +1236,7 @@
   "mediagallery_new_folder": "New Folder",
   "mediagallery_no_media": "No media found",
   "mediagallery_nomedia": "No Media",
-  "mediagallery_optimize_webgpu": "Optimize Images before upload (WebGPU)",
+  "mediagallery_optimize_before_upload": "Optimize images before upload",
   "mediagallery_original": "original",
   "mediagallery_output_format": "Output Format",
   "mediagallery_pagetitle": "Media Files",

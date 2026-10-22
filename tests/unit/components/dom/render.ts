@@ -45,6 +45,20 @@ export function renderComponent<C extends Component<any, any, any>>(
   };
 }
 
+/**
+ * Mount an `(app)` page with a partial `data` payload.
+ *
+ * Page components type `data` as the merged layout + page shape, but these tests
+ * only exercise page-level keys; the layout half (user, theme, sidebar, …) is
+ * intentionally omitted.
+ */
+export function renderPage<C extends Component<any, any, any>>(
+  component: C,
+  data: Record<string, unknown>,
+): RenderedComponent {
+  return renderComponent(component, { data } as unknown as ComponentProps<C>);
+}
+
 /** Flush Svelte effects and one microtask tick (for async component updates). */
 export async function settle(): Promise<void> {
   flushSync();

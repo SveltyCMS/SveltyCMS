@@ -383,7 +383,9 @@
 		lastAccess?: string;
 		lastActiveAt?: string;
 	};
-	let sessions = $state<SessionRow[]>([]);
+	let sessions = $state<SessionRow[]>(
+		untrack(() => normalizeSessions((data.initialSessions ?? []) as unknown as SessionRow[]))
+	);
 	let sessionsLoading = $state(false);
 	let sessionsError = $state<string | null>(null);
 
@@ -412,16 +414,28 @@
 		return rows;
 	}
 
-	async function loadSessions(): Promise<void> {
+	async function loadSessions(refresh = false): Promise<void> {
 		sessionsLoading = true;
 		sessionsError = null;
 		try {
-			const result = await getActiveSessions(undefined as any);
-			if (result.error) {
+			// Read the RemoteResource itself rather than assuming the awaited value
+			// exists: a transport/contract failure leaves `current` undefined while
+			// `error` carries the real message. The old `result.error` access turned
+			// that into "Cannot read properties of undefined (reading 'error')".
+			const query = getActiveSessions();
+			if (refresh) await query.refresh();
+			else await query;
+
+			const result = query.current as { sessions?: unknown[]; error?: string } | undefined;
+			if (query.error) {
+				sessionsError = query.error.message || userpage_failed_load_sessions();
+				sessions = [];
+			} else if (result?.error) {
 				sessionsError = result.error;
 				sessions = [];
 			} else {
-				sessions = normalizeSessions((result.sessions ?? []) as SessionRow[]);
+				const rows = Array.isArray(result?.sessions) ? result.sessions : [];
+				sessions = normalizeSessions(rows as SessionRow[]);
 			}
 		} catch (err) {
 			sessionsError = err instanceof Error ? err.message : userpage_failed_load_sessions();
@@ -768,7 +782,7 @@
 					title: userpage_sessions_revoked(),
 					description: userpage_sessions_revoked_desc()
 				});
-				await loadSessions();
+				await loadSessions(true);
 			}
 		} finally {
 			reauthBusy = false;
@@ -906,7 +920,9 @@
 	onMount(() => {
 		if (globalSearch.triggerActions.length > 0) executeActions();
 		setCollection(null);
-		loadSessions().catch(() => {});
+		// Sessions arrive with the server load; only round trip when it could not
+		// resolve them (`null`), never to overwrite a valid (even empty) list.
+		if (data.initialSessions == null) loadSessions().catch(() => {});
 	});
 
 	function modalUserForm(): void {
@@ -1148,7 +1164,7 @@
 						<!-- Right: username · email · password (static mask, no reveal) -->
 						<div class="flex min-w-0 flex-col gap-4">
 							<div
-								class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
+								class="w-full rounded-(--admin-radius-input) border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
 							>
 								<div
 									class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
@@ -1181,7 +1197,7 @@
 							</div>
 
 							<div
-								class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
+								class="w-full rounded-(--admin-radius-input) border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
 							>
 								<div
 									class="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
@@ -1215,7 +1231,7 @@
 
 							<!-- Password never shown in plain text — use Change password only -->
 							<div
-								class="w-full rounded-xl border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
+								class="w-full rounded-(--admin-radius-input) border border-surface-500/30 px-4 py-3 dark:border-surface-500/40"
 								data-testid="profile-password-field"
 							>
 								<div
@@ -1299,7 +1315,10 @@
 				</AdminCard>
 			{:else if activeTab === 'security'}
 				<!-- ═══ TAB 2: Security — help icons match /setup pattern ═══ -->
-				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-security-panel">
+				<div
+					class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:min-h-[calc(100dvh-14rem)]"
+					data-testid="user-security-panel"
+				>
 					<AdminCard class={cardClass}>
 						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider">
 							{userpage_sessions_2fa_title()}
@@ -1448,7 +1467,7 @@
 										<Button
 											variant="surface"
 											size="sm"
-											onclick={loadSessions}
+											onclick={() => loadSessions(true)}
 											disabled={sessionsLoading}
 											aria-label={userpage_refresh_sessions_aria()}
 											class={securityActionBtn}
@@ -1752,7 +1771,7 @@
 											</SystemTooltip>
 										</div>
 									</div>
-									<div class="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+									<div class="flex flex-wrap gap-1.5 overflow-y-auto">
 										{#each user.permissions as permission (permission)}
 											<span
 												class="inline-flex items-center rounded-full bg-tertiary-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white dark:bg-primary-500 dark:text-surface-950"
@@ -2096,6 +2115,8 @@
 						currentUser={user as any}
 						isMultiTenant={!!isMultiTenant}
 						roles={(data.roles ?? []) as any}
+						initialUsers={data.initialUsers?.users ?? null}
+						initialTotal={data.initialUsers?.totalItems ?? null}
 					/>
 				</div>
 			{/if}

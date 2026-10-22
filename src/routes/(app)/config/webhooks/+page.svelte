@@ -17,7 +17,6 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { generateSecureToken } from '@utils/native-utils';
-	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -74,8 +73,10 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 		webhooks_trigger_events_hint
 	} from '@src/paraglide/messages';
 
-	let webhooks: Webhook[] = $state([]);
-	let isLoading = $state(true);
+	let { data } = $props();
+
+	let webhooks: Webhook[] = $state(data.webhooks);
+	let isLoading = $state(false);
 	let isSaving = $state(false);
 	let showModal = $state(false);
 	let editingWebhook: Partial<Webhook> | null = $state(null);
@@ -203,8 +204,6 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 			editingWebhook.events = [...events, event as never];
 		}
 	}
-
-	onMount(loadWebhooks);
 </script>
 
 <AdminPageShell

@@ -8,7 +8,8 @@ Uses the same shared TreeView as collections:
 - HTML5 drag in edit mode = reorder / reparent folders (before | after | inside)
 
 ### Features:
-- Shared `TreeView` (`variant="media"`) for full + compact sidebar
+- Shared `TreeView` (identical chrome to the collections sidebar) for full + compact sidebar
+- Cached folder list (`ensureLoaded`) — navigation only moves the selection, it never refetches
 - Click navigation (closes sidebar on mobile)
 - Edit mode: drag & drop reordering / nesting via TreeView
 - Accept media drag-and-drop from media-grid (move into virtual folder)
@@ -98,7 +99,7 @@ Uses the same shared TreeView as collections:
 	}
 
 	const folders = $derived(mediaFolderTree.folders);
-	const isLoading = $derived(mediaFolderTree.isLoading);
+	const hasLoaded = $derived(mediaFolderTree.hasLoaded);
 	const error = $derived(mediaFolderTree.error);
 
 	/** True only while a media-gallery card (not a folder-reorder drag) is in flight */
@@ -185,6 +186,10 @@ Uses the same shared TreeView as collections:
 	// in TreeView (clicking a folder both selects it and toggles it).
 	$effect(() => {
 		activeFolderId = page.url.searchParams.get('folderId') || 'root';
+		// Depend on the folder list so a deep link expands its ancestor chain as
+		// soon as the (possibly cached) list arrives, not only on the next
+		// navigation.
+		void folders;
 		if (activeFolderId !== 'root') {
 			expandAncestorChain(activeFolderId);
 		}
@@ -442,7 +447,10 @@ Uses the same shared TreeView as collections:
 	}));
 
 	$effect(() => {
-		loadFolders();
+		// First paint uses the cached list when this module already ran (SPA
+		// navigation / sidebar remount); only a cold session hits the network.
+		// Explicit folderCreated/Updated/Deleted events still force a refresh.
+		void mediaFolderTree.ensureLoaded();
 
 		const refresh = () => loadFolders();
 		document.addEventListener('folderCreated', refresh);
@@ -589,7 +597,7 @@ Uses the same shared TreeView as collections:
 	{/if}
 
 	<div class="media-folders-list min-w-0 overflow-x-hidden">
-		{#if isLoading && folders.length === 0}
+		{#if !hasLoaded}
 			<div class="flex flex-col items-center justify-center gap-3 p-6">
 				<div class="flex gap-2">
 					<div
@@ -620,7 +628,6 @@ Uses the same shared TreeView as collections:
 				selectedId={activeFolderId}
 				bind:expandedIds={folderExpanded}
 				compact={!isSidebarFull}
-				variant="media"
 				iconColorClass="text-(--admin-text-muted)"
 				showBadges={false}
 				allowDragDrop={isEditMode}

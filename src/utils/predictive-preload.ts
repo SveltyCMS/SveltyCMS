@@ -21,6 +21,12 @@
  * <a href="/en/posts/789" data-preload="viewport">Preview Post 789</a>
  * <a href="/dashboard" data-preload="hover">Dashboard</a>
  * ```
+ *
+ * ### Server prewarm (`/api/system/prewarm-route`)
+ * `src/app.html` already sets `data-sveltekit-preload-data="hover"`, so hover /
+ * focus / viewport preloads are already made by SvelteKit. Firing the route
+ * prewarm for those would be a second request for the same intent, so only the
+ * predictive cone (the one signal SvelteKit cannot observe) warms the route.
  */
 
 import { logger } from "@utils/logger";
@@ -47,7 +53,7 @@ let _started = false;
 
 // ─── Core Logic ────────────────────────────────────────────────────────────
 
-async function preload(href: string): Promise<void> {
+async function preload(href: string, options: { prewarm?: boolean } = {}): Promise<void> {
   // 🛡️ NETWORK CONSTRAINTS: respect Save-Data header, slow cellular connections, or offline state
   if (shouldSkipPreload()) return;
 
@@ -65,8 +71,11 @@ async function preload(href: string): Promise<void> {
   _preloaded.set(href, now);
 
   try {
-    // Non-blocking server-side route cache pre-warming
-    fetch(`/api/system/prewarm-route?path=${encodeURIComponent(href)}`).catch(() => {});
+    // Server-side route cache pre-warm — predictive cone only (see file header).
+    // Fire-and-forget: the navigation itself must never wait on it.
+    if (options.prewarm) {
+      fetch(`/api/system/prewarm-route?path=${encodeURIComponent(href)}`).catch(() => {});
+    }
     await preloadData(href);
   } catch (err) {
     logger.debug(`[Preload] Skipping ${href}:`, err);
@@ -118,9 +127,9 @@ function handlePointerMove(event: PointerEvent): void {
       if (link.dataset.preload === "smart") {
         const hotPaths = await getHotPaths();
         const collection = link.pathname.split("/")[1];
-        if (hotPaths.has(collection)) preload(link.href);
+        if (hotPaths.has(collection)) preload(link.href, { prewarm: true });
       } else {
-        preload(link.href);
+        preload(link.href, { prewarm: true });
       }
     }
   });
@@ -145,6 +154,9 @@ function observeLink(link: HTMLAnchorElement) {
     );
     _observer.observe(link);
   } else if (strategy === "hover" || strategy === "smart" || strategy === "predict") {
+    // Hover / focus are already preloaded by SvelteKit
+    // (`data-sveltekit-preload-data="hover"` on `<body>`), so no server prewarm
+    // here — only the pointer-path cone asks the server to warm the route.
     const timer = setTimeout(() => {
       link.addEventListener("mouseenter", () => preload(link.href), { once: true });
       link.addEventListener("focus", () => preload(link.href), { once: true });

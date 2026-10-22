@@ -33,10 +33,20 @@ export const load: PageServerLoad = async ({ locals }) => {
       logger.warn("Could not load admin theme, using defaults:", err);
     }
 
+    // Theme list powers the (admin-only) Themes tab — load it server-side so the
+    // tab has content on first paint instead of after an onMount fetch.
+    let themes: Awaited<ReturnType<typeof adminThemeService.listThemes>> = [];
+    try {
+      themes = await adminThemeService.listThemes(tenantId);
+    } catch (err) {
+      logger.warn("Could not load admin themes:", err);
+    }
+
     return {
       user: { ...user, _id: user._id?.toString() },
       isAdmin,
       adminTheme: adminTheme || null,
+      themes,
     };
   } catch (err) {
     if (err instanceof Error && "status" in err) throw err;

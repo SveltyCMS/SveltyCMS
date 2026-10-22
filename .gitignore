@@ -103,6 +103,7 @@ src/paraglide/**/*.js
 LOCAL.md
 bundle-report.json
 tests/benchmarks/results/*
+tests/playwright-results.json
 project.inlang
 testing-artifacts
 testing-artifacts/

@@ -54,6 +54,7 @@ This layout provides the administrative shell, including sidebars and header con
 	import AdminZone from '@components/system/admin-zone.svelte';
 	import { setAdminZoneCapabilityChecker } from '@src/plugins/admin-zone-registry.svelte.ts';
 	import PluginWorkspaceOverlay from '@components/system/plugin-workspace-overlay.svelte';
+	import { pluginWorkspace } from '@src/stores/plugin-workspace.svelte';
 	import { setThemeContext } from '@src/components/ui/theme-context.svelte';
 	// Utils
 	import { adminPage, adminSlide } from '@utils/admin-transitions';
@@ -84,7 +85,8 @@ This layout provides the administrative shell, including sidebars and header con
 	// =============================================
 
 	interface LayoutData {
-		contentStructure: ContentNode[];
+		/** Flat, sanitized node list from the ROOT layout (single owner of the tree). */
+		contentNodes?: ContentNode[];
 		settings: Record<string, any>;
 		user: User | null;
 		tenantId?: string | null;
@@ -259,7 +261,10 @@ This layout provides the administrative shell, including sidebars and header con
 	 */
 	const leftSidebarState = $derived.by(() => {
 		if (ui.leftSidebarTouched || !editingRoute) return ui.state.leftSidebar;
-		return screen.isDesktop ? 'collapsed' : 'hidden';
+		// Desktop keeps the full navigation tree while editing; compact navigation is
+		// a tablet affordance. Matching `updateFromContext` here keeps SSR and the
+		// first client frame identical (no width snap after hydration).
+		return screen.isDesktop ? 'full' : 'hidden';
 	});
 	const rightSidebarState = $derived.by(() => {
 		if (ui.rightSidebarTouched) return ui.state.rightSidebar;
@@ -426,12 +431,12 @@ This layout provides the administrative shell, including sidebars and header con
 	});
 
 	// 🔥 SYNC: Connect content structure to global stores for sidebar/navigation reactivity
-	// (contentStructure is now plain data — the layout server resolves it before returning)
+	// (`contentNodes` is the root layout's sanitized flat list — the single owner of the tree).
 	$effect(() => {
 		// Apply layout data synchronously. A delayed dynamic import could resolve after
 		// the Collection Builder published a newer DnD draft and overwrite only the
 		// sidebar with the older layout snapshot.
-		applyRemoteContentStructure(data.contentStructure);
+		applyRemoteContentStructure(data.contentNodes ?? []);
 	});
 
 	// =============================================
@@ -584,7 +589,7 @@ This layout provides the administrative shell, including sidebars and header con
 					{#if !screen.isMobile && leftSidebarState !== 'hidden'}
 						<aside
 							data-testid="app-left-sidebar"
-							class="max-md:hidden max-h-dvh shrink-0 border-e bg-surface-500/10 text-center transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900 overflow-visible"
+							class="max-md:hidden max-h-dvh shrink-0 bg-surface-500/10 text-center transition-[width] duration-300 ease-in-out dark:bg-surface-900 overflow-visible"
 							style="width: {leftSidebarState === 'full'
 								? 'var(--admin-sidebar-width, 240px)'
 								: 'var(--admin-sidebar-compact-width, 120px)'}"
@@ -603,20 +608,32 @@ This layout provides the administrative shell, including sidebars and header con
 						{/if}
 
 						<!-- Standardized page-entry motion for every admin route. Keyed on
-				     pathname so only real navigations replay the transition (query
-				     params like ?edit / ?create stay put). adminPage respects
-				     prefers-reduced-motion and the theme's reducedMotion flag. -->
-						{#key page.url.pathname}
-							<div
-								in:adminPage={{ duration: viewTransitionsEnabled ? 0 : 240, rise: 8 }}
-								class="relative flex w-full min-w-0 flex-1 flex-col"
-							>
-								{@render children?.()}
-							</div>
-						{/key}
+					     pathname so only real navigations replay the transition (query
+					     params like ?edit / ?create stay put). adminPage respects
+					     prefers-reduced-motion and the theme's reducedMotion flag. -->
+						<!-- A plugin workspace takes over the content column: the page below
+						     is unmounted so its PageTitle cannot paint over the workspace
+						     title (two stacked <h1>s) and its content stays out of the a11y
+						     tree. `page.data` is untouched, so closing the workspace restores
+						     the page without a refetch. -->
+						{#if !pluginWorkspace.isOpen}
+							{#key page.url.pathname}
+								<div
+									in:adminPage={{ duration: viewTransitionsEnabled ? 0 : 240, rise: 8 }}
+									class="relative flex w-full min-w-0 flex-1 flex-col"
+								>
+									{@render children?.()}
+								</div>
+							{/key}
+						{/if}
+
+						<!-- Plugin workspaces (Smart Importer, Data Hub) render inside the content
+						     column so the shell + sidebars stay available. The overlay is
+						     `absolute inset-0` against this `relative` <main>. -->
+						<PluginWorkspaceOverlay />
 
 						<!-- Sticky action bar (only rendered when content exists) -->
-						{#if theme.features.stickyActionBar && ui.stickyActionContent}
+						{#if !pluginWorkspace.isOpen && theme.features.stickyActionBar && ui.stickyActionContent}
 							<div
 								class="sticky bottom-0 z-20 w-full border-t border-(--admin-border-default) bg-white/95 dark:bg-surface-900/95 backdrop-blur-md"
 								style="min-height: var(--admin-sticky-bar-height, 56px);"
@@ -630,7 +647,7 @@ This layout provides the administrative shell, including sidebars and header con
 							</div>
 						{/if}
 
-						{#if ui.state.pagefooter !== 'hidden'}
+						{#if !pluginWorkspace.isOpen && ui.state.pagefooter !== 'hidden'}
 							<footer
 								class="mt-auto w-full bg-surface-500/10 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
 							>
@@ -719,6 +736,5 @@ This layout provides the administrative shell, including sidebars and header con
 			</Portal>
 		{/if}
 		<BackToTop />
-		<PluginWorkspaceOverlay />
 	</div>
 {/if}

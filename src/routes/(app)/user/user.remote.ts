@@ -4,7 +4,7 @@
  */
 
 import { command, query, getRequestEvent } from "$app/server";
-import { buildUpdateProfileBody } from "./user-remote-utils";
+import { buildUpdateProfileBody, mapActiveSessions } from "./user-remote-utils";
 import { getRequestLocalCMS, remoteErrorMessage } from "@utils/server/request-cms.server";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { AppError } from "@utils/error-handling";
@@ -87,9 +87,11 @@ export const deleteUser = query(
   },
 );
 
+// No input argument — use the no-schema `query(fn)` overload so the generated
+// client signature is callable with `getActiveSessions()` (the `"unchecked"`
+// overload types the argument as `unknown`, which TypeScript treats as required).
 export const getActiveSessions = query(
-  "unchecked",
-  async (_event?: unknown): Promise<{ sessions?: unknown[]; error?: string }> => {
+  async (): Promise<{ sessions?: unknown[]; error?: string }> => {
     try {
       const event = getRequestEvent();
       const user = getAuthenticatedUser(event.locals);
@@ -105,30 +107,8 @@ export const getActiveSessions = query(
       );
       // Sessions come back as strongly-typed `Session`, but the view model reads
       // optional legacy fields (ip/updatedAt/createdAt) not present on the type —
-      // widen to the index-signature view once for the mapping.
-      const sessions = ((result.data || []) as unknown as Record<string, unknown>[])
-        .filter((s) => !s.rotated)
-        .map((s) => {
-          const sid = String(s._id ?? s.id ?? "");
-          return {
-            ...s,
-            _id: sid,
-            id: sid,
-            ip: s.ip ?? s.ipAddress,
-            ipAddress: s.ipAddress ?? s.ip,
-            lastAccess: s.lastAccess ?? s.lastActiveAt ?? s.updatedAt ?? s.createdAt,
-            lastActiveAt: s.lastActiveAt ?? s.updatedAt ?? s.createdAt,
-            userAgent: s.userAgent ?? "",
-            isCurrent: currentSessionId.length > 0 && sid === currentSessionId,
-          };
-        });
-      let sawCurrent = false;
-      for (const s of sessions) {
-        if (s.isCurrent) {
-          if (sawCurrent) s.isCurrent = false;
-          else sawCurrent = true;
-        }
-      }
+      // `mapActiveSessions` widens once and is shared with the SSR load.
+      const sessions = mapActiveSessions(result.data, currentSessionId);
       return { sessions };
     } catch (err) {
       return { error: remoteErrorMessage(err, "Failed to load sessions") };

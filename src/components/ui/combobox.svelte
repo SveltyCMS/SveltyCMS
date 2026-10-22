@@ -279,7 +279,7 @@ async loading, grouped options, configurable debounce, and clearable selection.
 			{placeholder}
 			{disabled}
 			class={cn(
-				'input w-full transition-all duration-200 rounded',
+				'input w-full transition-all duration-200 rounded-(--admin-radius-input)',
 				'focus:ring-2 focus:ring-primary-500/20 focus:border-tertiary-500 dark:border-primary-500',
 				isOpen && 'rounded-b-none',
 				error &&
@@ -339,7 +339,7 @@ async loading, grouped options, configurable debounce, and clearable selection.
 			bind:this={listElement}
 			id={`${id}-listbox`}
 			role="listbox"
-			class="absolute z-50 w-full mt-0 border border-t-0 rounded-b-xl shadow-2xl bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-500/40 max-h-60 overflow-y-auto"
+			class="absolute z-50 w-full mt-0 border border-t-0 rounded-b-(--admin-radius-card) shadow-2xl bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-500/40 max-h-60 overflow-y-auto"
 			transition:slide={{ duration: 150 }}
 		>
 			<!-- Loading state -->

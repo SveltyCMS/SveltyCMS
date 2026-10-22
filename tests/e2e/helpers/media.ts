@@ -51,6 +51,22 @@ export async function uniquePng(filename: string) {
   return { name: filename, mimeType: "image/png", buffer };
 }
 
+/** Open the dedicated upload page (local + remote tabs) as admin. */
+export async function openUploadMediaPage(page: Page): Promise<void> {
+  await seedCookieConsent(page);
+  await loginAsAdmin(page);
+  await dismissCookieConsent(page);
+
+  await page.goto("/mediagallery/upload-media", {
+    waitUntil: "domcontentloaded",
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId("upload-media-page")).toBeVisible({ timeout: 30_000 });
+  // Tabs are SSR HTML; clicks before hydration do nothing.
+  await waitForHydration(page);
+  await dismissCookieConsent(page);
+}
+
 /** Upload through the real toolbar input and resolve once the card renders. */
 export async function uploadUniqueImage(page: Page, filename: string): Promise<MediaRow> {
   const file = await uniquePng(filename);

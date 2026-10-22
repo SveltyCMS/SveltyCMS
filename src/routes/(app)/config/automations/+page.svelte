@@ -11,7 +11,6 @@ Lists all configured workflow automations with status, trigger, and operation su
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { formatDate } from '@utils/format-date';
-	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -61,8 +60,10 @@ Lists all configured workflow automations with status, trigger, and operation su
 		updateAutomation
 	} from './automations-api';
 
-	let flows: AutomationFlow[] = $state([]);
-	let isLoading = $state(true);
+	let { data } = $props();
+
+	let flows: AutomationFlow[] = $state(data.flows);
+	let isLoading = $state(false);
 	let searchQuery = $state('');
 	let selectedIds: string[] = $state([]);
 
@@ -216,8 +217,6 @@ Lists all configured workflow automations with status, trigger, and operation su
 		if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
 		return formatDate(date);
 	}
-
-	onMount(loadFlows);
 </script>
 
 <AdminPageShell

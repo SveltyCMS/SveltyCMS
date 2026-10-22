@@ -1225,7 +1225,7 @@
   "mediagallery_new_folder": "مجلد جديد",
   "mediagallery_no_media": "لم يتم العثور على وسائط",
   "mediagallery_nomedia": "لا توجد وسائط",
-  "mediagallery_optimize_webgpu": "تحسين الصور قبل الرفع (WebGPU)",
+  "mediagallery_optimize_before_upload": "تحسين الصور قبل الرفع",
   "mediagallery_original": "أصلي",
   "mediagallery_output_format": "صيغة الإخراج",
   "mediagallery_pagetitle": "ملفات الوسائط",

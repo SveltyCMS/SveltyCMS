@@ -7,6 +7,7 @@
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import { CONFIG_TILE_CLASS } from '@components/ui/config-tile-classes';
 	import Slot from '@components/system/slot.svelte';
 	import AdminZone from '@src/components/system/admin-zone.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
@@ -369,7 +370,7 @@
 						<PermissionGuard {...{ config: item.permission } as any}>
 							<a
 								href={item.href}
-								class="flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl dark:border-surface-500/40 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+								class={CONFIG_TILE_CLASS}
 								aria-label={tileLabel(item.id, item.label)}
 								target={item.target}
 								rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
@@ -392,7 +393,7 @@
 					<div in:adminStagger={{ index: idx }}>
 						<a
 							href={item.href}
-							class="group flex h-24 flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) p-2 text-center shadow-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl dark:border-surface-500/40 dark:hover:border-primary-500 dark:hover:bg-surface-700 lg:h-32"
+							class={CONFIG_TILE_CLASS}
 							aria-label={tileLabel(item.id, item.label)}
 							target={item.target}
 							rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}

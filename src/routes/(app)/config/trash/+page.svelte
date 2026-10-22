@@ -10,7 +10,6 @@
 -->
 <script lang="ts">
 	import { adminFade } from '@utils/admin-transitions';
-	import { onMount } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { formatDisplayDate } from '@utils/date';
@@ -42,8 +41,10 @@
 	} from '@src/paraglide/messages';
 	import { listTrash, restoreTrashItem, unwrapTrashList, type TrashItem } from './trash-api';
 
-	let trashedItems = $state<TrashItem[]>([]);
-	let isLoading = $state(true);
+	let { data } = $props();
+
+	let trashedItems = $state<TrashItem[]>(data.items);
+	let isLoading = $state(false);
 
 	async function loadTrash() {
 		isLoading = true;
@@ -72,8 +73,6 @@
 			}
 		});
 	}
-
-	onMount(loadTrash);
 </script>
 
 <AdminPageShell

@@ -142,7 +142,14 @@ None (TreeView has its own keyboard navigation)
 	useContent();
 
 	// Both values are replaced immutably so each drag produces one detached draft.
-	let currentConfig: ContentNode[] = $state.raw([]);
+	/**
+	 * Seed the draft from page data at init so the SERVER already renders the
+	 * real board. Seeding it from a `$effect` (previous behaviour) made SSR emit
+	 * the empty state and hydration swap in the whole board — the dominant
+	 * layout shift + delay on this route.
+	 */
+	const initialStructure = untrack(() => (data.contentStructure as unknown as ContentNode[]) ?? []);
+	let currentConfig: ContentNode[] = $state.raw(initialStructure);
 	let nodesToSave: Record<string, NodeOperation> = $state.raw({});
 	let isLoading = $state(false);
 	let draftRevision = 0;
@@ -155,22 +162,22 @@ None (TreeView has its own keyboard navigation)
 	/** Incremented when immediate category operations intentionally adopt a server structure. */
 	let treeVersion = $state(0);
 
-	let initializedFromPageData = false;
+	/**
+	 * The visible draft is seeded from page data above. This effect only mirrors
+	 * that starting structure into the shared store, once, on the client.
+	 */
+	let structureStoreSeeded = false;
 
 	$effect(() => {
 		const structure = data.contentStructure as unknown as ContentNode[];
-		if (initializedFromPageData || !structure) return;
-
-		// Page data seeds the editor once. From this point until unmount, the local
-		// draft is the sole authority and only writes outward to the sidebar.
-		initializedFromPageData = true;
-		currentConfig = structure;
-		setContentStructure(structure);
+		if (structureStoreSeeded || !structure) return;
+		structureStoreSeeded = true;
+		untrack(() => setContentStructure(structure));
 	});
 
 	$effect(() => {
 		const sharedStructure = collections.contentStructure as ContentNode[];
-		if (!initializedFromPageData || !sharedStructure?.length) return;
+		if (!structureStoreSeeded || !sharedStructure?.length) return;
 
 		const hierarchySignature = (nodes: ContentNode[]) =>
 			nodes

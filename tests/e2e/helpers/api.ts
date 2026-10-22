@@ -418,6 +418,18 @@ export async function seedExpiredPasswordReset(
   };
 }
 
+/**
+ * Allow the app server to reach one exact origin (scheme + host + port).
+ *
+ * The production SSRF guard blocks loopback; a zero-mock E2E that ingests a
+ * remote URL needs the server to reach a fixture the test owns. The testing
+ * action is fail-closed and delegates to `allowTestEgressOrigin()`, which
+ * itself refuses to run outside TEST_MODE/PLAYWRIGHT_TEST.
+ */
+export async function allowTestEgressOrigin(page: Requestish, origin: string): Promise<void> {
+  await postTesting(page, { action: "allow-egress-origin", origin });
+}
+
 /** Seed media rows with distinct metadata for ?jsonPath= filter tests. */
 export async function seedMediaWithMetadata(
   page: Requestish,

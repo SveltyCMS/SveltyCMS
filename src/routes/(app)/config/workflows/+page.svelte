@@ -31,10 +31,10 @@ their arrows so the canvas stays readable.
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import {
-		listWorkflowCollections,
-		listWorkflowRoles,
 		loadWorkflow as loadWorkflowApi,
-		saveWorkflowDefinition
+		saveWorkflowDefinition,
+		type WorkflowCollectionOption,
+		type WorkflowRoleOption
 	} from './workflows-api';
 	import {
 		workflows_add_state,
@@ -67,6 +67,8 @@ their arrows so the canvas stays readable.
 	/** Matches are "content", not a drag handle — let them behave normally. */
 	const INTERACTIVE_SELECTOR = 'input, textarea, select, button, a[href], [data-no-drag]';
 
+	let { data } = $props();
+
 	let states = $state<WorkflowState[]>([
 		{ id: 'draft', label: 'Draft', color: '#94a3b8', isInitial: true },
 		{ id: 'review', label: 'In Review', color: '#fbbf24' },
@@ -81,12 +83,20 @@ their arrows so the canvas stays readable.
 
 	let selectedNodeId = $state<string | null>(null);
 	let selectedTransitionId = $state<string | null>(null);
-	let collections = $state<any[]>([]);
+	let collections = $state<WorkflowCollectionOption[]>(data.collections);
 
 	const collectionOptions = $derived(
 		collections.map((col) => ({ value: col._id, label: col.name || col._id }))
 	);
-	let roles = $state<any[]>([]);
+	let roles = $state<WorkflowRoleOption[]>(data.roles);
+	const roleOptions = $derived(
+		roles
+			.filter((role) => Boolean(role._id ?? role.id))
+			.map((role) => ({
+				value: String(role._id ?? role.id),
+				label: role.name || String(role._id ?? role.id)
+			}))
+	);
 	let selectedCollectionId = $state<string>('');
 	let workflowId = $state<string | null>(null);
 	let workflowName = $state<string>('');
@@ -187,12 +197,6 @@ their arrows so the canvas stays readable.
 	}
 
 	// --- Data -------------------------------------------------------------------
-	onMount(async () => {
-		// Load collections + roles via workflows-api (CSRF-safe fetchApi)
-		collections = await listWorkflowCollections();
-		roles = await listWorkflowRoles();
-	});
-
 	async function loadWorkflow(collectionId: string) {
 		if (!collectionId) return;
 		const data = await loadWorkflowApi(collectionId);
@@ -699,7 +703,7 @@ their arrows so the canvas stays readable.
 								options={[
 									{ value: '', label: 'No Role (Anyone)' },
 									{ value: 'admin', label: 'Administrator' },
-									...roles.map((role) => ({ value: role._id, label: role.name || role._id }))
+									...roleOptions
 								]}
 							/>
 							<Button

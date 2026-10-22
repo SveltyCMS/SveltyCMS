@@ -1225,7 +1225,7 @@
   "mediagallery_new_folder": "Nueva carpeta",
   "mediagallery_no_media": "No se han encontrado medios",
   "mediagallery_nomedia": "Sin medios",
-  "mediagallery_optimize_webgpu": "Optimizar imágenes antes de subirlas (WebGPU)",
+  "mediagallery_optimize_before_upload": "Optimizar las imágenes antes de subirlas",
   "mediagallery_original": "original",
   "mediagallery_output_format": "Formato de salida",
   "mediagallery_pagetitle": "Archivos multimedia",

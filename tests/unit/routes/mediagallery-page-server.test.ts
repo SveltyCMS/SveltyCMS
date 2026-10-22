@@ -174,24 +174,26 @@ describe("mediagallery remoteUpload action (VULN-002 class)", () => {
     expect(saveRemoteMedia.mock.calls[0][0]).toBe("https://cdn.example.com/photo.jpg");
   });
 
-  it("does not persist when saveRemoteMedia blocks private targets", async () => {
+  it("rejects the action when saveRemoteMedia blocks every URL", async () => {
     saveRemoteMedia.mockResolvedValue({
       success: false,
       message: "Blocked private IP: 127.0.0.1",
     });
-    const result = await actions.remoteUpload(
-      makeRemoteUploadEvent(
-        {
-          user: { _id: "writer-1", email: "w@b.co" },
-          isAdmin: true,
-          roles: [],
-          tenantId: "t1",
-        },
-        ["http://127.0.0.1:9000/secret"],
+    // A batch where nothing was stored is a failure — the UI must not report a
+    // successful import for URLs the SSRF guard rejected.
+    await expect(
+      actions.remoteUpload(
+        makeRemoteUploadEvent(
+          {
+            user: { _id: "writer-1", email: "w@b.co" },
+            isAdmin: true,
+            roles: [],
+            tenantId: "t1",
+          },
+          ["http://127.0.0.1:9000/secret"],
+        ),
       ),
-    );
-    // Action still returns success envelope; individual URL failures are logged
-    expect(result).toEqual({ success: true });
+    ).rejects.toMatchObject({ status: 400 });
     expect(saveRemoteMedia).toHaveBeenCalledWith(
       "http://127.0.0.1:9000/secret",
       expect.anything(),

@@ -59,6 +59,10 @@ function folderNode(target: HTMLElement, name: string): HTMLElement | undefined 
   );
 }
 
+function chevron(target: HTMLElement, id: string): Element | null {
+  return row(target, id).querySelector('iconify-icon[icon="mdi:chevron-right"]');
+}
+
 async function mount(): Promise<ReturnType<typeof renderComponent>> {
   const rendered = renderComponent(MediaFolders);
   await settle();
@@ -187,6 +191,47 @@ describe("Media folders tree (client interaction)", () => {
       await vi.waitFor(() => expect(folderNode(target, "Media Root")).toBeDefined());
       expect(folderNode(target, "Parent")).toBeUndefined();
       expect(folderNode(target, "Sibling")).toBeUndefined();
+    } finally {
+      cleanup();
+    }
+  });
+
+  it("only offers the root chevron when there is something to expand", async () => {
+    const withFolders = await mount();
+    try {
+      expect(chevron(withFolders.target, "root")).not.toBeNull();
+    } finally {
+      withFolders.cleanup();
+    }
+
+    network.fetchData = [];
+    mediaFolderTree.folders = [];
+    mediaFolderTree.hasLoaded = false;
+    const empty = renderComponent(MediaFolders);
+    try {
+      await vi.waitFor(() => expect(folderNode(empty.target, "Media Root")).toBeDefined());
+      // Media nodes are always drop targets, but a chevron on an empty root is a
+      // dead control — the root row keeps a spacer for icon alignment instead.
+      expect(chevron(empty.target, "root")).toBeNull();
+    } finally {
+      empty.cleanup();
+    }
+  });
+
+  it("reloads only the tree when a folderCreated event fires", async () => {
+    const { target, cleanup } = await mount();
+    try {
+      expect(folderNode(target, "Brand New")).toBeUndefined();
+
+      network.fetchData = [
+        ...RAW_FOLDERS,
+        { _id: "new-folder", name: "Brand New", path: "/brand-new", parentId: null, order: 9 },
+      ];
+      // The gallery page dispatches this after a successful create and does NOT
+      // call `refreshAll()` — the sidebar listener is the only refresh path.
+      document.dispatchEvent(new CustomEvent("folderCreated"));
+
+      await vi.waitFor(() => expect(folderNode(target, "Brand New")).toBeDefined());
     } finally {
       cleanup();
     }

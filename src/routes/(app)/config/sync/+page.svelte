@@ -14,7 +14,6 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	import { logger } from '@utils/logger';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -61,8 +60,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 	type SafetyMode = 'merge' | 'add' | 'mirror' | 'replace';
 
-	let status: ConfigStatus = $state(null);
-	let isLoading = $state(true);
+	let { data } = $props();
+
+	let status: ConfigStatus = $state((data.status as unknown as ConfigStatus) ?? null);
+	let isLoading = $state(false);
 	let isProcessing = $state(false);
 	let isExporting = $state(false);
 	let activeTab: 'sync' | 'backups' | 'debug' = $state('sync');
@@ -189,10 +190,6 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			isExporting = false;
 		}
 	}
-
-	onMount(() => {
-		loadStatus();
-	});
 </script>
 
 <AdminPageShell

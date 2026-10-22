@@ -19,7 +19,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowPage from "@src/routes/(app)/config/workflows/+page.svelte";
 import type { WorkflowDefinition } from "@src/types/workflow-types";
-import { click, press, renderComponent, settle, typeText } from "./render";
+import { click, press, renderPage, settle, typeText } from "./render";
 
 function inputWithLabel(target: HTMLElement, text: string): HTMLInputElement | null {
   const label = [...target.querySelectorAll("label")].find((l) => l.textContent?.includes(text));
@@ -77,15 +77,25 @@ beforeEach(() => {
 });
 
 describe("Workflow Editor (DOM interaction)", () => {
-  it("loads collections and roles on mount", async () => {
-    const { target, cleanup } = renderComponent(WorkflowPage);
+  /** SSR-first: the page receives collections + roles from its server load. */
+  function mountPage() {
+    return renderPage(WorkflowPage, {
+      isAdmin: true,
+      collections: MOCK_COLLECTIONS,
+      roles: MOCK_ROLES,
+    });
+  }
+
+  it("renders collections and roles from the server payload", async () => {
+    const { target, cleanup } = mountPage();
 
     try {
       await settle();
-      expect(api.listWorkflowCollections).toHaveBeenCalledTimes(1);
-      expect(api.listWorkflowRoles).toHaveBeenCalledTimes(1);
+      // No duplicate client fetch: the load already resolved the lists.
+      expect(api.listWorkflowCollections).not.toHaveBeenCalled();
+      expect(api.listWorkflowRoles).not.toHaveBeenCalled();
 
-      // Verify the target collection select contains the options
+      // Verify the target collection select contains the server options
       const select = target.querySelector<HTMLSelectElement>(
         "div[data-testid=workflow-collection-select] select",
       );
@@ -103,7 +113,7 @@ describe("Workflow Editor (DOM interaction)", () => {
   });
 
   it("loads existing workflow when a collection is selected", async () => {
-    const { target, cleanup } = renderComponent(WorkflowPage);
+    const { target, cleanup } = mountPage();
 
     try {
       await settle();
@@ -137,7 +147,7 @@ describe("Workflow Editor (DOM interaction)", () => {
   });
 
   it("adds a new state card when 'Add State' button is clicked", async () => {
-    const { target, cleanup } = renderComponent(WorkflowPage);
+    const { target, cleanup } = mountPage();
 
     try {
       await settle();
@@ -159,7 +169,7 @@ describe("Workflow Editor (DOM interaction)", () => {
   });
 
   it("removes a state card when its delete button is clicked", async () => {
-    const { target, cleanup } = renderComponent(WorkflowPage);
+    const { target, cleanup } = mountPage();
 
     try {
       await settle();
@@ -180,7 +190,7 @@ describe("Workflow Editor (DOM interaction)", () => {
   });
 
   it("selects a state and displays its properties in the inspector", async () => {
-    const { target, cleanup } = renderComponent(WorkflowPage);
+    const { target, cleanup } = mountPage();
 
     try {
       await settle();
@@ -207,7 +217,7 @@ describe("Workflow Editor (DOM interaction)", () => {
   });
 
   it("saves workflow definition with current states and transitions", async () => {
-    const { target, cleanup } = renderComponent(WorkflowPage);
+    const { target, cleanup } = mountPage();
 
     try {
       await settle();

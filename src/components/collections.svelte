@@ -46,6 +46,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import type { Snippet } from 'svelte';
 	import { goto, refreshAll } from '$app/navigation';
+	import { browser } from '$app/env';
 	import { page } from '$app/state';
 	import {
 		collections_add,
@@ -251,7 +252,19 @@ Provides an organized interface for navigating hierarchical content structures.
 	let currentLanguage = $derived(contentLanguage.value);
 	let selectedId = $derived(collections.active?._id ?? null);
 	let activeWidgetList = $derived(widgets.activeWidgets);
-	let structure = $derived(collections.contentStructure ?? []);
+	// The store is hydrated by a client-only effect in `(app)/+layout.svelte`, so
+	// the SSR pass and the hydration pass would otherwise render an empty tree for
+	// one frame — the "no collections → pages" flash on every reload. Read the
+	// root layout's `contentNodes` flat list from page data until the store has
+	// data; once it does, the store stays authoritative for SSE/builder updates.
+	const pageStructure = $derived(
+		((page.data as { contentNodes?: ContentNode[] }).contentNodes ?? []) as ContentNode[]
+	);
+	let structure = $derived(
+		browser && collections.contentStructure.length > 0
+			? collections.contentStructure
+			: pageStructure
+	);
 
 	// === Main derived tree with override-aware sorting at every level ===
 	let treeNodes = $derived.by(() => {
@@ -645,7 +658,13 @@ Provides an organized interface for navigating hierarchical content structures.
 			await refreshAll();
 			return;
 		}
-		await goto(path, { refreshAll: true });
+		// Plain navigation on purpose: the tree rows are preloaded on hover
+		// (`data-sveltekit-preload-data` + `data-preload`), and forcing
+		// `refreshAll: true` re-ran the whole layout load (user, plugins, user
+		// count, structure, settings) on every collection click — throwing the
+		// preloaded payload away. Server caches are invalidated by the mutations
+		// themselves, so the preloaded data is already fresh.
+		await goto(path);
 	}
 
 	function selectNode(node: ExtendedContentNode): void {

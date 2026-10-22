@@ -23,7 +23,7 @@
 	import { formatBytes } from '@utils/file';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
-	import { optimizeImage } from '@src/utils/media/webgpu-processor';
+	import { optimizeImage } from '@src/utils/media/canvas-image-optimizer';
 	import { uploadMediaFilesHandle } from '@utils/media/upload-client';
 	import Button from '@components/ui/button.svelte';
 	import {
@@ -39,7 +39,7 @@
 		mediagallery_files,
 		mediagallery_max_file_size,
 		mediagallery_multiple_files,
-		mediagallery_optimize_webgpu,
+		mediagallery_optimize_before_upload,
 		mediagallery_queue_hint,
 		mediagallery_remove_file,
 		mediagallery_size,
@@ -383,7 +383,7 @@
 						class="checkbox checkbox-sm"
 						aria-label={common_input()}
 					/>
-					<span class="text-xs font-bold opacity-75">{mediagallery_optimize_webgpu()}</span>
+					<span class="text-xs font-bold opacity-75">{mediagallery_optimize_before_upload()}</span>
 				</label>
 
 				<p class="text-sm opacity-75">{mediagallery_multiple_files()}</p>

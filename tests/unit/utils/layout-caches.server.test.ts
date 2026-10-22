@@ -97,6 +97,47 @@ describe("getFreshLayoutUser", () => {
     expect(cacheService.set).toHaveBeenCalledWith("layout:user:u1", sessionUser, 15, "t1");
   });
 
+  it("strips credentials from the DB user before it reaches page data", async () => {
+    // Regression: the raw row (password hash, TOTP seed, backup codes) was
+    // serialized into every admin HTML payload via the layout `user`.
+    const dbUser = {
+      _id: "u1",
+      email: "a@b.c",
+      username: "Rar9",
+      role: "admin",
+      password: "$argon2id$v=19$m=65536,p=4,t=3$hash",
+      totpSecret: "enc-secret",
+      backupCodes: ["abc"],
+      resetToken: "rt",
+      googleRefreshToken: "grt",
+      twoFactorTrustedDevices: ["fp"],
+    } as unknown as User;
+    dbAuthMock.getUserById.mockResolvedValue(dbUser);
+
+    const resolved = await layoutCaches.getFreshLayoutUser(sessionUser, "t1");
+
+    expect(resolved).not.toBe(dbUser);
+    expect(resolved).toMatchObject({ _id: "u1", email: "a@b.c", username: "Rar9", role: "admin" });
+    for (const field of [
+      "password",
+      "totpSecret",
+      "backupCodes",
+      "resetToken",
+      "googleRefreshToken",
+      "twoFactorTrustedDevices",
+    ]) {
+      expect(resolved).not.toHaveProperty(field);
+    }
+    // The cached copy must be the stripped snapshot too, or the next 15 s
+    // read would reintroduce the hash.
+    expect(cacheService.set).toHaveBeenCalledWith(
+      "layout:user:u1",
+      expect.not.objectContaining({ password: expect.anything() }),
+      15,
+      "t1",
+    );
+  });
+
   it("invalidate clears the L1 entry and the in-flight entry", async () => {
     const resolvers: Array<(u: User | null) => void> = [];
     dbAuthMock.getUserById.mockImplementation(

@@ -276,15 +276,27 @@ const sessionCache = new Map<string, SessionCacheEntry>();
 const lastRefreshAttempt = new Map<string, number>();
 const lastRotationAttempt = new Map<string, number>();
 
+/**
+ * Successor session id for sessions this process rotated a moment ago.
+ * A request already in flight with the old cookie must NOT clear it: the
+ * rotation response owns the new cookie, and clearing the stale variant
+ * afterwards wiped the fresh session — the observed "random sign-out" when a
+ * hover-preload and its navigation request race the 15-minute rotation.
+ */
+const recentRotations = new Map<string, { id: string; at: number }>();
+const ROTATION_GRACE_MS = 2 * 60 * 1000;
+/** Prevent two concurrent requests from rotating the same session twice. */
+const rotationInFlight = new Set<string>();
+
 // Single-flight: coalesce concurrent cold-session validations instead of
 // denying the losers (which previously logged users out on cold start).
 const inflightSessionChecks = new Map<string, Promise<SessionResolution>>();
 
 /**
- * Session rotation interval: 60 minutes
+ * Session rotation interval — 15 minutes, per industry best practice.
  * Balances security (regular token refresh) with reduced database write impact.
  */
-const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes — per industry best practice
+const SESSION_ROTATION_INTERVAL_MS = 15 * 60 * 1000;
 
 // 🛡️ Bounded NEGATIVE session cache — an EXACT Map with TTL, never a Bloom
 // filter: a Bloom false positive would randomly reject VALID sessions
@@ -373,6 +385,9 @@ if (typeof setInterval !== "undefined" && !(globalThis as any)[SESSION_CLEANUP_K
       for (const [sessionId, timestamp] of lastRotationAttempt.entries()) {
         if (now - timestamp > SESSION_ROTATION_INTERVAL_MS * 2)
           lastRotationAttempt.delete(sessionId);
+      }
+      for (const [sessionId, rotation] of recentRotations.entries()) {
+        if (now - rotation.at > ROTATION_GRACE_MS * 2) recentRotations.delete(sessionId);
       }
       for (const [sessionId, timestamp] of lastAnomalyLog.entries()) {
         if (now - timestamp > SESSION_ANOMALY_LOG_COOLDOWN_MS * 2) lastAnomalyLog.delete(sessionId);
@@ -789,6 +804,11 @@ async function handleSessionRotation(
   if (process.env.TEST_MODE === "true") return; // Disable rotation in test mode to prevent cookie invalidation
   const lastRotation = lastRotationAttempt.get(oldSessionId);
   if (lastRotation && now - lastRotation < SESSION_ROTATION_INTERVAL_MS) return;
+  // Two parallel requests (hover-preload + navigation) used to rotate the same
+  // cookie twice: the second rotation's device-policy eviction deleted the
+  // first new session, and whichever Set-Cookie landed last could reference an
+  // already-evicted row → instant sign-out. Single-flight per old id.
+  if (rotationInFlight.has(oldSessionId)) return;
 
   const limiter = initRotationRateLimiter();
   try {
@@ -801,9 +821,10 @@ async function handleSessionRotation(
     }
   }
 
-  try {
-    if (!(auth?.createSession && auth?.destroySession)) return;
+  if (!(auth?.createSession && auth?.destroySession)) return;
 
+  rotationInFlight.add(oldSessionId);
+  try {
     // Rotated sessions keep the configured session lifetime (SESSION_TTL_HOURS,
     // default 24h) — rotation must NOT extend the session beyond the policy,
     // and device info is carried over for the device-policy + sessions UI.
@@ -816,6 +837,9 @@ async function handleSessionRotation(
       userAgent: event.request.headers.get("user-agent") || undefined,
       deviceId: event.request.headers.get("x-device-id") || undefined,
       ipAddress: getClientIp(event),
+      // Rotation is not a login: the device/parallel caps must not evict the
+      // session this request is rotating away from (see the retire below).
+      isRotation: true,
     });
 
     if (newSession && newSession._id !== oldSessionId) {
@@ -832,14 +856,31 @@ async function handleSessionRotation(
       });
       generateCsrfToken(event.cookies, isSecure);
 
-      await auth.destroySession(oldSessionId as DatabaseId).catch(() => {});
+      // Retire the predecessor instead of deleting it. Requests already in
+      // flight (data preloads, navigations, another tab) still carry the old
+      // id; deleting the row turned those into "invalid session" →
+      // clearAllSessionCookies → sign-out. The retired row keeps validating for
+      // the grace window and then expires on its own.
+      const retiredExpiry = new Date(now + ROTATION_GRACE_MS).toISOString() as ISODateString;
+      const retired = await dbAdapter?.auth
+        ?.updateSessionExpiry?.(oldSessionId as DatabaseId, retiredExpiry)
+        .catch(() => null);
+      if (!retired || (retired as { success?: boolean }).success === false) {
+        // Adapter without expiry updates (or a failed write) — fall back to the
+        // hard delete so the old token never outlives its grace window.
+        await auth.destroySession(oldSessionId as DatabaseId).catch(() => {});
+      }
       invalidateSessionCache(oldSessionId, event.locals.tenantId as DatabaseId);
       setSessionInCache(newSessionId, { user: toSafeSessionUser(user), timestamp: now });
+      lastRotationAttempt.set(oldSessionId, now);
       lastRotationAttempt.set(newSessionId, now);
+      recentRotations.set(oldSessionId, { id: newSessionId, at: now });
       event.locals.session_id = newSessionId;
     }
   } catch (err: any) {
     logger.error(`Session rotation failed: ${err.message}`);
+  } finally {
+    rotationInFlight.delete(oldSessionId);
   }
 }
 
@@ -1291,21 +1332,41 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
           }
           await handleSessionRotation(event, user, sessionId);
         } else if (resolution.status === "invalid") {
-          logger.warn(`[Auth] Invalid session or user not found: ${sessionId}`, {
-            cookieName,
-            hasSession: !!sessionId,
-            authInitialized: !!auth,
-            tenantId: locals.tenantId,
-          });
-          metricsService.incrementAuthFailures();
-          // Returning user: a session cookie was present but is no longer valid → this browser has
-          // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
-          // the dead cookie.
-          (locals as any).returningUser = true;
-          // Delete ALL session cookie variants — the incoming cookie may be
-          // __Secure-/__Host-prefixed while cookieName resolved to a different
-          // variant; leaving it behind creates an infinite invalid-cookie loop.
-          clearAllSessionCookies(event);
+          // A preload/navigation pair can race the 15-minute rotation: the loser
+          // still carries the old cookie, whose row was just retired. Clearing the
+          // cookie here wiped the successor the rotation had just written, so the
+          // browser was signed out. Hand back the successor instead — the request
+          // stays anonymous, but the next one authenticates and the login
+          // redirect bounces straight back.
+          const rotatedTo = recentRotations.get(sessionId);
+          if (rotatedTo && Date.now() - rotatedTo.at < ROTATION_GRACE_MS) {
+            event.cookies.set(cookieName, rotatedTo.id, {
+              path: getCookiePath(),
+              httpOnly: true,
+              secure: isSecure,
+              sameSite: isSecure ? "strict" : "lax",
+              maxAge: 60 * 60 * 24 * 30,
+            });
+            logger.debug(
+              `[Auth] Stale cookie after rotation — re-issued successor ${rotatedTo.id.slice(0, 12)}...`,
+            );
+          } else {
+            logger.warn(`[Auth] Invalid session or user not found: ${sessionId}`, {
+              cookieName,
+              hasSession: !!sessionId,
+              authInitialized: !!auth,
+              tenantId: locals.tenantId,
+            });
+            metricsService.incrementAuthFailures();
+            // Returning user: a session cookie was present but is no longer valid → this browser has
+            // signed in before. Flag it (the login page defaults to the Sign In form) before deleting
+            // the dead cookie.
+            (locals as any).returningUser = true;
+            // Delete ALL session cookie variants — the incoming cookie may be
+            // __Secure-/__Host-prefixed while cookieName resolved to a different
+            // variant; leaving it behind creates an infinite invalid-cookie loop.
+            clearAllSessionCookies(event);
+          }
         } else {
           // Transient (DB blip / in-flight coalesce): keep the cookie so the user
           // is NOT logged out by a momentary failure. Stay unauthenticated for

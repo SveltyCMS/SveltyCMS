@@ -1,12 +1,12 @@
 ---
 path: "docs/tests/routes/mediagallery.mdx"
 title: "Media Gallery Tests — Control Map"
-description: "E2E and unit coverage for /mediagallery: grid/table, upload, delete, folders, bulk actions, image editor save."
+description: "E2E and unit coverage for /mediagallery: grid/table, upload, delete, folders, bulk actions, image editor save, batch resize/filter, video HLS playback + transcode."
 order: 17
 icon: "mdi:image-multiple"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-10-11"
+updated: "2026-10-22"
 tags:
   - "testing"
   - "e2e"
@@ -32,24 +32,30 @@ Gallery first paint: tiles use `mediaDisplayUrl()` (not the original); SSR rows 
 
 ## Control → test matrix
 
-| Control                               | Unit                      | Integration           | E2E   | Spec                                             |
-| ------------------------------------- | ------------------------- | --------------------- | ----- | ------------------------------------------------ |
-| Load + `media:read` gate              | page.server               | media API             | shell | unit + gallery                                   |
-| Toolbar                               | —                         | —                     | ✅    | `media-gallery-toolbar`                          |
-| Search / type filter                  | —                         | —                     | ✅    | `mediagallery.spec`                              |
-| Grid / table toggle                   | —                         | —                     | ✅    | `media-view-*`                                   |
-| Upload image                          | —                         | media upload          | ✅    | `media-upload-input`                             |
-| Delete single                         | —                         | media delete          | ✅    | grid actions                                     |
-| **Image editor tools, compare, zoom** | tool controls + shortcuts | —                     | ✅    | `image-editor.spec` walk                         |
-| **Image editor save (manipulate)**    | media-manipulation        | baked rotate + crop   | ✅    | `image-editor.spec` + `media-manipulate.test.ts` |
-| **Create virtual folder**             | —                         | system-virtual-folder | ✅    | `folders-bulk.spec`                              |
-| **Folder appear / navigate**          | —                         | —                     | ✅    | same                                             |
-| **Selection mode + bulk bar**         | —                         | —                     | ✅    | `folders-bulk.spec`                              |
-| **Bulk download**                     | —                         | bulk-download         | ✅    | hits `/api/media/bulk-download`                  |
-| **Bulk delete (Del key)**             | —                         | deleteMedia           | ✅    | confirm + batch toast                            |
-| **Remote URL upload page**            | —                         | remoteUpload action   | ✅    | `move-remote.spec`                               |
-| **Selection + breadcrumb move**       | —                         | `/api/media/move`     | ✅    | `move-remote.spec`                               |
-| **Drop to sidebar folder**            | media-dnd unit            | `/api/media/move`     | ✅    | `move-remote.spec` (pointer drag)                |
+| Control                               | Unit                      | Integration                    | E2E   | Spec                                                   |
+| ------------------------------------- | ------------------------- | ------------------------------ | ----- | ------------------------------------------------------ |
+| Load + `media:read` gate              | page.server               | media API                      | shell | unit + gallery                                         |
+| Toolbar                               | —                         | —                              | ✅    | `media-gallery-toolbar`                                |
+| Search / type filter                  | —                         | —                              | ✅    | `mediagallery.spec`                                    |
+| Grid / table toggle                   | —                         | —                              | ✅    | `media-view-*`                                         |
+| Upload image                          | —                         | media upload                   | ✅    | `media-upload-input`                                   |
+| Delete single                         | —                         | media delete                   | ✅    | grid actions                                           |
+| **Image editor tools, compare, zoom** | tool controls + shortcuts | —                              | ✅    | `image-editor.spec` walk                               |
+| **Image editor save (manipulate)**    | media-manipulation        | baked rotate + crop            | ✅    | `image-editor.spec` + `media-manipulate.test.ts`       |
+| **Create virtual folder**             | —                         | system-virtual-folder          | ✅    | `folders-bulk.spec`                                    |
+| **Folder appear / navigate**          | —                         | —                              | ✅    | same                                                   |
+| **Selection mode + bulk bar**         | —                         | —                              | ✅    | `folders-bulk.spec`                                    |
+| **Bulk download**                     | —                         | bulk-download                  | ✅    | hits `/api/media/bulk-download`                        |
+| **Bulk delete (Del key)**             | —                         | deleteMedia                    | ✅    | confirm + batch toast                                  |
+| **Remote URL upload page**            | —                         | remoteUpload action            | ✅    | `move-remote.spec`                                     |
+| **Remote URL ingest (success)**       | egress allowlist seam     | `MediaService.saveRemoteMedia` | ✅    | `remote-ingestion.spec` (real loopback peer)           |
+| **Remote URL reject (SSRF)**          | egress-guard unit         | `/api/media/remote`            | ✅    | `remote-ingestion.spec` + `media-svg-ssrf`             |
+| **Selection + breadcrumb move**       | —                         | `/api/media/move`              | ✅    | `move-remote.spec`                                     |
+| **Drop to sidebar folder**            | media-dnd unit            | `/api/media/move`              | ✅    | `move-remote.spec` (pointer drag)                      |
+| **Large library batching**            | —                         | media list (100)               | ✅    | `large-library.spec` (60 → 70 on scroll)               |
+| **Pre-upload optimization**           | canvas-image-optimizer    | media upload                   | ✅    | `upload-optimization.spec` (stored dimensions)         |
+| **Batch resize/filter**               | batch handler unit        | `/api/media/batch-process`     | ✅    | `batch-processing.spec` + `media-batch-transcode.test` |
+| **Video playback / HLS**              | transcode handler unit    | `/api/media/transcode`         | ✅    | `video-transcode.spec` (player + dialog payload)       |
 
 > **Drop row (2026-09-22):** `@thisux/sveltednd` runs in **pointer** mode
 > (document-level `pointermove`/`pointerup` + `elementFromPoint` at release), and
@@ -68,6 +74,13 @@ Gallery first paint: tiles use `mediaDisplayUrl()` (not the original); SSR rows 
 - [image-editor.spec.ts](../../../tests/e2e/routes/mediagallery/image-editor.spec.ts) — open, every tool, compare, zoom, discard, **save**
 - Integration: `tests/integration/api/media-manipulate.test.ts` — upload, rotate, crop, focal point on the stored file
 - [folders-bulk.spec.ts](../../../tests/e2e/routes/mediagallery/folders-bulk.spec.ts) — folders + multi-select bulk
+- [large-library.spec.ts](../../../tests/e2e/routes/mediagallery/large-library.spec.ts) — 70 assets, 60-tile batch, scroll appends the rest
+- [upload-optimization.spec.ts](../../../tests/e2e/routes/mediagallery/upload-optimization.spec.ts) — 2400×1600 source stored at ≤1920 wide
+- [batch-processing.spec.ts](../../../tests/e2e/routes/mediagallery/batch-processing.spec.ts) — selection → mounted batch panel → 320 px stored width
+- [video-transcode.spec.ts](../../../tests/e2e/routes/mediagallery/video-transcode.spec.ts) — direct + HLS players, transcode dialog payload
+- Unit: `tests/unit/api/media-batch-transcode.test.ts` — batch limits/publish gate + `503 FFMPEG_UNAVAILABLE`
+- Integration: `tests/integration/api/media-batch-process.test.ts` — real Sharp resize/filter baked into the file
+- [remote-ingestion.spec.ts](../../../tests/e2e/routes/mediagallery/remote-ingestion.spec.ts) — loopback peer ingest + SSRF rejection
 - [mediagallery-page-server.test.ts](../../../tests/unit/routes/mediagallery-page-server.test.ts)
 - Integration: `tests/integration/api/media.test.ts`
 

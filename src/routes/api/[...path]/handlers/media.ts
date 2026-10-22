@@ -17,9 +17,11 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
+import { hasMediaPermission } from "./media-permissions";
+import { handleMediaTranscode } from "./media-transcode";
 import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
-import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
+
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import {
   createLink,
@@ -43,7 +45,7 @@ import { parseMultipartStream } from "@utils/media/streaming-upload";
 import { API_MAX_BODY_SIZE_BYTES } from "@utils/api-body-limits";
 import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { advancedSearch, type SearchCriteria } from "@utils/media/advanced-search";
-import { sanitizeMediaUpdatePayload } from "@utils/media/media-service.server";
+import { sanitizeMediaUpdatePayload, type FilterOptions } from "@utils/media/media-service.server";
 import type { MediaItem } from "@utils/media/media-models";
 import {
   createUploadInstruction,
@@ -76,11 +78,6 @@ function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/c
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-
-function hasMediaPermission(event: RequestEvent, user: unknown, permission: string): boolean {
-  if (event.locals.isAdmin) return true;
-  return !!user && hasPermissionWithRoles(user as any, permission, event.locals.roles || []);
-}
 
 function isFileLike(value: unknown): value is File {
   return (
@@ -253,6 +250,8 @@ async function handlePostRoutes(
 ) {
   if (!method || method === "upload") return handleMediaUpload(event, cms, tenantId, user);
   if (method === "process") return handleMediaProcess(event, cms, tenantId, user);
+  if (method === "batch-process") return handleMediaBatchProcess(event, cms, tenantId, user);
+  if (method === "transcode") return handleMediaTranscode(event, cms, tenantId, user);
   if (method === "remote") return handleMediaRemote(event, cms, tenantId, user);
   if (method === "trash" || method === "delete") return handleMediaPostDelete(event, cms, tenantId);
   if (method === "manipulate" || method === "edit")
@@ -663,6 +662,108 @@ export async function handleMediaManipulate(
     throw new AppError(result.message || "Manipulation conversion framework fault", 500);
   }
   return successResponse(event, result.data);
+}
+
+/** Preset → Sharp filter mapping for batch processing. Values are percentages. */
+const BATCH_FILTER_PRESETS: Record<string, FilterOptions> = {
+  vivid: { saturation: 25, contrast: 10 },
+  bw: { grayscale: 100 },
+  sepia: { sepia: 80 },
+  dramatic: { contrast: 30, saturation: 15, brightness: -5 },
+};
+
+const BATCH_MAX_ASSETS = 100;
+const BATCH_MAX_WIDTH = 4096;
+const BATCH_MIN_WIDTH = 32;
+
+/**
+ * Batch image transformation (`POST /api/media/batch-process`).
+ *
+ * Applies the same `MediaService.manipulateMedia` pipeline used by the editor to
+ * every selected image. Each asset is gated by the publish-state check, so a
+ * batch cannot silently rewrite media referenced by published content; failures
+ * are reported per id instead of aborting the whole batch.
+ */
+export async function handleMediaBatchProcess(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: unknown,
+) {
+  if (!hasMediaPermission(event, user, "media:write")) {
+    throw new AppError("Insufficient permissions for batch media processing", 403, "FORBIDDEN");
+  }
+
+  const body = await event.request.json().catch(() => ({}) as Record<string, unknown>);
+  const ids = Array.isArray(body.ids)
+    ? (body.ids as unknown[]).filter(
+        (id): id is string => typeof id === "string" && id.trim().length > 0,
+      )
+    : [];
+  if (ids.length === 0) throw new AppError("Select at least one asset", 400, "BAD_REQUEST");
+  if (ids.length > BATCH_MAX_ASSETS) {
+    throw new AppError(`Batch limit is ${BATCH_MAX_ASSETS} assets`, 400, "BAD_REQUEST");
+  }
+
+  const operation = String(body.operation ?? "");
+  const params =
+    body.params && typeof body.params === "object" ? (body.params as Record<string, unknown>) : {};
+
+  let manipulations: Record<string, unknown>;
+  if (operation === "filter") {
+    const preset = String(params.filterPreset ?? "vivid");
+    const filters = BATCH_FILTER_PRESETS[preset];
+    if (!filters) throw new AppError(`Unknown filter preset: ${preset}`, 400, "BAD_REQUEST");
+    manipulations = { filters };
+  } else if (operation === "resize") {
+    const width = Number(params.width);
+    if (!Number.isInteger(width) || width < BATCH_MIN_WIDTH || width > BATCH_MAX_WIDTH) {
+      throw new AppError(
+        `Resize width must be between ${BATCH_MIN_WIDTH} and ${BATCH_MAX_WIDTH} px`,
+        400,
+        "BAD_REQUEST",
+      );
+    }
+    manipulations = { resize: { width } };
+  } else if (operation === "watermark") {
+    const text = typeof params.text === "string" ? params.text.trim().slice(0, 120) : "";
+    if (!text) throw new AppError("Watermark text is required", 400, "BAD_REQUEST");
+    manipulations = {
+      watermarks: [
+        { type: "text", text, x: 24, y: 24, fontSize: 32, opacity: 0.8, color: "#ffffff" },
+      ],
+    };
+  } else {
+    throw new AppError(`Unsupported batch operation: ${operation}`, 400, "BAD_REQUEST");
+  }
+
+  const results: Array<{ id: string; success: boolean; error?: string }> = [];
+  const actorId =
+    user && typeof user === "object" && "_id" in user
+      ? String((user as { _id: unknown })._id)
+      : "system";
+  for (const id of ids) {
+    try {
+      await checkMediaNotReferencedByPublishedContent(cms, id, tenantId);
+      const result = await cms.media.manipulate(
+        id,
+        { ...manipulations, saveBehavior: "overwrite" },
+        { userId: actorId, tenantId },
+      );
+      if (result.success) results.push({ id, success: true });
+      else results.push({ id, success: false, error: result.message || "Processing failed" });
+    } catch (err) {
+      results.push({
+        id,
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const processed = results.filter((entry) => entry.success).length;
+  const failed = results.length - processed;
+  return successResponse(event, { processed, failed, results });
 }
 
 export async function handleMediaVersionCreate(

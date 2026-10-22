@@ -8,6 +8,9 @@
 
 @source "../src/**/*.svelte";
 @source "../src/**/*.html";
+/* Shared class tokens live in .ts modules (e.g. content-classes.ts,
+   config-tile-classes.ts) — scan them or the utilities they name are purged. */
+@source "../src/**/*.ts";
 
 /* ------------------------------------------------------------------------
    SAFELIST — classes built by string concatenation at runtime
@@ -63,6 +66,25 @@
   --font-display: "Segoe UI Variable Display", var(--font-sans);
   --radius-base: 0.25rem;
   --radius-container: 0.75rem;
+
+  /* Radii — the Tailwind scale is aliased onto the admin density tokens so every
+     `rounded-*` utility follows the active theme instead of a baked-in pixel
+     value. Tailwind emits `border-radius: var(--radius-lg)`, so the indirection
+     stays lazy and resolves against whatever `--admin-radius-*` the admin root
+     (or `:root` for portalled overlays) currently exposes.
+
+     Contract: surfaces (cards, modals, popovers, tooltips, dropdown panels) use
+     `--admin-radius-card`; controls (buttons, inputs, menu rows, chips) use
+     `--admin-radius-input` / `--admin-radius-button`. Never hardcode a Tailwind
+     radius step in a component — it would escape the density switcher. */
+  --radius: var(--admin-radius-input);
+  --radius-sm: var(--admin-radius-button);
+  --radius-md: var(--admin-radius-input);
+  --radius-lg: var(--admin-radius-input);
+  --radius-xl: var(--admin-radius-card);
+  --radius-2xl: var(--admin-radius-card);
+  --radius-3xl: var(--admin-radius-card);
+  --radius-4xl: var(--admin-radius-card);
 
   /* Primary | Green */
   --color-primary-50: oklch(96.25% 0.12 120.09deg);

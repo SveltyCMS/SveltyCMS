@@ -16,6 +16,7 @@
 		Collections_MediaGallery,
 		mediagallery_advanced_filters,
 		mediagallery_advanced_search,
+		mediagallery_batch_processor,
 		mediagallery_cancel_upload,
 		mediagallery_create_folder,
 		mediagallery_del_esc_hint,
@@ -27,32 +28,25 @@
 		mediagallery_filter_type,
 		mediagallery_folder_drop_path,
 		mediagallery_grid_size,
-		mediagallery_grid_size_aria,
 		mediagallery_grid_view,
-		mediagallery_json_path_filter,
-		mediagallery_json_path_format,
-		mediagallery_json_path_placeholder,
 		mediagallery_loading_table,
 		mediagallery_new_folder,
 		mediagallery_search_assets,
 		mediagallery_search_modf,
 		mediagallery_selected,
 		mediagallery_select_button,
-		mediagallery_sort,
 		mediagallery_sort_by,
 		mediagallery_status_all,
 		mediagallery_status_failed,
 		mediagallery_status_processing,
-		mediagallery_status_placeholder,
 		mediagallery_status_ready,
 		mediagallery_table_view,
 		mediagallery_tap_parent_hint,
-		mediagallery_title,
 		mediagallery_toggle_selection,
-		mediagallery_type_placeholder,
 		mediagallery_upload,
 		mediagallery_upload_progress,
 		mediagallery_view_mode,
+		media_root_title,
 		button_cancel
 	} from '@src/paraglide/messages';
 	import { slide } from 'svelte/transition';
@@ -60,6 +54,7 @@
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import MediaGrid from './media-grid.svelte';
+	import BatchProcessor from './batch-processor.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
 	import { mediaUrl } from '@utils/media/media-utils';
@@ -110,6 +105,18 @@
 	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>('all');
 	let view = $state<'grid' | 'table'>('grid');
 	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
+	/** Grid density is one cycling control; the four-letter segmented row was redundant chrome. */
+	const GRID_SIZES = ['tiny', 'small', 'medium', 'large'] as const;
+	const GRID_SIZE_LABELS: Record<(typeof GRID_SIZES)[number], string> = {
+		tiny: 'XS',
+		small: 'S',
+		medium: 'M',
+		large: 'L'
+	};
+	function cycleGridSize() {
+		const next = (GRID_SIZES.indexOf(gridSize) + 1) % GRID_SIZES.length;
+		gridSize = GRID_SIZES[next] ?? 'small';
+	}
 	let selectedFiles = $state(new SvelteSet<string>());
 	let isSelectionMode = $state(false);
 	let fileUploadInput = $state<HTMLInputElement>();
@@ -118,6 +125,7 @@
 	let uploadFileLabel = $state('');
 	let uploadCancel: (() => void) | null = $state(null);
 	let isBulkDownloading = $state(false);
+	let showBatchProcessor = $state(false);
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
 	// Seed from server ?jsonPath= for shareable filtered views
@@ -330,7 +338,9 @@
 	// the current folder's path is resolved back to its folder via systemVirtualFolders.
 	const breadcrumbs = $derived.by(() => {
 		const crumbs: Array<{ name: string; folderId: string | null }> = [
-			{ name: mediagallery_title(), folderId: null }
+			// The page title lives in AdminPageShell; the root crumb must read as a
+			// path ("Media Root", same as the sidebar), not repeat the page title.
+			{ name: media_root_title(), folderId: null }
 		];
 		const current = data.currentFolder as { path?: string } | null;
 		if (current?.path && current.path !== '/') {
@@ -354,6 +364,12 @@
 		filtered: filteredFiles.length,
 		selected: selectedFiles.size
 	}));
+
+	// The batch panel operates on the current selection only. Clearing the selection
+	// closes it; opening it again is an explicit action from the bulk bar.
+	$effect(() => {
+		if (assetStats.selected === 0) showBatchProcessor = false;
+	});
 
 	const currentFolderId = $derived(
 		((data.currentFolder as { _id?: string } | null)?._id as string | undefined) ?? null
@@ -707,8 +723,11 @@
 					});
 					if (response.ok) {
 						toast.success('Folder created');
+						// The sidebar owns its own data: `media-folders.svelte` listens for
+						// `folderCreated` and reloads only the folder tree. Re-running every
+						// page load (`refreshAll`) here re-fetched the whole media listing,
+						// counts, and layout data for a change that touches none of them.
 						document.dispatchEvent(new CustomEvent('folderCreated'));
-						await refreshAll();
 					} else {
 						const result = await response.json().catch(() => null);
 						toast.error(result?.error?.message || result?.message || 'Folder creation failed');
@@ -776,6 +795,23 @@
 	}
 </script>
 
+{#snippet gridSizeToggle()}
+	<Button
+		type="button"
+		variant="surface"
+		size="md"
+		onclick={cycleGridSize}
+		aria-label={`${mediagallery_grid_size()}: ${GRID_SIZE_LABELS[gridSize]}`}
+		title={mediagallery_grid_size()}
+		data-testid="media-grid-size-toggle"
+		data-size={gridSize}
+		class="h-10 min-w-14 shrink-0 gap-1.5 px-2"
+	>
+		<iconify-icon icon="mdi:image-size-select-small" width="16" aria-hidden="true"></iconify-icon>
+		<span class="text-xs font-bold tabular-nums">{GRID_SIZE_LABELS[gridSize]}</span>
+	</Button>
+{/snippet}
+
 <AdminPageShell
 	title={Collections_MediaGallery()}
 	icon="bi:images"
@@ -832,7 +868,7 @@
 	{/snippet}
 
 	{#if isUploading}
-		<div class="shrink-0 px-2 pb-1 sm:px-3">
+		<div class="shrink-0 pb-1">
 			<div
 				class="flex items-center gap-3 rounded border border-surface-500/30 bg-surface-500/10 p-2 text-xs dark:border-surface-500/40 dark:bg-surface-800"
 				role="progressbar"
@@ -875,7 +911,7 @@
 
 	<div class="flex min-h-0 flex-1 flex-col gap-0">
 		{#if assetStats.selected > 0}
-			<div class="shrink-0 px-2 sm:px-3">
+			<div class="shrink-0">
 				<div
 					class="flex flex-wrap items-center justify-between gap-2 border-b border-primary-500/30 py-2"
 					role="status"
@@ -892,23 +928,38 @@
 							{mediagallery_del_esc_hint()}</span
 						>
 					</p>
-					<Button
-						variant="surface"
-						size="sm"
-						onclick={handleBulkDownload}
-						disabled={isBulkDownloading}
-						aria-busy={isBulkDownloading}
-						aria-label={mediagallery_download_archive()}
-						data-testid="media-bulk-download"
-						class="h-8 gap-1.5 px-3"
-					>
-						<iconify-icon
-							icon={isBulkDownloading ? 'mdi:loading' : 'mdi:archive-arrow-down-outline'}
-							width="16"
-							class={isBulkDownloading ? 'animate-spin' : ''}
-						></iconify-icon>
-						<span>{isBulkDownloading ? 'Preparing…' : 'Download Archive'}</span>
-					</Button>
+					<div class="flex flex-wrap items-center gap-2">
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={() => (showBatchProcessor = !showBatchProcessor)}
+							aria-expanded={showBatchProcessor}
+							aria-controls="media-batch-processor"
+							aria-label={mediagallery_batch_processor()}
+							data-testid="media-bulk-batch-process"
+							class="h-8 gap-1.5 px-3"
+						>
+							<iconify-icon icon="mdi:auto-fix" width="16" aria-hidden="true"></iconify-icon>
+							<span>{mediagallery_batch_processor()}</span>
+						</Button>
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={handleBulkDownload}
+							disabled={isBulkDownloading}
+							aria-busy={isBulkDownloading}
+							aria-label={mediagallery_download_archive()}
+							data-testid="media-bulk-download"
+							class="h-8 gap-1.5 px-3"
+						>
+							<iconify-icon
+								icon={isBulkDownloading ? 'mdi:loading' : 'mdi:archive-arrow-down-outline'}
+								width="16"
+								class={isBulkDownloading ? 'animate-spin' : ''}
+							></iconify-icon>
+							<span>{isBulkDownloading ? 'Preparing…' : 'Download Archive'}</span>
+						</Button>
+					</div>
 				</div>
 			</div>
 		{/if}
@@ -921,9 +972,9 @@
 			an ancestor takes the media (primary ring), the current folder rejects it
 			(error ring) rather than being inert, so the gesture always gets feedback.
 		-->
-		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
+		<div class="shrink-0" data-testid="media-gallery-breadcrumbs">
 			<nav
-				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-base text-(--admin-text-muted) sm:gap-2.5 sm:py-2.5 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
+				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-sm text-(--admin-text-muted) sm:gap-2.5 sm:py-2 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
 				aria-label={mediagallery_folder_drop_path()}
 			>
 				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
@@ -1018,7 +1069,7 @@
 		</div>
 
 		<!-- Toolbar -->
-		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
+		<div class="shrink-0" data-testid="media-gallery-toolbar">
 			<!-- Mobile toolbar: search + expand button, then collapsible filters -->
 			<div class="flex flex-col gap-1.5 py-2 sm:hidden">
 				<div class="flex items-center gap-2">
@@ -1043,7 +1094,9 @@
 								size="sm"
 								onclick={() => (showAdvancedSearch = true)}
 								aria-label={mediagallery_advanced_filters()}
-								class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+								class="h-7! w-7! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+									? 'text-primary-500'
+									: ''}"
 							>
 								<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
 							</Button>
@@ -1079,7 +1132,7 @@
 									id="media-type-filter-m"
 									bind:value={selectedMediaType}
 									options={mediaTypeOptions}
-									placeholder={mediagallery_type_placeholder()}
+									placeholder=""
 									class="flex-1"
 								/>
 							{/if}
@@ -1090,7 +1143,7 @@
 								id="media-status-filter-m"
 								bind:value={selectedProcessingStatus}
 								options={processingStatusOptions}
-								placeholder={mediagallery_status_placeholder()}
+								placeholder=""
 								aria-label={mediagallery_filter_status()}
 								data-testid="media-status-filter-m"
 								class="flex-1"
@@ -1100,18 +1153,8 @@
 								id="sort-by-filter-m"
 								bind:value={sortBy}
 								options={sortOptions}
-								placeholder={mediagallery_sort()}
+								placeholder=""
 								class="flex-1"
-							/>
-						</div>
-						<div class="relative min-w-0 w-full">
-							<Input
-								bind:value={jsonPathFilter}
-								type="text"
-								placeholder={mediagallery_json_path_placeholder()}
-								class="w-full ps-2 text-xs"
-								aria-label={mediagallery_json_path_filter()}
-								title={mediagallery_json_path_format()}
 							/>
 						</div>
 						<div class="flex items-center gap-2">
@@ -1144,33 +1187,7 @@
 								</Button>
 							</div>
 							{#if view === 'grid'}
-								<div
-									class="flex overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
-									role="group"
-									aria-label={mediagallery_grid_size()}
-								>
-									{#each ['tiny', 'small', 'medium', 'large'] as const as size, i (size)}
-										<Button
-											type="button"
-											variant={gridSize === size ? 'primary' : 'ghost'}
-											size="md"
-											onclick={() => (gridSize = size)}
-											aria-label={mediagallery_grid_size_aria({ size })}
-											aria-pressed={gridSize === size}
-											class="h-10! w-8! px-0! text-xs! {i > 0
-												? 'border-s border-surface-500/30 dark:border-surface-600'
-												: ''}"
-										>
-											{size === 'tiny'
-												? 'XS'
-												: size === 'small'
-													? 'S'
-													: size === 'medium'
-														? 'M'
-														: 'L'}
-										</Button>
-									{/each}
-								</div>
+								{@render gridSizeToggle()}
 								<Button
 									type="button"
 									variant={isSelectionMode ? 'primary' : 'outline'}
@@ -1221,7 +1238,9 @@
 							onclick={() => (showAdvancedSearch = true)}
 							aria-label={mediagallery_advanced_search()}
 							data-testid="media-advanced-search"
-							class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+							class="h-7! w-7! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+								? 'text-primary-500'
+								: ''}"
 						>
 							<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
 						</Button>
@@ -1235,41 +1254,25 @@
 							id="media-type-filter"
 							bind:value={selectedMediaType}
 							options={mediaTypeOptions}
-							placeholder={mediagallery_type_placeholder()}
+							placeholder=""
 						/>
 					</div>
 				{/if}
 
-				<div class="w-28 shrink-0">
+				<div class="w-40 shrink-0">
 					<label for="media-status-filter" class="sr-only">{mediagallery_filter_status()}</label>
 					<Select
 						id="media-status-filter"
 						bind:value={selectedProcessingStatus}
 						options={processingStatusOptions}
-						placeholder={mediagallery_status_placeholder()}
+						placeholder=""
 						data-testid="media-status-filter"
 					/>
 				</div>
 
 				<div class="w-36 shrink-0">
 					<label for="sort-by-filter" class="sr-only">{mediagallery_sort_by()}</label>
-					<Select
-						id="sort-by-filter"
-						bind:value={sortBy}
-						options={sortOptions}
-						placeholder={mediagallery_sort()}
-					/>
-				</div>
-
-				<div class="relative min-w-0 w-44 shrink-0">
-					<Input
-						bind:value={jsonPathFilter}
-						type="text"
-						placeholder={mediagallery_json_path_placeholder()}
-						class="w-full ps-2 text-xs"
-						aria-label={mediagallery_json_path_filter()}
-						title={mediagallery_json_path_format()}
-					/>
+					<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="" />
 				</div>
 
 				<div
@@ -1305,27 +1308,7 @@
 				</div>
 
 				{#if view === 'grid'}
-					<div
-						class="flex shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
-						role="group"
-						aria-label={mediagallery_grid_size()}
-					>
-						{#each ['tiny', 'small', 'medium', 'large'] as const as size, i (size)}
-							<Button
-								type="button"
-								variant={gridSize === size ? 'primary' : 'ghost'}
-								size="md"
-								onclick={() => (gridSize = size)}
-								aria-label={mediagallery_grid_size_aria({ size })}
-								aria-pressed={gridSize === size}
-								class="h-10! w-8! px-0! text-xs! {i > 0
-									? 'border-s border-surface-500/30 dark:border-surface-600'
-									: ''}"
-							>
-								{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
-							</Button>
-						{/each}
-					</div>
+					{@render gridSizeToggle()}
 
 					<Button
 						type="button"
@@ -1391,6 +1374,10 @@
 
 	<Slot name="media_gallery" />
 
+	{#if showBatchProcessor && assetStats.selected > 0}
+		<BatchProcessor selectedIds={selectedFiles} onClose={() => (showBatchProcessor = false)} />
+	{/if}
+
 	{#if isMediaDragActive}
 		{#await import('./media-drag-preview.svelte') then mod}
 			<mod.default />
@@ -1407,8 +1394,10 @@
 				{#await import('./advanced-search-modal.svelte') then mod}
 					<mod.default
 						{files}
-						onSearch={(criteria) => {
+						initialJsonPath={jsonPathFilter}
+						onSearch={(criteria, path) => {
 							searchCriteria = criteria;
+							jsonPathFilter = path;
 							showAdvancedSearch = false;
 						}}
 						onClose={() => {

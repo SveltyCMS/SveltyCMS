@@ -116,7 +116,11 @@ bulk actions, and predictive preloading.
 		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_ROW_SELECTED,
 		SMART_TABLE_SCROLL,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
 		SMART_TABLE_THEAD,
 		type ColumnSortDescriptor
 	} from '@components/ui/smart-table';
@@ -128,6 +132,7 @@ bulk actions, and predictive preloading.
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
 	import EntryListMultiButton from './entry-list-multi-button.svelte';
 	import TranslationStatus from './translation-status.svelte';
+	import { CONTENT_PADDING } from './content-classes';
 	import EntryListCell from './entry-list-cell.svelte';
 	import { createSmartFilter } from './create-smart-filter.svelte';
 	import SmartFilterRow from './smart-filter-row.svelte';
@@ -929,6 +934,15 @@ bulk actions, and predictive preloading.
 
 	const cellPaddingClass = $derived(smartTable.cellPaddingClass);
 
+	/**
+	 * Start inset for the toolbar/title row. Mirrors `PageTitle` (`ps-5 md:ps-10`)
+	 * so the collection title clears the left sidebar's floating expand/collapse
+	 * toggle, which protrudes 16px past the sidebar edge (`-inset-e-4`, 40px
+	 * wide). Facets and the table stay at `CONTENT_PADDING`: the title sits one
+	 * step further in, exactly like `AdminPageShell` pages (e.g. /mediagallery).
+	 */
+	const titleInset = $derived(ui.state.leftSidebar === 'hidden' ? 'ps-2 sm:ps-3' : 'ps-5 md:ps-10');
+
 	// Sync density from pagination settings ↔ smart table
 	$effect(() => {
 		const d = entryListPaginationSettings.density;
@@ -994,13 +1008,14 @@ bulk actions, and predictive preloading.
 
 	const onCreate = async () => {
 		const newEntry: Record<string, any> = {};
-		if (currentCollection?.fields) {
-			for (const field of currentCollection.fields) {
-				if (typeof field === 'object' && field !== null && 'label' in field && 'type' in field) {
-					const fieldName = getFieldName(field as any, false);
-					newEntry[fieldName] = null;
-				}
-			}
+		// Seed every declared field (schema default, else null). A missing key
+		// reaches the widgets as `bind:value={undefined}`, which throws
+		// props_invalid_value for any prop that declares a fallback.
+		for (const field of currentCollection?.fields ?? []) {
+			if (!field || typeof field !== 'object') continue;
+			const fieldName = getFieldName(field as any, false);
+			if (!fieldName || fieldName === 'unknown_field') continue;
+			newEntry[fieldName] = (field as { default?: unknown }).default ?? null;
 		}
 		if (collections.active?.status) {
 			newEntry.status = collections.active.status;
@@ -1321,7 +1336,7 @@ bulk actions, and predictive preloading.
 	</div>
 {:else}
 	<!-- Header Bar -->
-	<div class="mb-3 flex flex-wrap items-center justify-between gap-3 ps-1 pe-1 md:ps-8">
+	<div class="mb-3 flex flex-wrap items-center justify-between gap-3 {titleInset} pe-2">
 		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
 		<div class="flex flex-1 items-center gap-3 min-w-0">
 			{#if ui.state.leftSidebar === 'hidden'}
@@ -1392,7 +1407,7 @@ bulk actions, and predictive preloading.
 				type="button"
 				onclick={() => (expand = !expand)}
 				aria-label="expand-collapse-filters"
-				class="h-10 px-3 rounded-xl sm:hidden border border-(--admin-border-default)"
+				class="h-10 px-3 rounded-(--admin-radius-input) sm:hidden border border-(--admin-border-default)"
 			>
 				<iconify-icon icon="material-symbols:filter-list-rounded" width="20"></iconify-icon>
 			</Button>
@@ -1441,8 +1456,10 @@ bulk actions, and predictive preloading.
 		</div>
 	{/if}
 
-	<!-- Status facet chips (server counts; streamed promise never rejects → {} fallback) -->
-	<div class="mb-2 shrink-0">
+	<!-- Status facet chips (server counts; streamed promise never rejects → {} fallback).
+	     Horizontal padding comes from CONTENT_PADDING so the chips line up with the
+	     table instead of touching the sidebar border. -->
+	<div class="mb-2 shrink-0 {CONTENT_PADDING}">
 		{#await statusFacets}
 			<SmartTableStatusFacets
 				facets={{}}
@@ -1553,7 +1570,7 @@ bulk actions, and predictive preloading.
 			{onUpdatePage}
 			{onUpdateRowsPerPage}
 			urlPageParam="page"
-			class="min-h-0 flex-1"
+			class="min-h-0 flex-1 {CONTENT_PADDING}"
 		>
 			{#snippet emptyAction()}
 				<Button
@@ -1571,7 +1588,7 @@ bulk actions, and predictive preloading.
 				<div
 					bind:this={scrollContainerEl}
 					onscroll={onVirtualScroll}
-					class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto p-3"
+					class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto py-3"
 					tabindex="0"
 					role="grid"
 					aria-label="Collection entries card grid"
@@ -1602,11 +1619,9 @@ bulk actions, and predictive preloading.
 								{@const rowSelected = smartTable.isSelected(rowId)}
 								{@const isFocused = focusedRowIndex === index}
 								<div
-									class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer {rowSelected
+									class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 {rowSelected
 										? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
-										: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'} {isFocused
-										? 'ring-2 ring-primary-500 ring-offset-2'
-										: ''}"
+										: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'}"
 									role="row"
 									tabindex={isFocused ? 0 : -1}
 									onclick={(e) => {
@@ -1712,7 +1727,7 @@ bulk actions, and predictive preloading.
 					tabindex="0"
 					role="region"
 					aria-label="Collection entries table"
-					class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto border border-(--admin-border-default) shadow-xs focus:outline-hidden"
+					class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto focus:outline-hidden"
 				>
 					<table class="{SMART_TABLE} min-w-max" role="grid" aria-label="Collection entries">
 						<!-- Table Header -->
@@ -1732,7 +1747,7 @@ bulk actions, and predictive preloading.
 							{/if}
 
 							<tr
-								class="border-b border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900/90"
+								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 							>
 								<TableIcons
 									cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
@@ -1747,7 +1762,7 @@ bulk actions, and predictive preloading.
 									{@const rankInfo = smartTable.getSortRank(colKey)}
 									{@const isActiveSort = rankInfo !== null}
 									<th
-										class="relative min-w-20 overflow-hidden text-center font-semibold uppercase text-(--admin-text-muted) {cellPaddingClass}"
+										class="{SMART_TABLE_TH} relative min-w-20 overflow-hidden {cellPaddingClass}"
 										style={smartTable.getColumnWidthStyle(colKey)}
 										aria-sort={isActiveSort
 											? rankInfo.direction === 1
@@ -1786,7 +1801,7 @@ bulk actions, and predictive preloading.
 								{/each}
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-surface-200/60 dark:divide-surface-800/60">
+						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 							{#if useRowVirtualization && spacerTop > 0}
 								<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
 							{/if}
@@ -1796,11 +1811,9 @@ bulk actions, and predictive preloading.
 									{@const rowSelected = smartTable.isSelected(rowId)}
 									{@const isFocused = focusedRowIndex === index}
 									<tr
-										class="transition-colors duration-150 {rowSelected
-											? 'bg-primary-500/10 dark:bg-primary-500/20'
-											: 'hover:bg-surface-500/10 dark:hover:bg-surface-800/50'} {isFocused
-											? 'ring-2 ring-primary-500 ring-inset'
-											: ''}"
+										class="group transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset {rowSelected
+											? SMART_TABLE_ROW_SELECTED
+											: SMART_TABLE_ROW_HOVER}"
 										style={useRowVirtualization
 											? 'content-visibility: auto; contain-intrinsic-size: 48px;'
 											: undefined}
@@ -1835,11 +1848,13 @@ bulk actions, and predictive preloading.
 												<td
 													role="gridcell"
 													aria-colindex={colIdx + 2}
-													class="text-center {cellPaddingClass} text-xs sm:text-sm text-(--admin-text-muted) {(
+													class="{SMART_TABLE_TD} {cellPaddingClass} text-xs sm:text-sm text-(--admin-text-muted) {(
 														header as TableHeader
 													).name !== 'status'
-														? 'cursor-pointer transition-colors duration-150 hover:bg-surface-200/50 dark:hover:bg-surface-700/50'
-														: ''} {isFocusedCell ? 'ring-2 ring-primary-500 ring-inset' : ''}"
+														? 'cursor-pointer transition-colors duration-150'
+														: ''} {isFocusedCell
+														? 'group-focus-visible:ring-2 group-focus-visible:ring-primary-500 group-focus-visible:ring-inset'
+														: ''}"
 													style={smartTable.getColumnWidthStyle(cellKey)}
 													onclick={async () => {
 														if ((header as TableHeader).name === 'status') {

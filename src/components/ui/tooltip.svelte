@@ -259,7 +259,7 @@ reveal after position calculation prevents layout flash.
 			id={tooltipId}
 			role="tooltip"
 			class={cn(
-				'z-300 pointer-events-none overflow-visible rounded px-2.5 py-1.5 text-xs font-medium shadow-xl fixed',
+				'z-300 pointer-events-none overflow-visible rounded-(--admin-radius-input) px-2.5 py-1.5 text-xs font-medium shadow-xl fixed',
 				'bg-(--admin-bg-tooltip) text-(--admin-text-tooltip)',
 				'transition-opacity duration-150',
 				!floating.positionCalculated ? 'opacity-0' : 'opacity-100',

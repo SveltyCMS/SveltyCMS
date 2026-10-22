@@ -108,8 +108,8 @@ floating/anchor bugs when multiple icons stack in a column.
 
 	const panelClass = $derived(
 		theme === 'light'
-			? 'min-w-[10.5rem] rounded-md border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-2.5 text-(--admin-text-body) shadow-lg'
-			: 'rounded bg-surface-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-2xl dark:bg-surface-500/10 dark:text-(--admin-text-body)'
+			? 'min-w-[10.5rem] rounded-(--admin-radius-input) border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-2.5 text-(--admin-text-body) shadow-lg'
+			: 'rounded-(--admin-radius-input) bg-surface-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-2xl dark:bg-surface-500/10 dark:text-(--admin-text-body)'
 	);
 
 	const arrowClass = $derived(

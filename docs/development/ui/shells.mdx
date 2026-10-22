@@ -155,6 +155,16 @@ The header `Button` with `href` is a link. The save `Button` is a submit control
 
 Wide tables inside the card need `class="overflow-x-auto"` on a wrapper. Touch targets on actions stay at least 40px: `Button` size `md` (the default) is 40px tall; `sm` is 32px and is for dense toolbars.
 
+## Plugin workspaces
+
+A plugin that declares a `plugin_workspace` slot (Smart Importer, Unified Data Hub) is rendered by `PluginWorkspaceOverlay` **inside the shell's `<main>`**, not over the viewport:
+
+- The overlay is `absolute inset-0 z-30` against the `relative` `<main>`, so the left and right sidebars stay visible and usable — the same contract as Media Gallery and the Collection Builder.
+- While a workspace is open, the underlying page content and the sticky action bar are unmounted, so the workspace title is the only `<h1>` on screen and nothing behind it is focusable.
+- `?plugin=<id>` is the source of truth: the overlay syncs the store with `page.url` on navigation, which is what makes the shell's back button (`goto('/config')`) actually close it.
+
+Don't wrap a plugin workspace in a second `AdminPageShell` that also owns the page title — pick one owner. See `src/components/system/plugin-workspace-overlay.svelte` and `src/routes/(app)/+layout.svelte`.
+
 ## Next steps
 
 - Props and accessibility for Button, fields, and Modal: [Native controls](./primitives.mdx).

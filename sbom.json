@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:134b5a70-d068-4135-bfad-557bd2602258",
+  "serialNumber": "urn:uuid:3fc183b8-fbad-48fd-8629-eda30c5da3ef",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-21T17:52:05.091Z",
+    "timestamp": "2026-10-22T13:46:31.222Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -61,208 +61,208 @@
     {
       "type": "library",
       "name": "@aws-sdk/checksums",
-      "version": "3.1001.4",
-      "purl": "pkg:npm/@aws-sdk/checksums@3.1001.4",
+      "version": "3.1001.5",
+      "purl": "pkg:npm/@aws-sdk/checksums@3.1001.5",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-H8BiG/2DnfwydVxD1uDPLa1s1sfhRnVTbD2OwzfTr3WlJzgbIzICDXxBTlTMjbWNNCe4VS9X55fco+JI34L9kw=="
+          "content": "sha512-6erto9nK2OZO/woEgmFIaPh5gChgdNd7nL6jgAf8TAXz3/QHC8Pan2TFe9GYp3IxOIKCCGWPylSjtOHKfNzQlw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1154.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1154.0",
+      "version": "3.1155.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1155.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-2VRtQFM07lrpjmk6WNRghU7rKg4EX93kuvl4RHDp2NJEDxee57HRQRo72gM83Jr46OFUcqQf0KWTMataX2Q66Q=="
+          "content": "sha512-l3uMeIlzWVgj/RTJTh5sKYKtQz1la3cvWLUPn1cwFH4UZpcqTH66SgJHCeB2FOE9bEAjOdbmCyPKt9aw867Fng=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/core",
-      "version": "3.978.4",
-      "purl": "pkg:npm/@aws-sdk/core@3.978.4",
+      "version": "3.978.5",
+      "purl": "pkg:npm/@aws-sdk/core@3.978.5",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-JvGp6y9sPX8FSs2K/EmFMZcUfdkHxqGE45+oxwGC75OIh50j2e4cbx7zcR3BwNs2DSGqJdBja5h6Vy89iIDmRQ=="
+          "content": "sha512-ruI0AWqcrfL20XDS6SwZIJFPOBZ6N0ADa9nLzWlBhxk1aoUjbUX3JkTR9vEmk7o35XpAHi68ahZ4T6RE2U9XyA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-env",
-      "version": "3.972.75",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-env@3.972.75",
+      "version": "3.972.76",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-env@3.972.76",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-nc8Epg98PcYoKNx0VFlwtmZSCP+tuJ1FLWqpslET/gp4h/WYuULSJqtxppM6ywKKDdzNJPvLD7ceRfmxm3Qdxw=="
+          "content": "sha512-YxmL1Ar7bV9ZkJvtv+lj+MF6le76NnZnbmgySyZuxpZaCv0/1lZ3KxKy6RIj1h9ui2hWnVjZxbmTMeO0y/NrQA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-http",
-      "version": "3.972.77",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-http@3.972.77",
+      "version": "3.972.78",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-http@3.972.78",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-KkYFdIQwuw9IOHfEzK78slxmVWuhcm1w6YgE3V3WVxAeRRj9q5J9jlwzpY/oszWxd4SD96FTFkDdRGBdMFF2Mw=="
+          "content": "sha512-3VHknDRngoebsaqyT1iR75b5cBT2zfEtODK6yYmYltljkK1HEAQLs2FEd1IpWqAeOYdMGaG9wikngWLTufY7RA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-ini",
-      "version": "3.973.20",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-ini@3.973.20",
+      "version": "3.973.21",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-ini@3.973.21",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-OSl2R/0zLkoeKEIy6oP2tu/bsSdY+DGgro2eOffMD2CcP8POv7rS14FY5Jzc5bjnqB1G9wv/aM1akHC2mdlhZw=="
+          "content": "sha512-aLx9hbCX6mGAyv4ZZd8UagJ4RASHVJw6BFDSIyuKmLkqNL6H47EjBPK6qaJ4B5TDV6mc+vMa0SJFYyo4mkvVQg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-login",
-      "version": "3.972.82",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-login@3.972.82",
+      "version": "3.972.83",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-login@3.972.83",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-8jyDPtf1WPxeQ/5xlNpyxAD6P7YKwkYeNk8B2vFEDwkPWDvb7c3tQJG5/jbNWbF2yTMIH9tDTueBkdfovYIAPw=="
+          "content": "sha512-9bJU6FjRacF4FK/QHf8Dyxhur7B1grRj8C1Yh4IkpoFW2exQflPdCv0VrbemLW9ZctLNle+AE7TETs9KNvuLYg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-node",
-      "version": "3.972.87",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-node@3.972.87",
+      "version": "3.972.88",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-node@3.972.88",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-TKj2C0x4IMPSSOAlmeryX8fCPvvPS2pFJz2ikV9IGqyh6Ehsg4leMalCTVfV2rvMTrlGAe7X7nK0HZ3P0KZR9g=="
+          "content": "sha512-AG0KID5qhQPzrFkh5b0Cws1Amytvzo0L0Xj6hMgJXEwD6ZXAqninDhSNAWJiN5zU4YVVZnuidnqwPwYJ04IamA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-process",
-      "version": "3.972.75",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-process@3.972.75",
+      "version": "3.972.76",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-process@3.972.76",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ZNm8T/HJNhpS8MikDVAsym8QyUSUuOUGiCkmI3TTya7G6xhOgfRLd2iK91HhQQyvRM36eo6Xm845hHVyfToA2w=="
+          "content": "sha512-pdhKFTXv1zPYhh92MTlp0jVbLWvUEV9v+rziuEkoskGGQ2iJskxHTO38nA8UAbT/N4IM3n8OZJ9rIY5IBO15/A=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-sso",
-      "version": "3.973.19",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-sso@3.973.19",
+      "version": "3.973.20",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-sso@3.973.20",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-qHGDAGesyWtRw3BapyFkYSUzVNrC1CWPS6+S2lf/MLMEkWB2gR3Bl6imVHy1nhImXKS+gcuUDzbu39BnsHJc1Q=="
+          "content": "sha512-DlxrAB3MnjNLx/da7b89W+3DyJQYso/q7Ns15MsST2IV2nkAYQOYTUCaffNSjgrpMP99Dm2mV2jxzcbyF94ZfA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-web-identity",
-      "version": "3.972.81",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-web-identity@3.972.81",
+      "version": "3.972.82",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-web-identity@3.972.82",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-nHkgkMIC6NHgqfI6UAQq5cCS4bUkNxkT+r9fXCq/X4IKfX/DHGZ8UM3T4b78OXpWK5OlzEzN4kxwyax0W/MUCA=="
+          "content": "sha512-LUo46IqPTJ4xKBsrLuoaxiv/D2GTBCcFDMD1y3jKIqPR/p7Rw14RJFZ0iRWftqZtyLPQX9JMGnSi3mBu4y/pNA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/middleware-sdk-s3",
-      "version": "3.972.80",
-      "purl": "pkg:npm/@aws-sdk/middleware-sdk-s3@3.972.80",
+      "version": "3.972.81",
+      "purl": "pkg:npm/@aws-sdk/middleware-sdk-s3@3.972.81",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zX3lXN/9XOUAuGpxgt3wXwZrXhTjQYEgRsqa856PbZWpOtleUWmCMbhlkLfusPuhW24cOC/8JYR8hnRalrrIkQ=="
+          "content": "sha512-jfanv1pV0sJFZw6/DPiNjvK7B478god0zOum5yIWo+/+1Gy+CSXWpGBWx+3nBJyDvjcu/2kUMr4ADUp9BHH34Q=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/nested-clients",
-      "version": "3.997.49",
-      "purl": "pkg:npm/@aws-sdk/nested-clients@3.997.49",
+      "version": "3.997.50",
+      "purl": "pkg:npm/@aws-sdk/nested-clients@3.997.50",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zjqIqzTYLRKhT7TPJDUreK9vG9PjhmnfLCaTaqArkRT7j+Ogl0tuXB7MpSd8rlRfRT+xTOeyNFWaOfyNcf51hg=="
+          "content": "sha512-nKb8qu4QsnpZTq/6JIXc72mzuzfh7BK4sUQkpQznPec2z4W7Ob2xYkcM4i5e1yGTBnbJVeFv/0sf3jcz85hclA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/signature-v4-multi-region",
-      "version": "3.996.48",
-      "purl": "pkg:npm/@aws-sdk/signature-v4-multi-region@3.996.48",
+      "version": "3.996.49",
+      "purl": "pkg:npm/@aws-sdk/signature-v4-multi-region@3.996.49",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-cFDXfEbXaGwbnpvR/DyqfxfjxpjXVRVthQLgkwvcfDS5u3+8G9WSj1X1Ag/pTRg/QOeOno1Tq3ycEdrKsCUcOA=="
+          "content": "sha512-nvuAZNRrRRVCiARRKsYlQ0VnXiEQiq7vXPH+UA+LSo+kN3Djl9eo/V2r0udkw85PnsNshmv2Em1clld5M3j67w=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/token-providers",
-      "version": "3.1153.0",
-      "purl": "pkg:npm/@aws-sdk/token-providers@3.1153.0",
+      "version": "3.1155.0",
+      "purl": "pkg:npm/@aws-sdk/token-providers@3.1155.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-6bKJ2OfLboxhzeJ3hBDeB8L6emCYf9DfdrjBAharLrY42J1RV/6jA6G8jvfNghzID8Yb40BdSY7jQMtWx9Ot0Q=="
+          "content": "sha512-iIcQnYLhWuq9qOLQbIWFrxF3PF0svVeZvHnUS4DUnO4zUFmFHIyGyjqrntXG+e/5PUgfavV0pYfDIKHxTzN2LA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/types",
-      "version": "3.974.6",
-      "purl": "pkg:npm/@aws-sdk/types@3.974.6",
+      "version": "3.975.0",
+      "purl": "pkg:npm/@aws-sdk/types@3.975.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-v/clNZzZnDxGyvpHMOGpJKVXFAExJzUNAAjaWGdcx8QAcXLGwTaOkw33p5SHAi0YAioK32xB3hWwOekRVfmfKg=="
+          "content": "sha512-WQlhs6juByzWOzj5fwxOx0mPJaEqMcG/sDpl3Id61B3XhKE63xY+0QWcnG+sWR/sCfprmreyUo1lM7IKZmHMzw=="
         }
       ]
     },
@@ -1153,13 +1153,13 @@
     {
       "type": "library",
       "name": "@fastify/busboy",
-      "version": "3.2.3",
-      "purl": "pkg:npm/@fastify/busboy@3.2.3",
+      "version": "3.2.4",
+      "purl": "pkg:npm/@fastify/busboy@3.2.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-fmo/IKgkenPzz3qTKG+sIUXdF/Kv83AkvvOXJHPTHJeKJbat8SsL1ihUaFaDotqoEl4UZ1Lf8Eb/3vK6eaWX2A=="
+          "content": "sha512-lQS8xcXT54rdJb+wlG/Q7SMSdtkZEpLPHooSDUZyyZm9LJD7X1kONPhVoPaHq+dsPtWUGGLIz9gBNhs9qKbylw=="
         }
       ]
     },
@@ -3181,13 +3181,13 @@
     {
       "type": "library",
       "name": "@smithy/core",
-      "version": "3.36.1",
-      "purl": "pkg:npm/@smithy/core@3.36.1",
+      "version": "3.36.2",
+      "purl": "pkg:npm/@smithy/core@3.36.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-WC5W1Jrsfxu1y6LeqXMie7N14qmcdafij/Haye4feVlyMMXLGpYxBeOX6Ee1iRJbDzGG5LVman8U1rrt9MYFHA=="
+          "content": "sha512-oRw0rB9QSUiCZfEs23G5F4Af+b2rQt1lItIICWu5IejFNd+uPM8SWqiKLMpQ6bX1Q7slsLbjuoE2niErFtkVPQ=="
         }
       ]
     },
@@ -5612,13 +5612,13 @@
     {
       "type": "library",
       "name": "fast-json-stringify",
-      "version": "7.1.2",
-      "purl": "pkg:npm/fast-json-stringify@7.1.2",
+      "version": "7.1.3",
+      "purl": "pkg:npm/fast-json-stringify@7.1.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-qGXObwtgxbn4CZM64EpHj+w31DnQ1XYtwnJL6eaWwLB00O8huNReY40lF3YP72PIUPv9TBYwvOXYvQvMNm1ekw=="
+          "content": "sha512-5TDM1yOF/BDFOclKz2G6rs1RsIl5HXMCrg/npmdNIPNQCezshR5kIHjhwBNuMY67jhkTUAm9DguL8xkL/x0Wtw=="
         }
       ]
     },
@@ -5892,6 +5892,19 @@
         {
           "alg": "SHA-512",
           "content": "sha512-B9g7xsqu+gOt1S0b/IwMuCrskumPX7jILDKAPP96iW8F3eJFU7v87+e8N4jOEstY2vcpJzsG1cmiMkiwaaEM3Q=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "hls.js",
+      "version": "1.7.3",
+      "purl": "pkg:npm/hls.js@1.7.3",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-MsPlx6yVW4Qv4C7mEVou4/gk/5cN2dVxOTnrNjPSmyH2f0Ln+/UkG10Ax1PE6OvrmTVPKgQYozTtBaPOuCzq7A=="
         }
       ]
     },
@@ -6795,13 +6808,13 @@
     {
       "type": "library",
       "name": "mongoose",
-      "version": "9.11.2",
-      "purl": "pkg:npm/mongoose@9.11.2",
+      "version": "9.11.3",
+      "purl": "pkg:npm/mongoose@9.11.3",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-hFkl/2dccpD58coRAya3a/ht8ooAx9YPLzBfxVX9bEsgcrjsNkvuWQe8gplGfDdmzpw2RfFX1IB/G8PiFwyvwg=="
+          "content": "sha512-U6HaDL0A738IHlYiWf5mE4V5G6DPRmcSPh+YDSma8AKCHS+HbugwN4b6EcDSnooSHnrd27K35bKd639j3d079A=="
         }
       ]
     },
@@ -6977,13 +6990,13 @@
     {
       "type": "library",
       "name": "nodemailer",
-      "version": "10.1.7",
-      "purl": "pkg:npm/nodemailer@10.1.7",
+      "version": "10.2.0",
+      "purl": "pkg:npm/nodemailer@10.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-OQa6FDln5fLttmqSbjDiRYvFDOFNrBqfiOwHPlEbURil3b+vPB1v8xpi+Sp46drzNDlsTnNsS502vthmz56r4w=="
+          "content": "sha512-/XyGw6kX2stMdKGUJdAQmYAeY1FscWfdRydfd2NtK3A3KDfUUXCqZzExSNAt2xhh90X2qLCR+o2Gd48YPJcJwA=="
         }
       ]
     },

@@ -185,9 +185,10 @@ test.describe("Server-rendered collection table", () => {
     const { collectionId, entryId } = await seedCollection(page);
     expect(entryId, "inserted entry id").not.toBe("");
 
-    // Desktop only: `updateFromContext` collapses the left sidebar and opens
-    // the right one for edit mode. Both must already be in that state in the
-    // server response, otherwise a cold edit load snaps them into place.
+    // Desktop only: the right sidebar opens for edit mode while the left stays
+    // full (compact left navigation is a tablet affordance, not a desktop one).
+    // Both must already be in that state in the server response, otherwise a
+    // cold edit load snaps them into place.
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`/en/collection/${collectionId}?edit=${entryId}`, {
       waitUntil: "domcontentloaded",
@@ -201,9 +202,8 @@ test.describe("Server-rendered collection table", () => {
 
     const leftBox = await left.boundingBox();
     const rightBox = await right.boundingBox();
-    // Compact left (<200px) and expanded right (>200px) — the values the
-    // post-hydration layout resolves to.
-    expect(leftBox?.width ?? 999).toBeLessThan(200);
+    // Full left navigation (>200px) and expanded right inspector (>200px).
+    expect(leftBox?.width ?? 0).toBeGreaterThan(200);
     expect(rightBox?.width ?? 0).toBeGreaterThan(200);
   });
 });

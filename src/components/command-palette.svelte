@@ -577,8 +577,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 <!-- Panel -->
 <div
 	bind:this={panelElement}
-	class="command-palette fixed inset-x-0 top-[12%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:border-surface-600 dark:bg-surface-900"
-	style="border-radius: var(--admin-radius-card, 12px);"
+	class="command-palette fixed inset-x-0 top-[12%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-(--admin-radius-card) border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:border-surface-600 dark:bg-surface-900"
 	role="dialog"
 	aria-modal="true"
 	aria-label={msg('global_search_aria_label', 'Global search')}

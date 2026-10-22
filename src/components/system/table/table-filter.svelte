@@ -156,9 +156,9 @@ It includes search, filter toggles, column visibility, and density controls, opt
 	// fill + border) so the ghost icons stay legible on light backgrounds instead of
 	// melting into the page.
 	const btnChrome =
-		'h-10 w-10 p-0 flex items-center justify-center rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card)/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors';
+		'h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border border-(--admin-border-default) bg-(--admin-bg-card)/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors';
 	const btnChromeActive =
-		'h-10 w-10 p-0 flex items-center justify-center rounded-xl border border-primary-500/60 bg-primary-500/10 text-primary-500 dark:border-primary-500/50 dark:bg-primary-500/20 dark:text-primary-400 transition-colors';
+		'h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border border-primary-500/60 bg-primary-500/10 text-primary-500 dark:border-primary-500/50 dark:bg-primary-500/20 dark:text-primary-400 transition-colors';
 </script>
 
 <!-- Expanding Search -->

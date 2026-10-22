@@ -13,7 +13,7 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { telemetryService } from "@src/services/observability/telemetry-service";
 
-// Boundary mock: the encryption path must not depend on worker-global DB state.
+// Boundary mock: the payload path must not depend on worker-global DB state.
 // A sibling test file can register a *disconnected* adapter on the global
 // registry, which would make `dbAdapter.isConnected()` answer false and send
 // `checkUpdateStatus` down the early-return branch before the payload is built.
@@ -69,14 +69,14 @@ describe("TelemetryService Environment Checks", () => {
     fetchSpy.mockRestore();
   });
 
-  it("should encrypt telemetry payload using AES-256-GCM with themes included", async () => {
+  it("should send the documented plaintext payload contract with themes included", async () => {
     vi.stubEnv("TEST_MODE", undefined);
     vi.stubEnv("CI", undefined);
     vi.stubEnv("VITEST", undefined);
     vi.stubEnv("NODE_ENV", "production");
     // CI sets `DO_NOT_TRACK=1` at the workflow level (ci.yml env) and the
     // service honours it by disabling telemetry — without clearing it the
-    // encryption branch is never reached and this test only fails on CI.
+    // payload branch is never reached and this test only fails on CI.
     vi.stubEnv("DO_NOT_TRACK", undefined);
     vi.stubEnv("SVELTY_TELEMETRY_DISABLED", undefined);
 
@@ -88,7 +88,7 @@ describe("TelemetryService Environment Checks", () => {
       if (init?.body) {
         try {
           const parsed = JSON.parse(init.body as string);
-          if (parsed.encrypted) {
+          if (parsed.payload) {
             capturedBody = parsed;
           }
         } catch {}
@@ -101,32 +101,21 @@ describe("TelemetryService Environment Checks", () => {
 
     await telemetryService.checkUpdateStatus();
     expect(capturedBody).toBeDefined();
-    expect(capturedBody.encrypted).toBe(true);
-    expect(typeof capturedBody.ciphertext).toBe("string");
-    expect(typeof capturedBody.iv).toBe("string");
-    expect(typeof capturedBody.tag).toBe("string");
+    // Wire contract (telemetry-ecology.mdx §4): auth fields at the top level,
+    // metrics in `payload`. The receiver validates `payload.current_version`
+    // in plaintext, so the payload must NOT be replaced by a ciphertext
+    // envelope (that answered 400 "Invalid version").
+    expect(capturedBody.encrypted).toBeUndefined();
     expect(typeof capturedBody.signature).toBe("string");
+    expect(typeof capturedBody.timestamp).toBe("number");
+    expect(typeof capturedBody.payload.current_version).toBe("string");
+    expect(typeof capturedBody.payload.installation_id).toBe("string");
 
-    // Decrypt using the test client secret to verify the decrypted payload
-    const crypto = await import("node:crypto");
-    const key = crypto.scryptSync("test-client-secret-123", "sveltycms-telemetry-aes-key", 32);
-    const decipher = crypto.createDecipheriv(
-      "aes-256-gcm",
-      key,
-      Buffer.from(capturedBody.iv, "base64"),
-    );
-    decipher.setAuthTag(Buffer.from(capturedBody.tag, "base64"));
-    const decrypted = Buffer.concat([
-      decipher.update(Buffer.from(capturedBody.ciphertext, "base64")),
-      decipher.final(),
-    ]);
-    const payload = JSON.parse(decrypted.toString("utf8"));
-
-    expect(Array.isArray(payload.themes)).toBe(true);
-    expect(payload.themes).toContain("default");
-    expect(Array.isArray(payload.widgets)).toBe(true);
-    expect(Array.isArray(payload.dashboard_widgets)).toBe(true);
-    expect(Array.isArray(payload.plugins)).toBe(true);
+    expect(Array.isArray(capturedBody.payload.themes)).toBe(true);
+    expect(capturedBody.payload.themes).toContain("default");
+    expect(Array.isArray(capturedBody.payload.widgets)).toBe(true);
+    expect(Array.isArray(capturedBody.payload.dashboard_widgets)).toBe(true);
+    expect(Array.isArray(capturedBody.payload.plugins)).toBe(true);
 
     fetchSpy.mockRestore();
   });

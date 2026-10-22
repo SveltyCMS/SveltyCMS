@@ -9,6 +9,10 @@
 
 import { availablePlugins, pluginRegistry } from "@src/plugins";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { marketplaceService } from "@src/services/core/marketplace-service";
+import { LocalCMS } from "@src/services/sdk";
+import { dbAdapter } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { isAppError, raise, rethrow } from "@utils/error-handling";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { getLayoutPluginStates } from "@utils/server/layout-caches.server";
@@ -53,9 +57,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const dashboardWidgets = getInstalledDashboardWidgets();
 
+    // Both lists are rendered by non-default tabs; load them here so the tabs
+    // paint from SSR instead of fetching on first open.
+    const cms = new LocalCMS(dbAdapter);
+    const [widgets, marketplace] = await Promise.all([
+      cms.widgets.list({ tenantId: tenantId as DatabaseId }).catch((err) => {
+        logger.warn("Could not load widget list for extensions:", err);
+        return [];
+      }),
+      marketplaceService.list().catch((err) => {
+        logger.warn("Could not load marketplace catalog for extensions:", err);
+        return { items: [], source: "local" as const, remoteAvailable: false };
+      }),
+    ]);
+
     return {
       plugins,
       dashboardWidgets,
+      widgets,
+      marketplace,
       tenantId,
       isAdmin: true,
     };

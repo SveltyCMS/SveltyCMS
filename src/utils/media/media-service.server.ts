@@ -517,6 +517,8 @@ export interface MediaManipulation {
   flipH?: boolean;
   flipV?: boolean;
   crop?: CropOptions;
+  /** Explicit output size (batch resize). Applied after composites so overlay coordinates stay in source space. */
+  resize?: { width?: number; height?: number };
   filters?: FilterOptions;
   blurRegions?: BlurRegion[];
   watermarks?: Watermark[];
@@ -1727,13 +1729,41 @@ export class MediaService {
     const isCircle = crop?.shape === "circle";
     const encoded = await encodeManipulatedOutput(pipeline, ext, isCircle);
 
+    let outputBuffer: Buffer = encoded;
+    let outputW = workW;
+    let outputH = workH;
+
+    // 5a. Explicit resize (editor/batch). A second encode is deliberate: Sharp
+    // applies `resize` before `composite` regardless of chain order, so resizing
+    // in the main pipeline would shift watermark/annotation coordinates.
+    const requestedResize = manipulations.resize;
+    if (requestedResize && (requestedResize.width || requestedResize.height)) {
+      const clampDimension = (value: number | undefined) =>
+        value === undefined
+          ? undefined
+          : Math.min(Math.max(Math.round(value), 32), MAX_OUTPUT_DIMENSION);
+      const resized = sharp(outputBuffer, {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "none",
+      }).resize({
+        width: clampDimension(requestedResize.width),
+        height: clampDimension(requestedResize.height),
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+      outputBuffer = await encodeManipulatedOutput(resized, ext, isCircle);
+      const resizedMeta = await sharp(outputBuffer).metadata();
+      outputW = resizedMeta.width ?? outputW;
+      outputH = resizedMeta.height ?? outputH;
+      logger.debug(`[manipulateMedia] Explicit resize → ${outputW}x${outputH}`);
+    }
+
     // SECURITY: cap the editor output at the same ceiling as on-demand transforms.
     // A second pass is deliberate — Sharp applies `resize` before `composite`
     // regardless of chain order, so resizing after the overlay build would shift
     // watermark/annotation coordinates. Normal-size outputs still encode once.
-    const capped = clampManipulatedDimensions(workW, workH, MAX_OUTPUT_DIMENSION);
-    let outputBuffer: Buffer = encoded;
-    if (capped.width !== workW || capped.height !== workH) {
+    const capped = clampManipulatedDimensions(outputW, outputH, MAX_OUTPUT_DIMENSION);
+    if (capped.width !== outputW || capped.height !== outputH) {
       const downscaled = sharp(encoded, {
         limitInputPixels: MAX_INPUT_PIXELS,
         failOn: "none",
@@ -1745,7 +1775,7 @@ export class MediaService {
       });
       outputBuffer = await encodeManipulatedOutput(downscaled, ext, isCircle);
       logger.debug(
-        `[manipulateMedia] Capped output ${workW}x${workH} → ${capped.width}x${capped.height} (max ${MAX_OUTPUT_DIMENSION}px)`,
+        `[manipulateMedia] Capped output ${outputW}x${outputH} → ${capped.width}x${capped.height} (max ${MAX_OUTPUT_DIMENSION}px)`,
       );
     }
 

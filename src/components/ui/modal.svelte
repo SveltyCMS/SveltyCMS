@@ -148,7 +148,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 				!isEditorShell && 'shadow-2xl transition-all duration-300 transform scale-100 opacity-100',
 				'flex flex-col overflow-hidden',
 				'w-full',
-				isExpandedBody ? 'h-full min-h-0' : 'm-auto',
+				isExpandedBody ? 'h-full min-h-0' : 'm-auto max-h-full',
 				sizeClasses[size],
 				isEditorShell ? 'text-white border-0 ring-0 outline-none' : colorClasses[color],
 				className
@@ -191,7 +191,7 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 					'flex-1 min-h-0',
 					isExpandedBody
 						? 'flex h-full flex-col overflow-hidden p-0'
-						: 'max-h-[80vh] overflow-y-auto p-4 sm:p-6',
+						: 'overflow-y-auto p-4 sm:p-6',
 					contentClass
 				)}
 			>

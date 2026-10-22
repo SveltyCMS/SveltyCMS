@@ -30,6 +30,7 @@ describe("system-settings +page.server load", () => {
         isAdmin: true,
         roles: [],
       },
+      url: new URL("http://localhost/config/system-settings"),
     } as any);
     expect(data.isAdmin).toBe(true);
     expect(data.user._id).toBe("u1");
@@ -43,6 +44,7 @@ describe("system-settings +page.server load", () => {
         isAdmin: false,
         roles: [{ permissions: ["config:settings"] }],
       },
+      url: new URL("http://localhost/config/system-settings"),
     } as any);
     expect(data.isAdmin).toBe(false);
     expect(data.user._id).toBe("u2");

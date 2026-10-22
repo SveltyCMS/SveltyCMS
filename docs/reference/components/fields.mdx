@@ -170,6 +170,14 @@ flowchart TB
 
 ---
 
+## Render-safe form skeleton
+
+`buildFieldSkeleton()` (`src/components/collection-display/field-skeleton.ts`) gives every declared field a value **before the first widget mounts**: the schema `default` for new entries, `null` otherwise, and `{ [locale]: value }` for translated fields.
+
+This is a hard requirement, not a nicety. Widgets declare their value prop with a fallback (`let { value = $bindable([]) }` in Tags), and binding `undefined` into such a prop throws `props_invalid_value` — "Cannot do `bind:value={undefined}` when `value` has a fallback value". SvelteKit turns that render error into the route error page, which is how `/collection/posts?create=true` used to return a 500 when Create was clicked from the entry list.
+
+The seeding effects (`applyFieldDefaults`) run _after_ the first mount, and a create session starts from an empty store, so the skeleton must be built during component init. `applyFieldDefaults` keeps the same invariant for later store swaps (entry switch, revert), and `cycleFieldLocale()` creates the target locale key before the widget remounts.
+
 ## Features
 
 | Feature                          | Description                                                  |

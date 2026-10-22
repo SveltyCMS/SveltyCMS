@@ -35,7 +35,9 @@ Features:
 	}
 </script>
 
-<fieldset class="flex flex-col gap-3 rounded-lg border border-(--admin-border-default) p-3">
+<fieldset
+	class="flex flex-col gap-3 rounded-(--admin-radius-card) border border-(--admin-border-default) p-3"
+>
 	{#if label}
 		<legend class={labelClass ?? 'text-sm font-semibold text-(--admin-text-body)'}>{label}</legend>
 	{/if}

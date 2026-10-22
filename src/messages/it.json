@@ -1225,7 +1225,7 @@
   "mediagallery_new_folder": "Nuova cartella",
   "mediagallery_no_media": "Nessun media trovato",
   "mediagallery_nomedia": "Nessun media",
-  "mediagallery_optimize_webgpu": "Ottimizza le immagini prima del caricamento (WebGPU)",
+  "mediagallery_optimize_before_upload": "Ottimizza le immagini prima del caricamento",
   "mediagallery_original": "originale",
   "mediagallery_output_format": "Formato di output",
   "mediagallery_pagetitle": "File media",

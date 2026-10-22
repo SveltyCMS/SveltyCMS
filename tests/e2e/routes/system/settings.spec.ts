@@ -2,7 +2,8 @@
  * @file tests/e2e/routes/system/settings.spec.ts
  * @description System Settings shell + group panels + save/export/discard/import controls.
  * Groups are catalog-driven; tests assert structure, not every field value.
- * Navigation between groups happens via the sidebar SettingsMenu.
+ * Navigation between groups is page-local (desktop rail, mobile picker); the
+ * sidebar SettingsMenu remains available and links to the same `?group=` URLs.
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -62,6 +63,34 @@ test.describe("System Settings shell", () => {
     await goSettings(page, "cache");
 
     await page.locator('a[href="/config/system-settings?group=email"]').first().click();
+    await expect(page).toHaveURL(/group=email/, { timeout: ACTION_TIMEOUT });
+    await expect(page.getByTestId("settings-panel-email")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+  });
+
+  test("page does not duplicate the sidebar settings navigation", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await goSettings(page, "cache");
+
+    // The global left sidebar renders the settings menu; a second in-page rail
+    // produced two sidebars and squeezed the settings form.
+    await expect(page.getByTestId("system-settings-group-nav")).toHaveCount(0);
+    await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+  });
+
+  test("mobile picker switches groups", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await goSettings(page, "cache");
+
+    // The page has no second rail; the picker is the in-page navigation.
+    await expect(page.getByTestId("system-settings-group-nav")).toHaveCount(0);
+    const picker = page.getByTestId("system-settings-group-select");
+    await expect(picker).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    await picker.selectOption("email");
     await expect(page).toHaveURL(/group=email/, { timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("settings-panel-email")).toBeVisible({
       timeout: ACTION_TIMEOUT,

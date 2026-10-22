@@ -420,6 +420,13 @@ export class Auth {
       deviceId?: string;
       ipAddress?: string;
       amr?: string[];
+      /**
+       * Set by token rotation in the auth hook. Rotation is not a new login:
+       * the caller retires the predecessor itself (short grace expiry) and the
+       * device/parallel caps must stay out of the way — evicting the very
+       * session being rotated is what signed users out a second time.
+       */
+      isRotation?: boolean;
     },
     options?: BaseQueryOptions,
   ): Promise<Session> {
@@ -507,35 +514,40 @@ export class Auth {
     //   single-per-user            — evict ALL other non-rotated sessions
     //   allow-multiple             — no eviction (unlimited concurrent sessions)
     // Best-effort — never fail the login on eviction errors.
-    const deviceKey = sessionData.deviceId || sessionData.userAgent;
-    if (deviceKey) {
-      try {
-        const policy = String(
-          getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
-        );
-        if (policy !== "allow-multiple") {
-          await this.evictSameDeviceSessions(
-            session,
-            deviceKey,
-            policy === "single-per-user",
-            options,
+    // Token rotation bypasses both policies: it supersedes exactly one session
+    // (retired by the caller), so eviction would only kill live requests that
+    // still carry the pre-rotation cookie.
+    if (!sessionData.isRotation) {
+      const deviceKey = sessionData.deviceId || sessionData.userAgent;
+      if (deviceKey) {
+        try {
+          const policy = String(
+            getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
           );
+          if (policy !== "allow-multiple") {
+            await this.evictSameDeviceSessions(
+              session,
+              deviceKey,
+              policy === "single-per-user",
+              options,
+            );
+          }
+        } catch (err) {
+          logger.debug("Device-session eviction skipped", { error: (err as Error).message });
+        }
+      }
+
+      // Max concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited):
+      // when the cap is exceeded the least recently active session is evicted
+      // (Keycloak-style). Complements the device policy — best-effort only.
+      try {
+        const maxSessions = Number(getPrivateSettingSync("SESSION_MAX_PER_USER")) || 0;
+        if (maxSessions > 0) {
+          await this.enforceMaxSessionsPerUser(session, maxSessions, options);
         }
       } catch (err) {
-        logger.debug("Device-session eviction skipped", { error: (err as Error).message });
+        logger.debug("Max-session eviction skipped", { error: (err as Error).message });
       }
-    }
-
-    // Max concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited):
-    // when the cap is exceeded the least recently active session is evicted
-    // (Keycloak-style). Complements the device policy — best-effort only.
-    try {
-      const maxSessions = Number(getPrivateSettingSync("SESSION_MAX_PER_USER")) || 0;
-      if (maxSessions > 0) {
-        await this.enforceMaxSessionsPerUser(session, maxSessions, options);
-      }
-    } catch (err) {
-      logger.debug("Max-session eviction skipped", { error: (err as Error).message });
     }
 
     return session;

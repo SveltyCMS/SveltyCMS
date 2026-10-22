@@ -306,8 +306,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	const liveTheme = getThemeContext() as AdminTheme | undefined;
 
 	// ── Theme list management ──
-	let themes = $state<ThemeSummary[]>([]);
-	let loadingThemes = $state(true);
+	let themes = $state<ThemeSummary[]>(data.themes ?? []);
+	let loadingThemes = $state(false);
 	let newThemeName = $state('');
 	let cloneName = $state('');
 
@@ -370,7 +370,6 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 			userThemePrefs.apply(localPrefs as UserThemePreferences);
 		}
 		activeTab = resolveTabFromUrl(isAdmin);
-		loadThemes();
 		loadMarketplaceThemes();
 		if (activeTab === 'overrides') {
 			// Scroll target for /user deep link

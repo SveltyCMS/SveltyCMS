@@ -18,24 +18,8 @@ export function unwrapFlowList(result: ApiResponse<unknown>): AutomationFlow[] {
   return [];
 }
 
-export function unwrapFlow(result: ApiResponse<unknown>): AutomationFlow | null {
-  if (!result.success) return null;
-  const raw = (result as { data?: unknown }).data ?? result;
-  if (raw && typeof raw === "object" && "id" in (raw as object)) {
-    return raw as AutomationFlow;
-  }
-  if (raw && typeof raw === "object" && (raw as { data?: unknown }).data) {
-    return (raw as { data: AutomationFlow }).data;
-  }
-  return null;
-}
-
 export async function listAutomations(): Promise<ApiResponse<AutomationFlow[]>> {
   return fetchApi<AutomationFlow[]>("/api/automations");
-}
-
-export async function getAutomation(id: string): Promise<ApiResponse<AutomationFlow>> {
-  return fetchApi<AutomationFlow>(`/api/automations/${id}`);
 }
 
 export async function createAutomation(

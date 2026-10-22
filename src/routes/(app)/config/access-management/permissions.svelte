@@ -26,12 +26,16 @@ It provides the following functionality:
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import {
+		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table';
+	import {
 		access_permissions_action,
 		access_permissions_assign_all_title,
-		access_permissions_heading,
-		access_permissions_intro,
 		access_permissions_name,
-		access_permissions_role_all,
 		access_permissions_search_aria,
 		access_permissions_search_placeholder,
 		access_permissions_sort_action_aria,
@@ -152,7 +156,6 @@ It provides the following functionality:
 		)
 	);
 	const groups = $derived(getGroups(filteredPermissions));
-	const adminRole = $derived(roles.find((role) => role.isAdmin));
 	const nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
 
 	// Initialize data when component mounts and whenever page data changes
@@ -276,14 +279,13 @@ It provides the following functionality:
 	function getActionBadgeClass(action: string) {
 		switch (action.toLowerCase()) {
 			case 'read':
-				return 'bg-tertiary-500/10 text-tertiary-600 dark:text-tertiary-400';
+			case 'manage':
+				return 'bg-tertiary-500/10 text-tertiary-500 dark:bg-tertiary-900/20';
 			case 'create':
 			case 'write':
-				return 'bg-success-500/10 text-tertiary-600 dark:text-primary-600 dark:text-primary-500';
+				return 'bg-success-500/10 text-success-500 dark:bg-success-900/20';
 			case 'delete':
-				return 'bg-error-500/10 text-error-600 dark:text-error-500';
-			case 'manage':
-				return 'bg-tertiary-500/10 text-tertiary-600 dark:text-tertiary-400';
+				return 'bg-error-500/10 text-error-500 dark:bg-error-900/20';
 			default:
 				return 'bg-(--admin-bg-chip) text-(--admin-text-muted)';
 		}
@@ -293,13 +295,6 @@ It provides the following functionality:
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<h3 class="mb-2 text-center text-xl font-bold text-(--admin-text-body)">
-		{access_permissions_heading()}
-	</h3>
-	<p class="mb-6 text-center text-sm text-(--admin-text-muted)">
-		{access_permissions_intro()}
-	</p>
-
 	<div class="sticky top-0 z-10 mb-6 flex items-center justify-between">
 		<div class="w-full">
 			<FloatingInput
@@ -325,29 +320,17 @@ It provides the following functionality:
 			</p>
 		</div>
 	{:else}
-		<!-- Admin Notice -->
-		{#if adminRole}
-			<div
-				class="mb-4 flex items-center justify-center gap-1.5 text-xs text-(--admin-text-muted) bg-(--admin-bg-chip) border border-(--admin-border-default) py-2 px-4 rounded w-max mx-auto shadow-xs"
-			>
-				<span class="font-extrabold text-error-500">*</span>
-				<span
-					><span class="font-semibold text-tertiary-600 dark:text-primary-600"
-						>{adminRole.name}</span
-					>
-					{access_permissions_role_all()}</span
-				>
-			</div>
-		{/if}
 		<div
 			class="permission overflow-x-auto rounded border border-(--admin-border-default) shadow-sm bg-(--admin-bg-card)"
 		>
-			<table class="w-full text-start border-collapse table-auto">
+			<table class="{SMART_TABLE} table-auto">
 				<!-- Header -->
-				<thead class="bg-(--admin-bg-sidebar) border-b border-(--admin-border-default)">
-					<tr>
+				<thead class={SMART_TABLE_THEAD}>
+					<tr
+						class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
+					>
 						<th
-							class="px-3 py-3 font-semibold text-(--admin-text-muted) w-2/5"
+							class="{SMART_TABLE_TH} w-2/5 text-start!"
 							aria-sort={sortBy === 'name'
 								? sortOrder === 1
 									? 'ascending'
@@ -359,7 +342,10 @@ It provides the following functionality:
 								positioning={{ placement: 'top' }}
 							>
 								<button
-									class="flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-(--admin-text-muted) hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
+									class="inline-flex items-center gap-1 text-xs font-semibold tracking-wider uppercase transition-colors {sortBy ===
+										'name' && sortOrder !== 0
+										? 'text-primary-500 dark:text-primary-400'
+										: 'text-tertiary-500 hover:text-surface-500 dark:text-primary-500'}"
 									onclick={() => handleSort('name')}
 									aria-label={access_permissions_sort_name_aria()}
 								>
@@ -370,7 +356,7 @@ It provides the following functionality:
 												? 'material-symbols:arrow-upward-rounded'
 												: 'material-symbols:arrow-downward-rounded'}
 											width="14"
-											class="text-tertiary-500 dark:text-primary-500"
+											class="shrink-0"
 											aria-hidden="true"
 										></iconify-icon>
 									{/if}
@@ -378,7 +364,7 @@ It provides the following functionality:
 							</SystemTooltip>
 						</th>
 						<th
-							class="px-3 py-3 font-semibold text-center w-1/5"
+							class="{SMART_TABLE_TH} w-1/5"
 							aria-sort={sortBy === 'action'
 								? sortOrder === 1
 									? 'ascending'
@@ -390,7 +376,10 @@ It provides the following functionality:
 								positioning={{ placement: 'top' }}
 							>
 								<button
-									class="inline-flex items-center gap-1 font-semibold text-xs tracking-wider uppercase text-(--admin-text-muted) hover:text-tertiary-500 dark:text-primary-600 dark:hover:text-tertiary-500 transition-colors mx-auto"
+									class="mx-auto inline-flex items-center gap-1 text-xs font-semibold tracking-wider uppercase transition-colors {sortBy ===
+										'action' && sortOrder !== 0
+										? 'text-primary-500 dark:text-primary-400'
+										: 'text-tertiary-500 hover:text-surface-500 dark:text-primary-500'}"
 									onclick={() => handleSort('action')}
 									aria-label={access_permissions_sort_action_aria()}
 								>
@@ -401,7 +390,7 @@ It provides the following functionality:
 												? 'material-symbols:arrow-upward-rounded'
 												: 'material-symbols:arrow-downward-rounded'}
 											width="14"
-											class="text-tertiary-500 dark:text-primary-500"
+											class="shrink-0"
 											aria-hidden="true"
 										></iconify-icon>
 									{/if}
@@ -413,7 +402,7 @@ It provides the following functionality:
 						{#each roles as role (role._id)}
 							{#if !role.isAdmin}
 								{@const headerState = getHeaderCheckboxState(role)}
-								<th class="px-3 py-3 text-center" scope="col">
+								<th class={SMART_TABLE_TH} scope="col">
 									<div class="flex flex-col items-center gap-1.5">
 										<SystemTooltip
 											title={`Permissions for the ${role.name} role`}
@@ -421,9 +410,7 @@ It provides the following functionality:
 											role={null}
 											tabindex={null}
 										>
-											<span
-												class="text-xs font-semibold tracking-wider uppercase text-(--admin-text-muted)"
-												>{role.name}</span
+											<span class="text-xs font-semibold tracking-wider uppercase">{role.name}</span
 											>
 										</SystemTooltip>
 										<div class="flex items-center gap-1.5 mt-0.5">
@@ -451,24 +438,26 @@ It provides the following functionality:
 						{/each}
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-(--admin-border-subtle)">
+				<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 					<!-- Permission Groups -->
 					{#each groups as group (group)}
 						{#if filterGroups(filteredPermissions, group).length > 0}
 							<!-- Group Name -->
-							<tr class="bg-(--admin-bg-sidebar)">
+							<tr class="bg-surface-500/10 dark:bg-surface-800">
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="px-3 py-2 font-bold text-xs tracking-wider uppercase text-(--admin-text-body) border-y border-(--admin-border-default)"
+									class="border-y border-surface-500/30 px-2 py-2 text-xs font-bold tracking-wider uppercase text-(--admin-text-body) dark:border-surface-500/40"
 								>
 									{group}
 								</td>
 							</tr>
 							<!-- Permissions within the Group -->
 							{#each filterGroups(filteredPermissions, group) as permission (permission._id)}
-								<tr class="hover:bg-(--admin-bg-chip) transition-colors">
+								<tr class={SMART_TABLE_ROW_HOVER}>
 									<!-- Type -->
-									<td class="px-3 py-2 text-sm text-(--admin-text-muted) font-medium">
+									<td
+										class="{SMART_TABLE_TD} text-start! text-sm font-medium text-(--admin-text-muted)"
+									>
 										<span class="inline-flex items-center gap-1.5">
 											{permission.name}
 											{#if permission.description}
@@ -479,7 +468,7 @@ It provides the following functionality:
 										</span>
 									</td>
 									<!-- Action -->
-									<td class="px-3 py-2 text-center">
+									<td class={SMART_TABLE_TD}>
 										<span
 											class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider {getActionBadgeClass(
 												permission.action
@@ -491,7 +480,7 @@ It provides the following functionality:
 									<!-- Roles -->
 									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
-											<td class="px-3 py-2 text-center">
+											<td class={SMART_TABLE_TD}>
 												<input
 													type="checkbox"
 													aria-label={`Toggle ${role.name} for ${permission.name || permission._id}`}

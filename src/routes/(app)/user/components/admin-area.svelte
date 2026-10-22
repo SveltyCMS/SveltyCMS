@@ -68,7 +68,8 @@
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
 	// Types
-	import { type Role as RoleType, type Token, type User } from '@src/databases/auth/types';
+	import type { Role as RoleType, Token, User } from '@src/databases/auth/types';
+	import type { UserTableRow } from '../user-remote-utils';
 	import { isAdmin } from '@src/databases/auth/constants';
 	// Types
 	import {
@@ -172,8 +173,17 @@
 	const {
 		currentUser = null,
 		isMultiTenant = false,
-		roles = []
-	}: { currentUser: User | null; isMultiTenant: boolean; roles: RoleType[] } = $props();
+		roles = [],
+		initialUsers = null,
+		initialTotal = null
+	}: {
+		currentUser: User | null;
+		isMultiTenant: boolean;
+		roles: RoleType[];
+		/** Page 1 delivered by `+page.server.ts` (LocalCMS) — renders before the first fetch. */
+		initialUsers?: UserTableRow[] | null;
+		initialTotal?: number | null;
+	} = $props();
 
 	// Core view state (must exist before smartTable onQueryChange can fetch)
 	let showUserList = $state(true);
@@ -248,6 +258,21 @@
 	const currentPage = $derived(smartTable.pagination.currentPage);
 	const rowsPerPage = $derived(smartTable.pagination.pageSize);
 	const sorting = $derived(smartTable.sort);
+
+	// Seed the first page from the server load: the table paints with rows instead
+	// of an empty state until the refresh in the view effect below lands.
+	const serverPage = untrack(() => ({ users: initialUsers, total: initialTotal }));
+	if (serverPage.users) {
+		const seededRows = serverPage.users as unknown as TableDataType[];
+		const seededTotal = serverPage.total ?? seededRows.length;
+		smartTable.setRows(seededRows);
+		smartTable.setPaginationMeta({
+			totalItems: seededTotal,
+			pagesCount: Math.max(1, Math.ceil(seededTotal / smartTable.pagination.pageSize)),
+			currentPage: 1,
+			pageSize: smartTable.pagination.pageSize
+		});
+	}
 
 	async function fetchData() {
 		await globalLoadingStore.withLoading(
@@ -1018,12 +1043,10 @@
 		>
 			<thead class={SMART_TABLE_THEAD}>
 				<tr
-					class="border-b border-surface-500/30 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+					class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 				>
 					<TableIcons
-						cellClass="w-10 text-center border-e border-surface-500/30 dark:border-surface-600 {pinCellClass(
-							'start'
-						)}"
+						cellClass="w-10 {pinCellClass('start')}"
 						checked={selectAll.value}
 						onCheck={(checked: boolean) => {
 							selectAll.value = checked;
@@ -1033,7 +1056,7 @@
 					{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 						{@const colKey = String(header.key)}
 						<th
-							class="{SMART_TABLE_TH} relative cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800/50"
+							class="{SMART_TABLE_TH} relative cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800"
 							style={smartTable.getColumnWidthStyle(colKey)}
 							aria-sort={sorting.sortedBy === header.key
 								? sorting.isSorted === 1
@@ -1070,7 +1093,7 @@
 					<tr
 						class="{isExpired || isConsumed
 							? 'bg-surface-500/10 opacity-60 dark:bg-surface-900/20'
-							: ''} {isExpired ? 'bg-error-500/10 dark:bg-error-900/10' : ''} {rowSelected
+							: ''} {isExpired ? 'bg-error-500/10 dark:bg-error-900/20' : ''} {rowSelected
 							? SMART_TABLE_ROW_SELECTED
 							: showUsertoken
 								? `cursor-pointer ${SMART_TABLE_ROW_HOVER}`
@@ -1083,7 +1106,7 @@
 						}}
 					>
 						<TableIcons
-							cellClass="{SMART_TABLE_TD} border-e {pinCellClass('start')}"
+							cellClass="w-10 {pinCellClass('start')}"
 							checked={rowSelected}
 							onCheck={() => {
 								if (rowId) smartTable.toggleSelect(rowId);

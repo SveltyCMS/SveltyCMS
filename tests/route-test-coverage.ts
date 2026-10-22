@@ -114,6 +114,14 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
     ],
   },
   {
+    route: "config/automations/[id]",
+    testFiles: [
+      "tests/unit/routes/automations-page-server.test.ts",
+      "tests/unit/config/automations-api.test.ts",
+      "tests/integration/api/automations.test.ts",
+    ],
+  },
+  {
     route: "config/collectionbuilder",
     testFiles: [
       "tests/unit/routes/collectionbuilder-page-server.test.ts",

@@ -382,7 +382,7 @@ and first/last navigation used by the admin CMS.
 					aria-label="Rows per page"
 					bind:value={rowsPerPage}
 					onchange={() => updateRows(rowsPerPage)}
-					class="rounded border-none bg-surface-500/10 px-2 py-1 text-xs font-bold focus:ring-1 focus:ring-primary-500 dark:bg-surface-800"
+					class="rounded-(--admin-radius-input) border-none bg-surface-500/10 px-2 py-1 text-xs font-bold focus:ring-1 focus:ring-primary-500 dark:bg-surface-800"
 				>
 					{#each rowsPerPageOptions as option (option)}
 						<option value={option}>{option}</option>

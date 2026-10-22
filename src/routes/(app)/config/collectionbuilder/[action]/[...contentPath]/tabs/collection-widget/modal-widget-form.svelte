@@ -631,8 +631,8 @@
 
 {#if local}
 	<!-- Fixed width: the dialog sizes to its content, so tabs would otherwise resize it.
-	     Height matches the Modal body cap (80vh) so only the tab content scrolls and the
-	     header and footer stay in view. -->
+	     Its own 80vh cap keeps the header and footer in view while only the tab
+	     content scrolls (the Modal body itself now fills the dialog). -->
 	<div class="flex max-h-[80vh] w-full flex-col md:w-[min(56rem,calc(100vw-4rem))]">
 		<!-- Header: one title with the field identity beneath it -->
 		<div

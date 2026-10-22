@@ -19,7 +19,6 @@ search filtering, and RTL support.
 - `showBadges` (boolean): Show count badges on nodes (default: false).
 - `ariaLabel` (string): Accessible label for the tree (default: 'Navigation tree').
 - `dir` ('ltr' | 'rtl' | 'auto'): Text direction for RTL language support.
-- `variant` ('default' | 'media'): Media gallery folder styling (root + guide lines).
 - `externalDrop` (object): Optional @thisux/sveltednd drop targets (e.g. media files → folders).
 - `class` (string): Additional CSS classes.
 
@@ -72,6 +71,7 @@ search filtering, and RTL support.
 - multi-density: compact (16px), comfortable (20px), spacious (24px) icon sizes
 - count badges with configurable visibility, color, and icon
 - per-node action buttons revealed on hover
+- one visual language for every sidebar tree (collections, media folders, plugins)
 - loading spinners per node
 - drag-and-drop with before/after/inside position indicators
 - optional external drop (sveltednd) for media → folder moves
@@ -158,7 +158,6 @@ search filtering, and RTL support.
 		showBadges?: boolean;
 		ariaLabel?: string;
 		dir?: 'ltr' | 'rtl' | 'auto';
-		variant?: 'default' | 'media';
 		/** Media-file (or other) external drops onto folder/category rows */
 		externalDrop?: TreeExternalDrop | null;
 		class?: string;
@@ -196,7 +195,6 @@ search filtering, and RTL support.
 		showBadges = false,
 		ariaLabel = 'Navigation tree',
 		dir = 'ltr',
-		variant = 'default',
 		externalDrop = null,
 		class: className,
 		onselect,
@@ -223,7 +221,6 @@ search filtering, and RTL support.
 	// node the user has just collapsed.
 	const seededExpanded = new Set<string>();
 	$effect(() => {
-		if (variant === 'media') return;
 		const syncExpanded = (nodes: TreeItem[]) => {
 			nodes.forEach((node) => {
 				if (!node.id || seededExpanded.has(node.id)) {
@@ -373,18 +370,6 @@ search filtering, and RTL support.
 
 		const hasKids = !!(node.children && node.children.length > 0);
 		const canExpand = hasKids || canNestInto(node);
-		const isMediaRoot = variant === 'media' && node.id === 'root';
-
-		if (isMediaRoot) {
-			if (selectedId !== 'root') {
-				setNodeExpanded('root', true);
-				node.onClick?.();
-			} else if (hasKids) {
-				setNodeExpanded(node.id, !expandedIds.has(node.id));
-			}
-			focusedNodeId = node.id;
-			return;
-		}
 
 		if (canExpand) {
 			const opening = !expandedIds.has(node.id);
@@ -469,7 +454,6 @@ search filtering, and RTL support.
 
 	/** Categories / folders accept "inside" reparent; collections/files only reorder as siblings. */
 	function canNestInto(node: TreeItem): boolean {
-		if (variant === 'media') return true; // all virtual-folder nodes are nestable (incl. root)
 		const kind = (node.type || node.nodeType || '').toString().toLowerCase();
 		if (kind === 'collection' || kind === 'file') return false;
 		if (kind === 'category' || kind === 'folder') return true;
@@ -583,16 +567,9 @@ search filtering, and RTL support.
 	{@const showBadge =
 		shouldShowBadge(node) &&
 		!(showActionsAlways && !!node.actions?.length && computedDensity !== 'compact')}
-	{@const isMedia = variant === 'media'}
-	{@const isRoot = depth === 0 && node.id === 'root'}
-	{@const isCompactRail = computedDensity === 'compact' && !isMedia}
-	{@const isCategory = !isMedia && (node.type === 'category' || node.nodeType === 'category')}
-	{@const showChevron = hasChildren || canNestInto(node)}
-	{@const mediaIconTone = 'text-surface-300 dark:text-surface-400'}
-	{@const mediaRootText = 'text-surface-200 dark:text-surface-400'}
-	{@const mediaFolderText = 'text-surface-400 dark:text-surface-400'}
-	{@const mediaSelectedText = 'text-warning-400 dark:text-warning-400'}
-	{@const mediaGuideLine = 'bg-surface-600/50 dark:bg-white/10'}
+	{@const isCompactRail = computedDensity === 'compact'}
+	{@const isCategory = node.type === 'category' || node.nodeType === 'category'}
+	{@const showChevron = hasChildren || (allowDragDrop && canNestInto(node))}
 
 	<div class="flex flex-col" data-item-id={node.id}>
 		<!--
@@ -605,7 +582,7 @@ search filtering, and RTL support.
     -->
 		<div
 			class="group/item relative isolate flex w-full min-w-0 items-center"
-			data-node-type={node.type || node.nodeType || (isMedia ? 'folder' : undefined)}
+			data-node-type={node.type || node.nodeType || undefined}
 			data-media-drop-target={externalDrop?.enabled ? node.id : undefined}
 			use:droppable={externalDroppableOptions(node.id)}
 			role="treeitem"
@@ -622,6 +599,12 @@ search filtering, and RTL support.
 				// without stopping propagation the root node's handler re-runs after
 				// the child's and can navigate/expand the wrong node.
 				e.stopPropagation();
+				// The row renders as an <a> so hover-preload works. Stopping propagation
+				// also hides the click from SvelteKit's global link handler, so without
+				// this the browser falls back to a full document navigation and the whole
+				// shell (sidebar tree included) reloads. Nodes that own navigation via
+				// `onClick` (goto) must cancel the anchor default.
+				if (node.onClick && (node.href || node.path)) e.preventDefault();
 				toggleNode(node);
 			}}
 			onkeydown={(e: KeyboardEvent) => handleKeyDown(e, node)}
@@ -648,44 +631,27 @@ search filtering, and RTL support.
 				data-sveltekit-preload-data={node.href || node.path ? 'hover' : undefined}
 				class={cn(
 					'flex w-full group focus:outline-none cursor-pointer select-none no-underline text-inherit',
-					isMedia
+					'transition-all border border-transparent',
+					isCompactRail
 						? cn(
-								'justify-start rounded-none border-0 bg-transparent px-0 shadow-none transition-colors',
-								isRoot
-									? cn(
-											'items-center gap-2 py-2.5 text-start text-[15px] font-medium leading-none',
-											isSelected && mediaSelectedText
-										)
-									: cn(
-											'items-center gap-2 py-1.5 text-start text-sm leading-none',
-											'min-h-7.5',
-											isSelected ? cn('font-medium', mediaSelectedText) : 'font-normal'
-										),
-								isFocused && 'ring-1 ring-inset ring-primary-500/40'
+								'flex-col items-center justify-center gap-1 overflow-hidden rounded-lg px-1 py-2 text-center',
+								isSelected
+									? 'border-primary-500/40 bg-primary-500/10 text-primary-600 dark:text-primary-400 shadow-xs'
+									: isCategory
+										? 'bg-tertiary-500/10 text-surface-900 hover:bg-tertiary-500/20 dark:bg-tertiary-900/20 dark:text-surface-100'
+										: 'bg-surface-500/10 text-surface-900 hover:bg-surface-500/20 dark:bg-surface-800/60 dark:text-surface-100 dark:hover:bg-surface-700',
+								isFocused && 'ring-2 ring-inset ring-primary-500/50'
 							)
 						: cn(
-								'transition-all border border-transparent',
-								isCompactRail
-									? cn(
-											'flex-col items-center justify-center gap-1 overflow-hidden rounded-lg px-1 py-2 text-center',
-											isSelected
-												? 'border-primary-500/40 bg-primary-500/10 text-primary-600 dark:text-primary-400 shadow-xs'
-												: isCategory
-													? 'bg-tertiary-500/10 text-surface-900 hover:bg-tertiary-500/20 dark:bg-tertiary-900/20 dark:text-surface-100'
-													: 'bg-surface-500/10 text-surface-900 hover:bg-surface-500/20 dark:bg-surface-800/60 dark:text-surface-100 dark:hover:bg-surface-700',
-											isFocused && 'ring-2 ring-inset ring-primary-500/50'
-										)
-									: cn(
-											'items-center justify-start rounded-lg px-2 text-start',
-											densityTokens.padding,
-											densityTokens.touch,
-											isSelected
-												? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-400 shadow-xs'
-												: isCategory
-													? 'bg-tertiary-500/10 text-surface-900 hover:bg-tertiary-500/20 dark:bg-tertiary-900/20 dark:text-surface-100'
-													: 'bg-surface-500/10 text-surface-900 hover:bg-surface-500/20 dark:bg-surface-800/60 dark:text-surface-100 dark:hover:bg-surface-700',
-											isFocused && 'ring-2 ring-inset ring-primary-500/50 shadow-sm'
-										)
+								'items-center justify-start rounded-lg px-2 text-start',
+								densityTokens.padding,
+								densityTokens.touch,
+								isSelected
+									? 'bg-primary-500/10 border-primary-500/30 text-primary-600 dark:text-primary-400 shadow-xs'
+									: isCategory
+										? 'bg-tertiary-500/10 text-surface-900 hover:bg-tertiary-500/20 dark:bg-tertiary-900/20 dark:text-surface-100'
+										: 'bg-surface-500/10 text-surface-900 hover:bg-surface-500/20 dark:bg-surface-800/60 dark:text-surface-100 dark:hover:bg-surface-700',
+								isFocused && 'ring-2 ring-inset ring-primary-500/50 shadow-sm'
 							),
 					draggedNode?.id === node.id && 'opacity-40 grayscale',
 					dragOverNode?.id === node.id &&
@@ -693,13 +659,7 @@ search filtering, and RTL support.
 						'bg-tertiary-500/20! dark:bg-primary-500/20! border-tertiary-500! dark:border-primary-500!',
 					node.disabled && 'opacity-50 cursor-not-allowed'
 				)}
-				style={!isMedia
-					? isCompactRail
-						? undefined
-						: `padding-inline-start: ${indentLeft(depth)}rem`
-					: !isRoot
-						? `padding-inline-start: ${1.75 + Math.max(0, depth - 1) * 1.25}rem`
-						: undefined}
+				style={isCompactRail ? undefined : `padding-inline-start: ${indentLeft(depth)}rem`}
 			>
 				<!-- Expand/Collapse Chevron or Loading Spinner -->
 				{#if showChevron}
@@ -713,7 +673,7 @@ search filtering, and RTL support.
 					{:else}
 						<iconify-icon
 							icon="mdi:chevron-right"
-							width={isMedia ? '16' : densityTokens.chevron}
+							width={densityTokens.chevron}
 							class={cn(
 								'shrink-0 opacity-60 transition-transform',
 								isCompactRail && 'absolute top-0.5 inset-e-0.5 z-10',
@@ -724,8 +684,10 @@ search filtering, and RTL support.
 							aria-hidden="true"
 						></iconify-icon>
 					{/if}
-				{:else if !isMedia && !isCompactRail}
-					<!-- Spacer when no children, matching chevron width -->
+				{:else if !isCompactRail}
+					<!-- Spacer when there is nothing to expand, matching chevron width so
+					     sibling icons keep the same indent. Media nodes are always nestable
+					     (drag targets) but a chevron on an empty node is a dead control. -->
 					<div class={densityTokens.dummy} aria-hidden="true"></div>
 				{/if}
 
@@ -734,19 +696,13 @@ search filtering, and RTL support.
 					<div class="relative flex shrink-0 items-center">
 						<iconify-icon
 							icon={node.icon}
-							width={isMedia ? (isRoot ? '18' : '16') : isCompactRail ? '22' : densityTokens.icon}
+							width={isCompactRail ? '22' : densityTokens.icon}
 							class={cn(
-								isMedia
-									? isSelected
-										? mediaSelectedText
-										: isRoot
-											? mediaIconTone
-											: mediaFolderText
-									: isSelected
-										? 'text-primary-600 dark:text-primary-500'
-										: isCategory
-											? categoryIconColorClass
-											: iconColorClass
+								isSelected
+									? 'text-primary-600 dark:text-primary-500'
+									: isCategory
+										? categoryIconColorClass
+										: iconColorClass
 							)}
 							aria-hidden="true"
 						></iconify-icon>
@@ -758,19 +714,11 @@ search filtering, and RTL support.
 					title={nodeLabel}
 					class={cn(
 						'truncate transition-colors',
-						isMedia
-							? cn(
-									isRoot ? 'text-[15px]' : 'text-sm',
-									isSelected ? mediaSelectedText : isRoot ? mediaRootText : mediaFolderText,
-									!isSelected && !isRoot && 'hover:text-surface-200 dark:hover:text-surface-400'
-								)
-							: cn(
-									densityTokens.font,
-									isCompactRail && 'max-w-full text-center leading-tight',
-									isSelected
-										? 'font-bold text-primary-600 dark:text-primary-500'
-										: 'font-medium text-(--admin-text-body)'
-								)
+						densityTokens.font,
+						isCompactRail && 'max-w-full text-center leading-tight',
+						isSelected
+							? 'font-bold text-primary-600 dark:text-primary-500'
+							: 'font-medium text-(--admin-text-body)'
 					)}
 				>
 					{nodeLabel}
@@ -881,29 +829,12 @@ search filtering, and RTL support.
 			<div
 				id={`node-${node.id}-children`}
 				data-media-drop-line-guard={externalDrop?.enabled ? '' : undefined}
-				class={cn(
-					'relative',
-					isMedia && isRoot
-						? 'ms-0'
-						: isCompactRail
-							? 'ms-0'
-							: computedDensity === 'compact'
-								? 'ms-1'
-								: 'ms-4'
-				)}
+				class={cn('relative', isCompactRail ? 'ms-0' : 'ms-4')}
 				role="group"
 				aria-labelledby={`treenode-${node.id}`}
 			>
-				<!-- Vertical Guide Line — media root only, aligned to home icon column -->
-				{#if isMedia && isRoot && expanded}
-					<div
-						class={cn(
-							'pointer-events-none absolute bottom-0 inset-s-5.75 top-0 w-px',
-							mediaGuideLine
-						)}
-						aria-hidden="true"
-					></div>
-				{:else if !isMedia && !isCompactRail}
+				<!-- Vertical guide line for nested levels -->
+				{#if !isCompactRail}
 					<div
 						class="absolute inset-s-0 top-0 w-px bg-linear-to-b from-surface-200 to-transparent dark:from-surface-700"
 						style="margin-inline-start: {guidelineLeft(depth)}rem; height: 100%"

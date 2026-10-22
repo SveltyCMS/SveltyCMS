@@ -111,11 +111,16 @@
 				{#if activeTab === 'plugins'}
 					<PluginsView {data} />
 				{:else if activeTab === 'widgets'}
-					<WidgetDashboard {data} />
+					<WidgetDashboard {data} initialWidgets={data.widgets} />
 				{:else if activeTab === 'dashboard'}
 					<DashboardWidgetsView {data} />
 				{:else if activeTab === 'marketplace'}
-					<MarketplaceView />
+					<MarketplaceView
+						initialItems={data.marketplace.items}
+						initialSource={data.marketplace.source}
+						initialRemoteAvailable={data.marketplace.remoteAvailable}
+						initialLoaded
+					/>
 				{/if}
 			</div>
 		</AdminCard>
