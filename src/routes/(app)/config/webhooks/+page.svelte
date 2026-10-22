@@ -226,7 +226,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 				{webhooks_delivery_logs()}
 			</Button>
 			<Button
-				variant="tertiary"
+				variant="primary"
 				onclick={openAddModal}
 				aria-label={webhooks_add_aria()}
 				leadingIcon="mdi:plus"

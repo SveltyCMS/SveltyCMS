@@ -77,7 +77,7 @@ None (reads `page` rune from `$app/state`).
 			{/if}
 
 			<div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-				<Button variant="outline" href="/dashboard">{error_go_dashboard()}</Button>
+				<Button variant="primary" href="/dashboard">{error_go_dashboard()}</Button>
 
 				<Button
 					variant="outline"
