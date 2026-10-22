@@ -1727,7 +1727,7 @@ Handles all field types and validation automatically
 						</div>
 
 						<Button
-							variant="tertiary"
+							variant="primary"
 							type="submit"
 							form="settings-group-form"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}

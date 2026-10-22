@@ -755,7 +755,7 @@
 					aria-label={dashboard_ai_toggle()}
 					title={dashboard_ai_toggle()}
 					data-testid="dashboard-ai-toggle"
-					class="p-0! min-w-0"
+					class="w-10 p-0! min-w-0"
 				>
 					<iconify-icon
 						icon="mdi:robot-outline"
@@ -770,7 +770,7 @@
 						aria-label={dashboard_reset_widgets()}
 						title={dashboard_reset_widgets()}
 						data-testid="dashboard-reset-widgets"
-						class="p-0! min-w-0"
+						class="w-10 p-0! min-w-0"
 					>
 						<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
 					</Button>
@@ -778,7 +778,7 @@
 				<div class="relative">
 					{#if availableWidgets.length > 0}
 						<Button
-							variant="tertiary"
+							variant="primary"
 							onclick={() => (dropdownOpen = !dropdownOpen)}
 							aria-haspopup="true"
 							aria-expanded={dropdownOpen}

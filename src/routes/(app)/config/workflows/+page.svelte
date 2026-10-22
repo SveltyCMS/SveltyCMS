@@ -401,13 +401,13 @@ their arrows so the canvas stays readable.
 		spaceY="4"
 	>
 		{#snippet actions()}
-			<Button variant="surface" onclick={addState} data-testid="workflow-add-state"
+			<Button variant="ghost" onclick={addState} data-testid="workflow-add-state"
 				>{workflows_add_state()}</Button
 			>
-			<Button variant="surface" onclick={addTransition} data-testid="workflow-add-transition"
+			<Button variant="ghost" onclick={addTransition} data-testid="workflow-add-transition"
 				>{workflows_add_transition()}</Button
 			>
-			<Button variant="tertiary" onclick={saveWorkflow} data-testid="workflow-save"
+			<Button variant="primary" onclick={saveWorkflow} data-testid="workflow-save"
 				>{workflows_save()}</Button
 			>
 		{/snippet}
