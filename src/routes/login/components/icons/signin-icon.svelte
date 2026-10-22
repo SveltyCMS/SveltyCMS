@@ -43,9 +43,9 @@
 		tabindex={disabled ? -1 : 0}
 		class="flex cursor-pointer flex-col items-center"
 	>
-		<div class="relative w-max rounded-full border-4 border-[#2b2f31] p-3">
+		<div class="relative w-max rounded-full border-4 border-[#2b2f31] p-3 dark:border-white">
 			<svg
-				class="aspect-square h-12 fill-[#2b2f31]"
+				class="aspect-square h-12 fill-[#2b2f31] dark:fill-white"
 				xmlns="http://www.w3.org/2000/svg"
 				xmlns:xlink="http://www.w3.org/1999/xlink"
 				viewBox="0 0 50 50"
@@ -55,7 +55,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase text-black!">{form_signin()}</p>
+		<p class="text-center font-semibold uppercase text-black! dark:text-white!">{form_signin()}</p>
 	</div>
 </div>
 

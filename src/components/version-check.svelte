@@ -306,13 +306,13 @@ refreshed by one mechanism: the hourly interval below.
 			href={GITHUB_RELEASES_URL}
 			target="_blank"
 			rel="noopener noreferrer"
-			class="absolute bottom-5 inset-s-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full bg-surface-900/10 dark:text-white px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+			class="absolute bottom-5 inset-s-1/2 flex -translate-x-1/2 transform items-center justify-between w-28 gap-2 rounded-full bg-surface-900/85 text-white px-4 py-1 text-sm font-bold transition-opacity duration-300 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
 			aria-label={statusAriaLabel}
 			aria-live="polite"
 		>
 			<!-- Transparent mode — fixed neutral pill: status never repaints it, so no
 			     critical ping either (a pre-auth check failure is not actionable here). -->
-			<span class="text-black">Ver.</span>
+			<span class="text-white/70">Ver.</span>
 			<span class="text-white">{pkg}</span>
 		</a>
 	{:else}
