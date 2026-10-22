@@ -54,6 +54,7 @@ export const WIDGET_MESSAGES = {
   widget_relation_description: () => "Relation",
   widget_remoteVideo_description: () => "Remote Video",
   widget_richText_description: () => "Rich Text",
+  widget_select_description: () => "Select",
   widget_seo_description: () => "SEO",
   widget_text_description: () => "Text",
 } as const;
