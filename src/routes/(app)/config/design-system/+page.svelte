@@ -1039,7 +1039,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									<iconify-icon icon="mdi:compass-outline" width="16"></iconify-icon>
 									{theme_open_preview()}
 								</button>
-								— {theme_preview_rest()}
+								{theme_preview_rest()}
 							</p>
 
 							<PaletteStudio
