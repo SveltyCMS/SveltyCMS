@@ -105,6 +105,8 @@ tags:
   - Surface focal-point and watermark coordinates directly in REST/GraphQL image payloads.
   - Add ThumbHash LQIP support via the `thumbhash` package.
 - **Media gallery coverage & unimplemented surfaces (2026-10-21)**:
+  - [x] Server pagination: the loader reads `?page`, preserves the adapter total and the views merge pages; pinned by `tests/e2e/routes/mediagallery/media-pagination.spec.ts` (2026-10-24).
+  - [ ] **Server-side search across unfetched pages**: `getByFolder` has no `search` option on all four adapters, so search still ranges over fetched rows. Needs an adapter-level contract + `?q=` in the loader.
   - [x] Large-library batched rendering (60-tile window + IntersectionObserver sentinel) pinned by `tests/e2e/routes/mediagallery/large-library.spec.ts`.
   - [x] Client-side pre-upload optimization (Canvas 2D, 1920×1080 clamp, WebP) pinned by `upload-optimization.spec.ts` against the stored dimensions.
   - [x] Remote-URL ingestion success + SSRF rejection pinned by `remote-ingestion.spec.ts` (real local HTTP peer via the test-only exact-origin allowlist).
