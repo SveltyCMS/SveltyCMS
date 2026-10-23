@@ -136,6 +136,18 @@ export async function invalidateAllCaches(tenantId: DatabaseId) {
     const { cacheService } = await loadCacheServiceModule();
     await cacheService.invalidateAll();
 
+    // A reset wipes the database; every in-process content/schema cache must go
+    // with it. These live in module singletons, so `cacheService.invalidateAll()`
+    // (L1/L2 key-value cache) never touched them: previously a subsequent test
+    // file could resolve a collection from the *previous* file's content-store
+    // node — e.g. a schema whose `revision` flag had been re-written from a
+    // regenerated source file — and fail order-dependently.
+    const { contentStore } = await import("@src/stores/content-registry.svelte");
+    contentStore.clear();
+    const { clearSchemaCache } =
+      await import("@src/services/sdk/namespaces/collections/schema-store");
+    clearSchemaCache();
+
     const { securityResponseService } = await import("@src/services/security/response-service");
     securityResponseService.reset();
 
