@@ -32,6 +32,12 @@ describe("rowsAffected", () => {
     expect(rowsAffected(rowList)).toBe(3);
   });
 
+  it("prefers `count` over `changes` when a shape reports both", () => {
+    // The lookup order is deliberate (`count` first): a driver container that also
+    // carries `changes` must not shadow the value the caller relies on.
+    expect(rowsAffected({ count: 3, changes: 1 })).toBe(3);
+  });
+
   it("reads the SQLite changes shape", () => {
     expect(rowsAffected({ changes: 2 })).toBe(2);
   });

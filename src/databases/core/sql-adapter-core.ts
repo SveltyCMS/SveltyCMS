@@ -3166,24 +3166,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (!whereCondition) {
           assertFilteredDelete(false, options.confirmWipe);
           if (options.permanent || !hasIsDeleted) {
-            await execWrite(db.delete(table) as { run?: () => Promise<unknown> });
-            return { deletedCount: -1 };
+            const wiped = await execWrite(db.delete(table) as { run?: () => Promise<unknown> });
+            return { deletedCount: rowsAffected(wiped) ?? -1 };
           }
           const wiped = await execWrite(
             db.update(table).set({ isDeleted: true, updatedAt: new Date() }) as {
               run?: () => Promise<unknown>;
             },
           );
-          const wipedCount =
-            (wiped as any)?.count ?? (wiped as any)?.changes ?? (wiped as any)?.affectedRows ?? -1;
-          return { deletedCount: wipedCount };
+          return { deletedCount: rowsAffected(wiped) ?? -1 };
         }
         // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
         if (options.permanent || !hasIsDeleted) {
-          await execWrite(
+          const hardDeleted = await execWrite(
             db.delete(table).where(whereCondition) as { run?: () => Promise<unknown> },
           );
-          return { deletedCount: -1 };
+          return { deletedCount: rowsAffected(hardDeleted) ?? -1 };
         }
         const res = await execWrite(
           db
@@ -3194,9 +3192,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           },
         );
         // Affected rows differ per dialect: postgres.js -> .count, sqlite -> .changes,
-        // mysql2 -> .affectedRows. Fall back to -1 (unknown) when not exposed.
-        const affected =
-          (res as any)?.count ?? (res as any)?.changes ?? (res as any)?.affectedRows ?? -1;
+        // mysql2 -> [ResultSetHeader, fields]. Fall back to -1 (unknown) when the
+        // driver does not report one.
+        const affected = rowsAffected(res) ?? -1;
         return { deletedCount: affected };
       },
       "DELETE_MANY_FAILED",
