@@ -1446,7 +1446,7 @@
   "queue_empty": "Aucune tâche ne correspond aux filtres actuels.",
   "queue_failed": "Échec",
   "queue_filter": "Filtre :",
-  "queue_job_id": "ID de tâche Type de tâche Statut Tentatives Prochaine exécution Créée Actions",
+  "queue_job_id": "ID de tâche",
   "queue_next_run": "Prochaine exécution",
   "queue_pending": "En attente",
   "queue_recent": "Tâches récentes",
