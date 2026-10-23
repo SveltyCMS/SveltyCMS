@@ -9,6 +9,7 @@
 // System Logger
 import { logger } from "@utils/logger";
 import { corePermissions } from "./core-permissions";
+import { isCatalogPermissionId } from "./permission-catalog";
 import { permissionCache } from "@utils/security/permission-cache";
 import { isAdmin } from "./constants";
 import {
@@ -59,6 +60,17 @@ export function registerPermission(permission: Permission): void {
 // Get all registered permissions
 export function getAllPermissions(): Permission[] {
   return Array.from(permissionRegistry.values());
+}
+
+// Whether an id may be stored on a role.
+//
+// The catalog is the source of truth for built-in ids; `corePermissions` is a legacy
+// table that trails it, so checking the registry alone rejected valid grants
+// (`collections:read_drafts` is granted to the built-in Editor role and lives only in
+// the catalog, which made /api/user/update-roles answer 400 for the whole payload).
+// Dynamic/plugin permissions are still only known to the registry.
+export function isAcceptablePermissionId(permissionId: string): boolean {
+  return permissionRegistry.has(permissionId) || isCatalogPermissionId(permissionId);
 }
 
 // Get a permission by ID

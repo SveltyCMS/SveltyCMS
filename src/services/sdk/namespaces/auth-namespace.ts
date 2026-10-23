@@ -32,7 +32,10 @@ import { dateToISODateString, isoDateStringToDate } from "@src/utils/date";
 import { verifyPassword, verifyDummyPassword } from "@utils/security/crypto";
 import { isMultiTenantEnabled, withTenant } from "@utils/tenant-isolation.server";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
-import { getAllPermissions, invalidatePermissionCache } from "@src/databases/auth/permissions";
+import {
+  invalidatePermissionCache,
+  isAcceptablePermissionId,
+} from "@src/databases/auth/permissions";
 import { sessionTtlMs } from "@src/databases/auth/constants";
 import { invalidateRolesCache } from "@src/hooks/handle-authorization";
 import { isAutomatedTestHarness } from "@utils/private-config-policy";
@@ -781,8 +784,6 @@ export class AuthNamespace {
 
   private async validateRoles(roles: Role[]): Promise<{ isValid: boolean; error?: string }> {
     if (roles.length === 0) return { isValid: false, error: "At least one role required" };
-    const permissions = await getAllPermissions();
-    const permissionIds = new Set(permissions.map((p) => p._id));
     const roleNames = new Set<string>();
     const roleIds = new Set<string>();
     let hasAdmin = false;
@@ -795,7 +796,9 @@ export class AuthNamespace {
       roleNames.add(nameKey);
       if (!role.isAdmin) {
         for (const perm of role.permissions) {
-          if (!permissionIds.has(perm as DatabaseId))
+          // Catalog ids (and their aliases) are valid even when the legacy
+          // `corePermissions` table never listed them.
+          if (!isAcceptablePermissionId(perm))
             return { isValid: false, error: `Invalid permission: ${perm}` };
         }
       }
