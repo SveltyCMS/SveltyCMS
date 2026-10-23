@@ -69,7 +69,17 @@ export class MariadbWireStreamEngine {
       const idColName = idCol.name || "_id";
 
       const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? "`updatedAt`" : "NULL";
+      // The point ETag IS the optimistic-lock token, so it must not depend on how
+      // the driver interprets a zone-less DATETIME. `DATE_FORMAT` renders the
+      // stored UTC wall clock as a canonical ISO string (millisecond precision)
+      // inside MariaDB: every read lane and every host timezone then sees the same
+      // token. Selecting the bare column let mysql2 build a JS `Date` in the
+      // process timezone, so a runner whose TZ differed from the session's could
+      // hand `If-Match` an ETag an offset away from the row version it was being
+      // compared against — a 409 on a row nobody had changed.
+      const updatedAtSelect = hasUpdatedAtCol
+        ? "CONCAT(DATE_FORMAT(`updatedAt`, '%Y-%m-%dT%H:%i:%s.'), LPAD(FLOOR(MICROSECOND(`updatedAt`) / 1000), 3, '0'), 'Z')"
+        : "NULL";
       // 🔒 Soft-delete clamp for the public wire plane (see findPointWireStream).
       const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
       const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");

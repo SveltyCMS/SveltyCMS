@@ -579,6 +579,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
 
       this._rawPoolConfig = poolConfig;
+      // DATETIME columns carry no zone. The adapter writes UTC wall-clock values
+      // (`mariaDateString`) and the ETag/write lanes compare them as UTC, so parse
+      // and bind Dates as UTC too. With the default (`timezone: 'local'`) a host
+      // offset changes both the JS Date produced from a DATETIME and the SQL a JS
+      // Date is escaped into — the two sides of an optimistic-lock comparison then
+      // disagree on a non-UTC runner.
+      if (poolConfig && typeof poolConfig === "object") poolConfig.timezone = "Z";
       this.pool = mysql.createPool(poolConfig);
       this.activeDatabaseName =
         poolConfig.database ||

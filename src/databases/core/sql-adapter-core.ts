@@ -51,6 +51,7 @@ import {
   materializedColumnTypes,
   SQL_TABLE_ALIASES,
   SYSTEM_LITERAL_COLUMNS,
+  rowsAffected,
 } from "./drizzle-sql-helpers";
 import { normalizeCollectionTableName } from "./collection-name";
 import { generateUUID } from "@utils/native-utils";
@@ -3028,9 +3029,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             : await queryBuilder;
 
         return {
-          // postgres.js exposes .count; sqlite .changes; mysql2 .affectedRows
-          modifiedCount:
-            (result as any).count ?? (result as any).changes ?? (result as any).affectedRows ?? 0,
+          // postgres.js exposes .count, sqlite .changes, mysql2 returns the raw
+          // `[ResultSetHeader, fields]` tuple — `rowsAffected` unwraps every shape
+          // (reading `.affectedRows` off the tuple yielded undefined → 0, which
+          // made a successful compare-and-set look like a miss).
+          modifiedCount: rowsAffected(result) ?? 0,
         };
       },
       "UPDATE_MANY_FAILED",

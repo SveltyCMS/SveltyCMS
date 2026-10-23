@@ -145,7 +145,13 @@ describe("Optimistic locking, revision restore, and filter validation", () => {
       headers: { "If-Match": loaded.etag },
       body: JSON.stringify({ title: "etag-b" }),
     });
-    expect(updated.status, JSON.stringify(updated.body)).toBe(200);
+    // Name both sides of the comparison: a 409 here on an unchanged row means
+    // the wire ETag and the stored row version disagree, and the next CI
+    // annotation must show which one moved (see `versionTokenString`).
+    expect(
+      updated.status,
+      `If-Match ${loaded.etag} must match the stored version — response: ${JSON.stringify(updated.body)}`,
+    ).toBe(200);
 
     const fetched = await api(`/api/collections/${COLLECTION}/${id}`);
     expect(rowOf(fetched.body).title).toBe("etag-b");
@@ -163,7 +169,10 @@ describe("Optimistic locking, revision restore, and filter validation", () => {
       headers: { "If-Match": first.etag },
       body: JSON.stringify({ title: "conflict-winner" }),
     });
-    expect(won.status, JSON.stringify(won.body)).toBe(200);
+    expect(
+      won.status,
+      `If-Match ${first.etag} must match the stored version — response: ${JSON.stringify(won.body)}`,
+    ).toBe(200);
 
     const current = await api(`/api/collections/${COLLECTION}/${id}`);
     await tick();
