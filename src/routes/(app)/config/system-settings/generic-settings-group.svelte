@@ -121,7 +121,7 @@ Handles all field types and validation automatically
 		children
 	}: Props = $props();
 
-	let loading = $state(initialValues === null);
+	let loading = $state(untrack(() => initialValues === null));
 	let error = $state<string | null>(null);
 	// Eagerly initialize with server values (or safe defaults): binding `undefined`
 	// into a `$bindable()` prop with a fallback (e.g. <Select value=$bindable('')>)

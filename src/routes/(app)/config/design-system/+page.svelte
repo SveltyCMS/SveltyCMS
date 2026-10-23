@@ -306,7 +306,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	const liveTheme = getThemeContext() as AdminTheme | undefined;
 
 	// ── Theme list management ──
-	let themes = $state<ThemeSummary[]>(data.themes ?? []);
+	let themes = $state<ThemeSummary[]>(untrack(() => data.themes ?? []));
 	let loadingThemes = $state(false);
 	let newThemeName = $state('');
 	let cloneName = $state('');

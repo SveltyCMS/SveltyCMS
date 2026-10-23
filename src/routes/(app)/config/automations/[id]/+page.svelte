@@ -150,17 +150,20 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	} | null = $state(null);
 
 	let flow: AutomationFlow = $state(
-		data.flow ?? {
-			id: '',
-			name: '',
-			description: '',
-			active: true,
-			trigger: { type: 'event', events: [], collections: [] },
-			operations: [],
-			createdAt: '',
-			updatedAt: '',
-			tenantId: ''
-		}
+		untrack(
+			() =>
+				data.flow ?? {
+					id: '',
+					name: '',
+					description: '',
+					active: true,
+					trigger: { type: 'event', events: [], collections: [] },
+					operations: [],
+					createdAt: '',
+					updatedAt: '',
+					tenantId: ''
+				}
+		)
 	);
 	// ── Lifecycle ──
 

@@ -89,7 +89,7 @@
     "check": "bun run format --check && oxlint --deny-warnings --ignore-pattern 'src/types/**' && bun run scripts/lint/lint-design.ts && bun run scripts/lint/consolidate-shades.ts --check && bun run scripts/lint/lint-widgets.ts && bun run scripts/check/check-lockfile-sync.ts && bun run check:seams && bun run version:verify && bun run typecheck",
     "check:copy": "bun run scripts/check/check-hardcoded-copy.ts",
     "check:seams": "bun run scripts/check/check-seam-assertions.ts",
-    "typecheck": "svelte-kit sync && tsc --noEmit -p tsconfig.json && svelte-check --tsconfig ./tsconfig.json --threshold error",
+    "typecheck": "svelte-kit sync && tsc --noEmit -p tsconfig.json && bun run scripts/check/check-svelte-diagnostics.ts",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "oxlint --deny-warnings --ignore-pattern 'src/types/**'",
     "lint:ci": "oxlint --deny-warnings --quiet --format=github --ignore-pattern 'src/types/**'",

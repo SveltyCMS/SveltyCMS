@@ -14,7 +14,7 @@ their arrows so the canvas stays readable.
 - full Svelte 5 runes; logical (RTL-safe) spacing
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { fade } from 'svelte/transition';
 	import { generateUUID } from '@utils/native-utils';
@@ -83,12 +83,12 @@ their arrows so the canvas stays readable.
 
 	let selectedNodeId = $state<string | null>(null);
 	let selectedTransitionId = $state<string | null>(null);
-	let collections = $state<WorkflowCollectionOption[]>(data.collections);
+	let collections = $state<WorkflowCollectionOption[]>(untrack(() => data.collections));
 
 	const collectionOptions = $derived(
 		collections.map((col) => ({ value: col._id, label: col.name || col._id }))
 	);
-	let roles = $state<WorkflowRoleOption[]>(data.roles);
+	let roles = $state<WorkflowRoleOption[]>(untrack(() => data.roles));
 	const roleOptions = $derived(
 		roles
 			.filter((role) => Boolean(role._id ?? role.id))
