@@ -757,22 +757,26 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 	<!-- Tab Navigation (all users: overrides + preview; admin: full workspace) -->
 	<AdminCard class="shadow-sm backdrop-blur-md">
+		<!-- Underline tab style of the shared Tabs component (ui/tabs.svelte, variant="underline") -->
 		<div
-			class="flex flex-wrap gap-1 p-2 border-b"
+			class="flex gap-2 overflow-x-auto overflow-y-clip border-b px-2"
 			style="border-color: var(--admin-border-default)"
+			role="tablist"
 			data-testid="appearance-tabs"
 		>
 			{#each visibleTabs as tab (tab.id)}
 				<Button
-					variant="tertiary"
+					variant="transparent"
+					role="tab"
+					aria-selected={activeTab === tab.id}
 					onclick={() => setActiveTab(tab.id)}
-					size="sm"
 					data-testid={`appearance-tab-${tab.id}`}
-					class={activeTab === tab.id
-						? 'bg-surface-500/10 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500'
-						: ''}
+					class="flex items-center gap-2.5 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 rounded-none! border-b-2 {activeTab ===
+					tab.id
+						? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
+						: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:border-surface-500/30'}"
 				>
-					<iconify-icon icon={tab.icon} width="16"></iconify-icon>
+					<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
 					<span>{tab.label}</span>
 				</Button>
 			{/each}
@@ -1425,10 +1429,12 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	<!-- Save Bar (admin theme edits only) -->
 	{#if hasChanges && isAdmin && activeTab !== 'overrides' && activeTab !== 'preview'}
 		<div
-			class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 backdrop-blur-md flex items-center justify-between"
+			class="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 px-4 py-4 backdrop-blur-md"
 		>
-			<p class="text-sm text-warning-600 dark:text-warning-400 font-medium">
-				<iconify-icon icon="mdi:alert-circle" class="inline me-1" width="16"></iconify-icon>
+			<p
+				class="flex items-center gap-1.5 text-sm font-medium text-warning-600 dark:text-warning-400"
+			>
+				<iconify-icon icon="mdi:alert-circle" class="shrink-0" width="16"></iconify-icon>
 				{theme_unsaved()}
 			</p>
 			<div class="flex gap-2">
