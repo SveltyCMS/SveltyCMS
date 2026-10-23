@@ -67,25 +67,12 @@
 		license?: string;
 	}
 
-	let {
-		initialItems = [],
-		initialSource = 'local',
-		initialRemoteAvailable = false,
-		initialLoaded = false
-	}: {
-		initialItems?: CatalogItem[];
-		initialSource?: 'local' | 'remote' | 'mixed';
-		initialRemoteAvailable?: boolean;
-		/** True when the catalog came from a server load (skip the mount fetch). */
-		initialLoaded?: boolean;
-	} = $props();
-
-	let items = $state<CatalogItem[]>(initialLoaded ? [...initialItems] : []);
+	let items = $state<CatalogItem[]>([]);
 	let loading = $state(false);
 	let query = $state('');
 	let typeFilter = $state('all');
-	let remoteAvailable = $state(initialLoaded ? initialRemoteAvailable : false);
-	let source = $state<'local' | 'remote' | 'mixed'>(initialLoaded ? initialSource : 'local');
+	let remoteAvailable = $state(false);
+	let source = $state<'local' | 'remote' | 'mixed'>('local');
 	let installingId = $state<string | null>(null);
 	let detailItem = $state<CatalogItem | null>(null);
 	let detailOpen = $state(false);
@@ -131,7 +118,7 @@
 	}
 
 	onMount(() => {
-		if (!initialLoaded) loadCatalog().catch(() => {});
+		loadCatalog().catch(() => {});
 	});
 
 	async function installItem(item: CatalogItem, key?: string) {

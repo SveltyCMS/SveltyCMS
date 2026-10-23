@@ -115,12 +115,9 @@
 				{:else if activeTab === 'dashboard'}
 					<DashboardWidgetsView {data} />
 				{:else if activeTab === 'marketplace'}
-					<MarketplaceView
-						initialItems={data.marketplace.items}
-						initialSource={data.marketplace.source}
-						initialRemoteAvailable={data.marketplace.remoteAvailable}
-						initialLoaded
-					/>
+					<!-- Fetched on mount: the catalog is remote and refreshable, and its
+					     /api/marketplace route is the single source of truth. -->
+					<MarketplaceView />
 				{/if}
 			</div>
 		</AdminCard>
