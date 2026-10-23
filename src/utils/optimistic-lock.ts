@@ -83,3 +83,18 @@ export function matchesVersion(current: unknown, expected: VersionToken): boolea
   if (currentKey === null || expectedKey === null) return false;
   return currentKey === expectedKey;
 }
+
+/**
+ * Render a stored row version for a wire ETag (`"<id>-<version>"`).
+ *
+ * Drizzle adapters hand back a `Date`, and `String(date)` produces an
+ * RFC-2822-style string that {@link normalizeExpectedVersion} cannot reduce to a
+ * timestamp — every `If-Match` echo then failed closed as a stale conflict on
+ * MariaDB/PostgreSQL while SQLite (ISO strings) passed. Always emit ISO.
+ */
+export function versionTokenString(value: unknown): string {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? "" : value.toISOString();
+  }
+  return value === null || value === undefined ? "" : String(value);
+}

@@ -70,6 +70,7 @@ import { contentStore } from "@src/stores/content-registry.svelte";
 import type { DatabaseId, Schema } from "@src/content/types";
 import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
+import { versionTokenString } from "@utils/optimistic-lock";
 import { resolvePublicationFilter } from "@utils/security/publication-policy";
 import {
   serializeSuccessEnvelope,
@@ -1026,7 +1027,7 @@ async function rebuildWarmCollectionRead(
   const rawRow = record.data as { _id?: unknown; updatedAt?: unknown } | null;
   const pointEtag =
     entryId && rawRow && typeof rawRow === "object"
-      ? `"${String(rawRow._id ?? entryId)}-${String(rawRow.updatedAt ?? "")}"`
+      ? `"${String(rawRow._id ?? entryId)}-${versionTokenString(rawRow.updatedAt)}"`
       : null;
   // One JSON string. The lane builds the only Response, from the prebuilt
   // security-header template. A second Response here was pure overhead on a miss.

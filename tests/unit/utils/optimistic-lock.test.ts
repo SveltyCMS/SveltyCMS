@@ -9,7 +9,12 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { matchesVersion, normalizeExpectedVersion, versionKey } from "@utils/optimistic-lock";
+import {
+  matchesVersion,
+  normalizeExpectedVersion,
+  versionKey,
+  versionTokenString,
+} from "@utils/optimistic-lock";
 
 const ISO = "2026-10-21T15:04:05.000Z";
 const MS = Date.parse(ISO);
@@ -82,6 +87,26 @@ describe("optimistic-lock", () => {
     it("fails closed when the stored version is unreadable", () => {
       expect(matchesVersion(undefined, ISO)).toBe(false);
       expect(matchesVersion("garbage", ISO)).toBe(false);
+    });
+  });
+
+  describe("versionTokenString", () => {
+    it("emits ISO for a Date so the ETag round-trips through If-Match", () => {
+      const etag = `"doc-${versionTokenString(new Date(ISO))}"`;
+      expect(etag).toBe(`"doc-${ISO}"`);
+      expect(normalizeExpectedVersion(etag)).toBe(ISO);
+      expect(matchesVersion(new Date(ISO), etag)).toBe(true);
+    });
+
+    it("keeps string and numeric versions untouched", () => {
+      expect(versionTokenString(ISO)).toBe(ISO);
+      expect(versionTokenString(MS)).toBe(String(MS));
+    });
+
+    it("renders an invalid Date and a missing version as empty", () => {
+      expect(versionTokenString(new Date("nope"))).toBe("");
+      expect(versionTokenString(null)).toBe("");
+      expect(versionTokenString(undefined)).toBe("");
     });
   });
 });
