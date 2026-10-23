@@ -148,7 +148,11 @@ color themes, header/footer snippet slots, and full focus management via `useDia
 				!isEditorShell && 'shadow-2xl transition-all duration-300 transform scale-100 opacity-100',
 				'flex flex-col overflow-hidden',
 				'w-full',
-				isExpandedBody ? 'h-full min-h-0' : 'm-auto max-h-full',
+				// `max-h-full` alone does not constrain the card: the <dialog> is auto-height
+				// (UA max-height only), so the percentage never resolves, the card grows past
+				// the viewport and the footer (Cancel/Save) can never be scrolled into view.
+				// An explicit viewport cap makes the body (`overflow-y-auto`) the scroller.
+				isExpandedBody ? 'h-full min-h-0' : 'm-auto max-h-[calc(100dvh-4rem)]',
 				sizeClasses[size],
 				isEditorShell ? 'text-white border-0 ring-0 outline-none' : colorClasses[color],
 				className
