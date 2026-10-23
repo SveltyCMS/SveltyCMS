@@ -103,6 +103,14 @@ describe("optimistic-lock", () => {
       expect(versionTokenString(MS)).toBe(String(MS));
     });
 
+    it("handles space-separated SQL datetimes deterministically as UTC", () => {
+      const sqlDt = "2026-10-21 15:04:05.000";
+      expect(versionKey(sqlDt)).toBe(MS);
+      expect(matchesVersion(sqlDt, ISO)).toBe(true);
+      expect(matchesVersion(ISO, `"id-${sqlDt}"`)).toBe(true);
+      expect(versionTokenString(sqlDt)).toBe(ISO);
+    });
+
     it("renders an invalid Date and a missing version as empty", () => {
       expect(versionTokenString(new Date("nope"))).toBe("");
       expect(versionTokenString(null)).toBe("");

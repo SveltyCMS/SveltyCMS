@@ -45,7 +45,11 @@ export function normalizeExpectedVersion(raw: unknown): VersionToken {
   }
 
   const iso = TRAILING_ISO.exec(value);
-  if (iso) return iso[1].replace(" ", "T");
+  if (iso) {
+    let t = iso[1].replace(" ", "T");
+    if (!t.endsWith("Z") && !/[+-]\d{2}(:\d{2})?$/.test(t)) t += "Z";
+    return t;
+  }
   const epoch = TRAILING_EPOCH.exec(value);
   if (epoch) return epoch[1];
   return value;
@@ -62,11 +66,12 @@ export function versionKey(value: unknown): number | null {
     const trimmed = value.trim();
     if (!trimmed) return null;
     if (/^\d+$/.test(trimmed)) return Number(trimmed);
-    const normalized = trimmed.includes(" ")
-      ? trimmed.replace(" ", "T") +
-        (trimmed.endsWith("Z") || /[+-]\d{2}(:\d{2})?$/.test(trimmed) ? "" : "Z")
-      : trimmed;
-    const ms = Date.parse(normalized);
+    const normalized = trimmed.replace(" ", "T");
+    const withZ =
+      normalized.endsWith("Z") || /[+-]\d{2}(:\d{2})?$/.test(normalized)
+        ? normalized
+        : `${normalized}Z`;
+    const ms = Date.parse(withZ);
     if (!Number.isNaN(ms)) return ms;
     const fallback = Date.parse(trimmed);
     return Number.isNaN(fallback) ? null : fallback;
