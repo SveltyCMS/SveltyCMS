@@ -311,7 +311,7 @@ and first/last navigation used by the admin CMS.
 							onchange={(e) => updateRows(parseInt((e.target as HTMLSelectElement).value, 10))}
 							class="h-8 cursor-pointer appearance-none {canPaginate
 								? 'border-e border-surface-500/30 dark:border-surface-600'
-								: ''} bg-transparent px-3 text-center text-xs font-semibold text-tertiary-500 hover:bg-surface-200 dark:text-primary-500 dark:hover:bg-surface-700 md:text-sm"
+								: ''} bg-transparent px-3 text-center text-xs font-semibold text-surface-900 hover:bg-surface-200 dark:text-white dark:hover:bg-surface-700 md:text-sm"
 						>
 							{#each rowsPerPageOptions as pageSize (pageSize)}
 								<option
