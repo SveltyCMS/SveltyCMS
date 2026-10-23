@@ -16,8 +16,8 @@ tags:
 
 # E2E Coverage Matrix — Route-Based Analysis
 
-> Generated: 2026-06-19 (spec count refreshed 2026-08-09)
-> Total routes: 10 (matrix scope below) | Total E2E specs: **44 on disk** | CI projects: **5** (wizard · firstuser · oauth · auth-setup · chromium)
+> Generated: 2026-06-19 (spec count refreshed 2026-10-23)
+> Total routes: 10 (matrix scope below) | Total E2E specs: **66 on disk** | CI projects: **5** (wizard · firstuser · oauth · auth-setup · chromium)
 
 ## 1. `/setup` — Setup Wizard (24 components, 6 tested)
 
@@ -274,7 +274,20 @@ Source of truth: [`playwright.config.ts`](../../playwright.config.ts) — 5 proj
 | `auth-setup` | `auth.setup.ts` + `routes/login/login.spec.ts` (serial, 1 worker)                | `firstuser`  |
 | `chromium`   | all remaining route specs — fully parallel, CI-sharded via named `--grep` groups | `auth-setup` |
 
-CI (`e2e-prep`) runs `wizard` → `auth-setup` (which pulls in `firstuser`) sequentially; the `e2e` job then shards `chromium` into 7 balanced groups via `.github/workflows/e2e-matrix.ts`: Config & System · Builder & Content · Users & Profile · RBAC & Journeys · Media & Dashboard · Auth & Branding · Admin & Catch-All.
+CI (`e2e-prep`) runs `wizard` → `auth-setup` (which pulls in `firstuser`) sequentially; the `e2e` job then shards `chromium` into 8 disjoint groups via `.github/workflows/e2e-matrix.ts`: Config & System · Builder & Content · Users & Profile · RBAC & Enforcement · User Journeys · Media & Dashboard · Auth & Branding · Admin & Catch-All.
+
+Every chromium spec must match **exactly one** `--grep` group — a spec that matches none never runs, and a spec that matches two runs twice. New journeys are registered in `tests/route-test-coverage.ts` and `tests/critical-test-paths.ts` at the same time.
+
+### Editorial & RBAC journeys (2026-10-23)
+
+| Journey               | Spec                                                          | What it proves                                                                                                            |
+| --------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Composite entry flow  | `routes/collection-builder/kitchen-sink.spec.ts`              | Multi-field create → API write → reload hydration → edit → delete with `Input`/`Number`/`Checkbox`/`Email`                |
+| Editor boundary       | `routes/admin/editor-boundary.spec.ts`                        | Non-admin editor sees the profile surface, gets no admin nav, and a direct `/config/access-management` visit fails closed |
+| Real-browser vitality | `browser-vitality.spec.ts`                                    | Navigation Timing (TTFB/domInteractive), input latency, and SPA heap stability in Chromium                                |
+| Widget interaction    | `tests/unit/components/dom/widget-inputs-interaction.test.ts` | Native input/change events drive Svelte 5 widget state and `validationStore` errors                                       |
+
+All four journeys attach `tests/e2e/helpers/zero-error-guard.ts`: an uncaught `pageerror`, a non-allowlisted `console.error`, or a failed same-origin request fails the test. The allowlist is limited to favicon/icon-CDN noise, aborted navigations, and expected `401/403/404` resource loads.
 
 ## Next Steps
 

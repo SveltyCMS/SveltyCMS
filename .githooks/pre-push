@@ -171,16 +171,21 @@ fi
 if [ "${SKIP_DB_PARITY:-false}" = "true" ]; then
   warn "DB parity skipped via SKIP_DB_PARITY=true"
   OK=$((OK + 1))
-elif ! has_push_changes '^(src/databases/|tests/integration/databases/|scripts/runs/integration-harness\.ts)'; then
-  info "No adapter/database changes — parity matrix not required"
+elif ! has_push_changes '^(src/databases/|src/services/sdk/|src/hooks/|tests/integration/databases/|scripts/runs/integration-harness\.ts)'; then
+  info "No adapter/database/service changes — parity matrix not required"
   OK=$((OK + 1))
-elif run "🧬  DB parity (auto-detected engines)" pm_run test:parity -- --tests=tests/integration/databases/contract.test.ts; then
+elif run "🧬  DB parity (auto-detected engines)" pm_run test:parity -- --tests=tests/integration/databases/contract.test.ts,tests/integration/api/optimistic-lock.test.ts; then
   OK=$((OK + 1))
 fi
 
-# Step 8 — E2E Smoke Gate (Chromium) — fast browser verification before push
+# Step 8 — E2E Smoke & Editorial Gate (Chromium) — browser verification before push
 if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
-  if run "🌐  E2E Smoke Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build tests/e2e/smoke.spec.ts; then
+  E2E_TARGETS="tests/e2e/smoke.spec.ts"
+  if has_push_changes '^(src/widgets/|src/components/collection-display/|src/routes/\(app\)/\[language\]/\[\.\.\.collection\]/)'; then
+    info "Collection or widget changes detected — expanding gate to include Kitchen Sink journey"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/collection-builder/kitchen-sink.spec.ts"
+  fi
+  if run "🌐  E2E Browser Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
     OK=$((OK + 1))
   fi
 else

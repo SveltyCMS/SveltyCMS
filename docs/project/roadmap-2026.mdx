@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-19"
+updated: "2026-10-23"
 tags:
   - "roadmap"
   - "backlog"
@@ -163,7 +163,15 @@ tags:
 ## 7. Quality Gates, Testing & Codebase Hygiene (Active Backlog)
 
 - **Type-Checking Gate Integration**:
-  - [x] Wire `svelte-check --threshold error` into pre-commit and CI quality gates (`bun run check`).
+  - [x] Wire `svelte-check` into pre-commit and CI quality gates (`bun run check`), including a machine-reporter parse (`scripts/check/check-svelte-diagnostics.ts`) that fails on **warnings** as well as errors — `--threshold warning` only widens output and still exits 0, so it alone was not a gate.
+- **Editorial Journey Matrix (next step for E2E)**:
+  - [x] Composite multi-field journey (`kitchen-sink.spec.ts`) + zero-error guard + editor-boundary journey + browser-vitality benchmark + widget interaction matrix (2026-10-23, see [achievements 3.60](./achievements-2026.mdx)).
+  - [ ] Extend the composite journey to the remaining widget families: `RichText`, `Textarea`, `Select`, `Date`, `Tags`, `MediaUpload`, `Relation`, `Repeater` — include one uploaded image and one relation row, and assert the unsaved-changes guard.
+  - [ ] Add a shared-harness `page.on('pageerror')` trap to the whole chromium project (not only the new journeys) once the current console-error allowlist is proven stable.
+  - [ ] Tighten the browser-vitality budgets from a recorded baseline (domInteractive < 5 s / fill < 1 s / heap < 180 MB are placeholder ceilings) and add an INP measurement for rich-text typing.
+  - [ ] Browser-mode component tests for `RichText`, repeater drag-and-drop, the date picker and the media picker (jsdom cannot exercise layout/pointer behaviour).
+  - [ ] Unhappy paths: double submit, browser Back mid-edit, rejected upload, and direct-URL 403 for an editor.
+- **Open — `/user` edit dialog**: five E2E specs (`account-smoke`, `profile`, `management`, `complete-coverage`, `p0-journeys`) still time out after Save. Reproduced locally: the dialog stays open with the typed username. Suspect the unconditional `$effect` in `src/routes/(app)/user/components/modal-edit-form.svelte` (rewrites form data from `page.data.user`) or a rejected `updateProfile` remote call; it must be fixed before making the composite journey a mandatory pre-push gate.
 - **Integration Test Suite Wall-Time Optimization**:
   - Consolidate the remaining `prepareAuthenticatedContext` call sites (the per-test `beforeEach` wipes in `collections`, `media`, `system`, `telemetry`, `theme`, `website-tokens` are now single `beforeAll` contexts; `token` keeps its per-test reset because that reset also clears the `create-token` rate limiter).
   - Remove the remaining redundant `cleanupTestDatabase()` hooks in `afterAll` (19 removed 2026-10-16 — every suite already resets in `beforeAll`; the rest do real media/file cleanup).

@@ -773,10 +773,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
       data: json("data").notNull().default({}),
       status: varchar("status", { length: 50 }).notNull().default("draft"),
       isDeleted: boolean("isDeleted").notNull().default(false),
-      createdAt: datetime("createdAt")
+      createdAt: datetime("createdAt", { fsp: 3 })
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
-      updatedAt: datetime("updatedAt")
+      updatedAt: datetime("updatedAt", { fsp: 3 })
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
     };
@@ -2274,7 +2274,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
           logger.debug(`[DB Provision] BENCHMARK=${process.env.BENCHMARK || "standalone"}`);
         }
 
-        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`updatedAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`data\` LONGTEXT);`;
+        // Millisecond precision: `updatedAt` is the optimistic-lock version. With
+        // DATETIME(0) an update inside the same second left the version (and the
+        // wire ETag) unchanged, so a stale `If-Match` still matched.
+        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`updatedAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`data\` LONGTEXT);`;
 
         if (ddl) {
           if (process.env.BENCHMARK_DEBUG === "true") {
@@ -2287,8 +2290,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           { name: "isDeleted", type: "TINYINT(1) DEFAULT 0" },
           { name: "status", type: "VARCHAR(255) DEFAULT 'draft'" },
           { name: "tenantId", type: "VARCHAR(36)" },
-          { name: "createdAt", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
-          { name: "updatedAt", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
+          { name: "createdAt", type: "DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)" },
+          { name: "updatedAt", type: "DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)" },
           { name: "collection", type: "VARCHAR(255)" },
           { name: "slug", type: "VARCHAR(255)" },
           { name: "locale", type: "VARCHAR(50)" },

@@ -43,6 +43,10 @@ const DEFAULT_TEST_PATHS = [
   "tests/integration/databases/db-interface.test.ts",
   "tests/integration/databases/differential-parity.test.ts",
   "tests/integration/databases/bulk-operations-contract.test.ts",
+  // Engine-sensitive service contract: ETag versions, compare-and-set binding
+  // and revision pruning differ per adapter (DATETIME precision on MariaDB, the
+  // Documents API on MongoDB). It passed on SQLite while two engines were red.
+  "tests/integration/api/optimistic-lock.test.ts",
 ];
 
 interface CliOptions {

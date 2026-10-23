@@ -669,12 +669,18 @@ export class MongoContentModule
           (r) => r._id.toString() as DatabaseId,
         );
 
-        return await revisionsRepo.deleteMany({
-          contentId,
-          _id: {
-            $nin: keepIds,
-          } as unknown as QueryFilter<ContentRevision>["_id"],
-        } as QueryFilter<ContentRevision>);
+        return await revisionsRepo.deleteMany(
+          {
+            contentId,
+            _id: {
+              $nin: keepIds,
+            } as unknown as QueryFilter<ContentRevision>["_id"],
+          } as QueryFilter<ContentRevision>,
+          // Revisions are pruned, not archived: a soft delete leaves the rows in
+          // the collection, and `getHistory` reads the model directly, so the
+          // history never shrank (12 snapshots on a limit-5 schema).
+          { permanent: true },
+        );
       } catch (error) {
         return {
           success: false,

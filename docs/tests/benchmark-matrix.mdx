@@ -6,7 +6,7 @@ order: 14
 icon: "📊"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-07-12"
+updated: "2026-10-23"
 tags:
   - "benchmarks"
   - "performance"
@@ -543,6 +543,23 @@ bun test tests/benchmarks/probes/probe-cache-tiers.test.ts
 > **Mode contract:** matrix runs are production parity by construction. If you need a
 > standalone baseline for comparison, record it with `SVELTY_BENCHMARK_SERVER_MODE=production`
 > and **without** `TEST_MODE` — see [Mode Parity](#mode-parity-read-this-before-recording-a-baseline).
+
+### Real-Browser Vitality (Playwright)
+
+`tests/e2e/browser-vitality.spec.ts` is the browser-side counterpart to the fetch-loop
+benchmarks. It runs in Chromium against the E2E harness and records Navigation Timing
+(`ttfb`, `domInteractive`, `duration`), `input.fill()` latency, and `performance.memory`
+heap growth across SPA route transitions. Budgets are intentionally loose (domInteractive
+
+< 5 s, fill < 1 s, heap < 180 MB) so the suite catches regressions without flaking on
+shared CI runners; tighten them once a stable baseline is recorded.
+
+```bash
+bun run benchmark:browser
+```
+
+It is part of the `Admin & Catch-All` shard (`browser-vitality` in
+`.github/workflows/e2e-matrix.ts`) and therefore runs in CI, not only on demand.
 
 ### Single Test with Recording
 

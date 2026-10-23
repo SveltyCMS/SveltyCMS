@@ -25,13 +25,15 @@ import type { TenantQuota, TenantUsage } from "../db-interface";
 const uuidPk = () => varchar("_id", { length: 36 }).primaryKey();
 
 // Helper for timestamps
+// Millisecond precision: `updatedAt` doubles as the optimistic-lock version, and
+// DATETIME(0) made two writes in the same second indistinguishable.
 const timestamps = {
-  createdAt: datetime("createdAt")
+  createdAt: datetime("createdAt", { fsp: 3 })
     .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: datetime("updatedAt")
+    .default(sql`CURRENT_TIMESTAMP(3)`),
+  updatedAt: datetime("updatedAt", { fsp: 3 })
     .notNull()
-    .default(sql`CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`),
+    .default(sql`CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)`),
 };
 
 // Helper for tenantId (nullable for multi-tenant support)

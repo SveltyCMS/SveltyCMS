@@ -58,6 +58,7 @@ and active border indicator. Receives context from parent Tabs component.
 <Button
 	variant="ghost"
 	role="tab"
+	data-value={triggerValue}
 	aria-selected={active}
 	tabindex={active ? 0 : -1}
 	{disabled}
