@@ -392,13 +392,13 @@ const seams: SeamSpec[] = [
     mutations: [
       {
         id: "drop-code-argument",
-        find: "throw new AppError(message, status, code);",
+        find: "throw new AppError(message, status, code, details);",
         replace: "throw new AppError(message, status);",
       },
       {
         id: "swap-status-and-code",
-        find: "throw new AppError(message, status, code);",
-        replace: "throw new AppError(message, code, status);",
+        find: "throw new AppError(message, status, code, details);",
+        replace: "throw new AppError(message, code, status, details);",
       },
     ],
     assertInvariant: assertRaiseInvariant,
