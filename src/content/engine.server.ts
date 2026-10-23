@@ -508,6 +508,44 @@ export async function refreshCollectionsCache(tenantId?: string | null, db?: IDB
 }
 
 /**
+ * Build the schema literal persisted into a regenerated collection `.ts` file.
+ *
+ * A regeneration must round-trip the *whole* collection definition, not a
+ * hand-picked subset. The previous literal kept only name/slug/icon/description/
+ * fields, so a DB-backed collection that self-healed its source file silently
+ * lost every behavioural flag — `revision`/`revisionLimit` (revision tests then
+ * failed with `REVISIONS_DISABLED` after the watcher reconciled the stripped
+ * file back over the content node), `livePreview`, `order`, `permissions`, hooks.
+ *
+ * Runtime-only state is excluded: hot flags and derived lookup indexes all start
+ * with `_`, and `path`/`tenantId`/`id` belong to the content node, not the
+ * reusable collection definition.
+ */
+export function buildRegeneratedSchemaDefinition(
+  schema: Schema,
+  slug: string,
+): Record<string, unknown> {
+  const definition: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(schema)) {
+    if (key === "_id" || key === "id" || key === "path" || key === "tenantId") continue;
+    // `_hasActiveWidgets`, `_fieldValidators`, `_collectionMeta`, … are computed
+    // per boot and must never be frozen into a source file.
+    if (key.startsWith("_")) continue;
+    if (value === undefined || typeof value === "function") continue;
+    definition[key] = value;
+  }
+
+  return {
+    ...definition,
+    name: schema.name || slug,
+    slug,
+    icon: schema.icon || "mdi:database",
+    description: schema.description || "",
+    fields: schema.fields || [],
+  };
+}
+
+/**
  * Bootstrap: regenerates .ts collection files from database schemas when
  * config/collections/ is empty. Prevents blank state after cache clears.
  */
@@ -586,7 +624,7 @@ async function bootstrapCollectionFilesFromDb(
  */
 import type { Schema } from '@src/content/types';
 
-export const schema: Schema = ${JSON.stringify({ name: schema.name, slug, icon: (schema as any).icon || "mdi:database", description: (schema as any).description || "", fields: schema.fields || [] }, null, 2)};
+export const schema: Schema = ${JSON.stringify(buildRegeneratedSchemaDefinition(schema, slug), null, 2)};
 `;
     assertLiveDataWriteAllowed(filePath);
     await fs.writeFile(filePath, content, "utf-8");
