@@ -57,6 +57,12 @@ async function revealSignInForm(page: Page): Promise<void> {
 const BRAND_CLASS =
   /(?:^|[^.\w-])(?:bg|text|shadow|border)-primary-500|preset-(?:filled|tonal)-primary/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
+/**
+ * The installed-version badge is the brand-primary fill. Its computed green varies
+ * slightly between requests (theme token resolution / transition), so a hex-pair
+ * exemption is unstable; identify the element by its accessible name instead.
+ */
+const BRAND_VERSION_BADGE = /aria-label="Application version|v\.\d+\.\d+\.\d+/;
 
 /**
  * Owner-accepted color pairs — the stable signal when axe truncates a node's
@@ -96,6 +102,7 @@ function nodeIsExempt(node: { html?: string; target?: unknown; any?: ContrastChe
     BRAND_CLASS.test(target) ||
     SURFACE_TEXT_CLASS.test(html) ||
     SURFACE_TEXT_CLASS.test(target) ||
+    BRAND_VERSION_BADGE.test(html) ||
     nodeShowsExemptColor(node)
   );
 }
