@@ -103,8 +103,13 @@ describe("Optimistic locking, revision restore, and filter validation", () => {
     await waitForServer();
     cookie = await prepareAuthenticatedContext();
     expect(cookie.length).toBeGreaterThan(0);
-    await testingAction("create-collection", { schema: BASE_SCHEMA });
-    await testingAction("create-collection", { schema: REVISION_SCHEMA });
+    // Provision both collections in one action: one content refresh instead of
+    // two, and no window where a refresh from the first call can re-read state
+    // while the second collection is still being written.
+    const provisioned = await testingAction("bulk-create-collections", {
+      schemas: [BASE_SCHEMA, REVISION_SCHEMA],
+    });
+    expect(provisioned?.success, JSON.stringify(provisioned)).toBe(true);
   }, 180_000);
 
   afterAll(async () => {
