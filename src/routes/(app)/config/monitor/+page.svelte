@@ -123,7 +123,9 @@
 				data-testid="monitor-card-security"
 			>
 				<div class="flex items-center justify-between">
-					<div class="rounded bg-tertiary-500 p-2 dark:bg-primary-500/10">
+					<div
+						class="flex size-10 items-center justify-center rounded bg-tertiary-500/10 dark:bg-primary-500/10"
+					>
 						<iconify-icon
 							icon="mdi:shield-lock"
 							class="text-2xl text-tertiary-500 dark:text-primary-500"
@@ -157,7 +159,7 @@
 				data-testid="monitor-card-system"
 			>
 				<div class="flex items-center justify-between">
-					<div class="rounded bg-tertiary-500/10 p-2">
+					<div class="flex size-10 items-center justify-center rounded bg-tertiary-500/10">
 						<iconify-icon icon="mdi:server-network" class="text-2xl text-tertiary-500"
 						></iconify-icon>
 					</div>
@@ -191,7 +193,7 @@
 				data-testid="monitor-card-requests"
 			>
 				<div class="flex items-center justify-between">
-					<div class="rounded bg-tertiary-500/10 p-2">
+					<div class="flex size-10 items-center justify-center rounded bg-tertiary-500/10">
 						<iconify-icon icon="mdi:chart-line" class="text-2xl text-tertiary-500"></iconify-icon>
 					</div>
 					<Badge preset="tonal" color="surface" size="sm">API</Badge>
@@ -225,7 +227,7 @@
 				data-testid="monitor-card-actions"
 			>
 				<div class="flex items-center justify-between">
-					<div class="rounded bg-tertiary-500/10 p-2">
+					<div class="flex size-10 items-center justify-center rounded bg-tertiary-500/10">
 						<iconify-icon icon="mdi:lightning-bolt" class="text-2xl text-tertiary-500"
 						></iconify-icon>
 					</div>

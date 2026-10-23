@@ -840,10 +840,7 @@
 	}
 </script>
 
-<AdminCard
-	data-testid="user-admin-area"
-	class="flex flex-col border border-surface-500/30 bg-white shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
->
+<AdminCard data-testid="user-admin-area" class="flex flex-col">
 	<!-- Header: Tabs + Invite button -->
 	<div class="flex items-center justify-between gap-3 px-4 pt-3">
 		<div

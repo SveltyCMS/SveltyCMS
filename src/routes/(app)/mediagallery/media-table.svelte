@@ -26,6 +26,7 @@
 		SMART_TABLE_THEAD
 	} from '@components/ui/smart-table';
 	import Button from '@components/ui/button.svelte';
+	import AdminCard from '@components/admin-card.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
@@ -231,7 +232,7 @@
 	}
 </script>
 
-<div class="h-full min-h-0 w-full py-2 sm:py-3" data-testid="media-table">
+<AdminCard class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3" data-testid="media-table">
 	<SmartTableShell
 		empty={filteredFiles.length === 0}
 		emptyTitle="No media found"
@@ -399,7 +400,7 @@
 		</div>
 
 		<!-- Desktop: full table (shared Smart Table chrome) -->
-		<table class="media-table {SMART_TABLE} hidden md:table lg:table-fixed">
+		<table class="media-table {SMART_TABLE} max-md:hidden lg:table-fixed">
 			<colgroup>
 				<col class="media-table-col-select" style={smartTable.getColumnWidthStyle('_select')} />
 				<col class="media-table-col-preview" style={smartTable.getColumnWidthStyle('preview')} />
@@ -622,7 +623,7 @@
 			</tbody>
 		</table>
 	</SmartTableShell>
-</div>
+</AdminCard>
 
 {#if showTagModal}
 	{#await import('@src/components/media/tag-editor/tag-editor-modal.svelte') then mod}
