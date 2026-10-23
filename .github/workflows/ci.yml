@@ -72,32 +72,66 @@ jobs:
   plan:
     name: 🧭 CI Tier
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          # The risk check diffs two commits; a shallow clone cannot see them.
+          fetch-depth: 0
       - name: Select tier
         id: tier
         env:
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          AFTER: ${{ github.sha }}
         run: |
-          # FULL: merge queue, nightly schedule, manual dispatch, and every push
-          # to `main` (that commit may be released).
-          # FAST: pull requests and pushes to `next`.
-          if [ "$EVENT" = "merge_group" ] || [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ] || [ "$REF" = "refs/heads/main" ]; then
-            TIER=full
-          else
-            TIER=fast
+          # FULL: merge queue, nightly schedule, manual dispatch, every push to `main`.
+          # FAST: everything else — UNLESS the change touches a path whose failure
+          # the fast tier cannot see (DB adapters, hooks, API, SDK, integration
+          # tests, deps, the workflow itself). Those run the full matrix even on a
+          # `next` push or a PR, so "green" never means "the DB matrix was skipped".
+          TIER=fast
+          REASON="default fast tier"
+          case "$EVENT" in
+            merge_group) TIER=full; REASON="merge queue" ;;
+            schedule) TIER=full; REASON="nightly" ;;
+            workflow_dispatch) TIER=full; REASON="manual dispatch" ;;
+            push) if [ "$REF" = "refs/heads/main" ]; then TIER=full; REASON="push to main"; fi ;;
+          esac
+
+          if [ "$TIER" = "fast" ]; then
+            BASE="$BEFORE"
+            if [ "$EVENT" = "pull_request" ]; then BASE="$PR_BASE"; fi
+            # All-zero/absent SHA = new branch or force push: cannot diff, so fail
+            # SAFE (run everything) rather than silently skipping the matrix.
+            if [ -z "$BASE" ] || ! printf '%s' "$BASE" | grep -qE '^[0-9a-f]{40}$' || printf '%s' "$BASE" | grep -qE '^0+$'; then
+              TIER=full; REASON="no diff base ($EVENT) — fail-safe"
+            else
+              CHANGED="$(git diff --name-only "$BASE" "$AFTER" 2>/dev/null)" || CHANGED="__DIFF_FAILED__"
+              if printf '%s' "$CHANGED" | grep -q '__DIFF_FAILED__'; then
+                TIER=full; REASON="diff failed — fail-safe"
+              elif printf '%s\n' "$CHANGED" | grep -qE '^(src/databases/|src/hooks/|src/routes/api/|src/services/sdk/|src/databases/auth/|tests/integration/)'; then
+                TIER=full; REASON="backend/adapter paths changed"
+              elif printf '%s\n' "$CHANGED" | grep -qE '^(package\.json|bun\.lock|vite\.config\.ts|svelte\.config\.js|\.github/workflows/ci\.yml|src/utils/optimistic-lock\.ts)$'; then
+                TIER=full; REASON="dependencies or CI wiring changed"
+              fi
+            fi
           fi
+
           echo "tier=$TIER" >> "$GITHUB_OUTPUT"
           {
             echo "### 🧭 CI tier: **$TIER**"
             echo ""
+            echo "Reason: $REASON."
+            echo ""
             if [ "$TIER" = "full" ]; then
               echo "DB ×4, Bench ×4 and E2E ×8 are enabled."
             else
-              echo "Fast checks only — the merge queue / nightly runs the full matrix."
+              echo "Fast checks only — no DB/adapter/API path changed. The merge queue and nightly still run the full matrix."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
