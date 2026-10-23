@@ -120,3 +120,5 @@ bun.lock
 
 # Lokale Review-Worktrees (geteilte Objekte, kein zweiter Klon)
 .worktrees/
+.zed/
+config/
