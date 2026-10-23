@@ -2,20 +2,23 @@ name: CI
 
 # CI Workflow for SveltyCMS
 #
+# Two tiers, selected by the `plan` job:
+#
+#   FAST  (required, ~6 min) — pull requests and pushes to `next`
+#         bootstrap · Static/Policy/Quality · Unit + components + mutation · Build
+#
+#   FULL  (merge queue, nightly, manual, every push to `main`)
+#         everything in FAST + Docker images · DB ×4 · Bench ×4 · E2E ×8 shards
+#
+# Branch protection requires **✅ All Green** only. The gate treats a skipped job
+# as not-failed, so the same required check is valid in both tiers: a PR proves
+# the fast tier, and the merge queue re-runs the full matrix on the merge commit
+# before it can land.
+#
 # Local developer entry points:
-#   bun run test:all        # unit + integration (SQLite)
-#   bun run test:e2e        # full E2E suite
-#   bun run security        # OWASP scanner
-#
-# This workflow is the authoritative full matrix.
-# Local hooks intentionally omit DB matrix, benchmarks, and E2E.
-#
-# Local tasks map to ci.yml jobs:
-#   format + lint → whitebox
-#   test:unit → whitebox unit
-#   build → build
-#   test:integration → db-tests
-#   test:e2e → e2e
+#   bun run test:unit        # the FAST tier's test job
+#   bun run test:integration # one DB of the FULL tier
+#   bun run test:e2e         # one E2E shard of the FULL tier
 #
 # Log policy (CI_QUIET=1):
 #   - Cache: restore/save split; save only on success + miss (bun-v3- keys)
@@ -33,17 +36,24 @@ on:
       - "docs/**"
   pull_request:
     branches: [main, next]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
+    # No `paths-ignore`: `✅ All Green` is a required check, and GitHub never
+    # reports a required check for a workflow that path filters skip — a docs-only
+    # PR would then be unmergeable. The fast tier is cheap enough to run for it.
+  # Merge queue: the FULL tier runs on the combined merge commit.
+  merge_group:
+  # Nightly FULL run catches flakes and dependency drift that PRs never see.
+  schedule:
+    - cron: "0 3 * * *"
   # Manual run: benchmarks always execute (there is no path gate).
   workflow_dispatch:
 
 concurrency:
   # `next` and PR runs cancel superseded pushes. `main` keeps the SHA in the
   # group so a release run is never cancelled mid-flight by a follow-up push.
+  # The nightly run is never cancelled either — it is the only full-matrix
+  # signal on a branch nobody pushes to at 03:00.
   group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
   contents: read
@@ -56,6 +66,41 @@ env:
   CI_QUIET: "1"
 
 jobs:
+  # ------------------------------------------------
+  # 0. Plan — decides FAST vs FULL for this event
+  # ------------------------------------------------
+  plan:
+    name: 🧭 CI Tier
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      tier: ${{ steps.tier.outputs.tier }}
+    steps:
+      - name: Select tier
+        id: tier
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          # FULL: merge queue, nightly schedule, manual dispatch, and every push
+          # to `main` (that commit may be released).
+          # FAST: pull requests and pushes to `next`.
+          if [ "$EVENT" = "merge_group" ] || [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ] || [ "$REF" = "refs/heads/main" ]; then
+            TIER=full
+          else
+            TIER=fast
+          fi
+          echo "tier=$TIER" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 🧭 CI tier: **$TIER**"
+            echo ""
+            if [ "$TIER" = "full" ]; then
+              echo "DB ×4, Bench ×4 and E2E ×8 are enabled."
+            else
+              echo "Fast checks only — the merge queue / nightly runs the full matrix."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ------------------------------------------------
   # 1. Bootstrap — single source of truth for deps + codegen
   # ------------------------------------------------
@@ -128,7 +173,8 @@ jobs:
   # suffix — bump it (v1 → v2) to refresh after a security update.
   docker-cache:
     name: 🐳 Docker Images
-    needs: bootstrap
+    needs: [plan, bootstrap]
+    if: needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -324,7 +370,8 @@ jobs:
   # ------------------------------------------------
   db-tests:
     name: 🧪 DB (${{ matrix.db }})
-    needs: [bootstrap, build, docker-cache]
+    needs: [plan, bootstrap, build, docker-cache]
+    if: needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -420,7 +467,8 @@ jobs:
   # ------------------------------------------------
   bench-core:
     name: 📊 Bench + gate (${{ matrix.db }})
-    needs: [bootstrap, build, docker-cache]
+    needs: [plan, bootstrap, build, docker-cache]
+    if: needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -566,10 +614,10 @@ jobs:
   # ------------------------------------------------
   bench-summary:
     name: 📊 Bench Summary
-    needs: [bench-core]
+    needs: [plan, bench-core]
     # Benchmarks run on every event; still summarize a failed matrix so the gate
-    # verdict is visible next to the failure.
-    if: always()
+    # verdict is visible next to the failure. Skipped entirely in the fast tier.
+    if: always() && needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -606,7 +654,8 @@ jobs:
   # ------------------------------------------------
   e2e-prep:
     name: 🧪 E2E Prep
-    needs: [bootstrap, build]
+    needs: [plan, bootstrap, build]
+    if: needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -801,7 +850,8 @@ jobs:
   # All other CMS route tests run here via named chromium shards.
   e2e:
     name: 🧪 E2E — ${{ matrix.name }}
-    needs: [bootstrap, e2e-prep]
+    needs: [plan, bootstrap, e2e-prep]
+    if: needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -937,6 +987,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     needs:
+      - plan
       - bootstrap
       - build
       - docker-cache
@@ -967,6 +1018,7 @@ jobs:
       - name: Job results dashboard
         if: always()
         env:
+          CI_TIER: ${{ needs.plan.outputs.tier }}
           RESULT_BOOTSTRAP: ${{ needs.bootstrap.result }}
           RESULT_BUILD: ${{ needs.build.result }}
           RESULT_WHITEBOX: ${{ needs.whitebox.result }}

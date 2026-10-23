@@ -87,9 +87,25 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 - **Testing API is fail-closed**: `/api/testing` ⇒ 403 in production; gated on `TEST_MODE`/`PLAYWRIGHT_TEST` (not bare `NODE_ENV=test`, not `BENCHMARK`); `x-test-secret` matches `TEST_API_SECRET` (timing-safe); stripped from production bundles (`testBackdoorStripperPlugin`). Never add alternate entry points.
 - **New features MUST update docs**: `docs/project/roadmap-2026.mdx` is the TODO list — add/mark items there; when shipped, move completed items to `docs/project/achievements-2026.mdx` (achievements log); defensible differentiators also go into `docs/project/competitive-comparison.mdx` (EU/DE-compliant, UWG §6). Plus the relevant MDX (feature→doc matrix and test↔docs map: `docs/contributing/style-guide-gui.mdx` for UI rules, `docs/development/ui/` when a shell or native-control prop changes, `docs/contributing/agent-reference.mdx` for the full matrices, `docs/tests/test-to-docs-map.mdx` for test suites).
 
+### CI tiers (`ci.yml`)
+
+`ci.yml` runs in one of two tiers, decided by the `plan` job and shown in the run summary:
+
+| Tier                | Triggered by                                                           | Jobs                                                                          | Wall clock |
+| :------------------ | :--------------------------------------------------------------------- | :---------------------------------------------------------------------------- | :--------- |
+| **fast** (required) | `pull_request`, push to `next`                                         | `plan`, `bootstrap`, `whitebox` (policy/quality + unit), `build`, `all-green` | ~6 min     |
+| **full**            | `merge_group`, nightly `schedule`, `workflow_dispatch`, push to `main` | everything above + Docker images, DB ×4, bench ×4, E2E ×8 shards              | ~12 min    |
+
+Branch protection requires **`✅ All Green`** only. The gate counts `skipped` as not-failed, so the same check is valid in both tiers: a PR proves the fast tier, and the merge queue re-runs the full matrix on the merge commit before it can land. `pull_request` deliberately has **no** `paths-ignore` — GitHub never reports a required check for a workflow that path filters skip, which would make docs-only PRs unmergeable.
+
+Repository settings this file assumes (not configurable from the repo):
+
+1. **Branch protection** on `next` and `main`: require the status check `✅ All Green`, require branches to be up to date, and do not allow bypassing for admins.
+2. **Merge queue** enabled on `next` (Settings → Branches → Merge queue) so `merge_group` runs.
+
 ### CI gate parity (`ci.yml` → local mirror)
 
-CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 8 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
+CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 8 E2E shards in the **full** tier. Validate the mirror locally first — a green local tree must stay green on CI:
 
 | CI job (`ci.yml`)                  | Local mirror                                                                                                                                                                                                                       |
 | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
