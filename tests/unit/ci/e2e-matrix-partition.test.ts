@@ -2,12 +2,18 @@
  * @file tests/unit/ci/e2e-matrix-partition.test.ts
  * @description Guards the CI E2E shard partition.
  *
- * `--grep` decides which specs run in each shard. A spec that matches no group
- * is silently never executed in CI, so a green run can hide a real regression.
- * This test fails if any chromium spec falls outside every shard.
+ * `--grep` decides which specs run in each shard. A spec that matches no group is
+ * silently never executed in CI; one that matches two runs twice. Both look green,
+ * so both are pinned here:
  *
- * Duplicate matches are tolerated here (a spec may run in two groups); the
- * invariant under test is "no spec is dropped", not "exactly one".
+ * - `smoke.spec.ts` (auth → CRUD → persistence) and `layout-shift.spec.ts` matched
+ *   no group at all.
+ * - `routes/dashboard/accessibility.spec.ts` matched Media & Dashboard *and*
+ *   Auth & Branding and paid for the axe audit twice.
+ *
+ * Playwright matches `--grep` against `titlePath()` — file path plus describe/test
+ * titles — and the path element uses the **OS separator**. A pattern written with
+ * `/` only therefore selects zero tests on Windows, so both forms are checked.
  */
 
 import { readFileSync, readdirSync } from "node:fs";
@@ -18,13 +24,12 @@ import { SHARD_GROUPS } from "../../../.github/workflows/e2e-matrix.ts";
 const ROOT = join(import.meta.dirname, "../../..");
 const E2E_DIR = join(ROOT, "tests/e2e");
 
-/** Mirrors the chromium project's testIgnore; smoke.spec.ts is pre-push only. */
+/** Mirrors the chromium project's testIgnore — those specs belong to other projects. */
 const NOT_IN_SHARDS = [
   "setup-wizard.spec.ts",
   "/routes/login/login.spec.ts",
   "/routes/login/signup.spec.ts",
   "/routes/login/oauth.spec.ts",
-  "/tests/e2e/smoke.spec.ts",
 ];
 
 function collectSpecs(dir: string, out: string[] = []): string[] {
@@ -37,30 +42,62 @@ function collectSpecs(dir: string, out: string[] = []): string[] {
     if (!entry.name.endsWith(".spec.ts")) continue;
     const normalized = full.replaceAll("\\", "/");
     if (NOT_IN_SHARDS.some((suffix) => normalized.endsWith(suffix))) continue;
-    out.push(normalized);
+    out.push(full);
   }
   return out;
 }
 
+/**
+ * Everything Playwright's grep can see: the spec path **relative to `tests/e2e`**
+ * (either separator) plus the describe/test titles, joined the same way the runner
+ * does. File bodies are excluded — a comment that mentions another spec's path is
+ * not a selector, and including it produced false "runs twice" reports.
+ */
+function haystackFor(file: string): string {
+  const rel = file.slice(E2E_DIR.length + 1).replaceAll("\\", "/");
+  const titles = [
+    ...readFileSync(file, "utf8").matchAll(/(?:describe|test)\(\s*["'`]([^"'`]+)["'`]/g),
+  ]
+    .map((match) => match[1])
+    .join("\n");
+  return `chromium ${rel}\n${rel.replaceAll("/", "\\")}\n${titles}`;
+}
+
+const specs = collectSpecs(E2E_DIR);
+
 describe("CI E2E matrix partition", () => {
-  it("declares the expected shard groups", () => {
-    expect(SHARD_GROUPS.length).toBe(8);
-    expect(new Set(SHARD_GROUPS.map((g) => g.name)).size).toBe(8);
+  it("declares unique, non-empty shard groups", () => {
+    expect(new Set(SHARD_GROUPS.map((group) => group.name)).size).toBe(SHARD_GROUPS.length);
     for (const group of SHARD_GROUPS) {
       expect(group.grep.length, `${group.name} needs a grep`).toBeGreaterThan(0);
     }
   });
 
-  it("every chromium spec matches at least one shard group", () => {
-    const specs = collectSpecs(E2E_DIR);
+  it("matches every chromium spec exactly once", () => {
     expect(specs.length).toBeGreaterThan(40);
 
-    const dropped = specs.filter((file) => {
-      // Title-based greps can match describe names as well as the path.
-      const haystack = `${file}\n${readFileSync(file, "utf8")}`;
-      return !SHARD_GROUPS.some((group) => new RegExp(group.grep, "i").test(haystack));
-    });
+    const unmatched: string[] = [];
+    const duplicated: string[] = [];
 
-    expect(dropped, `specs not covered by any E2E shard:\n${dropped.join("\n")}`).toEqual([]);
+    for (const file of specs) {
+      const haystack = haystackFor(file);
+      const hits = SHARD_GROUPS.filter((group) => new RegExp(group.grep).test(haystack)).map(
+        (group) => group.name,
+      );
+      const rel = file.slice(E2E_DIR.length + 1).replaceAll("\\", "/");
+      if (hits.length === 0) unmatched.push(rel);
+      if (hits.length > 1) duplicated.push(`${rel} → ${hits.join(" + ")}`);
+    }
+
+    expect(unmatched, `specs that would never run in CI:\n${unmatched.join("\n")}`).toEqual([]);
+    expect(duplicated, `specs that would run twice:\n${duplicated.join("\n")}`).toEqual([]);
+  });
+
+  it("leaves no shard empty", () => {
+    // An empty grep group spins up a runner that fails on "no tests found".
+    const empty = SHARD_GROUPS.filter(
+      (group) => !specs.some((file) => new RegExp(group.grep).test(haystackFor(file))),
+    );
+    expect(empty.map((group) => group.name)).toEqual([]);
   });
 });

@@ -35,62 +35,73 @@ interface E2eMatrix {
 }
 
 /**
- * Named groups — Playwright --grep matches file path + title.
- * Keep anchors path-based so unrelated specs (e.g. "journey" in user/p0) don't leak.
+ * Named groups — Playwright's `--grep` matches the spec path (relative to
+ * `testDir`, OS-separated) followed by every describe/test title.
  *
- * Every chromium spec must match exactly ONE group. `tests/unit/ci/e2e-partition.test.ts`
- * fails the fast tier when a spec matches zero groups (silently never runs) or two
- * (runs twice). Add new specs to a group in the same commit.
+ * Two rules keep this a true partition:
+ * 1. Anchor on the **path**, not on loose words — a title mentioning "dashboard"
+ *    or "rbac" used to pull eleven specs into a second shard.
+ * 2. Never match `/` only — Windows hands Playwright `routes\config\...`, so a
+ *    slash-only pattern silently selects zero tests and the shard looks green.
+ *
+ * `tests/unit/ci/e2e-matrix-partition.test.ts` fails the fast tier when a spec
+ * matches zero groups (silently never runs) or two (runs twice).
  *
  * Groups are sized for a 3-minute shard budget: setup (~45 s) + boot (~3 s) leaves
- * ~100 s of test time, so a 14-spec group was split rather than left to drift.
+ * ~100 s of test time, so the 14-spec Config group was split rather than left to
+ * drift.
  */
-/**
- * Path separator as either slash form. Playwright's `--grep` runs against
- * `titlePath()`, whose first element is the spec path with the **OS** separator —
- * a pattern written with `/` only silently selects zero tests on Windows, and a
- * shard that selects nothing looks like a passing empty run locally.
- */
+/** Path separator as either slash form. */
 const S = "[\\\\/]";
+
+/** Any run of characters inside a single path segment (no separator). */
+const SEG = "[^\\\\/]*";
+
+/** Start of the haystack or a space — top-level specs have no `routes/` prefix. */
+const TOP = "(?:^|\\s)";
+
+/** Files owned by the "Config — Ops & Extensions" shard (kept in one place so the
+ * split stays a partition). New config specs fall into "Config & System" by
+ * default instead of silently matching nothing. */
+const CONFIG_OPS = "extensions|operations|redirects|route-breadth|unified-hub|webhooks|workflows";
 
 export const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   {
     name: "Config & System",
-    grep: `routes${S}config${S}(access-management|appearance|appearance-golden|automations|data-management|data-ops|design-system)\\.spec`,
+    grep: `routes${S}config${S}(?!${SEG}(${CONFIG_OPS})\\.spec)`,
   },
   {
     name: "Config — Ops & Extensions",
-    grep: `routes${S}config${S}(extensions|operations|redirects|route-breadth|unified-hub|webhooks|workflows)\\.spec`,
+    grep: `routes${S}config${S}${SEG}(${CONFIG_OPS})\\.spec`,
   },
   {
     name: "Builder & Content",
-    grep: `(routes${S}collection-builder${S}|content-smoke|empty-state|structure-persistence|federation|(^|${S})smoke\\.spec\\.ts)`,
+    grep: `(routes${S}collection-builder${S}|${TOP}smoke\\.spec\\.ts)`,
   },
   {
     name: "Users & Profile",
-    grep: `(routes${S}user${S}(account-smoke|profile|session-revocation|token-actions|management)|account-smoke|session-revocation|token-actions)`,
+    grep: `routes${S}user${S}(account-smoke|profile|session-revocation|token-actions|management)${SEG}\\.spec`,
   },
   {
     name: "RBAC & Enforcement",
-    grep: `(routes${S}system${S}(permissions|rbac|permission-enforcement)|rbac)`,
+    grep: `routes${S}system${S}(permissions|rbac|permission-enforcement)\\.spec`,
   },
   {
     name: "User Journeys",
-    grep: `(routes${S}user${S}(coverage-100|p0-journeys|complete-coverage)|coverage-100|p0-journeys|complete-coverage)`,
+    grep: `routes${S}user${S}(coverage-100|p0-journeys|complete-coverage)\\.spec`,
   },
   {
     name: "Media & Dashboard",
-    // `dashboard${S}(?!accessibility)` keeps the axe audit in Auth & Branding
-    // (it is the a11y/contrast shard) instead of running it twice.
-    grep: `(routes${S}mediagallery${S}|routes${S}dashboard${S}(?!accessibility\\.spec)|image-editor|mediagallery)`,
+    // The dashboard axe audit belongs to Auth & Branding (the a11y shard).
+    grep: `routes${S}(mediagallery${S}|dashboard${S}(?!accessibility\\.spec))`,
   },
   {
     name: "Auth & Branding",
-    grep: `(routes${S}login${S}(branding|accessibility|extended-auth)|routes${S}admin-theme${S}|(^|${S})accessibility\\.spec\\.ts|branding|visual-regression|routes${S}system${S}language)`,
+    grep: `(${TOP}accessibility\\.spec\\.ts|routes${S}dashboard${S}accessibility\\.spec\\.ts|routes${S}login${S}(branding|accessibility|extended-auth)\\.spec|routes${S}admin-theme${S}|routes${S}system${S}language\\.spec)`,
   },
   {
     name: "Admin & Catch-All",
-    grep: `(routes${S}admin${S}|routes${S}system${S}settings|routes${S}system${S}hooks-lane-smoke|admin${S}tenants|catch-all|isolation|routes${S}site${S}|multi-tenancy|browser-vitality|(^|${S})layout-shift\\.spec\\.ts)`,
+    grep: `(${TOP}(browser-vitality|layout-shift)\\.spec|multi-tenancy${S}|routes${S}admin${S}|routes${S}site${S}|routes${S}system${S}(settings|hooks-lane-smoke)\\.spec)`,
   },
 ];
 
