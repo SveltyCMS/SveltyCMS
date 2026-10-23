@@ -181,7 +181,7 @@ elif run "🧬  DB parity (auto-detected engines)" pm_run test:parity -- --tests
   # a deliberately maximal host offset (UTC+14) so an ETag/CAS mismatch between
   # the read and write lanes is caught here instead of in the CI matrix.
   TOTAL=$((TOTAL + 1))
-  if run "🕒  DB parity (non-UTC clock)" env TZ=Pacific/Kiritimati pm_run test:parity -- --tests=tests/integration/api/optimistic-lock.test.ts; then
+  if run "🕒  DB parity (non-UTC clock)" env TZ=Pacific/Kiritimati "$PM_BIN" run test:parity -- --tests=tests/integration/api/optimistic-lock.test.ts; then
     OK=$((OK + 1))
   fi
 fi
