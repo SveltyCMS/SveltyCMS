@@ -2677,18 +2677,25 @@ export class CollectionsNamespace {
         pageSize: 1,
       });
       const items = history.success ? history.data.items : [];
-      const latestVersion = items.length > 0 ? items[0].version : 0;
+      // `total` is the authoritative row count; the newest row's `version` can be
+      // unreadable on an adapter that does not echo it, and deriving the next
+      // version from 0 then re-writes version 1 forever (the history never reaches
+      // the prune threshold — observed on MongoDB). Fall back to `total + 1`.
+      const total = history.success ? Number(history.data.total) || 0 : 0;
+      const newestVersion = items.length > 0 ? Number(items[0].version) || 0 : 0;
+      const nextVersion = newestVersion > 0 ? newestVersion + 1 : total + 1;
+
       await this._dbAdapter.content.revisions.create({
         contentId: entryId as DatabaseId,
         authorId: (user?._id || "system") as DatabaseId,
         data: previousData,
-        version: latestVersion + 1,
+        version: nextVersion,
         tenantId: tenantId ?? undefined,
       });
 
-      // Bound the history once it would cross 2× the limit; keeps the newest
-      // `revisionLimit` snapshots.
-      if (latestVersion + 1 >= revisionLimit * 2) {
+      // Bound the history at 2× the limit (by version or by row count, whichever
+      // says the ceiling is reached); keeps the newest `revisionLimit` snapshots.
+      if (nextVersion >= revisionLimit * 2 || total + 1 > revisionLimit * 2) {
         await this._dbAdapter.content.revisions.cleanup(entryId as DatabaseId, revisionLimit);
       }
     } catch (err) {
