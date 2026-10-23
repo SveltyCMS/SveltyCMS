@@ -274,61 +274,78 @@
 		});
 	}
 
-	async function fetchData() {
-		await globalLoadingStore.withLoading(
-			loadingOperations.dataFetch,
-			async () => {
-				const endpoint = showUserList ? '/api/user' : '/api/token';
-				// eslint-disable-next-line svelte/prefer-svelte-reactivity
-				const params = new URLSearchParams();
-				params.set('page', String(smartTable.pagination.currentPage));
-				params.set('limit', String(smartTable.pagination.pageSize));
-				params.set('sort', smartTable.sort.sortedBy || 'createdAt');
-				if (smartTable.sort.isSorted !== 0) {
-					params.set('order', smartTable.sort.isSorted === 1 ? 'asc' : 'desc');
-				}
-				if (globalSearchValue) {
-					params.set('search', globalSearchValue);
-				}
-				if (showUserList && activeFacet !== 'all') {
-					if (activeFacet === 'admin' || activeFacet === 'user') {
-						params.set('role', activeFacet);
-					} else if (activeFacet === 'active') {
-						params.set('blocked', 'false');
-					} else if (activeFacet === 'blocked') {
-						params.set('blocked', 'true');
-					}
-				}
+	// Guard against out-of-order responses: a slower request issued for the previous
+	// view must never write rows/pagination into the table the user is viewing now.
+	let fetchRequestId = 0;
+	let fetchController: AbortController | null = null;
 
-				try {
-					const response = await fetch(`${endpoint}?${params.toString()}`);
-					if (!response.ok) {
-						const errorData = await response.json();
-						throw new Error(errorData.message || useradmin_fetch_failed());
-					}
-					const result = await response.json();
-					if (result.success) {
-						const items = (result.data || []) as TableDataType[];
-						const total = Number(result.pagination?.totalItems ?? items.length);
-						smartTable.setRows(items);
-						smartTable.setPaginationMeta({
-							totalItems: total,
-							pagesCount: Math.max(1, Math.ceil(total / smartTable.pagination.pageSize)),
-							currentPage: smartTable.pagination.currentPage,
-							pageSize: smartTable.pagination.pageSize
-						});
-					}
-				} catch (err) {
-					const errorMessage = err instanceof Error ? err.message : useradmin_unknown_error();
-					logger.error('AdminArea fetch error:', errorMessage);
-					toast.error(useradmin_fetch_error({ error: errorMessage }));
-					smartTable.setRows([]);
-					smartTable.setPaginationMeta({ totalItems: 0, pagesCount: 1 });
-					throw err;
+	async function fetchData() {
+		const requestId = ++fetchRequestId;
+		const viewAtRequest = showUserList ? 'users' : 'tokens';
+		fetchController?.abort();
+		const controller = new AbortController();
+		fetchController = controller;
+		const isLatestRequest = () =>
+			requestId === fetchRequestId && (showUserList ? 'users' : 'tokens') === viewAtRequest;
+
+		globalLoadingStore.startLoading(loadingOperations.dataFetch, useradmin_fetching_data());
+		try {
+			const endpoint = showUserList ? '/api/user' : '/api/token';
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const params = new URLSearchParams();
+			params.set('page', String(smartTable.pagination.currentPage));
+			params.set('limit', String(smartTable.pagination.pageSize));
+			params.set('sort', smartTable.sort.sortedBy || 'createdAt');
+			if (smartTable.sort.isSorted !== 0) {
+				params.set('order', smartTable.sort.isSorted === 1 ? 'asc' : 'desc');
+			}
+			if (globalSearchValue) {
+				params.set('search', globalSearchValue);
+			}
+			if (showUserList && activeFacet !== 'all') {
+				if (activeFacet === 'admin' || activeFacet === 'user') {
+					params.set('role', activeFacet);
+				} else if (activeFacet === 'active') {
+					params.set('blocked', 'false');
+				} else if (activeFacet === 'blocked') {
+					params.set('blocked', 'true');
 				}
-			},
-			useradmin_fetching_data()
-		);
+			}
+
+			const response = await fetch(`${endpoint}?${params.toString()}`, {
+				signal: controller.signal
+			});
+			if (!isLatestRequest()) return;
+			if (!response.ok) {
+				const errorData = (await response.json().catch(() => ({}))) as { message?: string };
+				throw new Error(errorData.message || useradmin_fetch_failed());
+			}
+			const result = await response.json();
+			if (!isLatestRequest() || !result.success) return;
+			const items = (result.data || []) as TableDataType[];
+			const total = Number(result.pagination?.totalItems ?? items.length);
+			smartTable.setRows(items);
+			smartTable.setPaginationMeta({
+				totalItems: total,
+				pagesCount: Math.max(1, Math.ceil(total / smartTable.pagination.pageSize)),
+				currentPage: smartTable.pagination.currentPage,
+				pageSize: smartTable.pagination.pageSize
+			});
+		} catch (err) {
+			// A superseded request is expected — never report it or clear the current table.
+			if (controller.signal.aborted || !isLatestRequest()) {
+				logger.debug('AdminArea fetch superseded; response discarded');
+				return;
+			}
+			const errorMessage = err instanceof Error ? err.message : useradmin_unknown_error();
+			logger.error('AdminArea fetch error:', errorMessage);
+			toast.error(useradmin_fetch_error({ error: errorMessage }));
+			smartTable.setRows([]);
+			smartTable.setPaginationMeta({ totalItems: 0, pagesCount: 1 });
+			throw err;
+		} finally {
+			if (isLatestRequest()) globalLoadingStore.stopLoading(loadingOperations.dataFetch);
+		}
 	}
 
 	// Custom event handler for updates from Multibutton
