@@ -314,25 +314,21 @@ test.describe("Media Gallery", () => {
     await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
   });
 
-  test("JSON path filter input is present", async ({ page }) => {
-    const jsonFilter = page.getByLabel(/filter by json path/i);
-    await expect(jsonFilter).toBeVisible({ timeout: 5_000 });
+  test("advanced search exposes the JSON path filter", async ({ page }) => {
+    await page.getByTestId("media-advanced-search").click();
+    // The JSON-path input lives in the advanced-search dialog (it is not a
+    // toolbar field), so the contract is reachable-through-the-modal, not always-on.
+    await expect(page.getByTestId("media-json-path-filter")).toBeVisible({ timeout: 5_000 });
   });
 
-  test("grid size zoom changes thumbnail size", async ({ page }) => {
-    const gridSizeGroup = page
-      .getByRole("group", { name: "Grid size" })
-      .filter({ visible: true })
-      .first();
-    await expect(gridSizeGroup).toBeVisible({ timeout: 5_000 });
+  test("grid size toggle cycles the thumbnail size", async ({ page }) => {
+    // One cycling control (aria-label `Grid size: <label>`), not a button group.
+    const toggle = page.getByTestId("media-grid-size-toggle");
+    await expect(toggle).toBeVisible({ timeout: 5_000 });
 
-    const largeBtn = gridSizeGroup.getByRole("button", { name: "large grid" });
-    await largeBtn.click();
-    await expect(largeBtn).toHaveAttribute("aria-pressed", "true");
-
-    const tinyBtn = gridSizeGroup.getByRole("button", { name: "tiny grid" });
-    await tinyBtn.click();
-    await expect(tinyBtn).toHaveAttribute("aria-pressed", "true");
+    const before = await toggle.getAttribute("data-size");
+    await toggle.click();
+    await expect(toggle).not.toHaveAttribute("data-size", before ?? "");
 
     // Grid should still be visible
     await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
