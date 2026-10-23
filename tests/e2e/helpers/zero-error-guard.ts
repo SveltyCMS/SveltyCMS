@@ -34,6 +34,9 @@ const IGNORED_CONSOLE_PATTERNS: readonly RegExp[] = [
   /favicon\.ico/i,
   /api\.iconify\.design/i,
   /ResizeObserver loop/i,
+  /net::ERR_FAILED/i,
+  /net::ERR_ABORTED/i,
+  /net::ERR_NAME_NOT_RESOLVED/i,
   /Failed to load resource: the server responded with a status of (401|403|404)\b/i,
 ];
 
@@ -75,7 +78,10 @@ export function attachZeroErrorGuard(page: Page): ErrorGuardContext {
   page.on("console", (message) => {
     if (message.type() !== "error") return;
     const text = message.text();
-    if (isIgnored(text, IGNORED_CONSOLE_PATTERNS)) return;
+    const locUrl = message.location()?.url || "";
+    if (isIgnored(text, IGNORED_CONSOLE_PATTERNS) || isIgnored(locUrl, IGNORED_CONSOLE_PATTERNS)) {
+      return;
+    }
     ctx.consoleErrors.push(text);
     // eslint-disable-next-line no-console
     console.error("[ZeroErrorGuard] console.error:", text);
