@@ -50,6 +50,7 @@ This ADR locks **how** admin/product routes are tested and structured so UI refa
 10. **Explicit flake budget** — retried-pass count/rate is a CI gate, not a retry side effect (2026-10-18)
 11. **No force-click workarounds** — E2E drives the real hit target; remaining `force` uses require a documented overlay reason (2026-10-18)
 12. **Composite Editorial Journeys & Zero-Error Trap** — Real multi-widget lifecycle (`kitchen-sink.spec.ts`), non-admin editor boundary (`editor-boundary.spec.ts`), real-browser vitality (`browser-vitality.spec.ts`), and client widget DOM testing (`widget-inputs-interaction.test.ts`) attached to the fail-on-error trap (`zero-error-guard.ts`) (2026-10-23)
+13. **Rolling flake trend + nightly repeat probe** — the 7-day rate is the gate (a single 1/29 shard is noise); the 20 newest specs are re-run nightly with `--repeat-each=3` to feed it (2026-10-23)
 
 ---
 
@@ -146,13 +147,33 @@ followed by an interaction (helpers such as `openGallery`, `openUploadMedia`,
 `goExtensions`, `goDashboard` do this). A spec-local helper that navigates is the
 usual place where the gate is forgotten.
 
-> [!WARNING]
-> Known gap (2026-09-21): in `move-remote.spec.ts` the hidden gallery file input
-> inside a **virtual folder** accepts the file and even reports a `change` event,
-> but the component's upload path is not reached (the same file uploads fine at the
-> gallery root, and the header “Upload” button opens the picker). That spec
-> re-dispatches one `change` when the app did not react within 3 s and still asserts
-> the full POST + grid item — remove the fallback once the wiring is understood.
+### 5.1 Hydration helpers — `tests/e2e/helpers/hydration.ts`
+
+A retry loop invented inside one spec is a bug in the helper layer. Use these
+instead of copy-pasting `expect(async () => { … }).toPass()`:
+
+| Helper                                                     | Use when                                             | Failure names                                                         |
+| :--------------------------------------------------------- | :--------------------------------------------------- | :-------------------------------------------------------------------- |
+| `runAfterHydration(page, action, { selector? })`           | one-shot interaction (click, upload) on a fresh page | the marker the page never reached, or the element that never attached |
+| `selectAndWaitForUrl(page, select, value, pattern, opts?)` | a `select` change that should navigate               | the selected value, the select locator, the URL pattern               |
+| `fillUntil(page, locator, value, assertion, opts?)`        | a `fill` whose binding drives dirty/validation state | the value, the locator, the assertion that never passed               |
+
+All three wait on `html[data-hydrated="true"]` first, retry through Playwright's
+`toPass` budget (never `waitForTimeout`), and surface a message naming the
+interaction that never took effect.
+
+`bun run scripts/lint/lint-e2e-hydration.ts --check` fails on any direct
+`.dispatchEvent("change")` in a `tests/e2e` spec; route it through the helpers,
+or annotate `// hydration-ok: <reason>` on the same or the previous line. (The
+fill → dirty-button rule is deliberately not automated: three-line proximity
+cannot separate an unrelated `fill` from a dirty-flag assertion without false
+positives, so `fillUntil` carries that intent explicitly.)
+
+> [!NOTE]
+> The 2026-09-21 upload gap in `move-remote.spec.ts` is closed: the spec drives
+> the header Upload button and waits on `filechooser`, which only fires once the
+> input's handler is attached — a hydration gate in the user path, with no
+> synthetic re-dispatch.
 
 ---
 
@@ -220,6 +241,8 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 | Zero-mock OIDC peer    | `tests/integration/helpers/oidc-test-server.ts` — real HTTP provider on `127.0.0.1:0` (discovery, `/authorize`, `/token` + PKCE, `/jwks`, logout-token minting) |
 | Local DB parity        | `scripts/runs/run-local-db-matrix.ts` — `bun run test:parity` (`--docker`, `--only`, `--require-all`)                                                           |
 | Flake budget           | `scripts/check/check-flake-budget.ts` — `bun run flake:budget` (reads Playwright JSON)                                                                          |
+| Flake trend            | `scripts/check/check-flake-trend.ts` — rolling 7-day rate from `tests/e2e/.flake-history.jsonl` (`--append`, `--check`)                                         |
+| Nightly flake probe    | `scripts/runs/e2e-flake-nightly.ts` — `--repeat-each=3` over the 20 newest `tests/e2e` specs (`--list` to inspect)                                              |
 | **Canonical fixtures** | `tests/harness` — `ADMIN_CREDENTIALS` / `USERS` / `TEST_PASSWORD` (all layers)                                                                                  |
 | Integration harness    | `tests/integration/harness.ts` — singleton preview, private.test.ts, seed isolation                                                                             |
 | E2E CI-parity runner   | `bun run test:e2e` → `scripts/runs/run-e2e.ts` (preview :4173, harness pre-check) — `--dev` for Vite :5173, `--no-build` to reuse a build                       |
@@ -319,6 +342,19 @@ accept that contention.
 Retries are off locally by default; run with `PLAYWRIGHT_RETRIES=1` when you want a
 recovered test to be recorded as `flaky`, then `bun run flake:budget` applies the same
 ≤2 / ≤3 % budget CI uses.
+
+**Rolling flake rule** — the per-run budget stays as a shard-local early warning, but the
+**gate is the rolling window**: `check-flake-trend.ts --append=<json>` records
+`{ at, label, executed, flaky, failed }` in `tests/e2e/.flake-history.jsonl`, and
+`--check` fails when the 7-day window exceeds `--max-flaky=0` / `--max-rate=1`. One flaky
+test out of 29 executed (3.45 %) no longer fails a shard; a flake that keeps recurring
+does. The history file is generated state — CI carries it with a cache keyed on the
+workflow, never a commit.
+
+**Nightly repeat rule** — `e2e-flake-nightly.ts` selects the N newest specs by
+`git log -1 --format=%ct` (path ascending as tie-break, filesystem mtime for untracked
+specs) and runs them through `run-e2e.ts --no-build --repeat-each=3`, so a 2-of-3 pass
+arrives at the trend gate as `flaky` rather than as a green run.
 
 **Parity rule** — an adapter change is not “done” on SQLite alone. Run
 `bun run test:parity` (or `test:parity:docker` to boot the missing engines);

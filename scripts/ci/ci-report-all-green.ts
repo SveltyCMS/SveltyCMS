@@ -73,6 +73,11 @@ const JOBS: Array<{ key: string; label: string; fix: string }> = [
     label: "bench-core (performance gate)",
     fix: "Open the 📊 Bench job log; fix the budget breach or regression, or re-run if it is runner noise",
   },
+  {
+    key: "RESULT_FLAKE_PROBE",
+    label: "flake-probe (newest specs × 3)",
+    fix: "Open the probe's playwright-report; fix the spec or let the 7-day window age out if it is load-only",
+  },
 ];
 
 function outcome(v: string | undefined): Outcome {

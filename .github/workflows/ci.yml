@@ -980,6 +980,157 @@ jobs:
           retention-days: 7
 
   # ------------------------------------------------
+  # 7b. Flake probe — newest specs × 3 (nightly / manual only)
+  # ------------------------------------------------
+  # A per-run budget only sees one shard's retries. This job re-runs the specs
+  # touched most recently three times each and feeds a rolling 7-day rate, so a
+  # flake is visible while it is still cheap to fix. Kept out of the merge queue:
+  # it triples the E2E cost and its value is trend data, not merge gating.
+  flake-probe:
+    name: 🔁 Flake probe (newest 20 × 3)
+    needs: [plan, bootstrap, e2e-prep]
+    if: needs.plan.outputs.tier == 'full' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Required: the selection is `git log -1 -- <file>` per spec. A shallow
+          # clone returns nothing and every file falls back to checkout mtime.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-sveltycms
+        with:
+          bun-version: "1.3.14"
+          node-version: "24"
+          pnpm-run-install: "false"
+
+      - name: Download E2E Environment
+        uses: actions/download-artifact@v8
+        with:
+          name: e2e-env-${{ github.sha }}
+          path: .
+
+      - name: Extract E2E Environment
+        run: |
+          if [ ! -f e2e-env.tar.zst ]; then
+            echo "::error::E2E prep artifact missing. Re-run workflow."
+            exit 1
+          fi
+          tar --zstd -xf e2e-env.tar.zst
+          rm e2e-env.tar.zst
+          mkdir -p config/collections
+
+      - name: Restore Playwright Browsers cache
+        id: cache-playwright
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-v2-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          restore-keys: |
+            playwright-v2-${{ runner.os }}-
+          fail-on-cache-miss: false
+
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: bun x playwright install --with-deps chromium
+
+      - name: Install Playwright Deps Only
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: bun x playwright install-deps chromium
+
+      - name: Restore flake history
+        uses: actions/cache/restore@v6
+        with:
+          path: tests/e2e/.flake-history.jsonl
+          key: flake-history-${{ github.run_id }}
+          restore-keys: |
+            flake-history-
+
+      - name: Select the newest specs
+        id: select
+        run: |
+          FILES="$(bun run scripts/runs/e2e-flake-nightly.ts --list | tr '\n' ' ')"
+          if [ -z "$FILES" ]; then
+            echo "::error::No specs selected — git history unavailable?"
+            exit 1
+          fi
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Probe (repeat-each=3)
+        env:
+          DB_TYPE: sqlite
+          DB_HOST: 127.0.0.1
+          DB_NAME: e2e_auth_test
+          DB_USER: ""
+          DB_PASSWORD: ""
+          PASSWORD_MIN_LENGTH: 8
+          TEST_MODE: "true"
+          SKIP_TEST_CLEANUP: "true"
+          ADMIN_PASSWORD: Password123!
+          JWT_SECRET_KEY: Integration-Test-JWT-Secret-Key-2026
+          ENCRYPTION_KEY: Integration-Encryption-Key-2026-32ch
+          TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
+          PREVIEW_SECRET: Integration-Preview-Secret-2026
+          HOST: 127.0.0.1
+          PORT: 4173
+          ORIGIN: http://127.0.0.1:4173
+          SKIP_E2E_DEPS: "true"
+          RATE_LIMIT_MAX_REQUESTS: "1000000"
+          RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000"
+          NODE_OPTIONS: "--max-old-space-size=4096"
+        run: |
+          if [ -z "${TEST_API_SECRET}" ]; then
+            TEST_API_SECRET=$(cat tests/e2e/.auth/test-secret.txt)
+          fi
+          export TEST_API_SECRET
+          export PLAYWRIGHT_TEST_BASE_URL=http://127.0.0.1:4173
+          export ORIGIN="${ORIGIN:-http://127.0.0.1:4173}"
+          if [ -f build/index.js ]; then
+            node build/index.js > preview.log 2>&1 &
+          else
+            node index.cjs > preview.log 2>&1 &
+          fi
+          SERVER_PID=$!
+          trap "kill $SERVER_PID 2>/dev/null || true" EXIT INT TERM
+          if ! bun run scripts/probe/wait-for-ready.ts http://127.0.0.1:4173/api/system/health --timeout=120000 --interval=500 --pid=$SERVER_PID; then
+            echo "Server did not become ready - crash in preview.log:"
+            tail -100 preview.log
+            exit 1
+          fi
+          bun x playwright test \
+            --project=chromium \
+            --repeat-each=3 \
+            --workers=1 \
+            ${{ steps.select.outputs.files }}
+
+      - name: Record run
+        if: always()
+        run: bun run scripts/check/check-flake-trend.ts --append=tests/playwright-results.json --label="nightly probe" --allow-missing
+
+      - name: Save flake history
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: tests/e2e/.flake-history.jsonl
+          key: flake-history-${{ github.run_id }}
+
+      # Rolling window, not one run: a single flaky test in 29 (3.45 %) used to
+      # fail a shard. 1 % over 7 days is the property we actually care about.
+      - name: 7-day flake trend
+        if: always()
+        run: bun run scripts/check/check-flake-trend.ts --check --window-days=7 --max-rate=1 --max-flaky=2 --allow-missing
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: playwright-report-flake-probe
+          path: |
+            tests/playwright-report
+            tests/playwright-results.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ------------------------------------------------
   # 10. All Green Gate
   # ------------------------------------------------
   all-green:
@@ -996,6 +1147,7 @@ jobs:
       - e2e
       - db-tests
       - bench-core
+      - flake-probe
     steps:
       - uses: actions/checkout@v7
         with:
@@ -1026,6 +1178,7 @@ jobs:
           RESULT_E2E: ${{ needs.e2e.result }}
           RESULT_DB_TESTS: ${{ needs.db-tests.result }}
           RESULT_BENCH_CORE: ${{ needs.bench-core.result }}
+          RESULT_FLAKE_PROBE: ${{ needs.flake-probe.result }}
         run: node scripts/ci/ci-report-all-green.ts
       - if: ${{ always() && (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) }}
         run: |

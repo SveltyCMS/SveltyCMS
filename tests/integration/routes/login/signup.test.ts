@@ -36,6 +36,7 @@ async function seedViaTestingApi(email: string, password: string, username = "ad
 describe("Invitation-Based Signup Tests", () => {
   beforeAll(async () => {
     await waitForServer();
+    await cleanupTestDatabase();
   });
 
   afterAll(async () => {

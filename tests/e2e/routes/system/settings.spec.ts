@@ -8,6 +8,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { fillUntil, selectAndWaitForUrl } from "../../helpers/hydration";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -91,14 +92,12 @@ test.describe("System Settings shell", () => {
     await expect(picker).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // The select handler is attached on hydration and navigation is client-side,
-    // so a single change event issued in the gap between SSR paint and hydration
-    // is silently dropped (the retried-pass flake). Re-dispatch until the URL
-    // reflects the selection instead of sleeping or widening the timeout.
-    await picker.selectOption("email");
-    await expect(async () => {
-      await picker.dispatchEvent("change");
-      await expect(page).toHaveURL(/group=email/, { timeout: 2_000 });
-    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
+    // so a change event issued in the gap between SSR paint and hydration is
+    // silently dropped. The helper waits for hydration and re-dispatches until
+    // the URL reflects the selection — no sleep, no widened timeout.
+    await selectAndWaitForUrl(page, picker, "email", /group=email/, {
+      timeout: ACTION_TIMEOUT,
+    });
     await expect(page.getByTestId("settings-panel-email")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
@@ -149,12 +148,15 @@ test.describe("System Settings shell", () => {
     const current = await input.inputValue();
     const nextValue = current === "120" ? "121" : "120";
     // The dirty flag comes from the hydrated binding; a fill that lands in the
-    // gap before hydration attaches is silently lost (retried-pass flake).
-    // Re-apply until the action bar reflects the edit instead of sleeping.
-    await expect(async () => {
-      await input.fill(nextValue);
-      await expect(groupSave).toBeEnabled({ timeout: 2_000 });
-    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
+    // gap before hydration attaches is silently lost. Re-apply until the action
+    // bar reflects the edit — no sleep, no widened timeout.
+    await fillUntil(
+      page,
+      input,
+      nextValue,
+      () => expect(groupSave).toBeEnabled({ timeout: 2_000 }),
+      { timeout: ACTION_TIMEOUT },
+    );
     await expect(groupDiscard).toBeEnabled();
 
     await groupDiscard.click();

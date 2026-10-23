@@ -12,6 +12,9 @@ import path from "node:path";
 
 const API_BASE_URL = getApiBaseUrl();
 
+// This suite deliberately probes the closed-setup redirect and must observe the
+// state left by the sibling setup-* suites; a reset would fight the setup machine.
+// isolation: shared — closed-setup redirect depends on sibling suites
 describe("Setup Wizard Integration (Black-Box)", () => {
   const privateTestPath = path.resolve(process.cwd(), "config", "private.test.ts");
 
