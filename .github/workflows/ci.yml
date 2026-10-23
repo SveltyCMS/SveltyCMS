@@ -8,7 +8,7 @@ name: CI
 #         bootstrap · Static/Policy/Quality · Unit + components + mutation · Build
 #
 #   FULL  (merge queue, nightly, manual, every push to `main`)
-#         everything in FAST + Docker images · DB ×4 · Bench ×4 · E2E ×8 shards
+#         everything in FAST + Docker images · DB ×4 · Bench ×4 · E2E ×9 shards
 #
 # Branch protection requires **✅ All Green** only. The gate treats a skipped job
 # as not-failed, so the same required check is valid in both tiers: a PR proves
@@ -129,7 +129,7 @@ jobs:
             echo "Reason: $REASON."
             echo ""
             if [ "$TIER" = "full" ]; then
-              echo "DB ×4, Bench ×4 and E2E ×8 are enabled."
+              echo "DB ×4, Bench ×4 and E2E ×9 are enabled."
             else
               echo "Fast checks only — no DB/adapter/API path changed. The merge queue and nightly still run the full matrix."
             fi
@@ -733,13 +733,18 @@ jobs:
             playwright-v2-${{ runner.os }}-
           fail-on-cache-miss: false
 
-      - name: Install Playwright Browsers
-        if: steps.cache-playwright.outputs.cache-hit != 'true'
-        run: bun x playwright install --with-deps chromium
-
-      - name: Install Playwright Deps Only
-        if: steps.cache-playwright.outputs.cache-hit == 'true'
-        run: bun x playwright install-deps chromium
+      - name: Ensure Chromium system libraries
+        timeout-minutes: 2
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
+          if [ -n "$browser_bin" ] && ! ldd "$browser_bin" 2>/dev/null | grep -q 'not found'; then
+            echo "✅ Chromium shared libraries already present — skipping apt."
+            exit 0
+          fi
+          echo "⚠️ Missing shared libraries (or no cached browser) — installing."
+          timeout 110 bun x playwright install --with-deps chromium
 
       - name: Save Playwright Browsers cache
         if: success() && steps.cache-playwright.outputs.cache-hit != 'true'
@@ -887,7 +892,10 @@ jobs:
     needs: [plan, bootstrap, e2e-prep]
     if: needs.plan.outputs.tier == 'full'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Shard budget is 3 minutes (setup ~45 s + boot ~3 s + tests). The extra
+    # minutes only cover retries after a real failure — a healthy shard never
+    # gets close. Was 15, which hid a 10-minute apt stall behind a green job.
+    timeout-minutes: 6
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.bootstrap.outputs.e2e-matrix) }}
@@ -926,13 +934,23 @@ jobs:
             playwright-v2-${{ runner.os }}-
           fail-on-cache-miss: false
 
-      - name: Install Playwright Browsers
-        if: steps.cache-playwright.outputs.cache-hit != 'true'
-        run: bun x playwright install --with-deps chromium
-
-      - name: Install Playwright Deps Only
-        if: steps.cache-playwright.outputs.cache-hit == 'true'
-        run: bun x playwright install-deps chromium
+      - name: Ensure Chromium system libraries
+        # The runner image already ships Chrome's shared-library set. Installing
+        # them unconditionally put every shard on the same apt mirror at once:
+        # two shards sat in `install-deps` for 9m30s / 9m50s while the others took
+        # 12-20s — about 80% of those jobs' wall clock, with no extra test run.
+        # Probe the cached binary with ldd first; only pay for apt on a miss.
+        timeout-minutes: 2
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
+          if [ -n "$browser_bin" ] && ! ldd "$browser_bin" 2>/dev/null | grep -q 'not found'; then
+            echo "✅ Chromium shared libraries already present — skipping apt."
+            exit 0
+          fi
+          echo "⚠️ Missing shared libraries (or no cached browser) — installing."
+          timeout 110 bun x playwright install --with-deps chromium
 
       - name: Run E2E Tests
         env:
