@@ -35,6 +35,10 @@ Features:
 		onnext = () => {},
 		oncomplete = () => {}
 	} = $props();
+
+	// Stable, SSR/hydration-safe id linking the progressbar to its visible label.
+	const seedingId = $props.id();
+	const seedingLabelId = `${seedingId}-seeding-label`;
 </script>
 
 <div class="flex flex-col dark:text-(--admin-text-body)">
@@ -44,6 +48,7 @@ Features:
 				class="bg-tertiary-500 h-full transition-all duration-500 ease-out dark:bg-primary-500"
 				style="width: {seedingProgress}%"
 				role="progressbar"
+				aria-labelledby={seedingLabelId}
 				aria-valuenow={seedingProgress}
 				aria-valuemin="0"
 				aria-valuemax="100"
@@ -52,7 +57,7 @@ Features:
 		<div
 			class="flex items-center justify-between px-4 pt-2 text-[10px] font-medium uppercase tracking-wider text-(--admin-text-muted) sm:px-8"
 		>
-			<span>Database Seeding Progress</span>
+			<span id={seedingLabelId}>Database Seeding Progress</span>
 			<span>{seedingProgress}%</span>
 		</div>
 	{/if}
