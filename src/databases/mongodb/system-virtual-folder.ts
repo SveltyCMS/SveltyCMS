@@ -4,6 +4,7 @@
  */
 
 import type {
+  BaseQueryOptions,
   DatabaseId,
   DatabaseResult,
   MediaItem,
@@ -361,8 +362,20 @@ export class MongoSystemVirtualFolderMethods {
     }
   }
 
-  async getAll(tenantId?: string | null): Promise<DatabaseResult<SystemVirtualFolder[]>> {
+  async getAll(
+    options?: BaseQueryOptions | string | null,
+  ): Promise<DatabaseResult<SystemVirtualFolder[]>> {
     try {
+      // 🔗 ADAPTER PARITY: the SQL adapters take `BaseQueryOptions`
+      // (`getAll({ tenantId })`), while this method historically took a bare
+      // tenant id. Passing the options object straight into the mongoose query
+      // made it cast `{ tenantId: null }` into the String-typed `tenantId` path
+      // and answer 400 (cast error) — invisible until the suite ran on MongoDB.
+      // Accept both shapes; a null/absent tenant means "global".
+      const tenantId =
+        typeof options === "string"
+          ? options
+          : ((options as BaseQueryOptions | null)?.tenantId ?? null);
       const query: any = {};
       if (tenantId) query.tenantId = tenantId;
       const folders = await this.folderModel.find(query).lean().exec();
@@ -511,7 +524,10 @@ export class MongoSystemVirtualFolderMethods {
 
       const [subfolders, files] = await Promise.all([
         this.folderModel.find(subQuery).lean().exec(),
-        MediaModel.find(fileQuery).lean().exec(),
+        // Bind to the adapter's connection: the module-level `MediaModel` lives on
+        // the default mongoose connection, which is not connected in this process
+        // (`bufferCommands = false`) — the cast/connect error surfaced only on Mongo.
+        this.mediaModel.find(fileQuery).lean().exec(),
       ]);
 
       return {
@@ -575,7 +591,7 @@ export class MongoSystemVirtualFolderMethods {
 
     const mediaQuery: any = { folderId };
     if (tenantId) mediaQuery.tenantId = tenantId;
-    await MediaModel.updateMany(mediaQuery, { $set: { folderId: null } });
+    await this.mediaModel.updateMany(mediaQuery, { $set: { folderId: null } });
   }
 
   async exists(path: string, tenantId?: string | null): Promise<DatabaseResult<boolean>> {
