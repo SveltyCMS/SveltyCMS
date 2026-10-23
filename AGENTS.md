@@ -94,7 +94,7 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 | Tier                | Triggered by                                                           | Jobs                                                                          | Wall clock |
 | :------------------ | :--------------------------------------------------------------------- | :---------------------------------------------------------------------------- | :--------- |
 | **fast** (required) | `pull_request`, push to `next`                                         | `plan`, `bootstrap`, `whitebox` (policy/quality + unit), `build`, `all-green` | ~6 min     |
-| **full**            | `merge_group`, nightly `schedule`, `workflow_dispatch`, push to `main` | everything above + Docker images, DB ×4, bench ×4, E2E ×8 shards              | ~12 min    |
+| **full**            | `merge_group`, nightly `schedule`, `workflow_dispatch`, push to `main` | everything above + Docker images, DB ×4, bench ×4, E2E ×9 shards              | ~12 min    |
 
 Branch protection requires **`✅ All Green`** only. The gate counts `skipped` as not-failed, so the same check is valid in both tiers: a PR proves the fast tier, and the merge queue re-runs the full matrix on the merge commit before it can land. `pull_request` deliberately has **no** `paths-ignore` — GitHub never reports a required check for a workflow that path filters skip, which would make docs-only PRs unmergeable.
 
@@ -105,7 +105,7 @@ Repository settings this file assumes (not configurable from the repo):
 
 ### CI gate parity (`ci.yml` → local mirror)
 
-CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 8 E2E shards in the **full** tier. Validate the mirror locally first — a green local tree must stay green on CI:
+CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 9 E2E shards in the **full** tier. Validate the mirror locally first — a green local tree must stay green on CI:
 
 | CI job (`ci.yml`)                  | Local mirror                                                                                                                                                                                                                       |
 | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -137,7 +137,8 @@ The mapping targets spec **paths**, never `--grep` (a path cannot be combined wi
 - **`lint-tenant-api` is incremental by default** (git-diff on a dirty tree); CI scans a clean checkout. Always `-- --full` locally.
 - **`svelte-kit sync`** after alias/type changes; prod boot is static-import-only — a missing import in `hooks.server.ts` is a `ReferenceError` at startup caught only by the integration harness, never by unit tests.
 - **E2E env must match `e2e-prep`** — `TEST_MODE=true`, `TEST_API_SECRET` in `tests/e2e/.auth/test-secret.txt`, `ORIGIN` pinned, `SKIP_TEST_CLEANUP=true`, `DB_NAME=e2e_auth_test`. The wizard → auth-setup chain seeds `tests/e2e/.auth/admin.json`; never skip it for a chromium run.
-- **Never combine `--grep` with `--shard`** — Playwright drops ~5/6 of each grep group and empty shards fail (see `.github/workflows/e2e-matrix.ts`).
+- **Never combine `--grep` with `--shard`** — Playwright drops ~5/6 of each grep group and empty shards fail (see `.github/workflows/e2e-matrix.ts`). The partition is pinned by `tests/unit/ci/e2e-partition.test.ts`: a spec matching zero groups silently never runs, one matching two runs twice.
+- **E2E shard budget is 3 minutes** — setup ~45 s, boot ~3 s, tests ~100 s. Chrome's system libraries are already on the runner image, so the shards probe with `ldd` and only touch apt on a miss; an unconditional `install-deps` cost 9m30s on one shard against a contended mirror.
 - **Axe audits run in the Auth & Branding shard** — any color change must keep `bg-{hue}-500` + `text-white` ≥ 4.5:1 (status-shade contract) or the RTL contrast audit fails.
 - **DB/contract changes must pass on all 4 adapters** — an adapter-specific bug (e.g. jsonPath re-filter after column-stripping) only surfaces on the DB matrix; when you touch adapter or load-path code, run `test:integration` on at least SQLite + one server DB locally.
 

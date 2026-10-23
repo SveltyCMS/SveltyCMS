@@ -37,39 +37,60 @@ interface E2eMatrix {
 /**
  * Named groups — Playwright --grep matches file path + title.
  * Keep anchors path-based so unrelated specs (e.g. "journey" in user/p0) don't leak.
+ *
+ * Every chromium spec must match exactly ONE group. `tests/unit/ci/e2e-partition.test.ts`
+ * fails the fast tier when a spec matches zero groups (silently never runs) or two
+ * (runs twice). Add new specs to a group in the same commit.
+ *
+ * Groups are sized for a 3-minute shard budget: setup (~45 s) + boot (~3 s) leaves
+ * ~100 s of test time, so a 14-spec group was split rather than left to drift.
  */
+/**
+ * Path separator as either slash form. Playwright's `--grep` runs against
+ * `titlePath()`, whose first element is the spec path with the **OS** separator —
+ * a pattern written with `/` only silently selects zero tests on Windows, and a
+ * shard that selects nothing looks like a passing empty run locally.
+ */
+const S = "[\\\\/]";
+
 export const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   {
     name: "Config & System",
-    grep: "(routes/config/|config/|operations|system-settings|monitor|queue|extensions|unified-hub|workflows)",
+    grep: `routes${S}config${S}(access-management|appearance|appearance-golden|automations|data-management|data-ops|design-system)\\.spec`,
+  },
+  {
+    name: "Config — Ops & Extensions",
+    grep: `routes${S}config${S}(extensions|operations|redirects|route-breadth|unified-hub|webhooks|workflows)\\.spec`,
   },
   {
     name: "Builder & Content",
-    grep: "(routes/collection-builder/|content-smoke|empty-state|structure-persistence|federation)",
+    grep: `(routes${S}collection-builder${S}|content-smoke|empty-state|structure-persistence|federation|(^|${S})smoke\\.spec\\.ts)`,
   },
   {
     name: "Users & Profile",
-    grep: "(routes[\\\\/]user[\\\\/](account-smoke|profile|session-revocation|token-actions|management)|account-smoke|session-revocation|token-actions)",
+    grep: `(routes${S}user${S}(account-smoke|profile|session-revocation|token-actions|management)|account-smoke|session-revocation|token-actions)`,
   },
   {
     name: "RBAC & Enforcement",
-    grep: "(routes[\\\\/]system[\\\\/](permissions|rbac|permission-enforcement)|rbac)",
+    grep: `(routes${S}system${S}(permissions|rbac|permission-enforcement)|rbac)`,
   },
   {
     name: "User Journeys",
-    grep: "(routes[\\\\/]user[\\\\/](coverage-100|p0-journeys|complete-coverage)|coverage-100|p0-journeys|complete-coverage)",
+    grep: `(routes${S}user${S}(coverage-100|p0-journeys|complete-coverage)|coverage-100|p0-journeys|complete-coverage)`,
   },
   {
     name: "Media & Dashboard",
-    grep: "(routes/mediagallery/|routes/dashboard/|image-editor|mediagallery|dashboard)",
+    // `dashboard${S}(?!accessibility)` keeps the axe audit in Auth & Branding
+    // (it is the a11y/contrast shard) instead of running it twice.
+    grep: `(routes${S}mediagallery${S}|routes${S}dashboard${S}(?!accessibility\\.spec)|image-editor|mediagallery)`,
   },
   {
     name: "Auth & Branding",
-    grep: "(routes/login/branding|routes/login/accessibility|routes/login/extended-auth|routes/admin-theme/|accessibility\\.spec|branding|visual-regression|routes/system/language)",
+    grep: `(routes${S}login${S}(branding|accessibility|extended-auth)|routes${S}admin-theme${S}|(^|${S})accessibility\\.spec\\.ts|branding|visual-regression|routes${S}system${S}language)`,
   },
   {
     name: "Admin & Catch-All",
-    grep: "(routes/admin/|routes/system/settings|routes/system/hooks-lane-smoke|admin/tenants|catch-all|isolation|routes/site/|multi-tenancy|browser-vitality)",
+    grep: `(routes${S}admin${S}|routes${S}system${S}settings|routes${S}system${S}hooks-lane-smoke|admin${S}tenants|catch-all|isolation|routes${S}site${S}|multi-tenancy|browser-vitality|(^|${S})layout-shift\\.spec\\.ts)`,
   },
 ];
 
