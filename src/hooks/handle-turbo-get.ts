@@ -232,6 +232,15 @@ export const handleTurboGet: Handle = async ({ event, resolve }) => {
     return resolve(event);
   }
 
+  // 🛡️ An auth context primed before the role list was readable carries zero
+  // roles, and serving it would fail-close every gated endpoint for a user who
+  // does have grants (observed on MariaDB: the session minted during a thin
+  // roles read, then every `media:*` request answered 403). Fall through to the
+  // full pipeline, which hydrates roles from the DB and re-primes the context.
+  if (!turboCtx.isAdmin && (!Array.isArray(turboCtx.roles) || turboCtx.roles.length === 0)) {
+    return resolve(event);
+  }
+
   locals.user = turboCtx.user;
   locals.roles = turboCtx.roles;
   locals.tenantId = turboCtx.tenantId;

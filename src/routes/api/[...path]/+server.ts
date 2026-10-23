@@ -435,8 +435,11 @@ export function _checkEndpointPermission(
   // stray permMask reaches this helper.
   if (!user) return false;
 
-  // 🚀 64-bit bitmask fast-path: single CPU register instruction when permMask present
-  if (permMask !== undefined) {
+  // 🚀 64-bit bitmask fast-path: single CPU register instruction when permMask present.
+  // A ZERO mask is not authoritative: it is also what a session minted while the
+  // role rows were unreadable carries. Fall through to the role check — the same
+  // source the mask was derived from — which still denies a user with no grants.
+  if (permMask !== undefined && permMask !== 0n) {
     const reqBit = getPermissionBit(requiredPermission);
     if (reqBit !== 0n) {
       return hasPermissionBitmask(permMask, reqBit);

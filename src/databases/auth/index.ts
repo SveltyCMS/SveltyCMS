@@ -475,6 +475,10 @@ export class Auth {
     }
 
     let permMask = (sessionData as any).permMask;
+    // Whether the mask above may be persisted. A mask derived from a FAILED roles
+    // read is not authoritative: caching it as "0 permissions" denies every mapped
+    // endpoint for the whole session lifetime (observed on MariaDB, where a thin
+    // roles read during session minting produced a permanent 403).
     if (permMask === undefined) {
       if (isAdmin(user)) {
         permMask = ADMIN_PERM_MASK;
@@ -486,7 +490,10 @@ export class Auth {
           });
           permMask = computeUserPermMask(user, roles);
         } catch {
-          permMask = computeUserPermMask(user, []);
+          // Leave it undefined so the next request recomputes from the roles
+          // instead of persisting a zero mask. The dispatcher no longer trusts a
+          // zero mask anyway (see `_checkEndpointPermission`).
+          permMask = undefined;
         }
       }
     }
@@ -502,7 +509,7 @@ export class Auth {
       mfaVerifiedAt:
         (sessionData as any).mfaVerifiedAt ??
         (sessionData.amr?.includes("mfa") ? (nowISODateString() as ISODateString) : undefined),
-      permMask: permMaskHex,
+      ...(permMaskHex !== undefined ? { permMask: permMaskHex } : {}),
     };
     await this.sessionStore.set(session._id, user, sessionData.expires, sessionMetadata);
     session.permMask = permMaskHex;
