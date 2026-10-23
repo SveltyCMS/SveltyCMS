@@ -90,9 +90,15 @@ test.describe("System Settings shell", () => {
     const picker = page.getByTestId("system-settings-group-select");
     await expect(picker).toBeVisible({ timeout: ACTION_TIMEOUT });
 
+    // The select handler is attached on hydration and navigation is client-side,
+    // so a single change event issued in the gap between SSR paint and hydration
+    // is silently dropped (the retried-pass flake). Re-dispatch until the URL
+    // reflects the selection instead of sleeping or widening the timeout.
     await picker.selectOption("email");
-    await picker.dispatchEvent("change");
-    await expect(page).toHaveURL(/group=email/, { timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      await picker.dispatchEvent("change");
+      await expect(page).toHaveURL(/group=email/, { timeout: 2_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
     await expect(page.getByTestId("settings-panel-email")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
