@@ -63,20 +63,19 @@ async function uploadImages(page: Page, prefix: string, count: number): Promise<
   for (const file of files) {
     // Upload one file per request: a multi-file `setInputFiles` fires several
     // POSTs, and waiting for the first then reloading aborts the rest.
-    const uploadResponse = page.waitForResponse(
-      (res) =>
-        res.request().method() === "POST" &&
-        (res.url().includes("?/upload") || res.url().includes("/api/media")),
-      { timeout: API_TIMEOUT },
-    );
-    await page.getByTestId("media-upload-input").setInputFiles(file);
-    const response = await uploadResponse;
-    expect(response.ok(), `upload POST ${response.status()}`).toBe(true);
-
-    if (response.url().includes("?/upload")) {
-      const body = (await response.json().catch(() => null)) as { type?: string } | null;
-      expect(body?.type, `upload action result: ${JSON.stringify(body)}`).toBe("success");
-    }
+    //
+    // Wait on the OUTCOME (the rendered card), not on a response event: the
+    // uploader disables/swaps the input while the previous upload revalidates,
+    // so a fixed `waitForResponse` predicate can miss the request shape entirely
+    // and hang for the whole timeout (the CI retried-pass flake). The card is
+    // only rendered from a persisted row, so it is the stronger assertion.
+    const input = page.getByTestId("media-upload-input");
+    await expect(input).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await input.setInputFiles(file);
+    await expect(
+      page.getByTestId("media-item").filter({ hasText: file.name }).first(),
+      `upload of ${file.name} must render a media card`,
+    ).toBeVisible({ timeout: API_TIMEOUT });
   }
 
   await page.reload({ waitUntil: "domcontentloaded" });

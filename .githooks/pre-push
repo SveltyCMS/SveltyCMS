@@ -105,7 +105,7 @@ if [ "$HAS_CODE_CHANGES" = false ]; then
 fi
 
 info "Pre-commit already verified: format, lint, unit tests, component interactions."
-info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration + DB parity + E2E smoke"
+info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration + DB parity + E2E contract gate"
 echo ""
 
 TOTAL=12; OK=0
@@ -176,14 +176,44 @@ elif ! has_push_changes '^(src/databases/|src/services/sdk/|src/hooks/|tests/int
   OK=$((OK + 1))
 elif run "🧬  DB parity (auto-detected engines)" pm_run test:parity -- --tests=tests/integration/databases/contract.test.ts,tests/integration/api/optimistic-lock.test.ts; then
   OK=$((OK + 1))
+  # A timestamp contract that only holds in UTC is a latent bug: CI runners are
+  # UTC, developer machines are not. Re-run the timestamp-bearing contract with
+  # a deliberately maximal host offset (UTC+14) so an ETag/CAS mismatch between
+  # the read and write lanes is caught here instead of in the CI matrix.
+  TOTAL=$((TOTAL + 1))
+  if run "🕒  DB parity (non-UTC clock)" env TZ=Pacific/Kiritimati pm_run test:parity -- --tests=tests/integration/api/optimistic-lock.test.ts; then
+    OK=$((OK + 1))
+  fi
 fi
 
-# Step 8 — E2E Smoke & Editorial Gate (Chromium) — browser verification before push
+# Step 8 — E2E gate (Chromium) — browser verification before push
+#
+# The smoke spec is a runtime contract (auth → CRUD → persistence). It cannot
+# see an Axe contrast failure, the RTL/status-shade sweep, a visual-regression
+# baseline, or a theme-only route bug — those live in other CI shards. Until
+# this mapping existed the hook was green while the change failed 2–4 CI shards.
+# Targets are spec PATHS (not --grep): a path never combines with --shard and
+# cannot silently select zero tests.
 if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
   E2E_TARGETS="tests/e2e/smoke.spec.ts"
   if has_push_changes '^(src/widgets/|src/components/collection-display/|src/routes/\(app\)/\[language\]/\[\.\.\.collection\]/)'; then
     info "Collection or widget changes detected — expanding gate to include Kitchen Sink journey"
     E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/collection-builder/kitchen-sink.spec.ts"
+  fi
+  # Any component or route-markup change can move a colour pair, an RTL
+  # logical property, or an accessible name — exactly what the CI Axe/RTL jobs
+  # assert. Run the accessibility contracts with the smoke gate.
+  if has_push_changes '^(src/components/|src/app\.css|src/routes/.*\.svelte|src/routes/\(admin\)/)'; then
+    info "UI changes detected — adding accessibility contracts (login, dashboard)"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/login/accessibility.spec.ts tests/e2e/routes/dashboard/accessibility.spec.ts"
+  fi
+  if has_push_changes '^(src/components/ui/|src/app\.css|src/routes/\(app\)/config/design-system/|src/routes/\(admin\)/)'; then
+    info "Design-system changes detected — adding the admin theme visual regression"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/admin-theme/visual-regression.spec.ts"
+  fi
+  if has_push_changes '^(src/routes/\(app\)/mediagallery/|src/components/media/)'; then
+    info "Media UI changes detected — adding the media theme visual audit"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/theme-visual.spec.ts"
   fi
   if run "🌐  E2E Browser Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
     OK=$((OK + 1))

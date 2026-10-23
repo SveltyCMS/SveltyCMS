@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Format → Lint → Unit → Components → SBOM Sync (~45s)
+# SveltyCMS Pre-Commit — Format → Lint → Unit → Components → Integration → SBOM
 #
-# Pre-push runs build + SQLite integration.
+# Fast by design (~45 s, or ~2 min when backend files change). Pre-push runs the
+# full build, the complete SQLite suite, DB parity and the browser contract gate.
 # POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
 set -u
@@ -14,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 header "Pre-Commit"
 require_bun
 
-TOTAL=7; OK=0
+TOTAL=8; OK=0
 
 # Step 1 — Database safety
 if run "🛡️  Database safety" pm_run scripts/check/check-test-db-safety.ts; then
@@ -69,6 +70,31 @@ if has_staged_changes '\.(md|mdx)$' && ! has_staged_changes '\.(ts|js|svelte)$';
   TOTAL=$((TOTAL - 1))
 elif run "🧩  Component interactions" pm_run test:unit:components; then
   OK=$((OK + 1))
+fi
+
+# Step 5c — Diff-scoped integration (backend changes only)
+#
+# Unit tests cannot see routing, persistence or an adapter contract; those only
+# fail against a real server + database. Running the suites mapped from the
+# staged files here means a broken query, serializer or timestamp shape is
+# caught before the commit exists — not on the next push or in CI.
+#
+# Requires a current harness build (`--no-build` reuses build/). A stale build
+# would test old code and report a false green, so freshness is checked and the
+# step defers to pre-push (which always builds) instead of guessing.
+if has_staged_changes '^(src/databases/|src/services/sdk/|src/hooks/|src/routes/api/|src/utils/(optimistic-lock|date|relational)|src/lib/server/)'; then
+  if [ ! -f build/index.js ]; then
+    warn "No build/index.js — integration deferred to pre-push (it builds the harness)"
+    TOTAL=$((TOTAL - 1))
+  elif [ -n "$(find src -newer build/index.js -name '*.ts' -print -quit 2>/dev/null)" ]; then
+    warn "build/ is older than src/ — integration deferred to pre-push (it rebuilds)"
+    TOTAL=$((TOTAL - 1))
+  elif run "🗄️  Integration (diff, SQLite)" pm_run scripts/runs/run-integration.ts --no-build --diff; then
+    OK=$((OK + 1))
+  fi
+else
+  info "No backend/database changes — integration not required at commit time"
+  TOTAL=$((TOTAL - 1))
 fi
 
 # Step 6 — SBOM sync (keeps sbom.json in lockstep with bun.lock)

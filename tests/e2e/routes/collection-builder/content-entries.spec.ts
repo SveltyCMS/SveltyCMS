@@ -24,6 +24,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { resetAndSeedDatabase, TEST_API_HEADERS } from "../../helpers/api";
+import { toggleCheckbox } from "../../helpers/checkbox";
 import {
   collectionSlugCandidates,
   openCollectionEntries,
@@ -262,7 +263,9 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
       .getByRole("row")
       .filter({ hasText: /delete me/i })
       .first();
-    await row.getByRole("checkbox").first().click();
+    // The row checkbox is the sr-only native input: click its visible label the
+    // way a user does (a direct click on the 1×1px input is the flake source).
+    await toggleCheckbox(row.getByRole("checkbox").first());
 
     await page.getByRole("button", { name: "Toggle actions menu" }).click();
     await page

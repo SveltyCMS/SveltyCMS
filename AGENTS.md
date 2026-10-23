@@ -103,6 +103,17 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`); local parity: `bun run test:parity` (add `--docker` to boot missing engines, `--require-all` to fail on skips) |
 | 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"`; flake gate: `bun run flake:budget`                                                                       |
 
+**Pre-push E2E is a contract set, not the whole suite** — `.githooks/pre-push` runs `tests/e2e/smoke.spec.ts` (auth → CRUD → persistence) and, depending on the changed paths, adds the contracts CI would otherwise catch first:
+
+| Changed paths                                                          | Added specs                                                                    |
+| :--------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| `src/components/`, `src/app.css`, `src/routes/**/*.svelte`, `(admin)/` | `routes/login/accessibility.spec.ts`, `routes/dashboard/accessibility.spec.ts` |
+| `src/components/ui/`, `src/app.css`, design-system route, `(admin)/`   | `routes/admin-theme/visual-regression.spec.ts`                                 |
+| `src/routes/(app)/mediagallery/`, `src/components/media/`              | `routes/mediagallery/theme-visual.spec.ts`                                     |
+| `src/widgets/`, `src/components/collection-display/`, collection route | `routes/collection-builder/kitchen-sink.spec.ts`                               |
+
+The mapping targets spec **paths**, never `--grep` (a path cannot be combined with `--shard` and cannot silently select zero tests). If you touch UI and the hook did not list one of these specs, the mapping is stale — fix the hook before trusting a green gate.
+
 **Parity rules — the ones that break otherwise-green trees:**
 
 - **Perf assertions need JIT warm-up** — the `<50ms` timed-loop budget flaked at 71ms cold on CI (`dashboard-runtime`). Run ≥1k warm-up iterations before any timed loop that asserts a budget.
