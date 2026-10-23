@@ -56,6 +56,12 @@
 		isSelectionMode?: boolean;
 		selectedFiles: SvelteSet<string>;
 		publishedMediaIds?: SvelteSet<string>;
+		/** The folder holds server pages the client has not fetched yet. */
+		serverHasMore?: boolean;
+		/** A server page request is in flight (parent-owned). */
+		isLoadingMore?: boolean;
+		/** Asks the parent for the next server page. */
+		onLoadMore?: () => void;
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
@@ -68,6 +74,9 @@
 		isSelectionMode = false,
 		selectedFiles = $bindable(),
 		publishedMediaIds = $bindable(new SvelteSet<string>()),
+		serverHasMore = false,
+		isLoadingMore = false,
+		onLoadMore = () => {},
 		ondeleteImage = () => {},
 		onEditImage = () => {},
 		onUpdateImage = () => {},
@@ -94,7 +103,8 @@
 	let visibleCount = $state(BATCH_SIZE);
 	let scrollRoot = $state<HTMLElement>();
 	let sentinel = $state<HTMLElement>();
-	let lastFilterKey = '';
+	let lastHeadKey = '';
+	let lastTotal = 0;
 
 	const visibleFiles = $derived(filteredFiles.slice(0, visibleCount));
 	const hasMore = $derived(visibleCount < filteredFiles.length);
@@ -103,23 +113,36 @@
 	);
 
 	$effect(() => {
-		// Reset batching only when the visible set actually changes. The parent
-		// recreates the array after every reload, and resetting on identity alone
-		// made the grid snap back to the first page (and replay its fade-in).
-		const filterKey = filteredFiles.map((file) => file._id ?? file.filename).join('|');
-		if (filterKey === lastFilterKey) return;
-		lastFilterKey = filterKey;
+		// Reset batching only when the head of the visible set changes or the list
+		// shrinks. Appending a server page keeps the head, and resetting on every
+		// list change made the grid snap back to the first batch while scrolling.
+		const head = filteredFiles[0]?._id ?? filteredFiles[0]?.filename ?? '';
+		const total = filteredFiles.length;
+		const shouldReset = head !== lastHeadKey || total < lastTotal;
+		lastHeadKey = String(head);
+		lastTotal = total;
+		if (!shouldReset) return;
 		visibleCount = BATCH_SIZE;
 		scrollRoot?.scrollTo({ top: 0 });
 	});
 
 	$effect(() => {
 		if (!sentinel) return;
+		// Reading the paging state re-arms the observer when a server page lands: a
+		// fresh observer emits an initial entry, which is what continues the chain
+		// while the sentinel never left the viewport (IntersectionObserver only
+		// reports threshold *changes*).
+		const hasServerMore = serverHasMore;
+		const loading = isLoadingMore;
 		const observer = new IntersectionObserver(
 			(entries) => {
-				if (entries[0]?.isIntersecting && visibleCount < filteredFiles.length) {
+				if (!entries[0]?.isIntersecting) return;
+				if (visibleCount < filteredFiles.length) {
 					visibleCount = Math.min(visibleCount + BATCH_SIZE, filteredFiles.length);
+					return;
 				}
+				// Local batches exhausted — pull the next server page of the folder.
+				if (hasServerMore && !loading) onLoadMore();
 			},
 			{ root: scrollRoot ?? null, rootMargin: '600px 0px' }
 		);
@@ -625,10 +648,11 @@
 			</div>
 		{/each}
 
-		{#if hasMore}
+		{#if hasMore || serverHasMore}
 			<div
 				bind:this={sentinel}
 				class="col-span-full flex items-center justify-center gap-2 py-5 font-mono text-[11px] text-(--admin-text-muted)"
+				data-testid="media-grid-load-more"
 				aria-hidden="true"
 			>
 				<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>

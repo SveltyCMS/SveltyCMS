@@ -11,7 +11,7 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import {
 		Collections_MediaGallery,
 		mediagallery_advanced_filters,
@@ -50,7 +50,7 @@
 		button_cancel
 	} from '@src/paraglide/messages';
 	import { slide } from 'svelte/transition';
-	import { refreshAll } from '$app/navigation';
+	import { refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import MediaGrid from './media-grid.svelte';
@@ -100,6 +100,26 @@
 
 	// State
 	let files = $state<Array<MediaBase | MediaImage>>([]);
+
+	/** Server page contract for the gallery (see `+page.server.ts` → `mediaPagination`). */
+	interface MediaPagination {
+		page: number;
+		pageSize: number;
+		total: number;
+		hasNextPage: boolean;
+		hasPreviousPage: boolean;
+	}
+
+	const mediaPagination = $derived<MediaPagination>(
+		(data as { mediaPagination?: MediaPagination }).mediaPagination ?? {
+			page: 1,
+			pageSize: 100,
+			total: files.length,
+			hasNextPage: false,
+			hasPreviousPage: false
+		}
+	);
+	let isLoadingMore = $state(false);
 	let globalSearchValue = $state('');
 	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
 	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>('all');
@@ -189,8 +209,62 @@
 	// a full page reload. Local optimistic edits (delete/edit) mutate `files`
 	// directly and are reconciled on the next invalidation.
 	$effect(() => {
-		files = [...((data?.media ?? []) as unknown as (MediaBase | MediaImage)[])];
+		const incoming = (data?.media ?? []) as unknown as (MediaBase | MediaImage)[];
+		if (mediaPagination.page <= 1) {
+			files = [...incoming];
+			return;
+		}
+		// `refreshAll()` on a deep page re-delivers only that page — merge instead of
+		// clobbering the pages the user already revealed by scrolling.
+		const known = new Set(untrack(() => files).map(mediaFileKey));
+		const additions = incoming.filter((file) => !known.has(mediaFileKey(file)));
+		if (additions.length > 0) files = [...files, ...additions];
 	});
+
+	/** Stable identity across server pages (`_id` is always present on gallery rows). */
+	function mediaFileKey(file: MediaBase | MediaImage): string {
+		return String(file._id ?? file.filename ?? '');
+	}
+
+	/**
+	 * Go to a server page of the listing. `?page=` is sanitised server-side; page 1
+	 * deletes the param so folder links and the browser URL stay clean.
+	 */
+	async function navigateMediaPage(pageNumber: number) {
+		const target = new URL(page.url.href);
+		if (pageNumber <= 1) target.searchParams.delete('page');
+		else target.searchParams.set('page', String(pageNumber));
+		if (target.href === page.url.href) {
+			await refreshAll();
+			return;
+		}
+		// Pagination is query state, not a route change — the sanctioned goto escape
+		// hatch. `replace` keeps infinite scroll from flooding the history stack.
+		await goto(target, { reset: false, replace: pageNumber > 1 });
+	}
+
+	/** Fetch the next 100 rows of the folder (grid sentinel / table "load more"). */
+	async function loadMoreMedia() {
+		if (isLoadingMore || !mediaPagination.hasNextPage) return;
+		isLoadingMore = true;
+		try {
+			await navigateMediaPage(mediaPagination.page + 1);
+		} catch (err) {
+			logger.error('Failed to load more media', err);
+			toast.error('Could not load more assets');
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
+	/** Uploads land on page 1 (newest first) — collapse the paged window to show them. */
+	async function reloadMediaFromFirstPage() {
+		if (mediaPagination.page <= 1) {
+			await refreshAll();
+			return;
+		}
+		await navigateMediaPage(1);
+	}
 
 	const mediaTypes = [
 		{ value: 'All', label: 'ALL' },
@@ -576,20 +650,73 @@
 		}
 	}
 
+	/**
+	 * SvelteKit answers a form action with an `ActionResult` envelope (`type`
+	 * `success` | `failure` | `error`); a 200 status can still be a failure, so
+	 * both the status and the envelope are part of the outcome.
+	 */
+	async function evaluateDeleteResponse(
+		response: Response
+	): Promise<{ ok: boolean; message?: string }> {
+		const envelope = (await response.json().catch(() => null)) as {
+			type?: string;
+			error?: { message?: string };
+		} | null;
+		if (response.ok && envelope?.type === 'success') return { ok: true };
+		return {
+			ok: false,
+			message: envelope?.error?.message ?? `HTTP ${response.status}`
+		};
+	}
+
 	async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 		showConfirm({
 			title: `Delete ${filesToDelete.length} files?`,
 			body: 'This action cannot be undone.',
 			onConfirm: async () => {
+				// Per-file outcomes: an HTTP or action error must never be announced as
+				// "complete" nor hide the asset — the row still exists on the server.
+				const deletedKeys = new Set<string>();
+				const failedNames: string[] = [];
+
 				for (const file of filesToDelete) {
 					const formData = new FormData();
 					formData.append('imageData', JSON.stringify(file));
-					await fetch('?/deleteMedia', { method: 'POST', body: formData });
+					try {
+						const response = await fetch('?/deleteMedia', { method: 'POST', body: formData });
+						const outcome = await evaluateDeleteResponse(response);
+						if (outcome.ok) {
+							deletedKeys.add(mediaFileKey(file));
+						} else {
+							failedNames.push(file.filename);
+							logger.warn(`Bulk delete failed for ${file._id}: ${outcome.message}`);
+						}
+					} catch (err) {
+						failedNames.push(file.filename);
+						logger.error(`Bulk delete request failed for ${file._id}`, err);
+					}
 				}
-				files = files.filter((f) => !selectedFiles.has(f._id as string));
-				selectedFiles.clear();
+
+				// Only confirmed deletions leave the list and the selection, so failed
+				// rows stay visible for a retry.
+				files = files.filter((f) => !deletedKeys.has(mediaFileKey(f)));
+				for (const key of deletedKeys) selectedFiles.delete(key);
 				await refreshAll();
-				toast.success('Batch delete complete');
+
+				if (failedNames.length === 0) {
+					toast.success('Batch delete complete');
+					return;
+				}
+
+				const listed = failedNames.slice(0, 3).join(', ');
+				const summary = failedNames.length > 3 ? `${listed}…` : listed;
+				if (deletedKeys.size === 0) {
+					toast.error(`Batch delete failed: ${summary}`);
+				} else {
+					toast.warning(
+						`${deletedKeys.size} of ${filesToDelete.length} files deleted — ${failedNames.length} failed: ${summary}`
+					);
+				}
 			}
 		});
 	}
@@ -631,7 +758,7 @@
 			} else if (result.success) {
 				const n = result.files?.length || list.length;
 				toast.success(n > 1 ? `${n} files uploaded successfully` : 'Media uploaded successfully');
-				await refreshAll();
+				await reloadMediaFromFirstPage();
 			} else {
 				toast.error(result.message || 'Upload failed');
 			}
@@ -1331,6 +1458,21 @@
 			</div>
 		</div>
 
+		<!--
+			Server pagination state (audit F01): the SSR total, not the rendered slice.
+			Screen-reader text only — the grid/table carry the visible affordance.
+		-->
+		<p
+			class="sr-only"
+			data-testid="media-gallery-pagination"
+			data-page={mediaPagination.page}
+			data-loaded={files.length}
+			data-total={mediaPagination.total}
+			data-has-more={mediaPagination.hasNextPage}
+		>
+			Media list: {files.length} of {mediaPagination.total} assets loaded
+		</p>
+
 		<!-- Content — data-view is the canonical E2E signal for grid/table mode -->
 		<div
 			class="relative flex min-h-0 flex-1 flex-col"
@@ -1344,6 +1486,9 @@
 					{isSelectionMode}
 					bind:selectedFiles
 					{publishedMediaIds}
+					serverHasMore={mediaPagination.hasNextPage}
+					{isLoadingMore}
+					onLoadMore={loadMoreMedia}
 					onEditImage={handleEditImage}
 					onOpenFileDetails={handleOpenFileDetails}
 					ondeleteImage={handleDeleteImage}
@@ -1362,6 +1507,11 @@
 						{isSelectionMode}
 						bind:selectedFiles
 						{publishedMediaIds}
+						serverHasMore={mediaPagination.hasNextPage}
+						serverTotal={mediaPagination.total}
+						serverLoaded={files.length}
+						{isLoadingMore}
+						onLoadMore={loadMoreMedia}
 						onEditImage={handleEditImage}
 						onOpenFileDetails={handleOpenFileDetails}
 						ondeleteImage={handleDeleteImage}

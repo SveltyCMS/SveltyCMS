@@ -51,6 +51,30 @@ import { matchesJsonPathFilter } from "@utils/json-path-filter";
 import { toGalleryListItem } from "./gallery-list-item";
 
 /**
+ * One server page of gallery rows. The grid/table reveal more via `?page=`;
+ * `total` is the adapter's COUNT, so the UI can say "100 of 2,431" instead of
+ * pretending the first slice is the whole folder.
+ */
+const GALLERY_PAGE_SIZE = 100;
+/** Absurd `?page=` values would otherwise become a huge OFFSET scan. */
+const MAX_GALLERY_PAGE = 10_000;
+
+interface GalleryPage {
+  items: Record<string, unknown>[];
+  page: number;
+  pageSize: number;
+  total: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+function parseGalleryPage(raw: string | null): number {
+  const parsed = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.min(parsed, MAX_GALLERY_PAGE);
+}
+
+/**
  * 🚀 Fast serializer: converts _id/parent ObjectIds to strings.
  * Uses JSON.stringify with a replacer — far faster than the previous
  * iterative DFS walker (eliminated ~50ms per large folder tree).
@@ -99,6 +123,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     const folderId = url.searchParams.get("folderId"); // Get folderId from URL
     const recursive = url.searchParams.get("recursive") === "true";
+    // 1-based server page — the gallery used to hardcode page 1 and silently
+    // drop every asset past the first 100.
+    const mediaPage = parseGalleryPage(url.searchParams.get("page"));
     // Server-side JSON path filter (shareable via URL; same syntax as client filter)
     const jsonPath = (url.searchParams.get("jsonPath") || url.searchParams.get("jsonpath") || "")
       .trim()
@@ -118,7 +145,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     // 🚀 The folder tree and the media listing are independent reads — run them
     // together instead of paying both round-trips back to back. Each branch keeps
     // its own soft-fail (an empty tree/list beats a 500 on the whole gallery).
-    const [virtualFolders, allMediaResults] = await Promise.all([
+    const [virtualFolders, mediaResultPage] = await Promise.all([
       (async (): Promise<SystemVirtualFolder[]> => {
         try {
           const cached = await cacheService.getOrSetSWR<SystemVirtualFolder[]>(
@@ -142,17 +169,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
           return [];
         }
       })(),
-      (async (): Promise<Record<string, unknown>[]> => {
+      (async (): Promise<GalleryPage> => {
+        const emptyPage: GalleryPage = {
+          items: [],
+          page: mediaPage,
+          pageSize: GALLERY_PAGE_SIZE,
+          total: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        };
         // Use db-agnostic adapter method to fetch media (soft-fail: empty list > 500)
         try {
           const getByFolder = dbAdapter.media?.files?.getByFolder;
           if (typeof getByFolder !== "function") {
             logger.warn("media.files.getByFolder is unavailable — returning empty media list");
-            return [];
+            return emptyPage;
           }
           const mediaResult = await getByFolder(folderId as DatabaseId | undefined, {
-            pageSize: 100,
-            page: 1,
+            pageSize: GALLERY_PAGE_SIZE,
+            page: mediaPage,
             sortField: allowMediaSortField(url.searchParams.get("sort")),
             sortDirection: allowMediaSortDirection(url.searchParams.get("dir")),
             recursive,
@@ -161,17 +196,27 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
             ...(jsonPath ? { jsonPath } : {}),
           });
-          return mediaResult?.success && mediaResult.data
-            ? (mediaResult.data.items as unknown as Record<string, unknown>[]) || []
-            : [];
+          if (!mediaResult?.success || !mediaResult.data) return emptyPage;
+          const { items, total, hasNextPage, hasPreviousPage } = mediaResult.data;
+          const pageItems = (items as unknown as Record<string, unknown>[]) || [];
+          return {
+            items: pageItems,
+            page: mediaPage,
+            pageSize: GALLERY_PAGE_SIZE,
+            total: typeof total === "number" ? total : pageItems.length,
+            hasNextPage: hasNextPage === true,
+            hasPreviousPage: hasPreviousPage === true,
+          };
         } catch (mediaErr) {
           logger.warn(
             `Media getByFolder failed (non-fatal): ${mediaErr instanceof Error ? mediaErr.message : String(mediaErr)}`,
           );
-          return [];
+          return emptyPage;
         }
       })(),
     ]);
+
+    const allMediaResults = mediaResultPage.items;
 
     // Determine current folder (id compare without a JSON round-trip per folder)
     const currentFolder = folderId
@@ -179,7 +224,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       : null;
     logger.trace("Current folder determined:", currentFolder);
 
-    logger.debug(`Fetched ${allMediaResults.length} media items for folder ${folderId || "root"}`);
+    logger.debug(
+      `Fetched ${allMediaResults.length} items (page ${mediaResultPage.page}, total ${mediaResultPage.total}) folder ${folderId || "root"}`,
+    );
 
     if (allMediaResults.length === 0) {
       logger.debug("No media items found");
@@ -252,6 +299,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       publishedMediaIds,
       /** Echo server-applied JSON path filter for client sync / shareable URLs */
       jsonPathFilter: jsonPath || "",
+      /** Server pagination — `total` is the folder count, not the rendered slice */
+      mediaPagination: {
+        page: mediaResultPage.page,
+        pageSize: mediaResultPage.pageSize,
+        total: mediaResultPage.total,
+        hasNextPage: mediaResultPage.hasNextPage,
+        hasPreviousPage: mediaResultPage.hasPreviousPage,
+      },
     });
   } catch (err) {
     if (isRedirect(err) || isHttpError(err)) {

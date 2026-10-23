@@ -57,6 +57,16 @@
 		isSelectionMode?: boolean;
 		selectedFiles: SvelteSet<string>;
 		publishedMediaIds?: SvelteSet<string>;
+		/** The folder holds server pages the client has not fetched yet. */
+		serverHasMore?: boolean;
+		/** Folder total from the server (the paginated slice is smaller). */
+		serverTotal?: number;
+		/** Rows already fetched from the server (before client filters). */
+		serverLoaded?: number;
+		/** A server page request is in flight (parent-owned). */
+		isLoadingMore?: boolean;
+		/** Asks the parent for the next server page. */
+		onLoadMore?: () => void;
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
@@ -68,6 +78,11 @@
 		isSelectionMode = false,
 		selectedFiles = $bindable(),
 		publishedMediaIds = $bindable(new SvelteSet<string>()),
+		serverHasMore = false,
+		serverTotal = 0,
+		serverLoaded = 0,
+		isLoadingMore = false,
+		onLoadMore = () => {},
 		ondeleteImage = () => {},
 		onEditImage = () => {},
 		onUpdateImage = () => {},
@@ -623,6 +638,39 @@
 			</tbody>
 		</table>
 	</SmartTableShell>
+
+	<!--
+		Table pagination only ranges over fetched rows (client mode), so a folder
+		holding more than one server page needs its own explicit advance.
+	-->
+	{#if serverHasMore || isLoadingMore}
+		<div
+			class="flex shrink-0 items-center justify-center gap-2 border-t border-(--admin-border-default) p-2"
+		>
+			<Button
+				variant="surface"
+				size="sm"
+				onclick={onLoadMore}
+				disabled={isLoadingMore}
+				aria-busy={isLoadingMore}
+				data-testid="media-table-load-more"
+				class="h-10 gap-1.5 px-3"
+			>
+				<iconify-icon
+					icon={isLoadingMore ? 'mdi:loading' : 'mdi:chevron-down'}
+					width="16"
+					class={isLoadingMore ? 'animate-spin' : ''}
+					aria-hidden="true"
+				></iconify-icon>
+				<span>{isLoadingMore ? 'Loading more…' : 'Load more assets'}</span>
+			</Button>
+			{#if serverTotal > serverLoaded}
+				<p class="text-xs text-(--admin-text-muted)">
+					{serverLoaded} of {serverTotal} assets loaded
+				</p>
+			{/if}
+		</div>
+	{/if}
 </AdminCard>
 
 {#if showTagModal}
