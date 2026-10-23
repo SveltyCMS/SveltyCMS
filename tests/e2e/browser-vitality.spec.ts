@@ -19,6 +19,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { loginAsAdmin } from "./helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "./helpers/cookie-consent";
 import { dismissCookieBannerIfPresent } from "./helpers/stable";
+import { openTableSearch, openUserAdminUsers } from "./helpers/user-page";
 import { assertNoZeroErrors, attachZeroErrorGuard } from "./helpers/zero-error-guard";
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
@@ -93,23 +94,18 @@ test.describe("Browser UX Vitality & Client Performance", () => {
   }) => {
     await loginAsAdmin(page, "/user");
 
-    // Open user edit dialog to test input responsiveness
-    const editBtn = page
-      .getByRole("button", { name: /edit profile|profil bearbeiten|edit/i })
-      .first();
-    if (await editBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await editBtn.click();
-      const input = page.locator('input[name="username"]').first();
-      await expect(input).toBeVisible({ timeout: 5000 });
+    // Open user admin table search to benchmark typing responsiveness
+    await openUserAdminUsers(page);
+    const searchInput = await openTableSearch(page);
+    await expect(searchInput).toBeVisible({ timeout: 10_000 });
 
-      const startTime = Date.now();
-      await input.fill("vitality_test_user");
-      const elapsed = Date.now() - startTime;
+    const startTime = Date.now();
+    await searchInput.fill("vitality_test_user");
+    const elapsed = Date.now() - startTime;
 
-      // eslint-disable-next-line no-console
-      console.log(`[BrowserVitality] Input Fill Duration: ${elapsed}ms for 18 characters`);
-      expect(elapsed).toBeLessThan(1000);
-    }
+    // eslint-disable-next-line no-console
+    console.log(`[BrowserVitality] Input Fill Duration: ${elapsed}ms for 18 characters`);
+    expect(elapsed).toBeLessThan(1000);
   });
 
   test("SPA route transitions maintain stable JS heap memory without exponential leak", async ({
