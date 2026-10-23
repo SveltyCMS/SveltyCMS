@@ -1829,6 +1829,16 @@ Catalog prices on `/shop` are gross. Checkout shows the trader, the VAT breakdow
 - **Hygiene**: `./config/automations/[id]` coverage row, `tests/unit/components/dom/render.ts` gained `renderPage()` for partial page-data mounts (the layout half is intentionally omitted), and `tests/playwright-results.json` is git-ignored (run artifacts, not source).
 - **Verification**: `bun run check` green (0 type errors), unit suite 703 files / 6 646 tests, component interactions 146 tests, route-coverage gate green.
 
+### 3.59 October 2026 — CI repair pass: seams, ETags, revisions, dialogs (2026-10-23)
+
+- **Seam mutation drift**: `raise()` gained a `details` argument in `ee042b731`; the two `AppError` mutants in `tests/mutation/seam-mutation.test.ts` still searched for the 3-argument throw, so the whitebox job failed on "find string not found" before it ran a single assertion. Mutants retargeted; 9/9 killed.
+- **Point-read ETag was unparseable on Drizzle adapters**: the SQL fallback emitted `"<id>-${String(updatedAt)}"`. `String(Date)` is RFC-2822, which `normalizeExpectedVersion()` cannot reduce to a timestamp, so every `If-Match` echo failed closed with `409 VERSION_CONFLICT` on MariaDB/PostgreSQL while SQLite (ISO strings) passed. New `versionTokenString()` renders ISO for every ETag version; covered by three new unit cases.
+- **Revision history was unbounded when the newest snapshot's `version` was unreadable**: `recordRevision()` derived the next version from `items[0].version`, so a history read that omitted the field restarted at 1 and never reached the 2× prune threshold (MongoDB kept all 12 snapshots of a limit-5 schema). The counter now falls back to `total + 1` and the prune fires when either the version or the row count crosses 2×.
+- **Plugin workspace announced itself as a region**: moving the overlay inside the content column dropped the `dialog` role, which broke every `getByRole('dialog', { name: 'Plugin workspace' })` assertion. It is a non-modal dialog again (`aria-modal="false"`).
+- **Page-size select failed AA**: `tertiary-500` on `surface-200` measured 3.47:1. Pagination is chrome, not a status, so it now uses neutral text in both modes.
+- **Media specs described a UI that no longer exists** (a `Grid size` button group with `aria-pressed`, and a toolbar JSON-path field). They now assert the real contract: the JSON-path input inside the advanced-search dialog, and the single toggle that cycles `data-size`.
+- **Still open (needs a design decision)**: the brand ramp itself cannot pass AA as text or as a white-on-fill badge. `--color-primary-500` is `oklch(76.87% 0.2296 137.58deg)` (≈ `#5fd317`); white on it is 1.94:1 and it is 1.58:1 on `surface-200`. Only `primary-900` satisfies both, so the fix is a palette/contract change rather than a class swap — tracked in the roadmap.
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)
