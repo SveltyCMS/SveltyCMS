@@ -9,6 +9,7 @@
 - Control-risk data-testids for E2E
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { adminFade } from '@utils/admin-transitions';
 	import { toast } from '@src/stores/toast.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -43,7 +44,7 @@
 
 	let { data } = $props();
 
-	let trashedItems = $state<TrashItem[]>(data.items);
+	let trashedItems = $state<TrashItem[]>(untrack(() => data.items));
 	let isLoading = $state(false);
 
 	async function loadTrash() {

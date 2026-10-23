@@ -14,7 +14,7 @@ their arrows so the canvas stays readable.
 - full Svelte 5 runes; logical (RTL-safe) spacing
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { fade } from 'svelte/transition';
 	import { generateUUID } from '@utils/native-utils';
@@ -83,12 +83,12 @@ their arrows so the canvas stays readable.
 
 	let selectedNodeId = $state<string | null>(null);
 	let selectedTransitionId = $state<string | null>(null);
-	let collections = $state<WorkflowCollectionOption[]>(data.collections);
+	let collections = $state<WorkflowCollectionOption[]>(untrack(() => data.collections));
 
 	const collectionOptions = $derived(
 		collections.map((col) => ({ value: col._id, label: col.name || col._id }))
 	);
-	let roles = $state<WorkflowRoleOption[]>(data.roles);
+	let roles = $state<WorkflowRoleOption[]>(untrack(() => data.roles));
 	const roleOptions = $derived(
 		roles
 			.filter((role) => Boolean(role._id ?? role.id))
@@ -401,13 +401,13 @@ their arrows so the canvas stays readable.
 		spaceY="4"
 	>
 		{#snippet actions()}
-			<Button variant="surface" onclick={addState} data-testid="workflow-add-state"
+			<Button variant="ghost" onclick={addState} data-testid="workflow-add-state"
 				>{workflows_add_state()}</Button
 			>
-			<Button variant="surface" onclick={addTransition} data-testid="workflow-add-transition"
+			<Button variant="ghost" onclick={addTransition} data-testid="workflow-add-transition"
 				>{workflows_add_transition()}</Button
 			>
-			<Button variant="tertiary" onclick={saveWorkflow} data-testid="workflow-save"
+			<Button variant="primary" onclick={saveWorkflow} data-testid="workflow-save"
 				>{workflows_save()}</Button
 			>
 		{/snippet}

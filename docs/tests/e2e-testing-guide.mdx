@@ -116,15 +116,34 @@ Avoid using:
 
 ### 4. CI/CD
 
-GitHub Actions runs Playwright in staged jobs:
+GitHub Actions runs Playwright in staged projects:
 
-- **`e2e-wizard`**: validates fresh setup and post-setup redirects against the production build.
-- **`e2e-auth`**: provisions auth state and uploads `tests/e2e/.auth/` as a short-lived artifact.
-- **`e2e-app`**: fans out all 17 projects (signup, content, system, a11y, rbac, language, branding, visual-regression, users, builder, permissions, firstuser, config-routes, admin, dashboard, appearance, media) in parallel.
+- **`wizard`** → **`firstuser`** → **`auth-setup`**: validates fresh setup, signup, then provisions and uploads `tests/e2e/.auth/`.
+- **`chromium`**: fans the remaining specs out across 8 disjoint `--grep` groups (Config & System, Builder & Content, Users & Profile, RBAC & Enforcement, User Journeys, Media & Dashboard, Auth & Branding, Admin & Catch-All).
+
+The partition is total: every spec must match **exactly one** group. A spec matching none silently never runs; a spec matching two runs twice. Verify with `node .github/workflows/e2e-matrix.ts` when adding a spec, and keep route-based names (avoid a second group keyword in the filename or `test.describe` title).
 
 Failure artifacts include Playwright HTML reports, traces, video, and preview server logs.
 
-### 5. Enterprise Config Route Specs
+### 5. Zero-Error Contract
+
+Journeys that represent a real editorial flow attach the shared trap from `tests/e2e/helpers/zero-error-guard.ts`:
+
+```ts
+import { assertNoZeroErrors, attachZeroErrorGuard } from "../../helpers/zero-error-guard";
+
+test.beforeEach(async ({ page }) => {
+  attachZeroErrorGuard(page);
+});
+
+test.afterEach(async ({ page }) => {
+  assertNoZeroErrors(page);
+});
+```
+
+It fails the test on an uncaught `pageerror`, a non-allowlisted `console.error`, or a failed same-origin request. The allowlist is deliberately narrow (favicon/icon-CDN noise, `net::ERR_ABORTED`, `ResizeObserver` loops, expected `401/403/404` resource loads). Do not widen it to hide a product bug — fix the error or document the exception next to the pattern.
+
+### 6. Enterprise Config Route Specs
 
 The following enterprise smoke tests cover config and admin routes:
 

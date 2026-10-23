@@ -59,6 +59,13 @@ Inspired by the **Drupal module pattern**, custom widgets are self-contained: de
 - Verified in `vitest.config.ts` (`src/widgets/custom/**/tests/**/*.test.ts`), so a new widget folder is picked up without config changes.
 - Each suite imports the widget through the `@widgets` alias and the fixture through `@tests/unit/widgets/test-utils`, so the file stays valid wherever the widget folder is moved.
 
+### 3. Client DOM Component Interaction (`tests/unit/components/dom/`)
+
+Complementing headless schema validation, client DOM interaction tests mount the actual Svelte 5 widget components (`input.svelte`) in the jsdom runtime via `vitest.dom.config.ts`:
+
+- ✅ `widget-inputs-interaction.test.ts`: exercises user typing, number min/max range attributes, checkbox toggles, email validation, and two-way reactivity with `validationStore`.
+- Run with `bun run test:unit:components`.
+
 ---
 
 ## 🧪 Testing Patterns

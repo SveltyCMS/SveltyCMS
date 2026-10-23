@@ -96,7 +96,7 @@ async function createEntry(collection: string, title: string): Promise<string> {
 }
 
 /** Tiny pause so consecutive writes land on distinct `updatedAt` values. */
-const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+const tick = () => new Promise((resolve) => setTimeout(resolve, 25));
 
 describe("Optimistic locking, revision restore, and filter validation", () => {
   beforeAll(async () => {

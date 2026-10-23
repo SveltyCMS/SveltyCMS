@@ -81,7 +81,9 @@ describe("pre-push hook", () => {
 
   it("runs the E2E smoke gate against a harness build", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
-    expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build tests/e2e/smoke.spec.ts");
+    expect(prePush).toContain('E2E_TARGETS="tests/e2e/smoke.spec.ts"');
+    expect(prePush).toContain("tests/e2e/routes/collection-builder/kitchen-sink.spec.ts");
+    expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build $E2E_TARGETS");
     expect(prePush).toContain("SKIP_E2E_SMOKE");
   });
 });

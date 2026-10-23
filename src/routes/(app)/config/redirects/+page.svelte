@@ -191,7 +191,7 @@
 >
 	{#snippet actions()}
 		<Button
-			variant="tertiary"
+			variant="primary"
 			onclick={() => openModal()}
 			leadingIcon="mdi:plus"
 			data-testid="redirects-add"

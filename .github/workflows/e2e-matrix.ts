@@ -69,7 +69,7 @@ export const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   },
   {
     name: "Admin & Catch-All",
-    grep: "(routes/admin/|routes/system/settings|routes/system/hooks-lane-smoke|admin/tenants|catch-all|isolation|routes/site/|multi-tenancy)",
+    grep: "(routes/admin/|routes/system/settings|routes/system/hooks-lane-smoke|admin/tenants|catch-all|isolation|routes/site/|multi-tenancy|browser-vitality)",
   },
 ];
 

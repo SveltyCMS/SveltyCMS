@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-19"
+updated: "2026-10-23"
 tags:
   - "achievements"
   - "log"
@@ -1828,6 +1828,29 @@ Catalog prices on `/shop` are gross. Checkout shows the trader, the VAT breakdow
 - **Benchmark history is bounded**: `pruneBenchmarkHistory()` (`scripts/benchmark-matrix/history-retention.ts`) keeps the newest 50 rows per series per engine, runs `VACUUM` only when rows were dropped, then `wal_checkpoint(TRUNCATE)`; it never throws into the report path. `tests/benchmarks/probes/README.md` documents the nine probe scripts.
 - **Hygiene**: `./config/automations/[id]` coverage row, `tests/unit/components/dom/render.ts` gained `renderPage()` for partial page-data mounts (the layout half is intentionally omitted), and `tests/playwright-results.json` is git-ignored (run artifacts, not source).
 - **Verification**: `bun run check` green (0 type errors), unit suite 703 files / 6 646 tests, component interactions 146 tests, route-coverage gate green.
+
+### 3.59 October 2026 — CI repair pass: seams, ETags, revisions, dialogs (2026-10-23)
+
+- **Seam mutation drift**: `raise()` gained a `details` argument in `ee042b731`; the two `AppError` mutants in `tests/mutation/seam-mutation.test.ts` still searched for the 3-argument throw, so the whitebox job failed on "find string not found" before it ran a single assertion. Mutants retargeted; 9/9 killed.
+- **Point-read ETag was unparseable on Drizzle adapters**: the SQL fallback emitted `"<id>-${String(updatedAt)}"`. `String(Date)` is RFC-2822, which `normalizeExpectedVersion()` cannot reduce to a timestamp, so every `If-Match` echo failed closed with `409 VERSION_CONFLICT` on MariaDB/PostgreSQL while SQLite (ISO strings) passed. New `versionTokenString()` renders ISO for every ETag version; covered by three new unit cases.
+- **Revision history was unbounded when the newest snapshot's `version` was unreadable**: `recordRevision()` derived the next version from `items[0].version`, so a history read that omitted the field restarted at 1 and never reached the 2× prune threshold (MongoDB kept all 12 snapshots of a limit-5 schema). The counter now falls back to `total + 1` and the prune fires when either the version or the row count crosses 2×.
+- **Plugin workspace announced itself as a region**: moving the overlay inside the content column dropped the `dialog` role, which broke every `getByRole('dialog', { name: 'Plugin workspace' })` assertion. It is a non-modal dialog again (`aria-modal="false"`).
+- **Page-size select failed AA**: `tertiary-500` on `surface-200` measured 3.47:1. Pagination is chrome, not a status, so it now uses neutral text in both modes.
+- **Media specs described a UI that no longer exists** (a `Grid size` button group with `aria-pressed`, and a toolbar JSON-path field). They now assert the real contract: the JSON-path input inside the advanced-search dialog, and the single toggle that cycles `data-size`.
+- **The gate could not see warnings**: `bun run typecheck` called `svelte-check --threshold error`, and `--threshold warning` turned out to widen only the _output_ (still exit 0), so the 10 `state_referenced_locally` warnings the editor listed were invisible to pre-commit and CI. The ten sites now wrap their one-time seed in `untrack(...)` (the codebase's established “intentional initial value” pattern), and `typecheck` ends with `scripts/check/check-svelte-diagnostics.ts`, which parses the machine reporter and fails on warnings as well as errors.
+- **Still open (needs a design decision)**: the brand ramp itself cannot pass AA as text or as a white-on-fill badge. `--color-primary-500` is `oklch(76.87% 0.2296 137.58deg)` (≈ `#5fd317`); white on it is 1.94:1 and it is 1.58:1 on `surface-200`. Only `primary-900` satisfies both, so the fix is a palette/contract change rather than a class swap — tracked in the roadmap.
+
+### 3.60 October 2026 — Editorial journey, zero-error trap and browser vitality (2026-10-23)
+
+- **Composite entry journey**: `tests/e2e/routes/collection-builder/kitchen-sink.spec.ts` provisions a collection with `Input` / `Number` / `Checkbox` / `Email` and walks create → API write → list → edit (`?edit=<id>`) → update → delete, asserting persistence through a cold reload instead of a single synthetic string field.
+- **Zero-error contract**: `tests/e2e/helpers/zero-error-guard.ts` captures `pageerror`, non-allowlisted `console.error`, failed same-origin network requests (`requestfailed`), and same-origin HTTP responses with status $\ge 500$, and fails the test in `afterEach`. The guard is idempotent per page and its allowlist is limited to favicon/icon-CDN noise, `net::ERR_ABORTED`, `ResizeObserver` loops, and expected `401/403/404` resource loads.
+- **Editorial save and validation hygiene**: `header-edit.svelte` maps validation errors to human-readable field labels instead of raw DB keys, auto-activates Tab 0 if an inactive tab is open, and moves DOM focus to the failing element via CSS-escaped selectors; clicking Save on an unchanged edit displays `toast.info('No changes to save')` and exits cleanly without bumping `updatedAt` or writing phantom revisions. `widget-loader.svelte` optimizes field sync with an $O(1)$ primitive fast-path (zero `JSON.stringify` overhead during keystrokes in inputs) and cycle-safe `WeakSet` serialization for complex objects.
+- **Editor boundary journey**: `tests/e2e/routes/admin/editor-boundary.spec.ts` (renamed from `rbac-journey` so it matches exactly one CI shard) logs in as an editor, asserts the profile surface renders, the admin area is absent, and a direct visit to `/config/access-management` fails closed without a runtime crash.
+- **Real-browser vitality**: `tests/e2e/browser-vitality.spec.ts` (`bun run benchmark:browser`) measures Navigation Timing, input-fill latency, and SPA heap growth in Chromium — the first browser-side counterpart to the fetch-loop benchmarks. It runs in the `Admin & Catch-All` CI shard.
+- **Widget interaction matrix**: `tests/unit/components/dom/widget-inputs-interaction.test.ts` mounts the `Input` / `Checkbox` / `Number` / `Email` widgets in jsdom and drives native events, proving two-way state binding and `validationStore` error linkage.
+- **Gate wiring**: `tests/critical-test-paths.ts` and `tests/route-test-coverage.ts` register the new journeys; `package.json` gains `test:e2e:editorial` (smoke + composite + editor boundary) and `benchmark:browser`; pre-push expands its browser gate to the composite journey only when widgets, collection display or collection routes change.
+- **Shard partition fixed**: `rbac-journey.spec.ts` matched both `RBAC & Enforcement` (`rbac`) and `Admin & Catch-All` (`routes/admin/`), so it ran twice; `browser-vitality.spec.ts` matched no group and never ran. The spec was renamed (title included), and `browser-vitality` was added to `Admin & Catch-All`.
+- **Not a full kitchen sink yet**: the composite journey covers four scalar widgets. `RichText`, `Textarea`, `Select`, `Date`, `Tags`, `MediaUpload`, `Relation` and `Repeater` still need coverage — tracked in the roadmap.
 
 ## Related
 

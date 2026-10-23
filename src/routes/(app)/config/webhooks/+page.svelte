@@ -13,6 +13,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 - Control-risk data-testids only (golden E2E anchors)
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { Webhook } from '@src/services/background/webhook-service';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -75,7 +76,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 
 	let { data } = $props();
 
-	let webhooks: Webhook[] = $state(data.webhooks);
+	let webhooks: Webhook[] = $state(untrack(() => data.webhooks));
 	let isLoading = $state(false);
 	let isSaving = $state(false);
 	let showModal = $state(false);
@@ -226,7 +227,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 				{webhooks_delivery_logs()}
 			</Button>
 			<Button
-				variant="tertiary"
+				variant="primary"
 				onclick={openAddModal}
 				aria-label={webhooks_add_aria()}
 				leadingIcon="mdi:plus"

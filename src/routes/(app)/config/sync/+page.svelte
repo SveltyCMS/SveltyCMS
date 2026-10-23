@@ -11,6 +11,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 - Unmet requirement detection and safety gating
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -62,7 +63,9 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 	let { data } = $props();
 
-	let status: ConfigStatus = $state((data.status as unknown as ConfigStatus) ?? null);
+	let status: ConfigStatus = $state(
+		untrack(() => (data.status as unknown as ConfigStatus) ?? null)
+	);
 	let isLoading = $state(false);
 	let isProcessing = $state(false);
 	let isExporting = $state(false);
@@ -206,7 +209,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			<div class="mb-4 rounded-md border border-surface-500/20 bg-surface-500/10 p-4">
 				<p class="text-surface-600 dark:text-surface-400 text-sm">
 					{sync_intro_part1()}{' '}<strong>{sync_schema_code()}</strong>{sync_intro_part2()}
-					<code>{sync_sync_path()}</code>{sync_intro_part3()}
+					<code>{sync_sync_path()}</code>{' '}{sync_intro_part3()}
 				</p>
 			</div>
 

@@ -6,6 +6,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 -->
 
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { AutomationFlow } from '@src/services/background/automation/types';
 	import { AUTOMATION_EVENTS } from '@src/services/background/automation/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -62,7 +63,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 
 	let { data } = $props();
 
-	let flows: AutomationFlow[] = $state(data.flows);
+	let flows: AutomationFlow[] = $state(untrack(() => data.flows));
 	let isLoading = $state(false);
 	let searchQuery = $state('');
 	let selectedIds: string[] = $state([]);

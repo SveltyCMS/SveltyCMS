@@ -58,6 +58,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { themeStore } from '@src/stores/theme-store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { Form } from '@utils/form.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -632,6 +633,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		P_WRESET = false;
 	}
 
+	// Ink colour for the legacy FloatingInput colour props: follows light/dark mode
+	const ink = $derived(themeStore.isDarkMode ? 'white' : 'black');
+
 	// Class computations
 	const isActive = $derived(active === 0);
 	const isInactive = $derived(active !== undefined && active !== 0);
@@ -651,7 +655,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={onPointerEnterProp}
 	tabindex={cardTabIndex}
-	class="{baseClasses} focus-visible:outline-2 focus-visible:outline-primary-500"
+	class="{baseClasses} bg-white focus-visible:outline-2 focus-visible:outline-primary-500 dark:bg-(--admin-bg-page)"
 	class:active={isActive}
 	class:inactive={isInactive}
 	class:hover={isHover}
@@ -663,8 +667,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		>
 			{#if screen.isDesktop}
 				<div class="absolute inset-0 z-0">
-					<FloatingPaths position={1} background="white" />
-					<FloatingPaths position={-1} background="white" />
+					<FloatingPaths position={1} background={themeStore.isDarkMode ? 'dark' : 'white'} />
+					<FloatingPaths position={-1} background={themeStore.isDarkMode ? 'dark' : 'white'} />
 				</div>
 			{/if}
 			<div
@@ -675,7 +679,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			<div
 				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin &&
 				brandedVariant === 'elevated'
-					? 'bg-white shadow-xl border border-surface-500/30'
+					? 'bg-white dark:bg-surface-900 shadow-xl border border-surface-500/30'
 					: 'bg-white/0'}"
 				class:hide={active !== 0}
 			>
@@ -686,9 +690,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				>
 				<div class="flex flex-row gap-3 items-center">
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />
-					<h1 class="text-3xl font-bold text-black lg:text-4xl">
+					<h1 class="text-3xl font-bold text-black lg:text-4xl dark:text-white">
 						<div class="text-xs text-surface-300">
-							<SiteName {siteName} highlight="CMS" textClass="text-black" />
+							<SiteName {siteName} highlight="CMS" textClass="text-black dark:text-white" />
 						</div>
 						{#if !P_WFORGOT && !P_WRESET && !P_WMAGIC}
 							<div class="lg:-mt-1">{form_signin()}</div>
@@ -708,17 +712,16 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					<div class="absolute inset-e-0">
 						<Button
 							variant="outline"
-							color="#000000"
 							type="button"
 							rounded={true}
 							onclick={handleBack}
 							aria-label={button_back()}
-							class="h-10 w-10 min-w-0 p-0! rounded-full border-black/25 text-black hover:bg-black/8 hover:border-black/40"
+							class="h-10 w-10 min-w-0 p-0! rounded-full border-black/25 text-black hover:bg-black/8 hover:border-black/40 dark:border-white/25 dark:text-white dark:hover:bg-white/10 dark:hover:border-white/40"
 						>
 							<iconify-icon
 								icon="ri:arrow-left-line"
 								width={24}
-								class="text-black"
+								class="text-black dark:text-white"
 								aria-hidden="true"
 							></iconify-icon>
 						</Button>
@@ -758,8 +761,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								label={email()}
 								required
 								icon="mdi:email"
-								iconColor="black"
-								textColor="black"
+								iconColor={ink}
+								textColor={ink}
 								data-testid="signin-email"
 								invalid={!!loginForm.errors.email}
 								errorMessage={loginForm.errors.email?.[0] || ''}
@@ -776,9 +779,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								required
 								label={form_password()}
 								icon="mdi:lock"
-								iconColor="black"
-								textColor="black"
-								passwordIconColor="black"
+								iconColor={ink}
+								textColor={ink}
+								passwordIconColor={ink}
 								data-testid="signin-password"
 								invalid={!!loginForm.errors.password}
 								errorMessage={loginForm.errors.password?.[0] || ''}
@@ -792,7 +795,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							>
 								<Button
 									type="button"
-									variant="surface"
+									variant="primary"
 									class="w-full sm:w-auto"
 									aria-label={form_signin()}
 									data-testid="signin-submit"
@@ -819,7 +822,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									<Button
 										type="button"
 										variant="outline"
-										class="w-full sm:w-auto text-black! flex items-center justify-center gap-1.5"
+										class="w-full sm:w-auto text-black! dark:text-white! flex items-center justify-center gap-1.5"
 										aria-label="Sign in with Passkey or Biometrics"
 										onclick={handlePasskeySignIn}
 										loading={isPasskeyLoading}
@@ -833,7 +836,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									<Button
 										type="button"
 										variant="outline"
-										class="w-full sm:w-auto text-black!"
+										class="w-full sm:w-auto text-black! dark:text-white!"
 										aria-label="Sign in via Magic Link"
 										onclick={() => {
 											P_WMAGIC = true;
@@ -845,7 +848,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								<Button
 									type="button"
 									variant="outline"
-									class="w-full sm:w-auto text-black!"
+									class="w-full sm:w-auto text-black! dark:text-white!"
 									aria-label={signin_forgottenpassword()}
 									onclick={handleForgotPassword}
 									data-testid="signin-forgot-password"
@@ -1114,9 +1117,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							autocomplete="new-password"
 							label={form_password()}
 							icon="mdi:lock"
-							iconColor="black"
-							textColor="black"
-							passwordIconColor="black"
+							iconColor={ink}
+							textColor={ink}
+							passwordIconColor={ink}
 							invalid={!!resetForm.errors.password}
 							errorMessage={resetForm.errors.password?.[0] || ''}
 						/>
@@ -1131,9 +1134,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							autocomplete="new-password"
 							label={confirm_password?.() || form_confirmpassword?.()}
 							icon="mdi:lock"
-							iconColor="black"
-							textColor="black"
-							passwordIconColor="black"
+							iconColor={ink}
+							textColor={ink}
+							passwordIconColor={ink}
 							invalid={!!resetForm.errors.confirmPassword}
 							errorMessage={resetForm.errors.confirmPassword?.[0] || ''}
 						/>
@@ -1191,7 +1194,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		--width: 0%;
 		flex-grow: 1;
 		width: var(--width);
-		background: white;
 		transition:
 			width 0.15s ease-out,
 			border-radius 0.15s ease-out;

@@ -157,7 +157,7 @@
 		     is never covered. -->
 		<div data-testid="access-mgmt-actions" class="flex flex-wrap items-center gap-2">
 			<Button
-				variant="tertiary"
+				variant="primary"
 				onclick={saveAllChanges}
 				aria-label={access_save_all_aria()}
 				data-testid="access-mgmt-save"

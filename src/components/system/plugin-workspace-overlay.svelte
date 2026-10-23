@@ -36,8 +36,9 @@
 {#if pluginWorkspace.activePluginId}
 	<div
 		class="absolute inset-0 z-30 flex flex-col overflow-hidden bg-(--admin-bg-card)"
-		role="region"
+		role="dialog"
 		aria-label="Plugin workspace"
+		aria-modal="false"
 		data-testid="plugin-workspace"
 	>
 		<Slot name="plugin_workspace" props={{ activePluginId: pluginWorkspace.activePluginId }} />

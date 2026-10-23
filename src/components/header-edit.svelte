@@ -48,6 +48,7 @@
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { createEntry, invalidateCollectionCache } from '@utils/api';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
+	import { getFieldName } from '@utils/schema/field-utils';
 	// --- Derived from page & stores ---
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -194,14 +195,141 @@
 		}
 	}
 
+	function getFieldLabel(key: string): string {
+		if (!key) return '';
+		const fields = (currentCollection?.fields || []) as any[];
+
+		function findField(list: any[], target: string): any {
+			for (const f of list) {
+				if (!f || typeof f !== 'object') continue;
+				if (f.db_fieldName === target || f.name === target || f.label === target) {
+					return f;
+				}
+				if (f.label && getFieldName(f, false) === target) {
+					return f;
+				}
+				if (f.fields && Array.isArray(f.fields)) {
+					const child = findField(f.fields, target);
+					if (child) return child;
+				}
+			}
+			return null;
+		}
+
+		// Direct match
+		const direct = findField(fields, key);
+		if (direct?.label) {
+			return typeof direct.label === 'string' ? direct.label : String(direct.label);
+		}
+
+		// Nested dot notation match (e.g., "seo.title")
+		if (key.includes('.')) {
+			const parts = key.split('.');
+			const parentField = findField(fields, parts[0]);
+			if (parentField?.fields && Array.isArray(parentField.fields)) {
+				const childField = findField(parentField.fields, parts.slice(1).join('.'));
+				if (childField?.label) {
+					const pLabel = parentField.label || parts[0];
+					const cLabel = childField.label;
+					return `${pLabel} (${cLabel})`;
+				}
+			}
+			if (parentField?.label) {
+				const humanChild = parts
+					.slice(1)
+					.map((p) => p.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+					.join(' ');
+				return `${parentField.label} (${humanChild})`;
+			}
+		}
+
+		// Fallback: convert snake_case/camelCase to Title Case
+		return key
+			.replace(/[._]/g, ' ')
+			.replace(/([a-z])([A-Z])/g, '$1 $2')
+			.replace(/\b\w/g, (c) => c.toUpperCase());
+	}
+
+	async function focusInvalidField(key: string): Promise<void> {
+		// If edit tab is inactive, switch to tab 0
+		const editTab = document.querySelector(
+			'button[role="tab"][data-value="0"]'
+		) as HTMLElement | null;
+		if (editTab && editTab.getAttribute('aria-selected') !== 'true') {
+			editTab.click();
+			await new Promise((r) => requestAnimationFrame(r));
+		}
+
+		const escapeCss = (s: string) =>
+			typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+				? CSS.escape(s)
+				: s.replace(/([ #;?%&,.+*~':"!^$[\]()=>|/@])/g, '\\$1');
+
+		const safeKey = escapeCss(key);
+		const lastPart = key.includes('.') ? escapeCss(key.split('.').pop()!) : safeKey;
+		const firstPart = key.includes('.') ? escapeCss(key.split('.')[0]!) : safeKey;
+
+		const selectors = [
+			`#${safeKey}`,
+			`[name="${safeKey}"]`,
+			`[data-fieldname="${safeKey}"]`,
+			`[data-field-name="${safeKey}"]`,
+			`#field-container-${safeKey}`,
+			`[data-field-name="${firstPart}"]`,
+			`#field-container-${firstPart}`,
+			`[name="${lastPart}"]`,
+			`#${lastPart}`
+		];
+
+		let targetEl: HTMLElement | null = document.getElementById(key);
+
+		if (!targetEl) {
+			for (const sel of selectors) {
+				const found = document.querySelector<HTMLElement>(sel);
+				if (found) {
+					targetEl = found;
+					break;
+				}
+			}
+		}
+
+		if (targetEl) {
+			if (
+				!['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(targetEl.tagName) &&
+				!targetEl.hasAttribute('contenteditable')
+			) {
+				const focusable = targetEl.querySelector<HTMLElement>(
+					'input:not([type="hidden"]), textarea, select, [contenteditable="true"], button, [tabindex="0"]'
+				);
+				if (focusable) {
+					targetEl = focusable;
+				}
+			}
+
+			targetEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+			if (typeof targetEl.focus === 'function') {
+				targetEl.focus();
+			}
+		}
+	}
+
 	async function save(): Promise<void> {
 		if (!isFormValid) {
-			toast.warning(validation_fix_before_save());
+			const errorKeys = Object.keys(validationStore.errors || {}).filter(
+				(k) => validationStore.errors[k]
+			);
+			if (errorKeys.length > 0) {
+				const labels = Array.from(new Set(errorKeys.map(getFieldLabel)));
+				toast.warning(`${validation_fix_before_save()} (${labels.join(', ')})`);
+				await focusInvalidField(errorKeys[0]);
+			} else {
+				toast.warning(validation_fix_before_save());
+			}
 			return;
 		}
 
 		if (currentMode === 'edit' && !hasChanges) {
-			logger.debug('[HeaderEdit] No changes – returning to list');
+			toast.info('No changes to save');
 			await navigationManager.toList();
 			return;
 		}

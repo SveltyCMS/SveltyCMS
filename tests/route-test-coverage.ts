@@ -81,6 +81,7 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
     testFiles: [
       "tests/integration/routes/collection-page-load.test.ts",
       "tests/e2e/routes/collection-builder/content-entries.spec.ts",
+      "tests/e2e/routes/collection-builder/kitchen-sink.spec.ts",
       "tests/unit/routes/preview-guard.test.ts",
     ],
   },
@@ -96,6 +97,7 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
     testFiles: [
       "tests/unit/routes/access-management-page-server.test.ts",
       "tests/e2e/routes/config/access-management.spec.ts",
+      "tests/e2e/routes/admin/editor-boundary.spec.ts",
     ],
   },
   {

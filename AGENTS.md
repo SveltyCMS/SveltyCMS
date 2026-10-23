@@ -123,7 +123,7 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                                                 |
 | Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile + **typecheck (`tsc` + `svelte-check`)**                           |
 |           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                                          |
-|           | `bun run typecheck`                                        | `svelte-kit sync` → `tsc --noEmit` → `svelte-check --threshold error`                                                   |
+|           | `bun run typecheck`                                        | `svelte-kit sync` → `tsc --noEmit` → `svelte-check` (errors **and** warnings gated)                                     |
 | Tests     | `bun run test:unit`                                        | Vitest unit suite (~60s)                                                                                                |
 |           | `bun run test:unit:components`                             | Client-build Svelte 5 component interaction tests (jsdom, ~14s)                                                         |
 |           | `bun run test:coverage`                                    | Unit suite + enforced P0 coverage floors (72/72/60/70)                                                                  |

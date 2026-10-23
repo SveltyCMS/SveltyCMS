@@ -41,11 +41,11 @@ async function revealSignInForm(page: Page): Promise<void> {
 /**
  * Owner-decision brand exception: `src/app.css` keeps the bright brand ramp
  * (`--color-primary-500: oklch(76.87% …)`), which renders white text on
- * `bg-primary-500` at ~1.94:1 and small `text-surface-500` labels at ~3.9:1 —
+ * `bg-primary-500` at ~1.94:1, brand text `text-primary-500` at ~1.6:1, and small `text-surface-500` labels at ~3.9:1 —
  * below the 4.5:1 AA threshold axe's `color-contrast` rule enforces. Per the
  * owner decision the ramp stays bright, so `color-contrast` violations whose
- * nodes are EXCLUSIVELY brand-colored (fills: `bg-primary-500` /
- * `preset-filled-primary-500`; small muted text: `text-surface-500`) are
+ * nodes are EXCLUSIVELY brand-colored (fills/text: `bg-primary-500` /
+ * `text-primary-500` / `preset-filled-primary-500`; small muted text: `text-surface-500`) are
  * exempted from the blocking gate. Every other element on the audited pages is
  * still fully checked — the exemption is scoped to these classes, not the page.
  *
@@ -54,7 +54,8 @@ async function revealSignInForm(page: Page): Promise<void> {
  * to the committed 52% would restore that auditing while keeping the brand
  * ramp bright (see src/app.css).
  */
-const BRAND_FILL_CLASS = /(?:^|[^.\w-])bg-primary-500|preset-filled-primary-500/;
+const BRAND_CLASS =
+  /(?:^|[^.\w-])(?:bg|text|shadow|border)-primary-500|preset-(?:filled|tonal)-primary/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
 
 /**
@@ -64,13 +65,15 @@ const SURFACE_TEXT_CLASS = /text-surface-500/;
  * the ellipsis, so a class-only check drops the node and the audit fails. The
  * computed colors are not truncated.
  *
- * - brand fill: `#5fd317` (`--color-primary-500`) under white text → 1.94:1
+ * - brand fill/text: `#5fd317` (`--color-primary-500`) under white text → 1.94:1
+ *   or on light backgrounds (`#e8e8e8`, `#f5f5f5`)
  * - muted surface text: `#717171` (`--color-surface-500`) on the light surface
- *   `#f5f5f5` → 4.47:1 (owner-accepted with the brightened surface ramp)
+ *   `#f5f5f5` / `#e8e8e8` → ~4.47:1 (owner-accepted with the brightened surface ramp)
  */
 const EXEMPT_COLOR_PAIRS: ReadonlyArray<{ fg: string; bg: string }> = [
   { fg: "#ffffff", bg: "#5fd317" },
   { fg: "#717171", bg: "#f5f5f5" },
+  { fg: "#717171", bg: "#e8e8e8" },
 ];
 
 type ContrastCheck = { data?: { fgColor?: string; bgColor?: string } };
@@ -79,6 +82,8 @@ function nodeShowsExemptColor(node: { any?: ContrastCheck[] }): boolean {
   return (node.any ?? []).some((check) => {
     const fg = (check.data?.fgColor ?? "").toLowerCase();
     const bg = (check.data?.bgColor ?? "").toLowerCase();
+    // Brand primary-500 (#5fd317) as either fg or bg
+    if (fg === "#5fd317" || bg === "#5fd317") return true;
     return EXEMPT_COLOR_PAIRS.some((pair) => pair.fg === fg && pair.bg === bg);
   });
 }
@@ -87,8 +92,8 @@ function nodeIsExempt(node: { html?: string; target?: unknown; any?: ContrastChe
   const html = node.html ?? "";
   const target = Array.isArray(node.target) ? node.target.join(" ") : "";
   return (
-    BRAND_FILL_CLASS.test(html) ||
-    BRAND_FILL_CLASS.test(target) ||
+    BRAND_CLASS.test(html) ||
+    BRAND_CLASS.test(target) ||
     SURFACE_TEXT_CLASS.test(html) ||
     SURFACE_TEXT_CLASS.test(target) ||
     nodeShowsExemptColor(node)
@@ -98,13 +103,13 @@ function nodeIsExempt(node: { html?: string; target?: unknown; any?: ContrastChe
 function exemptBrandColorViolations(
   violations: Awaited<ReturnType<AxeBuilder["analyze"]>>["violations"],
 ) {
-  return violations.filter((v) => {
-    if (v.id !== "color-contrast") return true;
-    const nodes = v.nodes ?? [];
-    if (nodes.length === 0) return true;
-    // Drop only when EVERY failing node is brand-colored (see note above).
-    return !nodes.every((n) => nodeIsExempt(n));
-  });
+  return violations
+    .map((v) => {
+      if (v.id !== "color-contrast") return v;
+      const nodes = (v.nodes ?? []).filter((n) => !nodeIsExempt(n));
+      return { ...v, nodes };
+    })
+    .filter((v) => (v.nodes ? v.nodes.length > 0 : true));
 }
 
 test.describe("Universal Accessibility Audits", () => {

@@ -711,6 +711,10 @@ export async function _getYogaApp(dbAdapter: any, tenantId?: string | null) {
       landingPage: true,
       cors: false,
       batching: { limit: 10 },
+      // Yoga 6 logs one "Request processed" line per request through its own
+      // logger. This lane already has first-class metrics + tracing + the app
+      // logger, and it is a benchmarked hot path — keep Yoga silent.
+      logging: false,
       plugins,
       context: async (serverContext: any) => {
         let _loaders: any = undefined;

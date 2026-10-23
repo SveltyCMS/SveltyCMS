@@ -70,15 +70,17 @@
 	}
 </script>
 
-<div class="grid h-full w-full place-items-center bg-[#242728]">
+<div class="grid min-h-lvh w-full place-items-center bg-[#242728]">
 	<form
 		class="m-2 flex flex-col items-center gap-2 rounded border border-surface-500/30 bg-white p-2 shadow-xs sm:p-6 dark:border-surface-500/40 dark:bg-surface-900"
 		method="post"
 		action="?/OAuth"
 		onsubmit={handleSubmit}
 	>
-		<!-- CSS Logo -->
-		<SveltyCMSLogoFull />
+		<!-- CSS Logo: the component positions itself absolutely (login splash); keep it in flow here -->
+		<div class="flex justify-center [&>div]:static [&>div]:translate-none">
+			<SveltyCMSLogoFull />
+		</div>
 
 		{#if data.requiresToken}
 			<!-- Token Input Form -->
@@ -94,9 +96,6 @@
 					bind:value={token}
 					label={registration_token?.() || signup_registrationtoken?.()}
 					icon="mdi:key-chain"
-					iconColor="white"
-					textColor="white"
-					inputClass="text-white"
 					autocomplete="off"
 					minlength={16}
 					maxlength={64}

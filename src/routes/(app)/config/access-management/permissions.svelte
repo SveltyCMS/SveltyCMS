@@ -23,6 +23,7 @@ It provides the following functionality:
 	import { PermissionType } from '@src/databases/auth/permission-constants';
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import {
@@ -414,15 +415,17 @@ It provides the following functionality:
 											>
 										</SystemTooltip>
 										<div class="flex items-center gap-1.5 mt-0.5">
-											<input
-												type="checkbox"
-												aria-label={`Select all filtered permissions for ${role.name}`}
-												title={`Select/Deselect all filtered permissions for ${role.name}`}
-												class="h-4 w-4 rounded-sm border-(--admin-border-default) bg-(--admin-bg-card) text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all"
-												checked={headerState.checked}
-												indeterminate={headerState.indeterminate}
-												onchange={(e) => toggleAllForRole(role._id, e.currentTarget.checked)}
-											/>
+											<span title={`Select/Deselect all filtered permissions for ${role.name}`}>
+												<Checkbox
+													size="sm"
+													hideLabel
+													label={`Select all filtered permissions for ${role.name}`}
+													checked={headerState.indeterminate
+														? 'indeterminate'
+														: headerState.checked}
+													onchange={(value) => toggleAllForRole(role._id, value)}
+												/>
+											</span>
 											<button
 												class="flex items-center justify-center p-0.5 rounded-sm border border-(--admin-border-default) hover:bg-(--admin-bg-chip) text-(--admin-text-muted) hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
 												onclick={() => toggleAllForRole(role._id, true)}
@@ -481,14 +484,15 @@ It provides the following functionality:
 									{#each roles as role (role._id)}
 										{#if !role.isAdmin}
 											<td class={SMART_TABLE_TD}>
-												<input
-													type="checkbox"
-													aria-label={`Toggle ${role.name} for ${permission.name || permission._id}`}
+												<Checkbox
+													size="sm"
+													hideLabel
+													class="items-center"
+													label={`Toggle ${role.name} for ${permission.name || permission._id}`}
 													checked={role.permissions.some(
 														(p) => String(p) === String(permission._id)
 													)}
 													onchange={() => toggleRole(permission._id, role._id)}
-													class="h-4 w-4 rounded-sm border-(--admin-border-default) bg-(--admin-bg-card) text-tertiary-500 dark:text-primary-500 focus:ring-primary-500/20 focus:ring-2 cursor-pointer transition-all mx-auto"
 												/>
 											</td>
 										{/if}

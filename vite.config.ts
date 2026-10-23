@@ -1573,6 +1573,13 @@ export default defineConfig(() => {
       alias: RESOLVED_ALIASES,
     },
     server: {
+      // The dev origin is pinned in several places (ORIGIN, CORS allowlist, E2E
+      // auth setup). Letting Vite silently move to 5174 starts a server the app
+      // does not trust — and a second instance doubles the watcher/optimizer work
+      // (measured: 2 s ready with one server, 19 s with two). Fail loudly instead;
+      // an intentional second port still works via `vite dev --port 5175`.
+      port: 5173,
+      strictPort: true,
       fs: { allow: ["static", "."], deny: ["**/tests/**"] },
       watch: {
         ignored: [

@@ -336,7 +336,12 @@ function resolveChangedTestPaths(baseRef: string): string[] {
     if (n.startsWith("src/routes/api/") || n.startsWith("src/hooks/"))
       testPaths.add("tests/integration/api/");
     if (n.startsWith("src/routes/")) testPaths.add("tests/integration/routes/");
-    if (n.startsWith("src/services/sdk/")) testPaths.add("tests/integration/sdk/");
+    if (n.startsWith("src/services/sdk/")) {
+      testPaths.add("tests/integration/sdk/");
+      // The namespace *is* the API write path (optimistic locking, revisions):
+      // contract suites in tests/integration/api exercise it over HTTP.
+      testPaths.add("tests/integration/api/");
+    }
     if (n.includes("collectionbuilder")) testPaths.add("tests/integration/collectionbuilder/");
     if (
       n.startsWith("src/services/") ||

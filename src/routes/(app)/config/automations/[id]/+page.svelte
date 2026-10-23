@@ -150,17 +150,20 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	} | null = $state(null);
 
 	let flow: AutomationFlow = $state(
-		data.flow ?? {
-			id: '',
-			name: '',
-			description: '',
-			active: true,
-			trigger: { type: 'event', events: [], collections: [] },
-			operations: [],
-			createdAt: '',
-			updatedAt: '',
-			tenantId: ''
-		}
+		untrack(
+			() =>
+				data.flow ?? {
+					id: '',
+					name: '',
+					description: '',
+					active: true,
+					trigger: { type: 'event', events: [], collections: [] },
+					operations: [],
+					createdAt: '',
+					updatedAt: '',
+					tenantId: ''
+				}
+		)
 	);
 	// ── Lifecycle ──
 
@@ -508,10 +511,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
 										{const isSelected = flow.trigger.type === triggerOption.type}
 										<Button
-											variant="surface"
-											class="p-3 text-center border-2 transition-all duration-200 rounded {isSelected
-												? 'border-tertiary-500 dark:border-primary-500 bg-primary-500/10 dark:bg-primary-500/10'
-												: 'border-(--admin-border-default)'}"
+											variant="transparent"
+											aria-pressed={isSelected}
+											class="flex h-auto flex-col items-center p-3 text-center border-2 transition-all duration-200 rounded text-(--admin-text-body) {isSelected
+												? 'border-tertiary-500 bg-tertiary-500/10 dark:border-primary-500 dark:bg-primary-500/10'
+												: 'border-(--admin-border-default) hover:bg-(--admin-bg-chip)'}"
 											onclick={() =>
 												setTriggerType(triggerOption.type as 'event' | 'schedule' | 'manual')}
 											aria-label={automation_select_trigger_aria({ trigger: triggerOption.label })}
@@ -533,26 +537,24 @@ and preview/test functionality. Reuses TokenPicker patterns.
 									<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 										{#each AUTOMATION_EVENTS as eventMeta (eventMeta.event)}
 											<div
-												class="flex items-center gap-3 p-3 rounded transition-colors hover:bg-surface-200 dark:hover:bg-surface-700 border {flow.trigger.events?.includes(
+												class="flex items-center gap-3 p-3 rounded transition-colors hover:bg-(--admin-bg-chip) border {flow.trigger.events?.includes(
 													eventMeta.event
 												)
-													? 'bg-primary-500/10 dark:bg-primary-500/10'
-													: ''}"
-												class:border-primary-500={flow.trigger.events?.includes(eventMeta.event)}
-												class:border-transparent={!flow.trigger.events?.includes(eventMeta.event)}
+													? 'border-tertiary-500 bg-tertiary-500/10 dark:border-primary-500 dark:bg-primary-500/10'
+													: 'border-transparent'}"
 											>
+												<!-- Visible text is the span below; the Checkbox keeps it as an sr-only accessible name -->
 												<Checkbox
+													hideLabel
 													checked={flow.trigger.events?.includes(eventMeta.event)}
 													onchange={() => toggleEvent(eventMeta.event)}
 													label={eventMeta.label}
 												/>
-												<iconify-icon icon={eventMeta.icon} class="text-lg"></iconify-icon>
-												<div>
-													<span class="text-sm font-medium">{eventMeta.label}</span>
-													<Badge preset="tonal" color="surface" size="sm" class="ms-1"
-														>{eventMeta.category}</Badge
-													>
-												</div>
+												<iconify-icon icon={eventMeta.icon} class="shrink-0 text-lg"></iconify-icon>
+												<span class="min-w-0 flex-1 text-sm font-medium">{eventMeta.label}</span>
+												<Badge preset="tonal" color="surface" size="sm" class="shrink-0"
+													>{eventMeta.category}</Badge
+												>
 											</div>
 										{/each}
 									</div>

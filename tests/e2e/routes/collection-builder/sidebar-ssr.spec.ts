@@ -13,6 +13,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { seedCollectionFixture } from "../../helpers/collection-builder-flow";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -23,12 +24,17 @@ test.describe("Collections sidebar — SSR", () => {
     // Establishes an authenticated session for the request context.
     await loginAsAdmin(page);
 
-    const response = await page.request.get("/en/collection/pages");
-    expect(response.status(), "GET /en/collection/pages").toBe(200);
+    // Seed the fixture instead of assuming a demo collection exists in this
+    // shard's database (the prep seed only creates the admin + system schema).
+    const collection = await seedCollectionFixture(page, "sidebar_ssr_");
+    const path = `/en/collection/${collection.id}`;
+
+    const response = await page.request.get(path);
+    expect(response.status(), `GET ${path}`).toBe(200);
     const html = await response.text();
 
     // The collection row is part of the first response (preload-ready <a href>).
-    expect(html).toContain('href="/en/collection/pages"');
+    expect(html).toContain(`href="${path}"`);
     // …and the empty state never shipped in the same response.
     expect(html).not.toContain("No collections found.");
   });

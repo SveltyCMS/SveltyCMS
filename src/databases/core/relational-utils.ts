@@ -562,6 +562,31 @@ export function normalizePgTimestampText(v: unknown): unknown {
 }
 
 /**
+ * MariaDB / MySQL renders DATETIME / TIMESTAMP as "2026-08-09 22:25:38.488" or "2026-08-09 22:25:38"
+ * (space separator, no timezone suffix). Normalize to strict ISODateString UTC ("...Z")
+ * at the adapter boundary (single representation contract).
+ */
+const SQL_TS_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+
+export function isSqlTimestampString(v: unknown): v is string {
+  if (typeof v !== "string" || v.length < 19 || v.length > 32) return false;
+  if (v[4] !== "-" || v[7] !== "-" || v[10] !== " ") return false;
+  return SQL_TS_RE.test(v);
+}
+
+export function sqlTimestampToIso(v: string): string {
+  const dateTime = `${v.slice(0, 10)}T${v.slice(11, 19)}`;
+  if (v.length === 19) return `${dateTime}.000Z`;
+  if (v[19] === ".") {
+    const frac = v.slice(20);
+    if (frac.length === 3) return `${dateTime}.${frac}Z`;
+    const padded = frac.length < 3 ? frac.padEnd(3, "0") : frac.slice(0, 3);
+    return `${dateTime}.${padded}Z`;
+  }
+  return `${dateTime}.000Z`;
+}
+
+/**
  * Schema-aware row converter — only touches known date/JSON columns.
  * For unregistered tables, falls back to full-key iteration (backward compatible).
  */
@@ -592,7 +617,13 @@ export function convertDatesToISO(
     let needsWork = false;
     for (let i = 0; i < dateCols.length; i++) {
       const v = row[dateCols[i]];
-      if (v instanceof Date || isDateLike(v) || isEpochMs(v) || isPgTimestampString(v)) {
+      if (
+        v instanceof Date ||
+        isDateLike(v) ||
+        isEpochMs(v) ||
+        isPgTimestampString(v) ||
+        isSqlTimestampString(v)
+      ) {
         needsWork = true;
         break;
       }
@@ -636,6 +667,9 @@ export function convertDatesToISO(
       } else if (isPgTimestampString(v)) {
         // postgres.js timestamptz "2026-08-09 22:25:38.488+00" — normalize.
         row[k] = pgTimestampToIso(v);
+      } else if (isSqlTimestampString(v)) {
+        // MariaDB/MySQL datetime "2026-08-09 22:25:38.488" — normalize.
+        row[k] = sqlTimestampToIso(v);
       }
     }
     if (!skipJson && jsonCols && jsonCols.length > 0) {
@@ -664,6 +698,8 @@ export function convertDatesToISO(
         result[k] = new Date(v).toISOString();
       } else if (isPgTimestampString(v)) {
         result[k] = pgTimestampToIso(v);
+      } else if (isSqlTimestampString(v)) {
+        result[k] = sqlTimestampToIso(v);
       } else {
         result[k] = v;
       }
@@ -701,6 +737,9 @@ export function convertDatesToISO(
       } else if (DATE_FIELDS.has(k) && isPgTimestampString(v)) {
         // Unregistered table + postgres.js timestamptz — still normalize.
         v = pgTimestampToIso(v);
+      } else if (DATE_FIELDS.has(k) && isSqlTimestampString(v)) {
+        // Unregistered table + MariaDB/MySQL datetime — still normalize.
+        v = sqlTimestampToIso(v);
       } else if (JSON_FIELDS.has(k)) {
         v = normalizeJsonFieldValue(v, options);
         // A `data` blob is merged into the root by `flattenDataColumn` (returns true) and

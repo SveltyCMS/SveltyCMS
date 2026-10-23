@@ -16,6 +16,7 @@ import {
 import { getMaterializedFieldColumns } from "../core/drizzle-sql-helpers";
 import type { BaseQueryOptions, DatabaseId } from "../db-interface";
 import type { RawPointWireStreamResult, RawListWireStreamResult } from "../core/sql-adapter-core";
+import { versionTokenString } from "@utils/optimistic-lock";
 import { logger } from "@src/utils/logger";
 
 export interface MariadbWireExecutor {
@@ -136,7 +137,7 @@ export class MariadbWireStreamEngine {
       return {
         kind: "found",
         wireBody,
-        etag: `"${String(id)}-${String(first.updated_at ?? "")}"`,
+        etag: `"${String(id)}-${versionTokenString(first.updated_at)}"`,
       };
     } catch (err: unknown) {
       logger.debug(

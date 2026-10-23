@@ -14,7 +14,7 @@ Features:
 	import { widgets as widgetRegistry } from '@src/stores/widget-store.svelte.ts';
 	import { logger } from '@utils/logger';
 	// Using iconify-icon web component
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import WidgetCard from './widget-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -107,7 +107,7 @@ Features:
 	}
 
 	// State
-	let widgets: Widget[] = $state(toWidgets(initialWidgets));
+	let widgets: Widget[] = $state(untrack(() => toWidgets(initialWidgets)));
 	let isLoading = $state(false);
 	let searchQuery = $state('');
 	let activeFilter = $state('all');

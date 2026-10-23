@@ -319,6 +319,24 @@ export const CRITICAL_E2E_JOURNEYS: CriticalTestEntry[] = [
     isApiDomain: false,
     isE2EJourney: true,
   },
+  {
+    key: "e2e-kitchen-sink",
+    domain: "Kitchen sink multi-widget entry lifecycle",
+    testFiles: ["tests/e2e/routes/collection-builder/kitchen-sink.spec.ts"],
+    description:
+      "Composite multi-widget creation, validation, round-trip reload persistence, update and delete",
+    isApiDomain: false,
+    isE2EJourney: true,
+  },
+  {
+    key: "e2e-rbac-editor-journey",
+    domain: "RBAC non-admin editor workflow and boundaries",
+    testFiles: ["tests/e2e/routes/admin/editor-boundary.spec.ts"],
+    description:
+      "Editor role login, profile viewing, editorial navigation, and fail-closed admin boundary protection",
+    isApiDomain: false,
+    isE2EJourney: true,
+  },
 ];
 
 // ---------------------------------------------------------------------------

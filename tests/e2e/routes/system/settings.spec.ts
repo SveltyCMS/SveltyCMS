@@ -91,6 +91,7 @@ test.describe("System Settings shell", () => {
     await expect(picker).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     await picker.selectOption("email");
+    await picker.dispatchEvent("change");
     await expect(page).toHaveURL(/group=email/, { timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("settings-panel-email")).toBeVisible({
       timeout: ACTION_TIMEOUT,

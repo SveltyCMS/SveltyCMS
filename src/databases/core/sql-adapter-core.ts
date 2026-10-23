@@ -56,6 +56,7 @@ import { normalizeCollectionTableName } from "./collection-name";
 import { generateUUID } from "@utils/native-utils";
 import { serializeSuccessEnvelope } from "@utils/fast-json";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
+import { versionTokenString } from "@utils/optimistic-lock";
 import { nowISODateString } from "@src/utils/date";
 import {
   count as drizzleCount,
@@ -1768,7 +1769,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         data?: unknown;
       };
       const wireBody = serializeSuccessEnvelope(JSON.stringify(trimmed.data ?? null));
-      const etag = `"${String((record as any)._id ?? id)}-${String((record as any).updatedAt ?? "")}"`;
+      // Drizzle timestamp columns come back as Date on MariaDB/PostgreSQL;
+      // always render ISO so `If-Match` can parse the token back.
+      const etag = `"${String((record as any)._id ?? id)}-${versionTokenString((record as any).updatedAt)}"`;
       return { wireBody, etag };
     }, "FIND_POINT_WIRE_STREAM_FAILED");
   }
