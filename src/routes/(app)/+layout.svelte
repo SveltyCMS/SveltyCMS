@@ -75,7 +75,7 @@ This layout provides the administrative shell, including sidebars and header con
 	import { initPredictivePreload } from '@utils/predictive-preload';
 	import { registerHotkey } from '@src/utils/hotkeys';
 	// SvelteKit Navigation
-	import { afterNavigate, beforeNavigate, invalidate, onNavigate } from '$app/navigation';
+	import { afterNavigate, invalidate, onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 
 	import { setContentContext } from '@src/content';
@@ -490,7 +490,12 @@ This layout provides the administrative shell, including sidebars and header con
 		});
 	}
 
-	beforeNavigate(({ from, to }) => {
+	// `onNavigate` (not `beforeNavigate`): a guard can still cancel the navigation, and
+	// when it does `afterNavigate` never runs — the loader would stay latched and every
+	// `disabled={... || globalLoadingStore.isLoading}` control would remain inert after
+	// the user chose "stay on this page". `onNavigate` only fires for navigations that
+	// actually proceed.
+	onNavigate(({ from, to }) => {
 		if (from && to && from.route.id !== to.route.id) {
 			globalLoadingStore.startLoading(loadingOperations.navigation);
 		}

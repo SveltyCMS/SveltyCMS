@@ -51,12 +51,28 @@ It provides the following functionality:
 		roleData: any;
 		setRoleData: (data: any) => void;
 		updateModifiedCount?: (count: number) => void;
+		/** Parent-owned draft revision; bumped on Reset and after a successful save. */
+		draftEpoch?: number;
 		permissions?: import('@src/databases/auth/types').Permission[];
 	}
 
-	let { roleData, setRoleData, updateModifiedCount, permissions = [] }: Props = $props();
+	let {
+		roleData,
+		setRoleData,
+		updateModifiedCount,
+		draftEpoch = 0,
+		permissions = []
+	}: Props = $props();
 
-	let roles: (Role & { id: string })[] = $state([]);
+	// Rows are derived from the parent's canonical draft — never a private copy.
+	// A Reset replaces `roleData`, so the list re-renders from the restored
+	// baseline instead of keeping the edited rows alive (audit F03).
+	const roles: (Role & { id: string })[] = $derived(
+		(Array.isArray(roleData) ? (roleData as Role[]) : []).map((role) => ({
+			...role,
+			id: role._id as string
+		}))
+	);
 	let roleSearchTerm = $state('');
 	let error = $state<string | null>(null);
 
@@ -71,19 +87,31 @@ It provides the following functionality:
 	const modifiedRoles = new SvelteSet<string>();
 	let selectedRoles = new SvelteSet<string>();
 
+	// `draftEpoch` changes when the parent restores (Reset) or promotes (save)
+	// the draft. Modification bookkeeping from the previous draft cannot describe
+	// the new one, so empty both sets instead of preserving a stale count.
+	let appliedDraftEpoch: number | null = null;
+	$effect(() => {
+		const epoch = draftEpoch;
+		if (appliedDraftEpoch === null) {
+			appliedDraftEpoch = epoch;
+			return;
+		}
+		if (epoch === appliedDraftEpoch) return;
+		appliedDraftEpoch = epoch;
+		// The sets are outputs here, not inputs — do not add them as dependencies.
+		untrack(() => {
+			modifiedRoles.clear();
+			selectedRoles.clear();
+		});
+	});
+
 	let isEditMode = $state(false);
 	let currentRoleId: string | null = $state(null);
 	let currentGroupName = $state('');
 
-	$effect(() => {
-		if (roles.length === 0 && roleData.length > 0) {
-			const rolesWithId = roleData.map((role: Role) => ({
-				...role,
-				id: role._id
-			}));
-			roles = rolesWithId;
-		}
-	});
+	/** Strip the view-only `id` alias before the parent stores the draft. */
+	const cleanRoles = (rows: (Role & { id: string })[]) => rows.map(({ id, ...rest }) => rest);
 
 	const openModal = (role: Role | null = null, groupName = '') => {
 		isEditMode = !!role;
@@ -151,19 +179,14 @@ It provides the following functionality:
 		};
 
 		if (!isEditMode) {
-			roles = [...roles, newRole];
+			setRoleData(cleanRoles([...roles, newRole]));
 			modifiedRoles.add(roleId);
 			toast.info('Role added. Save to apply.');
 		} else if (currentRoleId) {
-			const index = roles.findIndex((r) => r._id === currentRoleId);
-			roles[index] = newRole;
-			roles = [...roles];
+			setRoleData(cleanRoles(roles.map((cur) => (cur._id === currentRoleId ? newRole : cur))));
 			modifiedRoles.add(currentRoleId);
 			toast.info('Role updated. Save to apply.');
 		}
-
-		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-		setRoleData(cleanedRoles);
 
 		if (updateModifiedCount) {
 			updateModifiedCount(modifiedRoles.size);
@@ -171,19 +194,14 @@ It provides the following functionality:
 	};
 
 	const deleteSelectedRoles = async () => {
-		for (const roleId of selectedRoles) {
-			const index = roles.findIndex((cur: { _id: string }) => cur._id === roleId);
-			if (index !== -1) {
-				roles.splice(index, 1);
-				modifiedRoles.add(roleId);
-			}
+		const remaining = roles.filter((cur) => !selectedRoles.has(cur._id));
+		for (const cur of roles) {
+			if (selectedRoles.has(cur._id)) modifiedRoles.add(cur._id);
 		}
-		roles = [...roles];
 		selectedRoles.clear();
-		toast.info('Roles deleted. Save to apply.');
 
-		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-		setRoleData(cleanedRoles);
+		setRoleData(cleanRoles(remaining));
+		toast.info('Roles deleted. Save to apply.');
 
 		if (updateModifiedCount) {
 			updateModifiedCount(modifiedRoles.size);
@@ -226,16 +244,13 @@ It provides the following functionality:
 		const insertAt = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
 		if (insertAt === fromIndex) return;
 
-		let movedRole: (Role & { id: string }) | undefined;
-		roles = untrack(() => {
-			const newRoles = [...roles];
-			movedRole = newRoles.splice(fromIndex, 1)[0];
-			newRoles.splice(insertAt, 0, movedRole!);
-			return newRoles;
-		});
-		if (movedRole) modifiedRoles.add(movedRole._id);
-		const cleanedRoles = roles.map(({ id, ...rest }) => rest);
-		setRoleData(cleanedRoles);
+		const nextRoles = [...roles];
+		const movedRole = nextRoles.splice(fromIndex, 1)[0];
+		if (!movedRole) return;
+
+		nextRoles.splice(insertAt, 0, movedRole);
+		modifiedRoles.add(movedRole._id);
+		setRoleData(cleanRoles(nextRoles));
 		if (updateModifiedCount) updateModifiedCount(modifiedRoles.size);
 	}
 </script>

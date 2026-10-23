@@ -13,6 +13,8 @@
 - Navigate between permissions, roles, and admin role management tabs
 - View and manage system permissions
 - Assign roles and permissions to users
+- Reset restores the last-saved role snapshot (not the stale page load)
+- A confirmed unsaved-changes prompt resumes the cancelled destination
 -->
 
 <script lang="ts">
@@ -46,8 +48,9 @@
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
+	import { rethrow } from '@utils/error-handling';
 	import { page } from '$app/state';
-	import { beforeNavigate } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { untrack } from 'svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { modalState } from '@utils/modal.svelte';
@@ -56,8 +59,19 @@
 	// Use $state for local component state
 	let currentTab = $state('0'); // Initial tab set to string '0' for Tabs component
 
-	// Use $state for page data that needs to be mutable
-	let rolesData = $state(untrack(() => page.data.roles)); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
+	// Two role lists, never more: the canonical draft every tab writes into via
+	// `setRoleData`, and the last-saved snapshot Reset restores. The snapshot is
+	// deliberately separate from `page.data.roles` — page data is captured once at
+	// load, so a Reset after a successful save must not fall back to it (audit F03).
+	// `structuredClone`/`$state.snapshot` keep the lists from aliasing each other.
+	let savedRoles = structuredClone(page.data.roles ?? []);
+	let rolesData = $state(untrack(() => structuredClone(page.data.roles ?? []))); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
+
+	// Bumped whenever the draft is replaced from the snapshot (Reset) or promoted
+	// to it (save). The Roles view derives its rows from `rolesData`, but its
+	// modification bookkeeping is event-based — the epoch tells it to drop the
+	// entries that described the previous draft.
+	let draftEpoch = $state(0);
 
 	// Admin role hint shown in the tab strip (permissions tab). The tab body no
 	// longer repeats the page title, so this is the only "admin is implicit" note.
@@ -96,6 +110,10 @@
 					});
 
 					if (result.success) {
+						// Promote the accepted draft to the new baseline so a later Reset
+						// restores what is actually persisted.
+						savedRoles = $state.snapshot(rolesData);
+						draftEpoch += 1;
 						toast.success('Configuration updated successfully!');
 						hasModifiedChanges = false;
 						modifiedCount = 0;
@@ -116,29 +134,67 @@
 	};
 
 	const resetChanges = async () => {
-		rolesData = page.data.roles;
+		rolesData = structuredClone(savedRoles);
 		hasModifiedChanges = false;
 		modifiedCount = 0;
+		draftEpoch += 1;
 		toast.info('Changes have been reset.');
 	};
 
-	// Accessibility: Unsaved changes warning
-	beforeNavigate(({ cancel }) => {
-		if (hasModifiedChanges || modalState.isOpen) {
-			cancel();
-			if (modalState.isOpen) {
-				toast.warning('Please close the edit modal before navigating away.');
-				return;
-			}
-			showConfirm({
-				title: 'Unsaved Changes',
-				body: 'You have unsaved changes in the Access Management configuration. Are you sure you want to leave this page?',
-				onConfirm: () => {
-					hasModifiedChanges = false; // Bypass next check
-					toast.info('Changes discarded. You can now navigate away.');
-				}
-			});
+	// Accessibility: Unsaved changes warning.
+	//
+	// `cancel()` runs synchronously, so the destination the user picked is still
+	// known once the confirmation resolves. A confirmed prompt resumes exactly
+	// that navigation through a one-use bypass — without it the first confirmed
+	// action only cleared the dirty flag and left the user on this page (audit F04).
+	let allowNextNavigation = false;
+
+	/**
+	 * Show the discard prompt, then resume the cancelled destination.
+	 *
+	 * `willUnload` navigations (tab close, cross-document links) belong to the
+	 * browser's native beforeunload prompt and cannot be resumed with `goto`.
+	 */
+	const confirmDiscardAndResume = async (destination: URL | undefined, willUnload: boolean) => {
+		const confirmed = await showConfirm({
+			title: 'Unsaved Changes',
+			body: 'You have unsaved changes in the Access Management configuration. Are you sure you want to leave this page?'
+		});
+		// Cancel keeps this page and its draft untouched.
+		if (!confirmed) return;
+
+		hasModifiedChanges = false;
+		modifiedCount = 0;
+		toast.info('Changes discarded.');
+
+		if (willUnload || !destination) return;
+
+		allowNextNavigation = true;
+		try {
+			await goto(destination.href);
+		} catch (err) {
+			rethrow(err);
+			logger.error('Failed to resume navigation after discarding changes', err);
+			toast.error('The selected page could not be opened. Please navigate again.');
+		} finally {
+			allowNextNavigation = false;
 		}
+	};
+
+	beforeNavigate(({ cancel, to, willUnload }) => {
+		if (allowNextNavigation) {
+			// Consume the bypass — it covers exactly one resumed navigation.
+			allowNextNavigation = false;
+			return;
+		}
+		if (!hasModifiedChanges && !modalState.isOpen) return;
+
+		cancel();
+		if (modalState.isOpen) {
+			toast.warning('Please close the edit modal before navigating away.');
+			return;
+		}
+		void confirmDiscardAndResume(to?.url, willUnload);
 	});
 </script>
 
@@ -274,6 +330,7 @@
 							roleData={rolesData}
 							{setRoleData}
 							{updateModifiedCount}
+							{draftEpoch}
 							permissions={page.data.permissions}
 						/>
 					{/if}
