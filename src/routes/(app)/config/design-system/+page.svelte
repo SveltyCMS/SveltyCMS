@@ -1429,7 +1429,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	<!-- Save Bar (admin theme edits only) -->
 	{#if hasChanges && isAdmin && activeTab !== 'overrides' && activeTab !== 'preview'}
 		<div
-			class="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 px-4 py-4 backdrop-blur-md"
+			class="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 px-4 py-4 backdrop-blur-md max-md:pe-20"
 		>
 			<p
 				class="flex items-center gap-1.5 text-sm font-medium text-warning-600 dark:text-warning-400"

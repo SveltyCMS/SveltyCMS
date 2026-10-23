@@ -45,15 +45,16 @@ export const SMART_TABLE_COLUMN_MANAGER =
 export const SMART_TABLE_TOOLBAR = "my-4 flex flex-wrap items-center justify-between gap-2";
 
 /** Shell root (flex column fills parent) */
-export const SMART_TABLE_SHELL = "flex h-full min-h-0 w-full flex-col overflow-hidden";
+export const SMART_TABLE_SHELL =
+  "flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[inherit]";
 
 /** Sticky pin: logical start edge (checkbox column) */
 export const SMART_TABLE_PIN_START =
-  "sticky inset-s-0 z-[5] bg-white shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)] dark:bg-surface-900";
+  "sticky inset-s-0 z-[5] bg-(--admin-bg-card) shadow-[2px_0_4px_-2px_rgba(0,0,0,0.12)]";
 
 /** Sticky pin: logical end edge (actions column) */
 export const SMART_TABLE_PIN_END =
-  "sticky end-0 z-[5] bg-white shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)] dark:bg-surface-900";
+  "sticky end-0 z-[5] bg-(--admin-bg-card) shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.12)]";
 
 /** Empty / loading body area */
 export const SMART_TABLE_STATE_BODY =

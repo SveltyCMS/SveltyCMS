@@ -167,30 +167,33 @@
 	 * normal padding is enough.
 	 */
 	const titleStartPadding = $derived(
-		ui.state.leftSidebar === 'hidden' ? 'ps-2 sm:ps-3' : 'ps-5 md:ps-10'
+		ui.state.leftSidebar === 'hidden' ? 'ps-2 sm:ps-3' : 'ps-2 sm:ps-3 md:ps-10'
 	);
 </script>
 
 <div
 	data-testid="admin-page-title"
-	class="sticky top-0 z-40 flex w-full min-w-0 items-center justify-between {titleStartPadding} pe-2 pt-2 backdrop-blur-sm
+	class="sticky top-0 z-40 flex w-full min-w-0 flex-wrap items-center justify-between {titleStartPadding} pe-2 pt-2 backdrop-blur-sm
 		{compact || description || subtitle ? 'min-h-12 gap-3 pb-2 sm:pe-3' : 'min-h-12 gap-4'}"
 	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless
 		? ''
 		: 'border-bottom: 1px solid color-mix(in srgb, var(--admin-border-default, var(--color-surface-200)) 80%, transparent);'}"
 >
-	<div class="flex min-w-0 items-center">
-		{#if ui.state.leftSidebar === 'hidden'}
-			<Button
-				variant="ghost"
-				type="button"
-				onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
-				aria-label="Open Sidebar"
-				class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20"
-			>
-				<iconify-icon icon="mingcute:menu-fill" width="20" aria-hidden="true"></iconify-icon>
-			</Button>
-		{/if}
+	<div class="flex min-w-[min(100%,11rem)] flex-1 items-center">
+		<!-- Below md the sidebar always resolves to "hidden"; render the toggle from the
+		     first (SSR) paint there so the title does not jump when the store hydrates. -->
+		<Button
+			variant="ghost"
+			type="button"
+			onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
+			aria-label="Open Sidebar"
+			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20 {ui
+				.state.leftSidebar === 'hidden'
+				? ''
+				: 'md:hidden'}"
+		>
+			<iconify-icon icon="mingcute:menu-fill" width="20" aria-hidden="true"></iconify-icon>
+		</Button>
 		<div class="flex min-w-0 flex-col justify-center">
 			<div class="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
 				<div class="flex min-w-0 items-center gap-1">
@@ -205,12 +208,18 @@
 						data-testid="page-title"
 					>
 						{#if icon}
-							<iconify-icon
-								{icon}
-								width={compact ? '22' : iconSize}
-								class={`me-1 shrink-0 ${iconColor} sm:me-2`}
-								aria-hidden="true"
-							></iconify-icon>
+							<!-- Fixed box: iconify-icon has no size until its SVG loads (layout shift) -->
+							<span
+								class="me-1 inline-flex shrink-0 items-center justify-center sm:me-2"
+								style="width: {compact ? '22' : iconSize}px; height: {compact ? '22' : iconSize}px"
+							>
+								<iconify-icon
+									{icon}
+									width={compact ? '22' : iconSize}
+									class={`shrink-0 ${iconColor}`}
+									aria-hidden="true"
+								></iconify-icon>
+							</span>
 						{/if}
 
 						<span
@@ -218,6 +227,7 @@
 							class:overflow-hidden={truncate}
 							class:text-ellipsis={truncate}
 							class:whitespace-nowrap={truncate}
+							class="max-md:whitespace-normal"
 						>
 							{#each titleParts as part, i (i)}
 								<span
@@ -268,7 +278,7 @@
 		</div>
 	</div>
 
-	<div class="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
+	<div class="ms-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
 		{#if children}
 			{@render children()}
 		{/if}
