@@ -142,17 +142,19 @@ test.describe("System Settings shell", () => {
     const input = field.locator("input").first();
     await expect(input).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const current = await input.inputValue();
-    const nextValue = current === "120" ? "121" : "120";
-    await input.fill(nextValue);
-
     // Scope group-level save/discard: buttons render in the sticky action bar
     const groupSave = page.getByTestId("settings-group-save");
     const groupDiscard = page.getByTestId("settings-group-discard");
 
-    await expect(groupSave).toBeEnabled({
-      timeout: ACTION_TIMEOUT,
-    });
+    const current = await input.inputValue();
+    const nextValue = current === "120" ? "121" : "120";
+    // The dirty flag comes from the hydrated binding; a fill that lands in the
+    // gap before hydration attaches is silently lost (retried-pass flake).
+    // Re-apply until the action bar reflects the edit instead of sleeping.
+    await expect(async () => {
+      await input.fill(nextValue);
+      await expect(groupSave).toBeEnabled({ timeout: 2_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
     await expect(groupDiscard).toBeEnabled();
 
     await groupDiscard.click();
