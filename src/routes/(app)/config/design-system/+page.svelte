@@ -479,25 +479,116 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	} satisfies AdminLockedSettings);
 
 	let saving = $state(false);
-	let hasChanges = $state(false);
+
+	// ── Draft tracking ──
+	// The form edits a *draft* of the persisted theme. `savedDraft` is the snapshot the
+	// server currently holds, so `hasChanges` can be derived by comparison: a freshly
+	// loaded form is clean, and Discard restores both the controls and the shared
+	// live-preview theme instead of only hiding the warning.
+	type ThemeDraft = {
+		density: 'compact' | 'cozy' | 'spacious';
+		variant: 'flat' | 'bordered' | 'elevated';
+		stickyActionBar: boolean;
+		collapsibleSidebar: boolean;
+		brandedLogin: boolean;
+		highContrastMode: boolean;
+		reducedMotion: boolean;
+		collectionsLayout: 'left' | 'right' | 'both';
+		customCss: string;
+		lockDensity: boolean;
+		lockVariant: boolean;
+		lockReducedMotion: boolean;
+		lockHighContrast: boolean;
+		lockLayoutState: boolean;
+	};
+
+	const DRAFT_KEYS: (keyof ThemeDraft)[] = [
+		'density',
+		'variant',
+		'stickyActionBar',
+		'collapsibleSidebar',
+		'brandedLogin',
+		'highContrastMode',
+		'reducedMotion',
+		'collectionsLayout',
+		'customCss',
+		'lockDensity',
+		'lockVariant',
+		'lockReducedMotion',
+		'lockHighContrast',
+		'lockLayoutState'
+	];
+
+	function captureDraft(): ThemeDraft {
+		return {
+			density,
+			variant,
+			stickyActionBar,
+			collapsibleSidebar,
+			brandedLogin,
+			highContrastMode,
+			reducedMotion,
+			collectionsLayout,
+			customCss,
+			lockDensity,
+			lockVariant,
+			lockReducedMotion,
+			lockHighContrast,
+			lockLayoutState
+		};
+	}
+
+	function sameDraft(a: ThemeDraft, b: ThemeDraft): boolean {
+		return DRAFT_KEYS.every((key) => a[key] === b[key]);
+	}
+
+	let savedDraft = $state<ThemeDraft>(untrack(captureDraft));
+	const draft = $derived(captureDraft());
+	const hasChanges = $derived(!sameDraft(draft, savedDraft));
+
+	// Push a draft into the shared theme context so the live preview (and every
+	// `AdminCard` reading the context) reflects it immediately.
+	function applyDraftToLiveTheme(next: ThemeDraft) {
+		if (!liveTheme) return;
+		liveTheme.density = next.density;
+		liveTheme.variant = next.variant;
+		liveTheme.features = {
+			stickyActionBar: next.stickyActionBar,
+			collapsibleSidebar: next.collapsibleSidebar,
+			brandedLogin: next.brandedLogin,
+			highContrastMode: next.highContrastMode,
+			reducedMotion: next.reducedMotion,
+			layoutRegions: { collections: next.collectionsLayout, mediaGalleries: 'left' }
+		};
+		liveTheme.customCss = next.customCss || undefined;
+	}
+
+	function restoreDraft(target: ThemeDraft) {
+		density = target.density;
+		variant = target.variant;
+		stickyActionBar = target.stickyActionBar;
+		collapsibleSidebar = target.collapsibleSidebar;
+		brandedLogin = target.brandedLogin;
+		highContrastMode = target.highContrastMode;
+		reducedMotion = target.reducedMotion;
+		collectionsLayout = target.collectionsLayout;
+		customCss = target.customCss;
+		lockDensity = target.lockDensity;
+		lockVariant = target.lockVariant;
+		lockReducedMotion = target.lockReducedMotion;
+		lockHighContrast = target.lockHighContrast;
+		lockLayoutState = target.lockLayoutState;
+		applyDraftToLiveTheme(target);
+	}
 
 	// ── Live preview ──
 	$effect(() => {
-		if (liveTheme) {
-			liveTheme.density = density;
-			liveTheme.variant = variant;
-			liveTheme.features = {
-				stickyActionBar,
-				collapsibleSidebar,
-				brandedLogin,
-				highContrastMode,
-				reducedMotion,
-				layoutRegions: { collections: collectionsLayout, mediaGalleries: 'left' }
-			};
-			liveTheme.customCss = customCss || undefined;
-		}
-		hasChanges = true;
+		applyDraftToLiveTheme(draft);
 	});
+
+	function discardChanges() {
+		restoreDraft(savedDraft);
+	}
 
 	// ── Options ──
 	const densityOptions = [
@@ -537,7 +628,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 				}
 			}
 			if (a.customCss) customCss = a.customCss;
-			hasChanges = false;
+			// The activated theme is now the persisted baseline — no dirty state.
+			savedDraft = captureDraft();
 			await loadThemes();
 			toast.success(`Activated "${a.name}"`);
 		} catch (e: unknown) {
@@ -625,7 +717,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 			const res = await apiSaveAdminTheme(payload);
 			if (!res.success) throw new Error(res.message || 'Save failed');
 			toast.success('Theme saved');
-			hasChanges = false;
+			savedDraft = captureDraft();
 		} catch (e: unknown) {
 			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
@@ -645,8 +737,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 				highContrastMode =
 				reducedMotion =
 					false;
+			collectionsLayout = 'left';
 			customCss = '';
-			hasChanges = false;
+			savedDraft = captureDraft();
 			toast.success('Reset to defaults');
 		} catch (e: unknown) {
 			toast.error(e instanceof Error ? e.message : String(e));
@@ -1046,13 +1139,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 								{theme_preview_rest()}
 							</p>
 
-							<PaletteStudio
-								bind:customCss
-								onApplied={() => {
-									hasChanges = true;
-								}}
-								onOpenPreview={() => setActiveTab('preview')}
-							/>
+							<PaletteStudio bind:customCss onOpenPreview={() => setActiveTab('preview')} />
 
 							<h4 class="font-bold text-sm mb-2 mt-2">{theme_layout_presets()}</h4>
 							<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1438,10 +1525,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 				{theme_unsaved()}
 			</p>
 			<div class="flex gap-2">
-				<Button
-					variant="ghost"
-					onclick={() => (hasChanges = false)}
-					data-testid="appearance-theme-discard">{theme_discard()}</Button
+				<Button variant="ghost" onclick={discardChanges} data-testid="appearance-theme-discard"
+					>{theme_discard()}</Button
 				>
 				<Button
 					variant="primary"
