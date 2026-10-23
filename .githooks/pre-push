@@ -32,6 +32,21 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 require_bun
 header "Pre-Push"
 
+# ── Local gates are OFF by default ──────────────────────────────────────────
+# Owner decision (2026-10-23): GitHub Actions (.github/workflows/ci.yml) is the
+# single gate. Every step below still exists and runs on
+#
+#   SVELTY_LOCAL_GATES=1 git push …
+#
+# but by default `run` only credits the step, so a push returns in seconds. The
+# semantic-release bookkeeping for `main` still executes — it is the only part
+# of this hook that changes what gets pushed.
+if [ "${SVELTY_LOCAL_GATES:-0}" != "1" ]; then
+  info "Local gates disabled — CI is the gate (SVELTY_LOCAL_GATES=1 to enable)"
+  info "Releases on main: SVELTY_LOCAL_GATES=1 git push, or Actions → Auto Release"
+  exit 0
+fi
+
 ONLY_FAILURES=false
 PUSH_REFS=""
 

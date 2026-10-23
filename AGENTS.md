@@ -150,6 +150,15 @@ The mapping targets spec **paths**, never `--grep` (a path cannot be combined wi
 
 Pipeline: pre-commit = test-db-safety → format/lint/**typecheck** → risk audit → unit → **component interactions** → SBOM sync; pre-push = build (4 adapters) → **DB parity when `src/databases/` changed** → E2E smoke. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract, flake budget) before touching product code.
 
+> **Local gates are opt-in (owner decision, 2026-10-23).** `git commit` and `git push` return immediately; **GitHub Actions is the gate**. The hooks in `.githooks/` remain complete and run only with `SVELTY_LOCAL_GATES=1`:
+>
+> ```sh
+> SVELTY_LOCAL_GATES=1 git commit -m "…"   # full pre-commit (~2 min)
+> SVELTY_LOCAL_GATES=1 git push             # full pre-push (~4 min, incl. DB parity + E2E)
+> ```
+>
+> The semantic-release step on `main` still runs either way. Consequence: a red commit can land on `next` before CI reports it — read the run before merging onward. Branch protection (CI required) is the real enforcement.
+
 ## 5. Architecture (brief)
 
 - **`LocalCMS`** — zero-latency SDK bridge for all server-side calls (see §1).

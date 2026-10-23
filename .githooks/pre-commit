@@ -15,6 +15,21 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 header "Pre-Commit"
 require_bun
 
+# ── Local gates are OFF by default ──────────────────────────────────────────
+# Owner decision (2026-10-23): GitHub Actions (.github/workflows/ci.yml) is the
+# single gate. The hook stays in the repo and is fully functional, but it only
+# runs when explicitly opted in:
+#
+#   SVELTY_LOCAL_GATES=1 git commit …
+#
+# This keeps commits instant and removes the 2–5 minute local gate that made
+# every change feel stuck. The trade-off is that a red commit can reach `next`
+# before CI reports it, so read the run before merging onward.
+if [ "${SVELTY_LOCAL_GATES:-0}" != "1" ]; then
+  info "Local gates disabled — CI is the gate (SVELTY_LOCAL_GATES=1 to enable)"
+  exit 0
+fi
+
 TOTAL=8; OK=0
 
 # Step 1 — Database safety
