@@ -92,7 +92,16 @@
 	const HEADER_HEIGHT = 48;
 
 	// Lazy chunk map — Vite splits each widget; nothing is fetched until a loader runs.
-	const widgetLoaders = import.meta.glob('./widgets/*/*.svelte');
+	// The four first-screen packages are already in the main chunk via widget-ssr.ts;
+	// excluding them here keeps one owner and avoids Rollup's
+	// INEFFECTIVE_DYNAMIC_IMPORT warning (static + dynamic import of the same file).
+	const widgetLoaders = import.meta.glob([
+		'./widgets/*/*.svelte',
+		'!./widgets/cpu/*.svelte',
+		'!./widgets/disk/*.svelte',
+		'!./widgets/memory/*.svelte',
+		'!./widgets/system-messages/*.svelte'
+	]);
 
 	function pickerListToRegistry(widgets: DashboardWidgetPickerInfo[]): WidgetRegistry {
 		const registry: WidgetRegistry = {};
