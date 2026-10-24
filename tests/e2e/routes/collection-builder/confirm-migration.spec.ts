@@ -23,6 +23,7 @@ import {
 } from "../../helpers/collection-builder-flow";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
+import { runAfterHydration } from "../../helpers/hydration";
 
 test.describe.configure({ mode: "serial", timeout: 180_000 });
 
@@ -34,7 +35,11 @@ async function openFieldEditor(page: Page, label: string) {
   await goToWidgetsTab(page);
   const row = page.getByTestId("widget-field-row").filter({ hasText: label }).first();
   await expect(row).toBeVisible({ timeout: 20_000 });
-  await row.locator('div[role="button"]').first().click();
+  // The row is SSR-painted; a click before the hydration walk is a silent no-op
+  // and would leave the inspector showing its pre-hydration defaults.
+  await runAfterHydration(page, () => row.locator('div[role="button"]').first().click(), {
+    selector: row,
+  });
 
   const requiredSwitch = page.getByTestId("widget-field-required").getByRole("switch");
   await expect(requiredSwitch).toBeVisible({ timeout: 20_000 });
@@ -44,6 +49,28 @@ async function openFieldEditor(page: Page, label: string) {
 async function closeFieldEditor(page: Page) {
   await page.getByTestId("widget-field-cancel").click();
   await expect(page.getByTestId("widget-field-cancel")).toBeHidden({ timeout: 10_000 });
+}
+
+/**
+ * Assert the persisted `required` flag survives a fresh page load.
+ *
+ * The first click after `reload()` can land in the SSR-paint → hydration window,
+ * where the inspector shows its default state instead of the loaded collection.
+ * Re-open the inspector until the hydrated value matches; a genuine persistence
+ * failure never converges and still fails within the budget.
+ */
+async function expectFieldRequired(page: Page, required: boolean) {
+  await expect(async () => {
+    const cancel = page.getByTestId("widget-field-cancel");
+    if (await cancel.isVisible().catch(() => false)) {
+      await cancel.click();
+      await expect(cancel).toBeHidden({ timeout: 5_000 });
+    }
+
+    const toggle = await openFieldEditor(page, FIELD_LABEL);
+    await expect(toggle).toHaveAttribute("aria-checked", required ? "true" : "false");
+    await closeFieldEditor(page);
+  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
 }
 
 /** Make the existing field required (or not) and apply the inspector. */
@@ -125,9 +152,7 @@ test.describe("Collection Builder - migration confirmation", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 20_000 });
-    const persisted = await openFieldEditor(page, FIELD_LABEL);
-    await expect(persisted).toHaveAttribute("aria-checked", "false");
-    await closeFieldEditor(page);
+    await expectFieldRequired(page, false);
 
     // Explicit confirmation now applies the migration and persists the schema.
     await setFieldRequired(page, true);
@@ -140,7 +165,6 @@ test.describe("Collection Builder - migration confirmation", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 20_000 });
-    const confirmed = await openFieldEditor(page, FIELD_LABEL);
-    await expect(confirmed).toHaveAttribute("aria-checked", "true");
+    await expectFieldRequired(page, true);
   });
 });
