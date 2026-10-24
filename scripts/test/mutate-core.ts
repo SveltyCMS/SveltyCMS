@@ -38,7 +38,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 interface Mutation {
@@ -160,6 +160,8 @@ const originals = new Map<string, string>();
 const applied = new Map<string, string>();
 /** Files currently believed to hold mutated content. */
 const touched = new Set<string>();
+/** Files that were clean before the first write (safe to restore from HEAD). */
+const cleanAtStart = new Set<string>();
 
 function git(args: readonly string[]): { status: number; stdout: string; stderr: string } {
   const result = spawnSync("git", [...args], {
@@ -185,8 +187,18 @@ function readTarget(relativePath: string): string {
   return content;
 }
 
+/**
+ * Writes through a same-directory temp file and renames it over the target, so
+ * an interrupted process can never leave a half-written source file behind.
+ * A plain `writeFileSync` truncates first; if the gate is killed between the
+ * truncate and the write, the tree keeps a syntactically broken fragment and
+ * every later step (probe, integration, E2E) fails for the wrong reason.
+ */
 function writeTarget(relativePath: string, content: string): void {
-  writeFileSync(join(ROOT, relativePath), content);
+  const target = join(ROOT, relativePath);
+  const temporary = `${target}.mutation-${process.pid}.tmp`;
+  writeFileSync(temporary, content);
+  renameSync(temporary, target);
 }
 
 /**
@@ -217,11 +229,29 @@ function restoreAll(): string[] {
 function restoreTarget(relativePath: string): boolean {
   const content = originals.get(relativePath);
   if (content === undefined) return true;
-  if (!isUntouchedSinceWrite(relativePath)) return false;
-  writeTarget(relativePath, content);
-  applied.delete(relativePath);
-  touched.delete(relativePath);
-  return isClean(relativePath);
+
+  if (isUntouchedSinceWrite(relativePath)) {
+    writeTarget(relativePath, content);
+    applied.delete(relativePath);
+    touched.delete(relativePath);
+    if (isClean(relativePath)) return true;
+  }
+
+  // The in-memory restore failed (partial write, interrupted process, line-ending
+  // normalisation, or a concurrent writer). The target was clean before this run,
+  // so HEAD is the only legitimate baseline: leaving a mutated source file behind
+  // makes every later gate fail for the wrong reason. Restore it and say so.
+  if (cleanAtStart.has(relativePath)) {
+    console.error(`\n⚠️  ${relativePath} did not match its pre-run bytes — restoring from HEAD.`);
+    const checkedOut = git(["checkout", "--", relativePath]);
+    if (checkedOut.status === 0) {
+      applied.delete(relativePath);
+      touched.delete(relativePath);
+      return isClean(relativePath);
+    }
+  }
+
+  return false;
 }
 
 function runTests(tests: readonly string[]): { status: number; output: string } {
@@ -253,9 +283,11 @@ function applyMutation(mutation: Mutation): string | null {
     return `replacement target occurs ${occurrences}× in ${mutation.file} (expected exactly 1) — mutation config is stale`;
   }
   const mutated = content.replace(mutation.find, mutation.replace);
-  writeTarget(mutation.file, mutated);
-  applied.set(mutation.file, mutated);
+  // Mark before writing: if the process is interrupted mid-write, the restore
+  // pass must still see this file and fall back to HEAD.
   touched.add(mutation.file);
+  applied.set(mutation.file, mutated);
+  writeTarget(mutation.file, mutated);
   return null;
 }
 
@@ -271,6 +303,7 @@ function runMutation(mutation: Mutation): Outcome {
       detail: `${mutation.file} has uncommitted changes — refusing to rewrite it`,
     };
   }
+  cleanAtStart.add(mutation.file);
 
   let status: Status = "killed";
   let detail = "";
@@ -460,5 +493,13 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.exit(130);
   });
 }
+
+// Normal exits and `process.exit()` paths (including a thrown error escaping
+// main) still owe the tree a restore; the signal handlers above do not cover
+// them. `restoreAll` is idempotent — already-restored paths are no-ops.
+process.on("exit", () => {
+  const dirty = restoreAll();
+  if (dirty.length > 0) console.error(`🛑 restore on exit failed for: ${dirty.join(", ")}`);
+});
 
 process.exit(main());

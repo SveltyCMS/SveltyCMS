@@ -138,9 +138,12 @@ fi
 if run "🧩  Component interactions (CI parity)" pm_run test:unit:components; then
   OK=$((OK + 1))
 fi
-if run "🧬  Mutation (seams)" pm_run test:mutation; then
-  OK=$((OK + 1))
-fi
+
+# Mutation runs last (below the E2E gate): it rewrites source files in place, so
+# an interrupted run must not be followed by build, integration or browser steps
+# that would then fail on a mutated tree. The step verifies its own targets are
+# clean before writing and restores them in a finally block; the hook re-checks
+# afterwards as a second line of defence.
 
 # Step 2b — Release readiness (read-only). auto-release.yaml tags the version
 # committed in package.json and never writes it, so a push only needs the
@@ -273,6 +276,30 @@ else
   # Both the browser gate and its flake budget are skipped.
   TOTAL=$((TOTAL - 1))
   OK=$((OK + 1))
+fi
+
+# Step 9 — Mutation (last: see the note above the unit-parity block)
+#
+# A hard-killed process can leave a partially written target even with atomic
+# writes. Only restore when the targets were clean before this run — a dirty
+# target is the developer's work, not ours to discard.
+MUTATION_TARGETS="src/utils/optimistic-lock.ts src/databases/core/drizzle-sql-helpers.ts"
+MUTATION_CLEAN_BEFORE=true
+if ! git diff --quiet -- $MUTATION_TARGETS; then
+  MUTATION_CLEAN_BEFORE=false
+  warn "Mutation targets were dirty before the gate — leaving them untouched"
+fi
+
+if run "🧬  Mutation (seams)" pm_run test:mutation; then
+  if git diff --quiet -- $MUTATION_TARGETS; then
+    OK=$((OK + 1))
+  elif [ "$MUTATION_CLEAN_BEFORE" = true ]; then
+    warn "Mutation harness left a target dirty — restoring from HEAD"
+    git checkout -- $MUTATION_TARGETS
+  fi
+elif [ "$MUTATION_CLEAN_BEFORE" = true ] && ! git diff --quiet -- $MUTATION_TARGETS; then
+  warn "Mutation harness failed with a dirty target — restoring from HEAD"
+  git checkout -- $MUTATION_TARGETS
 fi
 
 summary "$OK" "$TOTAL"

@@ -123,6 +123,17 @@ describe("pre-push hook", () => {
     expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build $E2E_TARGETS");
     expect(prePush).toContain("SKIP_E2E_SMOKE");
   });
+
+  it("runs mutation last and restores a dirty target", () => {
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    // The mutation harness rewrites source files. If it ran before the build,
+    // integration or browser gate, an interrupted write would make every later
+    // step fail on a mutated tree (observed locally as a cascade of unrelated
+    // `includeDeleted` / `db.crud` errors).
+    expect(prePush.indexOf("test:mutation")).toBeGreaterThan(prePush.indexOf("E2E Browser Gate"));
+    expect(prePush).toContain("MUTATION_CLEAN_BEFORE");
+    expect(prePush).toContain("git checkout -- $MUTATION_TARGETS");
+  });
 });
 
 describe("CI wiring", () => {
