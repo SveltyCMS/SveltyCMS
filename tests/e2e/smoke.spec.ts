@@ -153,6 +153,9 @@ test.describe("Pre-Push E2E Smoke Gate", () => {
     await expect(page.getByTestId("media-gallery-content")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
+    await expect(page.getByTestId("media-grid")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
 
     // Regression guard: at 1280px the fixed filters used to squeeze the search
     // to ~24px and push the absolutely positioned advanced-search button under
