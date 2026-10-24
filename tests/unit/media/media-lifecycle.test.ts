@@ -89,6 +89,16 @@ function makeDb(rows: FakeRow[]): IDBAdapter {
         return { success: true, data: row };
       },
     },
+    media: {
+      files: {
+        // Status writes are partial metadata patches, never whole-blob replaces.
+        updateMetadata: async (id: string, patch: Record<string, unknown>) => {
+          const row = byId.get(String(id));
+          if (row) row.metadata = { ...row.metadata, ...patch };
+          return { success: true, data: row };
+        },
+      },
+    },
   } as unknown as IDBAdapter;
 }
 
@@ -273,6 +283,19 @@ describe("syncMediaProcessingStatus", () => {
       { hash: "active-hash", relPath: "tenant/active-hash/original/hero.jpg" },
     ]);
     expect(row.metadata.processingStatus).toBe("processing");
+  });
+
+  it("keeps metadata keys another writer added while the row was being reconciled", async () => {
+    // Regression: the reconciler used to write back `{ ...row.metadata }` from
+    // its own snapshot, deleting a share link created in the meantime.
+    const row = imageRow({ thumbnails: {}, metadata: { sharedLinks: [{ token: "share-token" }] } });
+    const db = makeDb([row]);
+
+    const result = await syncMediaProcessingStatus(db, { tenantId: TENANT_ID });
+
+    expect(result.processing).toBe(1);
+    expect(row.metadata.processingStatus).toBe("processing");
+    expect(row.metadata.sharedLinks).toEqual([{ token: "share-token" }]);
   });
 
   it("does not schedule work for a ready image", async () => {

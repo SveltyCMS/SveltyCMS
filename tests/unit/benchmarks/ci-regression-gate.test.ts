@@ -134,6 +134,10 @@ describe("CI performance gate", () => {
     expect(budgetFor("sqlite", "dbRaw")).toBe(80);
     expect(budgetFor("postgresql", "dbRaw")).toBe(30);
     expect(budgetFor("sqlite", "collections")).toBe(5);
+    // Networked adapters pay a round-trip on every REST request.
+    expect(budgetFor("mongodb", "collections")).toBe(8);
+    expect(budgetFor("postgresql", "collections")).toBe(8);
+    expect(budgetFor("mariadb", "collections")).toBe(8);
   });
 
   it("ignores sub-1.5ms absolute jitter on sub-millisecond baselines", () => {

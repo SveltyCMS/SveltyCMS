@@ -115,13 +115,15 @@ async function updateTranscodeMetadata(
   mediaId: string,
   patch: Record<string, unknown>,
 ): Promise<void> {
-  const current = await cms.media.findById(mediaId, { tenantId });
-  if (!current.success || !current.data) return;
-  const metadata =
-    current.data.metadata && typeof current.data.metadata === "object"
-      ? (current.data.metadata as Record<string, unknown>)
-      : {};
-  await cms.media.update(mediaId, { metadata: { ...metadata, ...patch } }, { tenantId });
+  // Partial patch — a whole-blob write from this snapshot would delete keys a
+  // concurrent share link or variant job added while ffmpeg was running.
+  const result = await cms.media.patchMetadata(mediaId, patch, { tenantId });
+  if (!result.success) {
+    logger.warn("[MediaTranscode] Metadata update failed", {
+      mediaId,
+      error: result.message,
+    });
+  }
 }
 
 async function saveDirectory(

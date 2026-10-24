@@ -26,8 +26,6 @@ import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import {
   createLink,
   validateLink,
-  revoke,
-  extend,
   createBulkArchive,
   streamArchive,
   cleanupArchive,
@@ -868,6 +866,77 @@ export async function handleMediaVersionRestore(
   return successResponse(event, result.data);
 }
 
+/**
+ * A share entry as persisted under `media.metadata.sharedLinks`.
+ * `expiry` is the legacy field name still written by older links/seeds.
+ */
+interface StoredShareLink {
+  active?: boolean;
+  createdAt?: string;
+  downloadCount?: number;
+  expiresAt?: string | null;
+  expiry?: string | null;
+  passwordHash?: string;
+  token: string;
+  tokenHash?: string;
+}
+
+/** `null` = the row exists but carries no `sharedLinks` array yet. */
+function readStoredLinks(
+  media: { metadata?: unknown } | null | undefined,
+): StoredShareLink[] | null {
+  const metadata = media?.metadata as { sharedLinks?: unknown } | undefined;
+  return Array.isArray(metadata?.sharedLinks) ? (metadata.sharedLinks as StoredShareLink[]) : null;
+}
+
+/**
+ * Patch `metadata.sharedLinks` without replacing the rest of the metadata blob.
+ *
+ * Whole-blob writes raced the variant pipeline: the upload job snapshots
+ * `metadata` when it starts and writes it back when Sharp finishes, so a link
+ * created in that window was silently dropped and the client received a token
+ * for a link that did not exist. The patch path only touches this one key, and
+ * a failed write is raised instead of being swallowed by the SDK result.
+ */
+async function patchSharedLinks(
+  cms: LocalCMS,
+  mediaId: string,
+  tenantId: DatabaseId,
+  mutate: (links: StoredShareLink[]) => StoredShareLink[],
+): Promise<StoredShareLink[]> {
+  const mediaRes = await cms.media.findById(mediaId, { tenantId });
+  if (!mediaRes.success || !mediaRes.data) throw new AppError("Media item not found", 404);
+
+  const next = mutate(readStoredLinks(mediaRes.data) ?? []);
+  const persisted = await cms.media.patchMetadata(mediaId, { sharedLinks: next }, { tenantId });
+  if (!persisted.success) {
+    throw new AppError(
+      `Share link could not be persisted: ${persisted.message || "unknown error"}`,
+      500,
+      "SHARE_LINK_PERSIST_FAILED",
+    );
+  }
+
+  // A relational `updateMetadata` whose row filter matches nothing still
+  // reports success, and a swallowed result once handed clients a token for a
+  // link that did not exist. Read back and refuse to answer 200 in that case.
+  const verify = await cms.media.findById(mediaId, { tenantId });
+  const stored = verify.success ? readStoredLinks(verify.data) : null;
+  const confirmed =
+    stored !== null &&
+    stored.length === next.length &&
+    next.every((link) => stored.some((candidate) => candidate.token === link.token));
+  if (!confirmed) {
+    logger.error("[Share] Link patch not visible after write", {
+      mediaId,
+      expected: next.length,
+      stored: stored?.length ?? null,
+    });
+    throw new AppError("Share link could not be persisted", 500, "SHARE_LINK_PERSIST_FAILED");
+  }
+  return next;
+}
+
 export async function handleMediaShareCreate(
   event: RequestEvent,
   cms: LocalCMS,
@@ -891,31 +960,18 @@ export async function handleMediaShareCreate(
     passwordHash: password ? hashSharePassword(String(password)) : undefined,
   });
 
-  const mediaRes = await cms.media.findById(mediaId, { tenantId });
-  if (!mediaRes.success || !mediaRes.data)
-    throw new AppError("Target asset reference record missing", 404);
-
-  const mediaItem = mediaRes.data as any;
-  const newLink = {
-    token: link.rawToken,
-    tokenHash: link.token,
-    expiresAt: link.expiresAt,
-    passwordHash: link.passwordHash,
-    downloadCount: 0,
-    createdAt: link.createdAt,
-    active: true,
-  };
-
-  await cms.media.update(
-    mediaId,
+  await patchSharedLinks(cms, mediaId, tenantId, (links) => [
+    ...links,
     {
-      metadata: {
-        ...mediaItem.metadata,
-        sharedLinks: [...(mediaItem.metadata?.sharedLinks || []), newLink],
-      },
+      token: link.rawToken,
+      tokenHash: link.token,
+      expiresAt: link.expiresAt,
+      passwordHash: link.passwordHash,
+      downloadCount: 0,
+      createdAt: link.createdAt,
+      active: true,
     },
-    { tenantId },
-  );
+  ]);
 
   return successResponse(event, {
     token: link.rawToken,
@@ -935,20 +991,15 @@ export async function handleMediaShareRevoke(
   const token = segments[3];
   if (!mediaId || !token) throw new AppError("Media identifier and share token required", 400);
 
-  const mediaRes = await cms.media.findById(mediaId, { tenantId });
-  if (!mediaRes.success || !mediaRes.data) throw new AppError("Media item not found", 404);
-
-  const item = mediaRes.data as any;
-  const links: ShareLink[] = item.metadata?.sharedLinks || [];
-  const idx = links.findIndex((l) => l.token === token);
-  if (idx === -1) throw new AppError("Share link not found", 404);
-
-  revoke(links[idx]);
-  await cms.media.update(
-    mediaId,
-    { metadata: { ...item.metadata, sharedLinks: links } },
-    { tenantId },
-  );
+  // `revoke()` is an immutable helper (returns a new link) — the previous
+  // call discarded its return value, so revoking was a silent no-op.
+  await patchSharedLinks(cms, mediaId, tenantId, (links) => {
+    const idx = links.findIndex((l) => l.token === token);
+    if (idx === -1) throw new AppError("Share link not found", 404);
+    const next = [...links];
+    next[idx] = { ...links[idx], active: false };
+    return next;
+  });
 
   return successResponse(event, { success: true });
 }
@@ -970,23 +1021,20 @@ export async function handleMediaShareExtend(
   if (hours <= 0 || !Number.isFinite(hours))
     throw new AppError("Expiry hours must be a positive number", 400);
 
-  const mediaRes = await cms.media.findById(mediaId, { tenantId });
-  if (!mediaRes.success || !mediaRes.data) throw new AppError("Media item not found", 404);
-
-  const item = mediaRes.data as any;
-  const links: ShareLink[] = item.metadata?.sharedLinks || [];
-  const idx = links.findIndex((l) => l.token === token);
-  if (idx === -1) throw new AppError("Share link not found", 404);
-
-  extend(links[idx], hours);
-  await cms.media.update(
-    mediaId,
-    { metadata: { ...item.metadata, sharedLinks: links } },
-    { tenantId },
-  );
+  // `extend()` is immutable too — read the patched array back instead of the
+  // stale `links[idx]` the helper never mutated.
+  const links = await patchSharedLinks(cms, mediaId, tenantId, (current) => {
+    const idx = current.findIndex((l) => l.token === token);
+    if (idx === -1) throw new AppError("Share link not found", 404);
+    const expiresAt = new Date(current[idx].expiresAt ?? Date.now());
+    expiresAt.setHours(expiresAt.getHours() + hours);
+    const next = [...current];
+    next[idx] = { ...current[idx], expiresAt: expiresAt.toISOString() };
+    return next;
+  });
 
   return successResponse(event, {
-    expiresAt: links[idx].expiresAt,
+    expiresAt: links.find((link) => link.token === token)?.expiresAt,
   });
 }
 
@@ -1041,8 +1089,21 @@ export async function handleMediaShareDownload(
     return successResponse(event, { passwordRequired: true });
   }
 
-  link.downloadCount = (link.downloadCount || 0) + 1;
-  await cms.media.update(id, { metadata: item.metadata }, { tenantId });
+  // Bump the counter through a partial patch: the whole-blob write also
+  // rewrote every other metadata key from this request's snapshot.
+  const downloadLinks = (item.metadata?.sharedLinks || []).map((candidate: StoredShareLink) =>
+    candidate.token === token
+      ? { ...candidate, downloadCount: (candidate.downloadCount || 0) + 1 }
+      : candidate,
+  );
+  const counted = await cms.media.patchMetadata(id, { sharedLinks: downloadLinks }, { tenantId });
+  if (!counted.success) {
+    // A failed counter must not deny the download the visitor already paid for.
+    logger.warn("[Share] Download counter update failed", {
+      mediaId: id,
+      error: counted.message,
+    });
+  }
 
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
   const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";

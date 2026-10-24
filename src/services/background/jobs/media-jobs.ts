@@ -86,9 +86,20 @@ export async function processMediaHandler(payload: { fileId: string; basePath?: 
     if (Object.keys(thumbnails).length > 0) {
       await db.crud.update("media", dbId, {
         thumbnails: { ...media.thumbnails, ...thumbnails },
-        metadata: { ...media.metadata, processingStatus: "ready" },
         updatedAt: new Date().toISOString(),
       } as any);
+      // `media` was read before thumbnail generation; writing its whole
+      // metadata blob back would delete keys added in the meantime (share
+      // links, editor fields). Patch the one key this job owns, scoped to the
+      // row's own tenant (multi-tenant mode rejects an unscoped write).
+      const statusUpdate = await db.media.files.updateMetadata(
+        dbId,
+        { processingStatus: "ready", processingError: null },
+        { tenantId: (media as { tenantId?: DatabaseId | null }).tenantId as DatabaseId },
+      );
+      if (!statusUpdate.success) {
+        logger.warn("[MediaJob] Status update failed", statusUpdate.message);
+      }
     }
 
     logger.info(`[MediaJob] Completed processing for file: ${fileId}`);

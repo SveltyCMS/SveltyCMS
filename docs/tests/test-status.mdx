@@ -22,7 +22,7 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > This page is the **only** test-status dashboard — route maps, inventories, and deep strategy live in the linked docs below (no separate archive).
 
-**Dashboard updated:** 2026-10-24 — **route-behaviour + unfailable-assertion gates**. Unit **725 files / 6,830 tests**; component interaction **28 files / 156 tests**; P0 coverage **75.41 % statements / 66.11 % branches / 78.45 % functions / 77.55 % lines** (floors 70/60/72/72); **route-behaviour 99/99 applicable cells across 37 routes**; mutation **7/7 killed**; all **9 E2E shards**, **4 DB** jobs and **4 Bench** jobs green in CI run **1853** (`e4aafd904`). `bun run check` now includes `check:routes` (floor 99) and `lint:trivial-assertions` (**0 findings across 1,084 test files**). Full 4-DB integration, Bench ×4 and the E2E matrix remain **CI-only**.
+**Dashboard updated:** 2026-10-24 — **share-link metadata race + route-gate coverage**. Unit **733 files / 6,892 tests**; component interaction **29 files / 158 tests**; P0 coverage **75.41 % statements / 66.11 % branches / 78.45 % functions / 77.55 % lines** (floors 70/60/72/72); **route-behaviour 139/139 applicable cells across 56 routes**; mutation **7/7 killed**. `bun run check` includes `check:routes` (floor 99) and `lint:trivial-assertions` (**0 findings across 1,094 test files**); the four-DB integration suite is green on sqlite/postgresql/mariadb/mongodb. Full 4-DB integration, Bench ×4 and the E2E matrix remain **CI-only**.
 
 ---
 

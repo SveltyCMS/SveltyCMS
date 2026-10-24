@@ -538,7 +538,8 @@ export interface CmsMediaMetadata {
   keywords?: string[];
   location?: { latitude?: number; longitude?: number; altitude?: number };
   originalFilename?: string;
-  processingError?: string;
+  /** `null` clears a previous failure when a retry succeeds. */
+  processingError?: string | null;
   /** Derivative pipeline state — `processing` until every rendition exists. */
   processingStatus?: "processing" | "ready" | "failed";
   processingTimeMs?: number;

@@ -24,6 +24,7 @@ import type sharp from "sharp";
 import { deleteAllVariants } from "@src/services/media/image-variant-storage";
 import type {
   IDBAdapter,
+  CmsMediaMetadata,
   DatabaseError,
   DatabaseId,
   DatabaseResult,
@@ -670,18 +671,15 @@ export class MediaService {
       tenantId,
       onVariants: async (variants) => {
         try {
-          const current = await this.db.crud.findOne<DbMediaItem>(
-            "media",
-            { _id: recordId },
-            { tenantId: tenantId },
-          );
-          const metadata: Record<string, unknown> = {
-            ...(current.success ? current.data?.metadata : undefined),
+          // Patch only the keys this job owns. A whole-blob write here raced
+          // share-link creation and other metadata edits: the job's snapshot
+          // predated them, so writing it back silently deleted their keys.
+          const patch: Record<string, unknown> = {
             processingStatus:
               variants.length > 0 ? MediaProcessingStatus.Ready : MediaProcessingStatus.Failed,
           };
           if (variants.length > 0) {
-            metadata.imageVariants = variants.map((v) => ({
+            patch.imageVariants = variants.map((v) => ({
               preset: v.preset,
               width: v.width,
               height: v.height,
@@ -690,21 +688,12 @@ export class MediaService {
               path: v.path,
               size: v.size,
             }));
-            delete metadata.processingError;
+            patch.processingError = null;
           } else {
-            metadata.processingError = "No variants generated";
+            patch.processingError = "No variants generated";
           }
 
-          const update = await this.db.crud.update(
-            "media",
-            recordId,
-            { metadata } as unknown as EntityUpdate<DbMediaItem>,
-            { tenantId: tenantId },
-          );
-          if (!update.success) {
-            logger.warn("[Media] Variant status update failed", update.message);
-            return;
-          }
+          await this.patchMetadata(String(recordId), patch, tenantId);
           logger.debug("[Media] Variants generated for streamed upload", {
             hash: hash.slice(0, 12),
             count: variants.length,
@@ -1383,6 +1372,31 @@ export class MediaService {
     const res = await this.db.crud.update("media", mediaId as DatabaseId, safeData, {
       tenantId: tenantId,
     });
+    if (!res.success) throw new Error(res.message);
+  }
+
+  /**
+   * Merge a partial patch into the stored `metadata` blob.
+   *
+   * `updateMedia(id, { metadata })` is a whole-blob replace: any writer that
+   * snapshots the blob and writes it back later (variant jobs, transcoders,
+   * share links) silently drops keys another writer added in between. This
+   * helper only touches the keys the caller owns. MongoDB does it with dotted
+   * `$set` paths; the relational adapters re-read inside the same adapter call.
+   *
+   * Pass `null` to clear a key (`processingError`).
+   */
+  public async patchMetadata(
+    mediaId: string,
+    patch: Partial<Record<keyof CmsMediaMetadata, unknown>>,
+    tenantId?: DatabaseId | null,
+  ): Promise<void> {
+    if (!mediaId) throw new AppError("Media ID is required", 400);
+    const res = await this.db.media.files.updateMetadata(
+      mediaId as DatabaseId,
+      patch as Partial<CmsMediaMetadata>,
+      { tenantId: tenantId as DatabaseId },
+    );
     if (!res.success) throw new Error(res.message);
   }
 

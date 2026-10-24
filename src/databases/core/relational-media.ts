@@ -29,6 +29,7 @@ import {
   convertDatesToISO,
   convertISOToDates,
   generateId,
+  parseJsonField,
 } from "./relational-utils";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 import { isAdmin } from "@src/databases/auth/constants";
@@ -304,7 +305,11 @@ export class RelationalMediaModule implements IMediaAdapter {
               .where(and(...conditions))
               .limit(1);
 
-            const newMetadata = { ...(existing?.metadata as any), ...metadata };
+            // SQLite stores `metadata` as TEXT, so Drizzle hands back the raw
+            // JSON string. Spreading that string produced `{0:"{",1:"\"",…}` and
+            // silently destroyed the blob (and any key written before it).
+            const storedMetadata = parseJsonField<Record<string, unknown>>(existing?.metadata, {});
+            const newMetadata = { ...storedMetadata, ...metadata };
             if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
               const [updated] = await this.db
                 .update(this.schema.mediaItems)

@@ -12,6 +12,7 @@ const mockMediaService = {
   ensureInitialized: vi.fn(),
   getMedia: vi.fn(),
   updateMedia: vi.fn(),
+  patchMetadata: vi.fn().mockResolvedValue(undefined),
   deleteMedia: vi.fn(),
   saveMedia: vi.fn().mockResolvedValue({
     success: true,
@@ -251,28 +252,108 @@ describe("Media API Security Unit Tests", () => {
     });
 
     it("allows share-link creation for admins", async () => {
+      // Stateful stub: creation patches `metadata.sharedLinks` and then verifies
+      // the read-back, so the fake store must actually keep the patch.
+      const metadata: Record<string, unknown> = {};
       (dbAdapter!.crud.findOne as any).mockResolvedValue({
         success: true,
-        data: { _id: "media-1", tenantId, metadata: {} },
+        data: { _id: "media-1", tenantId, metadata },
       });
-      (dbAdapter!.crud.update as any).mockResolvedValue({ success: true });
+      mockMediaService.patchMetadata.mockImplementation(
+        async (_id: string, patch: Record<string, unknown>) => {
+          Object.assign(metadata, patch);
+        },
+      );
 
       const response = await mediaShareHandler.POST({
         locals: { user, roles, tenantId, isAdmin: true },
       });
       expect(response.status).toBe(200);
+
+      const body = (await response.json()) as { data?: { token?: string } };
+      expect(body.data?.token).toBeTruthy();
+      expect(metadata.sharedLinks).toHaveLength(1);
+    });
+  });
+
+  describe("DELETE /api/media/share/:id/:token", () => {
+    it("persists the revoked state returned by the immutable helper", async () => {
+      const metadata: Record<string, unknown> = {
+        sharedLinks: [{ token: "tok-1", active: true, expiresAt: "2099-01-01T00:00:00.000Z" }],
+      };
+      (dbAdapter!.crud.findOne as any).mockResolvedValue({
+        success: true,
+        data: { _id: "media-r1", tenantId, metadata },
+      });
+      mockMediaService.patchMetadata.mockImplementation(
+        async (_id: string, patch: Record<string, unknown>) => {
+          Object.assign(metadata, patch);
+        },
+      );
+
+      const event = {
+        ...createMockRequestEvent({
+          method: "DELETE",
+          url: "http://localhost/api/media/share/media-r1/tok-1",
+          user,
+          tenantId,
+          roles,
+          dbAdapter,
+        }),
+        params: { path: "media/share/media-r1/tok-1" },
+      };
+
+      const response = await dispatcherDELETE(event as any);
+      expect(response.status).toBe(200);
+      expect((metadata.sharedLinks as Array<{ active: boolean }>)[0].active).toBe(false);
+    });
+  });
+
+  describe("PATCH /api/media/share/:id/:token", () => {
+    it("persists the extended expiry instead of the discarded helper return", async () => {
+      const metadata: Record<string, unknown> = {
+        sharedLinks: [{ token: "tok-1", active: true, expiresAt: "2099-01-01T00:00:00.000Z" }],
+      };
+      (dbAdapter!.crud.findOne as any).mockResolvedValue({
+        success: true,
+        data: { _id: "media-e1", tenantId, metadata },
+      });
+      mockMediaService.patchMetadata.mockImplementation(
+        async (_id: string, patch: Record<string, unknown>) => {
+          Object.assign(metadata, patch);
+        },
+      );
+
+      const event = {
+        ...createMockRequestEvent({
+          method: "PATCH",
+          url: "http://localhost/api/media/share/media-e1/tok-1",
+          user,
+          tenantId,
+          roles,
+          dbAdapter,
+          body: { expiryHours: 2 },
+        }),
+        params: { path: "media/share/media-e1/tok-1" },
+      };
+
+      const response = await dispatcherPATCH(event as any);
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { data?: { expiresAt?: string } };
+      expect(body.data?.expiresAt).toBe("2099-01-01T02:00:00.000Z");
     });
   });
 
   describe("GET /api/media/[id]", () => {
     it("should enforce tenant isolation when finding the media item", async () => {
+      // A distinct id avoids the request-cache entry the share-link test warms.
       (dbAdapter!.crud.findOne as any).mockResolvedValue({
         success: true,
-        data: { _id: "media-1", tenantId },
+        data: { _id: "media-2", tenantId },
       });
 
       const event = {
-        params: { id: "media-1" },
+        params: { id: "media-2" },
         locals: { user, roles, tenantId },
       } as unknown as RequestEvent;
 
@@ -280,7 +361,7 @@ describe("Media API Security Unit Tests", () => {
 
       expect(dbAdapter!.crud.findOne).toHaveBeenCalledWith(
         "media",
-        expect.objectContaining({ _id: "media-1" }),
+        expect.objectContaining({ _id: "media-2" }),
         expect.objectContaining({ tenantId }),
       );
     });
