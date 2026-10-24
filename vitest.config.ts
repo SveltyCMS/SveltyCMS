@@ -117,6 +117,14 @@ const localMaxWorkers = process.env.VITEST_MAX_WORKERS
   ? parseInt(process.env.VITEST_MAX_WORKERS, 10)
   : defaultWorkers;
 
+/**
+ * v8 coverage is memory-heavy: on a high-core Windows box, 16 forks crashed a
+ * worker (`STATUS_STACK_BUFFER_OVERRUN`) while the identical suite passed at 4.
+ * Cap coverage runs; plain unit runs keep the full pool.
+ */
+const isCoverageRun = process.argv.includes("--coverage");
+const coverageMaxWorkers = Math.min(localMaxWorkers, 4);
+
 export default defineConfig({
   plugins: [svelte({ configFile: false } as any)],
   resolve: {
@@ -202,7 +210,8 @@ export default defineConfig({
     // Worker args are top-level in Vitest 5 (`poolOptions.forks` is gone).
     execArgv: ["--enable-source-maps"],
     // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.
-    ...(isCI ? {} : { maxWorkers: localMaxWorkers }),
+    // Coverage runs get a smaller pool: v8 instrumentation + 16 forks crashed a worker.
+    ...(isCI ? {} : { maxWorkers: isCoverageRun ? coverageMaxWorkers : localMaxWorkers }),
     env: {
       TEST_MODE: "true",
       QUIET: "true",
