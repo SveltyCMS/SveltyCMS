@@ -197,6 +197,25 @@ describe("/api/collaboration/yjs", () => {
     expect(mockGetFullState).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for a malformed JSON body instead of a 500", async () => {
+    const url = new URL(BASE_URL);
+    const response = await POST({
+      locals: makeLocals(),
+      request: new Request(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{not json",
+      }),
+      url,
+    } as unknown as YjsEvent);
+
+    expect(response.status).toBe(400);
+    const body = (await response.json()) as { code: string; success: boolean };
+    expect(body.code).toBe("BAD_REQUEST");
+    expect(body.success).toBe(false);
+    expect(mockHandleAwarenessUpdate).not.toHaveBeenCalled();
+  });
+
   it("forbids a non-admin without collection permissions with 403", async () => {
     const response = await POST(
       makeEvent("POST", {

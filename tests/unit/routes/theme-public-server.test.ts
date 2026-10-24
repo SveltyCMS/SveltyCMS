@@ -88,6 +88,28 @@ describe("GET /api/theme/public — load contract", () => {
       "t1",
     );
   });
+
+  it("rebuilds a partial cached payload instead of serving it", async () => {
+    // An entry written by an older deploy may miss a key; the endpoint must not
+    // hand the login page a partial branding object.
+    mockCacheGet.mockResolvedValue({ siteName: "Partial" });
+
+    const response = await GET(makeEvent("?tenantId=t1"));
+    const body = await readBranding(response);
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({
+      siteName: "Alpha CMS",
+      logoUrl: "https://cdn.example.com/alpha.png",
+      accentColor: "#2563eb",
+    });
+    expect(mockCacheSet).toHaveBeenCalledWith(
+      "theme:public:t1",
+      expect.objectContaining({ siteName: "Alpha CMS", accentColor: "#2563eb" }),
+      600,
+      "t1",
+    );
+  });
 });
 
 describe("GET /api/theme/public — failure path", () => {

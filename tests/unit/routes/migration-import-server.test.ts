@@ -254,6 +254,27 @@ describe("POST /api/migration/import", () => {
     expect(vi.mocked(runMigrationImport)).not.toHaveBeenCalled();
   });
 
+  it("rejects an oversized declared body before parsing the multipart form", async () => {
+    // The route used to parse the whole multipart body and then check file.size;
+    // the declared Content-Length is enough to refuse without buffering it.
+    const formData = vi.fn();
+    const event = {
+      request: {
+        headers: new Headers({ "content-length": String(20 * 1024 * 1024) }),
+        formData,
+      },
+      locals: makeLocals(),
+      cookies: { get: () => undefined },
+      url: new URL(IMPORT_URL),
+    } as unknown as Parameters<typeof POST>[0];
+
+    const response = await POST(event);
+
+    expect(response.status).toBe(413);
+    expect(formData).not.toHaveBeenCalled();
+    expect(vi.mocked(runMigrationImport)).not.toHaveBeenCalled();
+  });
+
   it("keeps mutations across requests and reports the accumulated total (persistence)", async () => {
     const importOnce = async (rows: string): Promise<string> => {
       const form = new FormData();
