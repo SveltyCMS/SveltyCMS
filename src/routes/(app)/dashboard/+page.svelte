@@ -920,7 +920,7 @@
 								role="listitem"
 								aria-label={dashboard_widget_reorder_aria({ name: widgetName })}
 								tabindex="0"
-								class="widget-container group relative select-none overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-sm transition-all duration-300 dark:text-surface-50 dark:bg-surface-900/20 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+								class="widget-container group relative select-none rounded transition-all duration-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
 								data-widget-id={item.id}
 								data-widget-order={item.order ?? 0}
 								data-testid="dashboard-widget"

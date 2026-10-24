@@ -421,9 +421,16 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 		untrack(() => resolveTabFromUrl(Boolean((data as { isAdmin?: boolean }).isAdmin)))
 	);
 
+	// Last tab value observed in the URL. The effect must only react to a real
+	// URL change: reading `activeTab` reactively made every programmatic switch
+	// (tab click, arrow key) re-run it, see the still-old URL and revert the tab.
+	let lastSyncedUrlTab: AppearanceTabId | null = null;
+
 	$effect(() => {
 		const tabFromUrl = resolveTabFromUrl(isAdmin);
-		if (tabFromUrl !== activeTab) {
+		if (tabFromUrl === lastSyncedUrlTab) return;
+		lastSyncedUrlTab = tabFromUrl;
+		if (tabFromUrl !== untrack(() => activeTab)) {
 			activeTab = tabFromUrl;
 		}
 	});
@@ -438,6 +445,29 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 		void goto(`${url.pathname}?${url.searchParams.toString()}`, {
 			replace: true,
 			reset: false
+		});
+	}
+
+	/** WAI-ARIA tabs keyboard model: arrows move + activate, Home/End jump. */
+	function onTabKeydown(event: KeyboardEvent) {
+		const isForward = event.key === 'ArrowRight' || event.key === 'ArrowDown';
+		const isBackward = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+		if (!isForward && !isBackward && event.key !== 'Home' && event.key !== 'End') return;
+
+		event.preventDefault();
+		const index = visibleTabs.findIndex((tab) => tab.id === activeTab);
+		const nextIndex =
+			event.key === 'Home'
+				? 0
+				: event.key === 'End'
+					? visibleTabs.length - 1
+					: (index + (isForward ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
+		const next = visibleTabs[nextIndex];
+		if (!next) return;
+
+		setActiveTab(next.id);
+		requestAnimationFrame(() => {
+			document.querySelector<HTMLElement>(`[data-testid="appearance-tab-${next.id}"]`)?.focus();
 		});
 	}
 
@@ -855,18 +885,23 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 			class="flex gap-2 overflow-x-auto overflow-y-clip border-b px-2"
 			style="border-color: var(--admin-border-default)"
 			role="tablist"
+			tabindex="-1"
+			onkeydown={onTabKeydown}
 			data-testid="appearance-tabs"
 		>
 			{#each visibleTabs as tab (tab.id)}
 				<Button
 					variant="transparent"
 					role="tab"
+					id={`appearance-tab-${tab.id}`}
+					aria-controls={`appearance-panel-${tab.id}`}
 					aria-selected={activeTab === tab.id}
+					tabindex={activeTab === tab.id ? 0 : -1}
 					onclick={() => setActiveTab(tab.id)}
 					data-testid={`appearance-tab-${tab.id}`}
 					class="flex items-center gap-2.5 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 rounded-none! border-b-2 {activeTab ===
 					tab.id
-						? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
+						? 'border-tertiary-500 text-tertiary-500 dark:border-primary-500 dark:text-primary-500'
 						: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:border-surface-500/30'}"
 				>
 					<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
@@ -876,7 +911,14 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 		</div>
 
 		<!-- Tab Content -->
-		<div class="p-6" in:adminFade>
+		<div
+			class="p-6"
+			role="tabpanel"
+			id={`appearance-panel-${activeTab}`}
+			aria-labelledby={`appearance-tab-${activeTab}`}
+			tabindex="0"
+			in:adminFade
+		>
 			{#key activeTab}
 				<!-- ═══ MY OVERRIDES (all users) ═══ -->
 				{#if activeTab === 'overrides'}

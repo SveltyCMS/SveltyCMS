@@ -760,7 +760,7 @@ None (TreeView has its own keyboard navigation)
 				<SystemTooltip title={builder_tip_quick_start()} role={null} tabindex={null}>
 					<Button
 						onclick={() => modalQuickStart()}
-						variant="warning"
+						variant="tertiary"
 						size="lg"
 						class="group whitespace-nowrap"
 						disabled={isLoading}
@@ -815,7 +815,7 @@ None (TreeView has its own keyboard navigation)
 						href={newCollectionHref}
 						data-preload="hover"
 						onclick={setupNewCollection}
-						variant="error"
+						variant="primary"
 						size="lg"
 						class="group whitespace-nowrap"
 						disabled={isLoading}

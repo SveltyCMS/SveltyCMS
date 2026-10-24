@@ -252,7 +252,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 
 		{#if unconfiguredCount > 0}
 			<div role="status" data-testid="system-settings-needs-config">
-				<Alert variant="error">
+				<Alert variant="warning">
 					<div class="text-sm">
 						<strong
 							>{syssettings_action_required()}

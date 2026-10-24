@@ -147,4 +147,33 @@ describe("Design System — draft/discard state (client interaction)", () => {
       cleanup();
     }
   });
+
+  it("exposes WAI-ARIA tabs: roving tabindex, arrow keys and a labelled panel", async () => {
+    const { target, cleanup } = await mount();
+    try {
+      const layoutTab = target.querySelector<HTMLElement>("[data-testid='appearance-tab-layout']");
+      const tabpanel = target.querySelector<HTMLElement>("[role='tabpanel']");
+
+      expect(layoutTab?.getAttribute("role")).toBe("tab");
+      expect(layoutTab?.getAttribute("aria-selected")).toBe("true");
+      expect(layoutTab?.getAttribute("tabindex")).toBe("0");
+      expect(tabpanel?.getAttribute("aria-labelledby")).toBe("appearance-tab-layout");
+      expect(tabpanel?.getAttribute("tabindex")).toBe("0");
+
+      // ArrowRight moves selection (and focus) to the next visible tab.
+      layoutTab?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      await settle();
+
+      const styleTab = target.querySelector<HTMLElement>("[data-testid='appearance-tab-style']");
+      expect(styleTab?.getAttribute("aria-selected")).toBe("true");
+      expect(styleTab?.getAttribute("tabindex")).toBe("0");
+      expect(layoutTab?.getAttribute("aria-selected")).toBe("false");
+      expect(layoutTab?.getAttribute("tabindex")).toBe("-1");
+      expect(
+        target.querySelector<HTMLElement>("[role='tabpanel']")?.getAttribute("aria-labelledby"),
+      ).toBe("appearance-tab-style");
+    } finally {
+      cleanup();
+    }
+  });
 });

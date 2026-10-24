@@ -239,3 +239,11 @@ Based on publicly available release notes for Drupal AI 1.5.0 (Workflows of AI, 
 - **Reranker**: re-order semantic-index candidates by answer relevance (top-N configurable), keeping keyword scores as the fallback.
 - **Token budgets**: per-tenant daily token ceilings derived from the existing quota primitive, surfaced in the admin dashboard.
 - **Exporter**: optional OpenTelemetry OTLP export for the `gen_ai.*` attributes already emitted (currently structured logs only).
+
+## 10. UX & Design-System Consistency (Active Backlog)
+
+Findings from the 2026-10-24 theme/UX review that need a design decision or a cross-page refactor (the chrome, status-shade and control-size items shipped in §3.63 of the achievements log):
+
+- [ ] **Permissions matrix**: the access-management permissions table is still bespoke. Move it onto `SmartTableShell` (or the native table primitives) so sorting, empty state and responsive overflow match the other admin lists.
+- [ ] **Save models**: the Design System page exposes three separate save paths (user overrides, admin theme, preset import). Define one dirty-state/save contract and make the action bar consistent across them.
+- [ ] **SmartTableShell adoption**: media table, trash, queue and webhook logs still hand-roll their tables. Adopt `SmartTableShell` (including its unused `toolbar` slot) so list chrome has one owner.

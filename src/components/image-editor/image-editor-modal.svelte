@@ -396,7 +396,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		--editor-accent-text: color-mix(in oklch, var(--editor-accent) 45%, #000);
 		--editor-accent-hover: var(--color-primary-600, #2563eb);
 		--editor-canvas-bg: var(--color-surface-200, #e2e8f0);
-		--editor-control-h: 2.25rem;
+		--editor-control-h: 2.5rem;
 		--editor-control-h-compact: 1.875rem;
 		--editor-radius-pill: 9999px;
 		--editor-radius-control: var(--admin-radius-button, 0.5rem);
@@ -453,7 +453,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 			color-mix(in oklch, var(--admin-text-body, currentColor) 12%, transparent)
 		);
 		--editor-chrome-border-subtle: transparent;
-		--editor-control-h: 2.25rem;
+		--editor-control-h: 2.5rem;
 		--editor-pill-pad: 0.1875rem;
 		--editor-accent: var(--color-primary-500, #3b82f6);
 		--editor-accent-hover: var(--color-primary-600, #2563eb);

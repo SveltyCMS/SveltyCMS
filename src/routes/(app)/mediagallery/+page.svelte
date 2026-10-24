@@ -14,7 +14,6 @@
 	import { onMount, untrack } from 'svelte';
 	import {
 		Collections_MediaGallery,
-		mediagallery_advanced_filters,
 		mediagallery_advanced_search,
 		mediagallery_batch_processor,
 		mediagallery_cancel_upload,
@@ -54,6 +53,7 @@
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import MediaGrid from './media-grid.svelte';
+	import AdminCard from '@components/admin-card.svelte';
 	import BatchProcessor from './batch-processor.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
@@ -1220,10 +1220,11 @@
 								variant="ghost"
 								size="sm"
 								onclick={() => (showAdvancedSearch = true)}
-								aria-label={mediagallery_advanced_filters()}
-								class="h-7! w-7! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+								aria-label={mediagallery_advanced_search()}
+								class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
 									? 'text-primary-500'
 									: ''}"
+								data-testid="media-advanced-search-mobile"
 							>
 								<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
 							</Button>
@@ -1365,7 +1366,7 @@
 							onclick={() => (showAdvancedSearch = true)}
 							aria-label={mediagallery_advanced_search()}
 							data-testid="media-advanced-search"
-							class="h-7! w-7! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+							class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
 								? 'text-primary-500'
 								: ''}"
 						>
@@ -1480,20 +1481,25 @@
 			data-view={view}
 		>
 			{#if view === 'grid'}
-				<MediaGrid
-					{filteredFiles}
-					{gridSize}
-					{isSelectionMode}
-					bind:selectedFiles
-					{publishedMediaIds}
-					serverHasMore={mediaPagination.hasNextPage}
-					{isLoadingMore}
-					onLoadMore={loadMoreMedia}
-					onEditImage={handleEditImage}
-					onOpenFileDetails={handleOpenFileDetails}
-					ondeleteImage={handleDeleteImage}
-					onUpdateImage={handleUpdateImage}
-				/>
+				<AdminCard
+					class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
+					data-testid="media-grid"
+				>
+					<MediaGrid
+						{filteredFiles}
+						{gridSize}
+						{isSelectionMode}
+						bind:selectedFiles
+						{publishedMediaIds}
+						serverHasMore={mediaPagination.hasNextPage}
+						{isLoadingMore}
+						onLoadMore={loadMoreMedia}
+						onEditImage={handleEditImage}
+						onOpenFileDetails={handleOpenFileDetails}
+						ondeleteImage={handleDeleteImage}
+						onUpdateImage={handleUpdateImage}
+					/>
+				</AdminCard>
 			{:else}
 				{#await import('./media-table.svelte')}
 					<div

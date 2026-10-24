@@ -709,7 +709,9 @@
 		</Tabs.List>
 
 		<Tabs.Content value="0" class="w-full">
-			<div class="rounded bg-white px-3 py-4 drop-shadow-2xl sm:px-4 dark:bg-surface-900">
+			<div
+				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-4 sm:px-4"
+			>
 				<div class="flex w-full flex-col gap-1">
 					{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
 						{#if field.widget && isFieldVisible(field, currentCollectionValue)}
