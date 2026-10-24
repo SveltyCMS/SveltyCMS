@@ -306,6 +306,22 @@ describe("collectionbuilder [action]/[...contentPath] +page.server", () => {
     expect(state.getCollectionCalls).toEqual([["posts", null]]);
   });
 
+  it("stringifies an adapter object `_id` before the editor can post it back", async () => {
+    // Mongo hands back an ObjectId: the deep clone drops its prototype, so the
+    // loader must stringify from the original object.
+    state.getCollectionImpl = () => ({
+      _id: { toString: () => "mongo-id-1" },
+      name: "Mongo Posts",
+      fields: [],
+    });
+
+    const data = (await load(makeLoadEvent("edit", "mongo-posts"))) as unknown as LoadResult;
+    const collection = requireCollection(data);
+
+    expect(collection._id).toBe("mongo-id-1");
+    expect(typeof collection._id).toBe("string");
+  });
+
   it("refuses with 403/404/500 on permission, unknown collection and registry failure (failure-path)", async () => {
     vi.mocked(hasCollectionBuilderPermission).mockReturnValue(false);
     await expect(

@@ -160,6 +160,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             },
             300_000, // Fresh: 5 min
             1_800_000, // Stale: 30 min (serve stale while refreshing)
+            tenantId, // Scope invalidation/tags to the tenant, not just the key
           );
           return cached ?? [];
         } catch (vfErr) {

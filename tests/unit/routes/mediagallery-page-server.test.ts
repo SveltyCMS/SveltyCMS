@@ -51,6 +51,7 @@ vi.mock("@utils/media/media-utils", () => ({
 
 import { load, actions } from "../../../src/routes/(app)/mediagallery/+page.server";
 import { dbAdapter } from "@src/databases/db";
+import { cacheService } from "@src/databases/cache/cache-service";
 
 function makeEvent(locals: Record<string, unknown>, search = "") {
   return {
@@ -74,6 +75,25 @@ function makeRemoteUploadEvent(locals: Record<string, unknown>, urls: string[]) 
 describe("mediagallery +page.server load", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("scopes the virtual-folder cache entry to the tenant (F09 cache isolation)", async () => {
+    await load(
+      makeEvent({
+        user: { _id: { toString: () => "u1" }, email: "a@b.co" },
+        isAdmin: true,
+        roles: [],
+        tenantId: "t1",
+      }),
+    );
+
+    expect(vi.mocked(cacheService.getOrSetSWR)).toHaveBeenCalledWith(
+      "mediagallery:virtualFolders:t1",
+      expect.any(Function),
+      300_000,
+      1_800_000,
+      "t1",
+    );
   });
 
   it("allows admin and keeps the adapter page total (F01)", async () => {

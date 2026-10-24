@@ -293,6 +293,19 @@ describe("/api/plugins/[pluginId]", () => {
     expect(loader).toHaveBeenCalledTimes(1);
   });
 
+  it("imports a plugin module once when two first dispatches race", async () => {
+    const loader = registerPlugin("race-kit", { actions: { ping: pingAction } });
+
+    const responses = await Promise.all([
+      POST(makeEvent("race-kit", { search: "?action=ping" })),
+      POST(makeEvent("race-kit", { search: "?action=ping" })),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    // The in-flight promise is shared: a check-then-await would import twice.
+    expect(loader).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps both writes when two mutating dispatches run concurrently", async () => {
     const incrementAction: Action = async (event) => {
       const body = await readActionBody(event);
