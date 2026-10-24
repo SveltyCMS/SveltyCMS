@@ -6,7 +6,7 @@ order: 15
 icon: "🔧"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-08-07"
+updated: "2026-10-24"
 tags:
   - "testing"
   - "scripts"
@@ -62,6 +62,16 @@ scripts/
 
 ## Git Hooks
 
+> [!IMPORTANT]
+> **Local hooks are opt-in** (owner decision 2026-10-23). `git commit` / `git push` return immediately and **GitHub Actions is the gate**. The steps below run only with `SVELTY_LOCAL_GATES=1`:
+>
+> ```bash
+> SVELTY_LOCAL_GATES=1 git commit -m "…"   # full pre-commit
+> SVELTY_LOCAL_GATES=1 git push             # full pre-push
+> ```
+>
+> This is why a green commit is not evidence of a green CI run.
+
 ### `.githooks/pre-commit` — Format → Lint → Unit (~40s)
 
 Runs before every commit. Steps:
@@ -96,6 +106,28 @@ Covers the same adapter matrix CI runs.
 ---
 
 ## Core Testing Scripts
+
+### `scripts/check/check-route-behaviour.ts` — Behavioural route contract
+
+Scores every route on four contracts (`load-contract`, `failure-path`, `persistence`, `concurrency`) using test evidence that names the route module or a unique URL. Applicability is per route, so redirect stubs are not scored for writing data.
+
+```bash
+bun run check:routes                     # table + score
+bun run check:routes -- --json          # machine-readable, with evidence per cell
+bun run check:routes -- --check --min=99 # CI gate (floor)
+```
+
+The gate runs inside `bun run check`. Each cell names its evidence file, so a low score is a work list, not a mystery. Adding a route without tests drops the score below the floor.
+
+### `scripts/lint/lint-trivially-true-assertions.ts` — Ban unfailable assertions
+
+Static analysis over `tests/**` for four shapes that can never fail: literal tautologies, complementary arms, one-of status unions with no negative case, and assertions swallowed by `try/catch`. Runs in `bun run check`.
+
+```bash
+bun run lint:trivial-assertions           # add --check in CI (already wired)
+```
+
+A deliberate exception needs `// trivial-assert-ok: <reason>` on the assertion line.
 
 ### `scripts/runs/run-e2e.ts` — E2E Test Runner
 

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-10-18"
+updated: "2026-10-24"
 tags:
   - "testing"
   - "status"
@@ -22,18 +22,18 @@ tags:
 > **Live pass/fail counts = GitHub Actions** on this branch or PR. Numbers in docs drift; CI does not.  
 > This page is the **only** test-status dashboard — route maps, inventories, and deep strategy live in the linked docs below (no separate archive).
 
-**Dashboard updated:** 2026-10-18 — **CI failure fixes + merged coverage**. Unit suite **660 files / 6,188 tests** green in **~37–60 s**; component interaction **20 files / 122 tests**; P0 coverage **75.73 % lines / 75.71 % functions / 64.33 % branches / 73.92 % statements** (floors 72/72/60/70); merged unit ∪ DOM coverage **35.32 % lines / 34.60 % functions / 30.89 % branches / 35.07 % statements**; SQLite + **MariaDB** bulk/atomic contract **20/20**; **zero-mock OIDC live suite 11/11**; E2E smoke **5/5** (6.0 s browser phase, redirect-chain capture); **18 admin routes render their shell**; management + media-RBAC E2E green without `force` clicks; local parity suites green on **SQLite, PostgreSQL, MariaDB, MongoDB**. `bun run check` includes `tsc` + `svelte-check` (**0 errors**), `bun run risk:audit` is **6/6**, and `bun run lint:docs` is clean. Full 4-DB integration and the full 52-spec E2E matrix remain **CI-only**.
+**Dashboard updated:** 2026-10-24 — **route-behaviour + unfailable-assertion gates**. Unit **724 files / 6,810 tests**; component interaction **28 files / 155 tests**; P0 coverage **75.41 % statements / 66.11 % branches / 78.45 % functions / 77.55 % lines** (floors 70/60/72/72); **route-behaviour 99/99 applicable cells across 37 routes**; mutation **7/7 killed**; all **9 E2E shards**, **4 DB** jobs and **4 Bench** jobs green in CI run **1853** (`e4aafd904`). `bun run check` now includes `check:routes` (floor 99) and `lint:trivial-assertions` (**0 findings across 1,068 test files**). Full 4-DB integration, Bench ×4 and the E2E matrix remain **CI-only**.
 
 ---
 
 ## 1. Snapshot
 
-| Question                          | Answer                                                                                                                                                                                                                                                         |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Are the gates healthy?**        | Design A++: pre-commit (format + **type gate** + unit + real-DOM components + `risk:audit`) → pre-push (build 4 adapters + tenant + SQLite integration + **DB parity when adapter code changed** + Chromium smoke) → CI multi-DB + full E2E + **flake budget** |
-| **Where to look first when red?** | Failing CI job name → matching **hot area** below or [route control map](./e2e-coverage-matrix.mdx)                                                                                                                                                            |
-| **Biggest recent win**            | **Security-core coverage (2FA, security middleware, replay guard, SSO/OAuth) + System Settings DOM suite + four product bugs found/fixed** (2026-10-18)                                                                                                        |
-| **Biggest open risk (product)**   | Full E2E remains CI-only. OIDC now runs against a **real in-process provider** (no egress mocks), but no external cloud IdP tenant is exercised; deep forms outside the 17 local DOM suites still rely on CI shards.                                           |
+| Question                          | Answer                                                                                                                                                                                                                                                                                   |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Are the gates healthy?**        | Design A++: pre-commit (format + **type gate** + unit + real-DOM components + `risk:audit`) → pre-push (build 4 adapters + tenant + SQLite integration + **DB parity when adapter code changed** + Chromium smoke) → CI multi-DB + full E2E + **flake budget**                           |
+| **Where to look first when red?** | Failing CI job name → matching **hot area** below or [route control map](./e2e-coverage-matrix.mdx)                                                                                                                                                                                      |
+| **Biggest recent win**            | **Route-behaviour gate at 99/99 applicable cells + unfailable-assertion lint** — the 18 new route suites pin authz, persistence and concurrency for dispatch, migration, upload, preview and builder paths; the plugin dispatcher's silent 500 was found and fixed (2026-10-24)          |
+| **Biggest open risk (product)**   | P0 line coverage is still ~75 %, and the external theme/UX findings are behavioural/visual: no route-contract test can see double chrome, 28 px controls or a missing `tabpanel`. These need visual regression + a11y sweeps; deep forms outside the DOM suites still rely on CI shards. |
 
 > [!TIP]
 > **Headless-first:** adapters + session + RBAC are P0. Admin E2E is golden-only. Full tier table: **[Headless-First Test Inventory](./headless-test-inventory.mdx)**.
@@ -44,7 +44,7 @@ Two different numbers exist; never quote one as the other.
 
 | Scope                              | Lines     | Functions | Branches  | Statements | How measured                                          |
 | ---------------------------------- | --------- | --------- | --------- | ---------- | ----------------------------------------------------- |
-| **P0 gate** (the enforced floor)   | **75.73** | **75.71** | **64.33** | **73.92**  | `bun run test:coverage` (floors 72/72/60/70)          |
+| **P0 gate** (the enforced floor)   | **77.55** | **78.45** | **66.11** | **75.41**  | `bun run test:coverage` (floors 72/72/60/70)          |
 | **Merged unit ∪ DOM** (best/file)  | **35.32** | 34.60     | 30.89     | 35.07      | `bun run test:coverage:all` (manual, no thresholds)   |
 | **Whole `src/`** (unit suite only) | **32.61** | 29.73     | 29.33     | 31.98      | `COVERAGE_ALL=1 bun run test:coverage`                |
 | Whole `src/` — `.ts` logic only    | —         | —         | —         | 44.2       | same run, aggregated from `coverage-final.json`       |

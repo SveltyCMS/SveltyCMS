@@ -130,17 +130,23 @@ tags:
 
 ---
 
-## 4. `/config/collectionbuilder` (1 E2E spec: shell + structure + golden)
+## 4. `/config/collectionbuilder` (2 E2E specs: shell + structure + golden + migration)
 
-| Feature                                 | Test File                          | Status |
-| --------------------------------------- | ---------------------------------- | ------ |
-| Shell: open builder + new editor        | `builder.spec.ts` shell            | ✅     |
-| Golden: schema → entry → API            | `builder.spec.ts` golden           | ✅     |
-| Collections list auth                   | integration `collection-structure` | ✅     |
-| Structure persistence                   | integration `collectionbuilder/*`  | ✅     |
-| Pure tree/slug utils                    | unit `collectionbuilder-utils`     | ✅     |
-| Empty state / multi-spec sprawl         | _demoted (ADR: one golden)_        | —      |
-| Field reordering / relation / templates | not P0                             | ❌     |
+| Feature                                      | Test File                          | Status |
+| -------------------------------------------- | ---------------------------------- | ------ |
+| Shell: open builder + new editor             | `builder.spec.ts` shell            | ✅     |
+| Golden: schema → entry → API                 | `builder.spec.ts` golden           | ✅     |
+| Migration cancel → reload → confirm → reload | `confirm-migration.spec.ts`        | ✅     |
+| Collections list auth                        | integration `collection-structure` | ✅     |
+| Structure persistence                        | integration `collectionbuilder/*`  | ✅     |
+| Pure tree/slug utils                         | unit `collectionbuilder-utils`     | ✅     |
+| Empty state / multi-spec sprawl              | _demoted (ADR: one golden)_        | —      |
+| Field reordering / relation / templates      | not P0                             | ❌     |
+
+The migration contract polls a **fresh page load** after the confirm round-trip: a single
+reload can beat the registry refresh, so the spec re-loads (bounded) until the hydrated
+inspector shows the persisted `required` flag. That keeps a real persistence failure red
+while removing the hydration race that consumed the Builder shard's flake budget.
 
 ---
 
