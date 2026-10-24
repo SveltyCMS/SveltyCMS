@@ -16,6 +16,7 @@ vi.mock("@utils/native-utils", () => ({
 }));
 
 import { load } from "../../../src/routes/(app)/dashboard/+page.server";
+import { dbAdapter } from "@src/databases/db";
 
 function makeLocals(overrides: Record<string, unknown> = {}) {
   return {
@@ -89,5 +90,63 @@ describe("dashboard +page.server load", () => {
         }),
       } as any),
     ).rejects.toMatchObject({ status: 403 });
+  });
+});
+
+type DashboardLoadEvent = Parameters<typeof load>[0];
+
+interface DashboardPageData {
+  pageData: {
+    user: { id: string; email: string };
+    isAdmin: boolean;
+  };
+  availableWidgets: unknown[];
+  initialPreferences: unknown[] | null;
+  hotCollections: unknown[];
+}
+
+function makeLoadEvent(userId: string, tenantId: string, email: string, role = "admin") {
+  return {
+    locals: makeLocals({
+      user: { _id: { toString: () => userId }, email, role },
+      isAdmin: true,
+      tenantId,
+    }),
+  } as unknown as DashboardLoadEvent;
+}
+
+describe("dashboard +page.server load — concurrency", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("keeps user and tenant state per request under parallel loads", async () => {
+    const [first, second] = (await Promise.all([
+      load(makeLoadEvent("u1", "t1", "admin@test.com")),
+      load(makeLoadEvent("u2", "t2", "editor@test.com", "editor")),
+    ])) as unknown as [DashboardPageData, DashboardPageData];
+
+    // Each load resolves its own locals — no module-level user/tenant bleed.
+    expect(first.pageData.user.id).toBe("u1");
+    expect(first.pageData.user.email).toBe("admin@test.com");
+    expect(second.pageData.user.id).toBe("u2");
+    expect(second.pageData.user.email).toBe("editor@test.com");
+    expect(first.pageData.user.id).not.toBe(second.pageData.user.id);
+
+    expect(Array.isArray(first.hotCollections)).toBe(true);
+    expect(Array.isArray(second.hotCollections)).toBe(true);
+
+    // The layout read is scoped per request, not shared across concurrent loads.
+    const preferencesGet = vi.mocked(dbAdapter.system.preferences.get);
+    expect(preferencesGet).toHaveBeenCalledWith("dashboard.layout.default", {
+      scope: "user",
+      userId: "u1",
+      tenantId: "t1",
+    });
+    expect(preferencesGet).toHaveBeenCalledWith("dashboard.layout.default", {
+      scope: "user",
+      userId: "u2",
+      tenantId: "t2",
+    });
   });
 });

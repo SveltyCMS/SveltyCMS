@@ -151,9 +151,9 @@ describe("GraphQL Automatic Persisted Queries (APQ)", () => {
     const response = await POST(event);
     expect(response.status).toBe(200);
 
-    // Verify registered in cacheService
-    const cached = cacheService.getSync<string>(`apq:${testHash}`, "global");
-    expect(cached).toBe(testQuery);
+    // Verify the registration is readable through the async cache path (the same
+    // path a later hash-only request uses).
+    expect(await cacheService.get<string>(`apq:${testHash}`, "global")).toBe(testQuery);
   });
 
   it("resolves and executes registered APQ hash without query string in subsequent requests", async () => {
@@ -300,5 +300,39 @@ describe("GraphQL Automatic Persisted Queries (APQ)", () => {
 
     expect(cacheService.set).toHaveBeenCalled();
     expect(cacheStore.get(`global:apq:${upperHash}`)).toBe(testQuery);
+  });
+
+  it("keeps both registrations when two clients register concurrently", async () => {
+    const queries = [
+      "query ConcurrentA { contentSystemHealth { status } }",
+      "query ConcurrentB { contentSystemHealth { status } }",
+    ];
+    const hashes = queries.map((query) => createHash("sha256").update(query, "utf8").digest("hex"));
+
+    const register = (query: string, sha256Hash: string) => {
+      const url = new URL("http://localhost:5173/api/graphql");
+      return POST({
+        request: new Request(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            extensions: { persistedQuery: { version: 1, sha256Hash } },
+          }),
+        }),
+        url,
+        locals: { user: mockUser, tenantId: "global" },
+      } as unknown as Parameters<typeof POST>[0]);
+    };
+
+    const responses = await Promise.all([
+      register(queries[0], hashes[0]),
+      register(queries[1], hashes[1]),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    // Neither concurrent registration may clobber the other.
+    expect(await cacheService.get<string>(`apq:${hashes[0]}`, "global")).toBe(queries[0]);
+    expect(await cacheService.get<string>(`apq:${hashes[1]}`, "global")).toBe(queries[1]);
   });
 });

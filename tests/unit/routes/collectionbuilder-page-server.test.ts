@@ -116,3 +116,62 @@ describe("collectionbuilder +page.server load", () => {
     ).rejects.toBeTruthy();
   });
 });
+
+type CollectionBuilderLoadEvent = Parameters<typeof load>[0];
+
+interface CollectionBuilderPageData {
+  user: { id: string };
+  contentStructure: Array<{ _id?: string; name?: string; path?: string }>;
+}
+
+function makeLoadEvent(tenantId: string): CollectionBuilderLoadEvent {
+  return { locals: makeLocals({ tenantId }) } as unknown as CollectionBuilderLoadEvent;
+}
+
+describe("collectionbuilder +page.server load — concurrency", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockInitialize.mockResolvedValue(undefined);
+    vi.mocked(hasCollectionBuilderPermission).mockReturnValue(true);
+  });
+
+  it("returns each tenant's own structure under parallel loads", async () => {
+    mockGetContentStructure.mockImplementation(async (_format: unknown, tenantId: unknown) =>
+      tenantId === "t1"
+        ? [
+            {
+              _id: "t1-posts",
+              name: "Posts",
+              nodeType: "collection",
+              path: "/posts",
+              order: 0,
+              translations: [],
+            },
+          ]
+        : [
+            {
+              _id: "t2-pages",
+              name: "Pages",
+              nodeType: "collection",
+              path: "/pages",
+              order: 1,
+              translations: [],
+            },
+          ],
+    );
+
+    const [first, second] = (await Promise.all([
+      load(makeLoadEvent("t1")),
+      load(makeLoadEvent("t2")),
+    ])) as unknown as [CollectionBuilderPageData, CollectionBuilderPageData];
+
+    // Neither result may be empty or crossed: each load reads its own tenant scope.
+    expect(first.contentStructure).toHaveLength(1);
+    expect(second.contentStructure).toHaveLength(1);
+    expect(first.contentStructure[0]._id).toBe("t1-posts");
+    expect(second.contentStructure[0]._id).toBe("t2-pages");
+    expect(first.contentStructure[0]._id).not.toBe(second.contentStructure[0]._id);
+    expect(mockGetContentStructure).toHaveBeenCalledWith("flat", "t1");
+    expect(mockGetContentStructure).toHaveBeenCalledWith("flat", "t2");
+  });
+});

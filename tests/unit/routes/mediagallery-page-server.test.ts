@@ -223,3 +223,64 @@ describe("mediagallery remoteUpload action (VULN-002 class)", () => {
     );
   });
 });
+
+interface MediaGalleryPageData {
+  media: Array<{ _id: string; tenantId?: string | null }>;
+  systemVirtualFolders: unknown[];
+  mediaPagination: { page: number; pageSize: number; total: number };
+}
+
+function makeTenantLoadEvent(tenantId: string) {
+  return makeEvent({
+    user: { _id: { toString: () => `${tenantId}-user` }, email: `${tenantId}@b.co` },
+    isAdmin: true,
+    roles: [],
+    tenantId,
+  }) as unknown as Parameters<typeof load>[0];
+}
+
+describe("mediagallery +page.server load — concurrency", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("keeps each tenant's media list on its own parallel load", async () => {
+    vi.mocked(dbAdapter.media.files.getByFolder).mockImplementation(async (_folderId, options) => {
+      const tenantId = String(options?.tenantId ?? "global");
+      return {
+        success: true,
+        data: {
+          items: [
+            {
+              _id: `${tenantId}-asset`,
+              filename: `${tenantId}-asset.png`,
+              hash: `${tenantId}-hash`,
+              mimeType: "image/png",
+              path: "global",
+              tenantId,
+              metadata: {},
+            },
+          ],
+          total: 1,
+          pageSize: 100,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      } as unknown as Awaited<ReturnType<typeof dbAdapter.media.files.getByFolder>>;
+    });
+
+    const [first, second] = (await Promise.all([
+      load(makeTenantLoadEvent("t1")),
+      load(makeTenantLoadEvent("t2")),
+    ])) as unknown as [MediaGalleryPageData, MediaGalleryPageData];
+
+    // Each request reads its own tenant scope — the adapter call is not shared state.
+    expect(first.media).toHaveLength(1);
+    expect(second.media).toHaveLength(1);
+    expect(first.media[0].tenantId).toBe("t1");
+    expect(second.media[0].tenantId).toBe("t2");
+    expect(first.media[0]._id).toBe("t1-asset");
+    expect(second.media[0]._id).toBe("t2-asset");
+    expect(first.media[0]._id).not.toBe(second.media[0]._id);
+  });
+});
