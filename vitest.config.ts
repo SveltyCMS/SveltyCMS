@@ -118,12 +118,14 @@ const localMaxWorkers = process.env.VITEST_MAX_WORKERS
   : defaultWorkers;
 
 /**
- * v8 coverage is memory-heavy: on a high-core Windows box, 16 forks crashed a
- * worker (`STATUS_STACK_BUFFER_OVERRUN`) while the identical suite passed at 4.
- * Cap coverage runs; plain unit runs keep the full pool.
+ * v8 coverage is memory-heavy: on a high-core Windows box, a 4-fork coverage
+ * run still hit an intermittent STATUS_STACK_BUFFER_OVERRUN (0xC0000409)
+ * under the pre-push gate even though the same run passed standalone. A gate
+ * must not depend on that race, so local coverage runs use two workers. CI
+ * runners are 4 vCPU and keep Vitest's own pool.
  */
 const isCoverageRun = process.argv.includes("--coverage");
-const coverageMaxWorkers = Math.min(localMaxWorkers, 4);
+const coverageMaxWorkers = Math.min(localMaxWorkers, 2);
 
 export default defineConfig({
   plugins: [svelte({ configFile: false } as any)],
