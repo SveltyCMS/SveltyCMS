@@ -54,23 +54,21 @@ async function closeFieldEditor(page: Page) {
 /**
  * Assert the persisted `required` flag survives a fresh page load.
  *
- * The first click after `reload()` can land in the SSR-paint → hydration window,
- * where the inspector shows its default state instead of the loaded collection.
- * Re-open the inspector until the hydrated value matches; a genuine persistence
- * failure never converges and still fails within the budget.
+ * A single reload can beat the save's registry refresh (the toast is shown from the
+ * action response, but the editor's load may still read the previous snapshot), and
+ * the first click after a reload can land in the SSR-paint → hydration window. Poll
+ * a real reload until the hydrated inspector shows the persisted value; a genuine
+ * persistence failure never converges and still fails within the budget.
  */
 async function expectFieldRequired(page: Page, required: boolean) {
   await expect(async () => {
-    const cancel = page.getByTestId("widget-field-cancel");
-    if (await cancel.isVisible().catch(() => false)) {
-      await cancel.click();
-      await expect(cancel).toBeHidden({ timeout: 5_000 });
-    }
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 20_000 });
 
     const toggle = await openFieldEditor(page, FIELD_LABEL);
     await expect(toggle).toHaveAttribute("aria-checked", required ? "true" : "false");
     await closeFieldEditor(page);
-  }).toPass({ timeout: 30_000, intervals: [500, 1_000, 2_000] });
+  }).toPass({ timeout: 60_000, intervals: [1_000, 2_000, 3_000] });
 }
 
 /** Make the existing field required (or not) and apply the inspector. */
@@ -151,7 +149,6 @@ test.describe("Collection Builder - migration confirmation", () => {
     await expect(planModal).toBeHidden({ timeout: 15_000 });
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 20_000 });
     await expectFieldRequired(page, false);
 
     // Explicit confirmation now applies the migration and persists the schema.
@@ -160,11 +157,17 @@ test.describe("Collection Builder - migration confirmation", () => {
 
     const confirmedModal = migrationModal(page);
     await expect(confirmedModal).toBeVisible({ timeout: 20_000 });
+    const saveRoundTrip = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes("/config/collectionbuilder/"),
+      { timeout: 30_000 },
+    );
     await confirmedModal.getByTestId("modal-confirm").click();
+    // Do not race the persistence check against the form action's round-trip.
+    await saveRoundTrip;
     await expect(page.getByText(/collection saved/i).first()).toBeVisible({ timeout: 30_000 });
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 20_000 });
     await expectFieldRequired(page, true);
   });
 });
