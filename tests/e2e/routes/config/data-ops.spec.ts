@@ -7,6 +7,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { purgeTrash, seedTrash } from "../../helpers/api";
+import { runAfterHydration } from "../../helpers/hydration";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -63,7 +64,11 @@ test.describe("Config Sync & Trash", () => {
 
       const row = page.getByTestId(`trash-row-${seeded.entryId}`);
       await expect(row).toBeVisible({ timeout: ACTION_TIMEOUT });
-      await row.getByTestId("trash-restore").click();
+      // The row is SSR-painted; a restore click before hydration is a no-op and
+      // leaves the confirm dialog to time out.
+      await runAfterHydration(page, () => row.getByTestId("trash-restore").click(), {
+        selector: row,
+      });
       await confirmModal(page);
 
       await expect(page.getByText(title)).toHaveCount(0, { timeout: ACTION_TIMEOUT });

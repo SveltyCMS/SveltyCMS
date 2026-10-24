@@ -101,23 +101,32 @@ test.describe("Design System workspace", () => {
 
     try {
       await selectOptionVerified(densitySelect, target.value);
+      const saveRoundTrip = page.waitForResponse(
+        (response) =>
+          response.request().method() === "PUT" &&
+          response.url().includes("/api/user/update-user-attributes"),
+        { timeout: 20_000 },
+      );
       await page.getByTestId("appearance-save-overrides").click();
+      // Do not race the persistence read against the PUT.
+      await saveRoundTrip;
       await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
 
       // Full navigation — the preference must come back from server data, not
-      // localStorage. One navigation + `toHaveValue`'s own polling (below) is
-      // deterministic; the old `toPass` loop reloaded *and* re-navigated on every
-      // attempt, remounting the `{#key activeTab}` panel and re-running hydration
-      // each retry, so the assertion raced the panel instead of the server.
-      await page.goto("/config/design-system?tab=overrides", { waitUntil: "domcontentloaded" });
-      await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({
-        timeout: 15_000,
-      });
-      await expect(
-        page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i),
-      ).toHaveValue(target.value, {
-        timeout: 20_000,
-      });
+      // localStorage. Every attempt waits for hydration, then reads the select;
+      // a save that did not persist never converges.
+      await expect(async () => {
+        await page.goto("/config/design-system?tab=overrides", { waitUntil: "domcontentloaded" });
+        await page
+          .locator("html[data-hydrated='true']")
+          .waitFor({ state: "attached", timeout: 15_000 });
+        await expect(page.getByTestId("appearance-overrides-panel")).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(
+          page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i),
+        ).toHaveValue(target.value, { timeout: 5_000 });
+      }).toPass({ timeout: 45_000, intervals: [1_000, 2_000, 3_000] });
     } finally {
       // Restore the previous preference so the seeded admin stays deterministic.
       // `expect.soft` keeps the revert non-fatal (the body assertion already ran)
