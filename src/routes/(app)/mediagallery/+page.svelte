@@ -1483,7 +1483,7 @@
 			{#if view === 'grid'}
 				<AdminCard
 					class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
-					data-testid="media-grid"
+					data-testid="media-grid-card"
 				>
 					<MediaGrid
 						{filteredFiles}

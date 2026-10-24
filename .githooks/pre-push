@@ -228,9 +228,9 @@ if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
   fi
   # Config-workspace changes have burned the Config & System shard repeatedly
   # with post-mutation reads (theme create, trash restore, density reload).
-  if has_push_changes '^src/routes/\(app\)/config/|^src/routes/api/theme/'; then
+  if has_push_changes '^(src/routes/\(app\)/config/|^src/routes/api/theme/)'; then
     info "Config UI/API changes detected — adding the config goldens"
-    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/config/design-system.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts tests/e2e/routes/config/data-ops.spec.ts"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/config/design-system.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts tests/e2e/routes/config/data-ops.spec.ts tests/e2e/routes/config/access-management.spec.ts"
   fi
   if has_push_changes '^(src/widgets/|src/components/collection-display/|src/routes/\(app\)/\[language\]/\[\.\.\.collection\]/)'; then
     info "Collection or widget changes detected — expanding gate to include Kitchen Sink journey"
@@ -248,8 +248,8 @@ if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
     E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/admin-theme/visual-regression.spec.ts"
   fi
   if has_push_changes '^(src/routes/\(app\)/mediagallery/|src/components/media/)'; then
-    info "Media UI changes detected — adding the media theme visual audit"
-    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/theme-visual.spec.ts"
+    info "Media UI changes detected — adding the behavioral gallery suite and the theme visual audit"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/mediagallery.spec.ts tests/e2e/routes/mediagallery/theme-visual.spec.ts"
   fi
   # A path can be added twice (e.g. a changed spec that also matches a UI mapping);
   # de-duplicate so Playwright does not run it twice and inflate the flake count.
