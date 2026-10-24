@@ -2,9 +2,11 @@
 # =============================================================================
 # SveltyCMS Pre-Commit — Format → Lint → Unit → Components → Integration → SBOM
 #
-# Fast by design (~45 s, or ~2 min when backend files change). Pre-push runs the
-# full build, the complete SQLite suite, DB parity and the browser contract gate.
-# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
+# Fast by design (~60-90 s, or ~4 min when backend files change). Pre-push runs
+# the CI-parity unit job, the build, SQLite integration, DB parity and the
+# browser gate.
+# POLICY: enforced. A commit only lands when the unit and component suites pass.
+# --no-verify is blocked; use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
 set -u
 [ "${CI:-false}" = "true" ] && exit 0
@@ -15,20 +17,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 header "Pre-Commit"
 require_bun
 
-# ── Local gates are OFF by default ──────────────────────────────────────────
-# Owner decision (2026-10-23): GitHub Actions (.github/workflows/ci.yml) is the
-# single gate. The hook stays in the repo and is fully functional, but it only
-# runs when explicitly opted in:
-#
-#   SVELTY_LOCAL_GATES=1 git commit …
-#
-# This keeps commits instant and removes the 2–5 minute local gate that made
-# every change feel stuck. The trade-off is that a red commit can reach `next`
-# before CI reports it, so read the run before merging onward.
-if [ "${SVELTY_LOCAL_GATES:-0}" != "1" ]; then
-  info "Local gates disabled — CI is the gate (SVELTY_LOCAL_GATES=1 to enable)"
-  exit 0
-fi
+# Local gates are ENFORCED (owner decision 2026-10-24). The earlier opt-in
+# policy was the reason a commit could be green locally while the CI Unit job
+# was red: the hook exited before running anything. The hook now runs on every
+# commit; CI remains the authority for the multi-DB/E2E matrix.
 
 TOTAL=8; OK=0
 

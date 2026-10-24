@@ -167,14 +167,14 @@ The mapping targets spec **paths**, never `--grep` (a path cannot be combined wi
 
 Pipeline: pre-commit = test-db-safety → format/lint/**typecheck** → risk audit → unit → **component interactions** → SBOM sync; pre-push = build (4 adapters) → **DB parity when `src/databases/` changed** → E2E smoke. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract, flake budget) before touching product code.
 
-> **Local gates are opt-in (owner decision, 2026-10-23).** `git commit` and `git push` return immediately; **GitHub Actions is the gate**. The hooks in `.githooks/` remain complete and run only with `SVELTY_LOCAL_GATES=1`:
+> **Local gates are enforced (owner decision, 2026-10-24).** `git commit` runs the full pre-commit gate; `git push` runs the CI-parity Unit job (coverage + components + mutation), the build, SQLite integration, DB parity when adapter code changed, and the browser contract gate (including any changed E2E spec). There is no opt-out environment variable.
 >
 > ```sh
-> SVELTY_LOCAL_GATES=1 git commit -m "…"   # full pre-commit (~2 min)
-> SVELTY_LOCAL_GATES=1 git push             # full pre-push (~4 min, incl. DB parity + E2E)
+> bun run git commit -m "…"   # ~3–4 min (format/lint/check + unit + components + diff integration)
+> bun run git push            # ~8–10 min (CI Unit parity + build + integration + parity + E2E)
 > ```
 >
-> The semantic-release step on `main` still runs either way. Consequence: a red commit can land on `next` before CI reports it — read the run before merging onward. Branch protection (CI required) is the real enforcement.
+> This replaced the 2026-10-23 opt-in policy after two green-local/red-CI Unit runs: the hook had exited before running anything, and the CI-only failure was an unhandled jsdom timer error (all 155 component tests passing). A green hook is now evidence; GitHub Actions remains the authority for the multi-DB/E2E matrix. `--no-verify` is still blocked by `scripts/git-safe.ts`; the semantic-release step on `main` runs after a green gate.
 
 ## 5. Architecture (brief)
 

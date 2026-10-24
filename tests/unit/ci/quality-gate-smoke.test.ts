@@ -70,13 +70,27 @@ describe("pre-commit hook", () => {
 });
 
 describe("pre-push hook", () => {
-  it("runs build + integration (not unit tests)", () => {
+  it("re-runs the CI unit job and build/integration", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
     expect(prePush).toMatch(/(pm_run|\$RUN_CMD|\$PM_BIN" run|bun run) build/);
     expect(prePush).toContain("COMPILE_ALL_ADAPTERS");
-    expect(prePush).not.toContain("test:unit");
+    // CI Unit parity: coverage + components + mutation, because a suite can be
+    // 100 % green and still exit 1 on unhandled errors under the CI reporter.
+    expect(prePush).toContain("test:unit:coverage");
+    expect(prePush).toContain("test:unit:components");
+    expect(prePush).toContain("test:mutation");
+    // The plain suite is not re-run: pre-commit already did it.
+    expect(prePush).not.toMatch(/(?:pm_run|bun run) test:unit(?!:)/);
     expect(prePush).toContain("run-integration.ts");
     expect(prePush).not.toContain("run-integration-tests");
+  });
+
+  it("has no opt-out environment variable", () => {
+    for (const hook of ["pre-commit", "pre-push"]) {
+      const source = readFileSync(join(ROOT, ".githooks", hook), "utf8");
+      expect(source, `${hook} must not exit early`).not.toContain("Local gates disabled");
+      expect(source, `${hook} must not gate on an env var`).not.toMatch(/SVELTY_LOCAL_GATES:-0/);
+    }
   });
 
   it("runs the E2E smoke gate against a harness build", () => {
