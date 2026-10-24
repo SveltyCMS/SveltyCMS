@@ -8,6 +8,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { deleteAutomation, seedAutomation } from "../../helpers/api";
+import { runAfterHydration } from "../../helpers/hydration";
 import {
   dismissCookieBannerIfPresent,
   waitForAdminShell,
@@ -142,7 +143,9 @@ test.describe("Automations (Testing 2026)", () => {
     });
     const listCard = page.locator(`[data-automation-name="${name}"]`);
     await expect(listCard).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await listCard.getByTestId("automation-delete").click();
+    await runAfterHydration(page, () => listCard.getByTestId("automation-delete").click(), {
+      selector: listCard,
+    });
     await confirmModal(page);
     await expect(page.locator(`[data-automation-name="${name}"]`)).toHaveCount(0, {
       timeout: ACTION_TIMEOUT,

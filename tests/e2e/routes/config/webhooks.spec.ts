@@ -16,6 +16,8 @@ import {
   waitForLoadingGone,
 } from "../../helpers/stable";
 
+import { runAfterHydration } from "../../helpers/hydration";
+
 const ACTION_TIMEOUT = 20_000;
 
 async function goWebhooks(page: Page) {
@@ -87,7 +89,9 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // --- Delete ---
-    await card.getByTestId("webhook-delete").click();
+    await runAfterHydration(page, () => card.getByTestId("webhook-delete").click(), {
+      selector: card,
+    });
     await confirmModal(page);
     await expect(page.locator(`[data-webhook-name="${name}"]`)).toHaveCount(0, {
       timeout: ACTION_TIMEOUT,

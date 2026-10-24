@@ -184,14 +184,11 @@ test.describe("System Settings shell", () => {
       target = String(Number(target) + 1);
     }
 
-    await input.fill(target);
-    // Trigger native events to ensure Svelte bindings propagate through Input wrapper
-    await input.blur();
     const groupSave = page.getByTestId("settings-group-save");
-    // Expect auto-waits for the reactivity-driven enabled state
-    await expect(groupSave).toBeEnabled({
-      timeout: ACTION_TIMEOUT,
-    });
+    // The input binding only exists after hydration; a fill that lands earlier
+    // leaves the save button disabled forever. Retry the fill until the dirty
+    // state actually enables the group save (same pattern as the cache test).
+    await fillUntil(page, input, target, () => expect(groupSave).toBeEnabled({ timeout: 2_000 }));
 
     const saveRes = page
       .waitForResponse((res) => res.url().includes("/api/system/settings") && res.status() < 400, {
