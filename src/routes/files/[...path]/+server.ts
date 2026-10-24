@@ -47,7 +47,7 @@ import { resolveConfiguredMediaFolder } from "@src/utils/media/storage-adapters"
 import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
 import { apiHandler } from "@utils/api-handler";
 import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
-import { AppError, rethrow } from "@utils/error-handling";
+import { raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 
@@ -377,7 +377,7 @@ async function serveTransformVariant(ctx: TransformContext): Promise<Response | 
 export const GET = apiHandler(async ({ params, request, locals }) => {
   let filePath = params.path?.trim();
   if (!filePath) {
-    throw new AppError("File path is required", 400, "MISSING_PATH");
+    raise(400, "File path is required", "MISSING_PATH");
   }
 
   filePath = filePath.replace(/^\/?files\//, "").replace(/^\/+/, "");
@@ -423,7 +423,7 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
       });
     }
 
-    throw new AppError("Cloud storage misconfigured", 500, "CLOUD_CONFIG_ERROR");
+    raise(500, "Cloud storage misconfigured", "CLOUD_CONFIG_ERROR");
   }
 
   // ====================== LOCAL STORAGE SERVING ======================
@@ -435,14 +435,14 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   const relative = path.relative(basePath, resolvedPath);
   if (relative.startsWith("..") || path.isAbsolute(relative)) {
     logger.warn("Directory traversal attempt blocked", { requested: filePath });
-    throw new AppError("Access denied", 403, "ACCESS_DENIED");
+    raise(403, "Access denied", "ACCESS_DENIED");
   }
 
   // 🛡️ Tenant access control — extract tenant from file path
   // Path format: {tenantId}/{hash}/original/file.jpg or global/{hash}/original/file.jpg
   const pathTenant = filePath.split("/")[0];
   if (isMultiTenantEnabled() && pathTenant && pathTenant !== "global") {
-    const userTenantId = (locals as any)?.tenantId;
+    const userTenantId = locals.tenantId;
     // Reject when: no tenantId (undefined/null), OR tenantId doesn't match path tenant and isn't "global" bypass
     if (!userTenantId || (userTenantId !== pathTenant && userTenantId !== "global")) {
       logger.warn("Cross-tenant file access blocked", {
@@ -450,7 +450,7 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
         userTenant: userTenantId,
         fileTenant: pathTenant,
       });
-      throw new AppError("Access denied: tenant mismatch", 403, "TENANT_MISMATCH");
+      raise(403, "Access denied: tenant mismatch", "TENANT_MISMATCH");
     }
   }
 
@@ -459,26 +459,29 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
   const signedUrlEnabled = getPublicSettingSync("MEDIA_SIGNED_URL_ENABLED");
   if (signedUrlEnabled && pathTenant !== "global") {
     const { validateSignedMediaUrl } = await import("@src/utils/media/signed-urls");
-    const userTenantId = (locals as any)?.tenantId;
+    const userTenantId = locals.tenantId;
     const validation = validateSignedMediaUrl(requestUrl, filePath, userTenantId);
     if (!validation.valid) {
       logger.warn("Signed URL validation failed", {
         requested: filePath,
         reason: validation.reason,
       });
-      throw new AppError("Signed URL required or invalid", 403, "SIGNATURE_REQUIRED");
+      raise(403, "Signed URL required or invalid", "SIGNATURE_REQUIRED");
     }
   }
 
   let stats;
   try {
     stats = await stat(resolvedPath);
-  } catch (err: any) {
-    if (err.code === "ENOENT") throw new AppError("File not found", 404, "NOT_FOUND");
-    throw new AppError("Internal server error", 500, "FILE_ACCESS_ERROR");
+  } catch (err: unknown) {
+    rethrow(err);
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      raise(404, "File not found", "NOT_FOUND");
+    }
+    raise(500, "Internal server error", "FILE_ACCESS_ERROR");
   }
 
-  if (!stats.isFile()) throw new AppError("Not a file", 400, "INVALID_FILE");
+  if (!stats.isFile()) raise(400, "Not a file", "INVALID_FILE");
 
   // ====================== ON-DEMAND TRANSFORM (opt-in) ======================
   // Runs after the traversal guard, tenant gate and signature check above.

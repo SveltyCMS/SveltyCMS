@@ -404,6 +404,7 @@ describe("/files on-demand transform — fallbacks", () => {
     const response = await GET(fileEvent(missing, "?w=320"));
 
     expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: "NOT_FOUND" });
     expect(encodeCount()).toBe(0);
   });
 });
@@ -419,6 +420,7 @@ describe("/files on-demand transform — tenant gate", () => {
 
       const blocked = await GET(fileEvent(tenantRel, "?w=320", {}, "tenant-b"));
       expect(blocked.status).toBe(403);
+      expect(await blocked.json()).toMatchObject({ code: "TENANT_MISMATCH" });
       expect(encodeCount()).toBe(0);
 
       const allowed = await GET(fileEvent(tenantRel, "?w=320", {}, "tenant-a"));
@@ -495,6 +497,55 @@ describe("/files transform params on cloud storage", () => {
       expect(encodeCount()).toBe(0);
     } finally {
       // Restore the suite default (tests/unit/setup.ts): SITE_NAME only.
+      settings.mockImplementation((key: string) =>
+        key === "SITE_NAME" ? "SveltyCMS Test" : undefined,
+      );
+    }
+  });
+});
+
+// ─── Error contract (raise) ─────────────────────────────────────────────────
+
+describe("/files error contract", () => {
+  it("raises 400 MISSING_PATH when the route has no path segment", async () => {
+    const response = await GET(fileEvent(""));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "MISSING_PATH" });
+  });
+
+  it("raises 400 INVALID_FILE for a directory path", async () => {
+    const dirRel = `${TENANT}/not-a-file`;
+    await mkdir(path.join(MEDIA_DIR, dirRel), { recursive: true });
+
+    const response = await GET(fileEvent(dirRel));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "INVALID_FILE" });
+  });
+
+  it("raises 403 ACCESS_DENIED for a traversal attempt", async () => {
+    const response = await GET(fileEvent("../outside.jpg"));
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "ACCESS_DENIED" });
+    expect(encodeCount()).toBe(0);
+  });
+
+  it("raises 500 CLOUD_CONFIG_ERROR when cloud storage has no public URL", async () => {
+    type SettingsMock = { mockImplementation: (impl: (key: string) => string | undefined) => void };
+    const settings = getPublicSettingSync as unknown as SettingsMock;
+    settings.mockImplementation((key: string) => {
+      if (key === "MEDIA_STORAGE_TYPE") return "s3";
+      return key === "SITE_NAME" ? "SveltyCMS Test" : undefined;
+    });
+
+    try {
+      const response = await GET(fileEvent(SOURCE_REL));
+
+      expect(response.status).toBe(500);
+      expect(await response.json()).toMatchObject({ code: "CLOUD_CONFIG_ERROR" });
+    } finally {
       settings.mockImplementation((key: string) =>
         key === "SITE_NAME" ? "SveltyCMS Test" : undefined,
       );

@@ -1023,7 +1023,11 @@ export async function handleMediaShareDownload(
     logs: [],
   };
 
-  const validation = validateLink(shareLink);
+  // Validate the non-password gates first. Passing the full shareLink here
+  // made validateLink return `password_required` for every password link, so
+  // the timing-safe HMAC check below was unreachable. The password itself is
+  // verified separately against the stored hash.
+  const validation = validateLink({ ...shareLink, passwordHash: undefined });
   if (!validation.ok) {
     throw new AppError(
       `Shared resource validation flag failure: ${validation.reason}`,

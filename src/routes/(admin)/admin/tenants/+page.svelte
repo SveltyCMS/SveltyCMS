@@ -16,6 +16,7 @@
 	import type { PageData } from './$types';
 	import { createTenant, toggleTenantStatus } from './tenants.remote';
 	import { refreshAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import Badge from '@components/ui/badge.svelte';
@@ -71,9 +72,7 @@
 		>
 	{/snippet}
 
-	<AdminCard
-		class="overflow-hidden border border-surface-500/30 bg-white p-0 shadow-xs backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
-	>
+	<AdminCard class="overflow-hidden p-0">
 		<div class="{SMART_TABLE_SCROLL} w-full">
 			<table class={SMART_TABLE}>
 				<thead class={SMART_TABLE_THEAD}>
@@ -100,7 +99,7 @@
 								{:else if tenant.status === 'suspended'}
 									<Badge variant="error">Suspended</Badge>
 								{:else}
-									<Badge preset="tonal" color="surface">{tenant.status}</Badge>
+									<Badge variant="surface">{tenant.status}</Badge>
 								{/if}
 							</td>
 							<td class="{SMART_TABLE_TD} text-start! px-4!">
@@ -133,7 +132,9 @@
 							<td class="{SMART_TABLE_TD} text-start! px-4! text-xs font-bold uppercase opacity-70"
 								>{tenant.plan}</td
 							>
-							<td class="{SMART_TABLE_TD} text-start! px-4!">{formatDate(tenant.createdAt)}</td>
+							<td class="{SMART_TABLE_TD} text-start! px-4!">
+								{formatDate(tenant.createdAt, page.data.systemLanguage)}
+							</td>
 							<td class="{SMART_TABLE_TD} text-end! px-4!">
 								<Button
 									variant={tenant.status === 'active' ? 'outline' : 'primary'}

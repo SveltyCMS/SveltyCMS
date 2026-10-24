@@ -18,6 +18,7 @@
 <script lang="ts">
 	// Stores
 
+	import Button from '@components/ui/button.svelte';
 	import SiteName from '@src/components/site-name.svelte';
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
 	import {
@@ -155,7 +156,7 @@
 
 				<!-- Error URL Banner -->
 				<div
-					class="error-banner mt-4 rounded bg-error-600/90 px-4 py-2 text-sm font-semibold text-white shadow-lg"
+					class="error-banner mt-4 rounded bg-error-500 px-4 py-2 text-sm font-semibold text-white shadow-lg"
 					aria-label="Error type"
 				>
 					<div class="max-w-70 truncate" title={page.url.toString()}>{page.url}</div>
@@ -179,7 +180,7 @@
 			<div class="flex flex-col items-center gap-4 sm:flex-row">
 				<a
 					href="/"
-					class="inline-flex items-center gap-2 rounded-full bg-linear-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase text-white shadow-xl transition-all hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-error-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
+					class="inline-flex items-center gap-2 rounded-full bg-error-500 px-8 py-4 font-bold uppercase text-white shadow-xl transition-all hover:scale-105 hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-error-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
 				>
 					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
@@ -192,9 +193,12 @@
 					{error_gofrontpage()}
 				</a>
 
-				<button
+				<Button
+					variant="outline"
+					size="lg"
+					rounded
 					onclick={() => window.history.back()}
-					class="inline-flex items-center gap-2 rounded-full border-2 border-surface-500 bg-transparent px-8 py-4 font-bold uppercase text-white transition-all hover:border-white hover:bg-white/10 focus:outline-none focus:ring-4 focus:ring-surface-500/50 focus:ring-offset-2 focus:ring-offset-surface-900"
+					class="gap-2 border-2 border-surface-500 px-8 font-bold uppercase text-white hover:border-white hover:bg-white/10"
 				>
 					<svg
 						class="h-5 w-5 rtl:scale-x-[-1]"
@@ -210,7 +214,7 @@
 						/>
 					</svg>
 					{error_goback()}
-				</button>
+				</Button>
 			</div>
 		</div>
 	</main>

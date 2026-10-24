@@ -53,36 +53,38 @@ flowchart TD
 
 ## Key Design Decisions
 
-| Decision                          | Rationale                                                                                                         |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **Isolated Web Worker**           | LiteRT.js WASM runtime runs in a dedicated Worker — no DOM/cookie access, separate CSP, cannot XSS the admin page |
-| **Dedicated CSP on `/ai/worker`** | Only this endpoint has `'wasm-unsafe-eval'` — the admin page CSP is never modified                                |
-| **SvelteKit Remote Function API** | `import { ai } from "@services/ai-client"` and call like any async function                                       |
-| **Automatic Fallback**            | LiteRT.js → Ollama, transparent to the caller. Each result includes a `backend` field                             |
-| **Lazy Loading**                  | WASM runtime (~15MB) downloads on first inference call, not at page boot                                          |
-| **Progressive Enhancement**       | If WebGPU is unavailable, falls to CPU (XNNPACK). If Workers unsupported, uses server-side Ollama                 |
+| Decision                          | Rationale                                                                                                        |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| **Isolated Web Worker**           | LiteRT.js WASM runtime runs in a dedicated Worker — no DOM/cookie access, cannot XSS the admin page              |
+| **Vite-bundled worker**           | `runtime.ts` loads the Worker via `new URL("./ai.worker.ts", import.meta.url)`; no separate serving route exists |
+| **SvelteKit Remote Function API** | `import { ai } from "@services/ai-client"` and call like any async function                                      |
+| **Automatic Fallback**            | LiteRT.js → Ollama, transparent to the caller. Each result includes a `backend` field                            |
+| **Lazy Loading**                  | WASM runtime (~15MB) downloads on first inference call, not at page boot                                         |
+| **Progressive Enhancement**       | If WebGPU is unavailable, falls to CPU (XNNPACK). If Workers unsupported, uses server-side Ollama                |
 
 ## Security Model
 
 ### What the Worker Can Access
 
-| Capability                  | Worker              | Admin Page          |
-| --------------------------- | ------------------- | ------------------- |
-| DOM / `window` / `document` | ❌                  | ✅                  |
-| Cookies / `localStorage`    | ❌                  | ✅                  |
-| Session tokens              | ❌                  | ✅                  |
-| WASM compilation            | ✅ (isolated CSP)   | ❌ (if future CSP)  |
-| WebGPU                      | ✅                  | ✅                  |
-| postMessage (admin page)    | ✅ (typed RPC only) | ✅ (typed RPC only) |
+| Capability                  | Worker                | Admin Page             |
+| --------------------------- | --------------------- | ---------------------- |
+| DOM / `window` / `document` | ❌                    | ✅                     |
+| Cookies / `localStorage`    | ❌                    | ✅                     |
+| Session tokens              | ❌                    | ✅                     |
+| WASM compilation            | ✅ (own worker scope) | ❌ (no page CSP grant) |
+| WebGPU                      | ✅                    | ✅                     |
+| postMessage (admin page)    | ✅ (typed RPC only)   | ✅ (typed RPC only)    |
 
 ### CSP Headers
 
 **Admin page** — unchanged. No `wasm-unsafe-eval` or `worker-src` added.
 
-**`/ai/worker` endpoint** — isolated CSP:
+**Worker script** — there is no dedicated serving route and no worker-specific CSP today. Vite emits `ai.worker.ts` as a bundle chunk, and `runtime.ts` loads it via `new URL("./ai.worker.ts", import.meta.url)`; there is no separate HTTP response that could carry a worker-specific CSP.
+
+If a future deployment adds a worker-specific CSP, it must allow:
 
 ```
-default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:;
+worker-src 'self'; script-src 'self' 'wasm-unsafe-eval'
 ```
 
 `'wasm-unsafe-eval'` is strictly more restrictive than `'unsafe-eval'` — it only enables WASM compilation, not JavaScript `eval()`. This is the CSP Level 3 best practice for applications that legitimately use WebAssembly.
@@ -223,12 +225,11 @@ Models are cached by the browser's HTTP cache after first download.
 | `src/services/ai-client/index.ts`                              | Public API — clean function interface      |
 | `src/services/ai-client/types.ts`                              | RPC protocol, model metadata, result types |
 | `src/services/ai-client/runtime.ts`                            | Worker manager + RPC bridge (singleton)    |
-| `src/services/ai-client/ai.worker.ts`                          | LiteRT.js Web Worker (isolated CSP)        |
+| `src/services/ai-client/ai.worker.ts`                          | LiteRT.js Web Worker (Vite-bundled)        |
 | `src/services/ai-client/fallback.ts`                           | Server-side Ollama fallback                |
 | `src/services/ai-client/models/registry.ts`                    | Model metadata registry                    |
 | `src/services/ai-client/components/alt-text-suggestion.svelte` | Alt-text UI for image editor               |
 | `src/services/ai-client/components/ai-status-badge.svelte`     | Status indicator component                 |
-| `src/routes/ai/worker/+server.ts`                              | Worker serving endpoint with isolated CSP  |
 | `static/ai/wasm/`                                              | LiteRT.js WASM binaries                    |
 | `static/ai/models/`                                            | `.tflite` model files                      |
 | `tests/unit/services/ai-client/runtime.test.ts`                | Worker manager tests                       |

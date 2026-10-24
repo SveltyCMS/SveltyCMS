@@ -4,8 +4,9 @@
  * Type definitions for the AI Client service — a privacy-first, CSP-safe
  * LiteRT.js inference engine isolated in a dedicated Web Worker.
  *
- * The worker is served from /ai/worker with its own relaxed CSP, leaving
- * the admin page's security headers untouched.
+ * The worker is bundled by Vite and loaded via
+ * `new URL("./ai.worker.ts", import.meta.url)` — there is no separate
+ * serving route. The admin page's security headers stay untouched.
  *
  * ### Features:
  * - typed RPC protocol (request/response discriminators)

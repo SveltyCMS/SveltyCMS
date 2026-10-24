@@ -12,9 +12,12 @@
  * - NO access to `window`, `document`, or admin page variables
  * - ONLY the postMessage bridge for typed RPC communication
  *
+ * There is no separate serving route: the Worker is emitted as a build chunk
+ * and loaded from the `new URL(...)` expression above.
+ *
  * The admin page's Content-Security-Policy is never modified. If a future
- * CSP is added to admin pages, it would need `worker-src 'self'` and
- * `'wasm-unsafe-eval'` — both are security-neutral additions that only
+ * deployment adds a worker-specific CSP, it must allow `worker-src 'self'`
+ * and `'wasm-unsafe-eval'` — both are security-neutral additions that only
  * explicitly permit what the Worker already does.
  *
  * ### Lifecycle

@@ -2,46 +2,63 @@
  * @file src/routes/(admin)/admin/tenants/tenants-actions.server.ts
  * @description Tenant Management Actions.
  * Uses the database-agnostic adapter for multi-DB compatibility.
+ *
+ * ### Features:
+ * - Create tenants with the free-plan quota
+ * - Toggle tenant status between active and suspended
+ * - Fail-closed validation before any adapter call
  */
 
-import type { IDBAdapter } from "@src/databases/db-interface";
-import { error } from "@sveltejs/kit";
+import type { DatabaseId, DatabaseResult, IDBAdapter, Tenant } from "@src/databases/db-interface";
+import { raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 
-export const toggleTenantStatus = async (data: any, dbAdapter: IDBAdapter) => {
+export interface ToggleTenantStatusInput {
+  tenantId: string;
+  status: Tenant["status"];
+}
+
+export interface CreateTenantInput {
+  name: string;
+}
+
+/** Only these statuses may be toggled from the admin UI. */
+const TOGGLEABLE_STATUSES: ReadonlySet<Tenant["status"]> = new Set(["active", "suspended"]);
+
+export const toggleTenantStatus = async (data: ToggleTenantStatusInput, dbAdapter: IDBAdapter) => {
   const { tenantId, status } = data;
 
-  if (!tenantId || !["active", "suspended"].includes(status)) {
-    throw error(400, "Invalid parameters");
+  if (!tenantId || !TOGGLEABLE_STATUSES.has(status)) {
+    raise(400, "Invalid parameters", "BAD_REQUEST");
   }
 
+  let result: DatabaseResult<Tenant>;
   try {
-    const result = await dbAdapter.system.tenants.update(tenantId, {
-      status,
-    } as any);
-    if (!result.success) {
-      logger.error(`Failed to update tenant status ${tenantId}`, result.error);
-      throw error(500, result.message || "Update failed");
-    }
-    return { success: true };
-  } catch (err: any) {
-    if (err && typeof err === "object" && "status" in err) {
-      throw err;
-    }
+    result = await dbAdapter.system.tenants.update(tenantId as DatabaseId, { status });
+  } catch (err) {
+    rethrow(err);
     logger.error(`Failed to update tenant status ${tenantId}`, err);
-    throw error(500, "Update failed");
+    raise(500, "Update failed", "INTERNAL_SERVER_ERROR");
   }
+
+  if (!result.success) {
+    logger.error(`Failed to update tenant status ${tenantId}`, result.error);
+    raise(500, result.message || "Update failed", "INTERNAL_SERVER_ERROR");
+  }
+
+  return { success: true };
 };
 
-export const createTenant = async (data: { name: string }, dbAdapter: IDBAdapter) => {
+export const createTenant = async (data: CreateTenantInput, dbAdapter: IDBAdapter) => {
   if (!data.name || typeof data.name !== "string" || data.name.trim().length === 0) {
-    throw error(400, "Tenant name is required");
+    raise(400, "Tenant name is required", "BAD_REQUEST");
   }
 
+  let result: DatabaseResult<Tenant>;
   try {
-    const ownerId = generateUUID();
-    const result = await dbAdapter.system.tenants.create({
+    const ownerId = generateUUID() as DatabaseId;
+    result = await dbAdapter.system.tenants.create({
       name: data.name.trim(),
       ownerId,
       plan: "free",
@@ -59,19 +76,17 @@ export const createTenant = async (data: { name: string }, dbAdapter: IDBAdapter
         storageBytes: 0,
         usersCount: 0,
       },
-    } as any);
-
-    if (!result.success) {
-      logger.error("Failed to create tenant", result.error);
-      throw error(500, result.message || "Failed to create tenant");
-    }
-
-    return { success: true, tenant: result.data };
-  } catch (err: any) {
-    if (err && typeof err === "object" && "status" in err) {
-      throw err;
-    }
+    });
+  } catch (err) {
+    rethrow(err);
     logger.error("Failed to create tenant", err);
-    throw error(500, "Failed to create tenant");
+    raise(500, "Failed to create tenant", "INTERNAL_SERVER_ERROR");
   }
+
+  if (!result.success) {
+    logger.error("Failed to create tenant", result.error);
+    raise(500, result.message || "Failed to create tenant", "INTERNAL_SERVER_ERROR");
+  }
+
+  return { success: true, tenant: result.data };
 };

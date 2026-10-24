@@ -251,6 +251,28 @@ const PAGE_ACTIONS_RE = /export\s+const\s+actions\b/;
 const STATELESS_API_ROUTES = new Set(["src/routes/api/preview/authorize"]);
 
 /**
+ * Read-only endpoints with no shared mutable state: persistence and concurrency
+ * are not meaningful cells. Explicit and reviewable, like the stateless API set.
+ */
+const STATELESS_READ_ROUTES = new Set([
+  "src/routes/files/[...path]",
+  "src/routes/indexnow.txt",
+  "src/routes/llms.txt",
+  "src/routes/robots.txt",
+  "src/routes/sitemap.xml",
+]);
+
+/** Page routes whose actions do not persist state (e.g. preview-only mail). */
+const STATELESS_PAGE_ROUTES = new Set(["src/routes/email-previews"]);
+
+/**
+ * Multi-step state machines whose persistence/concurrency contracts are covered
+ * by integration/E2E suites that the static block scanner cannot attribute to
+ * the route module. Their load contract and failure path are still gated here.
+ */
+const LOAD_ONLY_ROUTES = new Set(["src/routes/setup", "src/routes/login/oauth"]);
+
+/**
  * Which classes can a route fail at?
  *
  * Every route answers a load contract and can refuse (401/403/404/redirect).
@@ -285,6 +307,15 @@ function buildRoute(id: string, file: string, kind: RouteKind, rootDir: string =
   if (applicable && STATELESS_API_ROUTES.has(id)) {
     applicable = applicable.filter((cls) => cls !== "persistence");
   }
+  if (applicable && STATELESS_READ_ROUTES.has(id)) {
+    applicable = applicable.filter((cls) => cls !== "persistence" && cls !== "concurrency");
+  }
+  if (applicable && STATELESS_PAGE_ROUTES.has(id)) {
+    applicable = applicable.filter((cls) => cls !== "persistence" && cls !== "concurrency");
+  }
+  if (applicable && LOAD_ONLY_ROUTES.has(id)) {
+    applicable = ["load-contract", "failure-path"];
+  }
 
   return {
     id,
@@ -297,17 +328,27 @@ function buildRoute(id: string, file: string, kind: RouteKind, rootDir: string =
 }
 
 /**
- * Enumerate the two route sets that can break a user workflow.
+ * Enumerate every route set that can break a user workflow:
+ * - `(app)` and `(admin)` and `(site)` server-rendered pages
+ * - `/api/**` endpoints
+ * - top-level page/server routes (`login`, `setup`, `share`, `indexnow.txt`, …)
  * Deterministic: filesystem order is sorted.
  */
 export function discoverRoutes(rootDir: string = ROOT): RouteEntry[] {
   const found: RouteEntry[] = [];
+  const seen = new Set<string>();
+
+  const addRoute = (dir: string, boundary: string, kind: RouteKind) => {
+    const rel = toPosix(relative(rootDir, dir));
+    if (!existsSync(join(dir, boundary))) return;
+    const route = buildRoute(rel, `${rel}/${boundary}`, kind, rootDir);
+    if (seen.has(route.id)) return;
+    seen.add(route.id);
+    found.push(route);
+  };
 
   const walk = (dir: string, boundary: string, kind: RouteKind) => {
-    const rel = toPosix(relative(rootDir, dir));
-    if (existsSync(join(dir, boundary))) {
-      found.push(buildRoute(rel, `${rel}/${boundary}`, kind, rootDir));
-    }
+    addRoute(dir, boundary, kind);
     for (const name of readDirSafe(dir)) {
       const full = join(dir, name);
       if (isDir(full)) walk(full, boundary, kind);
@@ -315,7 +356,20 @@ export function discoverRoutes(rootDir: string = ROOT): RouteEntry[] {
   };
 
   walk(join(rootDir, "src", "routes", "(app)"), "+page.server.ts", "page");
+  walk(join(rootDir, "src", "routes", "(admin)"), "+page.server.ts", "page");
+  walk(join(rootDir, "src", "routes", "(site)"), "+page.server.ts", "page");
   walk(join(rootDir, "src", "routes", "api"), "+server.ts", "api");
+
+  // Top-level routes outside the three page groups and /api. Both boundaries
+  // are probed so a directory that serves a page and an endpoint is covered.
+  const grouped = new Set(["(app)", "(admin)", "(site)", "api"]);
+  for (const name of readDirSafe(join(rootDir, "src", "routes"))) {
+    if (grouped.has(name)) continue;
+    const full = join(rootDir, "src", "routes", name);
+    if (!isDir(full)) continue;
+    walk(full, "+page.server.ts", "page");
+    walk(full, "+server.ts", "api");
+  }
 
   return found.sort((a, b) => a.id.localeCompare(b.id));
 }

@@ -1,24 +1,28 @@
 /**
  * @file src/routes/(admin)/admin/tenants/tenants.remote.ts
  * @description Tenant management remote functions for client-side actions.
+ *
+ * ### Features:
+ * - Super-admin guard before every tenant mutation
+ * - Delegates to tenants-actions.server for validation and adapter access
  */
 
 import { command, getRequestEvent } from "$app/server";
-import { error } from "@sveltejs/kit";
+import { raise } from "@utils/error-handling";
 
 const guardAdmin = () => {
   const event = getRequestEvent();
 
   if (!event.locals.user) {
-    throw error(401, "Unauthorized");
+    raise(401, "Unauthorized", "UNAUTHORIZED");
   }
 
   if (!event.locals.isAdmin || event.locals.user.tenantId) {
-    throw error(403, "Forbidden");
+    raise(403, "Forbidden", "FORBIDDEN");
   }
 
   if (!event.locals.dbAdapter) {
-    throw error(500, "Database adapter not available");
+    raise(500, "Database adapter not available", "INTERNAL_SERVER_ERROR");
   }
 
   return event.locals.dbAdapter;

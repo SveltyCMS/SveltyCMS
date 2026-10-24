@@ -15,7 +15,8 @@
 
 // Auth
 import type { User } from "@src/databases/auth/types";
-import { error } from "@sveltejs/kit";
+import { raise, rethrow } from "@utils/error-handling";
+import type { Actions, RequestEvent } from "./$types";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -85,12 +86,12 @@ export async function load({
   // Permission check: only allow admins to view email previews
   if (!userData) {
     logger.warn("Unauthenticated attempt to access email previews");
-    throw error(401, "Authentication required");
+    raise(401, "Authentication required", "UNAUTHORIZED");
   }
 
   if (!isAdmin) {
     logger.warn(`Unauthorized attempt to access email previews by user: ${userData._id}`);
-    throw error(403, "Insufficient permissions - admin access required");
+    raise(403, "Insufficient permissions - admin access required", "FORBIDDEN");
   }
 
   const emailListData = await emailList({ path: EMAILS_PATH });
@@ -119,7 +120,8 @@ export async function load({
       }
       const rendered = await renderEmailToStrings(component, selectedEmail, PREVIEW_PROPS);
       previewHtml = rendered.html;
-    } catch (err) {
+    } catch (err: unknown) {
+      rethrow(err);
       previewError = err instanceof Error ? err.message : String(err);
       logger.warn(`[EmailPreview] Failed to render '${selectedEmail}': ${previewError}`);
     }
@@ -135,18 +137,21 @@ export async function load({
   };
 }
 
+/** Previewer form action before the admin gate is applied. */
+type PreviewAction = (event: RequestEvent) => Promise<Record<string, unknown> | void>;
+
 // Helper to gate actions for administrator use only
-function gateAction(actionFn: any) {
-  return async (event: any) => {
+function gateAction(actionFn: PreviewAction): PreviewAction {
+  return async (event: RequestEvent) => {
     const { locals } = event;
     if (!locals.user || !locals.isAdmin) {
-      throw error(403, "Insufficient permissions - admin access required");
+      raise(403, "Insufficient permissions - admin access required", "FORBIDDEN");
     }
     return actionFn(event);
   };
 }
 
-const rawActions = {
+const rawActions: Record<string, PreviewAction> = {
   ...createEmail(),
   ...sendEmail({
     customSendEmailFunction: async ({ to, subject }: { to: string; subject: string }) => {
@@ -173,7 +178,7 @@ const rawActions = {
         if (!dbAdapter) throw new Error("Database adapter not available");
 
         const cms = new LocalCMS(dbAdapter);
-        const result = await (cms.system as any).sendMail({
+        const result = await cms.system.sendMail({
           recipientEmail: to,
           subject: subject || `Preview: ${templateName}`,
           templateName,
@@ -189,20 +194,21 @@ const rawActions = {
           });
         }
         return result;
-      } catch (err: any) {
+      } catch (err: unknown) {
+        rethrow(err);
         logger.error("Failed to send email via Local API during preview", {
           error: err,
         });
         return {
           success: false,
-          error: err.message || String(err),
+          error: err instanceof Error ? err.message : String(err),
         };
       }
     },
-  } as any),
+  }),
 };
 
-export const actions: any = {};
+export const actions: Actions = {};
 for (const [key, fn] of Object.entries(rawActions)) {
   if (typeof fn === "function") {
     actions[key] = gateAction(fn);
