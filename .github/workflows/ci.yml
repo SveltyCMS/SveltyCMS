@@ -239,6 +239,10 @@ jobs:
     needs: bootstrap
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # Authoritative in the unit job: a Redis that fails to come up must fail the
+      # suite loudly, not be swallowed as another silent skip. Empty elsewhere.
+      TEST_REDIS_URL: ${{ matrix.task == '04-unit' && 'redis://127.0.0.1:6379' || '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -295,10 +299,8 @@ jobs:
             # instrumentation) and runs right after in the same job. The component
             # interaction suite (real client build, jsdom) runs last so a DOM regression
             # fails this job instead of only the E2E shards.
-            run: |
-              bun run test:unit:coverage
-              bun run test:unit:components
-              bun run test:mutation
+            # The three commands are separate steps (below) so the failing step names the
+            # command; each tee's its output for the failure annotation.
             # (tenant + deploy backdoor moved into 01-policy)
     steps:
       - uses: actions/checkout@v7
@@ -335,12 +337,28 @@ jobs:
       - name: Start Redis (CacheService L2 contract)
         if: matrix.task == '04-unit'
         run: docker compose -f tests/docker-compose.yml --profile redis up -d --wait
+      - name: Unit + coverage
+        if: matrix.task == '04-unit'
+        run: set -o pipefail; bun run test:unit:coverage 2>&1 | tee /tmp/unit-coverage.log
+      - name: Component interactions
+        if: matrix.task == '04-unit'
+        run: set -o pipefail; bun run test:unit:components 2>&1 | tee /tmp/unit-components.log
+      - name: Mutation harness
+        if: matrix.task == '04-unit'
+        run: set -o pipefail; bun run test:mutation 2>&1 | tee /tmp/unit-mutation.log
       - name: Run Task
+        if: matrix.task != '04-unit'
         run: ${{ matrix.run }}
-        env:
-          # Authoritative in the unit job: a Redis that fails to come up must fail the
-          # suite loudly, not be swallowed as another silent skip. Empty elsewhere.
-          TEST_REDIS_URL: ${{ matrix.task == '04-unit' && 'redis://127.0.0.1:6379' || '' }}
+      - name: Annotate unit failure
+        if: failure() && matrix.task == '04-unit'
+        run: |
+          for f in /tmp/unit-coverage.log /tmp/unit-components.log /tmp/unit-mutation.log; do
+            [ -f "$f" ] || continue
+            # One annotation per command. The tail names the failing file or threshold;
+            # % is escaped because the workflow-command syntax expands it.
+            tail="$(tail -n 8 "$f" | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-900)"
+            echo "::error title=$(basename "$f")::$tail"
+          done
       - name: CVE Audit Summary
         if: matrix.task == '01-static'
         run: |
