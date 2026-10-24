@@ -106,7 +106,7 @@ info "Pre-commit already verified: format, lint, unit tests, component interacti
 info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration + DB parity + E2E contract gate"
 echo ""
 
-TOTAL=16; OK=0
+TOTAL=17; OK=0
 
 # Step 1 — Production build (mirrors CI build job)
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true "$PM_BIN" run build; then
@@ -251,6 +251,16 @@ if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
     info "Media UI changes detected — adding the media theme visual audit"
     E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/theme-visual.spec.ts"
   fi
+  # A path can be added twice (e.g. a changed spec that also matches a UI mapping);
+  # de-duplicate so Playwright does not run it twice and inflate the flake count.
+  UNIQUE_TARGETS=""
+  for target in $E2E_TARGETS; do
+    case " $UNIQUE_TARGETS " in
+      *" $target "*) ;;
+      *) UNIQUE_TARGETS="$UNIQUE_TARGETS $target" ;;
+    esac
+  done
+  E2E_TARGETS="${UNIQUE_TARGETS# }"
   if run "🌐  E2E Browser Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
     OK=$((OK + 1))
     # Any retried-pass locally is a warning sign: CI scores it against a budget.

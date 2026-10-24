@@ -16,6 +16,7 @@ import {
   evaluateBenchmarkGate,
   evaluateSamples,
   renderGateMarkdown,
+  resolvePolicy,
   type GateBaseline,
   type GateResult,
   type GateSample,
@@ -133,6 +134,48 @@ describe("CI performance gate", () => {
     expect(budgetFor("sqlite", "dbRaw")).toBe(80);
     expect(budgetFor("postgresql", "dbRaw")).toBe(30);
     expect(budgetFor("sqlite", "collections")).toBe(5);
+  });
+
+  it("ignores sub-1.5ms absolute jitter on sub-millisecond baselines", () => {
+    // 0.436ms → 1.566ms (+1.13ms, +259%) is normal shared-runner scheduling jitter,
+    // well below the 25ms security budget and below the 1.5ms FAIL_MIN_DELTA_MS floor.
+    const result = evaluateSamples(
+      "postgresql",
+      "fail",
+      [{ label: "Hooks/security p95", value: 1.566, budget: 25 }],
+      { "Hooks/security p95": [0.436, 0.436] },
+      { "Hooks/security p95": 1 },
+    );
+
+    expect(result.metrics[0]?.severe).toBe(false);
+    expect(result.metrics[0]?.severity).toBe("warn");
+    expect(result.passed).toBe(true);
+  });
+
+  it("resolves gate policy to fail on main/merge_group and warn on next/PRs", () => {
+    const prevRef = process.env.GITHUB_REF;
+    const prevEvent = process.env.GITHUB_EVENT_NAME;
+    try {
+      expect(resolvePolicy("fail")).toBe("fail");
+      expect(resolvePolicy("warn")).toBe("warn");
+
+      process.env.GITHUB_REF = "refs/heads/next";
+      process.env.GITHUB_EVENT_NAME = "push";
+      expect(resolvePolicy(undefined)).toBe("warn");
+
+      process.env.GITHUB_REF = "refs/heads/main";
+      process.env.GITHUB_EVENT_NAME = "push";
+      expect(resolvePolicy(undefined)).toBe("fail");
+
+      process.env.GITHUB_REF = "refs/heads/gh-readonly-queue/next/pr-1";
+      process.env.GITHUB_EVENT_NAME = "merge_group";
+      expect(resolvePolicy(undefined)).toBe("fail");
+    } finally {
+      if (prevRef === undefined) delete process.env.GITHUB_REF;
+      else process.env.GITHUB_REF = prevRef;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_NAME;
+      else process.env.GITHUB_EVENT_NAME = prevEvent;
+    }
   });
 });
 

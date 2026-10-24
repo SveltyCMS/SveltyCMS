@@ -181,9 +181,22 @@ async function sweepContrast(page: Page, rootSelector: string, scheme: Scheme) {
 
       for (const el of targets) {
         if (!isVisible(el) || isDisabled(el)) continue;
-        const isIcon = el.tagName === "ICONIFY-ICON";
-        const text = ownText(el);
+        const isIconElement = el.tagName === "ICONIFY-ICON";
         const isField = ["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName);
+        // Interactive elements usually carry their label in a child <span>, so own
+        // text alone judged almost nothing (and made the sweep depend on icons
+        // having finished loading). Use the rendered text for those owners.
+        const isOwner = el.matches("button, a[href], [role=tab], [role=button], label");
+        const direct = ownText(el);
+        const nested = isOwner ? (el.textContent ?? "").trim() : "";
+        // Icon-only controls (mobile rails) have no text nodes at all. Judge them
+        // through their accessible name at the non-text ratio — but not colour
+        // swatches, whose background IS the value and whose `color` is meaningless.
+        const hasGlyph = isOwner && el.querySelector("iconify-icon, svg") !== null;
+        const accessibleOnly = isOwner && !direct && !nested && hasGlyph;
+        const text =
+          direct || nested || (accessibleOnly ? (el.getAttribute("aria-label") ?? "").trim() : "");
+        const isIcon = isIconElement || accessibleOnly;
         // Containers with no text of their own are judged through their text/icon children.
         if (!isIcon && !isField && text === "") continue;
 
