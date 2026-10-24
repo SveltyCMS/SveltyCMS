@@ -354,10 +354,13 @@ jobs:
         run: |
           for f in /tmp/unit-coverage.log /tmp/unit-components.log /tmp/unit-mutation.log; do
             [ -f "$f" ] || continue
-            # One annotation per command. The tail names the failing file or threshold;
-            # % is escaped because the workflow-command syntax expands it.
-            tail="$(tail -n 8 "$f" | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-900)"
-            echo "::error title=$(basename "$f")::$tail"
+            # Prefer the unhandled-error block: every test can pass and the process
+            # still exits 1. Fall back to the tail (threshold / crashed worker).
+            detail="$(sed 's/\x1b\[[0-9;]*m//g' "$f" | grep -A 30 -m 1 'Unhandled Errors' | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-3500)"
+            if [ -z "$detail" ]; then
+              detail="$(sed 's/\x1b\[[0-9;]*m//g' "$f" | tail -n 12 | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-1500)"
+            fi
+            echo "::error title=$(basename "$f")::$detail"
           done
       - name: CVE Audit Summary
         if: matrix.task == '01-static'
