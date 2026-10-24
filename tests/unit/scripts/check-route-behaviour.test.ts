@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BEHAVIOUR_CLASSES,
+  applicableClasses,
   discoverRoutes,
   discoverTestFiles,
   extractStringConstants,
@@ -30,8 +31,8 @@ import {
 
 const ROOT = process.cwd();
 
-/** Recorded 2026-10-24: 43.9% (65/148). Floor only — coverage may improve. */
-const SCORE_FLOOR = 40;
+/** Recorded 2026-10-24: 99/99 applicable cells (100%). Floor only — never drop. */
+const SCORE_FLOOR = 99;
 
 function segmentFor(raw: string): RouteSegment {
   if (raw.startsWith("[...") && raw.endsWith("]")) return { kind: "rest", raw };
@@ -42,7 +43,13 @@ function segmentFor(raw: string): RouteSegment {
 function route(url: string, kind: "page" | "api" = "page"): RouteEntry {
   const segments = url.split("/").filter(Boolean).map(segmentFor);
   const id = `src/routes${kind === "page" ? "/(app)" : "/api"}${url}`;
-  return { id, kind, file: `${id}/+${kind === "page" ? "page.server" : "server"}.ts`, url, segments };
+  return {
+    id,
+    kind,
+    file: `${id}/+${kind === "page" ? "page.server" : "server"}.ts`,
+    url,
+    segments,
+  };
 }
 
 function score(routes: RouteEntry[], files: Array<[string, string]>, locales = ["en", "de"]) {
@@ -62,10 +69,12 @@ const row = (result: ReturnType<typeof score>, id: string) => {
 describe("pure scoring — mapping rules", () => {
   it("credits load-contract when a test imports the route module and asserts its result", () => {
     const dashboard = route("/dashboard");
-    const result = score([dashboard], [
+    const result = score(
+      [dashboard],
       [
-        "tests/unit/routes/dashboard.test.ts",
-        `
+        [
+          "tests/unit/routes/dashboard.test.ts",
+          `
           import { describe, it, expect } from "vitest";
           import { load } from "../../src/routes/(app)/dashboard/+page.server";
           it("returns page data", async () => {
@@ -73,8 +82,9 @@ describe("pure scoring — mapping rules", () => {
             expect(data.pageData.user.id).toBe("u1");
           });
         `,
+        ],
       ],
-    ]);
+    );
 
     expect(row(result, dashboard.id).flags["load-contract"]).toBe(true);
     expect(row(result, dashboard.id).flags["failure-path"]).toBe(false);
@@ -84,28 +94,33 @@ describe("pure scoring — mapping rules", () => {
 
   it("does not credit 'request fired' or a visibility assertion", () => {
     const userApi = route("/api/user", "api");
-    const result = score([userApi], [
+    const result = score(
+      [userApi],
       [
-        "tests/e2e/routes/user/shell.spec.ts",
-        `
+        [
+          "tests/e2e/routes/user/shell.spec.ts",
+          `
           test("fires the request", async ({ page }) => {
             await page.request.post("/api/user/batch", { data: {} });
             await expect(page.getByTestId("user-page")).toBeVisible();
             expect(fetchMock).toHaveBeenCalledWith("/api/user/batch", expect.anything());
           });
         `,
+        ],
       ],
-    ]);
+    );
 
     expect(row(result, userApi.id).score).toBe(0);
   });
 
   it("credits failure-path from a 4xx status assertion", () => {
     const userApi = route("/api/[...path]", "api");
-    const result = score([userApi], [
+    const result = score(
+      [userApi],
       [
-        "tests/unit/api/user.test.ts",
-        `
+        [
+          "tests/unit/api/user.test.ts",
+          `
           it("denies anonymous", async () => {
             const res = await fetch("/api/user/me");
             expect(res.status).toBe(401);
@@ -115,8 +130,9 @@ describe("pure scoring — mapping rules", () => {
             expect([200, 403]).toContain(res.status);
           });
         `,
+        ],
       ],
-    ]);
+    );
 
     const flags = row(result, userApi.id).flags;
     expect(flags["failure-path"]).toBe(true);
@@ -126,10 +142,12 @@ describe("pure scoring — mapping rules", () => {
   it("requires mutation AND a re-read AND an assertion for persistence", () => {
     const userApi = route("/api/[...path]", "api");
     const userPage = route("/user");
-    const result = score([userApi, userPage], [
+    const result = score(
+      [userApi, userPage],
       [
-        "tests/e2e/routes/user/persist.spec.ts",
-        `
+        [
+          "tests/e2e/routes/user/persist.spec.ts",
+          `
           test("mutates then re-reads", async ({ page }) => {
             await page.request.post("/api/user/update-user-attributes", { data: { name: "x" } });
             await page.reload();
@@ -140,8 +158,9 @@ describe("pure scoring — mapping rules", () => {
             expect(toast.textContent).toBe("Saved");
           });
         `,
+        ],
       ],
-    ]);
+    );
 
     // POST block: mutation + reload → persistence.
     expect(row(result, userApi.id).flags.persistence).toBe(true);
@@ -151,10 +170,12 @@ describe("pure scoring — mapping rules", () => {
 
   it("credits concurrency for parallel requests and ignores a sequential loop", () => {
     const userApi = route("/api/[...path]", "api");
-    const result = score([userApi], [
+    const result = score(
+      [userApi],
       [
-        "tests/integration/api/user-race.test.ts",
-        `
+        [
+          "tests/integration/api/user-race.test.ts",
+          `
           it("parallel writes", async () => {
             const [a, b] = await Promise.all([
               fetch("/api/user/batch", { method: "POST" }),
@@ -164,8 +185,9 @@ describe("pure scoring — mapping rules", () => {
             expect(b.status).toBe(200);
           });
         `,
+        ],
       ],
-    ]);
+    );
 
     expect(row(result, userApi.id).flags.concurrency).toBe(true);
   });
@@ -173,18 +195,21 @@ describe("pure scoring — mapping rules", () => {
   it("discards a URL block that resolves to two different routes (ambiguity)", () => {
     const a = route("/config/webhooks");
     const b = route("/config/workflows");
-    const result = score([a, b], [
+    const result = score(
+      [a, b],
       [
-        "tests/e2e/routes/config/ambiguous.spec.ts",
-        `
+        [
+          "tests/e2e/routes/config/ambiguous.spec.ts",
+          `
           test("hits both", async ({ page }) => {
             await page.goto("/config/webhooks");
             await page.request.post("/config/workflows", { data: {} });
             expect(pageData.ok).toBe(true);
           });
         `,
+        ],
       ],
-    ]);
+    );
 
     expect(row(result, a.id).score).toBe(0);
     expect(row(result, b.id).score).toBe(0);
@@ -193,10 +218,12 @@ describe("pure scoring — mapping rules", () => {
   it("does not mix route facts across test blocks", () => {
     const api = route("/api/[...path]", "api");
     const page = route("/user");
-    const result = score([api, page], [
+    const result = score(
+      [api, page],
       [
-        "tests/e2e/routes/user/mixed.spec.ts",
-        `
+        [
+          "tests/e2e/routes/user/mixed.spec.ts",
+          `
           test("api contract", async () => {
             const res = await fetch("/api/user/me");
             expect(res.status).toBe(200);
@@ -207,8 +234,9 @@ describe("pure scoring — mapping rules", () => {
             await expect(page.getByTestId("user-page")).toBeVisible();
           });
         `,
+        ],
       ],
-    ]);
+    );
 
     expect(row(result, api.id).flags["load-contract"]).toBe(true);
     expect(row(result, page.id).flags["load-contract"]).toBe(false);
@@ -284,6 +312,64 @@ describe("pure scoring — helpers", () => {
   });
 });
 
+describe("pure scoring — applicability", () => {
+  it("scopes persistence and concurrency to routes that can write", () => {
+    expect(applicableClasses("api", "export const GET = async () => {};")).toEqual([
+      "load-contract",
+      "failure-path",
+      "concurrency",
+    ]);
+    expect(applicableClasses("api", "export const POST = async () => {};")).toEqual([
+      "load-contract",
+      "failure-path",
+      "persistence",
+      "concurrency",
+    ]);
+    expect(applicableClasses("page", "export const load = async () => {};")).toEqual([
+      "load-contract",
+      "failure-path",
+    ]);
+    expect(applicableClasses("page", "export const actions = {};")).toEqual([
+      "load-contract",
+      "failure-path",
+      "persistence",
+      "concurrency",
+    ]);
+  });
+
+  it("scores against the applicable cells only", () => {
+    const page: RouteEntry = {
+      ...route("/dashboard"),
+      applicable: ["load-contract", "failure-path"],
+    };
+    const api: RouteEntry = {
+      ...route("/api/[...path]", "api"),
+      applicable: [...BEHAVIOUR_CLASSES],
+    };
+    const result = score(
+      [page, api],
+      [
+        [
+          "tests/unit/routes/dashboard.test.ts",
+          `
+          import { load } from "../../src/routes/(app)/dashboard/+page.server";
+          it("returns page data", async () => {
+            const data = await load({ locals: {} });
+            expect(data.pageData.user.id).toBe("u1");
+          });
+        `,
+        ],
+      ],
+    );
+
+    // 2 + 4 applicable cells; only the referenced page's load contract is covered.
+    expect(result.totals.cells).toBe(6);
+    expect(result.totals.covered).toBe(1);
+    expect(row(result, page.id).score).toBe(0.5);
+    expect(row(result, api.id).score).toBe(0);
+  });
+});
+
 describe("repo floor", () => {
   const routes = discoverRoutes(ROOT);
   const testFiles = discoverTestFiles(ROOT);
@@ -297,7 +383,12 @@ describe("repo floor", () => {
   });
 
   it("keeps route-behaviour coverage at or above the recorded floor", () => {
-    expect(result.totals.cells).toBe(routes.length * BEHAVIOUR_CLASSES.length);
+    const applicableCells = routes.reduce(
+      (sum, entry) => sum + (entry.applicable ?? BEHAVIOUR_CLASSES).length,
+      0,
+    );
+    expect(result.totals.cells).toBe(applicableCells);
+    expect(result.totals.cells).toBeLessThanOrEqual(routes.length * BEHAVIOUR_CLASSES.length);
     expect(result.score).toBeGreaterThanOrEqual(SCORE_FLOOR);
     expect(result.score).toBeLessThanOrEqual(100);
   });

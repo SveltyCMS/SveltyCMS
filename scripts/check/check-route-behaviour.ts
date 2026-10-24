@@ -110,6 +110,11 @@ export interface RouteEntry {
   /** URL pattern for reporting, e.g. `/config/webhooks`, `/api/[...path]`. */
   url: string;
   segments: RouteSegment[];
+  /**
+   * Behaviour classes that can meaningfully apply to this route.
+   * Omitted means all four (synthetic routes in unit tests).
+   */
+  applicable?: BehaviourClass[];
 }
 
 export interface TestFile {
@@ -123,6 +128,8 @@ export interface RouteBehaviourRow {
   file: string;
   url: string;
   flags: BehaviourFlags;
+  /** Classes the route is scored against (`flags` outside this set are ignored). */
+  applicable: BehaviourClass[];
   score: number;
   /** Human-readable evidence, e.g. `load-contract←tests/unit/routes/dashboard-page-server.test.ts`. */
   evidence: Record<BehaviourClass, string[]>;
@@ -232,19 +239,60 @@ function toSegment(raw: string): RouteSegment {
   return { kind: "static", raw };
 }
 
-function buildRoute(id: string, file: string, kind: RouteKind): RouteEntry {
+/** A route that can write: an endpoint mutation verb or a page form action. */
+const API_MUTATION_RE = /export\s+const\s+(?:POST|PUT|PATCH|DELETE)\b/;
+const PAGE_ACTIONS_RE = /export\s+const\s+actions\b/;
+
+/**
+ * Endpoints that sign/transform a request but persist nothing: `persistence`
+ * (mutate → re-read) has no meaning for them. Explicit and reviewable rather
+ * than inferred, so a real write endpoint cannot quietly drop the cell.
+ */
+const STATELESS_API_ROUTES = new Set(["src/routes/api/preview/authorize"]);
+
+/**
+ * Which classes can a route fail at?
+ *
+ * Every route answers a load contract and can refuse (401/403/404/redirect).
+ * `persistence` only means something where the route can write, and
+ * `concurrency` only where parallel requests share mutable state — a
+ * redirect stub scored 0/4 on both is noise, not a blind spot.
+ */
+export function applicableClasses(kind: RouteKind, source: string): BehaviourClass[] {
+  const canWrite = (kind === "api" ? API_MUTATION_RE : PAGE_ACTIONS_RE).test(source);
+  const classes: BehaviourClass[] = ["load-contract", "failure-path"];
+  if (canWrite) classes.push("persistence");
+  if (kind === "api" || canWrite) classes.push("concurrency");
+  return classes;
+}
+
+function buildRoute(id: string, file: string, kind: RouteKind, rootDir: string = ROOT): RouteEntry {
   const routePath = id.slice("src/routes".length);
   const segments = routePath
     .split("/")
     .filter(Boolean)
     .filter((seg) => !(seg.startsWith("(") && seg.endsWith(")")))
     .map(toSegment);
+
+  let source = "";
+  try {
+    source = readFileSync(join(rootDir, file), "utf8");
+  } catch {
+    // Unreadable route: keep the full four-class contract.
+  }
+
+  let applicable = source ? applicableClasses(kind, source) : undefined;
+  if (applicable && STATELESS_API_ROUTES.has(id)) {
+    applicable = applicable.filter((cls) => cls !== "persistence");
+  }
+
   return {
     id,
     kind,
     file,
     url: `/${segments.map((s) => s.raw).join("/")}`,
     segments,
+    ...(applicable ? { applicable } : {}),
   };
 }
 
@@ -258,7 +306,7 @@ export function discoverRoutes(rootDir: string = ROOT): RouteEntry[] {
   const walk = (dir: string, boundary: string, kind: RouteKind) => {
     const rel = toPosix(relative(rootDir, dir));
     if (existsSync(join(dir, boundary))) {
-      found.push(buildRoute(rel, `${rel}/${boundary}`, kind));
+      found.push(buildRoute(rel, `${rel}/${boundary}`, kind, rootDir));
     }
     for (const name of readDirSafe(dir)) {
       const full = join(dir, name);
@@ -492,7 +540,8 @@ const ASSET_RE =
   /\.(?:png|jpe?g|gif|svg|webp|avif|ico|css|js|mjs|cjs|json|map|woff2?|ttf|otf|eot|mp4|webm|pdf|txt|xml|wasm)$/i;
 
 /** Non-route prefixes (Vite internals, static assets). */
-const NON_ROUTE_PREFIX_RE = /^\/(?:src|_app|node_modules|static|assets|images|img|fonts|@|\.[^/]+)\//;
+const NON_ROUTE_PREFIX_RE =
+  /^\/(?:src|_app|node_modules|static|assets|images|img|fonts|@|\.[^/]+)\//;
 
 /**
  * A literal only counts when it is used in a navigation/request position
@@ -519,8 +568,9 @@ export function extractStringConstants(source: string): Map<string, string> {
 
 /** Substitute `${NAME}` for known same-file string constants. */
 function resolveInterpolations(raw: string, constants: Map<string, string>): string {
-  return raw.replace(/\$\{([A-Za-z_$][\w$]*)\}/g, (whole, name: string) =>
-    constants.get(name) ?? whole,
+  return raw.replace(
+    /\$\{([A-Za-z_$][\w$]*)\}/g,
+    (whole, name: string) => constants.get(name) ?? whole,
   );
 }
 
@@ -614,9 +664,7 @@ export function hasFailureSignal(snippet: string): boolean {
     /\.toThrow\b/,
     new RegExp(String.raw`\.to(?:Be|Equal|StrictEqual)\(\s*${STATUS_4XX_5XX}\b`),
     new RegExp(String.raw`\.toContain\(\s*${STATUS_4XX_5XX}\b`),
-    new RegExp(
-      String.raw`\[[^\]]*\b${STATUS_4XX_5XX}\b[^\]]*\][^;]{0,80}?\.toContain\s*\(`,
-    ),
+    new RegExp(String.raw`\[[^\]]*\b${STATUS_4XX_5XX}\b[^\]]*\][^;]{0,80}?\.toContain\s*\(`),
     /toBeGreaterThanOrEqual\(\s*400\b/,
     /expect\s*\([^;]{0,200}(?:forbidden|unauthori[sz]ed|access denied|not allowed|invalid|blocked|rejected|failure|error)/i,
     /expect\s*\([^;]{0,140}\b(?:success|ok)\b[^;]{0,60}\)\s*\.to(?:Be|Equal)\(\s*false\s*\)/,
@@ -734,6 +782,7 @@ export function scoreRouteBehaviour({
 
   const rows: RouteBehaviourRow[] = routes.map((route) => {
     const blocks = evidence.get(route.id) ?? [];
+    const applicable = route.applicable ?? [...BEHAVIOUR_CLASSES];
     const flags: BehaviourFlags = {
       "load-contract": false,
       "failure-path": false,
@@ -756,30 +805,32 @@ export function scoreRouteBehaviour({
       }
     }
 
-    const covered = BEHAVIOUR_CLASSES.filter((cls) => flags[cls]).length;
+    const covered = applicable.filter((cls) => flags[cls]).length;
     return {
       id: route.id,
       kind: route.kind,
       file: route.file,
       url: route.url,
       flags,
-      score: covered / BEHAVIOUR_CLASSES.length,
+      applicable,
+      score: applicable.length === 0 ? 0 : covered / applicable.length,
       evidence: ev,
     };
   });
 
-  const totalCells = rows.length * BEHAVIOUR_CLASSES.length;
+  const totalCells = rows.reduce((sum, row) => sum + row.applicable.length, 0);
   const coveredCells = rows.reduce(
-    (sum, row) => sum + BEHAVIOUR_CLASSES.filter((cls) => row.flags[cls]).length,
+    (sum, row) => sum + row.applicable.filter((cls) => row.flags[cls]).length,
     0,
   );
 
   const perClass = {} as RouteBehaviourResult["perClass"];
   for (const cls of BEHAVIOUR_CLASSES) {
-    const covered = rows.filter((row) => row.flags[cls]).length;
+    const applicableRows = rows.filter((row) => row.applicable.includes(cls));
+    const covered = applicableRows.filter((row) => row.flags[cls]).length;
     perClass[cls] = {
       covered,
-      percent: rows.length === 0 ? 0 : round1((covered / rows.length) * 100),
+      percent: applicableRows.length === 0 ? 0 : round1((covered / applicableRows.length) * 100),
     };
   }
 
@@ -791,7 +842,9 @@ export function scoreRouteBehaviour({
     totals: { routes: rows.length, cells: totalCells, covered: coveredCells },
     score,
     perClass,
-    zeroRoutes: rows.filter((row) => row.score === 0).map((row) => row.id),
+    zeroRoutes: rows
+      .filter((row) => row.applicable.filter((cls) => row.flags[cls]).length === 0)
+      .map((row) => row.id),
   };
 }
 
@@ -852,23 +905,21 @@ export function loadLocales(rootDir: string = ROOT): string[] {
 
 const FLAG_ORDER: BehaviourClass[] = [...BEHAVIOUR_CLASSES];
 
-function flagGlyph(value: boolean): string {
+function flagGlyph(value: boolean, applicable: boolean): string {
+  if (!applicable) return "–";
   return value ? "✓" : "·";
 }
 
 export function formatTable(result: RouteBehaviourResult): string {
-  const header = [
-    "load",
-    "fail",
-    "pers",
-    "conc",
-  ];
+  const header = ["load", "fail", "pers", "conc"];
   const rows = result.routes
     .slice()
     .sort((a, b) => a.score - b.score || a.url.localeCompare(b.url))
     .map((row) => {
-      const flags = FLAG_ORDER.map((cls) => flagGlyph(row.flags[cls])).join("  ");
-      const score = `${row.score * 4}/4`;
+      const flags = FLAG_ORDER.map((cls) =>
+        flagGlyph(row.flags[cls], row.applicable.includes(cls)),
+      ).join("  ");
+      const score = `${row.applicable.filter((cls) => row.flags[cls]).length}/${row.applicable.length}`;
       return `${row.url.padEnd(46)} ${flags.padEnd(24)} ${score.padStart(5)}  ${row.id}`;
     });
 
@@ -885,10 +936,8 @@ export function formatTable(result: RouteBehaviourResult): string {
     `${"URL".padEnd(46)} ${header.map((h) => h.padEnd(4)).join("  ")} score  route`,
     ...rows,
     "",
-    `Routes with 0/4: ${result.zeroRoutes.length}`,
-    ...worst
-      .filter((row) => row.score < 1)
-      .map((row) => `  - ${row.url} (${row.file})`),
+    `Routes below full applicable coverage: ${result.routes.filter((row) => row.score < 1).length}`,
+    ...worst.filter((row) => row.score < 1).map((row) => `  - ${row.url} (${row.file})`),
   ];
 
   return summary.join("\n");
@@ -909,6 +958,7 @@ export function formatJson(result: RouteBehaviourResult, min: number): string {
         kind: row.kind,
         file: row.file,
         flags: row.flags,
+        applicable: row.applicable,
         score: row.score,
         evidence: row.evidence,
       })),
@@ -960,9 +1010,7 @@ function main(argv: string[]): number {
     process.stdout.write(`${formatJson(result, options.min)}\n`);
   } else {
     process.stdout.write(`${formatTable(result)}\n`);
-    process.stdout.write(
-      `\nScanned ${testFiles.length} test files for ${routes.length} routes.\n`,
-    );
+    process.stdout.write(`\nScanned ${testFiles.length} test files for ${routes.length} routes.\n`);
     if (options.check) {
       process.stdout.write(
         result.score >= options.min
