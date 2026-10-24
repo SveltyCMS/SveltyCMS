@@ -185,6 +185,9 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
       params,
       request: originalRequest,
       locals,
-    } as any);
+      // handleApiError logs `url.pathname` for every status; a partial event
+      // without it throws a TypeError that masks the mapped 401/403/404.
+      url: new URL(originalRequest.url),
+    } as unknown as Parameters<typeof handleApiError>[1]);
   }
 };
