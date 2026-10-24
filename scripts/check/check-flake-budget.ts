@@ -22,14 +22,14 @@
 import { existsSync, readdirSync, readFileSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 
-interface Totals {
+export interface Totals {
   passed: number;
   failed: number;
   flaky: number;
   skipped: number;
 }
 
-interface Budget {
+export interface Budget {
   maxFlaky: number;
   maxFlakeRate: number;
 }
@@ -109,7 +109,7 @@ function writeSummary(md: string): void {
   console.log(md);
 }
 
-function evaluate(totals: Totals, budget: Budget): { ok: boolean; reasons: string[] } {
+export function evaluate(totals: Totals, budget: Budget): { ok: boolean; reasons: string[] } {
   const executed = totals.passed + totals.failed;
   const rate = executed > 0 ? (totals.flaky / executed) * 100 : 0;
   const reasons: string[] = [];
@@ -117,9 +117,11 @@ function evaluate(totals: Totals, budget: Budget): { ok: boolean; reasons: strin
   if (totals.flaky > budget.maxFlaky) {
     reasons.push(`flaky ${totals.flaky} > budget ${budget.maxFlaky}`);
   }
-  // A rate is only meaningful once the suite has enough cases; small shards
-  // would otherwise fail on a single retry.
-  if (executed >= 20 && rate > budget.maxFlakeRate) {
+  // A single retry is governed by maxFlaky; the rate adds signal only when a
+  // shard retries at least twice. Without that guard a 25-test shard failed on
+  // 1/25 = 4 % > 3 %, contradicting `--max-flaky=2` (runs 40079196911,
+  // 40081783303, 40075323360). Large shards still fail a high proportional rate.
+  if (totals.flaky > 1 && executed >= 20 && rate > budget.maxFlakeRate) {
     reasons.push(`flake rate ${rate.toFixed(2)}% > budget ${budget.maxFlakeRate}%`);
   }
 
@@ -196,4 +198,6 @@ function main(): number {
   return 0;
 }
 
-process.exit(main());
+if (import.meta.main) {
+  process.exit(main());
+}

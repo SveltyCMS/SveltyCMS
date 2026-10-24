@@ -108,12 +108,13 @@ function assertBuildIncludesAdapter(db: (typeof VALID_DBS)[number]): boolean {
   return false;
 }
 
-/** Push runs fail on drift so the author is notified; PRs only warn. */
+/** Absolute budgets always fail; relative drift fails on main / merge_group and warns on next / PRs. */
 function resolveGatePolicy(): GatePolicy {
   const raw = process.env.BENCHMARK_GATE_POLICY?.toLowerCase();
   if (raw === "fail" || raw === "warn") return raw;
+  const ref = process.env.GITHUB_REF;
   const event = process.env.GITHUB_EVENT_NAME;
-  return event && event !== "pull_request" ? "fail" : "warn";
+  return ref === "refs/heads/main" || event === "merge_group" ? "fail" : "warn";
 }
 
 async function runBenchmarksForDb(db: (typeof VALID_DBS)[number]): Promise<boolean> {

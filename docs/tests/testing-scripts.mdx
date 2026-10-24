@@ -63,14 +63,14 @@ scripts/
 ## Git Hooks
 
 > [!IMPORTANT]
-> **Local hooks are opt-in** (owner decision 2026-10-23). `git commit` / `git push` return immediately and **GitHub Actions is the gate**. The steps below run only with `SVELTY_LOCAL_GATES=1`:
+> **Local hooks are enforced** (owner decision 2026-10-24). A commit only lands when format/lint/typecheck, the unit suite and the component interaction suite pass; a push re-runs the CI Unit job (coverage + components + mutation), the build, SQLite integration, DB parity when adapter code changed, and the browser gate. There is no opt-out environment variable.
 >
 > ```bash
-> SVELTY_LOCAL_GATES=1 git commit -m "…"   # full pre-commit
-> SVELTY_LOCAL_GATES=1 git push             # full pre-push
+> bun run git commit -m "…"   # ~3–4 min
+> bun run git push            # ~8–10 min
 > ```
 >
-> This is why a green commit is not evidence of a green CI run.
+> The earlier opt-in policy (2026-10-23) was reverted after two green-local/red-CI Unit runs; the hooks now catch what the CI reporter caught.
 
 ### `.githooks/pre-commit` — Format → Lint → Unit (~40s)
 

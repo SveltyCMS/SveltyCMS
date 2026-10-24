@@ -260,29 +260,35 @@ jobs:
               echo "::group::oxlint"
               bun run lint:ci
               echo "::endgroup::"
-              echo "::group::bun audit"
-              timeout 60s bun audit --severity=high > bun-audit.log 2>&1 || true
-              cat bun-audit.log
-              echo "::endgroup::"
-              echo "::group::secret misuse"
-              bun run scripts/security/scan-secret-misuse.ts --strict
-              echo "::endgroup::"
-              echo "::group::hardware tiers"
-              bun run scripts/probe/probe-hardware-tiers.ts
-              echo "::endgroup::"
-              echo "::group::lockfile-sync"
+              echo "::group::quality & policy gates (check)"
+              bun run scripts/lint/lint-design.ts
+              bun run scripts/lint/consolidate-shades.ts --check
+              bun run scripts/lint/lint-widgets.ts
+              bun run lint:e2e-hydration
+              bun run lint:trivial-assertions
+              bun run check:routes
+              bun run test:isolation
               bun run scripts/check/check-lockfile-sync.ts
-              echo "::endgroup::"
-              echo "::group::seams"
               bun run check:seams
-              echo "::endgroup::"
-              echo "::group::version:verify"
               bun run version:verify
               echo "::endgroup::"
               echo "::group::typecheck (tsc + svelte-check)"
               bun run typecheck
               echo "::endgroup::"
+              echo "::group::bun audit"
+              timeout 60s bun audit --severity=high > bun-audit.log 2>&1 || true
+              cat bun-audit.log
+              echo "::endgroup::"
+              echo "::group::risk & security scanners"
+              bun run scripts/security/scan-security-risk.ts --strict
+              bun run scripts/security/scan-secret-misuse.ts --strict --full
+              bun run scripts/security/slop-scanner.ts --strict
+              echo "::endgroup::"
+              echo "::group::hardware tiers"
+              bun run scripts/probe/probe-hardware-tiers.ts
+              echo "::endgroup::"
               echo "::group::tenant lint + unit"
+              bun run lint:tenant -- --full
               bun run test:tenant
               echo "::endgroup::"
               echo "::group::deploy backdoor probe"
@@ -363,7 +369,7 @@ jobs:
             echo "::error title=$(basename "$f")::$detail"
           done
       - name: CVE Audit Summary
-        if: matrix.task == '01-static'
+        if: matrix.task == '01-policy'
         run: |
           echo "### 🔒 Dependency Audit (CVE Check)" >> $GITHUB_STEP_SUMMARY
           echo "| Tool | Status |" >> $GITHUB_STEP_SUMMARY
@@ -603,9 +609,10 @@ jobs:
           BENCHMARK_PROFILE: "ci-fresh"
           BENCHMARK_NO_REDIS: "1"
           BENCHMARK_RECORD: "1"
-          # Fail the run on push regressions so the author is notified; PRs warn
-          # only so a noisy runner cannot block review. Absolute budgets always fail.
-          BENCHMARK_GATE_POLICY: ${{ github.event_name == 'pull_request' && 'warn' || 'fail' }}
+          # Fail the run on main / merge_group confirmed relative drift; pushes to
+          # next and PRs warn so shared-runner jitter cannot block integration.
+          # Absolute SLA budgets always fail on every branch and event.
+          BENCHMARK_GATE_POLICY: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'merge_group') && 'fail' || 'warn' }}
           TEST_API_SECRET: ${{ needs.bootstrap.outputs.test-secret }}
           UDH_PG_DATABASE: ${{ matrix.db == 'postgresql' && 'sveltycms_udh_fixture' || 'sveltycms_test' }}
         run: |
