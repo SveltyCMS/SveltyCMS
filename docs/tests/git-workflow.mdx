@@ -58,7 +58,7 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 6. **SBOM sync** — when `bun.lock` / `package.json` changed.
 
 > [!IMPORTANT]
-> **No double-run rule:** the full unit suite (including hooks security tests) runs on **pre-commit only**. Pre-push runs build + post-build verifiers + tenant + SQLite integration — do not re-run the entire unit suite on push. Focused re-run: `bun run test:security`.
+> **CI-parity unit rule:** pre-commit runs the plain unit suite; pre-push intentionally re-runs it under coverage (`test:unit:coverage`) plus `test:unit:components` and `test:mutation`. Unhandled errors and coverage thresholds only surface under the CI reporter, so this is the one deliberate double-run.
 >
 > **Live data rule:** automated local runs never use `config/private.ts` or the user database — only `private.test.ts` + isolated DB names.
 
@@ -68,15 +68,22 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 
 | Check                         | Command                                                       | Est.     |
 | :---------------------------- | :------------------------------------------------------------ | :------- |
-| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`                     | ~45–120s |
+| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`                     | ~25–120s |
 | Prod backdoor verify          | `scripts/security/verify-prod-build-backdoor.ts --mode=bench` | ~5–15s   |
-| Bundle size gate              | `scripts/check/check-bundle-size.ts`                          | ~5–15s   |
-| Quality gate                  | `bun run check`                                               | ~15–40s  |
-| Secret misuse scan            | `scripts/security/scan-secret-misuse.ts --strict`             | ~5–15s   |
-| Tenant isolation              | `bun run test:tenant`                                         | ~5–20s   |
-| SQLite integration tests      | `bun test tests/integration/`                                 | ~60–180s |
+| Bundle size gate              | `scripts/check/check-bundle-size.ts`                          | ~1s      |
+| Quality gate                  | `bun run check`                                               | ~50s     |
+| Unit coverage (CI parity)     | `bun run test:unit:coverage`                                  | ~65–130s |
+| Component interactions        | `bun run test:unit:components`                                | ~11s     |
+| Secret misuse scan            | `scripts/security/scan-secret-misuse.ts --strict --full`      | ~1–5s    |
+| Hardware tiers probe          | `scripts/probe/probe-hardware-tiers.ts`                       | ~1s      |
+| Tenant isolation              | `lint:tenant -- --full` + `test:tenant`                       | ~2–20s   |
+| Deploy backdoor probe         | `scripts/probe/probe-deploy-testing-api.ts`                   | ~30s     |
+| SQLite integration tests      | `run-integration.ts --no-build --diff`                        | ~35–180s |
+| DB parity (conditional)       | `test:parity` when adapter/service code changed               | ~1–5 min |
+| E2E browser gate              | changed-path specs + `smoke.spec.ts`, then `flake:budget`     | ~70–180s |
+| Mutation (last)               | `bun run test:mutation`                                       | ~6s      |
 
-**Full unit suite is not re-run on push.** Multi-adapter DB matrix, E2E, and benchmarks are CI-only. Docs-only pushes skip build + integration.
+**Multi-adapter DB matrix, the full 9-shard E2E matrix and benchmarks remain CI-only.** Pre-push runs the SQLite suite plus the path-mapped browser contracts, so a regression outside those paths still waits for CI. Docs-only pushes skip build + integration + browser + mutation.
 
 **Release preparation (opt-in).** `bun run git push --release` (or `--release=patch|minor|major`) arms a
 post-gate step: once the nine checks pass, `scripts/version.ts auto` derives the next SemVer version from
@@ -93,7 +100,7 @@ The manifest/SBOM lockstep is asserted read-only by `bun run version:verify`, wh
 release workflow before anything is tagged.
 
 ```bash
-bun run gate                               # pre-push gate (build + verifiers + tenant + SQLite)
+bun run gate                               # pre-push gate (build + verifiers + CI unit parity + tenant + SQLite + E2E + mutation)
 bun run gate --release                     # …then bump + commit the next SemVer version
 bun run prepush                            # same as gate
 bun run git push --release origin HEAD:next HEAD:main   # gate + release, one command

@@ -143,7 +143,7 @@ DB_TYPE=mariadb bun test --timeout 300000 tests/integration/
 
 ### 3. 4-DB Matrix (CI by default)
 
-The **4-adapter integration + bench-core matrix runs in GitHub CI** (`ci.yml` `db-tests` / `bench-core`). Local pre-push does **not** run it by default (keeps the gate fast and avoids accidental live-config misuse).
+The **4-adapter integration + bench-core matrix runs in GitHub CI** (`ci.yml` `db-tests` / `bench-core`). Local pre-push runs the SQLite suite and, when adapter/service code changed, the cross-adapter parity contracts. The full 4-DB matrix remains CI-only (keeps the default gate fast and avoids accidental live-config misuse).
 
 ```bash
 bun run gate                                           # local push gate (build + SQLite)

@@ -22,9 +22,9 @@ tags:
 
 > [!NOTE] Competitive comparisons based on publicly available documentation as of June 2026. Performance data self-measured via `bun test tests/benchmarks/`.
 
-**Last Updated:** August 6, 2026  
-**Source of Truth:** `.githooks/*` + `package.json` + GitHub Actions on the current branch/PR  
-**Core Gates:** Pre-commit (unit + `risk:audit`) → pre-push (build 4 adapters + tenant + SQLite integration) → CI multi-DB + E2E  
+**Last Updated:** October 24, 2026
+**Source of Truth:** `.githooks/*` + `package.json` + GitHub Actions on the current branch/PR
+**Core Gates:** Pre-commit (check + `risk:audit` + unit + components) → pre-push (CI unit parity + build 4 adapters + tenant + SQLite + changed-path E2E + mutation) → CI multi-DB + full E2E + bench  
 **Start here:** `bun run test:doctor` (prints the gate map and runs unit + SQLite integration)  
 **Primary Goal:** [100% three-layer completeness](./three-layer-completeness.mdx) (critical inventory, not vanity line %)  
 **Primary Safety Rule:** Local and CI tests must never use live credentials or production data  
