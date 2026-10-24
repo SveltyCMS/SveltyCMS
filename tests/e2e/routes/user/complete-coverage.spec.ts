@@ -594,11 +594,14 @@ test.describe("GDPR Privacy Data", () => {
     const refresh = page.getByRole("button", { name: /refresh active sessions/i });
     await expect(refresh).toBeVisible({ timeout: ACTION_TIMEOUT });
     await refresh.click({ timeout: ACTION_TIMEOUT });
-    // After refresh: either a list, empty state, or error alert — not a crash
+    // After refresh: either a list, empty state, or error alert — not a crash.
+    // Do not include "loading" in the text regex: the refresh button itself
+    // renders the loading label, so the union would match the button + the list
+    // and Playwright strict mode would reject it.
     await expect(
       section
         .getByRole("list", { name: /active sessions/i })
-        .or(section.getByText(/no other sessions|failed|loading/i)),
+        .or(section.getByText(/no other sessions|failed/i)),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
