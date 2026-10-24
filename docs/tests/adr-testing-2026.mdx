@@ -301,7 +301,12 @@ Rules:
 1. An interaction test must mount the component, act on real DOM (click/label/key), and
    assert the observable outcome — not just that render did not throw.
 2. Prefer `data-testid` anchors on controls the E2E suite also drives (ModalPrompt now
-   exposes `modal-prompt-input|confirm|cancel`).
+   exposes `modal-prompt-input|confirm|cancel`). A testid must be unique in the
+   rendered tree: `lint-duplicate-testids.ts` fails `bun run check` when a route
+   passes a literal testid to a component that already renders the same one
+   (Playwright strict mode resolves `getByTestId()` to 2 elements — that is how
+   the media gallery's wrapper `AdminCard` broke the Media & Dashboard shard).
+   Suppress a deliberate reuse with a `testid-allow` comment.
 3. Keep the suite fast: it must stay under ~15 s locally (19 files / 118 tests currently run in ~13 s) so pre-commit can run it on every commit.
 4. Never mock a component's own event wiring — mount it and click/keypress the real control.
 

@@ -148,6 +148,7 @@ describe("CI wiring", () => {
       "bun run format --check",
       "bun run lint:ci",
       "bun run scripts/lint/lint-design.ts",
+      "bun run scripts/lint/lint-duplicate-testids.ts",
       "bun run scripts/lint/consolidate-shades.ts --check",
       "bun run scripts/lint/lint-widgets.ts",
       "bun run lint:e2e-hydration",
