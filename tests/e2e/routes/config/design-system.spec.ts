@@ -120,12 +120,16 @@ test.describe("Design System workspace", () => {
       });
     } finally {
       // Restore the previous preference so the seeded admin stays deterministic.
+      // `expect.soft` keeps the revert non-fatal (the body assertion already ran)
+      // but records a failure, unlike a caught hard assertion.
       try {
         const select = page.getByTestId("appearance-overrides-panel").getByLabel(/^density$/i);
         if (await select.isVisible({ timeout: 2_000 }).catch(() => false)) {
           await selectOptionVerified(select, originalValue);
           await page.getByTestId("appearance-save-overrides").click();
-          await expect(page.getByText(/preferences applied/i)).toBeVisible({ timeout: 10_000 });
+          await expect
+            .soft(page.getByText(/preferences applied/i))
+            .toBeVisible({ timeout: 10_000 });
         }
       } catch (err) {
         console.warn("[design-system] density override revert failed:", err);

@@ -50,6 +50,7 @@ vi.mock("@utils/media/media-utils", () => ({
 }));
 
 import { load, actions } from "../../../src/routes/(app)/mediagallery/+page.server";
+import { dbAdapter } from "@src/databases/db";
 
 function makeEvent(locals: Record<string, unknown>, search = "") {
   return {
@@ -75,7 +76,21 @@ describe("mediagallery +page.server load", () => {
     vi.clearAllMocks();
   });
 
-  it("allows admin", async () => {
+  it("allows admin and keeps the adapter page total (F01)", async () => {
+    // F01: the loader used to replace `total` with items.length. An empty slice of
+    // a 7-row folder is exactly the shape that kept that regression green — the
+    // old assertion ended in `|| true`.
+    vi.mocked(dbAdapter.media.files.getByFolder).mockResolvedValueOnce({
+      success: true,
+      data: {
+        items: [],
+        total: 7,
+        pageSize: 100,
+        hasNextPage: true,
+        hasPreviousPage: false,
+      },
+    });
+
     const data: any = (await load(
       makeEvent({
         user: { _id: { toString: () => "u1" }, email: "a@b.co" },
@@ -84,10 +99,15 @@ describe("mediagallery +page.server load", () => {
         tenantId: "t1",
       }),
     )) as any;
-    expect(data).toBeDefined();
-    expect(Array.isArray((data as any).media) || (data as any).media === undefined || true).toBe(
-      true,
-    );
+
+    expect(data.media).toEqual([]);
+    expect(data.mediaPagination).toEqual({
+      page: 1,
+      pageSize: 100,
+      total: 7,
+      hasNextPage: true,
+      hasPreviousPage: false,
+    });
   });
 
   it("allows user with media:read", async () => {

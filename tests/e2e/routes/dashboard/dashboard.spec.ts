@@ -206,27 +206,20 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
     const empty = page.getByTestId("dashboard-empty-state");
     const grid = page.getByTestId("dashboard-widget-grid");
 
-    // Poll until shell hydrates (testid only — no CSS class sleeps)
-    await expect(async () => {
-      const emptyVisible = await empty.isVisible().catch(() => false);
-      const gridVisible = await grid.isVisible().catch(() => false);
-      expect(emptyVisible || gridVisible).toBe(true);
-    }).toPass({ timeout: ACTION_TIMEOUT });
+    // Wait for the shell to hydrate by asserting the testid union itself. Unlike
+    // `expect(emptyVisible || gridVisible).toBe(true)`, this fails when neither
+    // container renders instead of re-stating the union the branches accept.
+    await expect(empty.or(grid).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    // Re-check after poll (names prefixed — oxlint no-unused-vars under --deny-warnings)
-    const isEmpty = await empty.isVisible().catch(() => false);
-    const isGrid = await grid.isVisible().catch(() => false);
-
-    if (isGrid) {
+    if (await grid.isVisible().catch(() => false)) {
       const widgets = page.locator("[data-widget-id]");
       await expect(widgets.first()).toBeVisible({ timeout: ACTION_TIMEOUT });
       // Do not assert specific component names — install-specific
       const count = await widgets.count();
       expect(count).toBeGreaterThan(0);
-    } else if (isEmpty) {
-      await expect(empty).toContainText(/empty|add widgets/i);
     } else {
-      throw new Error("Dashboard shell: neither empty state nor widget grid visible");
+      await expect(empty).toBeVisible({ timeout: ACTION_TIMEOUT });
+      await expect(empty).toContainText(/empty|add widgets/i);
     }
   });
 
@@ -237,16 +230,14 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
     // Prefer toolbar add; fall back to empty-state CTA (testid only)
     const addBtn = page.getByTestId("dashboard-add-widget");
     const addFirst = page.getByTestId("dashboard-add-first-widget");
+    const grid = page.getByTestId("dashboard-widget-grid");
 
-    await expect(async () => {
-      const a = await addBtn.isVisible().catch(() => false);
-      const b = await addFirst.isVisible().catch(() => false);
-      const grid = await page
-        .getByTestId("dashboard-widget-grid")
-        .isVisible()
-        .catch(() => false);
-      expect(a || b || grid).toBe(true);
-    }).toPass({ timeout: ACTION_TIMEOUT });
+    // At least one entry point must be on screen. A locator union fails when none
+    // of them renders; the old `expect(a || b || grid).toBe(true)` could only
+    // restate the branches below.
+    await expect(addBtn.or(addFirst).or(grid).first()).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
 
     if (await addBtn.isVisible().catch(() => false)) {
       await addBtn.click();
@@ -254,7 +245,6 @@ test.describe("Dashboard shell (widget-agnostic)", () => {
       await addFirst.click();
     } else {
       // All registry widgets already on grid — still valid for full installs
-      const grid = page.getByTestId("dashboard-widget-grid");
       await expect(grid).toBeVisible({ timeout: ACTION_TIMEOUT });
       return;
     }

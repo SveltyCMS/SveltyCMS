@@ -96,17 +96,16 @@ describe("Settings API Security Unit Tests", () => {
       cookies: { get: vi.fn() },
     } as any;
 
-    let threw = false;
+    let response: Response | undefined;
     try {
-      await dispatcherGET(event);
+      response = await dispatcherGET(event);
     } catch (e: any) {
-      threw = true;
       // SvelteKit error() throws with status
       expect(e.status).toBe(403);
+      return;
     }
-    if (!threw) {
-      // Fallback: verify response status if it returned instead of throwing
-      expect(true).toBe(true); // Test mode may pass through
-    }
+    // Some test-mode paths return a response instead of throwing — a 200 here
+    // would mean an editor can read the settings endpoint.
+    expect(response?.status).toBe(403);
   });
 });

@@ -88,6 +88,10 @@ test.describe("Access Management shell", () => {
     await expect(modal.or(dialog).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     const roleName = `E2E Role ${Date.now().toString(36)}`;
+    const roleEscaped = roleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const roleRow = () =>
+      page.getByRole("listitem", { name: new RegExp(`role: ${roleEscaped}`, "i") });
+
     const nameInput = page
       .getByTestId("role-name-input")
       .or(page.getByLabel(/^role name$/i))
@@ -105,25 +109,10 @@ test.describe("Access Management shell", () => {
       .first()
       .click();
 
-    // Outcome over toast flash: role name appears OR toast, AND save enables
-    await expect(async () => {
-      const roleVisible = await page
-        .getByText(roleName, { exact: false })
-        .first()
-        .isVisible()
-        .catch(() => false);
-      const toastVisible = await page
-        .getByText(/role added|save to apply/i)
-        .first()
-        .isVisible()
-        .catch(() => false);
-      const saveEnabled = await page
-        .getByTestId("access-mgmt-save")
-        .first()
-        .isEnabled()
-        .catch(() => false);
-      expect(roleVisible || toastVisible || saveEnabled).toBe(true);
-    }).toPass({ timeout: ACTION_TIMEOUT });
+    // The created role must be rendered in the role list. This replaces an
+    // `row || toast || saveEnabled` union: the save button is enabled on any
+    // dirty page, so that union passed even when the role never rendered.
+    await expect(roleRow()).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Persist: the save button inside StickyActions may not reliably fire
     // its onclick under Playwright. Instead, scrape the role list from the
@@ -183,15 +172,10 @@ test.describe("Access Management shell", () => {
       200,
     );
 
-    const roleEscaped = roleName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const roleRow = () =>
-      page.getByRole("listitem", { name: new RegExp(`role: ${roleEscaped}`, "i") });
-
     try {
-      // Reload and verify. The authorization hook may not populate
-      // locals.roles in all E2E contexts, so the UI list may be empty.
-      // If the roleRow is visible, check it; otherwise rely on the
-      // already-verified API persistence above.
+      // Reload and verify the role survived. `page.data.roles` is server-loaded,
+      // so an empty list here means the save did not persist (or the page stopped
+      // serving roles) — both are real regressions, not environment noise.
       await page.reload({ waitUntil: "domcontentloaded" });
       if (page.url().includes("/login")) {
         await loginAsAdmin(page, "/config/access-management");
@@ -200,46 +184,15 @@ test.describe("Access Management shell", () => {
       await dismissCookieBannerIfPresent(page);
       await page.getByTestId("access-tab-roles").click();
 
-      try {
-        await expect(roleRow()).toBeVisible({ timeout: 5_000 });
-        // Role is visible in the UI — clean up via the UI flow.
-        await roleRow().locator("label[for]").first().click();
-        await page.getByTestId("access-delete-roles").click();
-        const saveBtnAfterDelete = page.getByTestId("access-mgmt-save").first();
-        await expect(saveBtnAfterDelete).toBeEnabled({ timeout: ACTION_TIMEOUT });
-        await saveBtnAfterDelete.click();
-        await expect(saveBtnAfterDelete).toBeDisabled({ timeout: ACTION_TIMEOUT });
-      } catch {
-        // UI list is empty — clean up by removing the role via the API.
-        // Re-save only the admin role, which deletes all others.
-        await page.evaluate(async () => {
-          const csrf = decodeURIComponent(
-            document.cookie
-              .split("; ")
-              .find((c) => c.startsWith("__Host-csrf_token=") || c.startsWith("csrf_token="))
-              ?.split("=")[1] ?? "",
-          );
-          await fetch("/api/user/update-roles", {
-            method: "POST",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-              "X-CSRF-Token": csrf,
-            },
-            body: JSON.stringify([
-              {
-                _id: "admin",
-                name: "Administrator",
-                description: "",
-                isAdmin: true,
-                permissions: [] as string[],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-              },
-            ]),
-          });
-        });
-      }
+      await expect(roleRow()).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+      // Clean up through the UI flow.
+      await roleRow().locator("label[for]").first().click();
+      await page.getByTestId("access-delete-roles").click();
+      const saveBtnAfterDelete = page.getByTestId("access-mgmt-save").first();
+      await expect(saveBtnAfterDelete).toBeEnabled({ timeout: ACTION_TIMEOUT });
+      await saveBtnAfterDelete.click();
+      await expect(saveBtnAfterDelete).toBeDisabled({ timeout: ACTION_TIMEOUT });
     } finally {
       // If the journey failed before cleanup, try to clean up via the UI.
       if (page.url().includes("/login")) {

@@ -114,7 +114,9 @@ describe("Tenant isolation (A vs B) — authenticated HTTP", () => {
   it("health accepts x-test-tenant-id for A and B", async () => {
     for (const t of [TENANT_A, TENANT_B]) {
       const res = await fetch(`${API}/api/system/health`, { headers: tenantHeaders(t) });
-      expect(res.ok || res.status === 533).toBe(true);
+      // 200 = healthy, 533 = reachable but DB not connected (api/[...path]).
+      // Anything else (401/403/404) means the tenant header was rejected.
+      expect([200, 533], `health for ${t}`).toContain(res.status);
     }
   });
 
