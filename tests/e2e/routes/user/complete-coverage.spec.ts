@@ -164,11 +164,14 @@ test.describe("User Editing", () => {
   });
 
   test("password change workflow opens modal with current password field", async ({ page }) => {
-    // Click the Edit User Settings button
-    await page.getByRole("button", { name: /Edit User Settings/i }).click();
-
     const editDialog = page.getByRole("dialog", { name: /Edit User Data/i });
-    await expect(editDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Retry the open until the dialog exists: a click that lands before Svelte
+    // hydrates is a silent no-op (this shard failed its flake budget on that gap).
+    await expect(async () => {
+      if (await editDialog.isVisible().catch(() => false)) return;
+      await page.getByRole("button", { name: /Edit User Settings/i }).click({ timeout: 2_000 });
+      await expect(editDialog).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
 
     // Current Password field should be visible (own profile requires it)
     const currentPasswordInput = editDialog.locator('input[name="current_password"]');
