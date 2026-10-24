@@ -114,8 +114,8 @@ jobs:
               CHANGED="$(git diff --name-only "$BASE" "$AFTER" 2>/dev/null)" || CHANGED="__DIFF_FAILED__"
               if printf '%s' "$CHANGED" | grep -q '__DIFF_FAILED__'; then
                 TIER=full; REASON="diff failed — fail-safe"
-              elif printf '%s\n' "$CHANGED" | grep -qE '^(src/databases/|src/hooks/|src/routes/api/|src/services/sdk/|src/databases/auth/|tests/integration/)'; then
-                TIER=full; REASON="backend/adapter paths changed"
+              elif printf '%s\n' "$CHANGED" | grep -qE '^(src/databases/|src/hooks/|src/routes/api/|src/services/sdk/|src/databases/auth/|tests/integration/|tests/e2e/)'; then
+                TIER=full; REASON="backend/adapter or E2E contract paths changed"
               elif printf '%s\n' "$CHANGED" | grep -qE '^(package\.json|bun\.lock|vite\.config\.ts|svelte\.config\.js|\.github/workflows/ci\.yml|src/utils/optimistic-lock\.ts)$'; then
                 TIER=full; REASON="dependencies or CI wiring changed"
               fi
