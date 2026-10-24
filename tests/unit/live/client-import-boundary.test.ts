@@ -165,20 +165,27 @@ describe("exhaustive client-reachable import boundary", () => {
     expect(files.length).toBeGreaterThan(50);
   });
 
-  it("no client-reachable module statically imports Node cores / ollama / event-bus / ai-service", () => {
-    const all: string[] = [];
-    for (const f of files) {
-      all.push(...analyzeFile(f));
-    }
-    if (all.length > 0) {
-      expect.fail(
-        `Forbidden static imports in client-reachable modules (${all.length}):\n` +
-          all
-            .slice(0, 40)
-            .map((v) => `  - ${v}`)
-            .join("\n") +
-          (all.length > 40 ? `\n  … +${all.length - 40} more` : ""),
-      );
-    }
-  });
+  // Walks the whole client-reachable import graph (~38 s under v8 coverage
+  // instrumentation, which is close to the 30 s default). Budget it explicitly:
+  // a load-dependent timeout here reds the coverage gate without a real defect.
+  it(
+    "no client-reachable module statically imports Node cores / ollama / event-bus / ai-service",
+    { timeout: 180_000 },
+    () => {
+      const all: string[] = [];
+      for (const f of files) {
+        all.push(...analyzeFile(f));
+      }
+      if (all.length > 0) {
+        expect.fail(
+          `Forbidden static imports in client-reachable modules (${all.length}):\n` +
+            all
+              .slice(0, 40)
+              .map((v) => `  - ${v}`)
+              .join("\n") +
+            (all.length > 40 ? `\n  … +${all.length - 40} more` : ""),
+        );
+      }
+    },
+  );
 });
