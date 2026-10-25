@@ -30,6 +30,10 @@ async function goAccess(page: Page) {
   await waitForAdminShell(page, ACTION_TIMEOUT);
   await expect(page.getByTestId("page-title")).toContainText(/access management/i);
   await expect(page.getByTestId("access-mgmt-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  // The tab buttons are SSR HTML until hydration attaches their click handlers.
+  await page
+    .locator("html[data-hydrated='true']")
+    .waitFor({ state: "attached", timeout: ACTION_TIMEOUT });
 }
 
 // Tests are independent (read-only shells + role journey with unique names) — no

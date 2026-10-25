@@ -22,6 +22,9 @@ async function openWorkspace(page: Page, tab: string): Promise<void> {
   }
   await expect(page).toHaveURL(/\/config\/design-system/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
+  // The panel controls are SSR HTML until hydration; interactions before that
+  // are silently dropped (`data-hydrated` is the project's ready signal).
+  await page.locator("html[data-hydrated='true']").waitFor({ state: "attached", timeout: 15_000 });
 }
 
 test.describe("Design System workspace", () => {

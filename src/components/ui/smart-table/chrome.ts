@@ -17,7 +17,7 @@ export const SMART_TABLE =
 
 /** Sticky header row bar */
 export const SMART_TABLE_THEAD =
-  "sticky top-0 z-10 border-b border-surface-500/30 bg-secondary-500/10 text-tertiary-500 dark:border-surface-500/40 dark:bg-surface-900 dark:text-primary-500";
+  "sticky top-0 z-10 border-b border-surface-500/30 bg-(--admin-bg-card) text-tertiary-600 dark:border-surface-500/40 dark:bg-surface-900 dark:text-primary-500";
 
 /** Header cell label button row */
 export const SMART_TABLE_TH =

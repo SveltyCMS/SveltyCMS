@@ -97,6 +97,11 @@ test.describe("Automations (Testing 2026)", () => {
     await expect(page.getByTestId("automation-editor")).toBeVisible({
       timeout: ACTION_TIMEOUT,
     });
+    // A click/fill against SSR HTML is a silent no-op; wait for hydration before
+    // typing the name (otherwise the binding resets and the hint stays on "name").
+    await page
+      .locator("html[data-hydrated='true']")
+      .waitFor({ state: "attached", timeout: ACTION_TIMEOUT });
 
     const stamp = Date.now().toString(36);
     const name = `E2E Golden ${stamp}`;
