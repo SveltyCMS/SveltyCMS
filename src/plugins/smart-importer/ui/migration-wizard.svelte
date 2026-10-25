@@ -26,6 +26,8 @@
 	import { fade, slide } from 'svelte/transition';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import SystemTooltip from '@components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Progress from '@components/ui/progress.svelte';
@@ -84,6 +86,7 @@
 		shopify: 'Shopify (JSON)',
 		storyblok: 'Storyblok (JSON)',
 		prismic: 'Prismic (JSON)',
+		csv: 'CSV / Spreadsheet',
 		unknown: 'Unknown'
 	};
 
@@ -376,9 +379,29 @@
 		shopify: 'mdi:shopping',
 		storyblok: 'mdi:view-dashboard',
 		prismic: 'mdi:file-code',
+		csv: 'mdi:table-large',
 		unknown: 'mdi:help-circle-outline'
 	};
 </script>
+
+{#snippet helpTrigger(text: string, label: string)}
+	<!-- Name the trigger "Help: …" so it never duplicates the field's own accessible name.
+	     `tabindex={0}` makes the `?` itself the keyboard stop (the wrapper is skipped
+	     once the tooltip has a focusable child). -->
+	<SystemTooltip title={text}>
+		<HelpIcon ariaLabel={`Help: ${label}`} tabindex={0} />
+	</SystemTooltip>
+{/snippet}
+
+{#snippet targetCollectionLabel()}
+	<span class="inline-flex items-center gap-1.5">
+		Target Collection
+		{@render helpTrigger(
+			'The destination collection. Keep the suggested slug or type an existing collection. A new collection is scaffolded from the mapped fields when it does not exist.',
+			'Target Collection'
+		)}
+	</span>
+{/snippet}
 
 <AdminPageShell
 	title="Smart AI-Driven Migration Pro"
@@ -391,6 +414,62 @@
 		class="border border-surface-500/30 bg-white p-6 shadow-xs dark:border-surface-500/40 dark:bg-surface-900/20"
 	>
 		<div class="space-y-6">
+			<!-- First-run orientation: the five steps, where to get an export, and the size path for large files. -->
+			<details
+				class="group rounded border border-tertiary-500/30 bg-tertiary-500/10 dark:border-primary-500/30 dark:bg-primary-500/10"
+				open
+				data-testid="migration-how-it-works"
+			>
+				<summary
+					class="flex cursor-pointer list-none items-center gap-2 p-4 text-sm font-semibold text-(--admin-text-body) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--admin-focus-ring)"
+				>
+					<iconify-icon
+						icon="mdi:lightbulb-on-outline"
+						width="20"
+						class="shrink-0 text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+					How migration works
+					<iconify-icon
+						icon="mdi:chevron-down"
+						width="18"
+						class="ms-auto shrink-0 opacity-60 transition-transform group-open:rotate-180"
+					></iconify-icon>
+				</summary>
+				<div
+					class="space-y-3 border-t border-tertiary-500/30 px-4 pb-4 pt-4 dark:border-primary-500/30"
+				>
+					<p class="text-sm text-(--admin-text-body)">
+						Upload one export file from your current CMS. The wizard detects the platform, proposes
+						a field mapping, validates without writing, then imports with live progress. Your source
+						file is never modified, and nothing is written before step 4.
+					</p>
+					<ol class="grid gap-2 text-xs sm:grid-cols-5">
+						{#each [{ title: 'Upload', text: 'Pick one export file; the format is detected automatically.' }, { title: 'Map fields', text: 'Review the suggested source → target fields.' }, { title: 'Validate', text: 'Dry-run every row without writing.' }, { title: 'Import', text: 'Write the drafts with live progress.' }, { title: 'Review', text: 'Check the result and roll back if needed.' }] as item, index (item.title)}
+							<li class="rounded border border-tertiary-500/30 bg-(--admin-bg-card) p-2">
+								<span class="block font-semibold text-(--admin-text-body)"
+									>{index + 1}. {item.title}</span
+								>
+								<span class="mt-0.5 block text-(--admin-text-muted)">{item.text}</span>
+							</li>
+						{/each}
+					</ol>
+					<div class="space-y-1 text-xs text-(--admin-text-muted)">
+						<p>
+							<strong class="text-(--admin-text-body)">Need an export?</strong> WordPress → Tools → Export
+							(WXR). Strapi, Directus, Contentful → JSON export. Shopify → product CSV. Generic tables
+							→ CSV or TSV with a header row.
+						</p>
+						<p>
+							<strong class="text-(--admin-text-body)">Large file?</strong> Browser uploads are
+							capped by the server request limit (15 MB minimum). For bigger exports use the CLI:
+							<code class="rounded bg-surface-500/10 px-1 py-0.5 font-mono"
+								>bun run migrate import --file=export.csv --format=csv --collection=posts</code
+							>
+						</p>
+					</div>
+				</div>
+			</details>
+
 			<!-- Step Indicators -->
 			<div
 				class="flex items-center justify-center gap-2 text-sm"
@@ -468,7 +547,7 @@
 									Drop your CMS export file here
 								</p>
 								<p class="mt-1 text-sm text-surface-500">
-									36+ platforms: WXR, JSON, YAML, CSV, NDJSON
+									36+ platforms: WXR, JSON, YAML, CSV, TSV, NDJSON
 								</p>
 							</div>
 							<Button variant="secondary" size="sm" rounded={true} aria-label="Browse files"
@@ -478,12 +557,23 @@
 						<input
 							id="migration-file-input"
 							type="file"
-							accept=".xml,.wxr,.json,.yaml,.yml,.csv,.ndjson"
+							accept=".xml,.wxr,.json,.yaml,.yml,.csv,.tsv,.ndjson"
 							class="hidden"
 							onchange={handleFileInput}
 							aria-label="Select a CMS export file to import"
 						/>
 					</div>
+
+					<!-- Outside the clickable drop zone so the tooltip trigger does not open the picker. -->
+					<p
+						class="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs text-surface-500"
+					>
+						Accepted: WordPress WXR, JSON, YAML, CSV/TSV, NDJSON
+						{@render helpTrigger(
+							'Format and field mapping are detected from the file. A generic CSV maps its header row and keeps unknown columns as their own fields.',
+							'Supported files'
+						)}
+					</p>
 				{:else}
 					<!-- File Detected -->
 					<div
@@ -524,25 +614,52 @@
 								</div>
 							</div>
 							<Button
-								variant="outline"
+								variant="transparent"
 								type="button"
+								rounded
 								onclick={clearFile}
-								class="p-0! min-w-0 rounded-full"
+								class="size-9 shrink-0 p-0! min-w-0 text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-body)"
 								aria-label="Remove file"
+								data-testid="migration-file-remove"
 							>
 								<iconify-icon icon="mdi:close" width="20" aria-hidden="true"></iconify-icon>
 							</Button>
 						</div>
 
+						<!-- Large-file guidance: the API body guard rejects anything above the
+						     hardware-derived limit, so name the CLI path before a failed upload. -->
+						{#if file.size > 15 * 1024 * 1024}
+							<p
+								class="mt-4 flex items-start gap-2 rounded border border-warning-500/30 bg-warning-500/10 p-3 text-xs text-warning-500"
+								data-testid="migration-large-file-hint"
+							>
+								<iconify-icon icon="mdi:alert-outline" width="16" class="mt-0.5 shrink-0"
+								></iconify-icon>
+								<span
+									>This file may exceed the browser upload limit (15 MB minimum). If detection
+									fails, use the CLI: <code class="font-mono"
+										>bun run migrate import --file={file.name} --format=csv --collection={targetCollection ||
+											'imported_data'}</code
+									>.</span
+								>
+							</p>
+						{/if}
+
 						<!-- Content Type Selection -->
 						{#if availableContentTypes.length > 1}
 							<div class="mt-5 border-t border-surface-500/30 pt-4 dark:border-surface-500/40">
 								<div class="flex items-center justify-between mb-2">
-									<h4 class="text-sm font-semibold text-surface-600 dark:text-surface-400">
+									<h4
+										class="flex items-center gap-1.5 text-sm font-semibold text-surface-600 dark:text-surface-400"
+									>
 										Content Types Found
+										{@render helpTrigger(
+											'Only the selected content types are imported. Deselect a type to skip it without changing the source file.',
+											'Content types'
+										)}
 									</h4>
 									<button
-										aria-label="Start migration"
+										aria-label="Toggle all content types"
 										onclick={toggleAllContentTypes}
 										class="text-xs text-tertiary-500 hover:underline"
 									>
@@ -571,13 +688,25 @@
 						<div class="mt-4">
 							<Input
 								label="Target Collection"
+								labelSnippet={targetCollectionLabel}
 								type="text"
 								placeholder="Auto-detected from source content type (e.g. post, page)"
 								bind:value={targetCollection}
 							/>
 						</div>
 
-						<div class="mt-5 flex justify-end">
+						<div
+							class="mt-5 flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:justify-end"
+						>
+							{#if fieldMappings.length === 0}
+								<p
+									class="text-xs text-(--admin-text-muted) sm:me-2"
+									data-testid="migration-mapping-missing"
+								>
+									No fields detected yet. Check that the file has a header row, or use the CLI for
+									large exports.
+								</p>
+							{/if}
 							<Button
 								variant="primary"
 								onclick={() => goToStep(2)}
@@ -596,7 +725,15 @@
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
 						<div>
-							<h3 class="text-lg font-semibold text-surface-900 dark:text-white">Field Mapping</h3>
+							<h3
+								class="flex items-center gap-1.5 text-lg font-semibold text-surface-900 dark:text-white"
+							>
+								Field Mapping
+								{@render helpTrigger(
+									'Confidence is how sure the suggested mapping is. Green (≥80%) is usually safe; review yellow and red rows before importing. Unknown columns keep their own name instead of being dropped.',
+									'Field mapping confidence'
+								)}
+							</h3>
 							<p class="text-sm text-surface-500">
 								{fieldMappings.length} fields detected — adjust targets below
 							</p>
@@ -698,8 +835,14 @@
 						></iconify-icon>
 					</div>
 					<div>
-						<h3 class="text-xl font-semibold text-surface-900 dark:text-white">
+						<h3
+							class="flex items-center justify-center gap-1.5 text-xl font-semibold text-surface-900 dark:text-white"
+						>
 							Validate Before Import
+							{@render helpTrigger(
+								'A dry run parses and validates every row without writing to the database. It reports schema differences and rows that would be skipped, so you can fix the mapping first.',
+								'Dry run'
+							)}
 						</h3>
 						<p class="mt-2 text-sm text-surface-500 max-w-md mx-auto">
 							Dry run validates {formatNumber(estimatedCount)} entries without writing to the database.
@@ -731,8 +874,14 @@
 			{:else if step === 4}
 				<div class="space-y-6">
 					<div class="text-center">
-						<h3 class="text-xl font-semibold text-surface-900 dark:text-white">
+						<h3
+							class="flex items-center justify-center gap-1.5 text-xl font-semibold text-surface-900 dark:text-white"
+						>
 							{importResult ? 'Migration Complete' : 'Ready to Import'}
+							{@render helpTrigger(
+								'Import writes the entries as drafts and streams progress. The source file stays unchanged; roll back the whole transaction when Pro rollback is available.',
+								'Import and rollback'
+							)}
 						</h3>
 						<p class="mt-1 text-sm text-surface-500">
 							{formatNumber(estimatedCount)} entries → {targetCollection || 'detecting…'}

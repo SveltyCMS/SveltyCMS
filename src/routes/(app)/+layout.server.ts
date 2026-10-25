@@ -178,6 +178,12 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       isAdmin: !!locals.isAdmin,
 
       user: safeUser,
+      // Layout-owned copy of the same snapshot. Page loads may legitimately return
+      // a slim `user` (e.g. `{_id, email, role, permissions}`) and SvelteKit merges
+      // page data OVER layout data, which shadows the full record for every
+      // component reading `page.data.user` (sidebar username, audit byline, …).
+      // Shared chrome reads this key instead.
+      layoutUser: safeUser,
       totalUsers,
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
@@ -213,6 +219,7 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       tenantId,
       isAdmin: !!locals.isAdmin,
       user: fallbackUser,
+      layoutUser: fallbackUser,
       totalUsers: 1,
       aiEnabled: false,
       publicSettings: publicEnv,

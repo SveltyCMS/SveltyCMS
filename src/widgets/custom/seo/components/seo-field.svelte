@@ -7,6 +7,7 @@
 	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/token-target';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@src/components/ui/help-icon.svelte';
 
 	// Lucide Icons
 
@@ -79,9 +80,7 @@
 			<label for={id} class="font-bold text-sm dark:text-surface-50">{label}</label>
 			{@render icon?.()}
 			<SystemTooltip title={placeholder}>
-				<span class="text-surface-400 dark:text-surface-400 cursor-help">
-					<iconify-icon icon="mdi:information-outline" width={16}></iconify-icon>
-				</span>
+				<HelpIcon ariaLabel="Field information" />
 			</SystemTooltip>
 		</div>
 

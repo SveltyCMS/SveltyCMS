@@ -7,7 +7,10 @@
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { CONFIG_TILE_CLASS } from '@components/ui/config-tile-classes';
+	import { matchesConfigQuery, tokenizeConfigQuery } from './config-search';
 	import Slot from '@components/system/slot.svelte';
 	import AdminZone from '@src/components/system/admin-zone.svelte';
 	import PermissionGuard from '@src/components/permission-guard.svelte';
@@ -19,6 +22,11 @@
 	import {
 		applayout_systemconfiguration,
 		config_page_subtitle,
+		config_search_clear,
+		config_search_empty,
+		config_search_label,
+		config_search_placeholder,
+		config_search_results,
 		config_tile_access,
 		config_tile_api,
 		config_tile_automations,
@@ -348,6 +356,43 @@
 		};
 		return labels[id]?.() ?? fallback;
 	};
+
+	// ── Tile search ──────────────────────────────────────────────────────────
+	let configSearch = $state('');
+
+	const isSearching = $derived(configSearch.trim().length > 0);
+	const searchTokens = $derived(tokenizeConfigQuery(configSearch));
+
+	/**
+	 * Mirror `PermissionGuard` so the result count never promises a tile the
+	 * guard then hides (the guard still wraps each rendered tile).
+	 */
+	function isTileAllowed(item: (typeof configItems)[number]): boolean {
+		const contextId = item.permission?.contextId;
+		if (!contextId) return true;
+		const entry = data?.permissions?.[contextId];
+		if (typeof entry === 'boolean') return entry;
+		if (typeof entry?.hasPermission === 'boolean') return entry.hasPermission;
+		return data?.isAdmin === true;
+	}
+
+	const visibleConfigItems = $derived(
+		configItems.filter(
+			(item) =>
+				(!('visible' in item) || item.visible?.()) &&
+				isTileAllowed(item) &&
+				matchesConfigQuery(
+					{
+						id: item.id,
+						label: item.label,
+						displayLabel: tileLabel(item.id, item.label),
+						name: item.permission?.name,
+						description: item.permission?.description
+					},
+					searchTokens
+				)
+		)
+	);
 </script>
 
 <AdminPageShell
@@ -361,8 +406,58 @@
 			{config_page_subtitle()}
 		</h2>
 
+		<!-- Filter the tile grid below the subtitle -->
+		<div class="mx-auto mb-4 max-w-md" in:adminFade>
+			<Input
+				bind:value={configSearch}
+				type="text"
+				label={config_search_label()}
+				labelClass="sr-only"
+				placeholder={config_search_placeholder()}
+				autocomplete="off"
+				enterkeyhint="search"
+				data-testid="config-search"
+				onkeydown={(event) => {
+					if (event.key === 'Escape' && configSearch) {
+						event.preventDefault();
+						configSearch = '';
+					}
+				}}
+			>
+				{#snippet pre()}
+					<iconify-icon icon="mdi:magnify" width="18" aria-hidden="true"></iconify-icon>
+				{/snippet}
+				{#snippet post()}
+					{#if isSearching}
+						<Button
+							variant="transparent"
+							size="sm"
+							rounded
+							type="button"
+							class="size-7 min-w-0 p-0! text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-body)"
+							onclick={() => (configSearch = '')}
+							aria-label={config_search_clear()}
+							data-testid="config-search-clear"
+						>
+							<iconify-icon icon="mdi:close" width="16" aria-hidden="true"></iconify-icon>
+						</Button>
+					{/if}
+				{/snippet}
+			</Input>
+			{#if isSearching}
+				<p
+					class="mt-2 text-center text-xs text-(--admin-text-muted)"
+					role="status"
+					aria-live="polite"
+					data-testid="config-search-results"
+				>
+					{config_search_results({ count: visibleConfigItems.length })}
+				</p>
+			{/if}
+		</div>
+
 		<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-			{#each configItems.filter((item) => !('visible' in item) || item.visible?.()) as item, idx (item.id || item.label)}
+			{#each visibleConfigItems as item, idx (item.id || item.label)}
 				{const usePermissionGuard = !!item.permission}
 
 				{#if usePermissionGuard}
@@ -414,34 +509,58 @@
 				{/if}
 			{/each}
 
-			<!-- Plugin config_grid slots (each plugin supplies its own tile GUI) -->
-			<div class="contents" in:adminStagger={{ index: configItems.length }}>
-				<PermissionGuard
-					{...{
-						config: {
-							contextId: 'config:extensions',
-							name: 'Plugin Extensions',
-							description: 'Plugin-owned config tiles and tools',
-							requiredRole: 'admin',
-							action: 'manage',
-							contextType: 'configuration'
-						}
-					} as any}
+			{#if isSearching && visibleConfigItems.length === 0}
+				<div
+					class="col-span-full flex flex-col items-center justify-center gap-3 py-10 text-center"
+					data-testid="config-search-empty"
 				>
-					<Slot
-						name="config_grid"
-						inline={true}
-						props={{
-							pluginStates: data?.pluginStates ?? {},
-							isPro: false,
-							enabled: data?.pluginStates?.['smart-importer'] ?? true
-						}}
-					/>
-				</PermissionGuard>
-			</div>
+					<iconify-icon
+						icon="mdi:magnify-close"
+						width="36"
+						class="text-(--admin-text-muted)"
+						aria-hidden="true"
+					></iconify-icon>
+					<p class="text-sm text-(--admin-text-muted)">
+						{config_search_empty({ query: configSearch.trim() })}
+					</p>
+					<Button variant="tertiary" size="sm" type="button" onclick={() => (configSearch = '')}>
+						{config_search_clear()}
+					</Button>
+				</div>
+			{/if}
 
-			<Slot name="config" props={{ pluginStates: data?.pluginStates ?? {} }} />
-			<AdminZone zone="config" context={{ pluginStates: data?.pluginStates ?? {} }} />
+			<!-- Plugin-provided grid tiles cannot be filtered by label, so they return
+			     when the search is cleared. -->
+			<div class={isSearching ? 'hidden' : 'contents'}>
+				<!-- Plugin config_grid slots (each plugin supplies its own tile GUI) -->
+				<div class="contents" in:adminStagger={{ index: configItems.length }}>
+					<PermissionGuard
+						{...{
+							config: {
+								contextId: 'config:extensions',
+								name: 'Plugin Extensions',
+								description: 'Plugin-owned config tiles and tools',
+								requiredRole: 'admin',
+								action: 'manage',
+								contextType: 'configuration'
+							}
+						} as any}
+					>
+						<Slot
+							name="config_grid"
+							inline={true}
+							props={{
+								pluginStates: data?.pluginStates ?? {},
+								isPro: false,
+								enabled: data?.pluginStates?.['smart-importer'] ?? true
+							}}
+						/>
+					</PermissionGuard>
+				</div>
+
+				<Slot name="config" props={{ pluginStates: data?.pluginStates ?? {} }} />
+				<AdminZone zone="config" context={{ pluginStates: data?.pluginStates ?? {} }} />
+			</div>
 		</div>
 	</AdminCard>
 </AdminPageShell>

@@ -760,7 +760,7 @@ None (TreeView has its own keyboard navigation)
 				<SystemTooltip title={builder_tip_quick_start()} role={null} tabindex={null}>
 					<Button
 						onclick={() => modalQuickStart()}
-						variant="tertiary"
+						variant="warning"
 						size="lg"
 						class="group whitespace-nowrap"
 						disabled={isLoading}

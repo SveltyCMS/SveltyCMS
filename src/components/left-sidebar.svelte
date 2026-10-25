@@ -81,8 +81,10 @@ Route-driven sidebar content (no dual collapsible section headers):
 	type AvailableLanguage = string;
 	type SidebarState = 'full' | 'collapsed' | 'hidden';
 
-	// Reactive user data
-	const user = $derived(page.data.user);
+	// Reactive user data. `layoutUser` is the layout-owned snapshot: page loads may
+	// return a slim `user` (permissions only) that shadows it in merged page data,
+	// which is why the avatar used to lose its name on /config and friends.
+	const user = $derived(page.data.layoutUser ?? page.data.user);
 	const currentPath = $derived(page.url.pathname);
 
 	// Next-navigation hint computed server-side by the behavioral learner
@@ -131,7 +133,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	// enforces 403 on the route regardless.
 	const pluginNavItems = $derived.by(() => {
 		void pluginPageRegistry.version;
-		const u = page.data.user as any;
+		const u = (page.data.layoutUser ?? page.data.user) as any;
 		const isAdmin = !!u?.isAdmin || u?.role === 'admin' || u?.role === 'super-admin';
 		return pluginPageRegistry
 			.getNavItems()
@@ -330,9 +332,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 	</div>
 
 	<!-- Expand/Collapse Button -->
+	<!-- Centred placement: an `-end` alignment bottom-aligns this shorter
+	     tooltip against the 40px toggle and pushes its arrow to a corner. -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: isRTL ? 'left-end' : 'right-end' }}
+		positioning={{ placement: isRTL ? 'left' : 'right' }}
 		triggerClass="absolute top-3 z-20 -inset-e-4"
 	>
 		<Button

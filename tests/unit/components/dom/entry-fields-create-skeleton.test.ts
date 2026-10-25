@@ -19,7 +19,7 @@ import MockWidgetInput from "./mocks/mock-widget-input.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { validationStore } from "@src/stores/validation-store.svelte";
 import type { Schema } from "@src/content/types";
-import { renderComponent, settle, type RenderedComponent } from "./render";
+import { renderComponent, settle, typeText, type RenderedComponent } from "./render";
 
 vi.mock("$app/state", () => ({
   page: {
@@ -105,5 +105,27 @@ describe("entry fields create-mode first render", () => {
       '[data-testid="array-widget-tags"]',
     );
     expect(tags?.value).toBe("a,b");
+  });
+
+  it("reflects translation status on the locale badge as the field is edited", async () => {
+    collections.setCollectionValue({ title: { en: "" }, slug: "hello", tags: [] });
+
+    rendered = renderComponent(FieldsComponent, { collection: schema, fields: schema.fields });
+    await settle();
+
+    const badge = rendered.target.querySelector<HTMLButtonElement>(
+      'button[aria-label^="Switch locale for Title"]',
+    );
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent).toContain("EN");
+    expect(badge?.className).toContain("warning");
+    expect(badge?.getAttribute("title")).toContain("missing");
+
+    const input = rendered.target.querySelector<HTMLInputElement>('[data-testid="input-title"]');
+    await typeText(input, "Hello");
+    await settle();
+
+    expect(badge?.className).toContain("success");
+    expect(badge?.getAttribute("title")).toContain("present");
   });
 });

@@ -20,6 +20,7 @@ vi.unmock("@utils/logger");
 // other consumer.
 const privateSettings = vi.hoisted(() => ({
   multiTenant: undefined as unknown,
+  demo: undefined as unknown,
   throwOnRead: false,
 }));
 
@@ -28,10 +29,9 @@ vi.mock("@src/services/core/settings-service", async (importOriginal) => {
   return {
     ...actual,
     getPrivateSettingSync: (key: string, tenantId?: string): unknown => {
-      if (key === "MULTI_TENANT") {
-        if (privateSettings.throwOnRead) throw new Error("Settings unavailable");
-        return privateSettings.multiTenant;
-      }
+      if (privateSettings.throwOnRead) throw new Error("Settings unavailable");
+      if (key === "MULTI_TENANT") return privateSettings.multiTenant;
+      if (key === "DEMO") return privateSettings.demo;
       return actual.getPrivateSettingSync(key as never, tenantId);
     },
   };
@@ -53,6 +53,7 @@ describe("isValidTenantId", () => {
 describe("isMultiTenantEnabled", () => {
   beforeEach(() => {
     privateSettings.multiTenant = undefined;
+    privateSettings.demo = undefined;
     privateSettings.throwOnRead = false;
   });
 
@@ -78,6 +79,15 @@ describe("isMultiTenantEnabled", () => {
     expect(mod.isMultiTenantEnabled()).toBe(false);
   });
 
+  it("returns true when DEMO is enabled even if MULTI_TENANT is false", async () => {
+    privateSettings.multiTenant = false;
+    privateSettings.demo = true;
+
+    const mod = await import("@utils/tenant-isolation.server");
+    mod.resetMultiTenantCache();
+    expect(mod.isMultiTenantEnabled()).toBe(true);
+  });
+
   it("returns false gracefully when the settings lookup throws", async () => {
     privateSettings.throwOnRead = true;
 
@@ -90,6 +100,7 @@ describe("isMultiTenantEnabled", () => {
 describe("detectFullStructure", () => {
   beforeEach(() => {
     privateSettings.multiTenant = true;
+    privateSettings.demo = false;
     privateSettings.throwOnRead = false;
   });
 

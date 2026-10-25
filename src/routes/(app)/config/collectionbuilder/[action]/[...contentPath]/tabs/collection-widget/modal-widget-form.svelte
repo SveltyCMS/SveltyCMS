@@ -12,6 +12,7 @@
 <script lang="ts">
 	import Tabs from '@components/ui/tabs.svelte';
 	import Button from '@components/ui/button.svelte';
+	import { TAB_RULE } from '@components/ui/tabs/chrome';
 	import Input from '@components/ui/input.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
@@ -672,8 +673,8 @@
 		</div>
 
 		<!-- Tabs -->
-		<div class="shrink-0 border-b border-(--admin-border-default) px-6">
-			<Tabs tabs={tabDefs} bind:activeTab variant="underline" />
+		<div class="shrink-0 {TAB_RULE} px-6">
+			<Tabs tabs={tabDefs} bind:activeTab variant="underline" bordered={false} />
 		</div>
 
 		<!-- Tab Content -->

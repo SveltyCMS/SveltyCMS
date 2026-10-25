@@ -207,36 +207,47 @@ function resolveReadLaneTarget(event: RequestEvent): ReadLaneTarget | null {
   if (!pathname.startsWith("/api/collections/")) {
     return remember(null);
   }
-  const parts = splitPathSegments(pathname);
-  // ["api", "collections", collectionId] or ["api", "collections", collectionId, entryId]
-  if (parts.length !== 3 && parts.length !== 4) {
-    return remember(null);
+
+  // Fast string slicing instead of splitPathSegments (zero array allocation)
+  const slash = pathname.indexOf("/", 17);
+  if (slash === -1 || slash === pathname.length - 1) {
+    const end = slash === -1 ? undefined : slash;
+    const collectionId = pathname.slice(17, end);
+    if (!collectionId || COLLECTION_ACTION_SEGMENTS.has(collectionId)) {
+      return remember(null);
+    }
+    if (
+      rawSearch.length > 1 &&
+      (rawSearch.includes("export") || rawSearch.includes("stream=true"))
+    ) {
+      const search = event.url.searchParams;
+      if (search.has("export") || search.get("stream") === "true") {
+        return remember(null);
+      }
+    }
+    return remember({ collectionId, entryId: null });
   }
-  const collectionId = parts[2];
+
+  const collectionId = pathname.slice(17, slash);
   if (!collectionId || COLLECTION_ACTION_SEGMENTS.has(collectionId)) {
     return remember(null);
   }
-  if (parts.length === 4) {
-    const entryId = parts[3];
-    if (
-      !entryId ||
-      COLLECTION_ACTION_SEGMENTS.has(entryId) ||
-      entryId === "revisions" ||
-      entryId === "export"
-    ) {
-      return remember(null);
-    }
-    return remember({ collectionId, entryId });
+
+  const nextSlash = pathname.indexOf("/", slash + 1);
+  if (nextSlash !== -1 && nextSlash !== pathname.length - 1) {
+    return remember(null);
   }
-  // Exclude export, count-only, and explicit streaming without materializing
-  // URLSearchParams on normal list queries (e.g. `?limit=20`).
-  if (rawSearch.length > 1 && (rawSearch.includes("export") || rawSearch.includes("stream=true"))) {
-    const search = event.url.searchParams;
-    if (search.has("export") || search.get("stream") === "true") {
-      return remember(null);
-    }
+  const end = nextSlash === -1 ? undefined : nextSlash;
+  const entryId = pathname.slice(slash + 1, end);
+  if (
+    !entryId ||
+    COLLECTION_ACTION_SEGMENTS.has(entryId) ||
+    entryId === "revisions" ||
+    entryId === "export"
+  ) {
+    return remember(null);
   }
-  return remember({ collectionId, entryId: null });
+  return remember({ collectionId, entryId });
 }
 
 /** True for GET/HEAD of a collection list or single entry. */
@@ -440,6 +451,7 @@ export function isWirePlaneAdmissible(
   const isPoint = target
     ? target.entryId != null
     : splitPathSegments(event.url.pathname).length === 4;
+  const isList = !isPoint;
 
   // Fast path for simple point reads with no query parameters
   if (isPoint && (!event.url.search || event.url.search === "")) {
@@ -454,14 +466,13 @@ export function isWirePlaneAdmissible(
       ) {
         return false;
       }
-    } else {
-      if (
-        event.cookies.get("preview") === "true" ||
+    } else if (
+      event.cookies &&
+      (event.cookies.get("preview") === "true" ||
         event.cookies.get("preview_mode") === "true" ||
-        event.cookies.get("svelty_preview") === "true"
-      ) {
-        return false;
-      }
+        event.cookies.get("svelty_preview") === "true")
+    ) {
+      return false;
     }
     return true;
   }
@@ -522,9 +533,6 @@ export function isWirePlaneAdmissible(
   // 5. Projection equality check:
   // If `fields` param is provided:
   if (search.has("fields")) {
-    const parts = splitPathSegments(event.url.pathname);
-    const isList = parts.length === 3;
-
     // Single-pass trim + compact: the same values as the previous
     // `.split(",").map(trim).filter(Boolean)` chain, one array instead of three.
     const requested = search.get("fields")!.split(",");
@@ -580,9 +588,6 @@ export function isWirePlaneAdmissible(
   }
 
   // 7. Point vs List reading constraints:
-  const parts = splitPathSegments(event.url.pathname);
-  const isList = parts.length === 3;
-
   if (isList) {
     // List wire admits:
     // (a) No sort or sort matching compiled defaultSort
@@ -710,7 +715,11 @@ async function executeWarmCollectionRead(
 
   const srvT0 = STAMP_SRV_DUR || STAMP_SRV_SPLIT ? performance.now() : 0;
   const marks = STAMP_SRV_SPLIT ? new Map<string, number>() : null;
-  const cached = maybeBypass ? null : responseCache.get(pathKey, cacheTenant);
+  const cached = maybeBypass
+    ? null
+    : entryId
+      ? responseCache.getPoint(pathKey, cacheTenant)
+      : responseCache.get(pathKey, cacheTenant, false);
   marks?.set("lookup", performance.now() - srvT0);
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
@@ -722,7 +731,8 @@ async function executeWarmCollectionRead(
       // variant is almost never re-served before the FIFO evicts the key — so
       // they skip the stash (and the `Buffer.byteLength` walk) entirely (see
       // response-compression-stash.ts). The stash runs after the response.
-      const bodyBytes = cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
+      const bodyBytes =
+        cached.byteLength ?? cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
       void scheduleTurboVariantStash({
         key: pathKey,
         body: cached.body,
@@ -867,8 +877,12 @@ async function rebuildWarmCollectionRead(
           // `locals` is passed directly (its `user` is what the policy reads; the
           // policy never reads `locals.system`, which the lane never sets) — the
           // previous `{ user: locals.user }` literal was a per-request allocation.
-          requirePublished:
-            resolvePublicationFilter(locals, event.url.searchParams.get("status")) !== "all",
+          requirePublished: !locals.user
+            ? true
+            : resolvePublicationFilter(
+                locals,
+                event.url.search ? event.url.searchParams.get("status") : null,
+              ) !== "all",
         },
       );
       if (wireRes?.success && wireRes.data) {
@@ -906,7 +920,7 @@ async function rebuildWarmCollectionRead(
         marks?.set("build", 0);
         const cacheT0 = marks ? performance.now() : 0;
         if (entryId) {
-          responseCache.setPoint(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+          responseCache.setPointDirect(pathKey, apiBody, etag, 300_000, cacheTenant, {
             collection: collectionId,
             entryId,
           });
@@ -932,8 +946,12 @@ async function rebuildWarmCollectionRead(
         tenantId: locals.tenantId as DatabaseId,
         limit: listParams.limit,
         offset: listParams.offset,
-        requirePublished:
-          resolvePublicationFilter(locals, event.url.searchParams.get("status")) !== "all",
+        requirePublished: !locals.user
+          ? true
+          : resolvePublicationFilter(
+              locals,
+              event.url.search ? event.url.searchParams.get("status") : null,
+            ) !== "all",
         sortField: listParams.sortField,
         sortDirection: listParams.sortDirection,
         fields: listParams.fields,
@@ -1078,21 +1096,20 @@ async function rebuildWarmCollectionRead(
   // same 199-row list cost 15.0 ms vs 10.8 ms with co-tenant p95 7.39 vs
   // 2.50 ms — the duplicate build dwarfs the compression.
   let compressedVariants: Record<string, Uint8Array> | undefined;
+  let bodyBytes: number | undefined;
   if (tags) {
+    bodyBytes = Buffer.byteLength(apiBody, "utf8");
     const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
-    if (acceptEncoding) {
-      const bodyBytes = Buffer.byteLength(apiBody, "utf8");
-      if (bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
-        const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
-          contentLength: bodyBytes,
-        });
-        if (algo) {
-          const variant =
-            bodyBytes <= SYNC_MAX_SIZE
-              ? compressSync(apiBody, algo, bodyBytes)
-              : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
-          if (variant) compressedVariants = { [algo]: variant };
-        }
+    if (acceptEncoding && bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
+      const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+        contentLength: bodyBytes,
+      });
+      if (algo) {
+        const variant =
+          bodyBytes <= SYNC_MAX_SIZE
+            ? compressSync(apiBody, algo, bodyBytes)
+            : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
+        if (variant) compressedVariants = { [algo]: variant };
       }
     }
   }
@@ -1111,8 +1128,8 @@ async function rebuildWarmCollectionRead(
     responseCache.set(
       pathKey,
       compressedVariants
-        ? { body: apiBody, etag, compressed: compressedVariants }
-        : { body: apiBody, etag },
+        ? { body: apiBody, etag, compressed: compressedVariants, byteLength: bodyBytes }
+        : { body: apiBody, etag, byteLength: bodyBytes },
       300_000,
       cacheTenant,
       tags ? { tags, skipSharedL1: false } : { skipSharedL1: true },
@@ -1126,7 +1143,7 @@ async function rebuildWarmCollectionRead(
       key: pathKey,
       body: apiBody,
       etag,
-      byteLength: Buffer.byteLength(apiBody, "utf8"),
+      byteLength: bodyBytes ?? Buffer.byteLength(apiBody, "utf8"),
       ttlMs: 300_000,
       tenantId: cacheTenant,
       setOptions: { tags, skipSharedL1: false },

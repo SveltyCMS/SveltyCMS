@@ -99,7 +99,10 @@ Provides an organized interface for navigating hierarchical content structures.
 		}>;
 	}
 
-	const userId = $derived(page.data.user?.id || page.data.user?._id || 'guest');
+	// `layoutUser` first: a page load may shadow `user` with a slim permissions
+	// payload, which would make every entry look anonymous to the tracker.
+	const currentUser = $derived(page.data.layoutUser ?? page.data.user);
+	const userId = $derived(currentUser?.id || currentUser?._id || 'guest');
 
 	// Next-navigation hint computed server-side by the behavioral learner
 	const predictedNextPath = $derived.by(() => {
@@ -257,9 +260,17 @@ Provides an organized interface for navigating hierarchical content structures.
 	// one frame — the "no collections → pages" flash on every reload. Read the
 	// root layout's `contentNodes` flat list from page data until the store has
 	// data; once it does, the store stays authoritative for SSE/builder updates.
-	const pageStructure = $derived(
-		((page.data as { contentNodes?: ContentNode[] }).contentNodes ?? []) as ContentNode[]
-	);
+	const pageStructure = $derived.by(() => {
+		const d = page.data as {
+			contentNodes?: ContentNode[];
+			contentStructure?: ContentNode[];
+		};
+		return (
+			Array.isArray(d.contentNodes) && d.contentNodes.length > 0
+				? d.contentNodes
+				: (d.contentStructure ?? [])
+		) as ContentNode[];
+	});
 	let structure = $derived(
 		browser && collections.contentStructure.length > 0
 			? collections.contentStructure

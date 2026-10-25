@@ -22,6 +22,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render } from "svelte/server";
+import { generateId, initIdGenerator } from "@utils/id-generator";
 import InputSsrWrapper from "../components/ui/input-ssr-wrapper.svelte";
 
 const LAYOUT_PATH = join(process.cwd(), "src/routes/+layout.svelte");
@@ -57,5 +58,18 @@ describe("root layout: DOM id generator initialization", () => {
 
     expect(idOf(first.body)).toBe("input-0");
     expect(idOf(second.body)).toBe("input-0");
+  });
+
+  it("never throws when SSR re-enters the layout without a component context", () => {
+    // Observed 2026-10-25: `/config/queue` answered 500 because `setContext` threw
+    // `lifecycle_outside_component` during an async/concurrent render. The layout
+    // call must stay a no-op in that case and restart the fallback counter, so the
+    // render still starts at `-0` like the hydrating client.
+    expect(() => initIdGenerator()).not.toThrow();
+    expect(generateId("edge")).toBe("edge-0");
+    expect(generateId("edge")).toBe("edge-1");
+
+    expect(() => initIdGenerator()).not.toThrow();
+    expect(generateId("edge")).toBe("edge-0");
   });
 });

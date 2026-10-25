@@ -15,7 +15,8 @@ and active border indicator. Receives context from parent Tabs component.
 
 ### Features:
 - WCAG 3.0 ready with `role="tab"`, `aria-selected`, roving tabindex
-- active state via primary-500 border-bottom + text color
+- active state via the shared underline chrome (`./chrome.ts`): brand accent
+  (tertiary light / primary dark) on a transparent 2 px bottom border
 - pass-through attributes via `{...rest}` spread
 - full Svelte 5 runes: $props, getContext, $derived
 -->
@@ -24,6 +25,7 @@ and active border indicator. Receives context from parent Tabs component.
 	import Button from '../button.svelte';
 	import { cn } from '@utils/cn';
 	import type { Snippet } from 'svelte';
+	import { tabTrigger } from './chrome';
 
 	interface TabsContext {
 		value: any;
@@ -63,14 +65,7 @@ and active border indicator. Receives context from parent Tabs component.
 	tabindex={active ? 0 : -1}
 	{disabled}
 	{...rest}
-	class={cn(
-		'flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 rounded-none! border-b-2',
-		active
-			? 'border-primary-500 text-primary-600 dark:text-primary-500'
-			: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:border-surface-500/30',
-		disabled && 'opacity-50 cursor-not-allowed',
-		className
-	)}
+	class={cn(tabTrigger(active), disabled && 'opacity-50 cursor-not-allowed', className)}
 	onclick={handleClick}
 >
 	{@render children?.()}

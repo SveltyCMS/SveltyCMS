@@ -12,23 +12,20 @@
 
 <script lang="ts">
 	import TableFilter from '@src/components/system/table/table-filter.svelte';
-	import Pagination from '@components/ui/table/pagination.svelte';
 	import {
 		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
 		SMART_TABLE_COLUMN_MANAGER,
-		SMART_TABLE_PAGINATION_BAR,
 		SMART_TABLE_ROW_HOVER,
 		SMART_TABLE_ROW_SELECTED,
-		SMART_TABLE_SCROLL,
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD,
 		SMART_TABLE_TOOLBAR,
 		type TableDensity
 	} from '@components/ui/smart-table';
-	import SmartTableEmpty from '@components/ui/smart-table/smart-table-empty.svelte';
+	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import {
 		common_drag_reorder,
@@ -573,8 +570,10 @@
 		</div>
 	</AdminCard>
 
-	<AdminCard class="border border-(--admin-border-default)">
-		<div class="p-4">
+	<AdminCard
+		class="my-2 flex h-full min-h-0 w-full flex-col border border-(--admin-border-default) sm:my-3"
+	>
+		<div class="px-4 pt-3">
 			<div class={SMART_TABLE_TOOLBAR}>
 				<div class="flex items-center gap-4">
 					<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">{tokens_existing()}</h4>
@@ -599,269 +598,252 @@
 					/>
 				</div>
 			</div>
+		</div>
 
-			{#if columnShow}
-				<div class={SMART_TABLE_COLUMN_MANAGER}>
-					<div class="text-sm text-(--admin-text-muted)">
-						{tokens_drag_hint()}
-					</div>
-					<div class="my-2 flex w-full items-center justify-center gap-1">
-						<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
-
-						<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
-						<section
-							class="flex flex-wrap justify-center gap-1 rounded p-2"
-							role="list"
-							aria-label={tokens_drag_columns_aria()}
-						>
-							{#each displayTableHeaders as header (header.id)}
-								<div
-									animate:flip={{ duration: 300 }}
-									use:draggable={{
-										container: 'columns',
-										dragData: header,
-										keyboard: true,
-										handle: '.column-drag-handle'
-									}}
-									use:droppable={{
-										container: 'columns',
-										callbacks: { onDrop: handleColumnDrop },
-										direction: 'horizontal',
-										attributes: { dragOverClass: 'ring-2 ring-primary-500 scale-105' }
-									}}
-									data-header-id={header.id}
-									role="listitem"
-									class="inline-flex items-center rounded-lg border transition-all {header.visible
-										? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
-										: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
-								>
-									<button
-										type="button"
-										class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-(--admin-text-muted) hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-										aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
-										title={common_drag_reorder()}
-									>
-										<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
-									</button>
-
-									<button
-										type="button"
-										onclick={() => {
-											displayTableHeaders = displayTableHeaders.map((h: TableHeader) =>
-												h.id === header.id ? { ...h, visible: !h.visible } : h
-											);
-											selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
-										}}
-										aria-label={`Toggle visibility of ${header.label} column`}
-										class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-									>
-										{#if header.visible}
-											<iconify-icon icon="fa:check" width={14} class="text-success-500"
-											></iconify-icon>
-										{:else}
-											<iconify-icon
-												icon="mdi:eye-off-outline"
-												width={14}
-												class="text-(--admin-text-muted)"
-											></iconify-icon>
-										{/if}
-										<span class="capitalize">{header.label}</span>
-									</button>
-								</div>
-							{/each}
-						</section>
-					</div>
+		{#if columnShow}
+			<div class={SMART_TABLE_COLUMN_MANAGER}>
+				<div class="text-sm text-(--admin-text-muted)">
+					{tokens_drag_hint()}
 				</div>
-			{/if}
+				<div class="my-2 flex w-full items-center justify-center gap-1">
+					<Checkbox bind:checked={selectAllColumns} onchange={handleCheckboxChange} label="All" />
 
-			<div class="{SMART_TABLE_SCROLL} w-full">
-				{#if tokens.length === 0}
-					<SmartTableEmpty
-						title={tokens_empty_title()}
-						description="Generate a token above to allow external sites to access your content."
-						icon="mdi:key-outline"
-					/>
-				{:else}
-					<table class={SMART_TABLE}>
-						<thead class={SMART_TABLE_THEAD}>
-							{#if filterShow}
-								<tr class="border-b border-(--admin-border-default)">
-									<th class={SMART_TABLE_TH}></th>
-									{#each displayTableHeaders.filter((header: TableHeader) => header.visible) as header (header.id)}
-										<th class={SMART_TABLE_TH}>
-											<Input
-												placeholder={`Filter by ${header.label}...`}
-												oninput={(e) =>
-													handleInputChange((e.target as HTMLInputElement).value, header.key)}
-												aria-label={`Filter by ${header.label}`}
-											/>
-										</th>
-									{/each}
-									<th class={SMART_TABLE_TH}></th>
-								</tr>
-							{/if}
-							<tr
-								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
+					<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
+					<section
+						class="flex flex-wrap justify-center gap-1 rounded p-2"
+						role="list"
+						aria-label={tokens_drag_columns_aria()}
+					>
+						{#each displayTableHeaders as header (header.id)}
+							<div
+								animate:flip={{ duration: 300 }}
+								use:draggable={{
+									container: 'columns',
+									dragData: header,
+									keyboard: true,
+									handle: '.column-drag-handle'
+								}}
+								use:droppable={{
+									container: 'columns',
+									callbacks: { onDrop: handleColumnDrop },
+									direction: 'horizontal',
+									attributes: { dragOverClass: 'ring-2 ring-primary-500 scale-105' }
+								}}
+								data-header-id={header.id}
+								role="listitem"
+								class="inline-flex items-center rounded-lg border transition-all {header.visible
+									? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
+									: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
 							>
-								<th class="{SMART_TABLE_TH} {pinCellClass('start')} w-10">
-									<Checkbox
-										checked={smartTable.allSelected}
-										onchange={toggleAllTokens}
-										label="Select all tokens"
-										class="[&_label:last-of-type]:sr-only"
+								<button
+									type="button"
+									class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-(--admin-text-muted) hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+									aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
+									title={common_drag_reorder()}
+								>
+									<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
+								</button>
+
+								<button
+									type="button"
+									onclick={() => {
+										displayTableHeaders = displayTableHeaders.map((h: TableHeader) =>
+											h.id === header.id ? { ...h, visible: !h.visible } : h
+										);
+										selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
+									}}
+									aria-label={`Toggle visibility of ${header.label} column`}
+									class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+								>
+									{#if header.visible}
+										<iconify-icon icon="fa:check" width={14} class="text-success-500"
+										></iconify-icon>
+									{:else}
+										<iconify-icon
+											icon="mdi:eye-off-outline"
+											width={14}
+											class="text-(--admin-text-muted)"
+										></iconify-icon>
+									{/if}
+									<span class="capitalize">{header.label}</span>
+								</button>
+							</div>
+						{/each}
+					</section>
+				</div>
+			</div>
+		{/if}
+
+		<SmartTableShell
+			empty={tokens.length === 0}
+			emptyTitle={tokens_empty_title()}
+			emptyDescription="Generate a token above to allow external sites to access your content."
+			emptyIcon="mdi:key-outline"
+			showPagination={tokens.length > 0}
+			{currentPage}
+			{rowsPerPage}
+			{pagesCount}
+			{totalItems}
+			onUpdatePage={(page: number) => smartTable.setPage(page)}
+			onUpdateRowsPerPage={(rows: number) => smartTable.setPageSize(rows)}
+		>
+			<table class={SMART_TABLE}>
+				<thead class={SMART_TABLE_THEAD}>
+					{#if filterShow}
+						<tr class="border-b border-(--admin-border-default)">
+							<th class={SMART_TABLE_TH}></th>
+							{#each displayTableHeaders.filter((header: TableHeader) => header.visible) as header (header.id)}
+								<th class={SMART_TABLE_TH}>
+									<Input
+										placeholder={`Filter by ${header.label}...`}
+										oninput={(e) =>
+											handleInputChange((e.target as HTMLInputElement).value, header.key)}
+										aria-label={`Filter by ${header.label}`}
 									/>
 								</th>
-								{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
-									<th
-										class="{SMART_TABLE_TH} relative cursor-pointer"
-										style={smartTable.getColumnWidthStyle(header.key)}
-										aria-sort={sorting.sortedBy === header.key
-											? sorting.isSorted === 1
-												? 'ascending'
-												: 'descending'
-											: 'none'}
-									>
-										<button
-											class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
-											onclick={() => smartTable.setSort(header.key)}
-											aria-label={`Sort by ${header.label}`}
-										>
-											{header.label}
-											{#if sorting.sortedBy === header.key && sorting.isSorted !== 0}
-												<iconify-icon
-													icon={sorting.isSorted === 1
-														? 'material-symbols:arrow-upward-rounded'
-														: 'material-symbols:arrow-downward-rounded'}
-													width={22}
-													class="ms-1 origin-center duration-300 ease-in-out"
-													aria-hidden="true"
-												></iconify-icon>
-											{/if}
-										</button>
-										<ColumnResizeHandle
-											columnKey={header.key}
-											onResize={smartTable.setColumnWidth}
-										/>
-									</th>
-								{/each}
-								<th class="{SMART_TABLE_TH} {pinCellClass('end')}" scope="col">{tokens_action()}</th
-								>
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-							{#each tokens as token (token._id)}
-								<tr
-									class="text-(--admin-text-muted) {smartTable.isSelected(token._id)
-										? SMART_TABLE_ROW_SELECTED
-										: SMART_TABLE_ROW_HOVER}"
-								>
-									<td class="{SMART_TABLE_TD} {pinCellClass('start')}">
-										<Checkbox
-											checked={smartTable.isSelected(token._id)}
-											onchange={() => toggleTokenSelection(token._id)}
-											label={`Select token ${token.name}`}
-											class="[&_label:last-of-type]:sr-only"
-										/>
-									</td>
-									{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
-										<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(header.key)}>
-											{#if header.key === 'token'}
-												<div class="flex items-center gap-2">
-													<code class="bg-(--admin-bg-card) px-2 py-1 rounded">
-														{showSecretMap[token._id]
-															? token.token
-															: `${token.token.slice(0, 4)}••••••••${token.token.slice(-4)}`}
-													</code>
-													<div class="flex gap-1" aria-live="polite">
-														<Button
-															variant="surface"
-															onclick={() => (showSecretMap[token._id] = !showSecretMap[token._id])}
-															aria-label={showSecretMap[token._id] ? 'Hide token' : 'Show token'}
-															class="p-0! min-w-0"
-														>
-															<iconify-icon
-																icon={showSecretMap[token._id]
-																	? 'mdi:eye-off-outline'
-																	: 'mdi:eye-outline'}
-																width={20}
-															></iconify-icon>
-														</Button>
-														<Button
-															variant="surface"
-															onclick={async () => {
-																await navigator.clipboard.writeText(token.token);
-																toast.success('Token copied to clipboard');
-															}}
-															aria-label={tokens_copy_aria()}
-															class="p-0! min-w-0"
-														>
-															<iconify-icon icon="mdi:clipboard-outline" width={20}></iconify-icon>
-														</Button>
-													</div>
-												</div>
-											{:else if header.key === 'createdAt'}
-												{formatDate(token.createdAt)}
-											{:else if header.key === 'expiresAt'}
-												{#if token.expiresAt}
-													{const daysLeft = Math.ceil(
-														(new Date(token.expiresAt).getTime() - Date.now()) /
-															(1000 * 60 * 60 * 24)
-													)}
-													<span
-														class={daysLeft < 7 && daysLeft > 0
-															? 'text-warning-500 font-bold'
-															: daysLeft <= 0
-																? 'text-error-500 font-bold'
-																: ''}
-													>
-														{formatDate(token.expiresAt)}
-														{#if daysLeft < 0}
-															{tokens_expired()}
-														{/if}
-													</span>
-												{:else}
-													<span class="opacity-50">{tokens_never()}</span>
-												{/if}
-											{:else if header.key === 'tenantId'}
-												{#if token.tenantId}
-													<span class="text-xs">{tokens_current_tenant()}</span>
-												{:else}
-													<Badge variant="secondary" class="text-xs">{tokens_global()}</Badge>
-												{/if}
-											{:else if header.key === 'createdBy'}
-												{userMap.get(token.createdBy as DatabaseId) || token.createdBy}
-											{:else}
-												{token[header.key as keyof WebsiteToken]}
-											{/if}
-										</td>
-									{/each}
-									<td class="{SMART_TABLE_TD} {pinCellClass('end')}">
-										<Button
-											variant="error"
-											onclick={() => deleteToken(token._id, token.name)}
-											size="sm">Delete</Button
-										>
-									</td>
-								</tr>
 							{/each}
-						</tbody>
-					</table>
-				{/if}
-			</div>
-			{#if tokens.length > 0}
-				<div class={SMART_TABLE_PAGINATION_BAR}>
-					<Pagination
-						variant="cms"
-						{currentPage}
-						{rowsPerPage}
-						{pagesCount}
-						{totalItems}
-						rowsPerPageOptions={[10, 25, 50, 100, 500]}
-						onUpdatePage={(page: number) => smartTable.setPage(page)}
-						onUpdateRowsPerPage={(rows: number) => smartTable.setPageSize(rows)}
-					/>
-				</div>
-			{/if}
-		</div>
+							<th class={SMART_TABLE_TH}></th>
+						</tr>
+					{/if}
+					<tr
+						class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
+					>
+						<th class="{SMART_TABLE_TH} {pinCellClass('start')} w-10">
+							<Checkbox
+								checked={smartTable.allSelected}
+								onchange={toggleAllTokens}
+								label="Select all tokens"
+								class="[&_label:last-of-type]:sr-only"
+							/>
+						</th>
+						{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
+							<th
+								class="{SMART_TABLE_TH} relative cursor-pointer"
+								style={smartTable.getColumnWidthStyle(header.key)}
+								aria-sort={sorting.sortedBy === header.key
+									? sorting.isSorted === 1
+										? 'ascending'
+										: 'descending'
+									: 'none'}
+							>
+								<button
+									class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
+									onclick={() => smartTable.setSort(header.key)}
+									aria-label={`Sort by ${header.label}`}
+								>
+									{header.label}
+									{#if sorting.sortedBy === header.key && sorting.isSorted !== 0}
+										<iconify-icon
+											icon={sorting.isSorted === 1
+												? 'material-symbols:arrow-upward-rounded'
+												: 'material-symbols:arrow-downward-rounded'}
+											width={22}
+											class="ms-1 origin-center duration-300 ease-in-out"
+											aria-hidden="true"
+										></iconify-icon>
+									{/if}
+								</button>
+								<ColumnResizeHandle columnKey={header.key} onResize={smartTable.setColumnWidth} />
+							</th>
+						{/each}
+						<th class="{SMART_TABLE_TH} {pinCellClass('end')}" scope="col">{tokens_action()}</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+					{#each tokens as token (token._id)}
+						<tr
+							class="text-(--admin-text-body) {smartTable.isSelected(token._id)
+								? SMART_TABLE_ROW_SELECTED
+								: SMART_TABLE_ROW_HOVER}"
+						>
+							<td class="{SMART_TABLE_TD} {pinCellClass('start')}">
+								<Checkbox
+									checked={smartTable.isSelected(token._id)}
+									onchange={() => toggleTokenSelection(token._id)}
+									label={`Select token ${token.name}`}
+									class="[&_label:last-of-type]:sr-only"
+								/>
+							</td>
+							{#each displayTableHeaders.filter((h: TableHeader) => h.visible) as header (header.id)}
+								<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(header.key)}>
+									{#if header.key === 'token'}
+										<div class="flex items-center gap-2">
+											<code class="bg-(--admin-bg-card) px-2 py-1 rounded">
+												{showSecretMap[token._id]
+													? token.token
+													: `${token.token.slice(0, 4)}••••••••${token.token.slice(-4)}`}
+											</code>
+											<div class="flex gap-1" aria-live="polite">
+												<Button
+													variant="surface"
+													onclick={() => (showSecretMap[token._id] = !showSecretMap[token._id])}
+													aria-label={showSecretMap[token._id] ? 'Hide token' : 'Show token'}
+													class="p-0! min-w-0"
+												>
+													<iconify-icon
+														icon={showSecretMap[token._id]
+															? 'mdi:eye-off-outline'
+															: 'mdi:eye-outline'}
+														width={20}
+													></iconify-icon>
+												</Button>
+												<Button
+													variant="surface"
+													onclick={async () => {
+														await navigator.clipboard.writeText(token.token);
+														toast.success('Token copied to clipboard');
+													}}
+													aria-label={tokens_copy_aria()}
+													class="p-0! min-w-0"
+												>
+													<iconify-icon icon="mdi:clipboard-outline" width={20}></iconify-icon>
+												</Button>
+											</div>
+										</div>
+									{:else if header.key === 'createdAt'}
+										{formatDate(token.createdAt)}
+									{:else if header.key === 'expiresAt'}
+										{#if token.expiresAt}
+											{const daysLeft = Math.ceil(
+												(new Date(token.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+											)}
+											<span
+												class={daysLeft < 7 && daysLeft > 0
+													? 'text-warning-500 font-bold'
+													: daysLeft <= 0
+														? 'text-error-500 font-bold'
+														: ''}
+											>
+												{formatDate(token.expiresAt)}
+												{#if daysLeft < 0}
+													{tokens_expired()}
+												{/if}
+											</span>
+										{:else}
+											<span class="opacity-50">{tokens_never()}</span>
+										{/if}
+									{:else if header.key === 'tenantId'}
+										{#if token.tenantId}
+											<span class="text-xs">{tokens_current_tenant()}</span>
+										{:else}
+											<Badge variant="secondary" class="text-xs">{tokens_global()}</Badge>
+										{/if}
+									{:else if header.key === 'createdBy'}
+										{userMap.get(token.createdBy as DatabaseId) || token.createdBy}
+									{:else}
+										{token[header.key as keyof WebsiteToken]}
+									{/if}
+								</td>
+							{/each}
+							<td class="{SMART_TABLE_TD} {pinCellClass('end')}">
+								<Button variant="error" onclick={() => deleteToken(token._id, token.name)} size="sm"
+									>Delete</Button
+								>
+							</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</SmartTableShell>
 	</AdminCard>
 </div>

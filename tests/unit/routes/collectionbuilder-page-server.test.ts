@@ -29,6 +29,7 @@ vi.mock("@src/databases/auth/permissions", () => ({
 
 import { load } from "../../../src/routes/(app)/config/collectionbuilder/+page.server";
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
+import { contentStore } from "@src/stores/content-registry.svelte";
 
 function makeLocals(overrides: Record<string, unknown> = {}) {
   return {
@@ -50,6 +51,9 @@ function makeLocals(overrides: Record<string, unknown> = {}) {
 describe("collectionbuilder +page.server load", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(hasCollectionBuilderPermission).mockImplementation(
+      (_user: unknown, _roles: unknown, isAdmin: unknown) => isAdmin === true,
+    );
     mockGetContentStructure.mockResolvedValue([
       {
         _id: "n1",
@@ -114,6 +118,38 @@ describe("collectionbuilder +page.server load", () => {
         }),
       } as any),
     ).rejects.toBeTruthy();
+  });
+
+  it("hydrates contentStore when DB returns structure but in-memory store is empty for tenant", async () => {
+    contentStore.clear("demo-tenant");
+    expect(contentStore.getNodesForTenant("demo-tenant")).toHaveLength(0);
+
+    mockGetContentStructure.mockResolvedValue([
+      {
+        _id: "pages",
+        name: "Pages",
+        nodeType: "collection",
+        path: "/collection/pages",
+        order: 0,
+        translations: [],
+      },
+      {
+        _id: "posts",
+        name: "Posts",
+        nodeType: "collection",
+        path: "/collection/posts",
+        order: 1,
+        translations: [],
+      },
+    ]);
+
+    const data: any = await load({ locals: makeLocals({ tenantId: "demo-tenant" }) } as any);
+    expect(data.contentStructure).toHaveLength(2);
+    expect(contentStore.getClientNodes("demo-tenant")).toHaveLength(2);
+    expect(contentStore.getClientNodes("demo-tenant").map((n) => n._id)).toEqual([
+      "pages",
+      "posts",
+    ]);
   });
 });
 

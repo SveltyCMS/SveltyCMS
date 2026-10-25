@@ -160,7 +160,7 @@
     "version:bump": "bun run scripts/version.ts",
     "version:verify": "bun run scripts/version.ts --verify",
     "repair:drizzle": "node -e \"try{require('fs').accessSync('node_modules/drizzle-orm/sql/index.js');process.exit(0)}catch(e){process.exit(1)}\" || (npm remove drizzle-orm 2>/dev/null; npm install drizzle-orm)",
-    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
+    "paraglide": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --output-structure locale-modules",
     "translate": "npx @inlang/cli machine translate --project ./project.inlang",
     "upgrade": "npx tsx scripts/upgrade.ts",
     "config": "bun run scripts/config-cli.ts",
@@ -208,11 +208,11 @@
     "drizzle-orm": "^0.45.4",
     "google-auth-library": "^11.3.1",
     "graphql": "17.0.2",
-    "graphql-yoga": "^6.0.0",
+    "graphql-yoga": "^6.0.1",
     "hls.js": "^1.7.3",
     "iconify-icon": "^3.0.4",
     "json-render-svelte": "^0.6.1",
-    "maplibre-gl": "^6.15.0",
+    "maplibre-gl": "^6.16.0",
     "nodemailer": "^10.2.1",
     "ollama": "^0.6.4",
     "redis": "^6.3.0",
@@ -263,7 +263,7 @@
     "vitest": "^5.0.5"
   },
   "optionalDependencies": {
-    "mongoose": "^9.11.3",
+    "mongoose": "^9.11.4",
     "mysql2": "^3.24.6",
     "postgres": "^3.4.9"
   },

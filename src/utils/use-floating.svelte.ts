@@ -45,6 +45,8 @@ interface FloatingOptions {
   padding?: number | (() => number);
   enabled: () => boolean;
   showArrow?: () => boolean;
+  /** Arrow box size in px (Tooltip's diamond is 14, Popover's is 12). */
+  arrowSize?: number;
 }
 
 const SUPPORTS_ANCHOR = false;
@@ -136,28 +138,53 @@ function clampToViewport(
   };
 }
 
-function computeArrow(
+/**
+ * Arrow anchor for a floating element, in floating-box coordinates.
+ *
+ * One coordinate is the edge facing the reference (top → bottom edge, bottom →
+ * top edge, left → right edge, right → left edge); the other aims at the
+ * reference centre. Exported so the arrow contract is unit-testable without a
+ * browser layout engine.
+ */
+export function computeArrowGeometry(
   ref: DOMRect,
   float: DOMRect,
   placement: Placement,
   floatX: number,
   floatY: number,
+  arrowSize: number,
 ) {
   const [side] = placement.split("-");
   const staticSide = OPPOSITE_SIDE[side] ?? "top";
-  let arrowX: number, arrowY: number;
+  const half = arrowSize / 2 + 2;
 
+  // Keep the whole diamond inside the body, but never snap to an edge: a short
+  // tooltip next to a tall trigger (e.g. a 40px icon button with `right-end`)
+  // would otherwise push the arrow to a corner instead of its centre.
+  const clampAxis = (value: number, size: number) => {
+    const min = Math.min(half, size / 2);
+    const max = Math.max(size - half, size / 2);
+    return Math.max(min, Math.min(value, max));
+  };
+
+  const centreX = ref.left + ref.width / 2 - floatX;
+  const centreY = ref.top + ref.height / 2 - floatY;
+
+  // One coordinate is the edge facing the reference, the other aims at the
+  // reference centre. `left` must use the right edge and `right` the left one.
   if (side === "top" || side === "bottom") {
-    arrowX = ref.left + ref.width / 2 - floatX;
-    arrowY = side === "top" ? float.height : 0;
-  } else {
-    arrowX = float.width;
-    arrowY = ref.top + ref.height / 2 - floatY;
+    return {
+      arrowX: clampAxis(centreX, float.width),
+      arrowY: side === "top" ? float.height : 0,
+      staticSide,
+    };
   }
 
-  arrowX = Math.max(6, Math.min(arrowX, float.width - 6));
-  arrowY = Math.max(6, Math.min(arrowY, float.height - 6));
-  return { arrowX, arrowY, staticSide };
+  return {
+    arrowX: side === "left" ? float.width : 0,
+    arrowY: clampAxis(centreY, float.height),
+    staticSide,
+  };
 }
 
 function findBestPlacement(
@@ -260,7 +287,14 @@ export function useFloating(options: FloatingOptions) {
       if (options.showArrow?.() && options.arrow) {
         const arrowEl = options.arrow();
         if (arrowEl) {
-          const arrow = computeArrow(refRect, floatRect, best.placement, best.x, best.y);
+          const arrow = computeArrowGeometry(
+            refRect,
+            floatRect,
+            best.placement,
+            best.x,
+            best.y,
+            options.arrowSize ?? 12,
+          );
           arrowX = arrow.arrowX;
           arrowY = arrow.arrowY;
           staticSide = arrow.staticSide;

@@ -1,8 +1,9 @@
 <!--
 @file src/components/token-picker.svelte
-@component TokenPicker – Floating token selector and configurator for input fields
+@component
+**TokenPicker – Floating token selector and configurator for input fields.**
 
-@features
+### Features:
 - List/search tokens grouped by category
 - Configure modifiers with arguments
 - Live preview of resolved value using actual context
@@ -28,7 +29,7 @@
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
 	import { nowISODateString } from '@utils/date';
-	import { fade, slide } from 'svelte/transition';
+	import { adminFade, adminSlide } from '@utils/admin-transitions';
 
 	import { page } from '$app/state';
 
@@ -121,7 +122,9 @@
 			try {
 				const context = {
 					entry: collections.activeValue,
-					user: page.data.user,
+					// Layout snapshot — a page-level slim `user` lacks token fields
+					// (username/firstName), so previews would render empty tokens.
+					user: page.data.layoutUser ?? page.data.user,
 					site: publicEnv,
 					system: { now: nowISODateString() }
 				};
@@ -269,7 +272,17 @@
 
 	function deleteToken() {
 		const active = activeInput.current;
-		if (!active?.element) {
+		if (!active) {
+			return;
+		}
+
+		if (active.onInsert) {
+			active.onInsert('');
+			activeInput.set(null);
+			return;
+		}
+
+		if (!active.element) {
 			return;
 		}
 
@@ -316,13 +329,19 @@
 {#if activeInput.current}
 	<div
 		class="token-window fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 shadow-xl text-(--admin-text-body)"
-		style="bottom: 2rem; right: {rightPosition};"
-		transition:fade={{ duration: 150 }}
+		style="bottom: 2rem; inset-inline-end: {rightPosition};"
+		transition:adminFade={{ duration: 150 }}
 	>
 		<header use:draggable class="mb-4 flex cursor-move select-none items-center justify-between">
 			<div class="flex items-center gap-3">
 				{#if mode === 'configure'}
-					<Button variant="outline" onclick={back} aria-label="Back" class="p-0! min-w-0">
+					<Button
+						variant="transparent"
+						rounded
+						onclick={back}
+						aria-label="Back"
+						class="inline-flex size-8 items-center justify-center bg-transparent p-0! min-w-0 text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-body)"
+					>
 						<iconify-icon icon="mdi:arrow-left"></iconify-icon>
 					</Button>
 				{/if}
@@ -335,10 +354,11 @@
 				</h3>
 			</div>
 			<Button
-				variant="outline"
+				variant="transparent"
+				rounded
 				onclick={() => activeInput.set(null)}
 				aria-label="Close"
-				class="p-0! min-w-0"
+				class="inline-flex size-8 items-center justify-center bg-transparent p-0! min-w-0 text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-body)"
 			>
 				<iconify-icon icon="mdi:close"></iconify-icon>
 			</Button>
@@ -374,7 +394,7 @@
 						</Button>
 
 						{#if openCategories[cat] || search}
-							<div transition:slide class="mt-2 space-y-1">
+							<div transition:adminSlide class="mt-2 space-y-1">
 								{#each tokens as t (t.token)}
 									<AdminCard
 										class="preset-filled-surface-500 hover:preset-tonal-primary cursor-pointer p-2 transition-colors"
@@ -406,7 +426,7 @@
 
 										{#if showInfo[t.token]}
 											<div
-												transition:slide
+												transition:adminSlide
 												class="mt-2 border-t border-surface-500/20 pt-2 text-xs"
 											>
 												<p class="mb-2 opacity-80">{t.description}</p>
@@ -429,7 +449,7 @@
 					class="card preset-tonal-primary border border-tertiary-500 dark:border-primary-500/30 p-4"
 				>
 					<div class="mb-2 flex items-center justify-between">
-						<div class="text-lg font-bold text-primary-600 dark:text-primary-500">
+						<div class="text-lg font-bold text-primary-500">
 							{selectedToken.name}
 						</div>
 						<Badge variant="primary">{selectedToken.type}</Badge>
@@ -503,7 +523,7 @@
 								variant="surface"
 								onclick={() => addModifier(m)}
 								aria-label="Add {m.label} modifier"
-								class="hover:bg-surface-500/10 dark:hover:bg-surface-700"
+								class="hover:bg-surface-500/10"
 							>
 								<iconify-icon icon="mdi:plus"></iconify-icon>
 								{m.label}

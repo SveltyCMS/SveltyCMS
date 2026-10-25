@@ -22,6 +22,7 @@
 	import WidgetDashboard from './widget-dashboard.svelte';
 	import DashboardWidgetsView from './dashboard-widgets-view.svelte';
 	import MarketplaceView from './marketplace-view.svelte';
+	import { TAB_RULE, TAB_STRIP_FLUSH, tabTrigger } from '@components/ui/tabs/chrome';
 
 	let { data }: { data: any } = $props();
 
@@ -47,11 +48,9 @@
 		<AdminCard
 			class="flex min-h-0 flex-1 flex-col border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs p-6"
 		>
-			<div
-				class="mb-4 flex shrink-0 items-center justify-between border-b border-(--admin-border-default)"
-			>
+			<div class="mb-4 flex shrink-0 items-center justify-between {TAB_RULE}">
 				<div
-					class="flex gap-1"
+					class={TAB_STRIP_FLUSH}
 					role="tablist"
 					aria-label={extensions_categories_aria()}
 					data-testid="extensions-tabs"
@@ -60,9 +59,7 @@
 						<Button
 							variant="ghost"
 							onclick={() => (activeTab = tab.id)}
-							class="rounded-none! border-b-2 px-4 py-3 text-sm font-medium {activeTab === tab.id
-								? 'border-primary-500 text-primary-600 dark:text-primary-500'
-								: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'}"
+							class={tabTrigger(activeTab === tab.id)}
 							aria-selected={activeTab === tab.id}
 							role="tab"
 							data-testid={`extensions-tab-${tab.id}`}

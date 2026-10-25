@@ -24,6 +24,7 @@ This layout provides the administrative shell, including sidebars and header con
 	import PageFooter from '@src/components/page-footer.svelte';
 	import RightSidebar from '@src/components/right-sidebar.svelte';
 	import CommandPalette from '@src/components/command-palette.svelte';
+	import TokenPicker from '@src/components/token-picker.svelte';
 	// Type Imports
 	import type { User } from '@src/databases/auth/types';
 	import { isAdmin } from '@src/databases/auth/constants';
@@ -271,6 +272,13 @@ This layout provides the administrative shell, including sidebars and header con
 		if (editingRoute && screen.isDesktop) return 'full';
 		return ui.state.rightSidebar;
 	});
+	// Desktop edit/create keeps the entry metadata visible even when the right
+	// sidebar is collapsed or hidden. Matches the SSR frame (URL-derived).
+	const showPageFooter = $derived(
+		ui.state.pagefooter !== 'hidden' || (editingRoute && screen.isDesktop)
+	);
+	/** True when the footer is only the edit-metadata fallback (no explicit layout pref). */
+	const pageFooterIsFallback = $derived(ui.state.pagefooter === 'hidden');
 
 	// ── Layout state: tenant defaults, then per-user overrides ──
 	let layoutStateRestored = false;
@@ -431,12 +439,20 @@ This layout provides the administrative shell, including sidebars and header con
 	});
 
 	// 🔥 SYNC: Connect content structure to global stores for sidebar/navigation reactivity
-	// (`contentNodes` is the root layout's sanitized flat list — the single owner of the tree).
+	// (`contentNodes` is the root layout's sanitized flat list — the single owner of the tree,
+	// with a fallback to the route's `contentStructure` when the root layout snapshot is empty).
 	$effect(() => {
 		// Apply layout data synchronously. A delayed dynamic import could resolve after
 		// the Collection Builder published a newer DnD draft and overwrite only the
 		// sidebar with the older layout snapshot.
-		applyRemoteContentStructure(data.contentNodes ?? []);
+		const routeStructure = (page.data as { contentStructure?: ContentNode[] })?.contentStructure;
+		const remoteNodes =
+			Array.isArray(data.contentNodes) && data.contentNodes.length > 0
+				? data.contentNodes
+				: Array.isArray(routeStructure) && routeStructure.length > 0
+					? routeStructure
+					: (data.contentNodes ?? []);
+		applyRemoteContentStructure(remoteNodes);
 	});
 
 	// =============================================
@@ -450,9 +466,16 @@ This layout provides the administrative shell, including sidebars and header con
 		widgets.initialize();
 		initializeDarkMode((data as any).themePreference);
 
-		// Primary Mod+K + Gin/Coffee-style Alt+G (same on Windows, Linux, macOS)
-		registerHotkey('mod+k', () => ui.toggleGlobalSearch(), 'Open global search / command palette');
-		registerHotkey('alt+g', () => ui.toggleGlobalSearch(), 'Open global search');
+		// Primary Mod+K + Gin/Coffee-style Alt+G (same on Windows, Linux, macOS).
+		// Both must work while typing — the palette is a global jump target.
+		registerHotkey('mod+k', () => ui.toggleGlobalSearch(), {
+			description: 'Open global search / command palette',
+			enableInInputs: true
+		});
+		registerHotkey('alt+g', () => ui.toggleGlobalSearch(), {
+			description: 'Open global search',
+			enableInInputs: true
+		});
 
 		registerHotkey(
 			'mod+s',
@@ -501,9 +524,17 @@ This layout provides the administrative shell, including sidebars and header con
 		}
 	});
 
-	afterNavigate(() => {
+	afterNavigate(({ to }) => {
 		// Mobile sidebar should start hidden by default (user opens via hamburger)
 		if (screen.isMobile) ui.state.leftSidebar = 'hidden';
+
+		// Entering an edit/create route on desktop re-opens the inspector even if a
+		// previous mobile drawer close marked it as a manual preference.
+		const editing = Boolean(
+			to?.url.searchParams.has('edit') || to?.url.searchParams.get('create') === 'true'
+		);
+		if (editing && screen.isDesktop) ui.rightSidebarTouched = false;
+
 		globalLoadingStore.stopLoading(loadingOperations.navigation);
 		setTimeout(() => {
 			if (
@@ -572,6 +603,9 @@ This layout provides the administrative shell, including sidebars and header con
 		{#if ui.isCommandBarVisible}
 			<CommandPalette />
 		{/if}
+
+		<!-- One global picker: every tokenTarget / fields.svelte trigger writes to activeInput. -->
+		<TokenPicker />
 
 		<div class="relative z-0">
 			<div class="flex h-lvh flex-col overflow-hidden">
@@ -652,9 +686,11 @@ This layout provides the administrative shell, including sidebars and header con
 							</div>
 						{/if}
 
-						{#if !pluginWorkspace.isOpen && ui.state.pagefooter !== 'hidden'}
+						{#if !pluginWorkspace.isOpen && showPageFooter}
 							<footer
-								class="mt-auto w-full bg-surface-500/10 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
+								class="mt-auto w-full bg-surface-500/10 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900 {pageFooterIsFallback
+									? 'max-lg:hidden'
+									: ''}"
 							>
 								<PageFooter />
 							</footer>

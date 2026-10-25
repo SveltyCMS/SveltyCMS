@@ -42,7 +42,8 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 	/** Structural + semantic surface tokens; shadow/border follow theme variant (flat/bordered/elevated). */
 	const adminStyles = $derived(
 		[
-			'border-radius: var(--admin-radius-card, 0.75rem)',
+			// Radius comes from `.card` in app.css (--admin-radius-card); inline styles
+			// only override the theme-aware border/shadow so the class stays authoritative.
 			`border-width: ${theme?.cardBorder ?? 'var(--admin-border-width, 1px)'}`,
 			'border-style: solid',
 			'border-color: var(--admin-border-default, var(--color-surface-200))',
@@ -60,7 +61,7 @@ Use instead of raw `div.card` with ad-hoc dark: surface classes.
 		{/snippet}
 	</Card>
 {:else}
-	<div class={cn('card', className)} style={adminStyles} {...rest}>
+	<div class={cn('card rounded', className)} style={adminStyles} {...rest}>
 		{@render content?.()}
 	</div>
 {/if}

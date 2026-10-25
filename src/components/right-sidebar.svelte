@@ -59,7 +59,7 @@
 	}
 
 	// --- Derived from page & stores ---
-	let user = $derived(page.data.user);
+	let user = $derived(page.data.layoutUser ?? page.data.user);
 	let isAdmin = $derived(page.data.isAdmin === true);
 
 	let currentMode = $derived(collections.mode);

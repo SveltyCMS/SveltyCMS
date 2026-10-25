@@ -21,11 +21,20 @@ export interface RedirectDraft {
 
 const ABSOLUTE_URL = /^https?:\/\/.+/i;
 
+/** Visitor-controlled paths above this length skip pattern evaluation. */
+const MAX_REGEX_TEST_PATH_LENGTH = 2048;
+
+/** Upper bound of pattern rules evaluated for one request. */
+const MAX_REGEX_RULES = 200;
+
 /**
  * Conservative ReDoS guard for regex redirect sources (checked at SAVE time —
  * the resolver runs on every request with visitor-controlled input and cannot
  * be made safe against arbitrary admin patterns, so catastrophic patterns must
  * never enter the database).
+ *
+ * Runtime evaluation is additionally bounded by `MAX_REGEX_TEST_PATH_LENGTH`
+ * and `MAX_REGEX_RULES` in `findRegexRedirect`.
  *
  * Rejects classic exponential-backtracking families:
  * - nested quantifiers: `(a+)+`, `([a-z]+)*`, `(a{2,5})+`
@@ -215,6 +224,37 @@ export function normalizeRedirectRow(
     active: r.active !== false && nested.active !== false && r.active !== 0,
     isRegex: Boolean(r.isRegex ?? nested.isRegex),
   };
+}
+
+/**
+ * First pattern row whose `source` matches `path`.
+ *
+ * Exact-path redirects are matched before this helper in the middleware; this
+ * is only the pattern fallback. Patterns are validated at save time, but rows
+ * can be written directly to the database, so compile errors are swallowed and
+ * both the path and pattern length are bounded (defense-in-depth against a
+ * legacy unsafe pattern backtracking over a long visitor-controlled path).
+ */
+export function findRegexRedirect<T>(
+  path: string,
+  rows: readonly T[],
+  getPattern: (row: T) => string,
+): T | null {
+  if (!path || path.length > MAX_REGEX_TEST_PATH_LENGTH) return null;
+
+  let tested = 0;
+  for (const row of rows) {
+    if (tested >= MAX_REGEX_RULES) break;
+    const pattern = getPattern(row)?.trim();
+    if (!pattern || pattern.length > 512) continue;
+    tested++;
+    try {
+      if (new RegExp(pattern).test(path)) return row;
+    } catch {
+      // Ignore invalid patterns written outside the admin (direct DB edits).
+    }
+  }
+  return null;
 }
 
 /**

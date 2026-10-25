@@ -33,15 +33,38 @@ import { getHardwareProfile } from "@utils/hardware-profile";
 
 export type JobHandler = (payload: any, job: Job) => Promise<void>;
 
+/**
+ * Process-wide poller bookkeeping.
+ *
+ * Lives on `globalThis` because the dev server re-evaluates this module on HMR:
+ * every new `JobQueueService` instance used to install its own `setInterval`
+ * and start both maintenance ticks from `last* = 0` again. Measured on the dev
+ * DB 2026-10-25: 15 leaked pollers produced ~640 `publish-scheduled` rows in 42
+ * minutes instead of ~42 (and ~143 `session-cleanup` instead of ~9).
+ */
+interface JobPollerState {
+  interval: ReturnType<typeof setInterval> | null;
+  lastScheduleCheck: number;
+  lastCleanupCheck: number;
+  lastReapCheck: number;
+  lastPruneCheck: number;
+}
+
+const POLLER: JobPollerState = ((
+  globalThis as { __SVELTY_JOB_POLLER__?: JobPollerState }
+).__SVELTY_JOB_POLLER__ ??= {
+  interval: null,
+  lastScheduleCheck: 0,
+  lastCleanupCheck: 0,
+  lastReapCheck: 0,
+  lastPruneCheck: 0,
+});
+
 class JobQueueService {
   private handlers: Map<string, JobHandler> = new Map();
   private handlerLoaders: Map<string, () => Promise<JobHandler>> = new Map();
   private isProcessing = false;
-  private pollInterval: NodeJS.Timeout | null = null;
   private currentRunning = 0;
-  private lastScheduleCheck = 0;
-  private lastCleanupCheck = 0;
-  private lastReapCheck = 0;
 
   // 🧠 HARDWARE-ADAPTIVE concurrency: 50% of detected cores, min 5, max 50 —
   // from the shared boot-time profile so the whole CMS agrees on one number.
@@ -324,8 +347,9 @@ class JobQueueService {
    * Start the background polling worker.
    */
   startPolling(intervalMs = 10000) {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
+    if (POLLER.interval) {
+      clearInterval(POLLER.interval);
+      POLLER.interval = null;
     }
 
     // 🧪 PERFORMANCE: Background jobs may be disabled explicitly (DISABLE_JOBS).
@@ -336,30 +360,30 @@ class JobQueueService {
     }
 
     logger.debug(`[JobQueue] Starting background worker (interval: ${intervalMs}ms)`);
-    this.pollInterval = setInterval(() => {
+    POLLER.interval = setInterval(() => {
       // 1. Process jobs
       this.processNextBatch().catch((err) => logger.error("[JobQueue] Polling error", err));
 
       // 2. Scheduled content publishing tick (every 60s)
       const now = Date.now();
-      if (now - this.lastScheduleCheck >= 60000) {
-        this.lastScheduleCheck = now;
+      if (now - POLLER.lastScheduleCheck >= 60000) {
+        POLLER.lastScheduleCheck = now;
         this.dispatch("publish-scheduled", {}).catch((err) =>
           logger.error("[JobQueue] Failed to dispatch scheduled tick", err),
         );
       }
 
       // 3. Session/token maintenance tick (every 5 min)
-      if (now - this.lastCleanupCheck >= 300000) {
-        this.lastCleanupCheck = now;
+      if (now - POLLER.lastCleanupCheck >= 300000) {
+        POLLER.lastCleanupCheck = now;
         this.dispatch("session-cleanup", {}).catch((err) =>
           logger.error("[JobQueue] Failed to dispatch session cleanup", err),
         );
       }
 
       // 4. Reap jobs whose worker crashed mid-run (every 60s)
-      if (now - this.lastReapCheck >= 60000) {
-        this.lastReapCheck = now;
+      if (now - POLLER.lastReapCheck >= 60000) {
+        POLLER.lastReapCheck = now;
         this.reapStaleRunningJobs()
           .then((count) => {
             if (count > 0) logger.warn(`[JobQueue] Reaped ${count} stale running job(s)`);
@@ -367,7 +391,19 @@ class JobQueueService {
           .catch((err) => logger.error("[JobQueue] Stale job reaper failed", err));
       }
 
-      // 5. Clean up temp store every ~10 cycles
+      // 5. Prune finished job history (every 6h, terminal rows only). Without this
+      // the table grows forever at ~1.4k rows/day just from the two maintenance
+      // ticks; the page's Clear action stays available for on-demand cleanup.
+      if (now - POLLER.lastPruneCheck >= 6 * 60 * 60_000) {
+        POLLER.lastPruneCheck = now;
+        this.pruneFinishedJobs()
+          .then((count) => {
+            if (count > 0) logger.debug(`[JobQueue] Pruned ${count} finished job(s)`);
+          })
+          .catch((err) => logger.error("[JobQueue] Job history prune failed", err));
+      }
+
+      // 6. Clean up temp store every ~10 cycles
       // cleanupTempStore is synchronous — never call .catch on its void return
       // (that threw TypeError and crashed the process via uncaughtException).
       if (Math.random() > 0.9) {
@@ -378,18 +414,32 @@ class JobQueueService {
         }
       }
     }, intervalMs);
-    if (typeof (this.pollInterval as any)?.unref === "function") {
-      (this.pollInterval as any).unref();
+    if (typeof (POLLER.interval as any)?.unref === "function") {
+      (POLLER.interval as any).unref();
     }
+  }
+
+  /**
+   * Deletes terminal job rows older than `maxAgeMs` (default 7 days).
+   *
+   * `system.jobs.cleanup()` only removes `completed` rows — a pending retry or a
+   * failed job waiting for an operator is never silently dropped.
+   */
+  async pruneFinishedJobs(maxAgeMs = 7 * 24 * 60 * 60_000): Promise<number> {
+    const db = getDb();
+    if (!db?.system?.jobs?.cleanup) return 0;
+    const cutoff = new Date(Date.now() - maxAgeMs);
+    const result = await db.system.jobs.cleanup(cutoff, withSystemScope("scheduler"));
+    return result.success ? result.data : 0;
   }
 
   /**
    * Stop the background polling worker.
    */
   stopPolling() {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
+    if (POLLER.interval) {
+      clearInterval(POLLER.interval);
+      POLLER.interval = null;
       logger.info("[JobQueue] Stopped background worker");
     }
   }

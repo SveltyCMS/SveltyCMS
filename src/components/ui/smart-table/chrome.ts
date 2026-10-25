@@ -12,7 +12,8 @@ export const SMART_TABLE_SCROLL =
   "table-container max-h-[calc(100dvh-12rem)] min-h-0 flex-1 overflow-auto";
 
 /** Base table element */
-export const SMART_TABLE = "table table-interactive table-hover w-full border-collapse text-sm";
+export const SMART_TABLE =
+  "table table-interactive table-hover w-full border-collapse font-sans text-sm text-(--admin-text-body)";
 
 /** Sticky header row bar */
 export const SMART_TABLE_THEAD =

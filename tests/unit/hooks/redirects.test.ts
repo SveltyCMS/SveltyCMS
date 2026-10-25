@@ -31,6 +31,7 @@ const redirects = vi.hoisted(() => ({
   dbConnected: true,
   tenantFromHostname: null as string | null,
   findManyResult: { success: true, data: [] as any[] },
+  regexResult: { success: true, data: [] as any[] },
   cacheGetSyncResult: null as any,
   cacheGetResult: null as any,
   collectionExists: null as any,
@@ -42,6 +43,8 @@ const redirects = vi.hoisted(() => ({
 vi.mock("@src/databases/db", () => {
   const findMany = vi.fn(async (...args: any[]) => {
     redirects.findManyCalls.push(args);
+    // Pattern-rule lookup is a separate query (filter.isRegex === true).
+    if (args[1]?.isRegex === true) return redirects.regexResult;
     return redirects.findManyResult;
   });
   const adapter = { crud: { findMany } };
@@ -114,6 +117,7 @@ describe("handleRedirects", () => {
     redirects.dbConnected = true;
     redirects.tenantFromHostname = null;
     redirects.findManyResult = { success: true, data: [] };
+    redirects.regexResult = { success: true, data: [] };
     redirects.cacheGetSyncResult = null;
     redirects.cacheGetResult = null;
     redirects.collectionExists = null;
@@ -235,6 +239,81 @@ describe("handleRedirects", () => {
 
       expect(response.status).toBe(404);
       expect(response.headers.get("X-Robots-Tag")).toBe("none");
+    });
+
+    it("applies a regex-pattern rule when the exact path misses", async () => {
+      redirects.regexResult = {
+        success: true,
+        data: [{ source: "^/blog/[0-9]+$", target: "/news", type: 301, isRegex: true }],
+      };
+
+      const event = createMockEvent("/blog/42", { tenantId: "tenant-regex-hit" });
+      const response = await handleRedirects({ event, resolve: mockResolve });
+
+      expect(response.status).toBe(301);
+      expect(response.headers.get("location")).toBe("/news");
+      expect(mockResolve).not.toHaveBeenCalled();
+      expect(redirects.findManyCalls).toHaveLength(2);
+      expect(redirects.findManyCalls[1][1]).toMatchObject({ isRegex: true });
+      expect(redirects.cacheSetCalls[0][0]).toBe("redirect:/blog/42");
+    });
+
+    it("prefers an exact path over a matching pattern", async () => {
+      redirects.findManyResult = {
+        success: true,
+        data: [{ source: "/blog/42", target: "/exact", type: 301 }],
+      };
+      redirects.regexResult = {
+        success: true,
+        data: [{ source: "^/blog/[0-9]+$", target: "/pattern", type: 301, isRegex: true }],
+      };
+
+      const event = createMockEvent("/blog/42", { tenantId: "tenant-regex-exact" });
+      const response = await handleRedirects({ event, resolve: mockResolve });
+
+      expect(response.headers.get("location")).toBe("/exact");
+      expect(redirects.findManyCalls).toHaveLength(1);
+    });
+
+    it("skips a stored pattern that does not compile", async () => {
+      redirects.regexResult = {
+        success: true,
+        data: [{ source: "(unclosed", target: "/never", type: 301, isRegex: true }],
+      };
+
+      const event = createMockEvent("/blog/42", { tenantId: "tenant-regex-invalid" });
+      const response = await handleRedirects({ event, resolve: mockResolve });
+
+      expect(response.status).toBe(200);
+      expect(mockResolve).toHaveBeenCalledWith(event);
+      expect(redirects.cacheSetCalls[0][1]).toEqual({ isNegative: true });
+    });
+
+    it("re-queries pattern rules after a save invalidates the cache", async () => {
+      redirects.regexResult = {
+        success: true,
+        data: [{ source: "^/promo$", target: "/old-promo", type: 301, isRegex: true }],
+      };
+
+      const tenantId = "tenant-regex-invalidate";
+      await handleRedirects({
+        event: createMockEvent("/promo", { tenantId }),
+        resolve: mockResolve,
+      });
+      const callsAfterFirst = redirects.findManyCalls.length;
+
+      invalidateRedirectCache(tenantId);
+      redirects.regexResult = {
+        success: true,
+        data: [{ source: "^/promo$", target: "/new-promo", type: 301, isRegex: true }],
+      };
+      const response = await handleRedirects({
+        event: createMockEvent("/promo", { tenantId }),
+        resolve: mockResolve,
+      });
+
+      expect(redirects.findManyCalls.length).toBeGreaterThan(callsAfterFirst);
+      expect(response.headers.get("location")).toBe("/new-promo");
     });
 
     it("falls through on a miss and caches a negative entry", async () => {

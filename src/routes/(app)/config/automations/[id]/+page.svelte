@@ -45,6 +45,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	import {
 		automation_add_op_aria,
 		automation_add_operation,
+		automation_add_operation_hint,
 		automation_body_token_aria,
 		automation_cancel_aria,
 		automation_chain_aria,
@@ -69,6 +70,13 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		automation_email_subject_aria,
 		automation_field_placeholder,
 		automation_go_back_aria,
+		automation_help_example,
+		automation_help_intro,
+		automation_help_operations,
+		automation_help_preview,
+		automation_help_title,
+		automation_help_tokens,
+		automation_help_trigger,
 		automation_http_method_placeholder,
 		automation_log_level_placeholder,
 		automation_log_message_aria,
@@ -79,13 +87,20 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		automation_move_down_aria,
 		automation_move_up,
 		automation_move_up_aria,
+		automation_next_hint_cron,
+		automation_next_hint_events,
+		automation_next_hint_name,
+		automation_next_hint_operations,
 		automation_name_aria,
 		automation_name_placeholder,
 		automation_next_aria,
 		automation_no_operations,
 		automation_operation_chain,
+		automation_operations_empty_body,
+		automation_operations_empty_title,
 		automation_operator_placeholder,
 		automation_paused,
+		automation_preview_intro,
 		automation_preview_test,
 		automation_remove_op_aria,
 		automation_run_test,
@@ -98,6 +113,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		automation_set_field_name_aria,
 		automation_set_field_value_aria,
 		automation_show_details,
+		automation_test_warning,
 		automation_testing,
 		automation_token_body_aria,
 		automation_token_email_body_aria,
@@ -111,7 +127,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		automation_tokens_trigger,
 		automation_tokens_user,
 		automation_trigger_config,
+		automation_trigger_event_desc,
+		automation_trigger_intro,
 		automation_trigger_label,
+		automation_trigger_manual_desc,
+		automation_trigger_schedule_desc,
 		automation_trigger_type,
 		automation_value_placeholder,
 		automation_value_token_aria,
@@ -128,6 +148,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		common_saving
 	} from '@src/paraglide/messages';
 	import { saveAutomation, testAutomation } from '../automations-api';
+	import { automationBlockReason, type AutomationBlockReason } from '../automation-step-guard';
 
 	// ── State ──
 
@@ -170,9 +191,11 @@ and preview/test functionality. Reuses TokenPicker patterns.
 	// ── Save & Test ──
 
 	async function save() {
-		if (!flow.name.trim()) {
-			toast.warning('Name is required');
-			activeStep = 1;
+		// Keyboard save (Ctrl/Cmd+S) bypasses the Next button, so enforce the same
+		// completeness rules and jump back to the step that needs attention.
+		if (saveBlockReason) {
+			toast.warning(blockHint(saveBlockReason));
+			activeStep = saveBlockReason === 'operations' ? 2 : 1;
 			return;
 		}
 
@@ -378,15 +401,39 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 	// ── Step validation ──
 
-	let canProceed = $derived.by(() => {
-		if (activeStep === 1) {
-			return flow.name.trim().length > 0;
-		}
-		if (activeStep === 2) {
-			return flow.operations.length > 0;
-		}
-		return true;
+	const flowGuard = $derived({
+		name: flow.name,
+		triggerType: flow.trigger.type,
+		events: flow.trigger.events,
+		cron: flow.trigger.cron,
+		operationCount: flow.operations.length
 	});
+
+	const blockReason = $derived(automationBlockReason({ step: activeStep, ...flowGuard }));
+
+	/** A flow can only be saved when it could actually run end to end. */
+	const saveBlockReason = $derived(
+		automationBlockReason({ step: 1, ...flowGuard }) ??
+			automationBlockReason({ step: 2, ...flowGuard })
+	);
+
+	const canProceed = $derived(blockReason === null);
+
+	function blockHint(reason: Exclude<AutomationBlockReason, null>): string {
+		switch (reason) {
+			case 'name':
+				return automation_next_hint_name();
+			case 'events':
+				return automation_next_hint_events();
+			case 'cron':
+				return automation_next_hint_cron();
+			case 'operations':
+				return automation_next_hint_operations();
+		}
+	}
+
+	/** Explain a disabled Next button instead of leaving new users guessing. */
+	const nextHint = $derived(blockReason === null ? null : blockHint(blockReason));
 
 	const steps = [
 		{ number: 1, label: 'Trigger', icon: 'mdi:flash-outline' },
@@ -433,6 +480,52 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		</AdminCard>
 	{:else}
 		<div class="mx-auto max-w-225 space-y-6" data-testid="automation-editor">
+			<!-- New-user explainer: what the three steps do and what an automation is. -->
+			<details
+				class="group rounded-(--admin-radius-card) border border-tertiary-500/30 bg-tertiary-500/10 dark:border-primary-500/30 dark:bg-primary-500/10"
+				open={isNew}
+				data-testid="automation-how-it-works"
+			>
+				<summary
+					class="flex cursor-pointer list-none items-center gap-2 p-4 text-sm font-semibold text-(--admin-text-body) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--admin-focus-ring)"
+				>
+					<iconify-icon
+						icon="mdi:lightbulb-on-outline"
+						width="20"
+						class="shrink-0 text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+					{automation_help_title()}
+					<iconify-icon
+						icon="mdi:chevron-down"
+						width="18"
+						class="ms-auto shrink-0 opacity-60 transition-transform group-open:rotate-180"
+					></iconify-icon>
+				</summary>
+				<div
+					class="space-y-4 border-t border-tertiary-500/30 px-4 pb-4 pt-4 dark:border-primary-500/30"
+				>
+					<p class="text-sm text-(--admin-text-body)">{automation_help_intro()}</p>
+					<ul class="grid gap-2 sm:grid-cols-3">
+						{#each [{ icon: 'mdi:timer-sand', text: automation_help_trigger() }, { icon: 'mdi:playlist-play', text: automation_help_operations() }, { icon: 'mdi:eye-check-outline', text: automation_help_preview() }] as helpItem (helpItem.icon)}
+							<li
+								class="flex items-start gap-2 rounded border border-tertiary-500/30 bg-(--admin-bg-card) p-3 text-xs text-(--admin-text-body) dark:border-primary-500/30"
+							>
+								<iconify-icon
+									icon={helpItem.icon}
+									width="16"
+									class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+								></iconify-icon>
+								<span>{helpItem.text}</span>
+							</li>
+						{/each}
+					</ul>
+					<div class="space-y-1 text-xs text-(--admin-text-muted)">
+						<p>{automation_help_example()}</p>
+						<p>{automation_help_tokens()}</p>
+					</div>
+				</div>
+			</details>
+
 			<!-- Stepper Header -->
 			<div
 				class="flex flex-col sm:flex-row items-center justify-center gap-2 mb-8"
@@ -482,6 +575,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 								></iconify-icon>
 								{automation_trigger_config()}
 							</h3>
+							<p class="text-sm text-(--admin-text-muted)">{automation_trigger_intro()}</p>
 
 							<!-- Name & Description -->
 							<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -508,7 +602,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							<div>
 								<span class="block font-medium mb-2">{automation_trigger_type()}</span>
 								<div class="grid grid-cols-3 gap-3" data-testid="automation-trigger-types">
-									{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: 'When content changes' }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: 'At specific times' }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: 'Triggered by user' }] as triggerOption (triggerOption.type)}
+									{#each [{ type: 'event', label: 'Event Hook', icon: 'mdi:flash-outline', desc: automation_trigger_event_desc() }, { type: 'schedule', label: 'Schedule', icon: 'mdi:clock-outline', desc: automation_trigger_schedule_desc() }, { type: 'manual', label: 'Manual', icon: 'mdi:gesture-tap', desc: automation_trigger_manual_desc() }] as triggerOption (triggerOption.type)}
 										{const isSelected = flow.trigger.type === triggerOption.type}
 										<Button
 											variant="transparent"
@@ -1032,23 +1126,44 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							</div>
 						{/if}
 
+						{#if flow.operations.length === 0}
+							<div
+								class="rounded border border-dashed border-surface-500/40 p-6 text-center"
+								data-testid="automation-operations-empty"
+							>
+								<iconify-icon
+									icon="mdi:playlist-plus"
+									width="32"
+									class="mb-2 text-(--admin-text-muted)"
+								></iconify-icon>
+								<p class="font-medium">{automation_operations_empty_title()}</p>
+								<p class="mt-1 text-xs text-(--admin-text-muted)">
+									{automation_operations_empty_body()}
+								</p>
+							</div>
+						{/if}
+
 						<!-- Add Operation Buttons -->
 						<div
 							class="border-2 border-dashed border-surface-500/30 dark:border-surface-600 rounded p-4"
 							data-testid="automation-add-ops"
 						>
-							<p class="text-sm font-medium mb-3 opacity-70">{automation_add_operation()}</p>
+							<p class="text-sm font-medium opacity-70">{automation_add_operation()}</p>
+							<p class="mb-3 text-xs text-(--admin-text-muted)">
+								{automation_add_operation_hint()}
+							</p>
 							<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
 								{#each OPERATION_TYPES as opType (opType.type)}
 									<Button
 										variant="surface"
-										class="p-3 text-center border border-surface-500/30 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
+										class="h-auto p-3 text-center border border-surface-500/30 hover:border-tertiary-500 dark:border-primary-500 transition-all duration-200 rounded hover:scale-105"
 										onclick={() => addOperation(opType.type)}
 										aria-label={automation_add_op_aria({ operation: opType.label })}
 										data-testid={`automation-add-op-${opType.type}`}
 									>
 										<iconify-icon icon={opType.icon} class="text-xl mb-1"></iconify-icon>
 										<p class="text-xs font-medium">{opType.label}</p>
+										<p class="mt-0.5 text-[10px] leading-tight opacity-60">{opType.description}</p>
 									</Button>
 								{/each}
 							</div>
@@ -1064,6 +1179,7 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							></iconify-icon>
 							{automation_preview_test()}
 						</h3>
+						<p class="text-sm text-(--admin-text-muted)">{automation_preview_intro()}</p>
 
 						<!-- Flow Summary -->
 						<AdminCard class="border border-surface-500/20 bg-surface-500/10 p-4 rounded space-y-3">
@@ -1124,6 +1240,14 @@ and preview/test functionality. Reuses TokenPicker patterns.
 
 						<!-- Test Execution -->
 						<div class="space-y-3">
+							<div
+								class="flex items-start gap-2 rounded border border-warning-500/30 bg-warning-500/10 p-3 text-xs text-warning-500"
+								data-testid="automation-test-warning"
+							>
+								<iconify-icon icon="mdi:alert-outline" width="16" class="mt-0.5 shrink-0"
+								></iconify-icon>
+								<span>{automation_test_warning()}</span>
+							</div>
 							<div class="flex items-center gap-3">
 								<Button
 									variant="tertiary"
@@ -1272,6 +1396,17 @@ and preview/test functionality. Reuses TokenPicker patterns.
 					</div>
 				{/if}
 			</AdminCard>
+
+			{#if nextHint}
+				<p
+					class="flex items-center gap-1.5 text-xs text-(--admin-text-muted)"
+					role="status"
+					data-testid="automation-next-hint"
+				>
+					<iconify-icon icon="mdi:information-outline" width="14" class="shrink-0"></iconify-icon>
+					{nextHint}
+				</p>
+			{/if}
 
 			<!-- Footer Navigation -->
 			<div

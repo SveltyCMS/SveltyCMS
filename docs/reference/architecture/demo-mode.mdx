@@ -35,7 +35,7 @@ Demo Mode is a specialized configuration of the Multi-Tenancy system designed to
 Demo mode is strictly controlled via `config/private.ts` to prevent accidental activation in standard production deployments.
 
 > [!IMPORTANT]
-> **Both `MULTI_TENANT` and `DEMO` must be set to `true`** for demo mode to function correctly. Demo mode leverages the multi-tenancy architecture to isolate ephemeral user data.
+> **Demo is a multi-tenancy profile.** Setting `DEMO: true` implies tenant isolation: `isMultiTenantEnabled()` and the CRUD/safe-query guards treat demo mode as multi-tenant even when `MULTI_TENANT` is still `false` in an older bootstrap config. The setup wizard writes both flags as `true`. Every visitor gets a unique, seeded tenant (`crypto.randomUUID()`), so two demo users never share collections, entries, or media.
 
 ```typescript
 export const privateEnv = {

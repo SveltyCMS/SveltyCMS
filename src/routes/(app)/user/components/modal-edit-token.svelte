@@ -1,10 +1,15 @@
 <!--
-@files src/routes/(app)/user/components/modal-edit-token.svelte
+@file src/routes/(app)/user/components/modal-edit-token.svelte
 @component
 **Modal for editing or creating user registration tokens**
 
 This component provides a form to create new registration tokens or edit existing ones.
 It handles token creation, updates, and deletion with proper validation and error handling.
+
+### Features:
+- Seeded form state with legacy expiration format conversion
+- Token creation with copyable invitation link and raw token fallback
+- Token update and deletion with CSRF protection
 
 @props
 - `parent` {object} - Parent modal properties (regionFooter, onClose, buttonPositive)
@@ -72,16 +77,20 @@ It handles token creation, updates, and deletion with proper validation and erro
 	import { addUserTokenSchema } from '@utils/schemas';
 	// Utils
 	import { modalState } from '@utils/modal.svelte';
+	import { untrack } from 'svelte';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { dateToISODateString } from '@utils/date';
+	import { convertExpiresToHours, convertLegacyExpiresFormat } from '../user-remote-utils';
 
 	// Props
 	interface Props {
-		close?: (val?: any) => void;
+		close?: (val?: unknown) => void;
 		email?: string;
 		expires?: string;
 		role?: string;
-		roles?: any[];
+		roles?: Array<{ _id: string; name: string }>;
 		token?: string;
 		user_id?: string;
 	}
@@ -96,52 +105,44 @@ It handles token creation, updates, and deletion with proper validation and erro
 		close
 	}: Props = $props();
 
-	// Form Data with format conversion
-	function convertLegacyFormat(expires: string): string {
-		// Convert old format to new API format
-		switch (expires) {
-			case '1h':
-				return '2 hrs'; // Map 1h to closest option
-			case '2h':
-				return '2 hrs';
-			case '12h':
-				return '12 hrs';
-			case '1d':
-				return '2 days'; // Default
-			case '2d':
-				return '2 days';
-			case '7d':
-				return '1 week'; // 7 days = 1 week
-			case '30d':
-				return '1 month'; // 30 days ≈ 1 month
-			case '90d':
-				return '1 month'; // 90 days, use 1 month as closest
-			default:
-				// If it's already in new format, return as-is
-				if (['2 hrs', '12 hrs', '2 days', '1 week', '2 weeks', '1 month'].includes(expires)) {
-					return expires;
-				}
-				return '2 days'; // Default fallback
-		}
+	function resolveInitialValues() {
+		return {
+			user_id: user_id ?? '',
+			email: email ?? '',
+			token: token ?? '',
+			role: role || 'admin',
+			expiresIn: !expires || expires === '' ? '2 days' : convertLegacyExpiresFormat(expires)
+		};
 	}
+
+	const initialValues = untrack(() => resolveInitialValues());
 
 	const tokenForm = new Form(
 		{
-			user_id: '',
-			email: '',
-			token: '',
-			role: 'admin',
-			expiresIn: '2 days'
+			user_id: initialValues.user_id,
+			email: initialValues.email,
+			token: initialValues.token,
+			role: initialValues.role,
+			expiresIn: initialValues.expiresIn
 		},
 		addUserTokenSchema
 	);
 
+	// Re-seed only when the target token identity changes (never clobber active typing).
+	let seededTokenKey = untrack(
+		() => `${initialValues.token}:${initialValues.user_id}:${initialValues.email}`
+	);
 	$effect(() => {
-		tokenForm.data.user_id = user_id;
-		tokenForm.data.email = email;
-		tokenForm.data.token = token;
-		tokenForm.data.role = role || 'admin';
-		tokenForm.data.expiresIn = !expires || expires === '' ? '2 days' : convertLegacyFormat(expires);
+		const next = resolveInitialValues();
+		const nextKey = `${next.token}:${next.user_id}:${next.email}`;
+		if (nextKey !== seededTokenKey) {
+			seededTokenKey = nextKey;
+			tokenForm.data.user_id = next.user_id;
+			tokenForm.data.email = next.email;
+			tokenForm.data.token = next.token;
+			tokenForm.data.role = next.role;
+			tokenForm.data.expiresIn = next.expiresIn;
+		}
 	});
 
 	// State for the newly created token
@@ -149,6 +150,14 @@ It handles token creation, updates, and deletion with proper validation and erro
 	let invitationLink = $derived(
 		createdToken ? `${page.url.origin}/login?invite_token=${createdToken}` : ''
 	);
+
+	function closeDialog(result?: unknown): void {
+		if (close) {
+			close(result);
+		} else {
+			modalState.close(result);
+		}
+	}
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
@@ -174,9 +183,11 @@ It handles token creation, updates, and deletion with proper validation and erro
 							// The update handler allowlists `expires` (lifecycle field);
 							// `expiresInHours` is not a token column and was dropped, so the
 							// validity selector silently no-op'd. Send a concrete ISO date.
-							expires: new Date(
-								Date.now() + convertExpiresToHours(tokenForm.data.expiresIn) * 60 * 60 * 1000
-							).toISOString()
+							expires: dateToISODateString(
+								new Date(
+									Date.now() + convertExpiresToHours(tokenForm.data.expiresIn) * 60 * 60 * 1000
+								)
+							)
 						}
 					}
 				: {
@@ -187,10 +198,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 			const response = await fetch(endpoint, {
 				method,
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken
-				},
+				headers: clientJsonHeaders(page.data.csrfToken),
 				body: JSON.stringify(body)
 			});
 			const responseData = await response.json();
@@ -237,8 +245,8 @@ It handles token creation, updates, and deletion with proper validation and erro
 					title: usertoken_token_created_title(),
 					description: usertoken_copy_hint()
 				});
-			} else if (close) {
-				close({ success: true });
+			} else {
+				closeDialog({ success: true });
 			}
 		} catch (err) {
 			const message = err instanceof Error ? err.message : usertoken_unknown_error();
@@ -255,10 +263,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 		try {
 			const response = await fetch(`/api/token/${tokenForm.data.token}`, {
 				method: 'DELETE',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken
-				}
+				headers: clientJsonHeaders(page.data.csrfToken)
 			});
 
 			const data = await response.json();
@@ -276,31 +281,10 @@ It handles token creation, updates, and deletion with proper validation and erro
 			});
 			await refreshAll();
 
-			if (close) {
-				close({ success: true });
-			}
+			closeDialog({ success: true });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : usertoken_delete_failed();
 			toast.error({ title: usertoken_error_title(), description: message });
-		}
-	}
-
-	function convertExpiresToHours(expires: string): number {
-		switch (expires) {
-			case '2 hrs':
-				return 2;
-			case '12 hrs':
-				return 12;
-			case '2 days':
-				return 48;
-			case '1 week':
-				return 168;
-			case '2 weeks':
-				return 336;
-			case '1 month':
-				return 720;
-			default:
-				return 48;
 		}
 	}
 
@@ -376,7 +360,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				<Button
 					variant="outline"
 					type="button"
-					onclick={() => close?.({ success: true })}
+					onclick={() => closeDialog({ success: true })}
 					class="px-8">{usertoken_close()}</Button
 				>
 			</div>
@@ -455,7 +439,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 			>
 				<div class="flex items-center gap-4">
 					<!-- Cancel -->
-					<Button variant="outline" type="button" onclick={() => modalState.close()}
+					<Button variant="outline" type="button" onclick={() => closeDialog()}
 						>{button_cancel()}</Button
 					>
 

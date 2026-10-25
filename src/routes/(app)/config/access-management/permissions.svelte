@@ -22,6 +22,7 @@ It provides the following functionality:
 	import type { Permission, Role } from '@src/databases/auth/types';
 	import { PermissionType } from '@src/databases/auth/permission-constants';
 	// Components
+	import AdminCard from '@components/admin-card.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
@@ -321,9 +322,7 @@ It provides the following functionality:
 			</p>
 		</div>
 	{:else}
-		<div
-			class="permission overflow-x-auto rounded border border-(--admin-border-default) shadow-sm bg-(--admin-bg-card)"
-		>
+		<AdminCard class="permission my-2 w-full overflow-x-auto sm:my-3">
 			<table class="{SMART_TABLE} table-auto">
 				<!-- Header -->
 				<thead class={SMART_TABLE_THEAD}>
@@ -503,7 +502,7 @@ It provides the following functionality:
 					{/each}
 				</tbody>
 			</table>
-		</div>
+		</AdminCard>
 	{/if}
 {/if}
 

@@ -55,6 +55,15 @@ describe("tenant isolation matrix (MULTI_TENANT on)", () => {
       expect(() => safeQuery({ _id: "x" }, undefined, opts as any)).not.toThrow();
     });
 
+    it("treats DEMO as tenant-isolated even when MULTI_TENANT is false", () => {
+      (globalThis as any).__privateEnv = { MULTI_TENANT: false, DEMO: true };
+      resetSafeQueryCache();
+
+      expect(() => assertTenantContext({}, "content.nodes.getStructure")).toThrow(
+        /Security Violation/,
+      );
+    });
+
     it("rejects forged systemScope objects without brand", () => {
       expect(() =>
         assertTenantContext({ systemScope: { kind: "system", reason: "scheduler" } } as any, "x"),

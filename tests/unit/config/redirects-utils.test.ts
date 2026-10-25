@@ -12,6 +12,7 @@ import {
   validateRedirectDraft,
   toRedirectPayload,
   filterRedirectsByQuery,
+  findRegexRedirect,
 } from "../../../src/routes/(app)/config/redirects/redirects-utils";
 
 describe("normalizeRedirectPath", () => {
@@ -75,6 +76,36 @@ describe("normalizeRedirectType / payload", () => {
     });
     expect(errors.from).toBeTruthy();
     expect(errors.to).toBeTruthy();
+  });
+});
+
+describe("findRegexRedirect", () => {
+  const rows = [
+    { source: "^/blog/[0-9]+$", target: "/news" },
+    { source: "^/shop/(.*)$", target: "/store" },
+  ];
+  const pattern = (row: { source: string }) => row.source;
+
+  it("returns the first matching pattern row", () => {
+    expect(findRegexRedirect("/blog/42", rows, pattern)).toBe(rows[0]);
+    expect(findRegexRedirect("/shop/shoes", rows, pattern)).toBe(rows[1]);
+  });
+
+  it("returns null when nothing matches or a stored pattern is invalid", () => {
+    expect(findRegexRedirect("/about", rows, pattern)).toBeNull();
+    expect(findRegexRedirect("/blog/42", [{ source: "(unclosed" }], (r) => r.source)).toBeNull();
+  });
+
+  it("bounds the visitor-controlled path and the stored pattern length", () => {
+    expect(findRegexRedirect(`/${"a".repeat(3000)}`, rows, pattern)).toBeNull();
+    const longPattern = `^${"a".repeat(600)}$`;
+    expect(findRegexRedirect("/a", [{ source: longPattern }], (r) => r.source)).toBeNull();
+  });
+
+  it("evaluates at most 200 rules, in order", () => {
+    const many = Array.from({ length: 205 }, (_, i) => ({ source: `^/p${i}$` }));
+    expect(findRegexRedirect("/p199", many, (r) => r.source)).toBe(many[199]);
+    expect(findRegexRedirect("/p200", many, (r) => r.source)).toBeNull();
   });
 });
 

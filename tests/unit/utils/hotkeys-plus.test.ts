@@ -11,6 +11,36 @@ function press(key: string, init: KeyboardEventInit = {}) {
   window.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, ...init }));
 }
 
+describe("global search hotkey", () => {
+  it("fires Alt+G from an input and matches the physical KeyG code", () => {
+    let fired = 0;
+    const stop = registerHotkey(
+      "alt+g",
+      () => {
+        fired += 1;
+      },
+      { description: "Open global search", enableInInputs: true },
+    );
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+
+    const pressInInput = (key: string, code: string) => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key, code, altKey: true, bubbles: true }));
+    };
+
+    try {
+      pressInInput("g", "KeyG");
+      expect(fired).toBe(1);
+      // AltGr / non-US layouts can report a different character for the same key.
+      pressInInput("©", "KeyG");
+      expect(fired).toBe(2);
+    } finally {
+      stop();
+      input.remove();
+    }
+  });
+});
+
 describe("hotkey shifted keys", () => {
   it("matches + when Shift is held and ignores other keys", () => {
     let fired = 0;

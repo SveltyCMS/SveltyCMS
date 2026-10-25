@@ -62,7 +62,7 @@
 	import Slot from '@src/components/system/slot.svelte';
 
 	// --- Derived from page & stores ---
-	let user = $derived(page.data.user);
+	let user = $derived(page.data.layoutUser ?? page.data.user);
 	let isAdmin = $derived(page.data.isAdmin === true);
 
 	let currentMode = $derived(collections.mode);
@@ -367,9 +367,12 @@
 	function cancel(): void {
 		document.dispatchEvent(new CustomEvent('cancelEdit', { bubbles: true }));
 		setCollectionValue({});
-		ui.toggle('rightSidebar', 'hidden');
-		ui.toggle('leftSidebar', isDesktop ? 'full' : 'collapsed');
-		ui.toggle('pageheader', 'hidden');
+		// Route transition, not a layout preference: write the shell state directly
+		// so `rightSidebarTouched` is not poisoned for the next edit session.
+		ui.state.rightSidebar = 'hidden';
+		ui.state.leftSidebar = isDesktop ? 'full' : 'collapsed';
+		ui.state.pageheader = 'hidden';
+		ui.state.pagefooter = 'hidden';
 		navigationManager.toList();
 	}
 

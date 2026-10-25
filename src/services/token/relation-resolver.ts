@@ -1,6 +1,10 @@
 /**
- * @file src/services/token/relationResolver.ts
- * @description Client-safe relation token resolution and permission checking
+ * @file src/services/token/relation-resolver.ts
+ * @description Client-safe relation token resolution and permission checking.
+ *
+ * Features:
+ * - Collection-level read access verification for relation tokens
+ * - Nested dot-path traversal across single and array relation fields
  */
 
 import type { FieldInstance } from "@src/content/types";

@@ -70,4 +70,30 @@ test.describe("Admin route breadth", () => {
       );
     });
   }
+
+  test("config hub search filters the tile grid and clears", async ({ page }) => {
+    await page.goto("/config", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await waitForHydration(page);
+
+    const search = page.getByTestId("config-search");
+    const settingsTile = page.locator('a[href="/config/system-settings"]');
+    const trashTile = page.locator('a[href="/config/trash"]');
+    await expect(search).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(trashTile).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // "cache" is an alias for System Settings, so the grid narrows to one tile.
+    await search.fill("cache");
+    await expect(page.getByTestId("config-search-results")).toContainText("Matching pages: 1", {
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(settingsTile).toBeVisible();
+    await expect(trashTile).toHaveCount(0);
+
+    // No match → empty state; clearing restores the full grid.
+    await search.fill("zzzz no match");
+    await expect(page.getByTestId("config-search-empty")).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await page.getByTestId("config-search-clear").click();
+    await expect(trashTile).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(search).toHaveValue("");
+  });
 });

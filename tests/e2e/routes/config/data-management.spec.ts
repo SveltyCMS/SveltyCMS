@@ -15,6 +15,8 @@ import {
   workspace,
 } from "../../helpers/migration-wizard";
 
+const CSV_FIXTURE = "tests/e2e/fixtures/sample-report.csv";
+
 test.describe("Data Management Pages", () => {
   test.setTimeout(180_000);
 
@@ -51,9 +53,12 @@ test.describe("Data Management Pages", () => {
 
   test("migration wizard dry-run validates WordPress WXR before import", async ({ page }) => {
     await uploadWordPressFixture(page);
-    await expect(workspace(page).getByLabel(/target collection/i)).toHaveValue("post", {
-      timeout: 15_000,
-    });
+    await expect(workspace(page).getByRole("textbox", { name: "Target Collection" })).toHaveValue(
+      "post",
+      {
+        timeout: 15_000,
+      },
+    );
     await advanceToValidateStep(page);
 
     await workspace(page)
@@ -69,14 +74,40 @@ test.describe("Data Management Pages", () => {
     page,
   }) => {
     await uploadWordPressFixture(page);
-    await expect(workspace(page).getByLabel(/target collection/i)).toHaveValue("post", {
-      timeout: 15_000,
-    });
+    await expect(workspace(page).getByRole("textbox", { name: "Target Collection" })).toHaveValue(
+      "post",
+      {
+        timeout: 15_000,
+      },
+    );
     await advanceToValidateStep(page);
     await runMigrationImport(page);
 
     const entry = await expectCollectionEntry(page, "post", (row) => row.title === "E2E Test Post");
     expect(entry.slug).toBe("e2e-test-post");
+  });
+
+  test("migration wizard detects and validates a generic CSV below a report preamble", async ({
+    page,
+  }) => {
+    await ensureSmartImporterReady(page);
+    await workspace(page).locator("#migration-file-input").setInputFiles(CSV_FIXTURE);
+
+    await expect(workspace(page).getByText("sample-report.csv")).toBeVisible({ timeout: 15_000 });
+    await expect(workspace(page).getByText("CSV / Spreadsheet")).toBeVisible({ timeout: 15_000 });
+    await expect(workspace(page).getByRole("button", { name: /next: map fields/i })).toBeEnabled({
+      timeout: 15_000,
+    });
+
+    await advanceToValidateStep(page);
+    await workspace(page)
+      .getByRole("button", { name: /run dry run/i })
+      .click();
+    // The dry run parses the file server-side: a semicolon header below the
+    // preamble and a quoted multi-line cell must yield one importable entry.
+    await expect(workspace(page).getByRole("button", { name: /start import/i })).toBeEnabled({
+      timeout: 30_000,
+    });
   });
 
   test("sync page loads", async ({ page }) => {

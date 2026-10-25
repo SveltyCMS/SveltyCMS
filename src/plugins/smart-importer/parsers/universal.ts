@@ -16,6 +16,7 @@
  */
 
 import { nowISODateString } from "@utils/date";
+import { detectDelimiter, parseDelimitedRow, splitDelimitedRows } from "../csv-detect";
 import type { SNCEnvelope, SNCEntry } from "../types";
 
 /** Cached lazy handle to the egress guard — one module-registry lookup instead of one per call. */
@@ -37,6 +38,8 @@ function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard
  * - TSV (tab-delimited)
  * - Custom delimiters (semicolon, pipe)
  * - Quoted fields with embedded delimiters
+ * - Quoted fields with embedded line breaks (multi-line report exports)
+ * - Report title / metadata preamble above the real header row
  * - Google Sheets exports
  * - Excel CSV exports (BOM-aware)
  */
@@ -55,31 +58,33 @@ export function parseSpreadsheet(
 
     // Remove BOM if present (Excel CSV exports)
     const clean = text.replace(/^\uFEFF/, "");
-    const lines = clean.split(/\r?\n/).filter((l) => l.trim());
 
-    if (lines.length < 1) return null;
+    // Sniff from the widest early row so a single-cell report title before the
+    // header does not decide the delimiter for the whole file.
+    const delimiter = opts.delimiter || sniffDelimiter(clean) || ",";
+    const rows = splitDelimitedRows(clean, delimiter).filter((row) =>
+      row.some((cell) => cell.trim()),
+    );
 
-    // Auto-detect delimiter
-    const delimiter = opts.delimiter || detectDelimiter(lines[0]);
+    if (rows.length < 1) return null;
 
-    // Parse headers
-    let headers: string[];
     let dataStart = opts.skipRows;
+    let headers: string[];
 
     if (opts.hasHeader) {
-      headers = parseCSVLine(lines[dataStart], delimiter);
+      dataStart = findHeaderRowIndex(rows, dataStart);
+      // Keep column alignment: unnamed columns still get a stable key.
+      headers = rows[dataStart].map((cell, i) => cell.trim() || `column_${i + 1}`);
       dataStart++;
     } else {
       // Generate column names
-      const firstRow = parseCSVLine(lines[dataStart], delimiter);
-      headers = firstRow.map((_, i) => `column_${i + 1}`);
+      headers = rows[dataStart].map((_, i) => `column_${i + 1}`);
     }
 
     // Infer types from first 100 rows
     const typeSamples: Record<string, string[]> = {};
-    const sampleRows = lines.slice(dataStart, dataStart + 100);
-    for (const row of sampleRows) {
-      const values = parseCSVLine(row, delimiter);
+    const sampleRows = rows.slice(dataStart, dataStart + 100);
+    for (const values of sampleRows) {
       for (let i = 0; i < Math.min(headers.length, values.length); i++) {
         if (!typeSamples[headers[i]]) typeSamples[headers[i]] = [];
         typeSamples[headers[i]].push(values[i]);
@@ -93,8 +98,8 @@ export function parseSpreadsheet(
 
     const entries: SNCEntry[] = [];
 
-    for (let i = dataStart; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i], delimiter);
+    for (let i = dataStart; i < rows.length; i++) {
+      const values = rows[i];
       if (values.every((v) => !v)) continue;
 
       const raw: Record<string, unknown> = {};
@@ -117,6 +122,9 @@ export function parseSpreadsheet(
         taxonomies: { vocabularies: [], terms: {} },
         rawCustomFields: {
           ...raw,
+          // Content-type and rollback filters read this field; a sheet keeps its
+          // own `type` column when it has one.
+          type: typeof raw.type === "string" && raw.type.trim() ? raw.type : "entry",
           _sourceFormat: "csv",
           _columnTypes: columnTypes,
         },
@@ -135,37 +143,42 @@ export function parseSpreadsheet(
   }
 }
 
-function detectDelimiter(headerLine: string): string {
-  const candidates = [
-    { char: "\t", name: "tab" },
-    { char: ",", name: "comma" },
-    { char: ";", name: "semicolon" },
-    { char: "|", name: "pipe" },
-  ];
+function sniffDelimiter(text: string): string | null {
+  const lines = text.split(/\r?\n/).slice(0, 20);
+  let best: { delimiter: string; columns: number } | null = null;
 
-  for (const { char } of candidates) {
-    if (headerLine.includes(char)) return char;
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const delimiter = detectDelimiter(line);
+    if (!delimiter) continue;
+
+    const columns = parseDelimitedRow(line, delimiter).length;
+    if (columns > 1 && (!best || columns > best.columns)) best = { delimiter, columns };
   }
-  return ",";
+
+  return best?.delimiter ?? null;
 }
 
-function parseCSVLine(line: string, delimiter: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
+/**
+ * Pick the header row as the widest row within the first 20 rows below
+ * `start`. Exports often begin with a one-cell report title or metadata block,
+ * which would otherwise become the header and collapse every column into one.
+ */
+function findHeaderRowIndex(rows: string[][], start: number): number {
+  const first = Math.min(start, rows.length - 1);
+  const end = Math.min(rows.length, first + 20);
+  let index = first;
+  let width = rows[first].filter((cell) => cell.trim()).length;
 
-  for (const ch of line) {
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-    } else if (ch === delimiter && !inQuotes) {
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += ch;
+  for (let i = first + 1; i < end; i++) {
+    const candidate = rows[i].filter((cell) => cell.trim()).length;
+    if (candidate > width) {
+      width = candidate;
+      index = i;
     }
   }
-  result.push(current.trim());
-  return result;
+
+  return index;
 }
 
 function inferColumnType(samples: string[]): string {

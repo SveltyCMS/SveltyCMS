@@ -618,13 +618,22 @@ export class RelationalSystemModule implements ISystemAdapter {
       }, "JOB_DELETE_FAILED");
     },
 
-    cleanup: async (olderThan: Date): Promise<DatabaseResult<number>> => {
+    cleanup: async (
+      olderThan: Date,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<number>> => {
       return this.adapter.wrap(async () => {
         const cleanOlder =
           olderThan instanceof Date ? new Date(olderThan.getTime()) : new Date(olderThan);
-        const result = await this.db
-          .delete(this.schema.sveltyJobs)
-          .where(lte(this.schema.sveltyJobs.createdAt, cleanOlder));
+        // Terminal rows only: a pending retry (backoff up to 2^n minutes) or a
+        // failed job awaiting an operator must never be swept away by history
+        // retention or the “Clear Completed” action.
+        const conditions: any[] = [
+          lte(this.schema.sveltyJobs.createdAt, cleanOlder),
+          eq(this.schema.sveltyJobs.status, "completed"),
+        ];
+        applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, options);
+        const result = await this.db.delete(this.schema.sveltyJobs).where(and(...conditions));
         return (result as any).changes || (result as any).count || 0;
       }, "JOB_CLEANUP_FAILED");
     },

@@ -59,6 +59,7 @@
 	import { validateMinimumCollectionFields } from '../../collectionbuilder-utils';
 	import Tabs from '@src/components/ui/tabs.svelte';
 	import Button from '@components/ui/button.svelte';
+	import { TAB_RULE } from '@components/ui/tabs/chrome';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	const action = $derived(page.params.action);
@@ -588,7 +589,7 @@
 
 	<!-- Tab Navigation -->
 	<div
-		class="z-20 shrink-0 border-b border-surface-500/30 bg-(--admin-bg-card) px-4 pt-2 pb-2 dark:border-surface-500/40 shadow-xs"
+		class="z-20 shrink-0 {TAB_RULE} bg-(--admin-bg-card) px-4 pt-2 shadow-xs"
 		data-testid="collection-editor-tabs"
 	>
 		<div class="flex items-center justify-between gap-4">
@@ -597,6 +598,7 @@
 				bind:activeTab
 				onTabChange={(tabId: string) => goToTab(tabId)}
 				variant="underline"
+				bordered={false}
 			/>
 			<div class="flex items-center gap-3 shrink-0">
 				{#if activeTab === 'widgets'}

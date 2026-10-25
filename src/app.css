@@ -276,6 +276,16 @@
   scrollbar-width: thin;
 }
 
+/* Hide the scrollbar without losing horizontal scrolling (tab strips, chip rows). */
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @utility preset-filled-primary-500 {
   @apply bg-primary-500 text-white shadow-sm;
 }

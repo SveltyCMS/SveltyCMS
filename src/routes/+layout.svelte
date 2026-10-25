@@ -250,10 +250,14 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 						// on refresh. `contentNodes` is the full flat list from the same load; fall
 						// back to the nav tree only when it is absent (e.g. login/setup routes).
 						const flatNodes = page.data.contentNodes;
+						const routeStructure = (page.data as { contentStructure?: unknown[] })
+							?.contentStructure;
 						applyRemoteContentStructure(
 							Array.isArray(flatNodes) && flatNodes.length > 0
 								? flatNodes
-								: page.data.navigationStructure
+								: Array.isArray(routeStructure) && routeStructure.length > 0
+									? (routeStructure as typeof flatNodes)
+									: page.data.navigationStructure
 						);
 						// Initialize the modern content system with hydration data
 						initializeContent(page.data);

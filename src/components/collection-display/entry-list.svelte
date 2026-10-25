@@ -53,6 +53,7 @@ bulk actions, and predictive preloading.
 
 <script lang="ts">
 	// Components
+	import AdminCard from '@components/admin-card.svelte';
 	import SystemTooltip from '@components/system/system-tooltip.svelte';
 	import Status from '@components/system/table/status.svelte';
 	import TableFilter from '@components/system/table/table-filter.svelte';
@@ -116,6 +117,7 @@ bulk actions, and predictive preloading.
 		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
+		SMART_TABLE_COLUMN_MANAGER,
 		SMART_TABLE_ROW_HOVER,
 		SMART_TABLE_ROW_SELECTED,
 		SMART_TABLE_SCROLL,
@@ -1336,7 +1338,7 @@ bulk actions, and predictive preloading.
 	</div>
 {:else}
 	<!-- Header Bar -->
-	<div class="mb-3 flex flex-wrap items-center justify-between gap-3 {titleInset} pe-2">
+	<div class="mb-1 flex flex-wrap items-center justify-between gap-3 {titleInset} ">
 		<!-- Left: Sidebar Toggle, Title, Category Breadcrumb, Count -->
 		<div class="flex flex-1 items-center gap-3 min-w-0">
 			{#if ui.state.leftSidebar === 'hidden'}
@@ -1459,7 +1461,7 @@ bulk actions, and predictive preloading.
 	<!-- Status facet chips (server counts; streamed promise never rejects → {} fallback).
 	     Horizontal padding comes from CONTENT_PADDING so the chips line up with the
 	     table instead of touching the sidebar border. -->
-	<div class="mb-2 shrink-0 {CONTENT_PADDING}">
+	<div class="mb-1 shrink-0 {CONTENT_PADDING}">
 		{#await statusFacets}
 			<SmartTableStatusFacets
 				facets={{}}
@@ -1479,552 +1481,576 @@ bulk actions, and predictive preloading.
 
 	{#if columnShow}
 		<!-- Column order -->
-		<div
-			class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-secondary-500/10 p-2 text-center dark:bg-surface-700"
-		>
-			<div class="text-sm dark:text-primary-500">{entrylist_dnd()}</div>
-			<!-- Select All Columns -->
-			<div class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4">
-				<div class="flex items-center gap-2">
-					<Checkbox bind:checked={selectAllColumns.value} label={entrylist_all()} />
-
-					<Button
-						variant="outline"
-						onclick={resetViewSettings}
-						aria-label="reset-view"
-						class="bg-surface-400 text-white"
-					>
-						<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
-						Reset View
-					</Button>
-				</div>
-				<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
-				<section
-					class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
-					role="list"
-					aria-label="Drag columns to reorder"
+		<div class="shrink-0 {CONTENT_PADDING}">
+			<div class={SMART_TABLE_COLUMN_MANAGER}>
+				<div class="text-sm dark:text-primary-500">{entrylist_dnd()}</div>
+				<!-- Select All Columns -->
+				<div
+					class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4"
 				>
-					{#each displayTableHeaders as header (header.id)}
-						<div
-							animate:flip={{ duration: 300 }}
-							use:draggable={{
-								container: 'columns',
-								dragData: header,
-								keyboard: true,
-								handle: '.column-drag-handle'
-							}}
-							use:droppable={{
-								container: 'columns',
-								callbacks: { onDrop: handleColumnDrop },
-								direction: 'horizontal',
-								attributes: { dragOverClass: 'ring-2 ring-primary-500 scale-105' }
-							}}
-							data-header-id={header.id}
-							role="listitem"
-							class="inline-flex items-center rounded-lg border transition-all {header.visible
-								? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
-								: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
-						>
-							<button
-								type="button"
-								class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-								aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
-								title="Drag to reorder"
-							>
-								<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
-							</button>
+					<div class="flex items-center gap-2">
+						<Checkbox bind:checked={selectAllColumns.value} label={entrylist_all()} />
 
-							<button
-								type="button"
-								onclick={() => handleColumnVisibilityToggle(header)}
-								aria-label={`Toggle visibility of ${header.label} column`}
-								class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+						<Button
+							variant="outline"
+							onclick={resetViewSettings}
+							aria-label="reset-view"
+							class="bg-surface-400 text-white"
+						>
+							<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
+							Reset View
+						</Button>
+					</div>
+					<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
+					<section
+						class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
+						role="list"
+						aria-label="Drag columns to reorder"
+					>
+						{#each displayTableHeaders as header (header.id)}
+							<div
+								animate:flip={{ duration: 300 }}
+								use:draggable={{
+									container: 'columns',
+									dragData: header,
+									keyboard: true,
+									handle: '.column-drag-handle'
+								}}
+								use:droppable={{
+									container: 'columns',
+									callbacks: { onDrop: handleColumnDrop },
+									direction: 'horizontal',
+									attributes: { dragOverClass: 'ring-2 ring-primary-500 scale-105' }
+								}}
+								data-header-id={header.id}
+								role="listitem"
+								class="inline-flex items-center rounded-lg border transition-all {header.visible
+									? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
+									: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
 							>
-								{#if header.visible}
-									<iconify-icon icon="fa:check" width={14} class="text-success-500"></iconify-icon>
-								{:else}
-									<iconify-icon icon="mdi:eye-off-outline" width={14} class="text-surface-400"
-									></iconify-icon>
-								{/if}
-								<span class="capitalize">{header.label}</span>
-							</button>
-						</div>
-					{/each}
-				</section>
+								<button
+									type="button"
+									class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+									aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
+									title="Drag to reorder"
+								>
+									<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
+								</button>
+
+								<button
+									type="button"
+									onclick={() => handleColumnVisibilityToggle(header)}
+									aria-label={`Toggle visibility of ${header.label} column`}
+									class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+								>
+									{#if header.visible}
+										<iconify-icon icon="fa:check" width={14} class="text-success-500"
+										></iconify-icon>
+									{:else}
+										<iconify-icon icon="mdi:eye-off-outline" width={14} class="text-surface-400"
+										></iconify-icon>
+									{/if}
+									<span class="capitalize">{header.label}</span>
+								</button>
+							</div>
+						{/each}
+					</section>
+				</div>
 			</div>
 		</div>
 	{/if}
 
-	{#if tableData.length > 0 || hasActiveFilters}
-		<SmartTableShell
-			empty={tableData.length === 0 && hasActiveFilters}
-			emptyTitle="No entries match filters"
-			emptyDescription="Clear filters or adjust search to see collection entries."
-			emptyIcon="mdi:filter-off-outline"
-			showPagination={tableData.length > 0}
-			manageScroll={false}
-			currentPage={serverPagination.currentPage}
-			rowsPerPage={serverPagination.pageSize}
-			{pagesCount}
-			{totalItems}
-			{onUpdatePage}
-			{onUpdateRowsPerPage}
-			urlPageParam="page"
-			class="min-h-0 flex-1 {CONTENT_PADDING}"
-		>
-			{#snippet emptyAction()}
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={onClearAllFilters}
-					aria-label="Clear all filters"
+	<div class="flex min-h-0 flex-1 flex-col {CONTENT_PADDING}">
+		<AdminCard class="mt-0.5 flex h-full min-h-0 w-full flex-col" data-testid="entry-list-card">
+			{#if tableData.length > 0 || hasActiveFilters}
+				<SmartTableShell
+					empty={tableData.length === 0 && hasActiveFilters}
+					emptyTitle="No entries match filters"
+					emptyDescription="Clear filters or adjust search to see collection entries."
+					emptyIcon="mdi:filter-off-outline"
+					showPagination={tableData.length > 0}
+					manageScroll={false}
+					currentPage={serverPagination.currentPage}
+					rowsPerPage={serverPagination.pageSize}
+					{pagesCount}
+					{totalItems}
+					{onUpdatePage}
+					{onUpdateRowsPerPage}
+					urlPageParam="page"
+					class="min-h-0 flex-1"
 				>
-					Clear filters
-				</Button>
-			{/snippet}
-
-			{#if smartTable.viewMode === 'card'}
-				<!-- Card View Grid -->
-				<div
-					bind:this={scrollContainerEl}
-					onscroll={onVirtualScroll}
-					class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto py-3"
-					tabindex="0"
-					role="grid"
-					aria-label="Collection entries card grid"
-					onkeydown={handleTableKeydown}
-				>
-					{#if filterShow && visibleTableHeaders.length > 0}
-						<div
-							class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
+					{#snippet emptyAction()}
+						<Button
+							variant="outline"
+							size="sm"
+							onclick={onClearAllFilters}
+							aria-label="Clear all filters"
 						>
-							<SmartFilterRow
-								headers={visibleTableHeaders}
-								definitions={smartFilter.definitions}
-								filters={smartFilter.filters}
-								activeFilters={smartFilter.activeFilters}
-								{onFilterChange}
-								onClearAll={onClearAllFilters}
-								{onClearFilter}
-								onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-								advancedCount={advancedFilterClauses.length}
-							/>
-						</div>
-					{/if}
+							Clear filters
+						</Button>
+					{/snippet}
 
-					{#if tableData.length > 0}
-						<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-							{#each visibleRows as entry, index (entry._id)}
-								{@const rowId = String(entry._id ?? '')}
-								{@const rowSelected = smartTable.isSelected(rowId)}
-								{@const isFocused = focusedRowIndex === index}
-								<div
-									class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 {rowSelected
-										? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
-										: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'}"
-									role="row"
-									tabindex={isFocused ? 0 : -1}
-									onclick={(e) => {
-										const target = e.target as HTMLElement | null;
-										if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-										const originalEntry = tableData.find(
-											(item: CollectionEntry) => item._id === entry._id
-										);
-										if (originalEntry) openEntryForEdit(originalEntry);
-									}}
-									onkeydown={(e) => {
-										// Keyboard parity for the card view (WCAG 2.1.1): Enter opens the entry,
-										// Space toggles selection — the same mapping the table view uses.
-										const target = e.target as HTMLElement | null;
-										if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-										if (e.key === 'Enter') {
-											e.preventDefault();
-											const originalEntry = tableData.find(
-												(item: CollectionEntry) => item._id === entry._id
-											);
-											if (originalEntry) openEntryForEdit(originalEntry);
-										} else if (e.key === ' ') {
-											e.preventDefault();
-											smartTable.toggleSelect(rowId);
-										}
-									}}
-								>
-									<!-- Top: Checkbox, Title/ID, Status -->
-									<div
-										class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5"
-									>
-										<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
-											<Checkbox
-												checked={rowSelected}
-												onchange={() => smartTable.toggleSelect(rowId)}
-												label="Select entry {rowId}"
-												hideLabel
-											/>
-											<span class="text-xs font-bold text-(--admin-text-body) truncate">
-												{String(entry[visibleTableHeaders[0]?.name as any] || entry._id || 'Entry')}
-											</span>
-										</div>
-										<div data-prevent-row-click>
-											<Status value={entry.status || entry.raw_status || 'draft'} />
-										</div>
-									</div>
-
-									<!-- Body: Key Fields -->
-									<div class="my-3 space-y-1.5 text-xs text-(--admin-text-muted)">
-										{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
-											{@const fieldName = (header as TableHeader).name || ''}
-											<div class="flex items-center justify-between gap-2">
-												<span class="font-medium text-surface-500 capitalize truncate"
-													>{header.label}:</span
-												>
-												<span class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]">
-													{String((entry as any)[fieldName] ?? '-')}
-												</span>
-											</div>
-										{/each}
-									</div>
-
-									<!-- Footer: Quick Actions -->
-									<div
-										class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400"
-									>
-										<span class="text-[11px]">
-											{formatDisplayDate(
-												(entry.updatedAt as string) || (entry.createdAt as string) || ''
-											)}
-										</span>
-										<Button
-											variant="ghost"
-											size="sm"
-											class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
-											onclick={() => {
-												modeTransitionGuard.setMode('edit');
-												setCollectionValue(entry);
-												reflectModeInURL('edit', entry._id as string);
-											}}
-										>
-											<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
-											Edit
-										</Button>
-									</div>
-								</div>
-							{/each}
-						</div>
-					{:else}
-						<div class="p-8 text-center text-(--admin-text-muted)">No results found.</div>
-					{/if}
-				</div>
-			{:else}
-				<!-- Scrollable grid region: `tabindex="0"` + keydown are what make keyboard
-				     scrolling (WCAG 2.1.1) and arrow-key cell navigation possible; `role="region"`
-				     plus the aria-label carry the semantics — the element is intentionally focusable. -->
-				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-				<div
-					bind:this={scrollContainerEl}
-					onscroll={onVirtualScroll}
-					onkeydown={handleTableKeydown}
-					tabindex="0"
-					role="region"
-					aria-label="Collection entries table"
-					class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto focus:outline-hidden"
-				>
-					<table class="{SMART_TABLE} min-w-max" role="grid" aria-label="Collection entries">
-						<!-- Table Header -->
-						<thead class={SMART_TABLE_THEAD}>
+					{#if smartTable.viewMode === 'card'}
+						<!-- Card View Grid -->
+						<div
+							bind:this={scrollContainerEl}
+							onscroll={onVirtualScroll}
+							class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto py-3"
+							tabindex="0"
+							role="grid"
+							aria-label="Collection entries card grid"
+							onkeydown={handleTableKeydown}
+						>
 							{#if filterShow && visibleTableHeaders.length > 0}
-								<SmartFilterRow
-									headers={visibleTableHeaders}
-									definitions={smartFilter.definitions}
-									filters={smartFilter.filters}
-									activeFilters={smartFilter.activeFilters}
-									{onFilterChange}
-									onClearAll={onClearAllFilters}
-									{onClearFilter}
-									onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-									advancedCount={advancedFilterClauses.length}
-								/>
+								<div
+									class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
+								>
+									<SmartFilterRow
+										headers={visibleTableHeaders}
+										definitions={smartFilter.definitions}
+										filters={smartFilter.filters}
+										activeFilters={smartFilter.activeFilters}
+										{onFilterChange}
+										onClearAll={onClearAllFilters}
+										{onClearFilter}
+										onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+										advancedCount={advancedFilterClauses.length}
+									/>
+								</div>
 							{/if}
 
-							<tr
-								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
-							>
-								<TableIcons
-									cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
-									checked={SelectAll.value}
-									onCheck={(checked: boolean) => {
-										SelectAll.value = checked;
-									}}
-								/>
-
-								{#each visibleTableHeaders as header (header.id)}
-									{@const colKey = ((header as TableHeader).name || header.id) as string}
-									{@const rankInfo = smartTable.getSortRank(colKey)}
-									{@const isActiveSort = rankInfo !== null}
-									<th
-										class="{SMART_TABLE_TH} relative min-w-20 overflow-hidden {cellPaddingClass}"
-										style={smartTable.getColumnWidthStyle(colKey)}
-										aria-sort={isActiveSort
-											? rankInfo.direction === 1
-												? 'ascending'
-												: rankInfo.direction === -1
-													? 'descending'
-													: 'none'
-											: 'none'}
-									>
-										<button
-											type="button"
-											class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold text-xs tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
-												? 'text-primary-600 dark:text-primary-400 font-bold'
-												: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
-											onclick={(e) => onSortChange(colKey, e.shiftKey)}
-											aria-label="Sort by {(header as TableHeader).label}"
-											title="Click to sort, Shift+Click to compose secondary sorts"
-										>
-											<span class="truncate">{(header as TableHeader).label}</span>
-											{#if isActiveSort}
-												{#if smartTable.multiSort.length > 1}
-													<span
-														class="inline-flex items-center justify-center rounded-full bg-primary-500/20 text-primary-600 dark:text-primary-400 text-[10px] w-4 h-4 font-bold"
-													>
-														{rankInfo.rank}
-													</span>
-												{/if}
-												{@const sortIcon =
-													rankInfo.direction === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
-												<iconify-icon icon={sortIcon} width="14" class="shrink-0 origin-center"
-												></iconify-icon>
-											{/if}
-										</button>
-										<ColumnResizeHandle columnKey={colKey} onResize={smartTable.setColumnWidth} />
-									</th>
-								{/each}
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
-							{#if useRowVirtualization && spacerTop > 0}
-								<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
-							{/if}
 							{#if tableData.length > 0}
-								{#each visibleRows as entry, index (entry._id)}
-									{@const rowId = String(entry._id ?? '')}
-									{@const rowSelected = smartTable.isSelected(rowId)}
-									{@const isFocused = focusedRowIndex === index}
-									<tr
-										class="group transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset {rowSelected
-											? SMART_TABLE_ROW_SELECTED
-											: SMART_TABLE_ROW_HOVER}"
-										style={useRowVirtualization
-											? 'content-visibility: auto; contain-intrinsic-size: 48px;'
-											: undefined}
-										aria-selected={rowSelected}
-										tabindex={isFocused ? 0 : -1}
-										onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
-										onmouseleave={handleRowHoverEnd}
-										onclick={(e) => {
-											const target = e.target as HTMLElement | null;
-											if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-											const originalEntry = tableData.find(
-												(item: CollectionEntry) => item._id === entry._id
-											);
-											if (originalEntry) {
-												modeTransitionGuard.setMode('edit');
-												setCollectionValue(originalEntry);
-												reflectModeInURL('edit', originalEntry._id as string);
-											}
-										}}
-									>
-										<TableIcons
-											cellClass={`w-10 text-center ${pinCellClass('start')} ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
-											checked={rowSelected}
-											onCheck={() => {
-												if (rowId) smartTable.toggleSelect(rowId);
+								<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+									{#each visibleRows as entry, index (entry._id)}
+										{@const rowId = String(entry._id ?? '')}
+										{@const rowSelected = smartTable.isSelected(rowId)}
+										{@const isFocused = focusedRowIndex === index}
+										<div
+											class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 {rowSelected
+												? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
+												: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'}"
+											role="row"
+											tabindex={isFocused ? 0 : -1}
+											onclick={(e) => {
+												const target = e.target as HTMLElement | null;
+												if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+												const originalEntry = tableData.find(
+													(item: CollectionEntry) => item._id === entry._id
+												);
+												if (originalEntry) openEntryForEdit(originalEntry);
 											}}
-										/>
-										{#if visibleTableHeaders}
-											{#each visibleTableHeaders as header, colIdx (header.id)}
-												{@const cellKey = ((header as TableHeader).name || header.id) as string}
-												{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
-												<td
-													role="gridcell"
-													aria-colindex={colIdx + 2}
-													class="{SMART_TABLE_TD} {cellPaddingClass} text-xs sm:text-sm text-(--admin-text-muted) {(
-														header as TableHeader
-													).name !== 'status'
-														? 'cursor-pointer transition-colors duration-150'
-														: ''} {isFocusedCell
-														? 'group-focus-visible:ring-2 group-focus-visible:ring-primary-500 group-focus-visible:ring-inset'
-														: ''}"
-													style={smartTable.getColumnWidthStyle(cellKey)}
-													onclick={async () => {
-														if ((header as TableHeader).name === 'status') {
-															// Handle single entry status change with modal (same style as multibutton)
-															const currentStatus = entry.status || entry.raw_status || 'draft';
-															let nextStatus;
+											onkeydown={(e) => {
+												// Keyboard parity for the card view (WCAG 2.1.1): Enter opens the entry,
+												// Space toggles selection — the same mapping the table view uses.
+												const target = e.target as HTMLElement | null;
+												if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+												if (e.key === 'Enter') {
+													e.preventDefault();
+													const originalEntry = tableData.find(
+														(item: CollectionEntry) => item._id === entry._id
+													);
+													if (originalEntry) openEntryForEdit(originalEntry);
+												} else if (e.key === ' ') {
+													e.preventDefault();
+													smartTable.toggleSelect(rowId);
+												}
+											}}
+										>
+											<!-- Top: Checkbox, Title/ID, Status -->
+											<div
+												class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5"
+											>
+												<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
+													<Checkbox
+														checked={rowSelected}
+														onchange={() => smartTable.toggleSelect(rowId)}
+														label="Select entry {rowId}"
+														hideLabel
+													/>
+													<span class="text-xs font-bold text-(--admin-text-body) truncate">
+														{String(
+															entry[visibleTableHeaders[0]?.name as any] || entry._id || 'Entry'
+														)}
+													</span>
+												</div>
+												<div data-prevent-row-click>
+													<Status value={entry.status || entry.raw_status || 'draft'} />
+												</div>
+											</div>
 
-															// Define status progression logic using StatusTypes
-															switch (currentStatus) {
-																case StatusTypes.draft:
-																	nextStatus = StatusTypes.publish;
-																	break;
-																case StatusTypes.publish:
-																	nextStatus = StatusTypes.unpublish;
-																	break;
-																case StatusTypes.unpublish:
-																	nextStatus = StatusTypes.publish;
-																	break;
-																case StatusTypes.schedule:
-																	nextStatus = StatusTypes.publish;
-																	break;
-																default:
-																	nextStatus = StatusTypes.publish;
-																	break;
-															}
+											<!-- Body: Key Fields -->
+											<div class="my-3 space-y-1.5 text-xs text-(--admin-text-muted)">
+												{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
+													{@const fieldName = (header as TableHeader).name || ''}
+													<div class="flex items-center justify-between gap-2">
+														<span class="font-medium text-surface-500 capitalize truncate"
+															>{header.label}:</span
+														>
+														<span
+															class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]"
+														>
+															{String((entry as any)[fieldName] ?? '-')}
+														</span>
+													</div>
+												{/each}
+											</div>
 
-															// Create modal with same styling as multibutton modals
-															showStatusChangeConfirm({
-																status: String(nextStatus),
-																count: 1,
-																onConfirm: async () => {
-																	try {
-																		const collId = collections.active?._id;
-																		if (!collId) return;
-																		const result = await updateEntryStatus(
-																			collId,
-																			entry._id as string,
-																			String(nextStatus)
-																		);
-																		if (result.success) {
-																			toast.success(`Entry status updated to ${nextStatus}`);
-																			onActionSuccess();
-																		} else {
-																			toast.error(result.error || 'Failed to update entry status');
-																		}
-																	} catch (error) {
-																		logger.error('Error updating entry status:', error);
-																		toast.error('An error occurred while updating entry status');
-																	}
-																}
-															});
-														} else {
-															// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
-															const originalEntry = tableData.find(
-																(e: CollectionEntry) => e._id === entry._id
-															);
-															if (originalEntry) {
-																// 1. Check cache & load if needed
-																// Navigate to edit mode - this triggers SSR to load full multilingual data
-																// List view has language-projected data, edit mode needs all languages
-
-																// 2. Update stores INSTANTLY (no waiting)
-																// The URL pattern document mandates GUI-First: state first, URL second
-																modeTransitionGuard.setMode('edit');
-																setCollectionValue(originalEntry);
-
-																// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)
-																reflectModeInURL('edit', originalEntry._id as string);
-
-																logger.debug(
-																	`[Edit] Loading full data for entry ${originalEntry._id}`
-																);
-															}
-														}
+											<!-- Footer: Quick Actions -->
+											<div
+												class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400"
+											>
+												<span class="text-[11px]">
+													{formatDisplayDate(
+														(entry.updatedAt as string) || (entry.createdAt as string) || ''
+													)}
+												</span>
+												<Button
+													variant="ghost"
+													size="sm"
+													class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
+													onclick={() => {
+														modeTransitionGuard.setMode('edit');
+														setCollectionValue(entry);
+														reflectModeInURL('edit', entry._id as string);
 													}}
 												>
-													<SystemTooltip
-														title={(header as TableHeader).name !== 'status'
-															? 'Click to edit this entry'
-															: 'Click to change status'}
-													>
-														{#if (header as TableHeader).name === 'status'}
-															<div class="flex w-full items-center justify-center">
-																<Status value={entry.status || entry.raw_status || 'draft'} />
-															</div>
-														{:else if (header as TableHeader).component}
-															<!-- Dynamic Plugin Component Injection -->
-															{const pluginId = ((header as TableHeader).id || '').split('-')[0]}
-
-															<PluginComponent
-																{pluginId}
-																componentName={(header as TableHeader).component || ''}
-																{...mapPluginProps((header as TableHeader).props, entry)}
-																compact={true}
-															/>
-														{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
-															<div class="flex flex-col text-xs">
-																<div class="font-semibold">
-																	{formatDisplayDate(
-																		(entry as any)[(header as TableHeader).name || ''] as string,
-																		undefined,
-																		{
-																			year: 'numeric',
-																			month: 'short',
-																			day: 'numeric'
-																		}
-																	)}
-																</div>
-																<div class="text-(--admin-text-muted)">
-																	{formatDisplayDate(
-																		(entry as any)[(header as TableHeader).name || ''] as string,
-																		undefined,
-																		{
-																			hour: '2-digit',
-																			minute: '2-digit',
-																			second: '2-digit',
-																			hour12: false
-																		}
-																	)}
-																</div>
-															</div>
-														{:else if (header as TableHeader).widgetName}
-															<EntryListCell
-																widgetName={(header as TableHeader).widgetName}
-																fieldName={(header as TableHeader).name || ''}
-																value={(entry as any)[(header as TableHeader).name || '']}
-																contentLanguage={currentLanguage}
-																compact={true}
-															/>
-														{:else}
-															<Sanitize
-																html={String(
-																	(entry as any)[(header as TableHeader).name || ''] || '-'
-																)}
-																profile="strict"
-															/>
-														{/if}
-													</SystemTooltip>
-												</td>
-											{/each}
-										{/if}
-									</tr>
-								{/each}
-								{#if useRowVirtualization && spacerBottom > 0}
-									<tr style="height: {spacerBottom}px" aria-hidden="true"></tr>
-								{/if}
+													<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
+													Edit
+												</Button>
+											</div>
+										</div>
+									{/each}
+								</div>
 							{:else}
-								<tr>
-									<td
-										colspan={visibleTableHeaders.length + 1}
-										class="p-4 text-center text-surface-500 dark:text-surface-50"
-										>No results found.</td
-									>
-								</tr>
+								<div class="p-8 text-center text-(--admin-text-muted)">No results found.</div>
 							{/if}
-						</tbody>
-					</table>
+						</div>
+					{:else}
+						<!-- Scrollable grid region: `tabindex="0"` + keydown are what make keyboard
+				     scrolling (WCAG 2.1.1) and arrow-key cell navigation possible; `role="region"`
+				     plus the aria-label carry the semantics — the element is intentionally focusable. -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+						<div
+							bind:this={scrollContainerEl}
+							onscroll={onVirtualScroll}
+							onkeydown={handleTableKeydown}
+							tabindex="0"
+							role="region"
+							aria-label="Collection entries table"
+							class="{SMART_TABLE_SCROLL} max-h-none overflow-x-auto focus:outline-hidden"
+						>
+							<table class="{SMART_TABLE} min-w-max" role="grid" aria-label="Collection entries">
+								<!-- Table Header -->
+								<thead class={SMART_TABLE_THEAD}>
+									{#if filterShow && visibleTableHeaders.length > 0}
+										<SmartFilterRow
+											headers={visibleTableHeaders}
+											definitions={smartFilter.definitions}
+											filters={smartFilter.filters}
+											activeFilters={smartFilter.activeFilters}
+											{onFilterChange}
+											onClearAll={onClearAllFilters}
+											{onClearFilter}
+											onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+											advancedCount={advancedFilterClauses.length}
+										/>
+									{/if}
+
+									<tr
+										class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
+									>
+										<TableIcons
+											cellClass={`w-10 ${pinCellClass('start')} ${hasSelections ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
+											checked={SelectAll.value}
+											onCheck={(checked: boolean) => {
+												SelectAll.value = checked;
+											}}
+										/>
+
+										{#each visibleTableHeaders as header (header.id)}
+											{@const colKey = ((header as TableHeader).name || header.id) as string}
+											{@const rankInfo = smartTable.getSortRank(colKey)}
+											{@const isActiveSort = rankInfo !== null}
+											<th
+												class="{SMART_TABLE_TH} relative min-w-20 overflow-hidden {cellPaddingClass}"
+												style={smartTable.getColumnWidthStyle(colKey)}
+												aria-sort={isActiveSort
+													? rankInfo.direction === 1
+														? 'ascending'
+														: rankInfo.direction === -1
+															? 'descending'
+															: 'none'
+													: 'none'}
+											>
+												<button
+													type="button"
+													class="inline-flex max-w-full min-w-0 items-center justify-center gap-1 rounded px-1 py-1 font-semibold tracking-wider focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {isActiveSort
+														? 'text-primary-600 dark:text-primary-400 font-bold'
+														: 'text-tertiary-500 dark:text-primary-500 hover:text-surface-500'}"
+													onclick={(e) => onSortChange(colKey, e.shiftKey)}
+													aria-label="Sort by {(header as TableHeader).label}"
+													title="Click to sort, Shift+Click to compose secondary sorts"
+												>
+													<span class="truncate">{(header as TableHeader).label}</span>
+													{#if isActiveSort}
+														{#if smartTable.multiSort.length > 1}
+															<span
+																class="inline-flex items-center justify-center rounded-full bg-primary-500/20 text-primary-600 dark:text-primary-400 text-[10px] w-4 h-4 font-bold"
+															>
+																{rankInfo.rank}
+															</span>
+														{/if}
+														{@const sortIcon =
+															rankInfo.direction === 1 ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+														<iconify-icon icon={sortIcon} width="14" class="shrink-0 origin-center"
+														></iconify-icon>
+													{/if}
+												</button>
+												<ColumnResizeHandle
+													columnKey={colKey}
+													onResize={smartTable.setColumnWidth}
+												/>
+											</th>
+										{/each}
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+									{#if useRowVirtualization && spacerTop > 0}
+										<tr style="height: {spacerTop}px" aria-hidden="true"></tr>
+									{/if}
+									{#if tableData.length > 0}
+										{#each visibleRows as entry, index (entry._id)}
+											{@const rowId = String(entry._id ?? '')}
+											{@const rowSelected = smartTable.isSelected(rowId)}
+											{@const isFocused = focusedRowIndex === index}
+											<tr
+												class="group transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-inset {rowSelected
+													? SMART_TABLE_ROW_SELECTED
+													: SMART_TABLE_ROW_HOVER}"
+												style={useRowVirtualization
+													? 'content-visibility: auto; contain-intrinsic-size: 48px;'
+													: undefined}
+												aria-selected={rowSelected}
+												tabindex={isFocused ? 0 : -1}
+												onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
+												onmouseleave={handleRowHoverEnd}
+												onclick={(e) => {
+													const target = e.target as HTMLElement | null;
+													if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
+													const originalEntry = tableData.find(
+														(item: CollectionEntry) => item._id === entry._id
+													);
+													if (originalEntry) {
+														modeTransitionGuard.setMode('edit');
+														setCollectionValue(originalEntry);
+														reflectModeInURL('edit', originalEntry._id as string);
+													}
+												}}
+											>
+												<TableIcons
+													cellClass={`w-10 text-center ${pinCellClass('start')} ${rowSelected ? 'bg-primary-500/10 dark:bg-primary-500/20' : ''}`}
+													checked={rowSelected}
+													onCheck={() => {
+														if (rowId) smartTable.toggleSelect(rowId);
+													}}
+												/>
+												{#if visibleTableHeaders}
+													{#each visibleTableHeaders as header, colIdx (header.id)}
+														{@const cellKey = ((header as TableHeader).name || header.id) as string}
+														{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
+														<td
+															role="gridcell"
+															aria-colindex={colIdx + 2}
+															class="{SMART_TABLE_TD} {cellPaddingClass} text-sm {(
+																header as TableHeader
+															).name !== 'status'
+																? 'cursor-pointer transition-colors duration-150'
+																: ''} {isFocusedCell
+																? 'group-focus-visible:ring-2 group-focus-visible:ring-primary-500 group-focus-visible:ring-inset'
+																: ''}"
+															style={smartTable.getColumnWidthStyle(cellKey)}
+															onclick={async () => {
+																if ((header as TableHeader).name === 'status') {
+																	// Handle single entry status change with modal (same style as multibutton)
+																	const currentStatus = entry.status || entry.raw_status || 'draft';
+																	let nextStatus;
+
+																	// Define status progression logic using StatusTypes
+																	switch (currentStatus) {
+																		case StatusTypes.draft:
+																			nextStatus = StatusTypes.publish;
+																			break;
+																		case StatusTypes.publish:
+																			nextStatus = StatusTypes.unpublish;
+																			break;
+																		case StatusTypes.unpublish:
+																			nextStatus = StatusTypes.publish;
+																			break;
+																		case StatusTypes.schedule:
+																			nextStatus = StatusTypes.publish;
+																			break;
+																		default:
+																			nextStatus = StatusTypes.publish;
+																			break;
+																	}
+
+																	// Create modal with same styling as multibutton modals
+																	showStatusChangeConfirm({
+																		status: String(nextStatus),
+																		count: 1,
+																		onConfirm: async () => {
+																			try {
+																				const collId = collections.active?._id;
+																				if (!collId) return;
+																				const result = await updateEntryStatus(
+																					collId,
+																					entry._id as string,
+																					String(nextStatus)
+																				);
+																				if (result.success) {
+																					toast.success(`Entry status updated to ${nextStatus}`);
+																					onActionSuccess();
+																				} else {
+																					toast.error(
+																						result.error || 'Failed to update entry status'
+																					);
+																				}
+																			} catch (error) {
+																				logger.error('Error updating entry status:', error);
+																				toast.error(
+																					'An error occurred while updating entry status'
+																				);
+																			}
+																		}
+																	});
+																} else {
+																	// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
+																	const originalEntry = tableData.find(
+																		(e: CollectionEntry) => e._id === entry._id
+																	);
+																	if (originalEntry) {
+																		// 1. Check cache & load if needed
+																		// Navigate to edit mode - this triggers SSR to load full multilingual data
+																		// List view has language-projected data, edit mode needs all languages
+
+																		// 2. Update stores INSTANTLY (no waiting)
+																		// The URL pattern document mandates GUI-First: state first, URL second
+																		modeTransitionGuard.setMode('edit');
+																		setCollectionValue(originalEntry);
+
+																		// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)
+																		reflectModeInURL('edit', originalEntry._id as string);
+
+																		logger.debug(
+																			`[Edit] Loading full data for entry ${originalEntry._id}`
+																		);
+																	}
+																}
+															}}
+														>
+															<SystemTooltip
+																title={(header as TableHeader).name !== 'status'
+																	? 'Click to edit this entry'
+																	: 'Click to change status'}
+															>
+																{#if (header as TableHeader).name === 'status'}
+																	<div class="flex w-full items-center justify-center">
+																		<Status value={entry.status || entry.raw_status || 'draft'} />
+																	</div>
+																{:else if (header as TableHeader).component}
+																	<!-- Dynamic Plugin Component Injection -->
+																	{const pluginId = ((header as TableHeader).id || '').split(
+																		'-'
+																	)[0]}
+
+																	<PluginComponent
+																		{pluginId}
+																		componentName={(header as TableHeader).component || ''}
+																		{...mapPluginProps((header as TableHeader).props, entry)}
+																		compact={true}
+																	/>
+																{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
+																	<div class="flex flex-col text-xs">
+																		<div class="font-semibold">
+																			{formatDisplayDate(
+																				(entry as any)[
+																					(header as TableHeader).name || ''
+																				] as string,
+																				undefined,
+																				{
+																					year: 'numeric',
+																					month: 'short',
+																					day: 'numeric'
+																				}
+																			)}
+																		</div>
+																		<div class="text-(--admin-text-muted)">
+																			{formatDisplayDate(
+																				(entry as any)[
+																					(header as TableHeader).name || ''
+																				] as string,
+																				undefined,
+																				{
+																					hour: '2-digit',
+																					minute: '2-digit',
+																					second: '2-digit',
+																					hour12: false
+																				}
+																			)}
+																		</div>
+																	</div>
+																{:else if (header as TableHeader).widgetName}
+																	<EntryListCell
+																		widgetName={(header as TableHeader).widgetName}
+																		fieldName={(header as TableHeader).name || ''}
+																		value={(entry as any)[(header as TableHeader).name || '']}
+																		contentLanguage={currentLanguage}
+																		compact={true}
+																	/>
+																{:else}
+																	<Sanitize
+																		html={String(
+																			(entry as any)[(header as TableHeader).name || ''] || '-'
+																		)}
+																		profile="strict"
+																	/>
+																{/if}
+															</SystemTooltip>
+														</td>
+													{/each}
+												{/if}
+											</tr>
+										{/each}
+										{#if useRowVirtualization && spacerBottom > 0}
+											<tr style="height: {spacerBottom}px" aria-hidden="true"></tr>
+										{/if}
+									{:else}
+										<tr>
+											<td
+												colspan={visibleTableHeaders.length + 1}
+												class="p-4 text-center text-surface-500 dark:text-surface-50"
+												>No results found.</td
+											>
+										</tr>
+									{/if}
+								</tbody>
+							</table>
+						</div>
+					{/if}
+				</SmartTableShell>
+			{:else}
+				<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
+					<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
+					<p class="text-lg">
+						{currentCollection?.name
+							? EntryList_no_collection({ name: currentCollection.name })
+							: 'No collection selected or collection is empty.'}
+					</p>
 				</div>
 			{/if}
-		</SmartTableShell>
-	{:else}
-		<div class="py-10 text-center text-tertiary-500 dark:text-primary-500">
-			<iconify-icon icon="bi:exclamation-circle-fill" width={24} class="mb-2"></iconify-icon>
-			<p class="text-lg">
-				{currentCollection?.name
-					? EntryList_no_collection({ name: currentCollection.name })
-					: 'No collection selected or collection is empty.'}
-			</p>
-		</div>
-	{/if}
+		</AdminCard>
+	</div>
 {/if}
 
 <BulkFieldEditModal

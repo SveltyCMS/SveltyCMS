@@ -1,7 +1,10 @@
 <!--
-@file src/routes/login/components/icons/SigninIcon.svelte
+@file src/routes/login/components/icons/signin-icon.svelte
 @component
 **SigninIcon component**
+
+### Features:
+- Interactive Sign In icon and label for the login split chooser
 -->
 
 <script lang="ts">

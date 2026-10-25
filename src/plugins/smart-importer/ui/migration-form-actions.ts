@@ -53,17 +53,53 @@ export function unwrapFormActionResult<T extends Record<string, unknown>>(
   return (result.data ?? result) as T;
 }
 
+/**
+ * Turn any API error envelope into a message a user can act on.
+ *
+ * The dispatcher returns `{ success: false, message, code }` (not `error`), and
+ * action failures can nest the message under `data`, so a plain `error` field
+ * check silently degraded to a generic toast.
+ */
+export function describeApiError(payload: unknown, status: number): string {
+  const body = payload as {
+    error?: unknown;
+    message?: unknown;
+    data?: { error?: unknown; message?: unknown };
+  } | null;
+
+  const candidates = [body?.error, body?.message, body?.data?.error, body?.data?.message];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate;
+    if (candidate && typeof candidate === "object") {
+      const nested = (candidate as { message?: unknown }).message;
+      if (typeof nested === "string" && nested.trim()) return nested;
+    }
+  }
+
+  if (status === 413) {
+    return "The file exceeds the server upload limit. Use the CLI import for large exports.";
+  }
+  return `Request failed (HTTP ${status}).`;
+}
+
 export async function postPluginPageAction<T extends Record<string, unknown>>(
   actionName: string,
   formData: FormData,
 ): Promise<T> {
   formData.set("__action", actionName);
   const response = await fetch(PLUGIN_API, { method: "POST", body: formData });
-  const result = (await response.json()) as { data?: T; error?: string } & T;
-  if (!response.ok && result.error) {
-    return { success: false, error: result.error } as unknown as T;
+  const payload = (await response.json().catch(() => null)) as
+    | ({ data?: T; error?: unknown } & T)
+    | null;
+
+  if (!response.ok) {
+    return {
+      success: false,
+      error: describeApiError(payload, response.status),
+    } as unknown as T;
   }
-  return unwrapFormActionResult(result);
+
+  return unwrapFormActionResult((payload ?? { success: true }) as { data?: T; error?: string } & T);
 }
 
 export function postDetectAction(formData: FormData) {

@@ -312,6 +312,39 @@ describe("Universal Parsers", () => {
     const { parseSpreadsheet } = await import("@plugins/smart-importer/parsers/universal");
     expect(parseSpreadsheet("name\tdesc\nI1\tD1", "t")!.entries).toHaveLength(1);
   });
+  it("CSV below a report preamble, with quoted multi-line cells", async () => {
+    const { parseSpreadsheet } = await import("@plugins/smart-importer/parsers/universal");
+    const csv = [
+      "Bericht-Snapshot",
+      "Erstellt am 2026-10-25",
+      "",
+      '"title","slug","content","legacy_code"',
+      '"Erster","/erster","Zeile eins,\r\nZeile zwei",X1',
+      '"Zweiter","/zweiter","Nur eine Zeile",X2',
+    ].join("\r\n");
+
+    const entries = parseSpreadsheet(csv, "t")!.entries;
+    expect(entries).toHaveLength(2);
+    expect(entries.map((entry) => entry.title)).toEqual(["Erster", "Zweiter"]);
+    expect(entries[0].rawCustomFields.content).toBe("Zeile eins,\r\nZeile zwei");
+    expect(entries[1].rawCustomFields.legacy_code).toBe("X2");
+  });
+  it("keeps CSV rows under a content-type filter", async () => {
+    const { parseSpreadsheet } = await import("@plugins/smart-importer/parsers/universal");
+    const { applyImportFilters } = await import("@plugins/smart-importer/control-plane");
+
+    // The wizard used to send contentTypes: ["entry"] while CSV rows carried no
+    // `type`; the filter read `rawCustomFields.type`, defaulted to "default", and
+    // dropped every row — dry run then reported "No entries found after filtering".
+    const envelope = parseSpreadsheet("title,content\nA,B", "t")!;
+    const { filtered, report } = applyImportFilters(envelope, { contentTypes: ["entry"] });
+    expect(filtered.entries).toHaveLength(1);
+    expect(report.excluded).toBe(0);
+
+    // A sheet that carries its own type column keeps that value.
+    const typed = parseSpreadsheet("title,type\nA,article", "t")!;
+    expect(typed.entries[0].rawCustomFields.type).toBe("article");
+  });
   it("Markdown+YAML", async () => {
     const { parseMarkdownFiles } = await import("@plugins/smart-importer/parsers/universal");
     const e = parseMarkdownFiles(

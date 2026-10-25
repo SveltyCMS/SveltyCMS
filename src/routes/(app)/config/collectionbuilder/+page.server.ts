@@ -10,6 +10,7 @@
 
 // System Logger
 import { contentSystem } from "@src/content/index.server";
+import { contentStore } from "@src/stores/content-registry.svelte";
 // Auth - Use cached roles from locals instead of global config
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { error, fail, isRedirect, isHttpError } from "@sveltejs/kit";
@@ -83,6 +84,17 @@ export const load: PageServerLoad = async ({ locals }) => {
       logger.error("[CollectionBuilder] contentStructure is not an array!", {
         type: typeof contentStructure,
       });
+    } else if (
+      contentStructure.length > 0 &&
+      contentStore.getNodesForTenant(tenantId).length === 0
+    ) {
+      // Keep the server-side contentStore in sync with DB structure so the root
+      // layout and sidebar never see an empty store when DB nodes exist.
+      const normalizedNodes = contentStructure.map((n) => ({
+        ...n,
+        tenantId: (n.tenantId || tenantId || "global") as typeof n.tenantId,
+      }));
+      contentStore.sync(normalizedNodes);
     }
 
     const serializedStructure = serializeStructureNodes(contentStructure || []);

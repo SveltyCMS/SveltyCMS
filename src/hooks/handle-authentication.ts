@@ -1006,9 +1006,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       // nor locals carry one (e.g. Demo Mode's per-visitor cookie was never set on
       // an authenticated request). Mirrors the post-session bind below — without it
       // a warm cache hit serves the whole request with a null tenant.
+      const { multiTenant, isDemoMode } = getCachedSettings();
+      const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
       (locals as any).tenantId = resolveRequestTenant(
         event.request,
-        turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null,
+        multiTenant || isDemoMode || testMode
+          ? (turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null)
+          : null,
       );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
@@ -1050,9 +1054,13 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       (locals as any).user = turboCtx.user;
       (locals as any).roles = turboCtx.roles;
       (locals as any).session_id = turboSessionId as DatabaseId;
+      const { multiTenant, isDemoMode } = getCachedSettings();
+      const testMode = process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true";
       (locals as any).tenantId = resolveRequestTenant(
         event.request,
-        turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null,
+        multiTenant || isDemoMode || testMode
+          ? (turboCtx.tenantId ?? locals.tenantId ?? turboCtx.user.tenantId ?? null)
+          : null,
       );
       locals.dbAdapter = dbAdapter;
       (locals as any).dbAdapterUnscoped = dbAdapter;
@@ -1092,8 +1100,9 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
     if (!dbAdapter) return await resolve(event);
 
     const { multiTenant, isDemoMode } = getCachedSettings();
+    const tenantIsolation = multiTenant || isDemoMode;
 
-    if (multiTenant) {
+    if (tenantIsolation) {
       if (isDemoMode) {
         await handleDemoTenantAssignment(event, false);
       } else {
@@ -1126,7 +1135,7 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
       const bound = bindRequestDbAdapter(
         dbAdapter,
         locals.tenantId as DatabaseId,
-        multiTenant || testMode,
+        tenantIsolation || testMode,
       );
       locals.dbAdapter = bound.dbAdapter as any;
       (locals as any).dbAdapterUnscoped = bound.dbAdapterUnscoped;
@@ -1282,10 +1291,10 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               sessionId as string,
               user,
               (locals as any).roles || [],
-              // Never cache a null tenant while the user owns one — a warm turbo
-              // hit would otherwise serve the whole session tenantless (see the
-              // TurboAuthContext tenant fallback above).
-              locals.tenantId || user.tenantId || null,
+              // Never cache a null tenant while the user owns one in tenant-isolated
+              // (multi-tenant or demo) or test mode — a warm turbo hit would otherwise
+              // serve the whole session tenantless. In single-tenant mode, keep tenantId null.
+              tenantIsolation || testMode ? locals.tenantId || user.tenantId || null : null,
               undefined,
               undefined,
               resolution.status === "ok"
@@ -1309,15 +1318,19 @@ export const handleAuthentication: Handle = async ({ event, resolve }) => {
               resolution.boundUserAgent,
             );
           }
-          // Prefer host/header tenant; if only user.tenantId is set, bind that for MT.
-          if (!locals.tenantId && user.tenantId) {
+          // Prefer host/header tenant; if only user.tenantId is set, bind that for tenant isolation/test mode.
+          if ((tenantIsolation || testMode) && !locals.tenantId && user.tenantId) {
             locals.tenantId = user.tenantId as DatabaseId;
           }
           // Re-bind only when the tenant changed during user resolution (e.g.
           // hostname had no tenant and the user's tenantId was adopted). The
           // common case — hostname tenant == user tenant — keeps the first
           // binding and skips a redundant proxy wrap.
-          if ((multiTenant || testMode) && locals.tenantId && locals.tenantId !== preUserTenant) {
+          if (
+            (tenantIsolation || testMode) &&
+            locals.tenantId &&
+            locals.tenantId !== preUserTenant
+          ) {
             const bound = bindRequestDbAdapter(
               (locals as any).dbAdapterUnscoped || dbAdapter,
               locals.tenantId as DatabaseId,

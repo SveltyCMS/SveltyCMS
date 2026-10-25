@@ -9,7 +9,7 @@
  */
 
 import type { RequestEvent } from "@sveltejs/kit";
-import { error, fail } from "@sveltejs/kit";
+import { error } from "@sveltejs/kit";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { ContentNodeOperation, DatabaseId } from "@src/content/types";
@@ -46,6 +46,11 @@ import {
   type SourceFile,
 } from "typescript";
 
+/** Helper for POJO error return from SvelteKit remote commands (not form actions). */
+function failure(status: number, message: string) {
+  return { success: false as const, status, message };
+}
+
 function requirePermission(event: RequestEvent) {
   const user = getAuthenticatedUser(event.locals);
   const { roles: tenantRoles, isAdmin } = event.locals as App.Locals;
@@ -61,20 +66,20 @@ export async function saveContentStructure(
   const tenantId = (event.locals as App.Locals).tenantId ?? null;
 
   const parsed = parseOperations(operations);
-  if (!parsed) return fail(400, { message: "Invalid operations" });
+  if (!parsed) return failure(400, "Invalid operations");
 
   // Minimum-viable guard: empty-name nodes persisted as unreachable tree junk
   // (the modal validates too, but remotes can be called directly).
   for (const op of parsed) {
     const nodeError = validateStructureOperation(op);
-    if (nodeError) return fail(400, { message: nodeError });
+    if (nodeError) return failure(400, nodeError);
   }
 
   try {
     return await executeGuiStructureSave(tenantId, parsed);
   } catch (err) {
     logger.error("Error saving structure:", err);
-    return fail(500, { message: "Failed to save structure" });
+    return failure(500, err instanceof Error ? err.message : "Failed to save structure");
   }
 }
 
@@ -85,16 +90,14 @@ export async function installPresetCollections(
   opts?: { rejectDemo?: boolean },
 ) {
   if (!presetId || presetId === "blank" || (opts?.rejectDemo && presetId === "demo")) {
-    return fail(400, { message: "Invalid preset ID" });
+    return failure(400, "Invalid preset ID");
   }
 
   const { PRESETS } = await import("@src/routes/setup/presets");
   const preset = PRESETS.find((p) => p.id === presetId);
 
   if (!preset || !preset.collections || preset.collections.length === 0) {
-    return fail(404, {
-      message: `No collections defined for preset "${presetId}"`,
-    });
+    return failure(404, `No collections defined for preset "${presetId}"`);
   }
 
   const { writePresetCollectionFiles } =
@@ -267,14 +270,14 @@ export async function duplicateCollectionSource(
 ) {
   const original = String(originalName ?? "").trim();
   const next = String(newName ?? "").trim();
-  if (!original || !next) return fail(400, { message: "Collection names are required" });
+  if (!original || !next) return failure(400, "Collection names are required");
   if (
     /[\\/]|\.\./.test(original) ||
     /[\\/]|\.\./.test(next) ||
     original.includes("\u0000") ||
     next.includes("\u0000")
   ) {
-    return fail(400, { message: "Collection name contains invalid characters" });
+    return failure(400, "Collection name contains invalid characters");
   }
 
   const { getCollectionFilePath, getCollectionsPath } = await import("@utils/tenant.server");
@@ -290,7 +293,7 @@ export async function duplicateCollectionSource(
     path.isAbsolute(relSource) ||
     path.isAbsolute(relTarget)
   ) {
-    return fail(400, { message: "Invalid collection path" });
+    return failure(400, "Invalid collection path");
   }
 
   let source: string;
@@ -298,7 +301,7 @@ export async function duplicateCollectionSource(
     source = await fs.readFile(sourcePath, "utf-8");
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      return fail(404, { message: `Source collection "${original}" not found` });
+      return failure(404, `Source collection "${original}" not found`);
     }
     throw err;
   }
@@ -308,7 +311,7 @@ export async function duplicateCollectionSource(
     .then(() => true)
     .catch(() => false);
   if (targetExists) {
-    return fail(409, { message: `A collection named "${next}" already exists` });
+    return failure(409, `A collection named "${next}" already exists`);
   }
 
   try {
@@ -340,7 +343,7 @@ export async function duplicateCollectionSource(
     // Best-effort cleanup so a failed duplicate never leaves a half-written file.
     await fs.unlink(targetPath).catch(() => {});
     logger.error("Error duplicating collection:", err);
-    return fail(500, { message: "Failed to duplicate collection" });
+    return failure(500, "Failed to duplicate collection");
   }
 }
 

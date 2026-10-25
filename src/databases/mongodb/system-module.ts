@@ -669,11 +669,14 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
         count: (f: any) => jobRepo.count(f),
         update: (id: DatabaseId, d: any, o?: any) => jobRepo.update(id, d, o),
         delete: (id: DatabaseId) => jobRepo.delete(id),
-        cleanup: async (olderThan: Date) => {
-          const res = await jobRepo.deleteMany(
-            { createdAt: { $lt: olderThan.toISOString() } } as any,
-            { permanent: true },
-          );
+        cleanup: async (olderThan: Date, options?: any) => {
+          // Completed history only — see the SQL adapter parity note.
+          const filter: Record<string, unknown> = {
+            createdAt: { $lt: olderThan.toISOString() },
+            status: "completed",
+          };
+          if (options?.tenantId) filter.tenantId = options.tenantId;
+          const res = await jobRepo.deleteMany(filter as any, { permanent: true });
           return res.success ? { success: true, data: res.data.deletedCount } : (res as any);
         },
       },
@@ -828,7 +831,8 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
     update: async (id: DatabaseId, data: any, options?: any) =>
       (await this._getMethods()).jobs.update(id, data, options),
     delete: async (id: DatabaseId) => (await this._getMethods()).jobs.delete(id),
-    cleanup: async (olderThan: Date) => (await this._getMethods()).jobs.cleanup(olderThan),
+    cleanup: async (olderThan: Date, options?: any) =>
+      (await this._getMethods()).jobs.cleanup(olderThan, options),
   };
 
   virtualFolder = {

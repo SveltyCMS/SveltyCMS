@@ -39,6 +39,12 @@ export default defineConfig({
       // jsdom teardown (`document is not defined`). The DOM suite never asserts
       // icon SVG, so an inert stub removes the timer entirely.
       "iconify-icon": path.resolve(__dirname, "tests/unit/components/dom/mocks/iconify-icon.ts"),
+      // Optional native peer (MongoDB driver); absent in some checkouts. Reached via
+      // `@utils/error-handling` → `handle-compression`'s guarded dynamic import.
+      "@mongodb-js/zstd": path.resolve(
+        __dirname,
+        "tests/unit/components/dom/mocks/optional-zstd.ts",
+      ),
     },
   },
   define: {

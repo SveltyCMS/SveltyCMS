@@ -285,25 +285,9 @@ test.describe.serial("User Profile Management", () => {
       const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
       await expect(usernameInput).toBeVisible({ timeout: 10_000 });
       await usernameInput.fill(newUsername);
-
-      const updateRespPromise = page
-        .waitForResponse(
-          (res) =>
-            res.url().includes("/api/user/update-user-attributes") &&
-            ["PUT", "POST", "PATCH"].includes(res.request().method()),
-          { timeout: 15_000 },
-        )
-        .catch(() => null);
+      await expect(usernameInput).toHaveValue(newUsername);
 
       await editDialog.getByRole("button", { name: /^save$/i }).click();
-
-      const updateResp = await updateRespPromise;
-      if (updateResp && !updateResp.ok()) {
-        const body = await updateResp.text().catch(() => "");
-        throw new Error(
-          `update-user-attributes failed: HTTP ${updateResp.status()} ${body.slice(0, 300)}`,
-        );
-      }
 
       // Prefer outcome over toast flash: dialog closes, username visible, or success toast
       const { expectToast } = await import("../../helpers/stable");

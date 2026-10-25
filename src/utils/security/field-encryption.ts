@@ -78,8 +78,16 @@ export function getFieldKeysSync(): ResolvedKeyRing | null {
   }
 }
 
+const aadCache = new Map<string, Buffer>();
+
 function buildAad(context: FieldEncryptionContext, fieldName: string): Buffer {
-  return Buffer.from(`${context.tenantId}:${context.collectionId}:${fieldName}`, "utf8");
+  const key = `${context.tenantId}:${context.collectionId}:${fieldName}`;
+  let buf = aadCache.get(key);
+  if (!buf) {
+    buf = Buffer.from(key, "utf8");
+    if (aadCache.size < 1024) aadCache.set(key, buf);
+  }
+  return buf;
 }
 
 /** True when `value` is a v1/v2 field-encryption envelope or hybrid ML-KEM envelope. */

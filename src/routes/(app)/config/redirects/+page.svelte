@@ -18,6 +18,8 @@
 	import Select from '@components/ui/select.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import SystemTooltip from '@components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import { deleteRedirect, saveRedirect } from './redirects.remote';
 	import { toast } from '@src/stores/toast.svelte';
 	import {
@@ -34,19 +36,31 @@
 		redirects_empty_match,
 		redirects_empty_none,
 		redirects_from_aria,
+		redirects_from_help,
 		redirects_from_path,
+		redirects_help_example,
+		redirects_help_intro,
+		redirects_help_permanent,
+		redirects_help_regex,
+		redirects_help_temporary,
+		redirects_help_title,
 		redirects_inactive,
 		redirects_matching,
 		redirects_modal_action_add,
 		redirects_modal_action_edit,
 		redirects_modal_noun,
+		redirects_regex_help,
+		redirects_regex_label,
 		redirects_search_aria,
 		redirects_search_placeholder,
 		redirects_status,
+		redirects_status_help,
 		redirects_title,
 		redirects_to_aria,
+		redirects_to_help,
 		redirects_to_path,
 		redirects_type,
+		redirects_type_help,
 		common_active
 	} from '@src/paraglide/messages';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -182,6 +196,52 @@
 	}
 </script>
 
+<!-- Field labels: the `?` icon is the only tooltip trigger; the label text stays inert. -->
+{#snippet fromLabel()}
+	<span class="inline-flex items-center gap-1.5">
+		{redirects_from_path()}
+		<SystemTooltip title={redirects_from_help()} ariaLabel={redirects_from_path()}>
+			<HelpIcon ariaLabel={redirects_from_path()} />
+		</SystemTooltip>
+	</span>
+{/snippet}
+
+{#snippet toLabel()}
+	<span class="inline-flex items-center gap-1.5">
+		{redirects_to_path()}
+		<SystemTooltip title={redirects_to_help()} ariaLabel={redirects_to_path()}>
+			<HelpIcon ariaLabel={redirects_to_path()} />
+		</SystemTooltip>
+	</span>
+{/snippet}
+
+{#snippet typeLabel()}
+	<span class="inline-flex items-center gap-1.5">
+		{redirects_type()}
+		<SystemTooltip title={redirects_type_help()} ariaLabel={redirects_type()}>
+			<HelpIcon ariaLabel={redirects_type()} />
+		</SystemTooltip>
+	</span>
+{/snippet}
+
+{#snippet statusLabel()}
+	<span class="inline-flex items-center gap-1.5">
+		{redirects_status()}
+		<SystemTooltip title={redirects_status_help()} ariaLabel={redirects_status()}>
+			<HelpIcon ariaLabel={redirects_status()} />
+		</SystemTooltip>
+	</span>
+{/snippet}
+
+{#snippet regexLabel()}
+	<span class="inline-flex items-center gap-1.5">
+		{redirects_regex_label()}
+		<SystemTooltip title={redirects_regex_help()} ariaLabel={redirects_regex_label()}>
+			<HelpIcon ariaLabel={redirects_regex_label()} />
+		</SystemTooltip>
+	</span>
+{/snippet}
+
 <AdminPageShell
 	title={redirects_title()}
 	icon="mdi:arrow-decision"
@@ -315,7 +375,7 @@
 		data-testid="redirects-modal-backdrop"
 	>
 		<AdminCard
-			class="w-full max-w-lg space-y-4 border border-surface-500/30 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
+			class="max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto border border-surface-500/30 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="redirect-modal-title"
@@ -328,9 +388,33 @@
 				{redirects_modal_noun()}
 			</h3>
 
+			<!-- First-time orientation: what a redirect does and which type to pick. -->
+			<div
+				class="rounded border border-tertiary-500/30 bg-tertiary-500/10 p-3 dark:border-primary-500/30 dark:bg-primary-500/10"
+				data-testid="redirects-help"
+			>
+				<p class="flex items-center gap-2 text-sm font-semibold text-(--admin-text-body)">
+					<iconify-icon
+						icon="mdi:lightbulb-on-outline"
+						width="18"
+						class="shrink-0 text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+					{redirects_help_title()}
+				</p>
+				<p class="mt-1 text-xs text-(--admin-text-body)">{redirects_help_intro()}</p>
+				<ul class="mt-2 list-disc space-y-1 ps-4 text-xs text-(--admin-text-muted)">
+					<li>{redirects_help_permanent()}</li>
+					<li>{redirects_help_temporary()}</li>
+					<li>{redirects_help_regex()}</li>
+				</ul>
+				<p class="mt-2 text-xs text-(--admin-text-muted)">{redirects_help_example()}</p>
+			</div>
+
 			<form onsubmit={handleSave} class="space-y-4" data-testid="redirects-form">
 				<Input
-					label="From Path (e.g. /old-blog)"
+					label={redirects_from_path()}
+					labelSnippet={fromLabel}
+					placeholder="/old-blog"
 					bind:value={formFrom}
 					required
 					error={formErrors.from}
@@ -338,7 +422,9 @@
 					aria-label={redirects_from_aria()}
 				/>
 				<Input
-					label="To Path (e.g. /new-blog or https://example.com/new)"
+					label={redirects_to_path()}
+					labelSnippet={toLabel}
+					placeholder="/new-blog or https://example.com/new"
 					bind:value={formTo}
 					required
 					error={formErrors.to}
@@ -348,13 +434,15 @@
 
 				<div class="grid grid-cols-2 gap-4" data-testid="redirect-type-status">
 					<Select
-						label="Redirect Type"
+						label={redirects_type()}
+						labelSnippet={typeLabel}
 						value={String(selectedRedirect.type)}
 						options={redirectTypeOptions}
 						onchange={(v) => (selectedRedirect!.type = parseInt(v, 10))}
 					/>
 					<Select
-						label="Status"
+						label={redirects_status()}
+						labelSnippet={statusLabel}
 						value={selectedRedirect.active ? 'true' : 'false'}
 						options={statusOptions}
 						onchange={(v) => (selectedRedirect!.active = v === 'true')}
@@ -362,7 +450,11 @@
 				</div>
 
 				<div data-testid="redirect-regex">
-					<Checkbox bind:checked={selectedRedirect.isRegex} label="Is Regex / Pattern" />
+					<Checkbox
+						bind:checked={selectedRedirect.isRegex}
+						label={redirects_regex_label()}
+						labelSnippet={regexLabel}
+					/>
 				</div>
 
 				<div class="flex justify-end gap-2 pt-4">

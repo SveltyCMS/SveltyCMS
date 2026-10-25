@@ -12,10 +12,18 @@ Efficiently manages user data updates with validation, role selection, and delet
 - `email` {string|null} - Pre-filled email (default: null)
 - `role` {string|null} - Pre-filled role (default: null)
 - `user_id` {string|null} - User ID to edit (default: null)
+- `close` {function} - Callback passed by DialogManager to close the modal with a result
+
+### Features:
+- Seeded form state without clobbering active user input
+- Client-side Valibot validation via `editUserSchema`
+- Current password verification unlock flow for own-profile password changes
+- Role selection and user deletion for administrators
 -->
 
 <script lang="ts">
 	import { logger } from '@utils/logger';
+	import { untrack } from 'svelte';
 	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	// Paraglide Messages
@@ -52,12 +60,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	import { modalState } from '@utils/modal.svelte';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
-
-	// Get data from page store
-	const { roles, user } = page.data;
-	const isFirstUser = page.data.isFirstUser;
-
-	import { Form } from '@root/src/utils/form.svelte.ts';
+	import { Form } from '@utils/form.svelte.ts';
 	import {
 		updateProfile,
 		verifyPassword as verifyPw,
@@ -68,9 +71,10 @@ Efficiently manages user data updates with validation, role selection, and delet
 	// Props
 	interface Props {
 		body?: string;
+		close?: (val?: unknown) => void;
 		email?: string | null;
 		isGivenData?: boolean;
-		parent?: any; // Was ModalComponent['props']
+		parent?: unknown;
 		role?: string | null;
 		title?: string;
 		user_id?: string | null;
@@ -81,39 +85,78 @@ Efficiently manages user data updates with validation, role selection, and delet
 		username = null,
 		email = null,
 		role = null,
-		user_id = null
+		user_id = null,
+		close
 	}: Props = $props();
 
-	// Store initialization
+	const roles = $derived(page.data.roles ?? []);
+	const user = $derived(page.data.user);
+	const isFirstUser = $derived(Boolean(page.data.isFirstUser));
+
+	function resolveTargetValues() {
+		const currentUser = page.data.user;
+		const resolvedId = isGivenData ? user_id : currentUser?._id;
+		return {
+			user_id:
+				resolvedId != null && String(resolvedId).trim().length > 0 ? String(resolvedId) : 'self',
+			username: isGivenData ? (username ?? '') : (currentUser?.username ?? ''),
+			email: isGivenData ? (email ?? '') : (currentUser?.email ?? ''),
+			role: isGivenData ? (role ?? '') : (currentUser?.role ?? '')
+		};
+	}
+
+	const initialTarget = untrack(() => resolveTargetValues());
 
 	// Form Data Initialization
 	const editForm = new Form(
 		{
-			user_id: '',
-			username: '',
-			email: '',
+			user_id: initialTarget.user_id,
+			username: initialTarget.username,
+			email: initialTarget.email,
 			password: '',
 			confirmPassword: '',
 			currentPassword: '',
-			role: ''
+			role: initialTarget.role
 		},
 		editUserSchema
 	);
 
+	// Re-seed only when the target user identity changes (never clobber active typing).
+	let seededTargetKey = untrack(() => `${isGivenData ? 'given' : 'self'}:${initialTarget.user_id}`);
 	$effect(() => {
-		editForm.data.user_id = isGivenData ? user_id : user?._id;
-		editForm.data.username = isGivenData ? (username ?? '') : (user?.username ?? '');
-		editForm.data.email = isGivenData ? (email ?? '') : (user?.email ?? '');
-		editForm.data.role = isGivenData ? (role ?? '') : (user?.role ?? '');
+		const next = resolveTargetValues();
+		const nextKey = `${isGivenData ? 'given' : 'self'}:${next.user_id}`;
+		if (nextKey !== seededTargetKey) {
+			seededTargetKey = nextKey;
+			editForm.data.user_id = next.user_id;
+			editForm.data.username = next.username;
+			editForm.data.email = next.email;
+			editForm.data.role = next.role;
+			editForm.data.password = '';
+			editForm.data.confirmPassword = '';
+			editForm.data.currentPassword = '';
+		}
 	});
 
 	let showPassword = $state(false);
-	const isOwnProfile = $derived(editForm.data.user_id === user?._id || !isGivenData);
+	const isOwnProfile = $derived(
+		!isGivenData ||
+			editForm.data.user_id === 'self' ||
+			(user?._id != null && editForm.data.user_id === String(user._id))
+	);
 	const canChangePassword = $derived(isOwnProfile || isAdmin(user));
 
 	// Check if user has delete permission for layout purposes
 	const hasDeletePermission = $derived(isAdmin(user));
 	const showDeleteButton = $derived(hasDeletePermission && !isOwnProfile && !isFirstUser);
+
+	function closeDialog(result?: unknown): void {
+		if (close) {
+			close(result);
+		} else {
+			modalState.close(result);
+		}
+	}
 
 	async function onFormSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
@@ -124,31 +167,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 
 		editForm.submitting = true;
 
-		// Track what changed for smart toast messages
-		const changes: string[] = [];
-		const originalData = {
-			username: isGivenData ? username : user?.username,
-			email: isGivenData ? email : user?.email,
-			role: isGivenData ? role : user?.role
-		};
-
-		// Check what actually changed
-		if (editForm.data.username !== originalData.username) {
-			changes.push('username');
-		}
-		if (!isOwnProfile && editForm.data.role !== originalData.role) {
-			const oldRole =
-				roles?.find((r: any) => r._id === originalData.role)?.name || originalData.role;
-			const newRole =
-				roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role;
-			changes.push(`role (${oldRole} → ${newRole})`);
-		}
-		if (editForm.data.password && editForm.data.password.trim() !== '') {
-			changes.push('security');
-		}
-
 		// Create a clean data object for the API call (just the user fields)
-		const submitData: Record<string, any> = {
+		const submitData: Record<string, unknown> = {
 			username: editForm.data.username,
 			email: editForm.data.email
 		};
@@ -188,7 +208,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 				description: usereditform_updated_description()
 			});
 			await refreshAll();
-			modalState.close();
+			closeDialog({ success: true });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : usereditform_unknown_error();
 			// Plain text — matches expectToast / role=alert (no HTML icon markup)
@@ -236,7 +256,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	}
 
 	async function deleteUser() {
-		if (!editForm.data.user_id) {
+		if (!editForm.data.user_id || editForm.data.user_id === 'self') {
 			return;
 		}
 		try {
@@ -246,18 +266,16 @@ Efficiently manages user data updates with validation, role selection, and delet
 				throw new Error(delResult.message || delResult.error || usereditform_failed_to_delete());
 			}
 
-			// Use the success message from the API response
 			const successMessage = delResult.message || delResult.error || usereditform_user_deleted();
 			toast.success({
-				description: `<iconify-icon icon="mdi:alert-circle" width={24}></iconify-icon> ${successMessage}`
+				description: successMessage
 			});
 
 			await refreshAll();
-			// modalStore.close();
-			modalState.close();
+			closeDialog({ success: true });
 		} catch (err) {
 			const message = err instanceof Error ? err.message : usereditform_unknown_error();
-			toast.error(`<CircleAlert size={24}/> ${message}`);
+			toast.error(message);
 		}
 	}
 
@@ -462,13 +480,14 @@ Efficiently manages user data updates with validation, role selection, and delet
 				</div>
 				<div class="flex-auto">
 					<div
-						class="rounded bg-gray-50 p-3 text-sm text-(--admin-text-muted) dark:bg-gray-800 dark:text-(--admin-text-muted)"
+						class="rounded bg-surface-500/10 p-3 text-sm text-(--admin-text-muted) dark:bg-surface-900/20"
 					>
 						<div class="flex items-center">
 							<iconify-icon icon="mdi:information" width={16} class="me-2 shrink-0"></iconify-icon>
 							<div>
 								<strong>{usereditform_current_role()}</strong>
-								{roles?.find((r: any) => r._id === editForm.data.role)?.name || editForm.data.role}
+								{roles?.find((r: { _id: string; name?: string }) => r._id === editForm.data.role)
+									?.name || editForm.data.role}
 								<br />
 								<em>{usereditform_cannot_change_role()}</em>
 							</div>
@@ -484,7 +503,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 	>
 		<div class="flex items-center gap-4">
 			<!-- Cancel -->
-			<Button variant="outline" type="button" onclick={() => modalState.close()}
+			<Button variant="outline" type="button" onclick={() => closeDialog()}
 				>{button_cancel()}</Button
 			>
 

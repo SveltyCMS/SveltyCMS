@@ -19,6 +19,7 @@ reveal after position calculation prevents layout flash.
 - JS fallback with flip + shift for Safari and older browsers
 - show on mouseenter/focus, hide on mouseleave/blur/Escape
 - delayed visibility until position calculated (opacity-0 trick)
+- arrow anchor delegated to `useFloating` (resolved placement, flip/shift, resize-aware)
 - portals into the enclosing modal `<dialog>` so it renders above the top layer
 - WCAG 3.0: role="tooltip", aria-describedby trigger→content linkage
 - full Svelte 5 runes: $props, $derived, $state, $effect
@@ -84,7 +85,8 @@ reveal after position calculation prevents layout flash.
 		offset: () => gutter,
 		padding: 5,
 		enabled: () => open,
-		showArrow: () => true
+		showArrow: () => true,
+		arrowSize: 14
 	});
 
 	$effect(() => {
@@ -118,86 +120,25 @@ reveal after position calculation prevents layout flash.
 		hasFocusableDescendant ? undefined : role === null ? undefined : role
 	);
 
-	/**
-	 * Calculate arrow position relative to the tooltip's target top-left.
-	 * Uses floating.x/y (target coordinates from useFloating) so the
-	 * calculation is correct even before the DOM paints.
-	 */
-	let arrowX = $state<number | null>(null);
-	let arrowY = $state<number | null>(null);
-	// Border-box vs padding-box inset: absolutely positioned children are
-	// anchored to the padding box, so a border (SystemTooltip uses 1px) would
-	// otherwise pull the arrow center 1px inside the visible edge. Read the
-	// live border width so the arrow can straddle the border exactly 50/50.
-	let edgeInset = $state(0);
-
+	// The arrow anchor comes from `useFloating` — the same rects it positions with,
+	// after flip/shift, and updated on scroll/resize. Re-deriving it here from
+	// `floating.x/y` went stale whenever the tooltip's size changed (arrow left
+	// behind in the corner) and ignored the resolved placement.
+	let borderInset = $state(0);
 	$effect(() => {
-		if (!open || !referenceEl || !floatingEl) {
-			arrowX = null;
-			arrowY = null;
-			return;
-		}
-
-		if (!floating.positionCalculated) {
-			arrowX = null;
-			arrowY = null;
-			return;
-		}
-
-		const ref = resolveReference();
-		if (!ref) {
-			arrowX = null;
-			arrowY = null;
-			return;
-		}
-
-		const refRect = ref.getBoundingClientRect();
-		const floatRect = floatingEl.getBoundingClientRect();
-		const [side] = (floating.placement || 'top').split('-');
-
-		// All tooltips use a uniform border width, so the top width is the
-		// inset on every side (0 for the raw Tooltip, 1px for SystemTooltip).
-		edgeInset = parseFloat(getComputedStyle(floatingEl).borderTopWidth) || 0;
-
-		// Center of the reference element
-		const targetX = refRect.left + refRect.width / 2;
-		const targetY = refRect.top + refRect.height / 2;
-
-		// Arrow position relative to tooltip's target top-left
-		// size-3.5 (14px) rotated 45° → half-diagonal ≈ 9.9px; keep the whole
-		// diamond inside the tooltip along the alignment axis (clamp ≥ 10).
-		let ax: number, ay: number;
-		if (side === 'top' || side === 'bottom') {
-			// Horizontal centre clamped; vertical is the tooltip EDGE itself
-			// (bottom edge for top-placement, top edge for bottom-placement) —
-			// the edge must stay exact or the arrow hides inside the body.
-			ax = targetX - floating.x;
-			ay = side === 'top' ? floatRect.height : 0;
-			ax = Math.max(10, Math.min(Math.round(ax), floatRect.width - 10));
-		} else {
-			// Vertical centre clamped; horizontal is the tooltip EDGE
-			// (right edge for left-placement, left edge for right-placement).
-			ax = side === 'left' ? floatRect.width : 0;
-			ay = targetY - floating.y;
-			ay = Math.max(10, Math.min(Math.round(ay), floatRect.height - 10));
-		}
-
-		arrowX = ax;
-		arrowY = ay;
+		borderInset = floatingEl ? parseFloat(getComputedStyle(floatingEl).borderTopWidth) || 0 : 0;
 	});
 
 	/**
-	 * Position the rotated arrow so its CENTER sits exactly on the tooltip's
-	 * border-box edge (arrowX/arrowY are padding-box edge coordinates, plus the
-	 * border inset). The 45° diamond then pokes out exactly half its diagonal
-	 * while its base stays inside — a classic 50/50 callout arrow on all four
-	 * sides. The old `left/top + {side}: -3px` combo collided on horizontal
-	 * placements (left/right), leaving the arrow fully outside for left/right.
+	 * Position the rotated diamond so its CENTRE sits on the border-box edge:
+	 * `arrowX/arrowY` are the edge point in padding-box coordinates, plus the live
+	 * border inset. Half the 14px square (size-3.5) keeps the base inside the body
+	 * while the tip pokes out exactly 50/50.
 	 */
 	const arrowStyle = $derived.by(() => {
-		if (arrowX == null || arrowY == null) return '';
-		const half = 7 + edgeInset; // size-3.5 → 14px square → 7 + border
-		return `left: ${arrowX - half}px; top: ${arrowY - half}px;`;
+		if (floating.arrowX == null || floating.arrowY == null) return '';
+		const half = 7 + borderInset;
+		return `left: ${floating.arrowX - half}px; top: ${floating.arrowY - half}px;`;
 	});
 
 	// Only one tooltip may be open at a time: when the pointer moves onto any

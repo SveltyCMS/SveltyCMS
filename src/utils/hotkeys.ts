@@ -74,6 +74,14 @@ function eventMatches(e: KeyboardEvent, combo: string): boolean {
   if (keyLower === " ") keyLower = "space";
   if (keyLower === "escape") keyLower = "esc";
 
+  // Keyboard layouts (and Windows Alt handling) can report a different `key`
+  // while `code` stays physical — match the physical key too.
+  const codeAlias =
+    /^[a-z]$/.test(required.key) || /^[0-9]$/.test(required.key)
+      ? e.code ===
+        (/^[a-z]$/.test(required.key) ? `Key${required.key.toUpperCase()}` : `Digit${required.key}`)
+      : false;
+
   const isDeleteAlias =
     required.key === "delete" &&
     (keyLower === "delete" || (keyLower === "backspace" && !required.shift));
@@ -88,7 +96,7 @@ function eventMatches(e: KeyboardEvent, combo: string): boolean {
     e.ctrlKey === required.ctrl &&
     e.altKey === required.alt &&
     (shiftOptional || e.shiftKey === required.shift) &&
-    (required.key === "" || keyLower === required.key || isDeleteAlias)
+    (required.key === "" || keyLower === required.key || codeAlias || isDeleteAlias)
   );
 }
 

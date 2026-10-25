@@ -7,6 +7,7 @@
  * - remoteJsonHeaders — JSON + optional CSRF from request cookies
  * - mapActiveSessions — one session view-model shared by the remote query and the SSR load
  * - sanitizeUserTableRow — admin-table row without credentials/lockout state
+ * - convertDateToExpiresFormat / convertLegacyExpiresFormat / convertExpiresToHours — shared token validity helpers
  */
 
 import type { Cookies } from "@sveltejs/kit";
@@ -111,4 +112,97 @@ export function sanitizeUserTableRow(value: unknown): UserTableRow | null {
     if (!ADMIN_TABLE_HIDDEN_FIELDS.has(key)) safe[key] = field;
   }
   return { ...safe, _id: safe._id != null ? String(safe._id) : "" };
+}
+
+/** Valid token expiration labels accepted by `addUserTokenSchema` and `ModalEditToken`. */
+export const VALID_TOKEN_EXPIRES_LABELS = [
+  "2 hrs",
+  "12 hrs",
+  "2 days",
+  "1 week",
+  "2 weeks",
+  "1 month",
+] as const;
+
+export type TokenExpiresLabel = (typeof VALID_TOKEN_EXPIRES_LABELS)[number];
+
+const VALID_EXPIRES_SET = new Set<string>(VALID_TOKEN_EXPIRES_LABELS);
+
+/**
+ * Convert legacy short-form expiration strings (`1h`, `2d`, `7d`, `30d`, …)
+ * into the canonical `ModalEditToken` / `addUserTokenSchema` label.
+ */
+export function convertLegacyExpiresFormat(expires: string): TokenExpiresLabel {
+  switch (expires) {
+    case "1h":
+    case "2h":
+      return "2 hrs";
+    case "12h":
+      return "12 hrs";
+    case "1d":
+    case "2d":
+      return "2 days";
+    case "7d":
+      return "1 week";
+    case "14d":
+      return "2 weeks";
+    case "30d":
+    case "90d":
+      return "1 month";
+    default:
+      if (VALID_EXPIRES_SET.has(expires)) {
+        return expires as TokenExpiresLabel;
+      }
+      return "2 days";
+  }
+}
+
+/**
+ * Convert a `TokenExpiresLabel` into hours for ISO expiration timestamp calculation.
+ */
+export function convertExpiresToHours(expires: string): number {
+  switch (expires) {
+    case "2 hrs":
+      return 2;
+    case "12 hrs":
+      return 12;
+    case "2 days":
+      return 48;
+    case "1 week":
+      return 168;
+    case "2 weeks":
+      return 336;
+    case "1 month":
+      return 720;
+    default:
+      return 48;
+  }
+}
+
+/**
+ * Convert a Date or ISO date string into the closest `TokenExpiresLabel`
+ * expected by `ModalEditToken`.
+ */
+export function convertDateToExpiresFormat(
+  expiresDate: Date | string | null | undefined,
+  nowMs: number = Date.now(),
+): TokenExpiresLabel {
+  if (!expiresDate) {
+    return "2 days";
+  }
+  const expiresMs =
+    expiresDate instanceof Date ? expiresDate.getTime() : new Date(expiresDate).getTime();
+  if (!Number.isFinite(expiresMs)) {
+    return "2 days";
+  }
+  const diffMs = expiresMs - nowMs;
+  const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.ceil(diffHours / 24);
+
+  if (diffHours <= 2) return "2 hrs";
+  if (diffHours <= 12) return "12 hrs";
+  if (diffDays <= 2) return "2 days";
+  if (diffDays <= 7) return "1 week";
+  if (diffDays <= 14) return "2 weeks";
+  return "1 month";
 }

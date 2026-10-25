@@ -1504,14 +1504,23 @@ export class MediaService {
     if (flipH) pipeline = pipeline.flop();
     if (flipV) pipeline = pipeline.flip();
 
-    // After rotation the canvas dimensions may swap — re-read them from the intermediate buffer
+    // After rotation the canvas dimensions may swap — calculate mathematically for standard orthogonal angles,
+    // completely avoiding an intermediate buffer encode and 10-50MB RAM allocation.
     let postRotW = imgW;
     let postRotH = imgH;
-    if (rotation || flipH || flipV) {
-      const rotBuf = await pipeline.clone().toBuffer();
-      const rotMeta = await sharp(rotBuf).metadata();
-      postRotW = rotMeta.width ?? imgW;
-      postRotH = rotMeta.height ?? imgH;
+    if (rotation) {
+      const normRot = ((rotation % 360) + 360) % 360;
+      if (normRot === 90 || normRot === 270) {
+        postRotW = imgH;
+        postRotH = imgW;
+      } else if (normRot === 0 || normRot === 180) {
+        postRotW = imgW;
+        postRotH = imgH;
+      } else {
+        const rad = (normRot * Math.PI) / 180;
+        postRotW = Math.round(Math.abs(imgW * Math.cos(rad)) + Math.abs(imgH * Math.sin(rad)));
+        postRotH = Math.round(Math.abs(imgW * Math.sin(rad)) + Math.abs(imgH * Math.cos(rad)));
+      }
     }
 
     // Clamp crop to the post-rotation canvas so Sharp never gets an out-of-bounds extract
@@ -1539,28 +1548,15 @@ export class MediaService {
       });
 
       if (crop.shape === "circle") {
-        // Build circular alpha mask as raw RGBA pixels — no librsvg dependency
+        // Build circular alpha mask via SVG — rasterized natively in C by libvips with zero JS loop or huge pixel buffer allocations
         const cx = workW / 2;
         const cy = workH / 2;
         const rx = workW / 2;
         const ry = workH / 2;
-        const maskPixels = Buffer.alloc(workW * workH * 4, 0);
-        for (let y = 0; y < workH; y++) {
-          for (let x = 0; x < workW; x++) {
-            const dx = (x - cx) / rx;
-            const dy = (y - cy) / ry;
-            const inside = dx * dx + dy * dy <= 1;
-            const idx = (y * workW + x) * 4;
-            maskPixels[idx] = maskPixels[idx + 1] = maskPixels[idx + 2] = 255;
-            maskPixels[idx + 3] = inside ? 255 : 0;
-          }
-        }
-        const circleMask = await sharp(maskPixels, {
-          raw: { width: workW, height: workH, channels: 4 },
-        })
-          .png()
-          .toBuffer();
-        pipeline = pipeline.ensureAlpha().composite([{ input: circleMask, blend: "dest-in" }]);
+        const circleSvg = Buffer.from(
+          `<svg width="${workW}" height="${workH}"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#ffffff"/></svg>`,
+        );
+        pipeline = pipeline.ensureAlpha().composite([{ input: circleSvg, blend: "dest-in" }]);
       }
     }
 

@@ -21,9 +21,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Component } from "svelte";
 import Fields from "@src/components/collection-display/fields.svelte";
+import TokenPicker from "@src/components/token-picker.svelte";
 import MockWidgetInput from "./mocks/mock-widget-input.svelte";
 import { validationStore } from "@src/stores/validation-store.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
+import { activeInput } from "@src/stores/active-input-store.svelte";
 import type { Schema } from "@src/content/types";
 import { click, renderComponent, settle, typeText } from "./render";
 
@@ -57,6 +59,7 @@ vi.mock("@src/stores/widget-store.svelte", () => ({
 
 type LooseComponent = Component<Record<string, unknown>>;
 const FieldsComponent = Fields as unknown as LooseComponent;
+const TokenPickerComponent = TokenPicker as unknown as LooseComponent;
 
 describe("entry fields showIf and requiredIf DOM interactions", () => {
   let cleanupFn: (() => void) | null = null;
@@ -310,5 +313,76 @@ describe("entry fields showIf and requiredIf DOM interactions", () => {
     await settle();
 
     expect(validationStore.hasError("parent_consent")).toBe(false);
+  });
+
+  it("opens TokenPicker from field Insert Token button and inserts configured token into field and collection store", async () => {
+    activeInput.clear();
+    const schema: Schema = {
+      _id: "posts_col" as any,
+      name: "Posts",
+      slug: "posts",
+      fields: [
+        {
+          db_fieldName: "headline",
+          label: "Headline",
+          widget: { Name: "Input" } as any,
+          required: false,
+          translated: false,
+        },
+      ],
+    };
+
+    collections.active = schema;
+    collections.activeValue = { headline: "" };
+
+    const { target, cleanup } = renderComponent(FieldsComponent, {
+      collection: schema,
+      fields: schema.fields,
+    });
+    const picker = renderComponent(TokenPickerComponent);
+    cleanupFn = () => {
+      cleanup();
+      picker.cleanup();
+    };
+    await settle();
+
+    // TokenPicker should initially be closed
+    expect(document.querySelector(".token-window")).toBeNull();
+
+    // Click "Insert token into Headline" button
+    const insertTokenBtn = target.querySelector<HTMLButtonElement>(
+      'button[aria-label="Insert token into Headline"]',
+    );
+    expect(insertTokenBtn).not.toBeNull();
+    await click(insertTokenBtn);
+    await settle();
+
+    // TokenPicker floating window should now be mounted and visible
+    const tokenWindow = document.querySelector(".token-window");
+    expect(tokenWindow).not.toBeNull();
+    expect(tokenWindow?.textContent).toContain("Select Token");
+    expect(tokenWindow?.textContent).toContain("Headline");
+
+    // Select a token from the entry category (e.g., "Entry ID" or "Headline")
+    const tokenCards = tokenWindow?.querySelectorAll('[role="button"]');
+    expect(tokenCards && tokenCards.length > 0).toBe(true);
+    await click(tokenCards?.[0] as HTMLElement);
+    await settle();
+
+    expect(tokenWindow?.textContent).toContain("Configure Token");
+
+    // Click "Insert Token" button in TokenPicker footer
+    const confirmInsertBtn = Array.from(tokenWindow?.querySelectorAll("button") ?? []).find(
+      (btn) => btn.textContent?.trim() === "Insert Token",
+    );
+    expect(confirmInsertBtn).toBeDefined();
+    await click(confirmInsertBtn);
+    await settle();
+
+    // TokenPicker closes and field + store receive the token syntax
+    expect(document.querySelector(".token-window")).toBeNull();
+    const headlineInput = target.querySelector<HTMLInputElement>('[data-testid="input-headline"]');
+    expect(headlineInput?.value).toMatch(/^\{\{.*\}\}$/);
+    expect((collections.activeValue as Record<string, unknown>)?.headline).toMatch(/^\{\{.*\}\}$/);
   });
 });

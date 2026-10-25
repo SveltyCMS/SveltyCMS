@@ -424,8 +424,10 @@
 				<col class="media-table-col-type" style={smartTable.getColumnWidthStyle('type')} />
 				<col class="media-table-col-actions" style={smartTable.getColumnWidthStyle('_actions')} />
 			</colgroup>
-			<thead class="{SMART_TABLE_THEAD} text-(--admin-text-body)! backdrop-blur-sm">
-				<tr class="text-[10px] font-semibold uppercase tracking-wider">
+			<thead class={SMART_TABLE_THEAD}>
+				<tr
+					class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
+				>
 					<th
 						class="media-table-select {SMART_TABLE_TH} {pinCellClass('start')} w-9 shrink-0"
 						onclick={(e) => e.stopPropagation()}
@@ -522,12 +524,12 @@
 				</tr>
 			</thead>
 
-			<tbody>
+			<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 				{#each paginatedFiles as file (file._id || file.filename)}
 					{@const fileId = file._id?.toString() || file.filename}
 
 					<tr
-						class="group cursor-grab border-b border-surface-500/30 align-middle active:cursor-grabbing dark:border-surface-500/40
+						class="group cursor-grab align-middle active:cursor-grabbing
 								{selectedFiles.has(fileId) ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}

@@ -402,9 +402,9 @@ export function serveTurboCacheEntry(
 
     const compressed = resEntry.compressed;
     if (compressed) {
-      const payloadSize = resEntry.buffer
-        ? resEntry.buffer.byteLength
-        : Buffer.byteLength(rawBody, "utf-8");
+      const payloadSize =
+        resEntry.byteLength ??
+        (resEntry.buffer ? resEntry.buffer.byteLength : Buffer.byteLength(rawBody, "utf-8"));
       if (payloadSize > 1024) {
         const acceptEncoding = request.headers.get("Accept-Encoding") || "";
         const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
@@ -427,6 +427,15 @@ export function serveTurboCacheEntry(
 
     if (method === "HEAD" || method === "OPTIONS") {
       bodyToSend = "";
+      fastRecord["content-length"] = "0";
+    } else if (!fastRecord["content-length"] && bodyToSend !== null) {
+      const len =
+        bodyToSend === rawBody && resEntry.byteLength !== undefined
+          ? resEntry.byteLength
+          : typeof bodyToSend === "string"
+            ? Buffer.byteLength(bodyToSend)
+            : bodyToSend.byteLength;
+      fastRecord["content-length"] = String(len);
     }
 
     return {

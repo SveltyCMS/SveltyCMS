@@ -18,6 +18,7 @@ scrollbar for clean overflow handling.
 <script lang="ts">
 	import { cn } from '@utils/cn';
 	import type { Snippet } from 'svelte';
+	import { TAB_STRIP } from './chrome';
 
 	interface Props {
 		children?: Snippet;
@@ -60,10 +61,11 @@ scrollbar for clean overflow handling.
 
 <div
 	class={cn(
-		// Same tab strip as the array-driven `ui/tabs.svelte` (the /user reference):
-		// flat row of underline tabs, no full-width divider — pages that want a
-		// separator pass their own border via `class`.
-		'flex gap-1 mb-4 overflow-x-auto scrollbar-hide',
+		// Same chrome as the array-driven `ui/tabs.svelte` and the hand-rolled
+		// admin strips; see `./chrome.ts`. The rule is an inset shadow so the
+		// horizontal scroller below cannot clip the active underline.
+		TAB_STRIP,
+		'mb-4',
 		className
 	)}
 	role="tablist"
@@ -72,13 +74,3 @@ scrollbar for clean overflow handling.
 >
 	{@render children?.()}
 </div>
-
-<style>
-	.scrollbar-hide::-webkit-scrollbar {
-		display: none;
-	}
-	.scrollbar-hide {
-		-ms-overflow-style: none;
-		scrollbar-width: none;
-	}
-</style>

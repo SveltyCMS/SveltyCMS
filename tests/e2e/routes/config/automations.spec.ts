@@ -101,8 +101,20 @@ test.describe("Automations (Testing 2026)", () => {
     const stamp = Date.now().toString(36);
     const name = `E2E Golden ${stamp}`;
 
+    // New users get the "how automations work" explainer open by default.
+    const help = page.getByTestId("automation-how-it-works");
+    await expect(help).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(help).toHaveAttribute("open", "");
+
+    // A name alone is not enough: the default event trigger needs an event.
     await page.getByTestId("automation-name").fill(name);
+    await expect(page.getByTestId("automation-next")).toBeDisabled();
+    await expect(page.getByTestId("automation-next-hint")).toContainText(/event/i, {
+      timeout: ACTION_TIMEOUT,
+    });
+
     await page.getByTestId("automation-trigger-manual").click();
+    await expect(page.getByTestId("automation-next-hint")).toHaveCount(0);
     await page.getByTestId("automation-next").click();
 
     await expect(page.getByTestId("automation-add-ops")).toBeVisible({

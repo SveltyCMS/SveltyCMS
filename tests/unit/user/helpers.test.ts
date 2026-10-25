@@ -3,14 +3,14 @@
  * @description White-box unit tests for helper functions:
  *   checkTokenExpired, getRemainingTime, formatDate.
  *
- * Extracted from: src/routes/(app)/user/components/admin-area.svelte
+ * Extracted from: src/routes/(app)/user/components/user-management.svelte
  */
 
 import { describe, it, expect } from "vitest";
 import { formatDateTime } from "@utils/format-date";
 
 // ---------------------------------------------------------------------------
-// Replicated inline functions from admin-area.svelte
+// Replicated inline functions from user-management.svelte
 // ---------------------------------------------------------------------------
 
 function isToken(row: any): row is { token: string; [key: string]: any } {

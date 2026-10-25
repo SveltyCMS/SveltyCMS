@@ -244,7 +244,7 @@
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { formatDateTime } from '@utils/format-date';
-	import AdminArea from './components/admin-area.svelte';
+	import UserManagement from './components/user-management.svelte';
 	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
 	import ModalPasskeyManagement from './components/modal-passkey-management.svelte';
 	import { setCollection } from '@src/stores/collection-store.svelte';
@@ -254,6 +254,7 @@
 	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
 	import ModalEditForm from './components/modal-edit-form.svelte';
 	import ModalPrivacyData from './components/modal-privacy-data.svelte';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { getActiveSessions, revokeSession, reauthForSessionManagement } from './user.remote';
 
 	const { data } = $props();
@@ -870,10 +871,7 @@
 		try {
 			const res = await fetch('/api/user/update-user-attributes', {
 				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken
-				},
+				headers: clientJsonHeaders(page.data.csrfToken),
 				body: JSON.stringify({ user_id: 'self', newUserData })
 			});
 
@@ -968,10 +966,7 @@
 				try {
 					const res = await fetch('/api/user/batch', {
 						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-CSRF-Token': page.data.csrfToken || ''
-						},
+						headers: clientJsonHeaders(page.data.csrfToken),
 						body: JSON.stringify({ userIds: [user._id], action: 'delete' })
 					});
 					if (res.ok) {
@@ -2111,7 +2106,7 @@
 					>
 						{userpage_management_intro()}
 					</p>
-					<AdminArea
+					<UserManagement
 						currentUser={user as any}
 						isMultiTenant={!!isMultiTenant}
 						roles={(data.roles ?? []) as any}

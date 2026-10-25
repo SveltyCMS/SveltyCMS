@@ -32,6 +32,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	import Select from '@components/ui/select.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
+	import { TAB_STRIP, tabTrigger } from '@components/ui/tabs/chrome';
 	import {
 		theme_active,
 		theme_activate,
@@ -880,10 +881,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 	<!-- Tab Navigation (all users: overrides + preview; admin: full workspace) -->
 	<AdminCard class="shadow-sm backdrop-blur-md">
-		<!-- Underline tab style of the shared Tabs component (ui/tabs.svelte, variant="underline") -->
+		<!-- Underline tab style of the shared Tabs component (ui/tabs/chrome.ts) -->
 		<div
-			class="flex gap-2 overflow-x-auto overflow-y-clip border-b px-2"
-			style="border-color: var(--admin-border-default)"
+			class="{TAB_STRIP} px-2"
 			role="tablist"
 			tabindex="-1"
 			onkeydown={onTabKeydown}
@@ -899,10 +899,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 					tabindex={activeTab === tab.id ? 0 : -1}
 					onclick={() => setActiveTab(tab.id)}
 					data-testid={`appearance-tab-${tab.id}`}
-					class="flex items-center gap-2.5 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 rounded-none! border-b-2 {activeTab ===
-					tab.id
-						? 'border-tertiary-500 text-tertiary-500 dark:border-primary-500 dark:text-primary-500'
-						: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:border-surface-500/30'}"
+					class={tabTrigger(activeTab === tab.id)}
 				>
 					<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
 					<span>{tab.label}</span>

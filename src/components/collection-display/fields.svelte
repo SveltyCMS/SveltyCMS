@@ -41,6 +41,7 @@
 
 	import Tabs from '@components/ui/tabs';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@src/components/ui/help-icon.svelte';
 	import {
 		applayout_version,
 		button_edit,
@@ -77,21 +78,45 @@
 	import { activeInput } from '@src/stores/active-input-store.svelte';
 
 	// Token Picker
-	// Token Picker
-
 	function openTokenPicker(field: any, e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 
-		// Fallback: Try to find the input by ID (using db_fieldName as ID)
-		const id = field.db_fieldName;
-		const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
+		const fieldName = getFieldName(field, false);
+		const id = field.db_fieldName || fieldName;
+		const container = document.getElementById(`field-container-${fieldName}`);
+		const el =
+			(document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null) ??
+			(container?.querySelector('input:not([type="hidden"]), textarea') as
+				| HTMLInputElement
+				| HTMLTextAreaElement
+				| null);
+
 		if (el) {
 			el.focus();
-			activeInput.set({ element: el, field });
-		} else {
-			logger.warn('Could not find input for field', field);
 		}
+
+		activeInput.set({
+			element: el,
+			field,
+			onInsert: (tokenValue: string) => {
+				if (field.translated) {
+					const targetLocale = fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
+					const existing = currentCollectionValue[fieldName];
+					const record = isLocaleRecord(existing) ? { ...existing } : {};
+					record[targetLocale] = tokenValue;
+					currentCollectionValue[fieldName] = record;
+				} else {
+					currentCollectionValue[fieldName] = tokenValue;
+				}
+				if (el) {
+					el.value = tokenValue;
+					el.dispatchEvent(new Event('input', { bubbles: true }));
+					el.dispatchEvent(new Event('change', { bubbles: true }));
+				}
+				syncFieldToStore(fieldName);
+			}
+		});
 	}
 	let widgetFunctions = $derived(widgets.widgetFunctions);
 
@@ -363,6 +388,15 @@
 	 */
 	function isLocaleRecord(value: unknown): value is Record<string, unknown> {
 		return typeof value === 'object' && value !== null && !Array.isArray(value);
+	}
+
+	/** Non-empty value for a locale — drives the per-field translation status dot. */
+	function hasTranslation(fieldName: string, locale: Locale): boolean {
+		const record = currentCollectionValue[fieldName];
+		if (!isLocaleRecord(record)) return false;
+		const value = record[locale];
+		if (value === null || value === undefined) return false;
+		return typeof value === 'string' ? value.trim().length > 0 : true;
 	}
 
 	/**
@@ -745,8 +779,7 @@
 												ariaLabel={field.helper}
 												positioning={{ placement: 'top' }}
 											>
-												<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"
-												></iconify-icon>
+												<HelpIcon ariaLabel={field.helper} />
 											</SystemTooltip>
 										{/if}
 										{#if isRequired}
@@ -765,26 +798,31 @@
 											})()}
 											{@const sourceLocale = contentLanguage.value as Locale}
 											{@const isTranslating = aiTranslatingFields.has(fieldName)}
+											{@const isTranslated = hasTranslation(fieldName, currentFieldLocale)}
 											<div class="flex items-center gap-1">
-												<!-- Locale badge / switcher -->
-												<Button
-													variant="ghost"
-													class="flex h-7 items-center gap-0.5 rounded-full px-1.5 text-xs font-medium transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
-													style="color: var(--color-tertiary-500)"
+												<!-- Locale + translation status: a compact badge, not a button clone. -->
+												<button
+													type="button"
+													class="inline-flex h-7 items-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition-colors {isTranslated
+														? 'border-success-500/40 bg-success-500/10 text-success-500'
+														: 'border-warning-500/40 bg-warning-500/10 text-warning-500'} hover:border-tertiary-500/50 dark:hover:border-primary-500/50"
 													onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
+													title={isTranslated
+														? `${currentFieldLocale.toUpperCase()} translation present`
+														: `${currentFieldLocale.toUpperCase()} translation missing`}
 													aria-label="Switch locale for {field.label ||
-														fieldName}. Current: {currentFieldLocale.toUpperCase()}"
+														fieldName}. Current: {currentFieldLocale.toUpperCase()}, {isTranslated
+														? 'translated'
+														: 'translation missing'}"
 												>
-													<iconify-icon icon="bi:translate" width="14" aria-hidden="true"
-													></iconify-icon>
-													<span class="text-tertiary-600 dark:text-primary-500"
-														>{currentFieldLocale.toUpperCase()}</span
-													>
+													<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+													<span>{currentFieldLocale.toUpperCase()}</span>
 													{#if availableLanguages.length > 1}
 														<iconify-icon icon="mdi:chevron-down" width="10" aria-hidden="true"
 														></iconify-icon>
 													{/if}
-												</Button>
+												</button>
+
 												<!-- AI Translate button -->
 												{#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
 													<Button
@@ -817,6 +855,8 @@
 												class="h-7 w-7 p-0"
 												onclick={(e: MouseEvent) => openTokenPicker(field, e)}
 												aria-label="Insert token into {field.label}"
+												aria-haspopup="dialog"
+												data-testid="insert-token-button"
 											>
 												<iconify-icon
 													icon="mdi:code-braces"
@@ -1018,7 +1058,7 @@
 					</Button>
 				</div>
 				<AdminCard
-					class="p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm `max-h-125"
+					class="p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm max-h-125"
 				>
 					<pre>{JSON.stringify(collections.activeValue, null, 2)}</pre>
 				</AdminCard>

@@ -84,7 +84,7 @@ flowchart TB
   subgraph Adapters["Domain adapters"]
     EL[entry-list]
     Media[media-table]
-    Users[admin-area users]
+    Users[user-management users]
     Generic[any ui/table consumer]
   end
 
@@ -213,8 +213,9 @@ See [Collection Filtering Platform](../architecture/collection-filtering.mdx).
 | **New tables**               | `createSmartTable` + shared chrome tokens                                   |
 | **entry-list**               | `createSmartTable` (server) + `createSmartFilter` + chrome                  |
 | **media-table**              | `createSmartTable` (client) + chrome + column sort                          |
-| **admin-area**               | `createSmartTable` (server) + `onQueryChange` → `/api/user` \| `/api/token` |
+| **user-management**          | `createSmartTable` (server) + `onQueryChange` → `/api/user` \| `/api/token` |
 | **website-tokens**           | `createSmartTable` (server) + `onQueryChange` → `/api/website-tokens`       |
+| **config queue / sync**      | Shared chrome for the read-only job and change tables                       |
 | **tenants admin**            | Shared chrome (SSR list)                                                    |
 | **Legacy `TableController`** | Deprecated; re-exported for compatibility                                   |
 
@@ -236,6 +237,8 @@ import {
   SMART_TABLE_ROW_HOVER,
 } from "@components/ui/smart-table";
 ```
+
+`SMART_TABLE` now carries the shared body baseline: `font-sans`, `text-sm`, and `text-(--admin-text-body)`. Primary cells inherit that color so dark mode stays white; only genuinely secondary metadata (paths, sizes, token secrets, muted hints) should add `text-(--admin-text-muted)`. Let `SMART_TABLE_TH` own the header size rather than a nested `text-xs` button, otherwise that one table's headers render a step smaller than the other Smart Tables.
 
 ### Import map
 

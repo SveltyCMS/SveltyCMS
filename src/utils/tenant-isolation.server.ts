@@ -24,6 +24,10 @@ let _multiTenantCachedAt = 0;
 
 /**
  * Multi-tenant mode detection via config/private.ts.
+ *
+ * Demo mode always implies tenant isolation: every demo visitor gets a seeded
+ * per-visitor tenant for `DEMO_TTL` minutes, even when `MULTI_TENANT` was left
+ * false in the bootstrap config (older setup wizards allowed that combination).
  */
 export function isMultiTenantEnabled(): boolean {
   const now = Date.now();
@@ -32,7 +36,9 @@ export function isMultiTenantEnabled(): boolean {
   }
 
   try {
-    _multiTenantCached = getPrivateSettingSync("MULTI_TENANT") === true;
+    const demo = getPrivateSettingSync("DEMO");
+    _multiTenantCached =
+      getPrivateSettingSync("MULTI_TENANT") === true || demo === true || String(demo) === "true";
   } catch {
     _multiTenantCached = false;
   }

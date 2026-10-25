@@ -21,6 +21,14 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import { TAB_STRIP, tabTrigger } from '@components/ui/tabs/chrome';
+	import {
+		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table';
 	import {
 		sync_action,
 		sync_backup_heading,
@@ -213,8 +221,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 				</p>
 			</div>
 
+			<!-- Underline tabs — same strip as /user, extensions and access management
+			     (the old boxed segmented control was the last divergent tab chrome). -->
 			<div
-				class="flex w-full overflow-x-auto border border-surface-500/30 rounded-md bg-surface-500/10 dark:text-surface-50 dark:bg-surface-800/70 mb-6"
+				class="{TAB_STRIP} mb-6"
 				role="tablist"
 				aria-label={sync_options_aria()}
 				data-testid="sync-tabs"
@@ -227,12 +237,12 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								? 'Import/Export Data'
 								: 'Debug Info'}
 						positioning={{ placement: 'top' }}
+						role={null}
+						tabindex={null}
 					>
 						<Button
 							variant="ghost"
-							class="flex-1 py-3 text-center text-sm font-medium {activeTab === tab
-								? 'bg-primary-500! text-white!'
-								: 'text-surface-600! dark:text-surface-400!'}"
+							class={tabTrigger(activeTab === tab, 'justify-center')}
 							onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
 							role="tab"
 							aria-selected={activeTab === tab}
@@ -383,34 +393,35 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								</p>
 							</div>
 
-							<AdminCard class="overflow-x-auto w-full border border-(--admin-border-default)">
-								<table class="w-full text-sm border-collapse">
-									<thead>
+							<AdminCard
+								class="my-2 w-full overflow-x-auto border border-(--admin-border-default) sm:my-3"
+							>
+								<table class={SMART_TABLE}>
+									<thead class={SMART_TABLE_THEAD}>
 										<tr
-											class="border-b border-(--admin-border-default) text-start text-xs uppercase tracking-wider text-surface-400"
+											class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 										>
-											<th class="px-4 py-3 font-semibold">{sync_name()}</th>
-											<th class="px-4 py-3 font-semibold">{sync_type()}</th>
-											<th class="px-4 py-3 font-semibold">UUID</th>
-											<th class="px-4 py-3 font-semibold text-end">{sync_action()}</th>
+											<th class="{SMART_TABLE_TH} text-start!">{sync_name()}</th>
+											<th class="{SMART_TABLE_TH} text-start!">{sync_type()}</th>
+											<th class="{SMART_TABLE_TH} text-start!">UUID</th>
+											<th class="{SMART_TABLE_TH} text-end!">{sync_action()}</th>
 										</tr>
 									</thead>
-									<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+									<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 										{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
 											{#each items as item (item.uuid || item.name)}
-												<tr
-													class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20"
-												>
-													<td class="px-4 py-3 font-medium">{item.name}</td>
-													<td class="px-4 py-3">
+												<tr class={SMART_TABLE_ROW_HOVER}>
+													<td class="{SMART_TABLE_TD} text-start! font-medium">{item.name}</td>
+													<td class="{SMART_TABLE_TD} text-start!">
 														<Badge preset="tonal" color="surface" class="capitalize"
 															>{item.type}</Badge
 														>
 													</td>
-													<td class="px-4 py-3 font-mono text-xs text-surface-400"
+													<td
+														class="{SMART_TABLE_TD} text-start! font-mono text-xs text-(--admin-text-muted)"
 														>{item.uuid || '-'}</td
 													>
-													<td class="px-4 py-3 text-end">
+													<td class="{SMART_TABLE_TD} text-end!">
 														{#if changeType === 'new'}
 															<Badge variant="tertiary" class="dark:bg-primary-500 dark:text-white"
 																>{sync_new_create()}</Badge

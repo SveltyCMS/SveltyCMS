@@ -53,10 +53,15 @@ export function resolvePublicationFilter(
   actor?: ActorContext | null,
   requested?: string | null,
 ): PublicationFilter {
+  // Fast path: Unprivileged / anonymous visitors are unconditionally clamped to "published"
+  if (!actor || (!actor.system && !actor.user)) {
+    return "published";
+  }
+
   const isPrivileged =
-    actor?.system === true ||
-    isAdmin(actor?.user) ||
-    (Array.isArray(actor?.user?.permissions) &&
+    actor.system === true ||
+    isAdmin(actor.user) ||
+    (Array.isArray(actor.user?.permissions) &&
       (actor.user.permissions.includes("content:read_drafts") ||
         actor.user.permissions.includes("collections:read_drafts") ||
         actor.user.permissions.includes("admin")));
@@ -68,7 +73,6 @@ export function resolvePublicationFilter(
     return "all";
   }
 
-  // Unprivileged / anonymous visitors are unconditionally clamped to "published"
   return "published";
 }
 

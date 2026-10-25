@@ -1232,10 +1232,30 @@ export const contentService = {
               "[ContentService] deleteMany failed for structure nodes",
           );
         }
-        if ((deleteResult.data?.deletedCount ?? 0) !== pathsToDelete.length) {
-          throw new Error(
-            `[ContentService] Expected to delete ${pathsToDelete.length} structure nodes, deleted ${deleteResult.data?.deletedCount ?? 0}`,
+        const deletedCount = deleteResult.data?.deletedCount ?? 0;
+        if (deletedCount !== pathsToDelete.length) {
+          // DELETE is idempotent: a node that was already removed (e.g. a
+          // category that only ever existed in the organizational manifest)
+          // must not fail the whole save. Re-read once and only fail when a
+          // requested path really survived the delete.
+          const remaining = await dbAdapter.content.nodes.getStructure("flat", {
+            tenantId: tenantId as any,
+            ...withSystemScope("bootstrap"),
+            bypassCache: true,
+          });
+          const remainingPaths = new Set(
+            (remaining.success ? remaining.data : []).map((node) => String(node.path ?? "")),
           );
+          const survivors = pathsToDelete.filter((deletePath) => remainingPaths.has(deletePath));
+          if (survivors.length > 0) {
+            throw new Error(
+              `[ContentService] Failed to delete ${survivors.length} structure node(s): ${survivors.join(", ")}`,
+            );
+          }
+          logger.debug("[ContentService] Structure delete skipped already-absent nodes", {
+            requested: pathsToDelete.length,
+            deleted: deletedCount,
+          });
         }
       }
     }

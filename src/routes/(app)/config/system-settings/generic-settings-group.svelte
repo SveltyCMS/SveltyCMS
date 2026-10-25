@@ -1239,30 +1239,30 @@ Handles all field types and validation automatically
 								? 'md:col-span-2'
 								: ''}"
 						>
-							<label for={field.key} class="mb-2 block">
-								<!-- Label wrapped with tooltip -->
+							<div class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+								<iconify-icon
+									icon={getFieldIcon(field)}
+									width="18"
+									class="shrink-0 text-tertiary-500 dark:text-primary-500"
+								></iconify-icon>
+								<label
+									for={field.key}
+									class="text-sm font-semibold text-(--admin-text-body) md:text-base"
+									>{field.label}</label
+								>
+								{#if field.required}
+									<span class="text-error-500">*</span>
+								{/if}
+								<!-- Technical key: the identifier admins look up in config/private.ts -->
+								<code
+									class="font-mono text-[10px] font-medium text-tertiary-500 dark:text-primary-500"
+									>{field.key}</code
+								>
+								<!-- The icon is the only tooltip trigger; the label text stays inert -->
 								<SystemTooltip title={field.description} positioning={{ placement: 'top' }}>
-									<span class="flex items-center gap-2 cursor-help">
-										<iconify-icon
-											icon={getFieldIcon(field)}
-											width="18"
-											class="text-tertiary-500 dark:text-primary-500"
-										></iconify-icon>
-										<span
-											class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base"
-											>{field.label}</span
-										>
-										{#if field.required}
-											<span class="text-error-500">*</span>
-										{/if}
-										<iconify-icon
-											icon="material-symbols:info-outline"
-											width="16"
-											class="text-(--admin-text-muted) dark:text-surface-50 opacity-60"
-										></iconify-icon>
-									</span>
+									<HelpIcon ariaLabel="Field information" />
 								</SystemTooltip>
-							</label>
+							</div>
 
 							<!-- Text Input -->
 							{#if field.type === 'text'}

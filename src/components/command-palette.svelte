@@ -217,6 +217,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 	// ─── State ──────────────────────────────────────────────────────────────
 	let searchQuery = $state('');
 	let selectedIndex = $state(0);
+	let showShortcuts = $state(false);
 	let inputRef = $state<HTMLInputElement | null>(null);
 	let listElement = $state<HTMLDivElement | null>(null);
 	let panelElement = $state<HTMLDivElement | null>(null);
@@ -396,6 +397,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		ui.closeGlobalSearch();
 		searchQuery = '';
 		selectedIndex = 0;
+		showShortcuts = false;
 		semanticEntries = [];
 		tick().then(() => {
 			previousFocus?.focus?.();
@@ -577,7 +579,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 <!-- Panel -->
 <div
 	bind:this={panelElement}
-	class="command-palette fixed inset-x-0 top-[12%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded-(--admin-radius-card) border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:border-surface-600 dark:bg-surface-900"
+	class="command-palette fixed inset-x-0 top-[12%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:border-surface-600 dark:bg-surface-900"
 	role="dialog"
 	aria-modal="true"
 	aria-label={msg('global_search_aria_label', 'Global search')}
@@ -587,7 +589,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 >
 	<!-- Search input row -->
 	<div
-		class="flex items-center gap-2 border-b border-surface-500/30 px-3 dark:border-surface-500/40"
+		class="flex items-center gap-2 border-b border-surface-500/30 px-4 dark:border-surface-500/40"
 	>
 		<span class="text-(--admin-text-muted)" aria-hidden="true">
 			{#if isSearching}
@@ -613,7 +615,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		<Input
 			bind:inputRef
 			bind:value={searchQuery}
-			type="search"
+			type="text"
 			role="combobox"
 			aria-expanded="true"
 			autocomplete="off"
@@ -628,6 +630,23 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 			inputClass="h-12 w-full border-0 bg-transparent py-3 text-base text-surface-900 shadow-none outline-none ring-0 focus-visible:ring-0 dark:text-surface-50 dark:placeholder:text-surface-400"
 			class="border-0 shadow-none"
 		/>
+		<button
+			type="button"
+			class="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-transparent text-(--admin-text-muted) transition-colors hover:bg-surface-500/10 hover:text-(--admin-text-body) focus-visible:ring-2 focus-visible:ring-(--admin-focus-ring) focus-visible:outline-none"
+			onclick={() => {
+				if (searchQuery) {
+					searchQuery = '';
+					inputRef?.focus();
+				} else {
+					showShortcuts = !showShortcuts;
+				}
+			}}
+			aria-label={searchQuery ? 'Clear search' : 'Keyboard shortcuts'}
+			title={searchQuery ? 'Clear search' : 'Keyboard shortcuts'}
+			data-testid="palette-clear-or-help"
+		>
+			<iconify-icon icon={searchQuery ? 'mdi:close' : 'mdi:help'} width="18"></iconify-icon>
+		</button>
 		<kbd
 			class="hidden shrink-0 rounded border border-surface-500/30 bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-surface-600 sm:inline dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300"
 		>
@@ -657,6 +676,43 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		</div>
 	{/if}
 
+	{#if showShortcuts}
+		<div
+			class="grid grid-cols-2 gap-2 border-b border-surface-500/30 px-4 py-3 text-xs text-(--admin-text-muted) sm:grid-cols-4 dark:border-surface-500/40"
+			role="note"
+			data-testid="palette-shortcuts"
+		>
+			<span class="inline-flex items-center gap-1.5">
+				<kbd
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
+					>↑↓</kbd
+				>
+				{msg('global_search_nav_hint', 'Navigate')}
+			</span>
+			<span class="inline-flex items-center gap-1.5">
+				<kbd
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
+					>↵</kbd
+				>
+				{msg('global_search_select_hint', 'Select')}
+			</span>
+			<span class="inline-flex items-center gap-1.5">
+				<kbd
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
+					>esc</kbd
+				>
+				{msg('global_search_close_hint', 'Close')}
+			</span>
+			<span class="inline-flex items-center gap-1.5">
+				<kbd
+					class="rounded border border-surface-500/30 bg-surface-500/10 px-1 dark:border-surface-600 dark:bg-surface-800"
+					>{modLabel}+K</kbd
+				>
+				{msg('global_search_open_hint', 'Open')}
+			</span>
+		</div>
+	{/if}
+
 	<!-- Results -->
 	<div
 		bind:this={listElement}
@@ -668,7 +724,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		{#if rankedItems.length > 0}
 			{#each displayGroups as group (group.section + group.startIndex)}
 				<div
-					class="px-2 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
+					class="px-2 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted)"
 					role="presentation"
 				>
 					{sectionHeading(group.section)}
@@ -698,7 +754,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 										term={parsed.query}
 										charLimit={80}
 										highlightClass={selected
-											? 'bg-white/30 text-white rounded px-0.5'
+											? 'bg-white/25 text-white rounded px-0.5'
 											: 'bg-warning-500/20 text-warning-600 dark:bg-warning-500/20 dark:text-warning-400 rounded px-0.5'}
 									/>
 								{:else}
@@ -707,14 +763,14 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 										term={parsed.query}
 										charLimit={80}
 										highlightClass={selected
-											? 'bg-white/30 text-white rounded px-0.5'
+											? 'bg-white/25 text-white rounded px-0.5'
 											: 'bg-warning-500/20 text-warning-600 dark:bg-warning-500/20 dark:text-warning-400 rounded px-0.5'}
 									/>
 								{/if}
 							</div>
 							<div
 								class="mt-0.5 truncate text-sm {selected
-									? 'text-white/85'
+									? 'text-white/80'
 									: 'text-(--admin-text-muted)'}"
 							>
 								<HighlightedText
@@ -731,8 +787,8 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 							<span
 								class="hidden max-w-36 shrink-0 truncate rounded px-1.5 py-0.5 font-mono text-[10px] font-medium sm:inline
 									{selected
-									? 'bg-white/15 text-white/90'
-									: 'bg-surface-200 text-surface-600 dark:bg-surface-800 dark:text-surface-400'}"
+									? 'bg-white/10 text-tertiary-500 dark:text-primary-500'
+									: 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500'}"
 								title={path}
 							>
 								{path}
@@ -741,7 +797,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 						{#if index < 9 && !parsed.query}
 							<span
 								class="hidden w-5 shrink-0 text-center text-[10px] font-bold opacity-50 sm:inline {selected
-									? 'text-white'
+									? 'text-white/70'
 									: ''}"
 								aria-hidden="true"
 							>
@@ -756,12 +812,12 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 							id="palette-result-{index}"
 							role="option"
 							aria-selected={selected}
-							class="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-[filter,transform,background-color,color] duration-150
+							class="group flex w-full items-center gap-3 rounded-md px-2 py-3 text-start transition-[background-color,color,transform] duration-150
 								focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50
 								dark:focus-visible:ring-surface-300 dark:focus-visible:ring-offset-surface-900
 								{selected
-								? 'bg-tertiary-600 text-white dark:bg-primary-600 dark:text-white'
-								: 'text-surface-900 hover:brightness-110 active:scale-[0.98] dark:text-surface-50 dark:hover:bg-surface-800'}"
+								? 'bg-surface-900 text-white ring-1 ring-inset ring-white/10 dark:bg-surface-800 dark:text-white'
+								: 'text-surface-900 hover:bg-surface-500/10 active:scale-[0.99] dark:text-surface-50 dark:hover:bg-surface-800'}"
 							onclick={() => executeItem(item)}
 							onmouseenter={() => (selectedIndex = index)}
 						>
@@ -773,12 +829,12 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 							id="palette-result-{index}"
 							role="option"
 							aria-selected={selected}
-							class="group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-[filter,transform,background-color,color] duration-150
+							class="group flex w-full items-center gap-3 rounded-md px-2 py-3 text-start transition-[background-color,color,transform] duration-150
 								focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-surface-500 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50
 								dark:focus-visible:ring-surface-300 dark:focus-visible:ring-offset-surface-900
 								{selected
-								? 'bg-tertiary-600 text-white dark:bg-primary-600 dark:text-white'
-								: 'text-surface-900 hover:brightness-110 active:scale-[0.98] dark:text-surface-50 dark:hover:bg-surface-800'}"
+								? 'bg-surface-900 text-white ring-1 ring-inset ring-white/10 dark:bg-surface-800 dark:text-white'
+								: 'text-surface-900 hover:bg-surface-500/10 active:scale-[0.99] dark:text-surface-50 dark:hover:bg-surface-800'}"
 							onclick={() => executeItem(item)}
 							onmouseenter={() => (selectedIndex = index)}
 						>

@@ -7,6 +7,8 @@
 
 <script lang="ts">
 	import AdminCard from '@components/admin-card.svelte';
+	import SystemTooltip from '@components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import {
@@ -20,6 +22,14 @@
 		api_vqb_filter_conditions,
 		api_vqb_graphql,
 		api_vqb_heading,
+		api_vqb_help_collection,
+		api_vqb_help_filters,
+		api_vqb_help_gql,
+		api_vqb_help_limit,
+		api_vqb_help_order,
+		api_vqb_help_rest_url,
+		api_vqb_help_run,
+		api_vqb_help_sort,
 		api_vqb_intro,
 		api_vqb_limit,
 		api_vqb_no_filters,
@@ -166,6 +176,13 @@
 	}
 </script>
 
+<!-- Field help: the `?` icon is the only tooltip trigger; labels stay inert. -->
+{#snippet helpTrigger(text: string, label: string)}
+	<SystemTooltip title={text}>
+		<HelpIcon ariaLabel={`Help: ${label}`} tabindex={0} />
+	</SystemTooltip>
+{/snippet}
+
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 	<!-- Left: Visual Query Builder Panel -->
 	<div class="lg:col-span-7 space-y-6">
@@ -182,12 +199,15 @@
 
 				<!-- Target Collection -->
 				<div class="space-y-1.5">
-					<label
-						for="query-collection-select"
-						class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
-					>
-						{api_vqb_target_collection()}
-					</label>
+					<div class="flex items-center gap-1.5">
+						<label
+							for="query-collection-select"
+							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+						>
+							{api_vqb_target_collection()}
+						</label>
+						{@render helpTrigger(api_vqb_help_collection(), api_vqb_target_collection())}
+					</div>
 					<Select
 						id="query-collection-select"
 						value={selectedCollection}
@@ -199,8 +219,11 @@
 				<!-- Filters Section -->
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
-						<span class="text-xs font-bold uppercase tracking-wider text-surface-500">
+						<span
+							class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-surface-500"
+						>
 							{api_vqb_filter_conditions()}
+							{@render helpTrigger(api_vqb_help_filters(), api_vqb_filter_conditions())}
 						</span>
 						<Button variant="ghost" size="sm" class="text-xs" onclick={addFilter}>
 							<iconify-icon icon="mdi:plus" width="16" class="me-1"></iconify-icon>
@@ -260,22 +283,28 @@
 				<!-- Sorting & Pagination -->
 				<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-surface-500/20">
 					<div class="space-y-1.5">
-						<label
-							for="query-sort-field"
-							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
-						>
-							{api_vqb_sort_field()}
-						</label>
+						<div class="flex items-center gap-1.5">
+							<label
+								for="query-sort-field"
+								class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+							>
+								{api_vqb_sort_field()}
+							</label>
+							{@render helpTrigger(api_vqb_help_sort(), api_vqb_sort_field())}
+						</div>
 						<Input id="query-sort-field" bind:value={sortField} class="text-xs font-mono" />
 					</div>
 
 					<div class="space-y-1.5">
-						<label
-							for="query-sort-order"
-							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
-						>
-							{api_vqb_order()}
-						</label>
+						<div class="flex items-center gap-1.5">
+							<label
+								for="query-sort-order"
+								class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+							>
+								{api_vqb_order()}
+							</label>
+							{@render helpTrigger(api_vqb_help_order(), api_vqb_order())}
+						</div>
 						<Select
 							id="query-sort-order"
 							value={sortOrder}
@@ -288,12 +317,15 @@
 					</div>
 
 					<div class="space-y-1.5">
-						<label
-							for="query-limit-input"
-							class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
-						>
-							{api_vqb_limit()}
-						</label>
+						<div class="flex items-center gap-1.5">
+							<label
+								for="query-limit-input"
+								class="block text-xs font-semibold text-surface-600 dark:text-surface-400"
+							>
+								{api_vqb_limit()}
+							</label>
+							{@render helpTrigger(api_vqb_help_limit(), api_vqb_limit())}
+						</div>
 						<Input
 							id="query-limit-input"
 							type="number"
@@ -331,8 +363,11 @@
 		<AdminCard class={cardClass}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
-					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">
+					<h3
+						class="flex items-center gap-1.5 text-sm font-bold text-surface-900 dark:text-surface-100"
+					>
 						{api_vqb_rest_endpoint()}
+						{@render helpTrigger(api_vqb_help_rest_url(), api_vqb_rest_endpoint())}
 					</h3>
 					<Badge variant="tertiary" size="sm">GET</Badge>
 				</div>
@@ -344,8 +379,11 @@
 				</div>
 
 				<div class="flex items-center justify-between pt-2">
-					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">
+					<h3
+						class="flex items-center gap-1.5 text-sm font-bold text-surface-900 dark:text-surface-100"
+					>
 						{api_vqb_graphql()}
+						{@render helpTrigger(api_vqb_help_gql(), api_vqb_graphql())}
 					</h3>
 					<button
 						type="button"
@@ -366,8 +404,11 @@
 		<AdminCard class={cardClass}>
 			<div class="space-y-3">
 				<div class="flex items-center justify-between">
-					<h3 class="text-sm font-bold text-surface-900 dark:text-surface-100">
+					<h3
+						class="flex items-center gap-1.5 text-sm font-bold text-surface-900 dark:text-surface-100"
+					>
 						{api_vqb_execution_response()}
+						{@render helpTrigger(api_vqb_help_run(), api_vqb_execution_response())}
 					</h3>
 					<div class="flex items-center gap-2">
 						{#if executeStatus !== null}

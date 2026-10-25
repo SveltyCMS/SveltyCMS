@@ -103,7 +103,7 @@ async function selectDeveloperRow(page: Page, options?: DeveloperRowOptions) {
   }
 }
 
-/** Block or unblock a single user via the per-row action button (admin-area.svelte). */
+/** Block or unblock a single user via the per-row action button (user-management.svelte). */
 async function runRowUserAction(page: Page, action: "block" | "unblock") {
   const row = await developerRow(page);
   const rowButton = row.getByRole("button", {

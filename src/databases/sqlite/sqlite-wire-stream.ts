@@ -13,6 +13,7 @@ import {
   buildRawTenantClause,
   getTableBooleanColumns,
 } from "../core/relational-utils";
+import { hasTenantBypass } from "../system-tenant-scope";
 import { getMaterializedFieldColumns } from "../core/drizzle-sql-helpers";
 import type { BaseQueryOptions, DatabaseId } from "../db-interface";
 import type { RawPointWireStreamResult, RawListWireStreamResult } from "../core/sql-adapter-core";
@@ -26,8 +27,11 @@ interface PointWireSql {
   selectPrefix: string;
   base: string;
   tenant: string;
+  tenantNull: string;
   basePub: string | null;
   tenantPub: string | null;
+  tenantPubNull: string | null;
+  declined?: boolean;
 }
 
 interface ListWireSql {
@@ -54,17 +58,19 @@ export class SqliteWireStreamEngine {
     options: BaseQueryOptions,
   ): Promise<RawPointWireStreamResult> {
     try {
-      const hasDataCol = !!executor.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" };
-
-      const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
-      // 🔒 Soft-delete clamp for the public wire plane (see findPointWireStream).
-      const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
-
       let cachedWireSql = this._pointSqlCache.get(table);
-      if (!cachedWireSql) {
+      if (cachedWireSql === undefined) {
+        const hasDataCol = !!executor.getColumn(table, "data");
+        if (!hasDataCol) {
+          this._pointSqlCache.set(table, { declined: true } as PointWireSql);
+          return { kind: "declined" };
+        }
+
+        const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
+        const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
+        // 🔒 Soft-delete clamp for the public wire plane (see findPointWireStream).
+        const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
+
         const quoted = `"${tableName}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
@@ -74,7 +80,10 @@ export class SqliteWireStreamEngine {
         if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
         const boolCols = getTableBooleanColumns(tableName);
         for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
+          if (!/^[A-Za-z0-9_]+$/.test(rawName)) {
+            this._pointSqlCache.set(table, { declined: true } as PointWireSql);
+            return { kind: "declined" };
+          }
           const name = assertSafeSqlIdentifier(rawName, "column");
           const col = `"${name}"`;
           const value = boolCols?.has(rawName)
@@ -91,33 +100,40 @@ export class SqliteWireStreamEngine {
           selectPrefix,
           base: `${selectPrefix} WHERE "_id" = ?${del} LIMIT 1`,
           tenant: `${selectPrefix} WHERE "_id" = ? AND "tenantId" = ?${del} LIMIT 1`,
+          tenantNull: `${selectPrefix} WHERE "_id" = ? AND "tenantId" IS NULL${del} LIMIT 1`,
           basePub: hasStatusCol
             ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published')${del} LIMIT 1`
             : null,
           tenantPub: hasStatusCol
             ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" = ?${del} LIMIT 1`
             : null,
+          tenantPubNull: hasStatusCol
+            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" IS NULL${del} LIMIT 1`
+            : null,
         };
         this._pointSqlCache.set(table, cachedWireSql);
+      } else if (cachedWireSql.declined) {
+        return { kind: "declined" };
       }
 
-      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
       const wantPublished = options?.requirePublished === true;
       if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
 
+      const bypass = hasTenantBypass(options);
+      const rawTenant = bypass ? undefined : options?.tenantId;
+      const tenantId = rawTenant === undefined || rawTenant === "global" ? undefined : rawTenant;
+
       let sqlText: string;
       let params: unknown[];
-      if (useTenantCache) {
+      if (tenantId !== undefined && tenantId !== null) {
         sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
-        params = [String(id), ...tenantParams];
-      } else if (!tenantSql) {
-        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
+        params = [String(id), String(tenantId)];
+      } else if (tenantId === null) {
+        sqlText = wantPublished ? cachedWireSql.tenantPubNull! : cachedWireSql.tenantNull;
         params = [String(id)];
       } else {
-        const publishedSql = wantPublished ? ` AND "status" = 'publish'` : "";
-        const deletedSql = hasDeletedCol ? ` AND "isDeleted" = 0` : "";
-        sqlText = `${cachedWireSql.selectPrefix} WHERE "_id" = ?${tenantSql}${publishedSql}${deletedSql} LIMIT 1`;
-        params = [String(id), ...tenantParams];
+        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
+        params = [String(id)];
       }
 
       const rawRow = executor.prepareAndExecute(sqlText, "get", ...params) as
