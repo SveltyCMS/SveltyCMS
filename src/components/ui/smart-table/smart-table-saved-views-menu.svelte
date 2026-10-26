@@ -89,16 +89,16 @@
 			open = !open;
 			if (open) refresh();
 		}}
-		class="h-10 gap-1.5 border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
+		class="h-10 w-10 items-center justify-center gap-0 rounded-(--admin-radius-input) border border-(--admin-border-default) bg-(--admin-bg-card)/80 p-0 text-surface-600 transition-colors hover:bg-surface-200 sm:w-auto sm:gap-1.5 sm:px-3 dark:text-surface-300 dark:hover:bg-surface-700"
 	>
-		<iconify-icon icon="mdi:bookmark-outline" width={18}></iconify-icon>
+		<iconify-icon icon="mdi:bookmark-outline" width={24} height={24} aria-hidden="true"
+		></iconify-icon>
 		<span class="hidden sm:inline">Views</span>
-		<!-- Always reserve the badge slot: appearing after hydration used to widen
-		     the button and reflow the `flex-wrap` toolbar. -->
+		<!-- Reserve the count from sm up. On a phone the control is a square, like the other toolbar buttons. -->
 		<span
-			class="min-w-4 rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold dark:bg-primary-500/20 {views.length ===
+			class="hidden min-w-4 rounded-full bg-tertiary-500/10 px-1.5 text-[10px] font-bold sm:inline-flex dark:bg-primary-500/20 {views.length ===
 			0
-				? 'invisible'
+				? 'sm:invisible'
 				: ''}"
 			aria-hidden={views.length === 0}>{views.length}</span
 		>

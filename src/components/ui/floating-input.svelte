@@ -330,14 +330,14 @@ full ARIA validation linkage, and transparent background support for overlays.
 					'peer-not-placeholder-shown:-translate-y-2 peer-not-placeholder-shown:scale-75',
 					bgTransparent
 						? 'text-white/80 peer-focus:text-white peer-not-placeholder-shown:text-white'
-						: 'text-surface-600 peer-focus:text-tertiary-600 peer-not-placeholder-shown:text-tertiary-600',
+						: 'text-surface-600 dark:text-surface-400 peer-focus:text-tertiary-600 dark:peer-focus:text-surface-100 peer-not-placeholder-shown:text-tertiary-600 dark:peer-not-placeholder-shown:text-surface-100',
 					invalid && 'text-error-500!',
 					labelClass
 				)}
 			>
 				{label}
 				{#if required}
-					<span class="text-error-500" aria-hidden="true">*</span>
+					<span class="text-error-600 dark:text-error-400" aria-hidden="true">*</span>
 				{/if}
 			</label>
 		{/if}

@@ -28,7 +28,6 @@
 	// Components
 	import FloatingPaths from '@src/components/system/floating-paths.svelte';
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Button from '@components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -307,14 +306,8 @@
 					<FloatingPaths position={-1} background="dark" mirrorAnimation />
 				</div>
 			{/if}
-			<!-- CSS Logo -->
 			<div
-				class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"
-			>
-				<SveltyCMSLogoFull {siteName} />
-			</div>
-			<div
-				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin &&
+				class="relative z-10 mx-auto my-auto w-full max-w-xl rounded p-6 backdrop-blur {brandedLogin &&
 				brandedVariant === 'elevated'
 					? 'bg-surface-900/95 shadow-xl border border-surface-500/40'
 					: 'bg-surface-900/0'}"
@@ -342,11 +335,13 @@
 					</h1>
 				</div>
 
-				<!-- Required with Back button -->
-				<div class="relative mb-2 flex h-10 items-center justify-center text-xs text-error-500">
-					{form_required()}
+				<!-- Required sits on the field row, beside the back button -->
+				<div class="relative mt-4 mb-1 flex items-center justify-between gap-3">
+					<p class="text-sm font-medium leading-none text-error-600 dark:text-error-400">
+						{form_required()}
+					</p>
 
-					<div class="absolute inset-e-0">
+					<div>
 						<SystemTooltip title="Go Back" role={null} tabindex={null}>
 							<Button
 								type="button"

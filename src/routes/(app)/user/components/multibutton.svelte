@@ -459,9 +459,11 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 <div class="relative z-30 flex items-center" bind:this={dropdownRef}>
 	<div
-		class="group/main relative flex items-center shadow-xl overflow-visible transition-all duration-200 {!isDisabled
+		class="group/main relative flex h-10 items-center overflow-visible transition-all duration-200 {!isDisabled
 			? 'active:scale-95'
-			: ''} rounded-s-full rounded-e-md border border-white/20 {isDropdownOpen
+			: ''} max-sm:rounded-full max-sm:!shadow-none sm:rounded-s-full sm:rounded-e-md sm:shadow-xl {isDisabled
+			? 'max-sm:border max-sm:border-(--admin-border-default) max-sm:bg-(--admin-bg-card)'
+			: 'max-sm:border max-sm:border-transparent'} sm:border sm:border-white/20 {isDropdownOpen
 			? 'ring-2 ring-primary-500/50'
 			: ''}"
 		role="group"
@@ -473,14 +475,16 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			disabled={isDisabled || disabledMap[listboxValue]}
 			aria-label={usermultibutton_execute_action({ action: actionConfig[listboxValue].label })}
 			title={usermultibutton_execute_action({ action: actionConfig[listboxValue].label })}
-			class="h-10 min-w-30 font-bold transition-all duration-200 {!isDisabled &&
-			!disabledMap[listboxValue]
-				? 'active:scale-95'
-				: 'pointer-events-none opacity-50 grayscale'} {actionConfig[listboxValue]
-				.buttonClass} text-white rounded-s-full rounded-e-none px-6 flex items-center justify-center gap-2 border-e border-white/20"
+			class="flex h-10 items-center justify-center gap-1.5 border-e font-semibold transition-all duration-200 max-sm:rounded-s-full max-sm:rounded-e-none max-sm:px-3 max-sm:text-xs sm:min-w-30 sm:gap-2 sm:rounded-s-full sm:rounded-e-none sm:px-6 sm:font-bold {actionConfig[
+				listboxValue
+			].buttonClass} {isDisabled || disabledMap[listboxValue]
+				? 'pointer-events-none max-sm:!border-(--admin-border-default) max-sm:!bg-none max-sm:!bg-transparent max-sm:!text-surface-600 max-sm:!opacity-100 max-sm:!grayscale-0 sm:border-white/20 sm:text-white sm:opacity-50 sm:grayscale dark:max-sm:!text-surface-300'
+				: 'border-white/25 text-white active:scale-95'}"
 		>
-			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="20"></iconify-icon>
-			<span class="uppercase tracking-wider">{actionConfig[listboxValue].label}</span>
+			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="18"></iconify-icon>
+			<span class="uppercase max-sm:tracking-normal sm:tracking-wider"
+				>{actionConfig[listboxValue].label}</span
+			>
 		</button>
 
 		<!-- Dropdown Toggle -->
@@ -496,17 +500,18 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			aria-expanded={isDropdownOpen}
 			aria-label={usermultibutton_toggle_menu()}
 			title={usermultibutton_select_action()}
-			class="h-10 w-10 transition-all duration-200 text-white flex items-center justify-center shadow-inner rounded-e-md {!isDisabled
-				? 'bg-surface-800 hover:bg-surface-700 active:scale-95 cursor-pointer'
-				: 'opacity-50 pointer-events-none'}"
+			class="flex h-10 items-center justify-center transition-all duration-200 max-sm:w-8 max-sm:rounded-e-full max-sm:rounded-s-none max-sm:!shadow-none sm:w-10 sm:rounded-e-md sm:text-white sm:shadow-inner {!isDisabled
+				? actionConfig[listboxValue].buttonClass +
+					' max-sm:text-white sm:!bg-none sm:bg-surface-800 sm:hover:bg-surface-700 active:scale-95 cursor-pointer'
+				: 'pointer-events-none max-sm:!bg-transparent max-sm:!text-surface-600 max-sm:!opacity-100 dark:max-sm:!text-surface-300 sm:opacity-50'}"
 		>
-			<iconify-icon icon="mdi:chevron-down" width={24}></iconify-icon>
+			<iconify-icon icon="mdi:chevron-down" width={20}></iconify-icon>
 		</button>
 
 		<!-- Dropdown Menu -->
 		{#if isDropdownOpen}
 			<div
-				class="absolute inset-e-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-(--admin-radius-card) bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
+				class="absolute top-full z-50 mt-2 w-56 overflow-hidden rounded-(--admin-radius-card) bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md max-sm:inset-s-0 max-sm:origin-top-left sm:inset-e-0 sm:origin-top-right"
 				role="menu"
 				transition:adminFade={{ duration: 150 }}
 				onkeydown={handleDropdownKeydown}

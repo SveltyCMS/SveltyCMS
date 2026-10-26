@@ -58,6 +58,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	// Stores
 	import { collections as collectionState } from '@src/stores/collection-store.svelte';
 	import { ui } from '@src/stores/ui-store.svelte';
+	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { themeStore } from '@src/stores/theme-store.svelte';
@@ -107,6 +108,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
+	/** One circle for every footer control: profile, theme, language, sign-out, config, version, Discord. */
+	const footerControl =
+		'flex !h-12 !w-12 shrink-0 items-center justify-center !rounded-full !border-0 !p-0 !min-w-0 !bg-(--admin-bg-chip) text-xs font-bold text-surface-900 hover:!bg-surface-300 dark:text-white dark:hover:!bg-surface-600';
 
 	// RTL-aware: the sidebar `<aside>` is the first flex child, so it flips to the
 	// inline-end in RTL — the collapse control and its tooltip must mirror with it.
@@ -329,33 +333,43 @@ Route-driven sidebar content (no dual collapsible section headers):
 				</span>
 			{/if}
 		</a>
+		{#if isSidebarFull}
+			<button
+				type="button"
+				onclick={() => ui.toggle('leftSidebar', 'hidden')}
+				aria-label={applayout_close_sidebar()}
+				class="ms-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-surface-500/30 text-(--admin-text-body) hover:bg-surface-500/10 md:hidden dark:border-surface-500/40 dark:hover:bg-surface-500/20"
+			>
+				<iconify-icon icon="material-symbols:close" width="20" aria-hidden="true"></iconify-icon>
+			</button>
+		{/if}
 	</div>
 
-	<!-- Expand/Collapse Button -->
-	<!-- Centred placement: an `-end` alignment bottom-aligns this shorter
-	     tooltip against the 40px toggle and pushes its arrow to a corner. -->
-	<SystemTooltip
-		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: isRTL ? 'left' : 'right' }}
-		triggerClass="absolute top-3 z-20 -inset-e-4"
-	>
-		<Button
-			variant="ghost"
-			type="button"
-			onclick={toggleSidebar}
-			aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-			aria-expanded={isSidebarFull}
-			class="flex h-10 w-10 items-center justify-center rounded-full! border border-black p-0! min-w-0 dark:border-white"
+	<!-- Phones use the close circle in the brand row. This edge control is desktop and tablet. -->
+	{#if !screen.isMobile}
+		<SystemTooltip
+			title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
+			positioning={{ placement: isRTL ? 'left' : 'right' }}
+			triggerClass="absolute top-3 z-20 -inset-e-4"
 		>
-			<iconify-icon
-				icon="bi:arrow-left-circle-fill"
-				width="34"
-				class="rounded-full bg-surface-500 text-white transition-transform dark:bg-white dark:text-surface-600 {isSidebarFull
-					? 'rotate-0 rtl:rotate-180'
-					: 'rotate-180 rtl:rotate-0'}"
-			></iconify-icon>
-		</Button>
-	</SystemTooltip>
+			<button
+				type="button"
+				onclick={toggleSidebar}
+				aria-label={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
+				aria-expanded={isSidebarFull}
+				class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-(--admin-border-subtle)"
+				style="border-color: var(--admin-border-default); color: var(--admin-text-body); background-color: var(--admin-bg-card)"
+			>
+				<iconify-icon
+					icon="ri:arrow-left-line"
+					width="24"
+					class="transition-transform {isSidebarFull
+						? 'rotate-0 rtl:rotate-180'
+						: 'rotate-180 rtl:rotate-0'}"
+				></iconify-icon>
+			</button>
+		</SystemTooltip>
+	{/if}
 
 	<!-- Navigation: Collapsible Sections -->
 	<div
@@ -600,48 +614,41 @@ Route-driven sidebar content (no dual collapsible section headers):
 			style="color: var(--admin-text-body)"
 		>
 			<!-- Avatar -->
-			<div
-				class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center"
-			>
-				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
+			<div class="order-1 flex items-center justify-center">
+				<SystemTooltip
+					title={user?.username || applayout_userprofile()}
+					positioning={{ placement: 'right' }}
+				>
 					<a
 						href="/user"
 						data-sveltekit-preload-data="hover"
 						data-testid="nav-user-profile"
 						onclick={handleUserClick}
 						aria-label="User Profile"
-						class="{isSidebarFull
-							? 'flex w-full flex-col items-center justify-center rounded p-2 hover:bg-(--admin-border-subtle)'
-							: 'h-8 w-8 rounded-full hover:bg-(--admin-border-subtle)'} relative flex items-center justify-center text-center no-underline!"
+						class="{footerControl} no-underline!"
 					>
 						<Avatar
 							src={avatarUrl}
 							alt="User Avatar"
-							size={isSidebarFull ? 'size-12' : 'size-10'}
+							size="size-8"
 							rounded="rounded-full"
 							class="mx-auto"
 						/>
-						{#if isSidebarFull && user?.username}
-							<div
-								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-xs font-semibold leading-tight"
-								title={user.username}
-							>
-								{user.username}
-							</div>
+						{#if user?.username}
+							<span class="sr-only">{user.username}</span>
 						{/if}
 					</a>
 				</SystemTooltip>
 			</div>
 
 			<!-- Theme Toggle -->
-			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
+			<div class="order-2 flex items-center justify-center">
 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
-					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
 					<div class="flex items-center justify-center">
 						<ThemeToggle
 							showTooltip={false}
 							variant="transparent"
-							buttonClass="text-surface-900 dark:text-white"
+							buttonClass={footerControl}
 							iconSize={28}
 						/>
 					</div>
@@ -649,11 +656,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 			</div>
 
 			<!-- Language Selector -->
-			<div
-				class="{isSidebarFull
-					? 'order-3 row-span-2'
-					: 'order-4'} flex items-center justify-center px-1"
-			>
+			<div class="{isSidebarFull ? 'order-3' : 'order-4'} flex items-center justify-center">
 				<SystemTooltip
 					title={applayout_systemlanguage()}
 					positioning={{ placement: 'right' }}
@@ -668,9 +671,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 									rounded
 									aria-label={applayout_select_language()}
 									data-testid="language-selector-trigger"
-									class="mb-3 flex items-center justify-center uppercase bg-(--admin-bg-chip) text-surface-900 dark:text-white hover:bg-surface-300 dark:hover:bg-surface-600 {isSidebarFull
-										? 'h-12 w-12 text-xs font-bold'
-										: 'h-11 w-11 text-xs font-bold'}"
+									class="{footerControl} uppercase"
 								>
 									{languageTag}
 								</Button>
@@ -740,11 +741,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 						type="button"
 						aria-label="Sign Out"
 						data-testid="sign-out-button"
-						class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0"
+						class={footerControl}
 					>
 						<iconify-icon
 							icon="uil:signout"
-							width="32"
+							width="28"
 							class="text-surface-900 dark:text-white"
 							aria-hidden="true"
 						></iconify-icon>
@@ -760,34 +761,43 @@ Route-driven sidebar content (no dual collapsible section headers):
 						data-sveltekit-preload-data="hover"
 						onclick={handleConfigClick}
 						aria-label="System Configuration"
-						class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
+						class="{footerControl} no-underline!"
 					>
-						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
+						<iconify-icon
+							icon="material-symbols:build-circle"
+							width="28"
+							class="text-surface-900 dark:text-white"
+						></iconify-icon>
 					</a>
 				</SystemTooltip>
 			</div>
 
 			<!-- Version -->
-			<div class="{isSidebarFull ? 'order-7' : 'order-6'} flex items-center justify-center">
+			<div
+				class="{isSidebarFull
+					? 'order-7'
+					: 'order-6'} flex items-center justify-center [&_a]:!inline-flex [&_a]:!h-12 [&_a]:!w-12 [&_a]:!min-w-12 [&_a]:!items-center [&_a]:!justify-center [&_a]:!rounded-full [&_a]:!border-0 [&_a]:!bg-(--admin-bg-chip) [&_a]:!px-0 [&_a]:!py-0 [&_a]:!text-[9px] [&_a]:!leading-none [&_a]:!tracking-tight [&_a]:!text-surface-900 dark:[&_a]:!text-white"
+			>
 				<VersionCheck compact={true} />
 			</div>
 
-			<!-- Community Links (only when expanded) -->
-			{#if isSidebarFull}
-				<div class="order-8 flex items-center justify-center gap-1">
-					<SystemTooltip title={applayout_discord()} positioning={{ placement: 'right' }}>
-						<a
-							href="https://discord.gg/VrvZF6e2sC"
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label={applayout_discord()}
-							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
-						>
-							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
-						</a>
-					</SystemTooltip>
-				</div>
-			{/if}
+			<div class="order-8 flex items-center justify-center">
+				<SystemTooltip title={applayout_discord()} positioning={{ placement: 'right' }}>
+					<a
+						href="https://discord.gg/VrvZF6e2sC"
+						target="_blank"
+						rel="noopener noreferrer"
+						aria-label={applayout_discord()}
+						class="{footerControl} no-underline!"
+					>
+						<iconify-icon
+							icon="ic:baseline-discord"
+							width="28"
+							class="text-surface-900 dark:text-white"
+						></iconify-icon>
+					</a>
+				</SystemTooltip>
+			</div>
 		</div>
 	</div>
 </div>

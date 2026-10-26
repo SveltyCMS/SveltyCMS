@@ -724,7 +724,7 @@ This layout provides the administrative shell, including sidebars and header con
 						></button>
 						<!-- Drawer -->
 						<div
-							class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh flex-col overflow-visible border-e border-surface-500/30 bg-surface-500/10 text-center shadow-lg transition-[width] duration-300 ease-in-out dark:border-surface-500/40 dark:bg-surface-900"
+							class="fixed inset-s-0 top-0 z-50 flex h-dvh max-h-dvh flex-col overflow-visible border-e border-surface-500/30 bg-(--admin-bg-overlay) text-center shadow-lg transition-[width] duration-300 ease-in-out dark:border-surface-500/40"
 							style="width: {ui.state.leftSidebar === 'full'
 								? 'min(100vw, var(--admin-sidebar-width, 240px))'
 								: 'var(--admin-sidebar-compact-width, 120px)'}"
