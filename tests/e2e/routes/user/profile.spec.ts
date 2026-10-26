@@ -263,9 +263,9 @@ test.describe.serial("User Profile Management", () => {
       // (intermittent because consent storage can be cleared between specs).
       await dismissCookieConsent(page);
 
-      // Hydration-race guard (same idiom as the avatar tests below): the SSR button renders
-      // before its onclick is attached, so a first click can be swallowed and the dialog never
-      // opens. Re-click until the dialog is actually visible — a genuine failure still fails.
+      // The button ships `disabled` until hydration (progressive-hydration gate in
+      // src/routes/(app)/user/+page.svelte), so its own enabled state is the
+      // readiness signal — the re-click loop is gone.
       const editSettingsBtn = page
         .getByTestId("edit-user-settings-btn")
         .or(page.getByRole("button", { name: /Edit User Settings/i }))
@@ -273,12 +273,9 @@ test.describe.serial("User Profile Management", () => {
 
       // Scope to the edit dialog so Save/username resolve unambiguously
       const editDialog = getAppDialog(page, /Edit User Data|edit user|username/i);
-      await expect(async () => {
-        await editSettingsBtn
-          .click({ timeout: 2_000 })
-          .catch(() => editSettingsBtn.evaluate((el: HTMLElement) => el.click()));
-        await expect(editDialog).toBeVisible({ timeout: 2_000 });
-      }).toPass({ timeout: 15_000 });
+      await expect(editSettingsBtn).toBeEnabled({ timeout: 15_000 });
+      await editSettingsBtn.click();
+      await expect(editDialog).toBeVisible({ timeout: 15_000 });
 
       // Unique username each run — avoids uniqueness validation failures
       const newUsername = `TestUser_${Date.now().toString(36).slice(-6)}`;

@@ -60,9 +60,11 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     const url = `https://example.com/e2e-golden/${stamp}`;
 
     // --- Create ---
-    // Header action is SSR-rendered; a pre-hydration click is dropped and the
-    // modal never opens, so wait for the root layout's hydration marker.
-    await runAfterHydration(page, () => page.getByTestId("webhooks-add").click());
+    // `webhooks-add` ships `disabled` until hydration, so Playwright's enabled
+    // auto-wait replaces the marker gate; the assertion pins the contract.
+    const addBtn = page.getByTestId("webhooks-add");
+    await expect(addBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await addBtn.click();
     await expect(page.getByTestId("webhooks-modal")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Validation guard (control risk: cannot save empty)

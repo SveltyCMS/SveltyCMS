@@ -63,10 +63,13 @@ test.describe("Auth Toggles", () => {
     await ensureAuthenticated(page);
     await goToUserPage(page);
     // Navigate to the Security tab where auth preference toggles live.
-    // The tab strip is SSR-rendered before Svelte attaches its click handler, so a
-    // one-shot click can land pre-hydration and be a silent no-op (Identity stays
-    // selected). `openUserTab` retries until the tab reports aria-selected="true".
-    await openUserTab(page, /^security$/i);
+    // The strip ships every trigger `disabled` until hydration, so the click
+    // waits for the trigger itself — no hydration-marker gate, no retry loop.
+    const securityTab = page
+      .getByTestId("user-account-tabs")
+      .getByRole("tab", { name: /^security$/i });
+    await expect(securityTab).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await securityTab.click();
     await expect(page.getByTestId("user-security-panel")).toBeVisible({ timeout: 10_000 });
   });
 

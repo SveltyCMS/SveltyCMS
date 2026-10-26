@@ -12,6 +12,7 @@
   `false` when the parent row already paints it (e.g. a header row with actions).
 - `ariaLabel` (string) - Accessible label for the tablist (default: 'Navigation tabs')
 - `testId` (string) - Data-testid for the root element (default: 'tab-navigation')
+- `disabled` (boolean) - Render every trigger disabled (progressive hydration gate)
 
 ### Features
 - Keyboard-navigable (Arrow keys, Home, End)
@@ -46,7 +47,8 @@
 		variant = 'underline',
 		bordered = true,
 		ariaLabel = 'Navigation tabs',
-		testId = 'tab-navigation'
+		testId = 'tab-navigation',
+		disabled = false
 	}: {
 		tabs: Tab[];
 		activeTab?: string;
@@ -55,6 +57,12 @@
 		bordered?: boolean;
 		ariaLabel?: string;
 		testId?: string;
+		/**
+		 * Disables every trigger (native `disabled`, so the server-rendered strip is
+		 * inert until the parent is hydrated). The parent owns the state — this
+		 * component stays free of app-wide imports.
+		 */
+		disabled?: boolean;
 	} = $props();
 
 	function handleTabClick(id: string) {
@@ -95,6 +103,7 @@
 			<!-- Underline tabs are chrome-free; `ghost` paints a dark-mode fill behind each tab -->
 			<Button
 				variant={variant === 'underline' ? 'transparent' : 'ghost'}
+				{disabled}
 				role="tab"
 				aria-selected={activeTab === tab.id}
 				aria-controls="tabpanel-{tab.id}"

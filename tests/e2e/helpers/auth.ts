@@ -17,6 +17,7 @@ import {
 } from "../../harness/fixtures";
 import { SESSION_COOKIE_RE, sessionLooksValid, TEST_API_HEADERS, primeCsrfHeaders } from "./api";
 import { dismissCookieConsent } from "./cookie-consent";
+import { waitForHydrationMarker } from "./hydration";
 
 /**
  * Login credentials — harness is source of truth; env can override in CI.
@@ -547,7 +548,10 @@ export async function loginAsEditor(
  * exist in the SSR HTML, they are just not wired yet.
  */
 export async function waitForHydration(page: Page, timeout = 30_000): Promise<void> {
-  await page.locator("html[data-hydrated='true']").waitFor({ state: "attached", timeout });
+  // Delegates so a timeout reports WHICH attribute never appeared and WHERE it
+  // is published (see tests/e2e/helpers/hydration.ts) instead of a bare
+  // TimeoutError naming only a selector.
+  await waitForHydrationMarker(page, timeout);
 }
 
 /**

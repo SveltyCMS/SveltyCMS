@@ -26,6 +26,7 @@
 	import Tabs from '@components/ui/tabs.svelte';
 	import Slot from '@src/components/system/slot.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import { hydration } from '@src/stores/hydration.svelte';
 	import { userThemePrefs } from '@src/stores/theme-store.svelte';
 	import { updateUserThemePrefs } from '../config/design-system/appearance-api';
 	import { isAdmin } from '@src/databases/auth/constants';
@@ -1013,6 +1014,7 @@
 		<Tabs
 			tabs={accountTabs}
 			bind:activeTab
+			disabled={!hydration.hydrated}
 			variant="underline"
 			ariaLabel={userpage_tabs_aria()}
 			testId="user-account-tabs"
@@ -1267,11 +1269,13 @@
 							</div>
 
 							<div class="flex w-full flex-wrap items-center justify-between gap-3 pt-1">
+								<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
 								<Button
 									variant="primary"
 									leadingIcon="bi:pencil-fill"
 									onclick={modalUserForm}
 									aria-label={userpage_edit_usersetting()}
+									disabled={!hydration.hydrated}
 									data-testid="edit-user-settings-btn"
 								>
 									{userpage_edit_profile()}

@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import { hydration } from '@src/stores/hydration.svelte';
 	import CommerceLegalBar from '@components/site/commerce-legal-bar.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 
@@ -58,8 +59,13 @@
 					{#if product.priorPriceLabel}
 						<p class="text-xs text-surface-500">{product.priorPriceLabel}</p>
 					{/if}
-					<Button class="mt-3" variant="primary" size="sm" onclick={() => addToCart(product.id)}
-						>Add to cart</Button
+					<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
+					<Button
+						class="mt-3"
+						variant="primary"
+						size="sm"
+						disabled={!hydration.hydrated}
+						onclick={() => addToCart(product.id)}>Add to cart</Button
 					>
 				</li>
 			{/each}

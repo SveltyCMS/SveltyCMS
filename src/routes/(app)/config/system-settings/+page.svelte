@@ -23,6 +23,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	import GDPRSettings from '@src/components/system/gdpr-settings.svelte';
 	import GroupIcon from '@src/components/group-icon.svelte';
 	import { groupsNeedingConfig } from './settings-state.svelte';
+	import { hydration } from '@src/stores/hydration.svelte';
 	import { setRouteContext } from '@src/stores/ui-store.svelte.ts';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
@@ -457,10 +458,11 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 			{/if}
 
 			<div class="flex flex-wrap gap-3">
+				<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
 				<Button
 					variant="tertiary"
 					type="button"
-					disabled={isMigrating}
+					disabled={isMigrating || !hydration.hydrated}
 					onclick={checkStructure}
 					data-testid="system-settings-check-structure"
 				>
