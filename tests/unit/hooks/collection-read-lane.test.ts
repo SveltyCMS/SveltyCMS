@@ -533,15 +533,35 @@ describe("isWirePlaneAdmissible (Strict Admission Predicate)", () => {
     });
     expect(isWirePlaneAdmissible(filteredListEvent, meta)).toBe(false);
 
-    // Any sort -> rejected while no compiled default order exists (fail closed)
+    // An explicit sort on an identifier-safe column is admitted: the wire builder
+    // validates the column against the table and declines to the ORM path when it does
+    // not exist, so this cannot change a result — it only changes which path serves it.
     const sortedListEvent = createMockEvent("/api/collections/posts?sort=title:asc", {
       method: "GET",
     });
-    expect(isWirePlaneAdmissible(sortedListEvent, meta)).toBe(false);
+    expect(isWirePlaneAdmissible(sortedListEvent, meta)).toBe(true);
     const defaultOrderListEvent = createMockEvent("/api/collections/posts?sort=createdAt:desc", {
       method: "GET",
     });
-    expect(isWirePlaneAdmissible(defaultOrderListEvent, meta)).toBe(false);
+    expect(isWirePlaneAdmissible(defaultOrderListEvent, meta)).toBe(true);
+    // A bare column means ascending, so `sort=title` is admitted like `title:asc`.
+    expect(
+      isWirePlaneAdmissible(
+        createMockEvent("/api/collections/posts?sort=title", { method: "GET" }),
+        meta,
+      ),
+    ).toBe(true);
+    // Unsafe or malformed sort values stay closed: only `<column>[:asc|desc]` passes.
+    for (const bad of ["title:up", "title:asc;DROP", "na me:asc", "title:desc extra"]) {
+      expect(
+        isWirePlaneAdmissible(
+          createMockEvent(`/api/collections/posts?sort=${encodeURIComponent(bad)}`, {
+            method: "GET",
+          }),
+          meta,
+        ),
+      ).toBe(false);
+    }
 
     // Valid limits up to MAX_PAGE_SIZE are admissible; invalid ones fail closed
     const limitListEvent = createMockEvent("/api/collections/posts?limit=50", { method: "GET" });
@@ -574,8 +594,12 @@ describe("isWirePlaneAdmissible (Strict Admission Predicate)", () => {
 
     expect(isWirePlaneAdmissible(sort("createdAt:desc"), meta)).toBe(true);
     expect(isWirePlaneAdmissible(sort("-createdAt"), meta)).toBe(true);
-    expect(isWirePlaneAdmissible(sort("title:asc"), meta)).toBe(false);
-    expect(isWirePlaneAdmissible(sort("+createdAt"), meta)).toBe(false);
+    // A different column is admitted too — the compiled order is a fast path, not a gate.
+    expect(isWirePlaneAdmissible(sort("title:asc"), meta)).toBe(true);
+    expect(isWirePlaneAdmissible(sort("-views"), meta)).toBe(true);
+    expect(isWirePlaneAdmissible(sort("+createdAt"), meta)).toBe(true);
+    // Non-sort parameters are not smuggled in through the sort argument.
+    expect(isWirePlaneAdmissible(sort("title:asc&limit=100000"), meta)).toBe(false);
   });
 });
 

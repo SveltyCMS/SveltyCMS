@@ -432,8 +432,8 @@ function normalizeSortParam(raw: string | null): string | null {
  * 4. Locale alignment: Either no locale parameter or locale strictly equals the collection's compiled default.
  * 5. No mutating collection hooks: The target collection defines no `afterRead`/`afterFind` hooks.
  * 6. Point vs List Predicate: Point-reads reject custom filters; list-reads reject custom filters and admit
- *    only the compiled default sort (fail closed when none is compiled) + fixed limit until Cell 3
- *    dynamic list SQL is compiled.
+ *    the compiled default sort or an explicit sort on an identifier-safe column (the wire builder validates
+ *    the column and falls back to the ORM path when it does not exist), plus a bounded limit/page.
  *
  * Fail Closed: If `collectionMeta` is omitted or null, returns `false` (Domain Plane default).
  */
@@ -590,14 +590,24 @@ export function isWirePlaneAdmissible(
   // 7. Point vs List reading constraints:
   if (isList) {
     // List wire admits:
-    // (a) No sort or sort matching compiled defaultSort
-    // (b) Or an explicit sort on any published, identifier-safe schema column
+    // (a) No sort, or a sort matching the compiled defaultSort, and
+    // (b) an explicit sort on an identifier-safe column. Branch (b) used to fail
+    // closed "until Cell 3 dynamic list SQL is compiled" — that SQL exists now:
+    // findListWireStream validates the column against the table, builds
+    // `ORDER BY "<col>" ASC|DESC` plus a `"_id"` tiebreak for stable paging, and
+    // declines to the ORM path when the column is unknown. So an invalid sort
+    // costs a fallback (the previous behaviour), never a different result.
     if (search.has("sort")) {
       const requestedSort = normalizeSortParam(search.get("sort"));
       const compiledSort = collectionMeta.defaultSort
         ? normalizeSortParam(collectionMeta.defaultSort)
         : null;
-      if (!compiledSort || requestedSort !== compiledSort) return false;
+      const matchesCompiled = compiledSort !== null && requestedSort === compiledSort;
+      // The whole normalised form is validated, not just the field: `title:asc;DROP`
+      // must not reach the wire attempt. Anything that fails costs a fallback.
+      const isExplicitColumnSort =
+        requestedSort !== null && /^[A-Za-z0-9_]+:(asc|desc)$/.test(requestedSort);
+      if (!matchesCompiled && !isExplicitColumnSort) return false;
     }
     if (search.has("limit")) {
       const lim = Number(search.get("limit"));
