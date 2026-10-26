@@ -16,6 +16,7 @@ import { expect, test } from "@playwright/test";
 import { resetAndSeedDatabase, seedInviteToken } from "../../helpers/api";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
+import { runAfterHydration } from "../../helpers/hydration";
 import { goToUserPage, openTokenView, openUserManagement } from "../../helpers/user-page";
 
 test.describe.configure({ mode: "serial", timeout: 120_000 });
@@ -24,10 +25,36 @@ test.use({ storageState: { cookies: [], origins: [] } });
 
 const STALE_EMAIL = "stale-users-response@example.test";
 
+/** True when the context currently carries a session the API accepts. */
+async function hasAdminSession(page: import("@playwright/test").Page): Promise<boolean> {
+  const res = await page.request.get("/api/user?page=1&limit=1");
+  return res.ok();
+}
+
 test.describe("User management - in-flight table requests", () => {
   test.beforeEach(async ({ page }) => {
     await seedCookieConsent(page);
     await resetAndSeedDatabase(page);
+
+    // `resetAndSeedDatabase` applies the admin cookie best-effort
+    // (`applySessionCookie(...).catch(() => false)`), so a failed application leaves the
+    // context anonymous and `/user` silently redirects to `/login` — the test then dies in
+    // `goToUserPage` on a URL mismatch, which looks like a UI bug. Verify the session is
+    // really usable and repair it once instead.
+    // Other projects in the same run talk to the same database: a concurrent
+    // `/api/testing {action:"reset"}` wipes the session between seeding and use, so a
+    // single repair is not enough. Retry within a bounded window instead of failing on a
+    // neighbour's reset.
+    let established = await hasAdminSession(page);
+    for (let attempt = 0; !established && attempt < 5; attempt++) {
+      await resetAndSeedDatabase(page);
+      established = await hasAdminSession(page);
+      if (!established) await page.waitForTimeout(500);
+    }
+    if (!established) {
+      throw new Error("could not establish a usable admin session after 6 reset+seed attempts");
+    }
+
     await dismissCookieConsent(page);
     await dismissCookieBannerIfPresent(page);
   });
@@ -90,7 +117,27 @@ test.describe("User management - in-flight table requests", () => {
 
     await goToUserPage(page);
     await openUserManagement(page);
-    await usersRequestStarted;
+
+    // The table arrives server-rendered: +page.server.ts loads the first page of users and
+    // AdminArea seeds it, so opening the tab issues NO client-side GET /api/user. The race
+    // under test is a *re-fetch* landing late, so force one by sorting a column — that is
+    // the request the guard has to protect, and the route handler above holds it.
+    const sortableHeader = page
+      .getByTestId("user-admin-area")
+      .getByRole("columnheader")
+      .nth(1);
+    await runAfterHydration(page, async () => {
+      await sortableHeader.click();
+    });
+
+    await Promise.race([
+      usersRequestStarted,
+      page.waitForTimeout(15_000).then(() => {
+        throw new Error(
+          "sorting a column issued no GET /api/user — the table never refetched, so the stale-response guard cannot be exercised",
+        );
+      }),
+    ]);
 
     // Register before the click so a fast local response cannot be missed.
     const tokenResponse = page.waitForResponse(

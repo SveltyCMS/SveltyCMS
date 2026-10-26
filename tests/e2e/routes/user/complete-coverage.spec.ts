@@ -62,8 +62,11 @@ test.describe("Auth Toggles", () => {
   test.beforeEach(async ({ page }) => {
     await ensureAuthenticated(page);
     await goToUserPage(page);
-    // Navigate to the Security tab where auth preference toggles live
-    await page.getByRole("tab", { name: /security/i }).click();
+    // Navigate to the Security tab where auth preference toggles live.
+    // The tab strip is SSR-rendered before Svelte attaches its click handler, so a
+    // one-shot click can land pre-hydration and be a silent no-op (Identity stays
+    // selected). `openUserTab` retries until the tab reports aria-selected="true".
+    await openUserTab(page, /^security$/i);
     await expect(page.getByTestId("user-security-panel")).toBeVisible({ timeout: 10_000 });
   });
 
