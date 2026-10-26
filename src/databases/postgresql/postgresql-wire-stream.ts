@@ -242,7 +242,13 @@ export class PostgresWireStreamEngine {
         }
 
         const subSelect = `SELECT ${doc} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
-        const orderClause = `ORDER BY ${sortCol} ${sortDirection}`;
+        // A custom sort column is not unique: without a tiebreak PostgreSQL may return
+        // equal-valued rows in a different order per page, so a paginated client could
+        // see a row twice and miss another. `_id` exists on every content table.
+        const orderClause =
+          sortField && sortCol !== '"_id"'
+            ? `ORDER BY ${sortCol} ${sortDirection}, "_id" ASC`
+            : `ORDER BY ${sortCol} ${sortDirection}`;
 
         const wrap = (wherePart: string, limitIdx: number, offsetIdx: number) => `
           SELECT coalesce(jsonb_agg(sub.doc), '[]'::jsonb)::text AS wire_body,
