@@ -5,7 +5,9 @@
  */
 import { expect, test as base, type Locator, type Page } from "@playwright/test";
 import { handleDialog } from "../../helpers/setup-wizard";
+import { HYDRATION_SELECTOR, runAfterHydration } from "../../helpers/hydration";
 import { resetToSetupMode, TEST_API_HEADERS } from "../../helpers/api";
+import { CONSENT_VALUE } from "../../helpers/cookie-consent";
 
 // --- PAGE OBJECT MODEL ---
 
@@ -16,6 +18,28 @@ class SetupWizardPage {
     await this.page.goto("/setup");
     // Wait for the body element to ensure general DOM content load, improving race condition robustness.
     await this.page.waitForSelector("body", { timeout: 60000 });
+    await this.waitForInteractive();
+  }
+
+  /**
+   * `html[data-hydrated="true"]` is set by the root layout's `onMount`, i.e. after the
+   * SSR hydration walk finished — the project's truthful "listeners exist now" signal
+   * (see helpers/hydration.ts). An interaction issued before it lands on server-painted
+   * HTML and is a silent no-op: a dropped `#db-name` fill or a dropped "Test database
+   * connection" click leaves the store's `dbTestPassed` false, so Next stays disabled
+   * for its whole 60s budget — the observed flake.
+   */
+  async waitForInteractive() {
+    try {
+      await this.page.locator(HYDRATION_SELECTOR).waitFor({ state: "attached", timeout: 30_000 });
+    } catch (err) {
+      throw new Error(
+        `Setup wizard never became interactive (${HYDRATION_SELECTOR} missing after 30000ms) — ` +
+          `every interaction before that point is a no-op. Check the trace for a client-side ` +
+          `error thrown before the root layout's onMount.`,
+        { cause: err },
+      );
+    }
   }
 
   async hardReset() {
@@ -50,8 +74,29 @@ class SetupWizardPage {
   }
 
   async next() {
+    await this.waitForInteractive();
     const nextBtn = this.page.getByLabel("Next", { exact: true }).first();
-    await expect(nextBtn).toBeEnabled({ timeout: 60000 });
+    try {
+      await expect(nextBtn).toBeEnabled({ timeout: 60000 });
+    } catch (err) {
+      // Next is gated on the wizard's own step validation (`canProceed`), so a timeout
+      // means the step is genuinely incomplete — report what the step shows instead of
+      // the bare "element is disabled" dump.
+      const stepTitle = await this.page
+        .locator("#step-content h2")
+        .first()
+        .innerText()
+        .catch(() => "");
+      const messages = await this.page
+        .locator("#step-content [role='alert']")
+        .allInnerTexts()
+        .catch(() => []);
+      throw new Error(
+        `Next never became enabled on step "${stepTitle.trim() || "unknown"}". ` +
+          `Step messages: ${messages.join(" | ") || "none"}`,
+        { cause: err },
+      );
+    }
     await nextBtn.click();
     await this.page.waitForLoadState("networkidle").catch(() => {});
   }
@@ -116,6 +161,7 @@ class SetupWizardPage {
   }
 
   async testConnection() {
+    await this.waitForInteractive();
     await this.dismissModals();
     await this.handleAnyDbDialog();
 
@@ -126,15 +172,21 @@ class SetupWizardPage {
 
     if (testButton) {
       await expect(testButton).toBeEnabled({ timeout: 30000 });
-      await testButton.click({ force: true });
+      await testButton.click();
     }
     await this.handleAnyDbDialog();
   }
 
   private async firstVisible(candidates: Locator[], timeout = 1500): Promise<Locator | null> {
     for (const candidate of candidates) {
-      if (await candidate.isVisible({ timeout }).catch(() => false)) {
+      // `isVisible({ timeout })` does NOT wait — Playwright ignores the option and
+      // returns immediately, so a probe issued during the SSR→hydration window
+      // reported "no such button" and the caller then silently skipped its click.
+      try {
+        await expect(candidate).toBeVisible({ timeout });
         return candidate;
+      } catch {
+        // not this candidate — try the next one
       }
     }
     return null;
@@ -150,11 +202,17 @@ type Fixtures = {
 const test = base.extend<Fixtures>({
   wizard: async ({ page }, use) => {
     const wizard = new SetupWizardPage(page);
-    await page.addInitScript(() => {
+    await page.addInitScript((consent: string) => {
       window.localStorage.clear();
       window.sessionStorage.clear();
       window.sessionStorage.setItem("sveltycms_welcome_modal_shown", "true");
-    });
+      // The GDPR banner is a modal <dialog>: it mounts after hydration, sits in the
+      // top layer and swallows every click behind it (it ate "Reset Data" and
+      // "Test database connection" — see the wizard's error-context snapshots).
+      // Stamp the product's own consent record — same shape as
+      // helpers/cookie-consent.ts — so the banner never mounts at all.
+      window.localStorage.setItem("sveltycms_consent", consent);
+    }, CONSENT_VALUE);
     await use(wizard);
   },
 });
@@ -174,7 +232,9 @@ test.describe("Setup Wizard: Error Handling", () => {
     await page.locator("#db-password").fill("wrong_password");
 
     const testDbButton = page.locator("button", { hasText: /test database/i }).first();
-    await testDbButton.click({ force: true });
+    // `force: true` bypassed actionability and could land before hydration, so the
+    // probe never ran and "Next" never became disabled (CI flake). Gate instead.
+    await runAfterHydration(page, () => testDbButton.click());
 
     await expect(page.getByLabel("Next", { exact: true }).first()).toBeDisabled({
       timeout: 15_000,
@@ -277,12 +337,13 @@ test.describe("Setup Wizard: Navigation & State", () => {
     // case-sensitive, so match the accessible name case-insensitively.
     const resetBtn = page.getByRole("button", { name: /reset data/i }).first();
     await resetBtn.click({ force: true });
-    // Portal-rendered confirm dialog has a render gap (see AGENTS.md pitfall #13) —
-    // wait for the button instead of probing with a short timeout, otherwise the
-    // reset never runs and the dirty field persists.
-    const confirmResetBtn = page.getByRole("button", { name: /confirm|yes/i }).first();
-    await confirmResetBtn.waitFor({ state: "visible", timeout: 10_000 });
-    await confirmResetBtn.click({ force: true });
+    // Portal-rendered confirm dialog has a render gap (see AGENTS.md pitfall #13) — wait
+    // for its primary action to be visible, otherwise the reset never runs and the dirty
+    // field persists. Scoped to the app's stable testid (ConfirmDialog) so a stray
+    // "Confirm"/"Yes" button elsewhere on the page can never be clicked instead.
+    const confirmResetBtn = page.getByTestId("modal-confirm").first();
+    await expect(confirmResetBtn).toBeVisible({ timeout: 10_000 });
+    await confirmResetBtn.click();
 
     await expect(page.locator("#db-host")).not.toHaveValue("DIRTY_STATE", {
       timeout: 10000,
@@ -338,6 +399,7 @@ test.describe("Setup Wizard: Full Provisioning Flow", () => {
         await resetToSetupMode();
         await page.goto("/setup");
         await page.waitForSelector("body", { timeout: 60000 });
+        await wizard.waitForInteractive();
         await wizard.dismissModals();
       });
 

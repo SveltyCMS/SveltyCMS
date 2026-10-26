@@ -4,7 +4,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";
@@ -28,6 +28,9 @@ async function goRedirects(page: Page) {
     timeout: ACTION_TIMEOUT,
   });
   await expect(page.getByTestId("redirects-page")).toBeVisible({ timeout: ACTION_TIMEOUT });
+  // Page actions (redirects-add) are SSR HTML until hydration attaches their
+  // onclick; an early click is silently dropped and the modal never opens.
+  await waitForHydration(page, ACTION_TIMEOUT);
 }
 
 // Tests are independent (unique names/fixtures, fresh storageState per test) —

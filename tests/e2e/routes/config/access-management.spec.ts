@@ -6,7 +6,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import {
   dismissCookieBannerIfPresent,
   getAppDialog,
@@ -186,6 +186,10 @@ test.describe("Access Management shell", () => {
       }
       await expect(page).toHaveURL(/\/config\/access-management/, { timeout: ACTION_TIMEOUT });
       await dismissCookieBannerIfPresent(page);
+      // The reload re-paints SSR HTML; the tab buttons only get their
+      // click handlers on hydration, so clicking before it is a no-op and
+      // the roles panel never renders (CI: tab stayed on Permissions).
+      await waitForHydration(page, ACTION_TIMEOUT);
       await page.getByTestId("access-tab-roles").click();
 
       await expect(roleRow()).toBeVisible({ timeout: ACTION_TIMEOUT });

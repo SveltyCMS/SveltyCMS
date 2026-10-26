@@ -11,6 +11,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { openTokenView, openUserManagement } from "../../helpers/user-page";
 
 const ACTION_TIMEOUT = 20_000;
@@ -34,12 +35,23 @@ async function goToUserPage(page: Page) {
 }
 
 async function openEditUserDialog(page: Page) {
+  // The consent banner renders as `div[role="dialog"]` and overlays the page, so
+  // clear it before touching the button.
+  await dismissCookieConsent(page);
   const editBtn = page.getByTestId("edit-user-settings-btn");
   await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await editBtn.click();
-  // Use the dialog's accessible name to avoid matching the cookie consent dialog
+  // Use the dialog's accessible name ("Edit User Data:", set from the modal
+  // title) to avoid matching the cookie consent dialog. The button is
+  // SSR-rendered, so a click that lands before Svelte attaches `onclick` is a
+  // silent no-op — click until the dialog actually opens (same pattern as
+  // management.spec.ts / openUserTab).
   const dialog = page.getByRole("dialog", { name: /edit user data/i });
-  await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await expect(async () => {
+    if (!(await dialog.isVisible().catch(() => false))) {
+      await editBtn.click({ timeout: 5_000 }).catch(() => {});
+    }
+    await expect(dialog).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
   return dialog;
 }
 
