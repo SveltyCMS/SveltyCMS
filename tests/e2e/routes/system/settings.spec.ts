@@ -8,7 +8,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { fillUntil, selectAndWaitForUrl } from "../../helpers/hydration";
+import { fillUntil, runAfterHydration, selectAndWaitForUrl } from "../../helpers/hydration";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -238,7 +238,13 @@ test.describe("System Settings shell", () => {
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("system-settings-check-structure")).toBeVisible();
 
-    await page.getByTestId("system-settings-check-structure").click();
+    // The card is SSR-rendered: a click issued before hydration is a silent
+    // no-op, so structureInfo never gets set and the info block never mounts.
+    await runAfterHydration(
+      page,
+      () => page.getByTestId("system-settings-check-structure").click(),
+      { selector: card },
+    );
     // Result may succeed or show mode text
     await expect(page.getByTestId("system-settings-structure-info")).toBeVisible({
       timeout: ACTION_TIMEOUT,

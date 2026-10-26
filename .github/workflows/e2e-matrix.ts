@@ -79,8 +79,25 @@ export const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
     grep: `(routes${S}collection-builder${S}|${TOP}smoke\\.spec\\.ts)`,
   },
   {
+    // Split from one shard: five specs did not fit the 6-minute job ceiling
+    // (cancelled at 6m33s on b6aeab94e, before any test change). Two shards keep
+    // each well inside the budget without raising the timeout.
     name: "Users & Profile",
-    grep: `routes${S}user${S}(account-smoke|profile|session-revocation|token-actions|management)${SEG}\\.spec`,
+    grep: `routes${S}user${S}(account-smoke|profile)${SEG}\\.spec`,
+  },
+  {
+    // Rebalanced after measurement: three specs at ~2.2 min each still exceeded the
+    // 6-minute job ceiling (cancelled at 6m31s), while the sibling shard finished in
+    // 2 min. `management` joins Users & Profile; two specs remain here.
+    name: "User Accounts & Sessions",
+    grep: `routes${S}user${S}(session-revocation|token-actions)${SEG}\\.spec`,
+  },
+  {
+    // `management` alone costs ~4.4 min (measured: account-smoke+profile = 2 min,
+    // both shards that included management were cancelled at 6m26s / 6m31s), so it
+    // gets its own shard instead of dragging a neighbour over the ceiling.
+    name: "User Management",
+    grep: `routes${S}user${S}management${SEG}\\.spec`,
   },
   {
     name: "RBAC & Enforcement",

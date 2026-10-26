@@ -11,6 +11,7 @@
 
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { TEST_API_HEADERS } from "../../helpers/api";
+import { runAfterHydration } from "../../helpers/hydration";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
 
 const RUN_STAMP = Date.now().toString(36);
@@ -167,7 +168,9 @@ test.describe("Guest commerce golden journey", () => {
       (res) => res.url().includes("/api/commerce/cart") && res.request().method() === "POST",
       { timeout: 20_000 },
     );
-    await addBtn.click();
+    // /shop is SSR-rendered: a click before hydration never reaches
+    // addToCart(), so no POST is issued and waitForResponse times out.
+    await runAfterHydration(page, () => addBtn.click());
     const res = await cartRes;
     expect(res.ok(), `POST /api/commerce/cart status=${res.status()}`).toBeTruthy();
     await expect(page.getByRole("status")).toContainText(/added to cart/i, { timeout: 15_000 });

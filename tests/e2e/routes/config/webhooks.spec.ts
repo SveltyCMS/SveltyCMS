@@ -60,7 +60,9 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     const url = `https://example.com/e2e-golden/${stamp}`;
 
     // --- Create ---
-    await page.getByTestId("webhooks-add").click();
+    // Header action is SSR-rendered; a pre-hydration click is dropped and the
+    // modal never opens, so wait for the root layout's hydration marker.
+    await runAfterHydration(page, () => page.getByTestId("webhooks-add").click());
     await expect(page.getByTestId("webhooks-modal")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Validation guard (control risk: cannot save empty)
