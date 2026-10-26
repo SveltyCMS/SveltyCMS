@@ -1550,6 +1550,27 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Key-level JSON patch: `jsonb_set(doc, '{key}', value, true)` per key, nested.
+   *
+   * `jsonb_set` replaces exactly one top-level key, so a concurrent patch of a
+   * different key survives the write (the lost update the whole-blob
+   * read-modify-write produced). `true` creates the key when it is absent and
+   * `COALESCE` covers a NULL column. The value is bound as JSON text and cast,
+   * so a JSON `null` stays a *value* — binding a JS `null` directly would send
+   * SQL NULL and null the entire column.
+   */
+  protected override jsonKeyPatchExpression(
+    colSql: string,
+    entries: ReadonlyArray<readonly [string, string]>,
+  ): SQL {
+    let expr: SQL = drizzleSql`COALESCE(${drizzleSql.raw(colSql)}, '{}'::jsonb)`;
+    for (const [key, jsonText] of entries) {
+      expr = drizzleSql`jsonb_set(${expr}, ${`{${key}}`}::text[], ${jsonText}::jsonb, true)`;
+    }
+    return expr;
+  }
+
+  /**
    * Lazy expression-index for dynamic sort fields.
    *
    * `ORDER BY data->>'count'` cannot be served by any stock index, so at 1M+

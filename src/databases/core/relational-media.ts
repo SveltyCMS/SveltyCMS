@@ -29,7 +29,6 @@ import {
   convertDatesToISO,
   convertISOToDates,
   generateId,
-  parseJsonField,
 } from "./relational-utils";
 import { assertTenantContext } from "@src/utils/security/safe-query";
 import { isAdmin } from "@src/databases/auth/constants";
@@ -299,26 +298,28 @@ export class RelationalMediaModule implements IMediaAdapter {
             const conditions = [eq(this.schema.mediaItems._id, fileId as string)];
             applyTenantFilter(conditions, this.schema.mediaItems.tenantId, options);
 
-            const [existing] = await this.db
-              .select({ metadata: this.schema.mediaItems.metadata })
-              .from(this.schema.mediaItems)
-              .where(and(...conditions))
-              .limit(1);
-
-            // SQLite stores `metadata` as TEXT, so Drizzle hands back the raw
-            // JSON string. Spreading that string produced `{0:"{",1:"\"",…}` and
-            // silently destroyed the blob (and any key written before it).
-            const storedMetadata = parseJsonField<Record<string, unknown>>(existing?.metadata, {});
-            const newMetadata = { ...storedMetadata, ...metadata };
+            // Key-level JSON patch, NOT read-modify-write. The old path
+            // SELECTed the whole blob, spread the patch into it and wrote the
+            // merged document back, so two writers (the share-link patch and the
+            // fire-and-forget variant job) raced: the later write persisted a
+            // snapshot taken before the other's write and dropped its keys.
+            // Each dialect now sets only the patched keys inside the UPDATE, so
+            // the stored document is never read and no write can be lost.
+            // Patch keys are top-level (`sharedLinks`, `processingStatus`,
+            // `processingError`, `imageVariants`); `jsonKeyPatchSetValue` rejects
+            // anything else instead of letting the three dialects diverge.
+            const setValues = convertISOToDates({
+              metadata: this.adapter.jsonKeyPatchSetValue(
+                this.schema.mediaItems,
+                "metadata",
+                metadata as Record<string, unknown>,
+              ),
+              updatedAt: nowISODateString(),
+            });
             if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
               const [updated] = await this.db
                 .update(this.schema.mediaItems)
-                .set(
-                  convertISOToDates({
-                    metadata: newMetadata,
-                    updatedAt: nowISODateString(),
-                  }) as any,
-                )
+                .set(setValues as any)
                 .where(and(...conditions))
                 .returning();
 
@@ -327,12 +328,7 @@ export class RelationalMediaModule implements IMediaAdapter {
 
             await this.db
               .update(this.schema.mediaItems)
-              .set(
-                convertISOToDates({
-                  metadata: newMetadata,
-                  updatedAt: nowISODateString(),
-                }) as any,
-              )
+              .set(setValues as any)
               .where(and(...conditions));
 
             const [updated] = await this.db

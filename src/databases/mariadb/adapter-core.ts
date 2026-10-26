@@ -187,6 +187,28 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Key-level JSON patch: `JSON_SET(doc, '$.key', value)` per key, nested.
+   *
+   * MariaDB has no `CAST(? AS JSON)` (a JSON column is LONGTEXT, and the value
+   * argument of `JSON_SET` is typed as a *string*), so a bound JSON text would be
+   * stored double-encoded (`"{\"a\":1}"`). `JSON_EXTRACT(?,'$')` parses the bound
+   * text into a JSON value first — verified against MariaDB 13: objects, arrays,
+   * strings and JSON `null` all round-trip, and `COALESCE` covers a NULL column.
+   * Paths are bound parameters; `jsonKeyPatchSetValue` already rejected anything
+   * that is not a plain top-level identifier.
+   */
+  protected override jsonKeyPatchExpression(
+    colSql: string,
+    entries: ReadonlyArray<readonly [string, string]>,
+  ): SQL {
+    let expr: SQL = sql`COALESCE(${sql.raw(colSql)}, '{}')`;
+    for (const [key, jsonText] of entries) {
+      expr = sql`JSON_SET(${expr}, ${`$.${key}`}, JSON_EXTRACT(${jsonText}, '$'))`;
+    }
+    return expr;
+  }
+
+  /**
    * Read the JSON `data` column of one row for the JS merge path. Null means the
    * row is absent — the caller then fails closed instead of writing the patch as
    * the whole document. Stays on the txn connection when the update is in one.

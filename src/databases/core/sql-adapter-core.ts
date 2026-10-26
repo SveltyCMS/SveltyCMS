@@ -730,6 +730,77 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     await this.hydrateJsonDataPatch(values, table, id, options);
   }
 
+  // --------------------------------------------------------------------------
+  // Key-level JSON patching (lost-update-free blob writes)
+  // --------------------------------------------------------------------------
+
+  /**
+   * A patch key addresses exactly ONE top-level key of the document. The three
+   * dialects disagree about anything deeper — SQLite's `json_set` creates the
+   * intermediate object, MariaDB's `JSON_SET` silently ignores the write when the
+   * parent is missing, PostgreSQL's `jsonb_set` no-ops — so a non-identifier key
+   * fails closed here instead of being written three different ways. Every
+   * `media.files.updateMetadata` caller patches top-level keys only
+   * (`sharedLinks`, `processingStatus`, `processingError`, `imageVariants`).
+   */
+  protected assertTopLevelJsonPatchKey(key: string): string {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw new Error(
+        `Unsupported JSON patch key "${key}": key-level patching addresses top-level keys only ` +
+          `(a nested path is created by SQLite, ignored by MariaDB, a no-op on PostgreSQL)`,
+      );
+    }
+    return key;
+  }
+
+  /**
+   * Bound JSON text for one patch value. `undefined` is rejected: it has no JSON
+   * form, so the old spread-and-write path silently dropped the key instead of
+   * writing it — a caller that wants that must omit the key.
+   */
+  protected serializeJsonPatchValue(key: string, value: unknown): string {
+    if (value === undefined) {
+      throw new Error(
+        `JSON patch value for "${key}" is undefined (no JSON representation) — omit the key`,
+      );
+    }
+    const text = JSON.stringify(value);
+    if (typeof text !== "string") {
+      throw new Error(`JSON patch value for "${key}" is not JSON-serializable`);
+    }
+    return text;
+  }
+
+  /**
+   * Drizzle `.set()` value that patches individual top-level keys of one JSON
+   * column *inside* the UPDATE. This is the lost-update-free replacement for
+   * "SELECT the blob, spread it, UPDATE the whole blob": no writer ever reads the
+   * document, so two writers patching different keys cannot resurrect a snapshot
+   * taken before the other's write (the later write used to win and drop keys).
+   */
+  public jsonKeyPatchSetValue(table: any, column: string, patch: Record<string, unknown>): SQL {
+    const physName = this.getColumn(table, column)?.name ?? column;
+    const colSql = this.quoteIdentifier(assertSafeSqlIdentifier(physName, "column"));
+    const entries = Object.entries(patch).map(
+      ([key, value]) =>
+        [this.assertTopLevelJsonPatchKey(key), this.serializeJsonPatchValue(key, value)] as const,
+    );
+    return this.jsonKeyPatchExpression(colSql, entries);
+  }
+
+  /**
+   * Dialect arithmetic for {@link jsonKeyPatchSetValue}: the column with every
+   * `[key, jsonText]` pair set, one nested call per key. Implemented by each SQL
+   * adapter (MariaDB `JSON_SET`, PostgreSQL `jsonb_set`, SQLite `json_set`); the
+   * base class throws so a new dialect cannot silently inherit a wrong expression.
+   */
+  protected jsonKeyPatchExpression(
+    _colSql: string,
+    _entries: ReadonlyArray<readonly [string, string]>,
+  ): SQL {
+    throw new Error(`${this.type}: key-level JSON patching is not implemented for this adapter`);
+  }
+
   /**
    * Read only the JSON `data` column of one row. Returned `null` means "no such
    * row" — the caller treats that as an error (a merge needs something to merge
