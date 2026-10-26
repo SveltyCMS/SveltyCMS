@@ -55,7 +55,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 
 **Tests**: `tests/unit/hooks/authorization.test.ts`, `tests/unit/api/dispatcher-body-limit.test.ts`, `tests/unit/api/dispatcher-security-matrix.test.ts`
 
-**UI**: Added "Access Denied" feedback logic in `admin-area.svelte` to handle 403 status codes.
+**UI**: Added "Access Denied" feedback logic in `user-management.svelte` to handle 403 status codes.
 
 ### 4. September 2026 Enterprise Security & Performance Hardening
 
@@ -386,7 +386,7 @@ SveltyCMS follows a strict no-backdoor policy with cryptographically-gated test 
 | -------------------------- | ------------------------------------- | ------ |
 | **Fail-Closed Dispatcher** | `src/routes/api/[...path]/+server.ts` | ✅     |
 | **TBAC Role Isolation**    | `src/hooks/handle-authentication.ts`  | ✅     |
-| **Informative 403 UI**     | `admin-area.svelte`                   | ✅     |
+| **Informative 403 UI**     | `user-management.svelte`              | ✅     |
 
 | Authentication required for APIs | `tests/unit/hooks/api-requests.test.ts` | ✅ |
 | Valid session required | `tests/integration/api/collections.test.ts` | ✅ |

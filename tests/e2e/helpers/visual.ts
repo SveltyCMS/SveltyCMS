@@ -4,6 +4,7 @@
  */
 
 import { expect, type Locator, type Page } from "@playwright/test";
+import { runAfterHydration } from "./hydration";
 import { dismissCookieConsent } from "./cookie-consent";
 
 /** Fixed viewport for comparable admin-theme screenshots */
@@ -72,9 +73,13 @@ export async function openLoginSignInForm(page: Page) {
   // 3. Chooser screen — click the "Go to Sign In" icon to reveal the form.
   //    Prefer the stable testid; the element is a div[role="button"] with
   //    aria-label="Go to Sign In", so a role+name locator also resolves to it.
+  //    The click must wait for the hydration marker: the icon is SSR-painted,
+  //    and an event before Svelte attaches the handler is a silent no-op.
   const signInIcon = page.getByTestId("signin-icon");
   await expect(signInIcon).toBeVisible({ timeout: 15_000 });
-  await signInIcon.click({ force: true });
+  await runAfterHydration(page, () => signInIcon.click({ force: true }), {
+    selector: signInIcon,
+  });
   await dismissCookieConsent(page);
   await emailField.waitFor({ state: "visible", timeout: 15_000 });
 }

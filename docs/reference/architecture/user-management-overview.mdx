@@ -39,7 +39,7 @@ This is the main view for an authenticated user. It serves three primary functio
 - **Personal Settings**: Allows the user to edit their own profile information (via `modal-edit-form.svelte`) and change their avatar (via `modal-edit-avatar.svelte`).
 - **Security Management**: Contains modal components for managing Two-Factor Authentication (2FA) settings.
 
-### 2. Admin Area (`admin-area.svelte`)
+### 2. User Management (`user-management.svelte`)
 
 This powerful component is conditionally rendered at the bottom of the page for users with the appropriate permissions. It is the central hub for site-wide user and token administration.
 
@@ -134,7 +134,7 @@ The diagram below illustrates the optimized data flow with audit logging integra
 graph TD
     subgraph Browser["Browser (Client)"]
         A["User navigates to /user page"]
-        D["admin-area.svelte loads data on-demand"]
+        D["user-management.svelte loads data on-demand"]
         E["Performs filtering/sorting with API calls"]
         F["Audit Dashboard (Admin only)"]
     end

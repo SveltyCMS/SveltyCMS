@@ -117,9 +117,11 @@ export function registerFastLane(lane: FastLane): void {
 /** Marks the lane's `resolve()` fall-through so it cannot be confused with a Response. */
 const FALL_THROUGH = Symbol("fast-lane-fall-through");
 
+const IS_BENCH_VERIFY_RAW = process.env.BENCH_VERIFY_RAW === "1";
+
 function headerLookup(headers: FastLaneInput["headers"]) {
   return (name: string): string | null => {
-    const raw = headers[name.toLowerCase()];
+    const raw = headers[name] ?? headers[name.toLowerCase()];
     if (raw === undefined) return null;
     return Array.isArray(raw) ? raw.join(", ") : String(raw);
   };
@@ -225,7 +227,7 @@ function responseToLaneResult(
 ): FastLaneResult | Promise<FastLaneResult> {
   const fastHeaders = (out as unknown as { __fastHeaders?: Record<string, string | string[]> })
     .__fastHeaders;
-  const headers: Record<string, string | string[]> = fastHeaders ? { ...fastHeaders } : {};
+  const headers: Record<string, string | string[]> = fastHeaders ?? {};
   if (!fastHeaders) {
     out.headers.forEach((value, name) => {
       headers[name] = value;
@@ -241,7 +243,7 @@ function responseToLaneResult(
   // bytes came from the lane or the fallback (identical bytes prove nothing if the
   // lane never served). Gated on the verification env, so production responses
   // carry no transport fingerprint.
-  if (process.env.BENCH_VERIFY_RAW === "1") headers["x-fast-lane-served"] = "1";
+  if (IS_BENCH_VERIFY_RAW) headers["x-fast-lane-served"] = "1";
   if (out.status === 204 || out.status === 304) {
     return finalizeLaneResult(out.status, headers, "");
   }
@@ -262,14 +264,21 @@ function responseToLaneResult(
 const collectionReadLane: FastLane = async (input) => {
   const getHeader = headerLookup(input.headers);
   const url = fastLaneUrl(input);
+  const rawCookie = getHeader("cookie");
+  const cookies = cookieLookup(rawCookie);
+  const turboSessionId = rawCookie
+    ? cookies.get("__Host-session_id") ||
+      cookies.get("session_id") ||
+      cookies.get("__Secure-session_id")
+    : undefined;
   // The lane reads `request.method`, `request.headers.get`, `url` and `cookies`.
   // A real `Request` would mean paying the bridging cost this lane exists to avoid.
   const request = { method: input.method, headers: { get: getHeader } } as unknown as Request;
   const event = {
     url,
     request,
-    cookies: cookieLookup(getHeader("cookie")),
-    locals: { __isFastLane: true },
+    cookies,
+    locals: { __isFastLane: true, turboSessionId },
   } as unknown as RequestEvent;
 
   if (!isSimpleCollectionRead(event)) return null;
@@ -315,7 +324,11 @@ const collectionWriteLane: FastLane = async (input) => {
     },
   } as unknown as Request;
 
-  const jar = cookieLookup(getHeader("cookie"));
+  const rawCookie = getHeader("cookie");
+  const jar = cookieLookup(rawCookie);
+  const turboSessionId = rawCookie
+    ? jar.get("__Host-session_id") || jar.get("session_id") || jar.get("__Secure-session_id")
+    : undefined;
   const setCookies: string[] = [];
   const cookies = {
     get: (name: string) => jar.get(name),
@@ -329,7 +342,7 @@ const collectionWriteLane: FastLane = async (input) => {
     url,
     request,
     cookies,
-    locals: { __isFastLane: true },
+    locals: { __isFastLane: true, turboSessionId },
     // Parity with adapter-node: when an address header is configured but absent
     // it throws, and `getClientIp` fails closed to 0.0.0.0. Reproduce that here
     // so rate-limit bucketing cannot be weakened on the lane.

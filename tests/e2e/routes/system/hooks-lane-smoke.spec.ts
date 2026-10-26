@@ -70,6 +70,9 @@ test.describe("Hooks / lane router smoke (admin session)", () => {
     }
     const body = await res.json();
     expect(body).toHaveProperty("overallStatus");
-    expect(typeof body.uptime === "number" || body.uptime === undefined).toBe(true);
+    // `/health` always reports process uptime (api/[...path]); a missing or
+    // non-numeric field is a contract regression, not an accepted shape.
+    expect(typeof body.uptime).toBe("number");
+    expect(body.uptime).toBeGreaterThanOrEqual(0);
   });
 });

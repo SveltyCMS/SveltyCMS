@@ -20,8 +20,15 @@ export const POST = apiHandler(async ({ locals, request }) => {
   const { user, tenantId, roles } = locals;
   if (!user) throw new AppError("Unauthorized", 401, "UNAUTHORIZED");
 
-  const { docId, updateBase64, awareness } = await request.json();
-  if (!docId || !updateBase64) {
+  let body: { docId?: unknown; updateBase64?: unknown; awareness?: unknown };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    throw new AppError("Invalid JSON body", 400, "BAD_REQUEST");
+  }
+
+  const { docId, updateBase64, awareness } = body;
+  if (typeof docId !== "string" || typeof updateBase64 !== "string" || !docId || !updateBase64) {
     throw new AppError("docId and updateBase64 are required", 400, "BAD_REQUEST");
   }
 

@@ -125,6 +125,8 @@ The active database adapter stores the _metadata_ that cannot live in static fil
 
 The Collection Builder board (`tree-view-board.svelte`) and admin sidebar (`collections.svelte` → `tree-view.svelte`) both consume the same `contentStructure` store. The sidebar additionally applies `page.data.collectionOrder` from the manifest for user-defined sort overrides.
 
+**First paint is server data, not store state.** The layout populates the store from `data.contentStructure` in a client-only `$effect` (so a Collection Builder draft cannot be overwritten by a stale layout snapshot). The sidebar therefore derives its structure from `page.data.contentStructure` until the store has data — otherwise SSR would render the empty state for one frame and the tree would appear only after hydration (the “No collections found.” → list flash). Once populated, the store stays authoritative for SSE and builder updates.
+
 - **Input**: A flat array of `ContentNode` objects from the API.
 - **Process**: A lightweight `buildTree` function groups nodes by `parentId`.
 - **Render**: The UI renders the hierarchical tree based on this computed logical structure using accessible card nodes (`tree-view-node.svelte`), token-based badges, category item counters, and a portal-based floating drag preview (`tree-drag-preview.svelte`).

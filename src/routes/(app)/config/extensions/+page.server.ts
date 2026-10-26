@@ -9,6 +9,9 @@
 
 import { availablePlugins, pluginRegistry } from "@src/plugins";
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
+import { LocalCMS } from "@src/services/sdk";
+import { dbAdapter } from "@src/databases/db";
+import type { DatabaseId } from "@src/databases/db-interface";
 import { isAppError, raise, rethrow } from "@utils/error-handling";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { getLayoutPluginStates } from "@utils/server/layout-caches.server";
@@ -53,9 +56,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     const dashboardWidgets = getInstalledDashboardWidgets();
 
+    // Both lists are rendered by non-default tabs; load them here so the tabs
+    // paint from SSR instead of fetching on first open. The marketplace catalog is
+    // deliberately NOT preloaded: it is remote, refreshable, and served by
+    // `/api/marketplace` (client fetch, so the tab keeps its loading/refresh UX).
+    const cms = new LocalCMS(dbAdapter);
+    const widgets = await cms.widgets.list({ tenantId: tenantId as DatabaseId }).catch((err) => {
+      logger.warn("Could not load widget list for extensions:", err);
+      return [];
+    });
+
     return {
       plugins,
       dashboardWidgets,
+      widgets,
       tenantId,
       isAdmin: true,
     };

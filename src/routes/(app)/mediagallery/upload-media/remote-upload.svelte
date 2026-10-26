@@ -13,6 +13,7 @@
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import Button from '@components/ui/button.svelte';
+	import Textarea from '@components/ui/textarea.svelte';
 	import {
 		mediagallery_remote_aria,
 		mediagallery_remote_hint,
@@ -75,7 +76,8 @@
 	>
 		{mediagallery_remote_title()}
 	</label>
-	<textarea
+	<!-- Native Textarea keeps the route's field id/label wiring and the theme's input token -->
+	<Textarea
 		id="remote-urls"
 		name="remote-urls"
 		aria-label={mediagallery_remote_aria()}
@@ -83,8 +85,8 @@
 		title={mediagallery_remote_title()}
 		bind:value={urlsText}
 		placeholder={mediagallery_remote_placeholder()}
-		rows="6"
-		class="textarea w-full bg-secondary-500/10 dark:bg-secondary-800"></textarea>
+		rows={6}
+	/>
 	<p class="text-xs text-(--admin-text-muted)">
 		{mediagallery_remote_hint()}
 	</p>
@@ -95,7 +97,6 @@
 		data-testid="remote-upload-submit"
 		class="mt-2"
 	>
-		>
 		{isUploading ? 'Uploading…' : 'Upload URLs'}
 	</Button>
 </div>

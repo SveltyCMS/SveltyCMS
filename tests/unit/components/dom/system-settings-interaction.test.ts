@@ -179,6 +179,42 @@ describe("System Settings group form (client interaction)", () => {
     }
   });
 
+  it("opens the field tooltip from the ? icon only, never from the label", async () => {
+    const { rendered } = await mount();
+    try {
+      const node = field(rendered.target, "SITE_NAME");
+
+      const label = node.querySelector<HTMLLabelElement>('label[for="SITE_NAME"]');
+      if (!label) throw new Error("label not rendered");
+      // The label is inert text: the trigger and glyph live beside it.
+      expect(label.querySelector("[role='button'], [role='tooltip'], iconify-icon")).toBeNull();
+
+      const trigger = node.querySelector<HTMLButtonElement>(
+        "button[aria-label='Field information']",
+      );
+      if (!trigger) throw new Error("help trigger not rendered");
+      expect(trigger.getAttribute("type")).toBe("button");
+      expect(trigger.querySelector("iconify-icon")?.getAttribute("icon")).toBe(
+        "mdi:help-circle-outline",
+      );
+
+      // Hovering the label text alone must not open a tooltip.
+      label.dispatchEvent(new MouseEvent("mouseenter"));
+      await settle();
+      expect(document.querySelector("[role='tooltip']")).toBeNull();
+
+      // The tooltip belongs to the icon wrapper, not the field row.
+      trigger.parentElement?.dispatchEvent(new MouseEvent("mouseenter"));
+      await vi.waitFor(() => {
+        expect(document.querySelector("[role='tooltip']")?.textContent).toContain(
+          "Public site name",
+        );
+      });
+    } finally {
+      rendered.cleanup();
+    }
+  });
+
   it("tracks dirty state and enables Save after an edit", async () => {
     const { rendered, onUnsavedChanges } = await mount();
     try {

@@ -24,6 +24,21 @@ import { getPublicSetting, getUntypedSetting } from "@src/services/core/settings
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 
+interface BrandingPayload {
+  siteName: string | null;
+  logoUrl: string | null;
+  accentColor: string | null;
+}
+
+/** A complete branding shape — partial/stale cache entries must not be served. */
+function isBrandingPayload(value: unknown): value is BrandingPayload {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (["siteName", "logoUrl", "accentColor"] as const).every(
+    (key) => record[key] === null || typeof record[key] === "string",
+  );
+}
+
 export const GET: RequestHandler = async ({ url }) => {
   const hostname = url.searchParams.get("hostname");
   const explicitTenantId = url.searchParams.get("tenantId");
@@ -53,7 +68,13 @@ export const GET: RequestHandler = async ({ url }) => {
     // Fast-path: L1/R2 cache hit (<1ms)
     const cachedBranding = await cacheService.get(cacheKey, tenantId);
     if (cachedBranding) {
-      return json(typeof cachedBranding === "string" ? JSON.parse(cachedBranding) : cachedBranding);
+      const parsed =
+        typeof cachedBranding === "string" ? JSON.parse(cachedBranding) : cachedBranding;
+      // A payload written by an older deploy may lack a key; only serve a full
+      // shape, otherwise fall through and rebuild it from settings.
+      if (isBrandingPayload(parsed)) {
+        return json(parsed);
+      }
     }
 
     // Slow-path: concurrent settings fetch (first request or cache expired)
@@ -63,7 +84,7 @@ export const GET: RequestHandler = async ({ url }) => {
       getUntypedSetting<string>("ACCENT_COLOR", "public", tenantId).catch(() => null),
     ]);
 
-    const brandingPayload = {
+    const brandingPayload: BrandingPayload = {
       siteName: siteName || null,
       logoUrl: logoUrl || null,
       accentColor: accentColor || null,

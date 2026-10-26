@@ -504,3 +504,59 @@ describe("refreshContent", () => {
     expect(contentService.fullReload).not.toHaveBeenCalled();
   });
 });
+
+// ─── Tests: regenerated collection files ───────────────────────────────────
+
+describe("buildRegeneratedSchemaDefinition", () => {
+  let buildDefinition: any;
+
+  beforeEach(async () => {
+    const mod = await import("../../../src/content/engine.server");
+    buildDefinition = mod.buildRegeneratedSchemaDefinition;
+  });
+
+  it("keeps behavioural flags such as revision and revisionLimit", () => {
+    const definition = buildDefinition(
+      makeSchema({
+        revision: true,
+        revisionLimit: 5,
+        livePreview: true,
+        order: 3,
+        status: "publish",
+      }),
+      "test_collection",
+    );
+
+    expect(definition).toMatchObject({
+      revision: true,
+      revisionLimit: 5,
+      livePreview: true,
+      order: 3,
+      status: "publish",
+      name: "Test Collection",
+      slug: "test_collection",
+    });
+  });
+
+  it("drops runtime-only keys and node-scoped fields", () => {
+    const definition = buildDefinition(
+      makeSchema({
+        revision: true,
+        path: "/collection/test_collection",
+        tenantId: "tenant-a",
+        _id: "test_collection",
+        _hasActiveWidgets: false,
+        _collectionMeta: { cached: true },
+      } as any),
+      "test_collection",
+    );
+
+    expect(definition).not.toHaveProperty("path");
+    expect(definition).not.toHaveProperty("tenantId");
+    expect(definition).not.toHaveProperty("_id");
+    expect(definition).not.toHaveProperty("_hasActiveWidgets");
+    expect(definition).not.toHaveProperty("_collectionMeta");
+    expect(definition.revision).toBe(true);
+    expect(definition.fields).toHaveLength(1);
+  });
+});

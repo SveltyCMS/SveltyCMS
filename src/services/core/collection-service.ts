@@ -62,6 +62,12 @@ const COLLECTION_QUERY_STALE_MS = 300_000;
 const COLLECTION_QUERY_HOT_STALE_MS = 15 * 60_000;
 /** How many top collections count as "hot" for the extended stale window. */
 const HOT_COLLECTIONS_LIMIT = 20;
+/**
+ * Status facets are derived from the same rows as the list, so they share its
+ * fresh/stale windows and are invalidated by the same collection writes.
+ */
+const STATUS_FACETS_TTL_MS = COLLECTION_QUERY_TTL_MS;
+const STATUS_FACETS_STALE_MS = COLLECTION_QUERY_STALE_MS;
 /** Memo window for the per-tenant hot set — learner resolved at most once per window. */
 const HOT_COLLECTIONS_MEMO_MS = 10_000;
 const _hotCollectionMemo = new Map<string, { at: number; ids: ReadonlySet<string> }>();
@@ -245,12 +251,38 @@ export class CollectionService {
 
   /**
    * Status facet counts for filter chips (P1). Tenant-scoped via baseWhere.
+   *
+   * SWR-cached under `collection:{id}:facets:{tenant}` with the list's tag
+   * contract, so `cacheService.invalidateCollection(id)` also drops the counts
+   * (the key keeps the `collection:{id}:` prefix that pattern clear matches).
    */
   public async getStatusFacets(input: {
     collection: Schema;
     tenantId?: string | null;
   }): Promise<StatusFacetCounts> {
     const collectionId = String(input.collection._id ?? input.collection.name ?? "unknown");
+    const tenantKey = input.tenantId ? String(input.tenantId) : "global";
+    const cacheKey = `collection:${collectionId}:facets:${tenantKey}`;
+    const tags = ["collection", `collection:${collectionId}`];
+
+    return cacheService.getOrSetSWR<StatusFacetCounts>(
+      cacheKey,
+      () => this.loadStatusFacets(input, collectionId),
+      STATUS_FACETS_TTL_MS,
+      STATUS_FACETS_STALE_MS,
+      input.tenantId,
+      CacheCategory.COLLECTION,
+      tags,
+    );
+  }
+
+  /**
+   * DB load path for facets — no caching. Invoked by getOrSetSWR's factory.
+   */
+  private async loadStatusFacets(
+    input: { collection: Schema; tenantId?: string | null },
+    collectionId: string,
+  ): Promise<StatusFacetCounts> {
     if (!dbAdapter) throw error(500, "Database adapter is not available.");
 
     const baseWhere: Record<string, unknown> = {};

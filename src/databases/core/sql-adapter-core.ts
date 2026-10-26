@@ -51,11 +51,13 @@ import {
   materializedColumnTypes,
   SQL_TABLE_ALIASES,
   SYSTEM_LITERAL_COLUMNS,
+  rowsAffected,
 } from "./drizzle-sql-helpers";
 import { normalizeCollectionTableName } from "./collection-name";
 import { generateUUID } from "@utils/native-utils";
 import { serializeSuccessEnvelope } from "@utils/fast-json";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
+import { versionTokenString } from "@utils/optimistic-lock";
 import { nowISODateString } from "@src/utils/date";
 import {
   count as drizzleCount,
@@ -726,6 +728,77 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       return;
     }
     await this.hydrateJsonDataPatch(values, table, id, options);
+  }
+
+  // --------------------------------------------------------------------------
+  // Key-level JSON patching (lost-update-free blob writes)
+  // --------------------------------------------------------------------------
+
+  /**
+   * A patch key addresses exactly ONE top-level key of the document. The three
+   * dialects disagree about anything deeper — SQLite's `json_set` creates the
+   * intermediate object, MariaDB's `JSON_SET` silently ignores the write when the
+   * parent is missing, PostgreSQL's `jsonb_set` no-ops — so a non-identifier key
+   * fails closed here instead of being written three different ways. Every
+   * `media.files.updateMetadata` caller patches top-level keys only
+   * (`sharedLinks`, `processingStatus`, `processingError`, `imageVariants`).
+   */
+  protected assertTopLevelJsonPatchKey(key: string): string {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+      throw new Error(
+        `Unsupported JSON patch key "${key}": key-level patching addresses top-level keys only ` +
+          `(a nested path is created by SQLite, ignored by MariaDB, a no-op on PostgreSQL)`,
+      );
+    }
+    return key;
+  }
+
+  /**
+   * Bound JSON text for one patch value. `undefined` is rejected: it has no JSON
+   * form, so the old spread-and-write path silently dropped the key instead of
+   * writing it — a caller that wants that must omit the key.
+   */
+  protected serializeJsonPatchValue(key: string, value: unknown): string {
+    if (value === undefined) {
+      throw new Error(
+        `JSON patch value for "${key}" is undefined (no JSON representation) — omit the key`,
+      );
+    }
+    const text = JSON.stringify(value);
+    if (typeof text !== "string") {
+      throw new Error(`JSON patch value for "${key}" is not JSON-serializable`);
+    }
+    return text;
+  }
+
+  /**
+   * Drizzle `.set()` value that patches individual top-level keys of one JSON
+   * column *inside* the UPDATE. This is the lost-update-free replacement for
+   * "SELECT the blob, spread it, UPDATE the whole blob": no writer ever reads the
+   * document, so two writers patching different keys cannot resurrect a snapshot
+   * taken before the other's write (the later write used to win and drop keys).
+   */
+  public jsonKeyPatchSetValue(table: any, column: string, patch: Record<string, unknown>): SQL {
+    const physName = this.getColumn(table, column)?.name ?? column;
+    const colSql = this.quoteIdentifier(assertSafeSqlIdentifier(physName, "column"));
+    const entries = Object.entries(patch).map(
+      ([key, value]) =>
+        [this.assertTopLevelJsonPatchKey(key), this.serializeJsonPatchValue(key, value)] as const,
+    );
+    return this.jsonKeyPatchExpression(colSql, entries);
+  }
+
+  /**
+   * Dialect arithmetic for {@link jsonKeyPatchSetValue}: the column with every
+   * `[key, jsonText]` pair set, one nested call per key. Implemented by each SQL
+   * adapter (MariaDB `JSON_SET`, PostgreSQL `jsonb_set`, SQLite `json_set`); the
+   * base class throws so a new dialect cannot silently inherit a wrong expression.
+   */
+  protected jsonKeyPatchExpression(
+    _colSql: string,
+    _entries: ReadonlyArray<readonly [string, string]>,
+  ): SQL {
+    throw new Error(`${this.type}: key-level JSON patching is not implemented for this adapter`);
   }
 
   /**
@@ -1768,7 +1841,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         data?: unknown;
       };
       const wireBody = serializeSuccessEnvelope(JSON.stringify(trimmed.data ?? null));
-      const etag = `"${String((record as any)._id ?? id)}-${String((record as any).updatedAt ?? "")}"`;
+      // Drizzle timestamp columns come back as Date on MariaDB/PostgreSQL;
+      // always render ISO so `If-Match` can parse the token back.
+      const etag = `"${String((record as any)._id ?? id)}-${versionTokenString((record as any).updatedAt)}"`;
       return { wireBody, etag };
     }, "FIND_POINT_WIRE_STREAM_FAILED");
   }
@@ -3025,9 +3100,11 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             : await queryBuilder;
 
         return {
-          // postgres.js exposes .count; sqlite .changes; mysql2 .affectedRows
-          modifiedCount:
-            (result as any).count ?? (result as any).changes ?? (result as any).affectedRows ?? 0,
+          // postgres.js exposes .count, sqlite .changes, mysql2 returns the raw
+          // `[ResultSetHeader, fields]` tuple — `rowsAffected` unwraps every shape
+          // (reading `.affectedRows` off the tuple yielded undefined → 0, which
+          // made a successful compare-and-set look like a miss).
+          modifiedCount: rowsAffected(result) ?? 0,
         };
       },
       "UPDATE_MANY_FAILED",
@@ -3160,24 +3237,22 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         if (!whereCondition) {
           assertFilteredDelete(false, options.confirmWipe);
           if (options.permanent || !hasIsDeleted) {
-            await execWrite(db.delete(table) as { run?: () => Promise<unknown> });
-            return { deletedCount: -1 };
+            const wiped = await execWrite(db.delete(table) as { run?: () => Promise<unknown> });
+            return { deletedCount: rowsAffected(wiped) ?? -1 };
           }
           const wiped = await execWrite(
             db.update(table).set({ isDeleted: true, updatedAt: new Date() }) as {
               run?: () => Promise<unknown>;
             },
           );
-          const wipedCount =
-            (wiped as any)?.count ?? (wiped as any)?.changes ?? (wiped as any)?.affectedRows ?? -1;
-          return { deletedCount: wipedCount };
+          return { deletedCount: rowsAffected(wiped) ?? -1 };
         }
         // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
         if (options.permanent || !hasIsDeleted) {
-          await execWrite(
+          const hardDeleted = await execWrite(
             db.delete(table).where(whereCondition) as { run?: () => Promise<unknown> },
           );
-          return { deletedCount: -1 };
+          return { deletedCount: rowsAffected(hardDeleted) ?? -1 };
         }
         const res = await execWrite(
           db
@@ -3188,9 +3263,9 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
           },
         );
         // Affected rows differ per dialect: postgres.js -> .count, sqlite -> .changes,
-        // mysql2 -> .affectedRows. Fall back to -1 (unknown) when not exposed.
-        const affected =
-          (res as any)?.count ?? (res as any)?.changes ?? (res as any)?.affectedRows ?? -1;
+        // mysql2 -> [ResultSetHeader, fields]. Fall back to -1 (unknown) when the
+        // driver does not report one.
+        const affected = rowsAffected(res) ?? -1;
         return { deletedCount: affected };
       },
       "DELETE_MANY_FAILED",

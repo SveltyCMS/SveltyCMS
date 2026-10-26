@@ -57,7 +57,7 @@
 	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
 	import Input from '@src/components/ui/input.svelte';
 	import Button from '@src/components/ui/button.svelte';
-	import Card from '@src/components/ui/card.svelte';
+	import AdminCard from '@components/admin-card.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import { collectionMetadata, getTagColor } from '@src/stores/collection-store.svelte';
@@ -233,7 +233,7 @@
 
 	<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 		<!-- Left: Name & Database ID -->
-		<Card class="p-6">
+		<AdminCard class="p-6">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-base font-semibold text-(--admin-text-body) flex items-center gap-2">
 					<iconify-icon icon="mdi:form-textbox" width="18" class="text-tertiary-500"></iconify-icon>
@@ -292,10 +292,10 @@
 					</div>
 				{/if}
 			</div>
-		</Card>
+		</AdminCard>
 
 		<!-- Right: Icon & Description -->
-		<Card class="p-6">
+		<AdminCard class="p-6">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-base font-semibold text-(--admin-text-body) flex items-center gap-2">
 					<iconify-icon icon="mdi:palette-outline" width="18" class="text-tertiary-500"
@@ -345,10 +345,10 @@
 					></textarea>
 				</div>
 			</div>
-		</Card>
+		</AdminCard>
 
 		<!-- Bottom: Organization & Tags -->
-		<Card class="p-6 md:col-span-2">
+		<AdminCard class="p-6 md:col-span-2">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-base font-semibold text-(--admin-text-body) flex items-center gap-2">
 					<iconify-icon icon="mdi:tag-multiple-outline" width="18" class="text-tertiary-500"
@@ -448,9 +448,7 @@
 				</div>
 
 				<!-- Favorite Quick Access -->
-				<div
-					class="rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card) p-4 space-y-3"
-				>
+				<AdminCard class="p-4 space-y-3">
 					<div class="flex items-center justify-between">
 						<div class="flex items-center gap-2">
 							<iconify-icon
@@ -488,8 +486,8 @@
 							<span>{isFavorite ? 'Favorited' : 'Add to Favorites'}</span>
 						</Button>
 					</div>
-				</div>
+				</AdminCard>
 			</div>
-		</Card>
+		</AdminCard>
 	</div>
 </div>

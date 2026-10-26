@@ -73,6 +73,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 		stopAutoRefresh,
 		themeStore
 	} from '@src/stores/theme-store.svelte';
+	import { hydration } from '@src/stores/hydration.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { logger } from '@utils/logger';
 
@@ -250,13 +251,17 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 						// on refresh. `contentNodes` is the full flat list from the same load; fall
 						// back to the nav tree only when it is absent (e.g. login/setup routes).
 						const flatNodes = page.data.contentNodes;
+						const routeStructure = (page.data as { contentStructure?: unknown[] })
+							?.contentStructure;
 						applyRemoteContentStructure(
 							Array.isArray(flatNodes) && flatNodes.length > 0
 								? flatNodes
-								: page.data.navigationStructure
+								: Array.isArray(routeStructure) && routeStructure.length > 0
+									? (routeStructure as typeof flatNodes)
+									: page.data.navigationStructure
 						);
 						// Initialize the modern content system with hydration data
-						initializeContent(page.data as any);
+						initializeContent(page.data);
 					}
 					// Mark initialization as finished successfully here
 					globalLoadingStore.stopLoading(loadingOperations.initialization);
@@ -280,7 +285,9 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 		// against SSR HTML before hydration are silent no-ops (measured 2026-09-21:
 		// media-gallery dialogs/uploads and the dashboard widget menu raced their
 		// own hydration and timed out).
-		if (browser) document.documentElement.dataset.hydrated = 'true';
+		// `markHydrated()` stamps that attribute AND flips `hydration.hydrated`,
+		// which the gated controls bind — one writer, so they cannot diverge.
+		if (browser) hydration.markHydrated();
 
 		// Initialize screen size tracking (resize listener + window.innerWidth)
 		// Without this, screen.isMobile/isDesktop use SSR defaults (1024px)
@@ -501,7 +508,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 
 <div class="relative z-0">
 	<svelte:boundary>
-		{#snippet failed(error: any, reset: any)}
+		{#snippet failed(error: unknown, reset: () => void)}
 			{logger.error('[Boundary] Unhandled render error:', error)}
 			<div
 				class="flex h-screen w-full flex-col items-center justify-center space-y-6 bg-surface-500/10 text-center dark:bg-surface-900"
@@ -516,7 +523,9 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 				<div
 					class="max-w-md rounded border border-surface-500/30 bg-surface-500/10 p-4 text-start text-sm font-mono dark:border-surface-500/40 dark:bg-surface-800"
 				>
-					<p class="text-error-600 dark:text-error-500">{error.message}</p>
+					<p class="text-error-500 dark:text-error-500">
+						{error instanceof Error ? error.message : String(error)}
+					</p>
 				</div>
 
 				<div class="flex gap-4">
@@ -549,7 +558,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 			</span>
 			<div>
 				<p class="text-sm font-semibold">Inactivity Timeout Warning</p>
-				<p class="text-xs text-surface-600 dark:text-surface-400">
+				<p class="text-xs text-surface-500 dark:text-surface-400">
 					Session expires in {Math.floor(sessionRemainingTime / 60)}m {sessionRemainingTime % 60}s
 				</p>
 			</div>
@@ -578,7 +587,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 					<h2 id="critical-timeout-title" class="text-xl font-bold text-error-500">
 						Critical Session Timeout
 					</h2>
-					<p id="critical-timeout-desc" class="text-sm text-surface-600 dark:text-surface-400">
+					<p id="critical-timeout-desc" class="text-sm text-surface-500 dark:text-surface-400">
 						Your session is about to expire due to inactivity. Please extend your session now to
 						avoid losing unsaved data.
 					</p>

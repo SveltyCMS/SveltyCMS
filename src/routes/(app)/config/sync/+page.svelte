@@ -11,16 +11,24 @@ Allows synchronization between filesystem and database, safety mode selection, a
 - Unmet requirement detection and safety gating
 -->
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { onMount } from 'svelte';
 	import { fade, slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import { TAB_STRIP, tabTrigger } from '@components/ui/tabs/chrome';
+	import {
+		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table';
 	import {
 		sync_action,
 		sync_backup_heading,
@@ -61,8 +69,12 @@ Allows synchronization between filesystem and database, safety mode selection, a
 
 	type SafetyMode = 'merge' | 'add' | 'mirror' | 'replace';
 
-	let status: ConfigStatus = $state(null);
-	let isLoading = $state(true);
+	let { data } = $props();
+
+	let status: ConfigStatus = $state(
+		untrack(() => (data.status as unknown as ConfigStatus) ?? null)
+	);
+	let isLoading = $state(false);
 	let isProcessing = $state(false);
 	let isExporting = $state(false);
 	let activeTab: 'sync' | 'backups' | 'debug' = $state('sync');
@@ -189,10 +201,6 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			isExporting = false;
 		}
 	}
-
-	onMount(() => {
-		loadStatus();
-	});
 </script>
 
 <AdminPageShell
@@ -209,12 +217,14 @@ Allows synchronization between filesystem and database, safety mode selection, a
 			<div class="mb-4 rounded-md border border-surface-500/20 bg-surface-500/10 p-4">
 				<p class="text-surface-600 dark:text-surface-400 text-sm">
 					{sync_intro_part1()}{' '}<strong>{sync_schema_code()}</strong>{sync_intro_part2()}
-					<code>{sync_sync_path()}</code>{sync_intro_part3()}
+					<code>{sync_sync_path()}</code>{' '}{sync_intro_part3()}
 				</p>
 			</div>
 
+			<!-- Underline tabs — same strip as /user, extensions and access management
+			     (the old boxed segmented control was the last divergent tab chrome). -->
 			<div
-				class="flex w-full overflow-x-auto border border-surface-500/30 rounded-md bg-surface-500/10 dark:text-surface-50 dark:bg-surface-800/70 mb-6"
+				class="{TAB_STRIP} mb-6"
 				role="tablist"
 				aria-label={sync_options_aria()}
 				data-testid="sync-tabs"
@@ -227,12 +237,12 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								? 'Import/Export Data'
 								: 'Debug Info'}
 						positioning={{ placement: 'top' }}
+						role={null}
+						tabindex={null}
 					>
 						<Button
 							variant="ghost"
-							class="flex-1 py-3 text-center text-sm font-medium {activeTab === tab
-								? 'bg-primary-500! text-white!'
-								: 'text-surface-600! dark:text-surface-400!'}"
+							class={tabTrigger(activeTab === tab, 'justify-center')}
 							onclick={() => (activeTab = tab as 'sync' | 'backups' | 'debug')}
 							role="tab"
 							aria-selected={activeTab === tab}
@@ -383,34 +393,35 @@ Allows synchronization between filesystem and database, safety mode selection, a
 								</p>
 							</div>
 
-							<AdminCard class="overflow-x-auto w-full border border-(--admin-border-default)">
-								<table class="w-full text-sm border-collapse">
-									<thead>
+							<AdminCard
+								class="my-2 w-full overflow-x-auto border border-(--admin-border-default) sm:my-3"
+							>
+								<table class={SMART_TABLE}>
+									<thead class={SMART_TABLE_THEAD}>
 										<tr
-											class="border-b border-(--admin-border-default) text-start text-xs uppercase tracking-wider text-surface-400"
+											class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 										>
-											<th class="px-4 py-3 font-semibold">{sync_name()}</th>
-											<th class="px-4 py-3 font-semibold">{sync_type()}</th>
-											<th class="px-4 py-3 font-semibold">UUID</th>
-											<th class="px-4 py-3 font-semibold text-end">{sync_action()}</th>
+											<th class="{SMART_TABLE_TH} text-start!">{sync_name()}</th>
+											<th class="{SMART_TABLE_TH} text-start!">{sync_type()}</th>
+											<th class="{SMART_TABLE_TH} text-start!">UUID</th>
+											<th class="{SMART_TABLE_TH} text-end!">{sync_action()}</th>
 										</tr>
 									</thead>
-									<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+									<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 										{#each Object.entries(status?.changes || {}) as [changeType, items] (changeType)}
 											{#each items as item (item.uuid || item.name)}
-												<tr
-													class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20"
-												>
-													<td class="px-4 py-3 font-medium">{item.name}</td>
-													<td class="px-4 py-3">
+												<tr class={SMART_TABLE_ROW_HOVER}>
+													<td class="{SMART_TABLE_TD} text-start! font-medium">{item.name}</td>
+													<td class="{SMART_TABLE_TD} text-start!">
 														<Badge preset="tonal" color="surface" class="capitalize"
 															>{item.type}</Badge
 														>
 													</td>
-													<td class="px-4 py-3 font-mono text-xs text-surface-400"
+													<td
+														class="{SMART_TABLE_TD} text-start! font-mono text-xs text-(--admin-text-muted)"
 														>{item.uuid || '-'}</td
 													>
-													<td class="px-4 py-3 text-end">
+													<td class="{SMART_TABLE_TD} text-end!">
 														{#if changeType === 'new'}
 															<Badge variant="tertiary" class="dark:bg-primary-500 dark:text-white"
 																>{sync_new_create()}</Badge

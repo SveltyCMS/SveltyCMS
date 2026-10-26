@@ -538,7 +538,8 @@ export interface CmsMediaMetadata {
   keywords?: string[];
   location?: { latitude?: number; longitude?: number; altitude?: number };
   originalFilename?: string;
-  processingError?: string;
+  /** `null` clears a previous failure when a retry succeeds. */
+  processingError?: string | null;
   /** Derivative pipeline state — `processing` until every rendition exists. */
   processingStatus?: "processing" | "ready" | "failed";
   processingTimeMs?: number;
@@ -1530,6 +1531,13 @@ export interface ISqlAdapter extends BaseAdapter {
     id: DatabaseId,
     options: BaseQueryOptions,
   ): Promise<void>;
+  /**
+   * Drizzle `.set()` value that patches individual top-level keys of one JSON
+   * column inside the UPDATE — no read-modify-write, so concurrent patches of
+   * different keys cannot lose each other. Each adapter implements the dialect
+   * expression: MariaDB `JSON_SET`, PostgreSQL `jsonb_set`, SQLite `json_set`.
+   */
+  jsonKeyPatchSetValue(table: any, column: string, patch: Record<string, unknown>): unknown;
   transaction<T>(
     fn: (transaction: DatabaseTransaction) => Promise<DatabaseResult<T>>,
     options?: { timeout?: number; isolationLevel?: string; isWrite?: boolean },

@@ -8,6 +8,8 @@
  *
  * Features:
  * - User and role information retrieval from event.locals
+ * - First page of the admin user table + the current user's active sessions via
+ *   LocalCMS (no internal `/api` round trip, no empty-card flash on first paint)
  * - Form handling
  * - Error logging and handling
  *
@@ -17,8 +19,17 @@
  */
 
 import type { PermissionConfig } from "@src/databases/auth/permissions";
+import { readSessionCookie } from "@src/databases/auth/constants";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/databases/db-interface";
+import { rethrow } from "@utils/error-handling";
+import { getRequestLocalCMS } from "@utils/server/request-cms.server";
+import {
+  mapActiveSessions,
+  sanitizeUserTableRow,
+  type ActiveSessionRow,
+  type UserTableRow,
+} from "./user-remote-utils";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -31,6 +42,76 @@ import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { getFreshLayoutUser } from "@utils/server/layout-caches.server";
 import type { PageServerLoad } from "./$types";
+
+/** Matches AdminArea's default page size so page 1 lines up with its first fetch. */
+const INITIAL_USER_PAGE_SIZE = 10;
+
+/** First page of the admin user table (already stripped of credentials). */
+export interface InitialUserPage {
+  users: UserTableRow[];
+  totalItems: number;
+  page: number;
+  limit: number;
+}
+
+/** `null` means "server could not load it" — the client keeps its own fetch path. */
+async function loadInitialUsers(
+  tenantId: DatabaseId | null | undefined,
+): Promise<InitialUserPage | null> {
+  try {
+    const { cms } = await getRequestLocalCMS();
+    const result = await cms.auth.listUsers({
+      tenantId: tenantId ?? null,
+      page: 1,
+      limit: INITIAL_USER_PAGE_SIZE,
+      sort: "createdAt",
+      order: "desc",
+    });
+    if (!result.success) {
+      logger.debug(`Initial user page unavailable: ${result.message}`);
+      return null;
+    }
+    const payload = result.data;
+    const rows: unknown[] = Array.isArray(payload.data) ? payload.data : [];
+    const users = rows.map(sanitizeUserTableRow).filter((row): row is UserTableRow => row !== null);
+    const totalItems = Number(payload.pagination?.totalItems);
+    return {
+      users,
+      totalItems: Number.isFinite(totalItems) ? totalItems : users.length,
+      page: 1,
+      limit: INITIAL_USER_PAGE_SIZE,
+    };
+  } catch (err) {
+    rethrow(err);
+    logger.debug("Initial user page unavailable; AdminArea will fetch on mount", err);
+    return null;
+  }
+}
+
+/** Sessions of the signed-in user, mapped exactly like the `getActiveSessions` query. */
+async function loadActiveSessions(
+  event: Parameters<PageServerLoad>[0],
+  userId: string,
+): Promise<ActiveSessionRow[] | null> {
+  try {
+    const { cms } = await getRequestLocalCMS();
+    const result = await cms.auth.getActiveSessions(userId, {
+      tenantId: event.locals.tenantId ?? null,
+    });
+    if (!result.success) {
+      logger.debug(`Active sessions unavailable: ${result.message}`);
+      return null;
+    }
+    const currentSessionId = String(
+      event.locals.session_id ?? readSessionCookie(event.cookies) ?? "",
+    );
+    return mapActiveSessions(result.data, currentSessionId);
+  } catch (err) {
+    rethrow(err);
+    logger.debug("Active sessions unavailable; Security tab will retry client-side", err);
+    return null;
+  }
+}
 
 export const load: PageServerLoad = async (event) => {
   try {
@@ -96,6 +177,16 @@ export const load: PageServerLoad = async (event) => {
       };
     }
 
+    // First paint data (LocalCMS, never an internal /api hop): page 1 of the
+    // admin table and the signed-in user's own sessions. `null` means the server
+    // could not resolve it, in which case the client keeps its existing fetch.
+    const [initialUsers, initialSessions] = await Promise.all([
+      isAdmin || hasManageUsersPermission
+        ? loadInitialUsers(event.locals.tenantId as DatabaseId | null | undefined)
+        : Promise.resolve(null),
+      loadActiveSessions(event, userIdStr),
+    ]);
+
     // Provide manageUsersPermissionConfig to the client
     const manageUsersPermissionConfig: PermissionConfig = {
       contextId: "config/userManagement",
@@ -116,6 +207,8 @@ export const load: PageServerLoad = async (event) => {
       is2FAEnabledGlobal: Boolean(await getUntypedSetting("USE_2FA")),
       manageUsersPermissionConfig,
       adminData,
+      initialUsers,
+      initialSessions,
       // Total system users — the Multibutton gates the destructive delete
       // action on this count ("isLastUser"), NOT on the filtered table's
       // totalItems. Without it, searching (filtered totalItems = 1) made the
@@ -144,6 +237,8 @@ export const load: PageServerLoad = async (event) => {
         contextType: "system",
       },
       adminData: null,
+      initialUsers: null,
+      initialSessions: null,
       permissions: {
         "config/adminArea": { hasPermission: false },
       },

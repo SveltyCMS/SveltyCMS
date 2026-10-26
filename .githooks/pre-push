@@ -1,12 +1,14 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Push — Build → SQLite Integration (~5 min)
+# SveltyCMS Pre-Push — Build → CI-parity Unit → SQLite Integration → Browser
 #
-# Pre-commit already ran: format, lint, unit tests, component interaction tests.
-# This hook builds the project and runs the SQLite integration suite plus a
-# local DB-parity pass when adapter code changed. Multi-DB matrix, full E2E and
-# audits run in CI only.
+# Pre-commit already ran: format, lint, unit, component interactions.
+# This hook re-runs the complete CI Unit job (coverage + components + mutation,
+# because unhandled errors only surface under the CI reporter), builds the
+# project, runs SQLite integration, DB parity when adapter code changed, and the
+# browser contract gate (including any changed E2E spec).
 #
+# POLICY: enforced — there is no opt-out environment variable.
 # Flags:
 #   --only-failures      Skip build, re-run only previously failed suites via test:smart
 #   SKIP_DB_PARITY=true  Skip the adapter parity step
@@ -31,6 +33,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 require_bun
 header "Pre-Push"
+
+# Local gates are ENFORCED (owner decision 2026-10-24). The previous opt-in
+# policy let a green hook coexist with a red CI run; every step below now runs
+# unless its skip flag is explicitly set.
 
 ONLY_FAILURES=false
 PUSH_REFS=""
@@ -60,6 +66,13 @@ if [ ! -t 0 ]; then
   done
 fi
 
+# Changed paths vs the upstream merge-base — used for the E2E target mapping.
+push_changed_files() {
+  local base
+  base="$(git merge-base HEAD @{upstream} 2>/dev/null || echo 'HEAD~1')"
+  git diff --name-only "$base" -- 2>/dev/null || true
+}
+
 # ── Smart skip: if only docs changed, skip build + integration ───────────
 if ! has_push_changes '\.(md|mdx)$' || has_push_changes '\.(ts|js|svelte|css|json)$'; then
   HAS_CODE_CHANGES=true
@@ -78,25 +91,10 @@ if [ "$ONLY_FAILURES" = true ]; then
   exit $?
 fi
 
-# ── Smart skip: CI/workflow-only changes are validated by GitHub Actions ──
-# A workflow/action edit cannot be exercised by the local build, integration,
-# or browser smoke gate; running them only burns ~4 minutes. `main` releases
-# keep the full gate, and any change outside `.github/` keeps it too.
-if has_push_changes '^\.github/' \
-  && ! has_push_changes '^(src/|tests/|scripts/|package\.json|bun\.lock|vite\.config|svelte\.config|path-aliases\.ts)'; then
-  case " $PUSHED_BRANCHES " in
-    *" main "*)
-      info "CI-only change on main — keeping the full release gate"
-      ;;
-    *)
-      warn "Only CI/workflow files changed — GitHub Actions validates this; skipping build/integration/smoke"
-      echo ""
-      summary 1 1
-      exit 0
-      ;;
-  esac
-fi
-
+# ── CI/workflow-only changes still run the local gate ─────────────────────
+# The old shortcut skipped everything for `.github/**` edits, which is how a
+# workflow change could be pushed without even a YAML parse. The normal steps
+# now run; the dedicated YAML step below validates every workflow file.
 if [ "$HAS_CODE_CHANGES" = false ]; then
   warn "Only docs changed — skipping build and integration tests"
   echo ""
@@ -105,10 +103,10 @@ if [ "$HAS_CODE_CHANGES" = false ]; then
 fi
 
 info "Pre-commit already verified: format, lint, unit tests, component interactions."
-info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration + DB parity + E2E smoke"
+info "Pre-push: build + quality + security + backdoor probe + release readiness + SQLite integration + DB parity + E2E contract gate"
 echo ""
 
-TOTAL=12; OK=0
+TOTAL=17; OK=0
 
 # Step 1 — Production build (mirrors CI build job)
 if run "🏗️  Build (4 adapters)" env COMPILE_ALL_ADAPTERS=true "$PM_BIN" run build; then
@@ -128,6 +126,25 @@ if run "✅  Quality Gate (check)" pm_run check; then
   OK=$((OK + 1))
 fi
 
+# Step 2c — CI-parity unit job (coverage + components + mutation)
+#
+# CI runs these under a different reporter, and a suite can be 100 % green and
+# still exit 1 on unhandled errors (jsdom teardown, icon timers, leaked
+# promises). That is exactly how the Unit job stayed red while every local
+# assertion passed. Run the same three commands before the push.
+if run "🧪  Unit coverage (CI parity)" pm_run test:unit:coverage; then
+  OK=$((OK + 1))
+fi
+if run "🧩  Component interactions (CI parity)" pm_run test:unit:components; then
+  OK=$((OK + 1))
+fi
+
+# Mutation runs last (below the E2E gate): it rewrites source files in place, so
+# an interrupted run must not be followed by build, integration or browser steps
+# that would then fail on a mutated tree. The step verifies its own targets are
+# clean before writing and restores them in a finally block; the hook re-checks
+# afterwards as a second line of defence.
+
 # Step 2b — Release readiness (read-only). auto-release.yaml tags the version
 # committed in package.json and never writes it, so a push only needs the
 # manifest and SBOM to agree. It is NOT required to be releasable on every push
@@ -142,13 +159,19 @@ fi
 "$PM_BIN" audit --severity=high 2>&1 || true
 OK=$((OK + 1))
 
-# Step 4 — Secret misuse scan (mirrors CI whitebox 06-secret-misuse)
-if run "🔑  Secret Misuse Scan" pm_run scripts/security/scan-secret-misuse.ts --strict; then
+# Step 4 — Secret misuse scan (mirrors CI whitebox 01-policy)
+if run "🔑  Secret Misuse Scan" pm_run scripts/security/scan-secret-misuse.ts --strict --full; then
   OK=$((OK + 1))
 fi
 
-# Step 5 — Tenant isolation gate (mirrors CI whitebox 04b-tenant-gate)
-if run "🛡️  Tenant Isolation Gate" pm_run test:tenant; then
+# Step 4b — Hardware tiers probe (mirrors CI whitebox 01-policy)
+if run "🖥️  Hardware Tiers Probe" pm_run scripts/probe/probe-hardware-tiers.ts; then
+  OK=$((OK + 1))
+fi
+
+# Step 5 — Tenant isolation gate (mirrors CI whitebox 01-policy; --full scans the
+# entire repo even when the local working tree has unstaged edits)
+if run "🛡️  Tenant Isolation Gate" sh -c '"$1" run lint:tenant -- --full && "$1" run test:tenant' _ "$PM_BIN"; then
   OK=$((OK + 1))
 fi
 
@@ -171,21 +194,112 @@ fi
 if [ "${SKIP_DB_PARITY:-false}" = "true" ]; then
   warn "DB parity skipped via SKIP_DB_PARITY=true"
   OK=$((OK + 1))
-elif ! has_push_changes '^(src/databases/|tests/integration/databases/|scripts/runs/integration-harness\.ts)'; then
-  info "No adapter/database changes — parity matrix not required"
+elif ! has_push_changes '^(src/databases/|src/services/sdk/|src/hooks/|tests/integration/databases/|scripts/runs/integration-harness\.ts)'; then
+  info "No adapter/database/service changes — parity matrix not required"
   OK=$((OK + 1))
-elif run "🧬  DB parity (auto-detected engines)" pm_run test:parity -- --tests=tests/integration/databases/contract.test.ts; then
+elif run "🧬  DB parity (auto-detected engines)" pm_run test:parity -- --tests=tests/integration/databases/contract.test.ts,tests/integration/api/optimistic-lock.test.ts; then
   OK=$((OK + 1))
+  # A timestamp contract that only holds in UTC is a latent bug: CI runners are
+  # UTC, developer machines are not. Re-run the timestamp-bearing contract with
+  # a deliberately maximal host offset (UTC+14) so an ETag/CAS mismatch between
+  # the read and write lanes is caught here instead of in the CI matrix.
+  TOTAL=$((TOTAL + 1))
+  if run "🕒  DB parity (non-UTC clock)" env TZ=Pacific/Kiritimati "$PM_BIN" run test:parity -- --tests=tests/integration/api/optimistic-lock.test.ts; then
+    OK=$((OK + 1))
+  fi
 fi
 
-# Step 8 — E2E Smoke Gate (Chromium) — fast browser verification before push
+# Step 8 — E2E gate (Chromium) — browser verification before push
+#
+# The smoke spec is a runtime contract (auth → CRUD → persistence). It cannot
+# see an Axe contrast failure, the RTL/status-shade sweep, a visual-regression
+# baseline, or a theme-only route bug — those live in other CI shards. Until
+# this mapping existed the hook was green while the change failed 2–4 CI shards.
+# Targets are spec PATHS (not --grep): a path never combines with --shard and
+# cannot silently select zero tests.
 if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
-  if run "🌐  E2E Smoke Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build tests/e2e/smoke.spec.ts; then
+  E2E_TARGETS="tests/e2e/smoke.spec.ts"
+  # Any changed E2E spec must run locally too. A spec-only push previously
+  # skipped the shard it edited (CI run 1847), and the hook had no mapping for
+  # tests/e2e/** at all.
+  CHANGED_SPECS="$(push_changed_files | grep -E '^tests/e2e/.*\.(spec|test)\.ts$' || true)"
+  if [ -n "$CHANGED_SPECS" ]; then
+    info "Changed E2E specs detected — running them in the browser gate"
+    for spec in $CHANGED_SPECS; do
+      [ -f "$spec" ] && E2E_TARGETS="$E2E_TARGETS $spec"
+    done
+  fi
+  # Config-workspace changes have burned the Config & System shard repeatedly
+  # with post-mutation reads (theme create, trash restore, density reload).
+  if has_push_changes '^(src/routes/\(app\)/config/|^src/routes/api/theme/)'; then
+    info "Config UI/API changes detected — adding the config goldens"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/config/design-system.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts tests/e2e/routes/config/data-ops.spec.ts tests/e2e/routes/config/access-management.spec.ts"
+  fi
+  if has_push_changes '^(src/widgets/|src/components/collection-display/|src/routes/\(app\)/\[language\]/\[\.\.\.collection\]/)'; then
+    info "Collection or widget changes detected — expanding gate to include Kitchen Sink journey"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/collection-builder/kitchen-sink.spec.ts"
+  fi
+  # Any component or route-markup change can move a colour pair, an RTL
+  # logical property, or an accessible name — exactly what the CI Axe/RTL jobs
+  # assert. Run the accessibility contracts with the smoke gate.
+  if has_push_changes '^(src/components/|src/app\.css|src/routes/.*\.svelte|src/routes/\(admin\)/)'; then
+    info "UI changes detected — adding accessibility contracts (login, dashboard)"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/login/accessibility.spec.ts tests/e2e/routes/dashboard/accessibility.spec.ts"
+  fi
+  if has_push_changes '^(src/components/ui/|src/app\.css|src/routes/\(app\)/config/design-system/|src/routes/\(admin\)/)'; then
+    info "Design-system changes detected — adding the admin theme visual regression"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/admin-theme/visual-regression.spec.ts"
+  fi
+  if has_push_changes '^(src/routes/\(app\)/mediagallery/|src/components/media/)'; then
+    info "Media UI changes detected — adding the behavioral gallery suite and the theme visual audit"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/mediagallery.spec.ts tests/e2e/routes/mediagallery/theme-visual.spec.ts"
+  fi
+  # A path can be added twice (e.g. a changed spec that also matches a UI mapping);
+  # de-duplicate so Playwright does not run it twice and inflate the flake count.
+  UNIQUE_TARGETS=""
+  for target in $E2E_TARGETS; do
+    case " $UNIQUE_TARGETS " in
+      *" $target "*) ;;
+      *) UNIQUE_TARGETS="$UNIQUE_TARGETS $target" ;;
+    esac
+  done
+  E2E_TARGETS="${UNIQUE_TARGETS# }"
+  if run "🌐  E2E Browser Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
     OK=$((OK + 1))
+    # Any retried-pass locally is a warning sign: CI scores it against a budget.
+    if run "🎯  E2E Flake Budget" pm_run scripts/check/check-flake-budget.ts --json=tests/playwright-results.json --max-flaky=0 --max-flake-rate=3 --allow-missing; then
+      OK=$((OK + 1))
+    fi
   fi
 else
   warn "E2E smoke gate skipped via SKIP_E2E_SMOKE=true"
+  # Both the browser gate and its flake budget are skipped.
+  TOTAL=$((TOTAL - 1))
   OK=$((OK + 1))
+fi
+
+# Step 9 — Mutation (last: see the note above the unit-parity block)
+#
+# A hard-killed process can leave a partially written target even with atomic
+# writes. Only restore when the targets were clean before this run — a dirty
+# target is the developer's work, not ours to discard.
+MUTATION_TARGETS="src/utils/optimistic-lock.ts src/databases/core/drizzle-sql-helpers.ts"
+MUTATION_CLEAN_BEFORE=true
+if ! git diff --quiet -- $MUTATION_TARGETS; then
+  MUTATION_CLEAN_BEFORE=false
+  warn "Mutation targets were dirty before the gate — leaving them untouched"
+fi
+
+if run "🧬  Mutation (seams)" pm_run test:mutation; then
+  if git diff --quiet -- $MUTATION_TARGETS; then
+    OK=$((OK + 1))
+  elif [ "$MUTATION_CLEAN_BEFORE" = true ]; then
+    warn "Mutation harness left a target dirty — restoring from HEAD"
+    git checkout -- $MUTATION_TARGETS
+  fi
+elif [ "$MUTATION_CLEAN_BEFORE" = true ] && ! git diff --quiet -- $MUTATION_TARGETS; then
+  warn "Mutation harness failed with a dirty target — restoring from HEAD"
+  git checkout -- $MUTATION_TARGETS
 fi
 
 summary "$OK" "$TOTAL"

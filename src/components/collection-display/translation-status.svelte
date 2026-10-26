@@ -443,7 +443,7 @@ FIXES:
 			<Button
 				variant="ghost"
 				aria-label="Toggle language menu"
-				class="flex h-10 w-full items-center justify-center gap-1 rounded-xl border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
+				class="flex h-10 w-full items-center justify-center gap-1 border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
 			>
 				<span class="font-medium md:hidden">{currentLanguage.toUpperCase()}</span>
 				<span class="font-medium hidden md:inline">{getLanguageName(currentLanguage)}</span>
@@ -467,7 +467,7 @@ FIXES:
 
 			<Button
 				variant="ghost"
-				class="w-full text-start p-2 flex items-center gap-2 rounded transition-colors {isActive
+				class="w-full text-start p-2 flex items-center gap-2 rounded-(--admin-radius-input) transition-colors {isActive
 					? 'bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500 font-bold'
 					: 'hover:bg-surface-200/50 dark:hover:bg-surface-800/50 text-(--admin-text-muted)'}"
 				onclick={() => handleLanguageChange(lang as Locale)}

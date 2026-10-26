@@ -14,6 +14,7 @@ const deleteMany = vi
     Promise.resolve({ success: true, data: { deletedCount: paths.length } }),
   );
 const updateVersion = vi.fn();
+const getStructure = vi.fn().mockResolvedValue({ success: true, data: [] });
 
 vi.mock("@src/databases/db", () => ({
   dbAdapter: {
@@ -21,6 +22,7 @@ vi.mock("@src/databases/db", () => ({
       nodes: {
         bulkUpdate,
         deleteMany,
+        getStructure,
       },
     },
   },
@@ -133,6 +135,39 @@ describe("contentService.upsertContentNodes", () => {
     ).rejects.toThrow(/bulkUpdate failed|TRANSACTION_FAILED/i);
 
     expect(updateVersion).not.toHaveBeenCalled();
+  });
+
+  it("treats deletes of already-absent nodes as idempotent", async () => {
+    deleteMany.mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } });
+    getStructure.mockResolvedValueOnce({ success: true, data: [] });
+
+    await expect(
+      contentService.upsertContentNodes(
+        [
+          { type: "delete", node: { path: "/collection/one" } },
+          { type: "delete", node: { path: "/collection/two" } },
+        ],
+        "global",
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(getStructure).toHaveBeenCalledTimes(1);
+    expect(updateVersion).toHaveBeenCalled();
+  });
+
+  it("throws when a requested delete path survives in the database", async () => {
+    deleteMany.mockResolvedValueOnce({ success: true, data: { deletedCount: 0 } });
+    getStructure.mockResolvedValueOnce({
+      success: true,
+      data: [{ path: "/collection/still-there" }],
+    });
+
+    await expect(
+      contentService.upsertContentNodes(
+        [{ type: "delete", node: { path: "/collection/still-there" } }],
+        "global",
+      ),
+    ).rejects.toThrow(/Failed to delete 1 structure node/i);
   });
 
   it("throws when deleteMany returns success: false (fail-closed)", async () => {

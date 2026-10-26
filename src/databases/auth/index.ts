@@ -420,6 +420,13 @@ export class Auth {
       deviceId?: string;
       ipAddress?: string;
       amr?: string[];
+      /**
+       * Set by token rotation in the auth hook. Rotation is not a new login:
+       * the caller retires the predecessor itself (short grace expiry) and the
+       * device/parallel caps must stay out of the way — evicting the very
+       * session being rotated is what signed users out a second time.
+       */
+      isRotation?: boolean;
     },
     options?: BaseQueryOptions,
   ): Promise<Session> {
@@ -468,6 +475,10 @@ export class Auth {
     }
 
     let permMask = (sessionData as any).permMask;
+    // Whether the mask above may be persisted. A mask derived from a FAILED roles
+    // read is not authoritative: caching it as "0 permissions" denies every mapped
+    // endpoint for the whole session lifetime (observed on MariaDB, where a thin
+    // roles read during session minting produced a permanent 403).
     if (permMask === undefined) {
       if (isAdmin(user)) {
         permMask = ADMIN_PERM_MASK;
@@ -479,7 +490,10 @@ export class Auth {
           });
           permMask = computeUserPermMask(user, roles);
         } catch {
-          permMask = computeUserPermMask(user, []);
+          // Leave it undefined so the next request recomputes from the roles
+          // instead of persisting a zero mask. The dispatcher no longer trusts a
+          // zero mask anyway (see `_checkEndpointPermission`).
+          permMask = undefined;
         }
       }
     }
@@ -495,7 +509,7 @@ export class Auth {
       mfaVerifiedAt:
         (sessionData as any).mfaVerifiedAt ??
         (sessionData.amr?.includes("mfa") ? (nowISODateString() as ISODateString) : undefined),
-      permMask: permMaskHex,
+      ...(permMaskHex !== undefined ? { permMask: permMaskHex } : {}),
     };
     await this.sessionStore.set(session._id, user, sessionData.expires, sessionMetadata);
     session.permMask = permMaskHex;
@@ -507,35 +521,40 @@ export class Auth {
     //   single-per-user            — evict ALL other non-rotated sessions
     //   allow-multiple             — no eviction (unlimited concurrent sessions)
     // Best-effort — never fail the login on eviction errors.
-    const deviceKey = sessionData.deviceId || sessionData.userAgent;
-    if (deviceKey) {
-      try {
-        const policy = String(
-          getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
-        );
-        if (policy !== "allow-multiple") {
-          await this.evictSameDeviceSessions(
-            session,
-            deviceKey,
-            policy === "single-per-user",
-            options,
+    // Token rotation bypasses both policies: it supersedes exactly one session
+    // (retired by the caller), so eviction would only kill live requests that
+    // still carry the pre-rotation cookie.
+    if (!sessionData.isRotation) {
+      const deviceKey = sessionData.deviceId || sessionData.userAgent;
+      if (deviceKey) {
+        try {
+          const policy = String(
+            getPrivateSettingSync("SESSION_DEVICE_POLICY") || "single-per-device",
           );
+          if (policy !== "allow-multiple") {
+            await this.evictSameDeviceSessions(
+              session,
+              deviceKey,
+              policy === "single-per-user",
+              options,
+            );
+          }
+        } catch (err) {
+          logger.debug("Device-session eviction skipped", { error: (err as Error).message });
+        }
+      }
+
+      // Max concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited):
+      // when the cap is exceeded the least recently active session is evicted
+      // (Keycloak-style). Complements the device policy — best-effort only.
+      try {
+        const maxSessions = Number(getPrivateSettingSync("SESSION_MAX_PER_USER")) || 0;
+        if (maxSessions > 0) {
+          await this.enforceMaxSessionsPerUser(session, maxSessions, options);
         }
       } catch (err) {
-        logger.debug("Device-session eviction skipped", { error: (err as Error).message });
+        logger.debug("Max-session eviction skipped", { error: (err as Error).message });
       }
-    }
-
-    // Max concurrent sessions per user (SESSION_MAX_PER_USER, 0 = unlimited):
-    // when the cap is exceeded the least recently active session is evicted
-    // (Keycloak-style). Complements the device policy — best-effort only.
-    try {
-      const maxSessions = Number(getPrivateSettingSync("SESSION_MAX_PER_USER")) || 0;
-      if (maxSessions > 0) {
-        await this.enforceMaxSessionsPerUser(session, maxSessions, options);
-      }
-    } catch (err) {
-      logger.debug("Max-session eviction skipped", { error: (err as Error).message });
     }
 
     return session;

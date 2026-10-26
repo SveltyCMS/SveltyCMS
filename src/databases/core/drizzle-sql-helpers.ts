@@ -53,6 +53,46 @@ export async function executeWrite<T extends { run?: () => Promise<unknown> }>(
 }
 
 /**
+ * Rows a Drizzle write actually touched, or `null` when the driver's shape is
+ * not recognized.
+ *
+ * Drivers disagree: postgres.js returns `{ count }`, SQLite `{ changes }`, while
+ * drizzle's mysql2 session returns the raw mysql2 tuple
+ * `[ResultSetHeader, FieldPacket[]]`. Reading `.affectedRows` straight off that
+ * tuple yields `undefined`, which was silently coerced to `0` — so on
+ * MariaDB/MySQL every `updateMany` reported zero rows changed even when the
+ * statement applied. The compare-and-set in `collections.update` relied on that
+ * count, concluded its own successful write was a stale version, and answered
+ * `409 VERSION_CONFLICT` on an unchanged row.
+ *
+ * Callers decide the unknown fallback (`0` for a count, `-1` for a sentinel).
+ *
+ * Order matters: postgres.js returns an array-like `RowList` whose `.count`
+ * lives on the ARRAY (so the container is read first), while mysql2 returns a
+ * plain tuple whose header object is element `[0]`.
+ */
+export function rowsAffected(result: unknown): number | null {
+  const read = (value: unknown): number | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === "number") return Number.isFinite(value) ? value : null;
+    const raw =
+      (value as { count?: unknown }).count ??
+      (value as { changes?: unknown }).changes ??
+      (value as { rowsAffected?: unknown }).rowsAffected ??
+      (value as { rowCount?: unknown }).rowCount ??
+      (value as { affectedRows?: unknown }).affectedRows;
+    if (raw === undefined || raw === null) return null;
+    const count = Number(raw);
+    return Number.isFinite(count) ? count : null;
+  };
+
+  const direct = read(result);
+  if (direct !== null) return direct;
+  if (Array.isArray(result) && result.length > 0) return read(result[0]);
+  return null;
+}
+
+/**
  * Widgets whose data shape is a flat scalar
  * (string/number/boolean) are safe to store as physical columns instead of the
  * JSON `data` blob. Object/array-shaped widgets (group, repeater, seo, tags,

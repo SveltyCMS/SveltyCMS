@@ -19,7 +19,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
 import { StatusTypes } from "@src/content/types";
 import { prepareCollectionFields } from "@src/content/content-utils";
-import { collectionTableName } from "@src/databases/core/collection-name";
+import { collectionTableName, buildCollectionCacheTags } from "@src/databases/core/collection-name";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, fastSuccessResponse, rawResponse } from "./base";
@@ -35,6 +35,8 @@ import {
 } from "@utils/export-encode";
 import { setCollectionOrder } from "@utils/collection-order.server";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
+import { buildFindCacheKey } from "@src/services/sdk/namespaces/collections/read-pipeline";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import { MAX_PAGE_SIZE, parseCollectionQueryParams } from "@utils/api-params";
 import { getUserCacheId } from "@utils/hook-utils";
@@ -718,10 +720,30 @@ export async function handleCollectionWarmCache(
 
   // Fire-and-forget cache backfill
   if (bulkResult.success && Array.isArray(bulkResult.data)) {
+    // Mirror the SDK read path exactly: the point-read key is produced by
+    // buildFindCacheKey (tenant-prefixed `collection:{id}:find:id:{id}`) and the
+    // cached payload is the row ARRAY the read path stores (`result.data`).
+    // Writing the raw doc, or a key without the tenant prefix, is a guaranteed miss.
+    const tags = buildCollectionCacheTags(collectionId);
     for (const doc of bulkResult.data) {
       if (!doc?._id) continue;
-      const cacheKey = `collection:${collectionId}:${doc._id}`;
-      cacheService.set(cacheKey, doc, 300, tenantId).catch(() => {});
+      const cacheKey = buildFindCacheKey({
+        schemaId: collectionId,
+        tenantId,
+        filter: { _id: doc._id },
+        query: { _id: doc._id },
+        limit: 50,
+        offset: 0,
+        sort: undefined,
+        decodedCursor: null,
+        effectiveFilter: "all",
+        skipRequestCache: false,
+        bypassCache: false,
+        options: {},
+      });
+      if (!cacheKey) continue;
+      // Same TTL/category as the SDK find() write (`ttl || 180`, CONTENT).
+      cacheService.set(cacheKey, [doc], 180, tenantId, CacheCategory.CONTENT, tags).catch(() => {});
     }
   }
 

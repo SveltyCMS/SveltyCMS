@@ -62,8 +62,14 @@ test.describe("Auth Toggles", () => {
   test.beforeEach(async ({ page }) => {
     await ensureAuthenticated(page);
     await goToUserPage(page);
-    // Navigate to the Security tab where auth preference toggles live
-    await page.getByRole("tab", { name: /security/i }).click();
+    // Navigate to the Security tab where auth preference toggles live.
+    // The strip ships every trigger `disabled` until hydration, so the click
+    // waits for the trigger itself — no hydration-marker gate, no retry loop.
+    const securityTab = page
+      .getByTestId("user-account-tabs")
+      .getByRole("tab", { name: /^security$/i });
+    await expect(securityTab).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await securityTab.click();
     await expect(page.getByTestId("user-security-panel")).toBeVisible({ timeout: 10_000 });
   });
 
@@ -164,11 +170,14 @@ test.describe("User Editing", () => {
   });
 
   test("password change workflow opens modal with current password field", async ({ page }) => {
-    // Click the Edit User Settings button
-    await page.getByRole("button", { name: /Edit User Settings/i }).click();
-
     const editDialog = page.getByRole("dialog", { name: /Edit User Data/i });
-    await expect(editDialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Retry the open until the dialog exists: a click that lands before Svelte
+    // hydrates is a silent no-op (this shard failed its flake budget on that gap).
+    await expect(async () => {
+      if (await editDialog.isVisible().catch(() => false)) return;
+      await page.getByRole("button", { name: /Edit User Settings/i }).click({ timeout: 2_000 });
+      await expect(editDialog).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
 
     // Current Password field should be visible (own profile requires it)
     const currentPasswordInput = editDialog.locator('input[name="current_password"]');
@@ -591,11 +600,14 @@ test.describe("GDPR Privacy Data", () => {
     const refresh = page.getByRole("button", { name: /refresh active sessions/i });
     await expect(refresh).toBeVisible({ timeout: ACTION_TIMEOUT });
     await refresh.click({ timeout: ACTION_TIMEOUT });
-    // After refresh: either a list, empty state, or error alert — not a crash
+    // After refresh: either a list, empty state, or error alert — not a crash.
+    // Do not include "loading" in the text regex: the refresh button itself
+    // renders the loading label, so the union would match the button + the list
+    // and Playwright strict mode would reject it.
     await expect(
       section
         .getByRole("list", { name: /active sessions/i })
-        .or(section.getByText(/no other sessions|failed|loading/i)),
+        .or(section.getByText(/no other sessions|failed/i)),
     ).toBeVisible({ timeout: ACTION_TIMEOUT });
   });
 });
@@ -783,8 +795,11 @@ test.describe("Error States", () => {
       await editAvatarBtn.evaluate((el: HTMLElement) => el.click());
     }
 
-    // Wait for the file input to be attached
-    const fileInput = page.locator('input[type="file"]');
+    // Wait for the avatar dialog (scoped: the page may host other file inputs)
+    const avatarDialog = page
+      .getByRole("dialog")
+      .filter({ has: page.locator('input[type="file"]') });
+    const fileInput = avatarDialog.locator('input[type="file"]');
     if (!(await fileInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
       return; // No file input appeared
     }
@@ -792,33 +807,32 @@ test.describe("Error States", () => {
     // Create an oversized file in-memory (e.g., ~15MB)
     const oversizedBuffer = Buffer.alloc(15 * 1024 * 1024, "a");
 
-    // Try uploading it — the system should either reject it or show an error
+    // Selecting the file is a browser-level operation, so the guard stays narrow:
+    // if Chromium rejects it before the app sees it, the upload was rejected too.
     try {
       await fileInput.setInputFiles({
         name: "oversized.png",
         mimeType: "image/png",
         buffer: oversizedBuffer,
       });
-
-      // Check for error toast or message (isVisible below auto-waits 3s)
-      const errorToast = page.getByText(/too large|exceed|invalid size|error/i);
-      const errorVisible = await errorToast.isVisible({ timeout: 3_000 }).catch(() => false);
-
-      // If save button is present, try clicking it (validation might happen on submit)
-      const saveAvatarBtn = page.getByRole("button", { name: /save/i });
-      if (await saveAvatarBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await saveAvatarBtn.click({ timeout: ACTION_TIMEOUT });
-
-        // Check again for error after save attempt (expect auto-waits 5s)
-        const postSaveError = page.getByText(/too large|exceed|error/i);
-        await expect(postSaveError).toBeVisible({ timeout: 5_000 });
-      } else if (errorVisible) {
-        await expect(errorToast).toBeVisible({ timeout: ACTION_TIMEOUT });
-      }
-    } catch {
-      // The file input might reject the large file at the browser level
-      // This is also valid behavior
+    } catch (err) {
+      console.warn("[user] oversized avatar rejected by the file input:", err);
+      return;
     }
+
+    // The 5MB cap is enforced on submit (valibot in modal-edit-avatar), so the
+    // size error must surface — this used to sit in a try/catch that swallowed it.
+    const saveAvatarBtn = avatarDialog.getByRole("button", { name: /^save$/i }).first();
+    await expect(saveAvatarBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await saveAvatarBtn.click({ timeout: ACTION_TIMEOUT });
+
+    // Scoped to the toast region so the modal's static "less than 5MB" hint
+    // cannot satisfy it.
+    const sizeError = page
+      .locator("[data-toast-region]")
+      .getByText(/less than 5MB|too large|exceed|invalid size/i)
+      .first();
+    await expect(sizeError).toBeVisible({ timeout: 5_000 });
 
     // Clean up: close any open modal
     const cancelBtn = page.getByRole("button", { name: /cancel/i }).first();

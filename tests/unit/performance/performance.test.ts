@@ -82,13 +82,3 @@ describe("Performance: Batch Widget API", () => {
     expect(durationBatch).toBeLessThan(durationLegacy * 1.5); // Allow some margin
   });
 });
-
-describe("Performance: Search API", () => {
-  test("Parallel search should handle concurrent requests", async () => {
-    // This test would ideally hit the running server.
-    // For unit testing, we can just verify the logic if we could mock the DB.
-    // Since we can't easily mock the full server here without setup,
-    // we'll skip the actual HTTP call and rely on the logic change we made (Promise.all).
-    expect(true).toBe(true);
-  });
-});

@@ -26,6 +26,7 @@
 		SMART_TABLE_THEAD
 	} from '@components/ui/smart-table';
 	import Button from '@components/ui/button.svelte';
+	import AdminCard from '@components/admin-card.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
@@ -56,6 +57,16 @@
 		isSelectionMode?: boolean;
 		selectedFiles: SvelteSet<string>;
 		publishedMediaIds?: SvelteSet<string>;
+		/** The folder holds server pages the client has not fetched yet. */
+		serverHasMore?: boolean;
+		/** Folder total from the server (the paginated slice is smaller). */
+		serverTotal?: number;
+		/** Rows already fetched from the server (before client filters). */
+		serverLoaded?: number;
+		/** A server page request is in flight (parent-owned). */
+		isLoadingMore?: boolean;
+		/** Asks the parent for the next server page. */
+		onLoadMore?: () => void;
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
@@ -67,6 +78,11 @@
 		isSelectionMode = false,
 		selectedFiles = $bindable(),
 		publishedMediaIds = $bindable(new SvelteSet<string>()),
+		serverHasMore = false,
+		serverTotal = 0,
+		serverLoaded = 0,
+		isLoadingMore = false,
+		onLoadMore = () => {},
 		ondeleteImage = () => {},
 		onEditImage = () => {},
 		onUpdateImage = () => {},
@@ -231,7 +247,7 @@
 	}
 </script>
 
-<div class="h-full min-h-0 w-full p-2 sm:p-3" data-testid="media-table">
+<AdminCard class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3" data-testid="media-table">
 	<SmartTableShell
 		empty={filteredFiles.length === 0}
 		emptyTitle="No media found"
@@ -399,7 +415,7 @@
 		</div>
 
 		<!-- Desktop: full table (shared Smart Table chrome) -->
-		<table class="media-table {SMART_TABLE} hidden md:table lg:table-fixed">
+		<table class="media-table {SMART_TABLE} max-md:hidden lg:table-fixed">
 			<colgroup>
 				<col class="media-table-col-select" style={smartTable.getColumnWidthStyle('_select')} />
 				<col class="media-table-col-preview" style={smartTable.getColumnWidthStyle('preview')} />
@@ -408,8 +424,10 @@
 				<col class="media-table-col-type" style={smartTable.getColumnWidthStyle('type')} />
 				<col class="media-table-col-actions" style={smartTable.getColumnWidthStyle('_actions')} />
 			</colgroup>
-			<thead class="{SMART_TABLE_THEAD} text-(--admin-text-body)! backdrop-blur-sm">
-				<tr class="text-[10px] font-semibold uppercase tracking-wider">
+			<thead class={SMART_TABLE_THEAD}>
+				<tr
+					class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
+				>
 					<th
 						class="media-table-select {SMART_TABLE_TH} {pinCellClass('start')} w-9 shrink-0"
 						onclick={(e) => e.stopPropagation()}
@@ -506,12 +524,12 @@
 				</tr>
 			</thead>
 
-			<tbody>
+			<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 				{#each paginatedFiles as file (file._id || file.filename)}
 					{@const fileId = file._id?.toString() || file.filename}
 
 					<tr
-						class="group cursor-grab border-b border-surface-500/30 align-middle active:cursor-grabbing dark:border-surface-500/40
+						class="group cursor-grab align-middle active:cursor-grabbing
 								{selectedFiles.has(fileId) ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
 						onclick={() => handleRowClick(file)}
 						onkeydown={(e) => handleKeyDown(e, file)}
@@ -622,7 +640,40 @@
 			</tbody>
 		</table>
 	</SmartTableShell>
-</div>
+
+	<!--
+		Table pagination only ranges over fetched rows (client mode), so a folder
+		holding more than one server page needs its own explicit advance.
+	-->
+	{#if serverHasMore || isLoadingMore}
+		<div
+			class="flex shrink-0 items-center justify-center gap-2 border-t border-(--admin-border-default) p-2"
+		>
+			<Button
+				variant="surface"
+				size="sm"
+				onclick={onLoadMore}
+				disabled={isLoadingMore}
+				aria-busy={isLoadingMore}
+				data-testid="media-table-load-more"
+				class="h-10 gap-1.5 px-3"
+			>
+				<iconify-icon
+					icon={isLoadingMore ? 'mdi:loading' : 'mdi:chevron-down'}
+					width="16"
+					class={isLoadingMore ? 'animate-spin' : ''}
+					aria-hidden="true"
+				></iconify-icon>
+				<span>{isLoadingMore ? 'Loading more…' : 'Load more assets'}</span>
+			</Button>
+			{#if serverTotal > serverLoaded}
+				<p class="text-xs text-(--admin-text-muted)">
+					{serverLoaded} of {serverTotal} assets loaded
+				</p>
+			{/if}
+		</div>
+	{/if}
+</AdminCard>
 
 {#if showTagModal}
 	{#await import('@src/components/media/tag-editor/tag-editor-modal.svelte') then mod}

@@ -73,6 +73,11 @@ const JOBS: Array<{ key: string; label: string; fix: string }> = [
     label: "bench-core (performance gate)",
     fix: "Open the 📊 Bench job log; fix the budget breach or regression, or re-run if it is runner noise",
   },
+  {
+    key: "RESULT_FLAKE_PROBE",
+    label: "flake-probe (newest specs × 3)",
+    fix: "Open the probe's playwright-report; fix the spec or let the 7-day window age out if it is load-only",
+  },
 ];
 
 function outcome(v: string | undefined): Outcome {
@@ -162,8 +167,16 @@ function main(): number {
   const failed = rows.filter((r) => r.outcome === "failure" || r.outcome === "cancelled");
   const passed = rows.filter((r) => r.outcome === "success");
   const skipped = rows.filter((r) => r.outcome === "skipped");
+  const tier =
+    process.env.CI_TIER === "full" ? "full" : process.env.CI_TIER === "fast" ? "fast" : null;
 
   let md = `## ${failed.length ? "❌" : "✅"} All-Green Gate\n\n`;
+  if (tier) {
+    md +=
+      tier === "fast"
+        ? `> **Tier:** \`fast\` — DB ×4, Bench ×4 and E2E ×8 run on the merge queue and nightly.\n\n`
+        : `> **Tier:** \`full\` — complete matrix.\n\n`;
+  }
   md += `| Job | Result |\n|-----|--------|\n`;
   for (const r of rows) {
     md += `| ${icon(r.outcome)} **${r.label}** | \`${r.outcome}\` |\n`;
@@ -182,7 +195,10 @@ function main(): number {
     });
     md += `\n_Expand the failed job’s **Summary** tab for pass/fail tables and error snippets._\n\n`;
   } else {
-    md += `_All required jobs succeeded._\n\n`;
+    md +=
+      tier === "fast"
+        ? `_All fast-tier jobs succeeded; the merge queue re-runs the full matrix on the merge commit._\n\n`
+        : `_All required jobs succeeded._\n\n`;
   }
 
   const gateReports = readGateReports();

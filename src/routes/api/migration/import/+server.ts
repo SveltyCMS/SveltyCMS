@@ -23,6 +23,17 @@ import {
 // Cached module reference — avoids filesystem descriptor penalty on repeated imports
 let _preloadedJobQueue: any = null;
 
+const MAX_INLINE_FILE_SIZE = 15 * 1024 * 1024; // 15MB — guard against OOM on large uploads
+
+function tooLargeResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      error: "File too large for inline import. Use CLI migration for files >15MB.",
+    }),
+    { status: 413, headers: { "Content-Type": "application/json" } },
+  );
+}
+
 function sseEvent(data: Record<string, unknown>): string {
   return `data: ${JSON.stringify(data)}\n\n`;
 }
@@ -47,6 +58,14 @@ export const POST: RequestHandler = async ({ request, locals, cookies, url }) =>
   const dbAdapter = locals.cms?.db ?? (locals as { dbAdapter?: unknown }).dbAdapter;
   if (!dbAdapter) {
     return new Response("Database not available", { status: 500 });
+  }
+
+  // Reject an oversized upload from the declared length before parsing the
+  // multipart body: formData() buffers the whole file, so the later file.size
+  // check only avoided the text() copy, not the parse.
+  const declaredLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_INLINE_FILE_SIZE + 1_048_576) {
+    return tooLargeResponse();
   }
 
   const form = await request.formData();
@@ -77,14 +96,8 @@ export const POST: RequestHandler = async ({ request, locals, cookies, url }) =>
 
   const license = await getMigrationLicenseTier(locals as any);
 
-  const MAX_INLINE_FILE_SIZE = 15 * 1024 * 1024; // 15MB — guard against OOM on large uploads
   if ((file as any).size && (file as any).size > MAX_INLINE_FILE_SIZE) {
-    return new Response(
-      JSON.stringify({
-        error: "File too large for inline import. Use CLI migration for files >15MB.",
-      }),
-      { status: 413, headers: { "Content-Type": "application/json" } },
-    );
+    return tooLargeResponse();
   }
 
   const fileText = await file.text();

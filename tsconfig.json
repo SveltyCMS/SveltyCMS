@@ -12,7 +12,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "allowJs": true,
-    "checkJs": true,
+    // Generated artifacts only (`src/paraglide/**`, git-ignored, ~5 MB across one
+    // 4.4 MB `_index.js`) are JavaScript in this tree — checking them bought
+    // nothing and made `tsc`/the editor TS server analyse megabytes of
+    // regenerated code on every keystroke. `allowJs` keeps the modules typed.
+    "checkJs": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,

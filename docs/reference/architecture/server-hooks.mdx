@@ -876,11 +876,11 @@ export const handleUserPreferences: Handle = async ({ event, resolve }) => {
 // Simplified Logic
 const isDemoMode = getPrivateSettingSync('DEMO');
 
-if (multiTenant) {
+if (multiTenant || isDemoMode) {
     let tenantId: string | null = null;
 
     if (isDemoMode) {
-        // Demo Mode: Tenant ID from cookie
+        // Demo Mode: one seeded tenant per visitor (DEMO implies tenant isolation)
         tenantId = cookies.get('demo_tenant_id');
         if (!tenantId) {
             tenantId = crypto.randomUUID();

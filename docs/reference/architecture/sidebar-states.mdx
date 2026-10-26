@@ -161,13 +161,13 @@ Mode comes from `collection-store.svelte` — one of `"view"`, `"edit"`, `"creat
 
 #### Desktop (LG+)
 
-| Element        | State                                                    |
-| -------------- | -------------------------------------------------------- |
-| `leftSidebar`  | **`full`** in view/media, **`collapsed`** in edit/create |
-| `rightSidebar` | **`hidden`** in view/media, **`full`** in edit/create    |
-| `pageheader`   | `full` if editing, else `hidden`                         |
+| Element        | State                                                 |
+| -------------- | ----------------------------------------------------- |
+| `leftSidebar`  | **`full`** in every mode (compact is tablet-only)     |
+| `rightSidebar` | **`hidden`** in view/media, **`full`** in edit/create |
+| `pageheader`   | `full` if editing, else `hidden`                      |
 
-> **Key insight**: Desktop shows the left sidebar fully in view mode (browsing content) and collapses it in edit mode (maximizing editor space). The right sidebar only appears in edit mode for metadata, publish options, etc.
+> **Key insight**: Desktop keeps the full navigation tree in view **and** edit mode — collapsing it in edit only bought the inspector ~120px and cost navigation context. Compact navigation is a tablet affordance (MD branch). The right sidebar only appears in edit mode for metadata, publish options, etc.
 
 ---
 

@@ -696,9 +696,12 @@ async function signUpInternal(event: RequestEvent, input: any) {
 
   const mt = isMultiTenantEnabled();
   const dm = getPrivateSettingSync("DEMO");
-  // Open signup follows the DEMO setting alone — a demo instance (even a
-  // single-tenant one) must not require a registration token.
+  // Open signup follows the DEMO setting alone — a demo instance must not
+  // require a registration token.
   const open = !!dm;
+  // Demo visitors are isolated by tenant even on an install whose bootstrap
+  // config predates the "DEMO implies MULTI_TENANT" invariant.
+  const tenantIsolation = mt || open;
   let role = "user",
     invited = false,
     tid: string | undefined;
@@ -707,13 +710,16 @@ async function signUpInternal(event: RequestEvent, input: any) {
     if ((await auth.getUserCount({}, withSystemScope("bootstrap"))) >= 100)
       return { success: false, message: "Demo capacity reached." };
     role = "admin";
-    // Use the demo_tenant_id cookie if present (set by handleDemoTenantAssignment)
-    // to keep tenant IDs consistent between the middleware and the sign-up flow.
-    // Check both __Host- prefixed (HTTPS) and unprefixed (HTTP) variants.
-    tid =
-      event.cookies.get("__Host-demo_tenant_id") ||
-      event.cookies.get("demo_tenant_id") ||
-      generateUUID();
+    // Reuse the per-visitor demo cookie set by handleDemoTenantAssignment so
+    // the sign-up lands in the same seeded workspace (collections/content)
+    // the middleware already provisioned. Never collapse demo users into the
+    // shared global tree — that would leak their edits to other visitors.
+    if (tenantIsolation) {
+      tid =
+        event.cookies.get("__Host-demo_tenant_id") ||
+        event.cookies.get("demo_tenant_id") ||
+        generateUUID();
+    }
   } else {
     if (!t) return { success: false, message: "Invitation required." };
     const td = await auth.validateRegistrationToken(t);
@@ -759,7 +765,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
   }
 
   invalidateUserCountCache();
-  if (mt && !t && tid)
+  if (tenantIsolation && !t && tid)
     tenantService.createTenant(u || "My Organisation", ur.data.user._id, tid).catch(() => {
       logger.debug("Tenant creation failed silently during signup");
     });

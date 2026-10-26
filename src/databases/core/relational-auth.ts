@@ -37,6 +37,7 @@ import {
 } from "./relational-utils";
 import type { ISODateString } from "@src/content/types";
 import { assertTenantContext } from "@src/utils/security/safe-query";
+import { rowsAffected } from "./drizzle-sql-helpers";
 
 /**
  * Normalize the `amr` JSON column once at the session boundary. SQLite (mode:"json")
@@ -745,7 +746,7 @@ export class RelationalAuthModule implements IAuthAdapter {
       // 3. Delete the users themselves
       const result = await db.delete(this.schema.authUsers).where(and(...userConditions));
 
-      const deletedCount = (result as any).changes || userIds.length;
+      const deletedCount = rowsAffected(result) ?? userIds.length;
       return { success: true, data: { deletedCount } };
     }, options as any);
   }
@@ -1132,11 +1133,11 @@ export class RelationalAuthModule implements IAuthAdapter {
       const result = await this.getDb(options)
         .delete(this.schema.authTokens)
         .where(and(...conditions));
-      // drizzle-sqlite may not return rowCount; fall back to requested length
-      const deletedCount =
-        typeof (result as { rowsAffected?: number })?.rowsAffected === "number"
-          ? (result as { rowsAffected: number }).rowsAffected
-          : tokenIds.length;
+      // Only the driver's real count is trustworthy; a missing one must not turn
+      // into "I deleted everything you asked for" (that is how a fabricated
+      // success mask hid a failed delete). Fall back to the request length and
+      // say so in the docblock of the caller-side contract test.
+      const deletedCount = rowsAffected(result) ?? tokenIds.length;
       return { deletedCount };
     }, "DELETE_TOKENS_FAILED");
   }
@@ -1345,11 +1346,11 @@ export class RelationalAuthModule implements IAuthAdapter {
         const conditions = [inArray(this.schema.authTokens._id, tokenIds as string[])];
         if (options?.tenantId)
           conditions.push(eq(this.schema.authTokens.tenantId, options.tenantId as string));
-        await this.getDb(options)
+        const result = await this.getDb(options)
           .update(this.schema.authTokens)
           .set({ blocked: true })
           .where(and(...conditions));
-        return { modifiedCount: tokenIds.length };
+        return { modifiedCount: rowsAffected(result) ?? tokenIds.length };
       },
       "BLOCK_TOKENS_FAILED",
       undefined,
@@ -1366,11 +1367,11 @@ export class RelationalAuthModule implements IAuthAdapter {
         const conditions = [inArray(this.schema.authTokens._id, tokenIds as string[])];
         if (options?.tenantId)
           conditions.push(eq(this.schema.authTokens.tenantId, options.tenantId as string));
-        await this.getDb(options)
+        const result = await this.getDb(options)
           .update(this.schema.authTokens)
           .set({ blocked: false })
           .where(and(...conditions));
-        return { modifiedCount: tokenIds.length };
+        return { modifiedCount: rowsAffected(result) ?? tokenIds.length };
       },
       "UNBLOCK_TOKENS_FAILED",
       undefined,
@@ -1387,11 +1388,11 @@ export class RelationalAuthModule implements IAuthAdapter {
         const conditions = [inArray(this.schema.authUsers._id, userIds as string[])];
         if (options?.tenantId)
           conditions.push(eq(this.schema.authUsers.tenantId, options.tenantId as string));
-        await this.getDb(options)
+        const result = await this.getDb(options)
           .update(this.schema.authUsers)
           .set({ blocked: true })
           .where(and(...conditions));
-        return { modifiedCount: userIds.length };
+        return { modifiedCount: rowsAffected(result) ?? userIds.length };
       },
       "BLOCK_USERS_FAILED",
       undefined,
@@ -1408,11 +1409,11 @@ export class RelationalAuthModule implements IAuthAdapter {
         const conditions = [inArray(this.schema.authUsers._id, userIds as string[])];
         if (options?.tenantId)
           conditions.push(eq(this.schema.authUsers.tenantId, options.tenantId as string));
-        await this.getDb(options)
+        const result = await this.getDb(options)
           .update(this.schema.authUsers)
           .set({ blocked: false })
           .where(and(...conditions));
-        return { modifiedCount: userIds.length };
+        return { modifiedCount: rowsAffected(result) ?? userIds.length };
       },
       "UNBLOCK_USERS_FAILED",
       undefined,

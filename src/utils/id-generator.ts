@@ -5,6 +5,8 @@
  * ### Hardening (audit 2026-07):
  * - SSR concurrency fix: Svelte Context isolation replaces global reset (prevents
  *   cross-request ID collisions under concurrent requests)
+ * - context-less SSR (async re-entry) never throws: the global map restarts so
+ *   `label[for]` / `aria-describedby` still match after hydration
  * - HMR survival: fallback map on `globalThis` survives Vite hot reload
  * - HTML/CSS safety: sanitizes prefixes for valid selectors (no spaces, no leading digits)
  * - Graceful fallback: try/catch around context lookup for event handler usage
@@ -37,9 +39,21 @@ function isIdGeneratorQuiet(): boolean {
  *
  * Call this ONCE in the `<script>` block of your root `+layout.svelte`.
  * This eliminates cross-request ID pollution during concurrent SSR requests.
+ *
+ * Never throws: async/concurrent SSR can re-enter the layout without an active
+ * Svelte component context (`lifecycle_outside_component`), which used to turn
+ * every page into a 500 the moment it happened. In that case the process-global
+ * map is restarted so the render still counts from zero, exactly like the
+ * hydrating client does.
  */
 export function initIdGenerator(): void {
-  setContext(ID_CONTEXT_KEY, new Map<string, number>());
+  try {
+    setContext(ID_CONTEXT_KEY, new Map<string, number>());
+  } catch {
+    if (isServer) {
+      _global.__ID_GLOBAL_MAP.clear();
+    }
+  }
 }
 
 /**

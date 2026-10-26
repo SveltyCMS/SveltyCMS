@@ -8,6 +8,7 @@ Handles all field types and validation automatically
 
 ### Props
 - `group`: The settings group to render, containing fields and metadata.
+- `initialValues`: Server-loaded group values (hydrates the form without a client fetch).
 
 ### Feature:
 - Handles all field types including text, number, boolean, password, select, multi-select, language picker, log level picker, and array inputs
@@ -100,6 +101,8 @@ Handles all field types and validation automatically
 
 	interface Props {
 		group: SettingGroup;
+		/** Server-loaded values for this group; `null` falls back to the remote fetch. */
+		initialValues?: Record<string, unknown> | null;
 		groupsNeedingConfig: SvelteSet<string>;
 		onUnsavedChanges?: (hasChanges: boolean) => void;
 		/** Parent may call fire() to save; discard() reverts local edits */
@@ -110,6 +113,7 @@ Handles all field types and validation automatically
 
 	let {
 		group,
+		initialValues = null,
 		groupsNeedingConfig,
 		onUnsavedChanges,
 		saveTrigger = $bindable(),
@@ -117,16 +121,19 @@ Handles all field types and validation automatically
 		children
 	}: Props = $props();
 
-	let loading = $state(true);
+	let loading = $state(untrack(() => initialValues === null));
 	let error = $state<string | null>(null);
-	// Eagerly initialize with safe defaults: binding `undefined` into a `$bindable()`
-	// prop with a fallback (e.g. <Select value=$bindable('')>) throws
-	// `props_invalid_value` during hydration. loadSettings() later replaces values.
-	// untrack: intentional one-time seed from initial group prop (not reactive re-init).
+	// Eagerly initialize with server values (or safe defaults): binding `undefined`
+	// into a `$bindable()` prop with a fallback (e.g. <Select value=$bindable('')>)
+	// throws `props_invalid_value` during hydration. loadSettings() later replaces
+	// values only for the on-demand path (reset / save).
+	// untrack: intentional one-time seed from initial props (not reactive re-init).
 	let values = $state<Record<string, unknown>>(
-		untrack(() => initializeGroupValues(group.fields, {}))
+		untrack(() => initializeGroupValues(group.fields, initialValues ?? {}))
 	);
-	let originalValues = $state<Record<string, unknown>>({}); // Track original values
+	let originalValues = $state<Record<string, unknown>>(
+		untrack(() => (initialValues === null ? {} : deepClone(values)))
+	); // Track original values
 	let errors = $state<Record<string, string>>({});
 	let hasEmptyRequiredFields = $state(false);
 	let importInputEl = $state<HTMLInputElement | null>(null);
@@ -706,7 +713,12 @@ Handles all field types and validation automatically
 	});
 
 	onMount(() => {
-		loadSettings();
+		if (initialValues === null) {
+			loadSettings();
+		} else {
+			// Server payload already hydrated the form; keep the shared warning store in sync.
+			checkForEmptyFields();
+		}
 	});
 </script>
 
@@ -765,7 +777,7 @@ Handles all field types and validation automatically
 				<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<!-- Left Column: Default Content Language + Available Content Languages -->
 					<div
-						class="space-y-3 rounded border border-slate-300/50 bg-surface-500/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40"
+						class="space-y-3 rounded border border-(--admin-border-default) bg-surface-500/10 p-4 dark:bg-surface-800/40"
 					>
 						<p
 							class="text-xs font-bold uppercase tracking-wider text-tertiary-500 dark:text-primary-500"
@@ -831,7 +843,7 @@ Handles all field types and validation automatically
 											availableLangsField.key
 										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-700/40'}"
 									>
 										{#if (values[availableLangsField.key] as string[])?.length > 0}
 											{const languages = values[availableLangsField.key] as string[]}
@@ -888,7 +900,7 @@ Handles all field types and validation automatically
 									{#if showLanguagePicker[availableLangsField.key]}
 										<div
 											id="{availableLangsField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-(--admin-border-default) bg-surface-500/10 p-2 shadow-lg dark:bg-surface-800"
 											role="dialog"
 											aria-label={settings_add_language_aria()}
 											tabindex="-1"
@@ -935,7 +947,7 @@ Handles all field types and validation automatically
 														></iconify-icon>
 													</Button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">
+													<p class="px-1 py-2 text-center text-[11px] text-(--admin-text-muted)">
 														{settings_no_matches()}
 													</p>
 												{/each}
@@ -947,7 +959,7 @@ Handles all field types and validation automatically
 									<div class="mt-1 text-xs text-error-500">{errors[availableLangsField.key]}</div>
 								{/if}
 								{#if availableLangsField.placeholder}
-									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+									<p class="mt-1 text-[10px] text-(--admin-text-muted)">
 										{settings_example()}
 										{availableLangsField.placeholder}
 									</p>
@@ -957,7 +969,7 @@ Handles all field types and validation automatically
 					</div>
 					<!-- Right Column: Default System Language + System Languages -->
 					<div
-						class="space-y-3 rounded border border-slate-300/50 bg-surface-500/60 p-4 dark:border-slate-600/60 dark:bg-surface-800/40"
+						class="space-y-3 rounded border border-(--admin-border-default) bg-surface-500/10 p-4 dark:bg-surface-800/40"
 						data-testid="settings-system-languages"
 					>
 						<p
@@ -1024,7 +1036,7 @@ Handles all field types and validation automatically
 											localesField.key
 										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-700/40'}"
 									>
 										{#if (values[localesField.key] as string[])?.length > 0}
 											{const locales = values[localesField.key] as string[]}
@@ -1103,7 +1115,7 @@ Handles all field types and validation automatically
 									{#if showLanguagePicker[localesField.key]}
 										<div
 											id="{localesField.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-(--admin-border-default) bg-surface-500/10 p-2 shadow-lg dark:bg-surface-800"
 											role="dialog"
 											aria-label={setup_label_system_languages()}
 											tabindex="-1"
@@ -1187,7 +1199,7 @@ Handles all field types and validation automatically
 														></iconify-icon>
 													</Button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">
+													<p class="px-1 py-2 text-center text-[11px] text-(--admin-text-muted)">
 														{settings_no_matches()}
 													</p>
 												{/each}
@@ -1198,14 +1210,14 @@ Handles all field types and validation automatically
 								{#if errors[localesField.key]}
 									<div class="mt-1 text-xs text-error-500">{errors[localesField.key]}</div>
 								{/if}
-								<p class="mt-1 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+								<p class="mt-1 text-[10px] leading-relaxed text-(--admin-text-muted)">
 									{setup_note_machine_translate()}
 								</p>
-								<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+								<p class="mt-1 text-[10px] text-(--admin-text-muted)">
 									{settings_locales_help()}
 								</p>
 								{#if localesField.placeholder}
-									<p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
+									<p class="mt-1 text-[10px] text-(--admin-text-muted)">
 										{settings_example()}
 										{localesField.placeholder}
 									</p>
@@ -1227,30 +1239,30 @@ Handles all field types and validation automatically
 								? 'md:col-span-2'
 								: ''}"
 						>
-							<label for={field.key} class="mb-2 block">
-								<!-- Label wrapped with tooltip -->
+							<div class="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+								<iconify-icon
+									icon={getFieldIcon(field)}
+									width="18"
+									class="shrink-0 text-tertiary-500 dark:text-primary-500"
+								></iconify-icon>
+								<label
+									for={field.key}
+									class="text-sm font-semibold text-(--admin-text-body) md:text-base"
+									>{field.label}</label
+								>
+								{#if field.required}
+									<span class="text-error-500">*</span>
+								{/if}
+								<!-- Technical key: the identifier admins look up in config/private.ts -->
+								<code
+									class="font-mono text-[10px] font-medium text-tertiary-500 dark:text-primary-500"
+									>{field.key}</code
+								>
+								<!-- The icon is the only tooltip trigger; the label text stays inert -->
 								<SystemTooltip title={field.description} positioning={{ placement: 'top' }}>
-									<span class="flex items-center gap-2 cursor-help">
-										<iconify-icon
-											icon={getFieldIcon(field)}
-											width="18"
-											class="text-tertiary-500 dark:text-primary-500"
-										></iconify-icon>
-										<span
-											class="text-sm font-semibold text-tertiary-500 dark:text-primary-500 md:text-base"
-											>{field.label}</span
-										>
-										{#if field.required}
-											<span class="text-error-500">*</span>
-										{/if}
-										<iconify-icon
-											icon="material-symbols:info-outline"
-											width="16"
-											class="text-(--admin-text-muted) dark:text-surface-50 opacity-60"
-										></iconify-icon>
-									</span>
+									<HelpIcon ariaLabel="Field information" />
 								</SystemTooltip>
-							</label>
+							</div>
 
 							<!-- Text Input -->
 							{#if field.type === 'text'}
@@ -1383,7 +1395,7 @@ Handles all field types and validation automatically
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as string[])?.length > 0}
 											{const languages = values[field.key] as string[]}
@@ -1439,7 +1451,7 @@ Handles all field types and validation automatically
 									{#if showLanguagePicker[field.key]}
 										<div
 											id="{field.key}-lang-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-(--admin-border-default) bg-surface-500/10 p-2 shadow-lg dark:bg-surface-800"
 											role="dialog"
 											aria-label={settings_add_language_aria()}
 											tabindex="-1"
@@ -1479,7 +1491,7 @@ Handles all field types and validation automatically
 														></iconify-icon>
 													</Button>
 												{:else}
-													<p class="px-1 py-2 text-center text-[11px] text-slate-500">
+													<p class="px-1 py-2 text-center text-[11px] text-(--admin-text-muted)">
 														{settings_no_matches()}
 													</p>
 												{/each}
@@ -1499,7 +1511,7 @@ Handles all field types and validation automatically
 									<div
 										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
-											: 'border-slate-300/50 bg-surface-500/10 dark:border-slate-600 dark:bg-surface-700/40'}"
+											: 'border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-700/40'}"
 									>
 										{#if (values[field.key] as LogLevel[])?.length > 0}
 											{const levels = values[field.key] as LogLevel[]}
@@ -1550,7 +1562,7 @@ Handles all field types and validation automatically
 									{#if showLogLevelPicker[field.key]}
 										<div
 											id="{field.key}-loglevel-picker"
-											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-slate-300/60 bg-surface-500/10 p-2 shadow-lg dark:border-slate-600 dark:bg-surface-800"
+											class="absolute inset-s-0 top-full z-20 mt-2 w-64 rounded border border-(--admin-border-default) bg-surface-500/10 p-2 shadow-lg dark:bg-surface-800"
 											role="dialog"
 											aria-label={settings_add_log_level()}
 											tabindex="-1"
@@ -1600,7 +1612,7 @@ Handles all field types and validation automatically
 			{/if}
 
 			<!-- Local Group Actions -->
-			<div class="mt-8 border-t border-slate-300/30 pt-6 dark:border-slate-700/30">
+			<div class="mt-8 border-t border-(--admin-border-default) pt-6">
 				<!-- Children slot (e.g. Repair Cache) rendered outside StickyActions to avoid double-render in global sticky bar -->
 				{#if children}
 					<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mb-3">
@@ -1609,30 +1621,44 @@ Handles all field types and validation automatically
 				{/if}
 
 				<StickyActions>
-					<div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
-						<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+					<div class="flex w-full flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+						<div class="flex flex-wrap items-center gap-2">
 							<Button
 								variant="error"
 								type="button"
 								onclick={resetToDefaults}
 								disabled={saving}
 								data-testid="settings-group-reset"
-								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
+								class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-medium"
 							>
 								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
 								<span>{settings_reset_defaults()}</span>
 							</Button>
 
 							<Button
+								variant="ghost"
+								type="button"
+								disabled={saving || !hasUnsavedChanges}
+								data-testid="settings-group-discard"
+								onclick={discardChanges}
+								class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-medium"
+							>
+								<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
+								<span>{settings_discard()}</span>
+							</Button>
+
+							<!-- Secondary import/export: icon-only so the bar cannot clip labels -->
+							<Button
 								variant="surface"
 								type="button"
 								onclick={exportGroup}
 								disabled={loading}
+								aria-label={settings_export_group_json()}
+								title={settings_export_group_json()}
 								data-testid="settings-group-export"
-								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
+								class="size-9 min-w-0! shrink-0 items-center justify-center p-0!"
 							>
 								<iconify-icon icon="mdi:export" width="16"></iconify-icon>
-								<span>{settings_export_group_json()}</span>
 							</Button>
 
 							<input
@@ -1653,28 +1679,17 @@ Handles all field types and validation automatically
 								disabled={loading || saving}
 								data-testid="settings-group-import"
 								onclick={() => importInputEl?.click()}
-								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
+								aria-label={settings_import_json()}
+								title={settings_import_json()}
+								class="size-9 min-w-0! shrink-0 items-center justify-center p-0!"
 							>
 								<iconify-icon icon="mdi:import" width="16"></iconify-icon>
-								<span>{settings_import_json()}</span>
-							</Button>
-
-							<Button
-								variant="ghost"
-								type="button"
-								disabled={saving || !hasUnsavedChanges}
-								data-testid="settings-group-discard"
-								onclick={discardChanges}
-								class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-medium w-full sm:w-auto"
-							>
-								<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
-								<span>{settings_discard()}</span>
 							</Button>
 						</div>
 
-						<!-- System Status -->
+						<!-- System Status (decorative; hidden where it would crowd the bar) -->
 						<div
-							class="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs sm:text-sm text-center"
+							class="hidden flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-center 2xl:flex"
 						>
 							<div class="flex items-center gap-1.5 shrink-0">
 								<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
@@ -1682,7 +1697,7 @@ Handles all field types and validation automatically
 									>{settings_system_operational()}</span
 								>
 							</div>
-							<span class="hidden sm:inline text-dark dark:text-white">|</span>
+							<span class="hidden sm:inline text-surface-500/40">|</span>
 							<div class="flex items-center gap-1 shrink-0">
 								<span class="text-(--admin-text-muted) dark:text-surface-50"
 									>{settings_status_settings()}</span
@@ -1691,7 +1706,7 @@ Handles all field types and validation automatically
 									>{settings_status_loaded()}</span
 								>
 							</div>
-							<span class="hidden sm:inline text-dark dark:text-white">|</span>
+							<span class="hidden sm:inline text-surface-500/40">|</span>
 							<div class="flex items-center gap-1 shrink-0">
 								<span class="text-(--admin-text-muted) dark:text-surface-50"
 									>{settings_status_groups()}</span
@@ -1700,7 +1715,7 @@ Handles all field types and validation automatically
 									>{group.fields?.length ?? 0}</span
 								>
 							</div>
-							<span class="hidden sm:inline text-dark dark:text-white">|</span>
+							<span class="hidden sm:inline text-surface-500/40">|</span>
 							<div class="flex items-center gap-1 shrink-0">
 								<span class="text-(--admin-text-muted) dark:text-surface-50"
 									>{settings_status_environment()}</span
@@ -1712,12 +1727,12 @@ Handles all field types and validation automatically
 						</div>
 
 						<Button
-							variant="tertiary"
+							variant="primary"
 							type="submit"
 							form="settings-group-form"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
 							data-testid="settings-group-save"
-							class="items-center justify-center gap-1.5 rounded px-4 py-2 text-sm font-semibold w-full sm:w-auto"
+							class="w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-semibold sm:w-auto"
 						>
 							{#if saving}
 								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>

@@ -400,9 +400,26 @@ const { mockLogger, settingsExports, globalSettingsExports, kitMock } = (vi as a
 
 vi.mock("$app/navigation", () => ({
   goto: vi.fn(),
-  preloadData: vi.fn(),
+  invalidate: vi.fn(),
   invalidateAll: vi.fn(),
   refreshAll: vi.fn(),
+  // SvelteKit 3 hook parity: `onNavigate` only runs for navigations that proceed.
+  beforeNavigate: vi.fn(() => () => {}),
+  onNavigate: vi.fn(() => () => {}),
+  afterNavigate: vi.fn(() => () => {}),
+  preloadData: vi.fn(),
+  preloadCode: vi.fn(),
+  pushState: vi.fn(),
+  replaceState: vi.fn(),
+  applyAction: vi.fn(),
+  deserialize: vi.fn((v: unknown) => {
+    if (typeof v !== "string") return v;
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }),
 }));
 vi.mock("$app/environment", () => ({
   browser: true,
@@ -710,12 +727,22 @@ moduleMock("$app/navigation", () => ({
   invalidate: mock(() => Promise.resolve()),
   invalidateAll: mock(() => Promise.resolve()),
   refreshAll: mock(() => Promise.resolve()),
-  beforeNavigate: mock(() => {}),
-  afterNavigate: mock(() => {}),
+  // SvelteKit 3 hook parity: `onNavigate` only runs for navigations that proceed.
+  beforeNavigate: mock(() => () => {}),
+  onNavigate: mock(() => () => {}),
+  afterNavigate: mock(() => () => {}),
   preloadData: mock(() => Promise.resolve()),
   preloadCode: mock(() => Promise.resolve()),
   pushState: mock(() => {}),
   replaceState: mock(() => {}),
+  applyAction: mock(() => Promise.resolve()),
+  deserialize: mock((v: any) => {
+    try {
+      return JSON.parse(v);
+    } catch {
+      return v;
+    }
+  }),
 }));
 
 moduleMock("svelte/reactivity", () => ({

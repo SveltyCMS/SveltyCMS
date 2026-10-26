@@ -16,7 +16,6 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
-import { contentStore } from "@stores/content-registry.svelte";
 import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
@@ -33,7 +32,6 @@ import {
   applyExtinction,
 } from "@src/services/intelligence/behavioral-learner";
 import { cacheService } from "@src/databases/cache/cache-service";
-import { CacheCategory } from "@src/databases/cache/types";
 import {
   LAYOUT_CACHE_TTL_S,
   getFreshLayoutUser,
@@ -57,29 +55,6 @@ function createLayoutError(err: unknown, fallbackMessage: string): LayoutError {
     details: isDevelopment && err instanceof Error ? err.message : undefined,
     code: "LAYOUT_LOAD_ERROR",
   };
-}
-
-/**
- * Recursively strip values SvelteKit cannot serialize from load data.
- * Widget factories leak `validationSchema` (and other function-valued
- * properties) into the content structure; functions can never reach the
- * client over JSON anyway, so dropping them here is behavior-neutral.
- */
-function stripNonSerializable(value: unknown): unknown {
-  if (typeof value === "function") return undefined;
-  if (Array.isArray(value)) {
-    const cleaned = value.map(stripNonSerializable);
-    return cleaned.filter((item) => item !== undefined);
-  }
-  if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
-      const cleaned = stripNonSerializable(item);
-      if (cleaned !== undefined) out[key] = cleaned;
-    }
-    return out;
-  }
-  return value;
 }
 
 export const load: LayoutServerLoad = async ({ locals, depends, url, request }) => {
@@ -135,56 +110,16 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
     }
 
     await contentSystem.initialize(tenantId);
-    let safeContentStructure: unknown[] = [];
-    // 🚀 Version-keyed cache for the serialized sidebar payload: contentStore is
-    // epoch-consistent (every content mutation bumps contentVersion), so the
-    // structure only changes when the version does. This replaces the previous
-    // per-request full tree rebuild + deep walk (stripNonSerializable) with one
-    // build per (tenant, version) — same invariants as `navigation:tree:*`.
-    const contentTid = tenantId || "global";
-    const structureCacheKey = `layout:contentStructure:${contentTid}:${contentStore.contentVersion}`;
-    const cachedStructure =
-      cacheService.getSync<unknown[]>(structureCacheKey, tenantId) ??
-      (await cacheService.get<unknown[]>(structureCacheKey, tenantId).catch(() => null));
-    if (cachedStructure) {
-      safeContentStructure = cachedStructure;
-    } else {
-      try {
-        // Persisted structure remains the source of truth for order/hierarchy.
-        // The in-memory snapshot can lag a just-completed collection-builder save.
-        const persisted = await contentSystem.getContentStructureFromDatabase("flat", tenantId);
-        const nodes =
-          Array.isArray(persisted) && persisted.length > 0
-            ? persisted
-            : await contentSystem.getContentStructure(tenantId);
-        const stringIdNodes = ((nodes ?? []) as Array<Record<string, unknown>>).map((node) => ({
-          ...node,
-          _id:
-            (node._id as { toString?: () => string } | null | undefined)?.toString?.() ??
-            String(node._id),
-          ...(node.parentId ? { parentId: String(node.parentId) } : {}),
-        }));
-        // Deep-clean before returning: widget factories leak function values
-        // (validationSchema) into the structure, and SvelteKit 3 rejects any
-        // function in a load return (HTTP 500 "Cannot stringify a function").
-        safeContentStructure = stripNonSerializable(stringIdNodes) as unknown[];
-        void cacheService
-          .set(structureCacheKey, safeContentStructure, 300, tenantId, CacheCategory.CONTENT, [
-            "navigation",
-            "layout:contentStructure",
-            `layout:contentStructure:${contentTid}`,
-          ])
-          .catch(() => {});
-      } catch {
-        /* non-fatal — sidebar renders empty */
-      }
-    }
+
+    // The content structure is owned by the root layout (`contentNodes`, the
+    // sanitized flat client list from contentStore) — this layout must not
+    // rebuild and ship the same node list again.
 
     // Parallelize critical layout queries with short-lived L1 cache
     const userCountKey = layoutUserCountKey(tenantId || "global");
     const aiSettingKey = `layout:aiEnabled`;
 
-    const [freshUser, totalUsers, aiEnabled, pluginStates] = await Promise.all([
+    const [freshUser, totalUsers, aiEnabled, pluginStates, collectionOrder] = await Promise.all([
       getFreshLayoutUser(sessionUser, tenantId),
       (async () => {
         const cached = cacheService.getSync<number>(userCountKey, tenantId);
@@ -219,6 +154,12 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
         }
       })(),
       getLayoutPluginStates(tid),
+      getCollectionOrder(tenantId).catch((orderErr: unknown) => {
+        logger.warn(
+          `collectionOrder load failed (non-fatal): ${orderErr instanceof Error ? orderErr.message : String(orderErr)}`,
+        );
+        return [] as string[];
+      }),
     ]);
 
     const safeTheme = theme ?? DEFAULT_THEME;
@@ -235,18 +176,18 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       theme: safeTheme,
       tenantId,
       isAdmin: !!locals.isAdmin,
-      contentStructure: safeContentStructure,
 
       user: safeUser,
+      // Layout-owned copy of the same snapshot. Page loads may legitimately return
+      // a slim `user` (e.g. `{_id, email, role, permissions}`) and SvelteKit merges
+      // page data OVER layout data, which shadows the full record for every
+      // component reading `page.data.user` (sidebar username, audit byline, …).
+      // Shared chrome reads this key instead.
+      layoutUser: safeUser,
       totalUsers,
       aiEnabled,
       publicSettings: publicEnv, // Use the reactive store
-      collectionOrder: await getCollectionOrder(tenantId).catch((orderErr: unknown) => {
-        logger.warn(
-          `collectionOrder load failed (non-fatal): ${orderErr instanceof Error ? orderErr.message : String(orderErr)}`,
-        );
-        return [] as string[];
-      }),
+      collectionOrder,
       cspNonce,
       predictedNextPath,
       streamed: {}, // SvelteKit streaming marker
@@ -277,8 +218,8 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       theme: DEFAULT_THEME,
       tenantId,
       isAdmin: !!locals.isAdmin,
-      contentStructure: [],
       user: fallbackUser,
+      layoutUser: fallbackUser,
       totalUsers: 1,
       aiEnabled: false,
       publicSettings: publicEnv,

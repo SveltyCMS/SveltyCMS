@@ -183,7 +183,6 @@
 						<div role="listitem">
 							<a
 								href="/config/monitor"
-								aria-label={log.action || log.eventType || widget_audit_system_event()}
 								class="group flex gap-3 rounded-2xl bg-surface-500/10 px-3 py-2.5 transition-colors hover:bg-surface-500/10 dark:bg-surface-800/60 dark:hover:bg-surface-700/60"
 							>
 								<!-- Icon -->

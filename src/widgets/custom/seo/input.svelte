@@ -286,7 +286,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		{/if}
 
 		<Tabs bind:value={activeTab} class="w-full">
-			<Tabs.List class="mb-6 border-surface-500">
+			<Tabs.List class="mb-6">
 				<Tabs.Trigger value="basic">{common_basic()}</Tabs.Trigger>
 				{#if hasFeature('social')}
 					<Tabs.Trigger value="social" disabled={!isCheckingLicense && !licenseStatus.active}

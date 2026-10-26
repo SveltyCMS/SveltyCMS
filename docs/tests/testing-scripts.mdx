@@ -6,7 +6,7 @@ order: 15
 icon: "🔧"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-08-07"
+updated: "2026-10-24"
 tags:
   - "testing"
   - "scripts"
@@ -62,25 +62,43 @@ scripts/
 
 ## Git Hooks
 
-### `.githooks/pre-commit` — Format → Lint → Unit (~40s)
+> [!IMPORTANT]
+> **Local hooks are enforced** (owner decision 2026-10-24). A commit only lands when format/lint/typecheck, the unit suite and the component interaction suite pass; a push re-runs the CI Unit job (coverage + components + mutation), the build, SQLite integration, DB parity when adapter code changed, and the browser gate. There is no opt-out environment variable.
+>
+> ```bash
+> bun run git commit -m "…"   # ~2 min
+> bun run git push            # ~5–6 min
+> ```
+>
+> The earlier opt-in policy (2026-10-23) was reverted after two green-local/red-CI Unit runs; the hooks now catch what the CI reporter caught.
+
+### `.githooks/pre-commit` — Check → Risk → Unit → Components (~2 min)
 
 Runs before every commit. Steps:
 
 1. **Database safety** — `scripts/check/check-test-db-safety.ts`
-2. **Format + lint** — `bun run check` (oxfmt + oxlint)
+2. **Format + lint + typecheck** — `bun run check`
 3. **Lint-staged** — `bun run gate:fast`
-4. **Unit tests** — `vitest run` (skipped if only docs changed)
+4. **Risk audit** — `bun run risk:audit` (skipped for docs-only changes)
+5. **Unit tests** — `vitest run` (skipped for docs-only changes)
+6. **Component interactions** — `bun run test:unit:components` (real jsdom mounts)
+7. **Backend changes only** — harness build + `run-integration.ts --no-build --diff`
+8. **SBOM sync** — when `bun.lock` / `package.json` changed
 
-### `.githooks/pre-push` — Build → SQLite Integration (~1.5 min)
+### `.githooks/pre-push` — CI unit parity → build → integration → browser → mutation (~5–6 min)
 
-Runs before every push. Steps:
+Runs before every push, in this order:
 
 1. **Production build** — `COMPILE_ALL_ADAPTERS=true bun run build`
-2. **Quality Gate** — `bun run check`
-3. **CVE Audit** — `bun audit`
-4. **Secret Misuse Scan** — `bun run scripts/security/scan-secret-misuse.ts`
-5. **Tenant Isolation Gate** — `bun run test:tenant`
-6. **SQLite integration** — `bun test tests/integration/`
+2. **Build verifiers** — prod-backdoor probe + bundle-size gate
+3. **Quality Gate** — `bun run check`
+4. **CI Unit parity** — `test:unit:coverage` + `test:unit:components`
+5. **Release readiness** — `bun run version:verify`
+6. **Security/policy** — `bun audit`, `scan-secret-misuse --strict --full`, hardware probe, `lint:tenant -- --full` + `test:tenant`, deploy-backdoor probe
+7. **SQLite integration** — `run-integration.ts --no-build --diff` (full suite when no diff mapping)
+8. **DB parity** — only when adapter/service code changed (plus a non-UTC clock run)
+9. **Browser gate** — `smoke.spec.ts` plus path-mapped accessibility, visual and behavioural specs; then `check-flake-budget.ts --max-flaky=0`
+10. **Mutation** — `test:mutation` runs **last**; it rewrites source files, restores them atomically, and the hook restores a dirty target from HEAD as a second line of defence
 
 ### Full DB Matrix (Local Pre-CI) — ~8 min
 
@@ -96,6 +114,28 @@ Covers the same adapter matrix CI runs.
 ---
 
 ## Core Testing Scripts
+
+### `scripts/check/check-route-behaviour.ts` — Behavioural route contract
+
+Scores every route on four contracts (`load-contract`, `failure-path`, `persistence`, `concurrency`) using test evidence that names the route module or a unique URL. Applicability is per route, so redirect stubs are not scored for writing data.
+
+```bash
+bun run check:routes                     # table + score
+bun run check:routes -- --json          # machine-readable, with evidence per cell
+bun run check:routes -- --check --min=99 # CI gate (floor)
+```
+
+The gate runs inside `bun run check`. Each cell names its evidence file, so a low score is a work list, not a mystery. Adding a route without tests drops the score below the floor.
+
+### `scripts/lint/lint-trivially-true-assertions.ts` — Ban unfailable assertions
+
+Static analysis over `tests/**` for four shapes that can never fail: literal tautologies, complementary arms, one-of status unions with no negative case, and assertions swallowed by `try/catch`. Runs in `bun run check`.
+
+```bash
+bun run lint:trivial-assertions           # add --check in CI (already wired)
+```
+
+A deliberate exception needs `// trivial-assert-ok: <reason>` on the assertion line.
 
 ### `scripts/runs/run-e2e.ts` — E2E Test Runner
 
@@ -345,13 +385,9 @@ bun run scripts/check/check-bundle-size.ts
 
 ### `scripts/check/check-flake-budget.ts` — Flake Budget Enforcement
 
-Enforces retried-test limits per E2E shard (≤2 retried passes, ≤3% of total runs) to prevent test flake drift.
+Enforces retried-test limits per E2E shard. `--max-flaky` governs a single retried pass; the percentage check only applies when more than one test retried and at least 20 tests executed, so one retry in a 25-test shard does not contradict `--max-flaky=2`.
 
-```bash
-bun run flake:budget
-```
-
-**Used by**: CI E2E summary job.
+**Used by**: CI E2E summary job and `.githooks/pre-push` (`--max-flaky=0`).
 
 ### `scripts/check/check-seam-assertions.ts` — Component Seam Assertion Guard
 
@@ -482,9 +518,10 @@ bun run scripts/runs/run-core-benchmarks.ts --db=sqlite  # Single adapter
 
 The gate (`scripts/benchmark-matrix/ci-regression-gate.ts`) compares the current run against
 `PERFORMANCE_BUDGET` and a rolling per-adapter baseline. Drift warns at ≥25 % + ≥0.25 ms and
-fails at ≥100 % + ≥1 ms, but a severe drift must repeat on the next run (the first observation
+fails at ≥100 % + ≥1.5 ms, but a severe drift must repeat on the next run (the first observation
 freezes the baseline and reports `pending confirmation`). `BENCHMARK_GATE_POLICY=fail|warn`
-overrides the default (warn locally and on PRs, fail on `next`/`main` pushes).
+overrides the default: relative drift fails on `main` and `merge_group` and warns on `next` and
+PRs; absolute SLA budgets fail on every branch and event.
 
 **Used by**: CI `bench-core` job.
 

@@ -22,6 +22,7 @@ export interface CachedResponseEntry {
   body: string;
   etag: string;
   buffer?: Uint8Array;
+  byteLength?: number;
   /** Pre-computed compression variants (br/gzip/zstd) for TURBO-HIT serving. */
   compressed?: Record<string, Uint8Array>;
   /** L1/L2 expiration timestamp in ms — persisted so promoted entries expire too. */
@@ -31,6 +32,20 @@ export interface CachedResponseEntry {
    * HIT path. Point-reads of the written id are still dropped (not marked stale).
    */
   stale?: boolean;
+}
+
+/** 31-bit zero-allocation positive Smi hash for point admission tracking. */
+function hashKey31(key: string, tenantId?: string | null): number {
+  let h = 0x811c9dc5;
+  const t = tenantId || "default";
+  for (let i = 0; i < t.length; i++) {
+    h = Math.imul(h ^ t.charCodeAt(i), 0x01000193);
+  }
+  h = Math.imul(h ^ 0x3a /* ':' */, 0x01000193);
+  for (let i = 0; i < key.length; i++) {
+    h = Math.imul(h ^ key.charCodeAt(i), 0x01000193);
+  }
+  return (h ^ (h >>> 16)) & 0x3fffffff;
 }
 
 /** Module-scoped encoder (avoids per-set() allocation on hot paths). */
@@ -429,8 +444,8 @@ class ResponseCacheService {
    * tier. A first sighting now costs one Set insert; from the second sighting the entry is
    * cached as before. Generational nursery + mature rotation completely avoids iterator churn.
    */
-  private pointAdmissionNursery = new Set<string>();
-  private pointAdmissionMature = new Set<string>();
+  private pointAdmissionNursery = new Set<number>();
+  private pointAdmissionMature = new Set<number>();
   /**
    * Capacity-gated 2-touch filter for the LIST tier with generational rotation.
    */
@@ -485,17 +500,18 @@ class ResponseCacheService {
 
   /**
    * True when this point-tier key may take a slot (second sighting). Generational
-   * nursery + mature rotation completely avoids iterator and eviction allocation churn.
+   * nursery + mature rotation with Smi hashing completely avoids string allocation
+   * and eviction churn on cold sweeps.
    */
-  private admitPointRead(fullKey: string): boolean {
-    if (this.pointL1.has(fullKey)) return true;
-    if (this.pointAdmissionMature.has(fullKey) || this.pointAdmissionNursery.has(fullKey)) {
+  private admitPointRead(key: string, tenantId?: string | null): boolean {
+    const hash = hashKey31(key, tenantId);
+    if (this.pointAdmissionMature.has(hash) || this.pointAdmissionNursery.has(hash)) {
       return true;
     }
-    this.pointAdmissionNursery.add(fullKey);
+    this.pointAdmissionNursery.add(hash);
     if (this.pointAdmissionNursery.size >= MAX_POINT_ADMISSION) {
       this.pointAdmissionMature = this.pointAdmissionNursery;
-      this.pointAdmissionNursery = new Set<string>();
+      this.pointAdmissionNursery = new Set<number>();
     }
     return false;
   }
@@ -794,13 +810,28 @@ class ResponseCacheService {
   }
 
   /**
+   * Fast synchronous point-read L1 lookup, bypassing classifyTurboKey and L2 check.
+   */
+  public getPoint(key: string, tenantId?: string | null): CachedResponseEntry | null {
+    const fullKey = this.buildKey(key, tenantId);
+    const local = this.pointL1.get(fullKey);
+    if (!local) return null;
+    if (typeof local.expiresAt === "number" && Date.now() > local.expiresAt) {
+      this.removeEntry(this.pointL1, fullKey);
+      this.unindexKey(fullKey);
+      return null;
+    }
+    this.maybeAttachBuffer(local, true);
+    return local;
+  }
+
+  /**
    * Synchronous L1 lookup for pre-stringified API response.
    */
-  public get(key: string, tenantId?: string | null): CachedResponseEntry | null {
+  public get(key: string, tenantId?: string | null, isPoint?: boolean): CachedResponseEntry | null {
     const fullKey = this.buildKey(key, tenantId);
-    const slot = classifyTurboKey(key);
-    const isPoint = slot?.entryId != null;
-    const store = isPoint ? this.pointL1 : this.localL1;
+    const point = isPoint !== undefined ? isPoint : classifyTurboKey(key)?.entryId != null;
+    const store = point ? this.pointL1 : this.localL1;
     const local = store.get(fullKey);
 
     if (local) {
@@ -808,13 +839,13 @@ class ResponseCacheService {
         this.removeEntry(store, fullKey);
         this.unindexKey(fullKey);
       } else {
-        this.maybeAttachBuffer(local, isPoint);
+        this.maybeAttachBuffer(local, point);
         return local;
       }
     }
 
     // Point reads are never written to shared L2 (bounded FIFO localL1 only)
-    if (isPoint) return null;
+    if (point) return null;
 
     const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
     if (entry && !this.isExpired(entry)) {
@@ -880,7 +911,7 @@ class ResponseCacheService {
     // write below still happens for callers that opted into it — only the L1 slot,
     // its indexing and its byte budget are gated.
     const admitted = inferredPointRead
-      ? this.admitPointRead(fullKey)
+      ? this.admitPointRead(key, tenantId)
       : this.admitListRead(fullKey, store);
     if (admitted) {
       this.putEntry(store, fullKey, entry);
@@ -927,9 +958,9 @@ class ResponseCacheService {
     tenantId?: string | null,
     meta?: { collection: string; entryId: string },
   ): void {
-    const fullKey = this.buildKey(key, tenantId);
-    if (!this.admitPointRead(fullKey)) return;
+    if (!this.admitPointRead(key, tenantId)) return;
 
+    const fullKey = this.buildKey(key, tenantId);
     entry.expiresAt = Date.now() + ttlMs;
     entry.stale = false;
     this.putEntry(this.pointL1, fullKey, entry);
@@ -953,16 +984,18 @@ class ResponseCacheService {
     tenantId?: string | null,
     meta?: { collection: string; entryId: string },
     compressed?: Record<string, Uint8Array>,
+    byteLength?: number,
   ): void {
-    const fullKey = this.buildKey(key, tenantId);
-    if (!this.admitPointRead(fullKey)) return;
+    if (!this.admitPointRead(key, tenantId)) return;
 
+    const fullKey = this.buildKey(key, tenantId);
     const entry: CachedResponseEntry = {
       body,
       etag,
       expiresAt: Date.now() + ttlMs,
       stale: false,
       ...(compressed ? { compressed } : {}),
+      ...(byteLength !== undefined ? { byteLength } : {}),
     };
     this.putEntry(this.pointL1, fullKey, entry);
     this.enforceL1Capacity(this.pointL1, MAX_POINT_L1_ENTRIES);

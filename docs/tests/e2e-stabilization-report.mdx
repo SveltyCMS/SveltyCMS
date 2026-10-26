@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:bug-check"
 author: "SveltyCMS Team"
 created: "2026-02-14"
-updated: "2026-06-17"
+updated: "2026-10-24"
 tags:
   - "testing"
   - "e2e"
@@ -25,6 +25,16 @@ tags:
 ## Summary
 
 E2E tests have been fully stabilized and integrated with the new **Fail-Closed API Security Model**. All 14 E2E app projects run in CI (plus `wizard` and `auth-setup`) with 1,100+ unit tests passing. This report confirms that the central gatekeeper correctly enforces permissions across all database adapters while maintaining high performance.
+
+## Addendum — 2026-10-24
+
+**Flake:** `collection-builder/confirm-migration.spec.ts` retried on the Builder shard (`4.55 % > 3 %` budget). The final read opened the field inspector with a single click after `reload()`; when that click landed in the SSR-paint → hydration window, the inspector showed its default `required=false` and stayed there.
+
+**Fix:** the inspector now opens through `runAfterHydration()` (waits for `html[data-hydrated]`), the confirm step waits for the form action's POST to settle, and the persistence assertion polls a **fresh reload** inside `toPass` until the hydrated value matches. The retry loop cannot mask a real persistence failure — it never converges and still fails within 60 s.
+
+**Verified:** 3/3 consecutive local repeats on the production preview; Builder & Content green in CI run 1853 with the flake budget intact.
+
+**Rule for new specs:** a post-mutation read must either re-load the page or wait for the response; a single click after `reload()` is not a persistence assertion. See [Testing Scripts § route behaviour](./testing-scripts.mdx) for the gate that scores these contracts.
 
 ## Security Hardening Fixes
 

@@ -26,6 +26,11 @@ const META_KEEP = new Set([
   "sharedLinks",
   "width",
   "height",
+  // Adaptive playback: the details modal needs the playlist URL(s) to mount the
+  // HLS player, and the transcode status to explain processing/failed jobs.
+  "hls",
+  "mp4",
+  "transcode",
 ]);
 
 export interface GalleryThumbnail {

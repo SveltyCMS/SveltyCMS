@@ -343,26 +343,13 @@ export class TelemetryService {
           themes,
         };
 
-        // Application-level AES-256-GCM payload encryption
-        const cipherKey = cryptoMod.scryptSync(TELEMETRY_SALT, "sveltycms-telemetry-aes-key", 32);
-        const iv = cryptoMod.randomBytes(12);
-        const cipher = cryptoMod.createCipheriv("aes-256-gcm", cipherKey, iv);
-        const encrypted = Buffer.concat([
-          cipher.update(JSON.stringify(payload), "utf8"),
-          cipher.final(),
-        ]);
-        const tag = cipher.getAuthTag();
-
-        // Wire contract: encrypted envelope with HMAC signature and replay timestamp
-        const body = {
-          installation_id: installationId,
-          encrypted: true,
-          ciphertext: encrypted.toString("base64"),
-          iv: iv.toString("base64"),
-          tag: tag.toString("base64"),
-          signature: cryptoSignature,
-          timestamp,
-        };
+        // Wire contract: auth fields live at the TOP level — `{ payload, signature,
+        // timestamp }` (telemetry-ecology.mdx §4). The receiver validates
+        // `payload.current_version` / `payload.node_version` in PLAINTEXT before it
+        // can verify the signature, so the fields cannot be encrypted unilaterally:
+        // wrapping them in a ciphertext envelope is rejected with
+        // `400 {"error":"Invalid version"}`.
+        const body = { payload, signature: cryptoSignature, timestamp };
 
         const telemetryEndpoint =
           env.TELEMETRY_ENDPOINT ||
@@ -408,7 +395,12 @@ export class TelemetryService {
             telemetry_id: data.telemetry_id,
           };
         } else {
-          throw new Error(`Update server unreachable: ${response.status}`);
+          // Surface the receiver's reason (`{ error, reason }`) instead of a bare
+          // status — a contract mismatch previously read as "unreachable: 400".
+          const detail = await response.text().catch(() => "");
+          throw new Error(
+            `Update server unreachable: ${response.status}${detail ? ` — ${detail.slice(0, 200)}` : ""}`,
+          );
         }
 
         this.lastCheckTime = Date.now();

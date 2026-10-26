@@ -136,7 +136,9 @@ describe("Webhooks API (Testing 2026 reference — headless HTTP)", () => {
       });
       expect(res.status).toBe(200);
       const body = await res.json();
-      expect(body.success === true || Array.isArray(body) || Array.isArray(body?.data)).toBe(true);
+      // The endpoint answers with the `{ success, data }` envelope; a bare array
+      // or a non-list `data` is a contract regression.
+      expect(body.success).toBe(true);
       const list = unwrapList(body);
       expect(Array.isArray(list)).toBe(true);
     });

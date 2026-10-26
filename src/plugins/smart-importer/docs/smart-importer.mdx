@@ -28,13 +28,23 @@ bun run migrate rollback --token=txn_abc123
 bun run migrate status
 ```
 
+## Browser uploads vs. CLI
+
+The wizard uploads one export file to `/api/plugins/smart-importer`. The server enforces a hardware-derived request-body limit (15 MB minimum), so larger exports must use the CLI (`bun run migrate import …`), which streams from disk with database-native bulk operations. The wizard explains this in its **How migration works** panel, warns before an oversized upload, and now surfaces the server's real error (for example the actual 413 limit) instead of a generic “Format detection failed”.
+
+## Generic CSV / TSV
+
+A `.csv` or `.tsv` upload that does not match a platform-specific signature is detected as `csv`: the header row is mapped to target fields with a confidence score (English and common German column names), unknown columns keep their own name, and the full parse happens in the universal spreadsheet parser. A report-title preamble before the real header row is supported, and comma, semicolon, tab, and pipe delimiters are sniffed automatically.
+
+Detection and import share one quote-aware reader (`csv-detect.ts`): quoted cells may contain the delimiter, escaped `""` quotes, and embedded line breaks, so a line count is not a record count. The parser also picks the header row as the widest of the first rows, which keeps a report title out of the column definitions. Unnamed columns still get a stable `column_N` key. Every row is tagged `type: "entry"` (or keeps its own `type` column) so content-type and rollback filters match; a generic CSV offers no synthetic content type in the wizard, because a flat table has exactly one.
+
 ## Feature Matrix
 
 ### Import Features (All Tiers)
 
 | #   | Feature                                                                   |
 | :-- | :------------------------------------------------------------------------ |
-| 1   | Auto-detect 36+ CMS platforms + CSV/Markdown/SQL/API                      |
+| 1   | Auto-detect 36+ CMS platforms + CSV/TSV/Markdown/SQL/API                  |
 | 2   | AI field mapping with confidence scores (🟢 🟡 🔴)                        |
 | 3   | Content type selection (choose what to import)                            |
 | 4   | 7 transform actions: map, split, merge, transform, enrich, relink, filter |

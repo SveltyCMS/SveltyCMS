@@ -3,5 +3,16 @@
     "CSS": {
       "language_servers": ["tailwindcss-intellisense-css", "!vscode-css-language-server", "..."]
     }
+  },
+  "lsp": {
+    "vtsls": {
+      "settings": {
+        "typescript": {
+          "tsserver": {
+            "maxTsServerMemory": 8192
+          }
+        }
+      }
+    }
   }
 }

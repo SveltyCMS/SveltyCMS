@@ -31,6 +31,65 @@ const p0CoverageInclude = [
 ];
 
 /**
+ * Write-path coverage profile (`COVERAGE_WRITE_PATH=1`).
+ *
+ * The P0 gate above only instruments the security/core set, so per-path floors
+ * for the write path would match zero files there — istanbul reports an empty
+ * coverage map as 100%, i.e. the floor would pass vacuously. This profile adds
+ * the three write-path areas to the report and enforces the floors below.
+ *
+ * Measured 2026-10-23 on the full unit suite with this profile enabled
+ * (`COVERAGE_WRITE_PATH=1 bun run test:coverage`):
+ *
+ * | Glob                             | Lines | Functions | Branches | Statements |
+ * | :------------------------------- | ----: | --------: | -------: | ---------: |
+ * | `src/databases/core/**`          | 54.58 |     44.34 |    50.47 |      53.38 |
+ * | `src/databases/mariadb/**`       | 20.00 |     21.29 |    10.63 |      19.50 |
+ * | `src/services/sdk/namespaces/**` | 63.15 |     54.55 |    51.29 |      60.34 |
+ *
+ * Floors sit ~2 points below the measurement (same margin as the P0 gate) so an
+ * ordinary refactor does not red the profile while a real regression does. The
+ * global thresholds are intentionally omitted in this mode: the adapters are
+ * exercised by the integration suites, so widening the include set to the write
+ * path drops the union to 63.01/56.12/54.71/61.19 — below the P0 floors. Same
+ * rationale as `COVERAGE_ALL`; the P0 gate itself is unchanged.
+ */
+const coverageWritePath = process.env.COVERAGE_WRITE_PATH === "1";
+const writePathCoverageInclude = [
+  "src/databases/core/**",
+  "src/databases/mariadb/**",
+  "src/services/sdk/namespaces/**",
+];
+
+/**
+ * Vitest resolves these keys against the `pathe`-normalized relative path of every
+ * covered file, i.e. forward slashes on all platforms (Windows included). Keep the
+ * keys slash-separated: a `[\\/]` separator class also matches flat files, but the
+ * `**` that follows it stops at the next separator, so a nested subdirectory
+ * (`namespaces/collections/**`) silently drops out of the floor.
+ */
+const writePathThresholds = {
+  "src/databases/core/**": {
+    lines: 52,
+    functions: 42,
+    branches: 48,
+    statements: 51,
+  },
+  "src/databases/mariadb/**": {
+    lines: 18,
+    functions: 19,
+    branches: 8,
+    statements: 17,
+  },
+  "src/services/sdk/namespaces/**": {
+    lines: 61,
+    functions: 52,
+    branches: 49,
+    statements: 58,
+  },
+};
+
+/**
  * Local HTML coverage is opt-in: the v8 HTML reporter intermittently aborts on
  * Windows after writing the tables (exit 1 with no diagnostic), which made the
  * local coverage gate unusable. `text-summary` + `json` are stable and carry
@@ -57,6 +116,16 @@ const defaultWorkers = cpuCount >= 16 ? Math.min(16, cpuCount - 4) : Math.max(1,
 const localMaxWorkers = process.env.VITEST_MAX_WORKERS
   ? parseInt(process.env.VITEST_MAX_WORKERS, 10)
   : defaultWorkers;
+
+/**
+ * v8 coverage is memory-heavy: on a high-core Windows box, a 4-fork coverage
+ * run still hit an intermittent STATUS_STACK_BUFFER_OVERRUN (0xC0000409)
+ * under the pre-push gate even though the same run passed standalone. A gate
+ * must not depend on that race, so local coverage runs use two workers. CI
+ * runners are 4 vCPU and keep Vitest's own pool.
+ */
+const isCoverageRun = process.argv.includes("--coverage");
+const coverageMaxWorkers = Math.min(localMaxWorkers, 2);
 
 export default defineConfig({
   plugins: [svelte({ configFile: false } as any)],
@@ -112,7 +181,11 @@ export default defineConfig({
       reporter: coverageReporters,
       // P0 packages only — enterprise A++ gate focuses on security/core, not vanity % of all src.
       // COVERAGE_ALL=1 widens the scope for the unit ∪ DOM union report.
-      include: coverageAll ? ["src/**/*.{ts,svelte}"] : p0CoverageInclude,
+      include: coverageAll
+        ? ["src/**/*.{ts,svelte}"]
+        : coverageWritePath
+          ? [...p0CoverageInclude, ...writePathCoverageInclude]
+          : p0CoverageInclude,
       exclude: ["src/paraglide/**", "src/**/*.d.ts", "src/**/*.test.ts"],
       // Applied when running `bun run test:unit:coverage` — keeps P0 floors
       // honest without blocking full-suite unit runs that omit --coverage.
@@ -122,12 +195,14 @@ export default defineConfig({
       // coverage regression does.
       thresholds: coverageAll
         ? {}
-        : {
-            lines: 72,
-            functions: 72,
-            branches: 60,
-            statements: 70,
-          },
+        : coverageWritePath
+          ? writePathThresholds
+          : {
+              lines: 72,
+              functions: 72,
+              branches: 60,
+              statements: 70,
+            },
     },
     pool: "forks",
     isolate: true,
@@ -137,7 +212,8 @@ export default defineConfig({
     // Worker args are top-level in Vitest 5 (`poolOptions.forks` is gone).
     execArgv: ["--enable-source-maps"],
     // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.
-    ...(isCI ? {} : { maxWorkers: localMaxWorkers }),
+    // Coverage runs get a smaller pool: v8 instrumentation + 16 forks crashed a worker.
+    ...(isCI ? {} : { maxWorkers: isCoverageRun ? coverageMaxWorkers : localMaxWorkers }),
     env: {
       TEST_MODE: "true",
       QUIET: "true",

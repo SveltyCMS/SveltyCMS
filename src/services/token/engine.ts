@@ -16,7 +16,9 @@
 import type { Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import { publicEnv } from "@src/stores/global-settings.svelte";
+import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
+import { getFieldName } from "@utils/schema/field-utils";
 import { modifierRegistry } from "./modifiers";
 import { resolveRelationToken } from "./relation-resolver";
 import type {
@@ -123,7 +125,7 @@ class TokenRegistryService {
         description:
           "Full ISO 8601 timestamp (e.g., 2025-11-24T14:30:00Z). Use with |date() modifier to format.",
         example: '{{system.now | date("MMM do, yyyy")}}',
-        resolve: () => new Date().toISOString(),
+        resolve: () => nowISODateString(),
       });
 
       add({
@@ -153,7 +155,7 @@ class TokenRegistryService {
         type: "string",
         description: "Today's date in YYYY-MM-DD format.",
         example: "{{system.date}}",
-        resolve: () => new Date().toISOString().split("T")[0],
+        resolve: () => nowISODateString().split("T")[0],
       });
 
       add({
@@ -252,7 +254,48 @@ class TokenRegistryService {
 
     // 4. ENHANCED ENTRY TOKENS (including Relations)
     if (schema?.fields && config.includeEntry !== false) {
-      // ... (existing code)
+      add({
+        token: "entry._id",
+        name: "Entry ID",
+        category: "entry",
+        type: "string",
+        description: "Unique identifier of the current entry.",
+        example: "{{entry._id}}",
+        resolve: (c) => (c.entry as Record<string, unknown> | undefined)?._id,
+      });
+
+      for (const rawField of schema.fields) {
+        if (!rawField) continue;
+        const field = rawField as unknown as Record<string, unknown>;
+        const fieldName =
+          (field.db_fieldName as string | undefined) ||
+          getFieldName(field as Parameters<typeof getFieldName>[0], false);
+        if (!fieldName) continue;
+
+        const label =
+          (field.label as string | undefined) || (field.name as string | undefined) || fieldName;
+        const widgetName = String(
+          (field.widget as { Name?: string } | undefined)?.Name || field.type || "Input",
+        ).toLowerCase();
+        const tokenType: TokenDefinition["type"] =
+          widgetName.includes("number") || widgetName.includes("currency")
+            ? "number"
+            : widgetName.includes("checkbox") || widgetName.includes("toggle")
+              ? "boolean"
+              : widgetName.includes("date")
+                ? "date"
+                : "string";
+
+        add({
+          token: `entry.${fieldName}`,
+          name: label,
+          category: "entry",
+          type: tokenType,
+          description: `Value of the "${label}" field on the current entry.`,
+          example: `{{entry.${fieldName}}}`,
+          resolve: (c) => (c.entry as Record<string, unknown> | undefined)?.[fieldName],
+        });
+      }
     }
 
     // 5. CUSTOM TOKENS

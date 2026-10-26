@@ -96,15 +96,20 @@ async function createEntry(collection: string, title: string): Promise<string> {
 }
 
 /** Tiny pause so consecutive writes land on distinct `updatedAt` values. */
-const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
+const tick = () => new Promise((resolve) => setTimeout(resolve, 25));
 
 describe("Optimistic locking, revision restore, and filter validation", () => {
   beforeAll(async () => {
     await waitForServer();
     cookie = await prepareAuthenticatedContext();
     expect(cookie.length).toBeGreaterThan(0);
-    await testingAction("create-collection", { schema: BASE_SCHEMA });
-    await testingAction("create-collection", { schema: REVISION_SCHEMA });
+    // Provision both collections in one action: one content refresh instead of
+    // two, and no window where a refresh from the first call can re-read state
+    // while the second collection is still being written.
+    const provisioned = await testingAction("bulk-create-collections", {
+      schemas: [BASE_SCHEMA, REVISION_SCHEMA],
+    });
+    expect(provisioned?.success, JSON.stringify(provisioned)).toBe(true);
   }, 180_000);
 
   afterAll(async () => {
@@ -140,7 +145,13 @@ describe("Optimistic locking, revision restore, and filter validation", () => {
       headers: { "If-Match": loaded.etag },
       body: JSON.stringify({ title: "etag-b" }),
     });
-    expect(updated.status, JSON.stringify(updated.body)).toBe(200);
+    // Name both sides of the comparison: a 409 here on an unchanged row means
+    // the wire ETag and the stored row version disagree, and the next CI
+    // annotation must show which one moved (see `versionTokenString`).
+    expect(
+      updated.status,
+      `If-Match ${loaded.etag} must match the stored version — response: ${JSON.stringify(updated.body)}`,
+    ).toBe(200);
 
     const fetched = await api(`/api/collections/${COLLECTION}/${id}`);
     expect(rowOf(fetched.body).title).toBe("etag-b");
@@ -158,7 +169,10 @@ describe("Optimistic locking, revision restore, and filter validation", () => {
       headers: { "If-Match": first.etag },
       body: JSON.stringify({ title: "conflict-winner" }),
     });
-    expect(won.status, JSON.stringify(won.body)).toBe(200);
+    expect(
+      won.status,
+      `If-Match ${first.etag} must match the stored version — response: ${JSON.stringify(won.body)}`,
+    ).toBe(200);
 
     const current = await api(`/api/collections/${COLLECTION}/${id}`);
     await tick();

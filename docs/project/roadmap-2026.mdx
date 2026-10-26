@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-19"
+updated: "2026-10-23"
 tags:
   - "roadmap"
   - "backlog"
@@ -104,6 +104,15 @@ tags:
   - [ ] Automated derivative GC sweep that reclaims disk for deleted parent media beyond the explicit admin command.
   - Surface focal-point and watermark coordinates directly in REST/GraphQL image payloads.
   - Add ThumbHash LQIP support via the `thumbhash` package.
+- **Media gallery coverage & unimplemented surfaces (2026-10-21)**:
+  - [x] Server pagination: the loader reads `?page`, preserves the adapter total and the views merge pages; pinned by `tests/e2e/routes/mediagallery/media-pagination.spec.ts` (2026-10-24).
+  - [ ] **Server-side search across unfetched pages**: `getByFolder` has no `search` option on all four adapters, so search still ranges over fetched rows. Needs an adapter-level contract + `?q=` in the loader.
+  - [x] Large-library batched rendering (60-tile window + IntersectionObserver sentinel) pinned by `tests/e2e/routes/mediagallery/large-library.spec.ts`.
+  - [x] Client-side pre-upload optimization (Canvas 2D, 1920×1080 clamp, WebP) pinned by `upload-optimization.spec.ts` against the stored dimensions.
+  - [x] Remote-URL ingestion success + SSRF rejection pinned by `remote-ingestion.spec.ts` (real local HTTP peer via the test-only exact-origin allowlist).
+  - [x] Folder drag-and-drop is covered by `move-remote.spec.ts` (sveltednd workspace drop target).
+  - [x] **Video playback + adaptive HLS**: `hls-video-player.svelte` (native HLS or lazy `hls.js`) is mounted from the details modal whenever `metadata.hls.master` exists; `POST /api/media/transcode` produces HLS/MP4 derivatives in the background through ffmpeg and fails closed with `503 FFMPEG_UNAVAILABLE` when the binary is absent. Pinned by `video-transcode.spec.ts` + `media-batch-transcode.test.ts`.
+  - [x] **Batch resize/filter**: `batch-processor.svelte` is mounted from the gallery selection toolbar and `POST /api/media/batch-process` applies one uniform resize/filter/watermark to ≤100 assets with per-asset results. Pinned by `batch-processing.spec.ts` + `media-batch-process.test.ts` (integration).
 - **Large-file upload lanes**:
   - [x] TUS 1.0.0 resumable uploads (`POST/HEAD/PATCH/DELETE /api/media/tus`) with a reload-safe browser client — shipped 2026-10-19.
   - [x] SigV4 presigned direct-to-storage instructions for S3/R2 (`upload-instructions` + `direct-upload/complete`) — shipped 2026-10-19.
@@ -156,7 +165,16 @@ tags:
 ## 7. Quality Gates, Testing & Codebase Hygiene (Active Backlog)
 
 - **Type-Checking Gate Integration**:
-  - [x] Wire `svelte-check --threshold error` into pre-commit and CI quality gates (`bun run check`).
+  - [x] Wire `svelte-check` into pre-commit and CI quality gates (`bun run check`), including a machine-reporter parse (`scripts/check/check-svelte-diagnostics.ts`) that fails on **warnings** as well as errors — `--threshold warning` only widens output and still exits 0, so it alone was not a gate.
+- **Editorial Journey Matrix (next step for E2E)**:
+  - [x] Composite multi-field journey (`kitchen-sink.spec.ts`) + zero-error guard + editor-boundary journey + browser-vitality benchmark + widget interaction matrix (2026-10-23, see [achievements 3.60](./achievements-2026.mdx)).
+  - [ ] Extend the composite journey to the remaining widget families: `RichText`, `Textarea`, `Select`, `Date`, `Tags`, `MediaUpload`, `Relation`, `Repeater` — include one uploaded image and one relation row, and assert the unsaved-changes guard.
+  - [ ] Add a shared-harness `page.on('pageerror')` trap to the whole chromium project (not only the new journeys) once the current console-error allowlist is proven stable.
+  - [ ] Tighten the browser-vitality budgets from a recorded baseline (domInteractive < 5 s / fill < 1 s / heap < 180 MB are placeholder ceilings) and add an INP measurement for rich-text typing.
+  - [ ] Browser-mode component tests for `RichText`, repeater drag-and-drop, the date picker and the media picker (jsdom cannot exercise layout/pointer behaviour).
+  - [ ] Unhappy paths: double submit, browser Back mid-edit, rejected upload, and direct-URL 403 for an editor.
+- **Shipped — `/user` edit dialog & admin table optimization (2026-10-25)**:
+  - [x] Fixed `modal-edit-form.svelte` and `modal-edit-token.svelte` reactivity: replaced static `page.data` destructuring with `$derived`, guaranteed non-empty `user_id` (`'self'` fallback) for `editUserSchema`, guarded `$effect` seeding by target identity (`seededTargetKey`) so active user input is never overwritten, and forwarded `close({ success: true })` so `DialogManager` closes and `UserManagement` refreshes rows. Consolidated duplicate token expiry helpers into `user-remote-utils.ts` and skipped the redundant mount-time `GET /api/user` fetch when SSR `initialUsers` is present. See [achievements 3.64](./achievements-2026.mdx).
 - **Integration Test Suite Wall-Time Optimization**:
   - Consolidate the remaining `prepareAuthenticatedContext` call sites (the per-test `beforeEach` wipes in `collections`, `media`, `system`, `telemetry`, `theme`, `website-tokens` are now single `beforeAll` contexts; `token` keeps its per-test reset because that reset also clears the `create-token` rate limiter).
   - Remove the remaining redundant `cleanupTestDatabase()` hooks in `afterAll` (19 removed 2026-10-16 — every suite already resets in `beforeAll`; the rest do real media/file cleanup).
@@ -164,9 +182,12 @@ tags:
   - Collapse SQL adapter smoke tests into a single engine-parameterized contract suite.
   - Replace the remaining soft-skips with hard assertions — done for `security`, `security-negative`, `collections` (now provisions its fixture via `/api/testing` instead of a sandbox-blocked file write), `auth-2fa`, `theme` and both Unified-Data-Hub federation suites; the harness reset now throws instead of warn-and-proceed. Also de-vacuumed `metrics`, `search`, `marketplace`, `outbox-plugin-storage`, `settings`, `dashboard`, `website-tokens`, `graphql` (tenant-scoped query now gated on `MULTI_TENANT`), and the DB contract suites (`transaction-contract` — the concurrent test inserted via `db.crud` instead of the txn handle, so its "rollback leak" was a test bug; `pool-contention`, `health-contract`, `content-nodes-contract`, `db-interface`, `resilience-load`, `cache-contract`).
   - Replace the remaining fixed sleeps with condition waits (the harness reset path now health-polls; several API suites still pad with fixed waits).
+- **Recently shipped (2026-10-22)**: `buildFieldSkeleton()` seeds every declared field before the first widget mount (fixes the `/collection/posts?create=true` 500 from `bind:value={undefined}`); session rotation retires the predecessor for a 2-minute grace window and `createSession({ isRotation: true })` skips the device/parallel caps; `getFreshLayoutUser()` strips credentials before the layout user is serialized into page data; Access Management tabs are static imports so the permissions table is server-rendered; admin tables use `SMART_TABLE_*` chrome; plugin workspaces render inside the content column instead of a fullscreen overlay; sidebar navigation uses plain `goto()` so it reuses the hover preload instead of forcing `refreshAll`.
+- **Also shipped (2026-10-22)**: the remaining client-only config pages (automations + its new editor load, webhooks, trash, workflows, sync, system-settings, extensions, design-system) now return their first payload from `+page.server.ts`; the dashboard renders `cpu`/`disk`/`memory`/`system-messages` tiles during SSR via an eager `import.meta.glob` registry (`FirstScreenWidget`); `/user` seeds `initialUsers` + `initialSessions` through `getRequestLocalCMS()`; `(app)/+layout.server.ts` no longer duplicates `contentStructure`; `getStatusFacets()` is SWR-cached and the collection warm-up writes the canonical find-cache key; the media gallery and monitor dashboard load in a single `Promise.all`; benchmark history is pruned to 50 rows per series per engine. See [achievements 3.58](./achievements-2026.mdx).
+- **Open — brand palette vs WCAG AA**: `--color-primary-500` (`oklch(76.87% 0.2296 137.58deg)`) cannot be used as text (1.58:1 on `surface-200`) or as a white-on-fill badge (1.94:1). Fixing it means darkening the default primary ramp to ≈`primary-900` luminance or amending the status-shade contract; both change every `text-primary-*` usage, so it needs a design decision before the Auth & Branding RTL audit can go green. See [achievements 3.59](./achievements-2026.mdx).
 - **Recently shipped (2026-10-18)**: `src/plugins/init.server.ts` merges a plugin's `index.server.ts` with its `plugin_workspace` slot server; `scripts/benchmark-matrix/index.ts` splits `Feature HTTP Read` to isolate heavy relational and mixed workloads (`relational-performance`, `mixed-workload`) into their own sequential lane, eliminating SQLite lock contention under full-matrix runs without lowering reliability guards; server-side `requiredIf` and `showIf` evaluation added to `CollectionsNamespace` write path with zero hot-path overhead; server-side cookie consent logging wired to `sys_consent_audit` via public plugin route `/api/plugins/cookie-consent/consent` and `consentStore` with `allowedOrigins` enforcement.
 - **Codebase & Documentation Cleanup**:
-  - Reconcile documented-but-unmounted components: mount or document as unmounted (`TokenPicker`, `two-factor-setup-modal`, `virtual-media-grid`).
+  - [x] Reconcile documented-but-unmounted components (`TokenPicker` mounted once in `(app)/+layout.svelte` with `TokenRegistry` entry-field registration; `two-factor-setup-modal` documented as superseded by `modal-two-factor-auth`).
   - [x] Prune deprecated zero-caller symbols: `MigrationEngine.executeMigration`, `buildRawTenantFilter`, `resolveSameSourceJoinTarget`, `UpsertOperation`.
   - [x] Prune orphaned scripts (2026-10-18): `analyze-base-metrics.ts`, `check-deprecated.ts`, `generate-comprehensive-comparison.ts`, `provision-e2e.ts`, `record-cold-warm-benchmarks.ts`, plus the one-shot locale codemods (`add-page-title-suffix-key.mjs`, `fix-embedded-expression-messages.mjs`, `verify-locale-parity.mjs`) and the duplicate `create-app.ts` (the published bin is `create-app.js`).
   - Validate inline code paths: resolve 107 stale inline `` `src/…` `` references in docs and add verification to `tests/lint-docs.ts`.
@@ -219,3 +240,11 @@ Based on publicly available release notes for Drupal AI 1.5.0 (Workflows of AI, 
 - **Reranker**: re-order semantic-index candidates by answer relevance (top-N configurable), keeping keyword scores as the fallback.
 - **Token budgets**: per-tenant daily token ceilings derived from the existing quota primitive, surfaced in the admin dashboard.
 - **Exporter**: optional OpenTelemetry OTLP export for the `gen_ai.*` attributes already emitted (currently structured logs only).
+
+## 10. UX & Design-System Consistency (Active Backlog)
+
+Findings from the 2026-10-24 theme/UX review that need a design decision or a cross-page refactor (the chrome, status-shade and control-size items shipped in §3.63 of the achievements log):
+
+- [ ] **Permissions matrix**: the access-management permissions table is still bespoke. Move it onto `SmartTableShell` (or the native table primitives) so sorting, empty state and responsive overflow match the other admin lists.
+- [ ] **Save models**: the Design System page exposes three separate save paths (user overrides, admin theme, preset import). Define one dirty-state/save contract and make the action bar consistent across them.
+- [ ] **SmartTableShell adoption**: media table, trash, queue and webhook logs still hand-roll their tables. Adopt `SmartTableShell` (including its unused `toolbar` slot) so list chrome has one owner.

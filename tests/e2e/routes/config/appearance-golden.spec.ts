@@ -5,6 +5,7 @@
 
 import { test, expect, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { runAfterHydration } from "../../helpers/hydration";
 
 const ACTION_TIMEOUT = 25_000;
 
@@ -22,7 +23,7 @@ async function openAdminThemes(page: Page) {
   await expect(themesTab, "Admin must see Themes tab for golden theme CRUD").toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
-  await themesTab.click();
+  await runAfterHydration(page, () => themesTab.click(), { selector: themesTab });
   await expect(page.getByTestId("appearance-themes-panel")).toBeVisible({
     timeout: ACTION_TIMEOUT,
   });
@@ -51,21 +52,45 @@ test.describe("Appearance — theme golden", () => {
     const stamp = Date.now().toString(36);
     const name = `E2E Theme ${stamp}`;
 
-    await page.getByTestId("appearance-theme-name").fill(name);
-    await page.getByTestId("appearance-theme-create-btn").click();
+    await runAfterHydration(
+      page,
+      async () => {
+        await page.getByTestId("appearance-theme-name").fill(name);
+        await page.getByTestId("appearance-theme-create-btn").click();
+      },
+      { selector: page.getByTestId("appearance-theme-create-btn") },
+    );
 
-    await expect(page.getByText(name).first()).toBeVisible({ timeout: ACTION_TIMEOUT });
-    await expect(page.locator(`[data-theme-name="${name}"]`)).toBeVisible({
-      timeout: ACTION_TIMEOUT,
-    });
+    // The server is the source of truth: the in-memory list is re-fetched after
+    // create, which can race a busy shard. Poll a full reload until the card is
+    // there; a create that genuinely failed never converges.
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("appearance-theme-list")).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(page.locator(`[data-theme-name="${name}"]`)).toBeVisible({
+        timeout: 5_000,
+      });
+    }).toPass({ timeout: 45_000, intervals: [1_000, 2_000, 3_000] });
 
-    // Delete (confirm dialog)
+    // Delete (native confirm dialog)
     page.once("dialog", (d) => d.accept());
     const card = page.locator(`[data-theme-name="${name}"]`);
-    await card.getByRole("button", { name: new RegExp(`Delete ${name}`, "i") }).click();
+    await runAfterHydration(
+      page,
+      () => card.getByRole("button", { name: new RegExp(`Delete ${name}`, "i") }).click(),
+      { selector: card },
+    );
 
-    await expect(page.locator(`[data-theme-name="${name}"]`)).toHaveCount(0, {
-      timeout: ACTION_TIMEOUT,
-    });
+    await expect(async () => {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("appearance-theme-list")).toBeVisible({
+        timeout: 15_000,
+      });
+      await expect(page.locator(`[data-theme-name="${name}"]`)).toHaveCount(0, {
+        timeout: 5_000,
+      });
+    }).toPass({ timeout: 45_000, intervals: [1_000, 2_000, 3_000] });
   });
 });

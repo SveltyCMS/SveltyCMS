@@ -14,8 +14,9 @@ Structure optimized for LLM integration and AI-powered search.
 
 ### Props
 - `files: MediaBase[]` - All available media files
-- `onSearch: (criteria: SearchCriteria) => void` - Callback with search results
+- `onSearch: (criteria: SearchCriteria, jsonPath: string) => void` - Callback with search results
 - `onClose: () => void` - Callback to close modal
+- `initialJsonPath: string` - Existing metadata query, echoed back on reopen
 
 ### Features
 - Multi-criteria form
@@ -40,17 +41,18 @@ Structure optimized for LLM integration and AI-powered search.
 		common_advanced,
 		MediaGallery_Search,
 		mediagallery_advanced_search,
-		mediagallery_aspect_ratio,
 		mediagallery_basic_criteria,
 		mediagallery_camera_placeholder,
 		mediagallery_common_dimensions,
 		mediagallery_ctrl_enter,
 		mediagallery_dimensions,
-		mediagallery_exif_placeholder,
 		mediagallery_filename_placeholder,
 		mediagallery_file_properties,
 		mediagallery_found,
 		mediagallery_id_placeholder,
+		mediagallery_json_path_filter,
+		mediagallery_json_path_format,
+		mediagallery_json_path_placeholder,
 		mediagallery_large_5mb,
 		mediagallery_location_placeholder,
 		mediagallery_metadata_exif,
@@ -69,10 +71,12 @@ Structure optimized for LLM integration and AI-powered search.
 	interface Props {
 		files: MediaBase[];
 		onClose: () => void;
-		onSearch: (criteria: SearchCriteria) => void;
+		onSearch: (criteria: SearchCriteria, jsonPath: string) => void;
+		/** Existing metadata query, echoed back so the filter survives a reopen. */
+		initialJsonPath?: string;
 	}
 
-	const { files, onSearch, onClose }: Props = $props();
+	const { files, onSearch, onClose, initialJsonPath = '' }: Props = $props();
 
 	const aspectRatioOptions = [
 		{ value: 'any', label: 'Any' },
@@ -106,7 +110,9 @@ Structure optimized for LLM integration and AI-powered search.
 		location: '',
 		dominantColor: '',
 		showDuplicatesOnly: false,
-		hashMatch: ''
+		hashMatch: '',
+		// svelte-ignore state_referenced_locally — the query is seeded once per modal open
+		jsonPath: initialJsonPath
 	});
 
 	// Search suggestions (computed from files)
@@ -174,7 +180,7 @@ Structure optimized for LLM integration and AI-powered search.
 			hashMatch: formValues.hashMatch || undefined
 		};
 
-		onSearch(searchCriteria);
+		onSearch(searchCriteria, formValues.jsonPath.trim());
 	}
 
 	function resetForm() {
@@ -196,7 +202,8 @@ Structure optimized for LLM integration and AI-powered search.
 			location: '',
 			dominantColor: '',
 			showDuplicatesOnly: false,
-			hashMatch: ''
+			hashMatch: '',
+			jsonPath: ''
 		};
 	}
 
@@ -371,7 +378,7 @@ Structure optimized for LLM integration and AI-powered search.
 							bind:value={formValues.aspectRatio}
 							label="Aspect Ratio"
 							options={aspectRatioOptions}
-							placeholder={mediagallery_aspect_ratio()}
+							placeholder=""
 						/>
 					</div>
 
@@ -432,7 +439,7 @@ Structure optimized for LLM integration and AI-powered search.
 							bind:value={formValues.hasEXIF}
 							label="Has EXIF Data"
 							options={hasExifOptions}
-							placeholder={mediagallery_exif_placeholder()}
+							placeholder=""
 						/>
 						<div>
 							<Input
@@ -471,6 +478,20 @@ Structure optimized for LLM integration and AI-powered search.
 							label="Hash Match"
 							placeholder={mediagallery_id_placeholder()}
 						/>
+					</div>
+
+					<div class="mt-4">
+						<Input
+							bind:value={formValues.jsonPath}
+							label={mediagallery_json_path_filter()}
+							placeholder={mediagallery_json_path_placeholder()}
+							title={mediagallery_json_path_format()}
+							data-testid="media-json-path-filter"
+						/>
+						<p class="mt-1 text-xs text-(--admin-text-muted)">
+							Matches any stored metadata field — <code>metadata.exif.camera = Canon</code>, chained
+							with <code>;</code>. Leave empty to ignore.
+						</p>
 					</div>
 
 					<div class="mt-4">

@@ -50,6 +50,12 @@ Never mix component CSS classes (`class="badge"` on a `<Button>`, `class="btn"` 
 
 See them painted in the active theme at `/config/design-system?tab=preview` (Button, Badge, Input, Select, Textarea, Toggle, Card).
 
+## Content insets
+
+Collection content is padded by the **component**, never by the route page. `<EntryList>` and `<Fields>` both apply `CONTENT_PADDING` (`ps-2 pe-2` from `src/components/collection-display/content-classes.ts`) to their own chrome — toolbar, status facets, table shell, tab strip and form. The `[language]/[...collection]` page renders the components directly with no padding wrapper. The value matches `AdminPageShell`'s `px-2` gutter, so collection pages sit at the same inset as every other admin route.
+
+This keeps list and edit modes aligned with the page title and avoids the page + component double inset that used to push the editor form inward twice. A new collection surface should consume `CONTENT_PADDING` rather than define its own `ps-*`/`px-*`.
+
 ## Semantic admin surfaces
 
 Use **role tokens** from `src/utilities.css` instead of paired light/dark surface classes for admin chrome:
@@ -67,6 +73,33 @@ Shadows and border **width** follow **card variant** (`flat` | `bordered` | `ele
 **Reference implementation:** the setup wizard (`src/routes/setup/`) — 13 files, zero raw palette shades in markup. Chrome composes the `--admin-*` roles above, status states use [the shade contract](#status-shade-contract), ink on `{hue}-500` fills is `text-white`, and decorative tokens come from `--admin-bg-chip` / `--admin-border-subtle`. Copy its class strings when building new chrome.
 
 Theme/shorthand palette import maps `surface` into full shade scales and rebinds `--admin-bg-*` in generated `customCss` (`theme-preset-mapper.ts`). The generated CSS is scoped to `:root, .admin-theme-container, [data-admin-theme]` so a theme change repaints **every** element — utilities, `--admin-*` roles, scrollbars, and portalled overlays — with no per-component JS.
+
+## Radii
+
+Radii are **density-driven**, not per-component. The four tokens live in `src/utilities.css` (`:root` + `[data-density="compact"|"spacious"]`) and are mirrored onto `<html>` by `(app)/+layout.svelte`, so portalled overlays (modal, drawer, popover, tooltip, command palette) resolve the same values as the page.
+
+| Token                   | Role                                     | cozy       | compact    | spacious   |
+| :---------------------- | :--------------------------------------- | :--------- | :--------- | :--------- |
+| `--admin-radius-card`   | Surfaces: cards, modals, popovers, menus | `0.75rem`  | `6px`      | `16px`     |
+| `--admin-radius-input`  | Inputs, menu rows, small icon buttons    | `0.375rem` | `4px`      | `10px`     |
+| `--admin-radius-button` | Buttons, chips, keycaps                  | `0.25rem`  | `0.125rem` | `0.625rem` |
+| `--admin-radius-base`   | Legacy `.wrapper` chrome                 | `0.75rem`  | `0.25rem`  | `1rem`     |
+
+`src/app.css` aliases Tailwind's radius scale onto those tokens, so **every** `rounded-*` utility follows the active density — including portalled overlays:
+
+| Utility                                    | Resolves to             |
+| :----------------------------------------- | :---------------------- |
+| `rounded`                                  | `--admin-radius-input`  |
+| `rounded-sm`                               | `--admin-radius-button` |
+| `rounded-md`, `rounded-lg`                 | `--admin-radius-input`  |
+| `rounded-xl`, `rounded-2xl`, `rounded-3xl` | `--admin-radius-card`   |
+
+Rules:
+
+- **Never hardcode a pixel radius.** Use a scale utility (`rounded-lg`) or, when the semantic role must win over the scale step, an explicit token: `rounded-(--admin-radius-card)` / `rounded-(--admin-radius-input)` / `rounded-(--admin-radius-button)`.
+- **Surfaces take card, controls take input/button.** Overlay panels (popover, modal, drawer, tooltip, dropdown/toast/command-palette panel) use `--admin-radius-card`; rows, fields and small icon buttons inside them use `--admin-radius-input`; the trigger is a `Button` — do not override it with `rounded-xl`.
+- **Bare `rounded` is density-aware** (it resolves to `--admin-radius-input`); the unsuffixed and suffixed steps share the same four tokens, so there is no fixed-pixel escape hatch left.
+- `rounded-full` remains correct for pills, avatars, badges, spinners and toggle knobs.
 
 ## Motion & Transitions
 

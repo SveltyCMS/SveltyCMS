@@ -17,14 +17,15 @@ tags:
 
 ## Surface
 
-| Piece                 | Role                                                             |
-| --------------------- | ---------------------------------------------------------------- |
-| `+page.server.ts`     | Auth + **admin-only** gate; load via `listRedirects()`           |
-| `+page.svelte`        | Table, search, modal create/edit, confirm delete                 |
-| `redirects-utils.ts`  | Path validation, payload normalize, **normalizeRedirectRow**     |
-| `redirects.server.ts` | **Primary: `redirectsMV`** insert/update/delete + content mirror |
-| `redirects.remote.ts` | SvelteKit command wrappers                                       |
-| Middleware            | `handle-redirects` reads **`redirectsMV`** (`source` / `target`) |
+| Piece                 | Role                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------- |
+| `+page.server.ts`     | Auth + **admin-only** gate; load via `listRedirects()`                                             |
+| `+page.svelte`        | Table, search, modal create/edit with first-run explainer + per-field `?` tooltips, confirm delete |
+| `handle-redirects.ts` | Exact `redirectsMV` match first, then cached `isRegex` rules (`findRegexRedirect`, bounded)        |
+| `redirects-utils.ts`  | Path validation, payload normalize, **normalizeRedirectRow**                                       |
+| `redirects.server.ts` | **Primary: `redirectsMV`** insert/update/delete + content mirror                                   |
+| `redirects.remote.ts` | SvelteKit command wrappers                                                                         |
+| Middleware            | `handle-redirects` reads **`redirectsMV`** (`source` / `target`)                                   |
 
 ### Storage contract (2026-07-19)
 
@@ -47,6 +48,7 @@ Index: `idx_redirects_mv_lookup` on `(tenantId, source, active)` — SQLite / Ma
 | Create → MV insert + cache invalidate  | ✅ redirects.server                     | ✅ golden create     |
 | List maps source/target → from/to      | ✅ normalizeRedirectRow + listRedirects | ✅ search/list       |
 | Delete + confirm (no `window.confirm`) | ✅ server                               | ✅ delete happy path |
+| Regex rule resolution (exact wins)     | ✅ hooks/redirects + redirects-utils    | —                    |
 | Shell + search + empty                 | —                                       | ✅                   |
 
 ---
@@ -58,6 +60,8 @@ Index: `idx_redirects_mv_lookup` on `(tenantId, source, active)` — SQLite / Ma
 - [x] **`redirectsMV` primary** (aligned with middleware) — not content-collection-only
 - [x] `normalizeRedirectRow` parses string `data` JSON from legacy collection rows
 - [x] `showConfirm` for delete; `invalidateAll` after mutations
+- [x] Add/Edit modal explains how redirects work and exposes a `?` tooltip per field (icon-only triggers, `HelpIcon` + `SystemTooltip`)
+- [x] Regex rules are evaluated after an exact-path miss (per-tenant cache, 2048-char path cap, ≤200 rules, save-time ReDoS guard)
 - [x] Stable `data-testid`s + visible action buttons (not zero-size icon-only)
 - [x] Compound lookup index for cold-path O(log n)
 
@@ -66,6 +70,7 @@ Index: `idx_redirects_mv_lookup` on `(tenantId, source, active)` — SQLite / Ma
 ## Associated tests
 
 - [redirects.spec.ts](../../../tests/e2e/routes/config/redirects.spec.ts)
+- [redirects-form-help-interaction.test.ts](../../../tests/unit/components/dom/redirects-form-help-interaction.test.ts)
 - [redirects-server.test.ts](../../../tests/unit/routes/redirects-server.test.ts)
 - [redirects-utils.test.ts](../../../tests/unit/config/redirects-utils.test.ts) (if present)
 - [redirects-remote-admin.test.ts](../../../tests/unit/routes/redirects-remote-admin.test.ts)

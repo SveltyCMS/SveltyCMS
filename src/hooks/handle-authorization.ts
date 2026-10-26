@@ -23,7 +23,7 @@ import {
   USER_PERM_CACHE_TTL_MS,
   USER_PERM_CACHE_TTL_S,
 } from "@src/databases/cache/cache-service";
-import { auth } from "@src/databases/db";
+import { auth, dbAdapter } from "@src/databases/db";
 import { error, redirect, type RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
@@ -229,12 +229,24 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
       // failing). `if (!auth)` can therefore never fire; a truthy proxy with a
       // missing method previously threw "getAllRoles is not a function" on the
       // roles path. Guard the method shape, mirroring getUserCount.
-      if (!auth || typeof auth.getAllRoles !== "function") return [];
+      //
+      // Some boot paths (observed on the MariaDB harness, where the API work
+      // runs off the main thread) never set `__AUTH_INSTANCE__` at all. The
+      // adapter module is the same role source and IS present wherever queries
+      // work, so fall back to it instead of fail-closing every non-admin request.
+      const adapterRoles = (dbAdapter as { auth?: typeof auth } | null)?.auth;
+      const roleSource =
+        typeof auth?.getAllRoles === "function"
+          ? auth
+          : typeof adapterRoles?.getAllRoles === "function"
+            ? adapterRoles
+            : null;
+      if (!roleSource) return [];
       const bypassOpts =
         !tenantId || tenantId === "global"
           ? withSystemScope("auth-bootstrap")
           : { tenantId: tenantId as DatabaseId };
-      const data = await auth.getAllRoles(bypassOpts);
+      const data = await roleSource.getAllRoles(bypassOpts);
       if (!data?.length) return [];
       seedRoleTiers(data);
       const cacheData = { data, timestamp: now };

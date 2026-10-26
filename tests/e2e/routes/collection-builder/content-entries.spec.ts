@@ -262,6 +262,9 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
       .getByRole("row")
       .filter({ hasText: /delete me/i })
       .first();
+    // Entry-row selection is `role="checkbox"` on a visible element (not the
+    // kit <Checkbox>, whose native input is sr-only), so a direct click is the
+    // real hit target here.
     await row.getByRole("checkbox").first().click();
 
     await page.getByRole("button", { name: "Toggle actions menu" }).click();
@@ -341,7 +344,7 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     });
   });
 
-  test("error boundary: 404 recovery actions render outline and navigate", async ({ page }) => {
+  test("error boundary: 404 recovery actions render and navigate", async ({ page }) => {
     const missing = `missing${Date.now().toString(36)}`;
     const response = await page.goto(`/en/collection/${missing}`, {
       waitUntil: "domcontentloaded",
@@ -355,14 +358,17 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     const reload = page.getByRole("button", { name: /reload view/i }).first();
     const back = page.getByRole("button", { name: /go back/i }).first();
 
+    // The dashboard action is the page's primary recovery action; Reload/Back
+    // stay outline. (A filled dashboard action was an intentional UX change.)
+    await expect(dashboard, "Go to Dashboard action").toBeVisible({ timeout: 10_000 });
+    await expect(dashboard, "Go to Dashboard must be primary").toHaveClass(
+      /preset-filled-tertiary-600/,
+    );
     for (const [label, button] of [
-      ["Go to Dashboard", dashboard],
       ["Reload View", reload],
       ["Go Back", back],
     ] as const) {
       await expect(button, `${label} action`).toBeVisible({ timeout: 10_000 });
-      // Recovery actions share the outline treatment; filled/ghost variants here
-      // were the reported visual bug.
       await expect(button, `${label} must be outline`).toHaveClass(/preset-outlined-surface-500/);
     }
 

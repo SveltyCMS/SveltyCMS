@@ -16,6 +16,7 @@ import { handleTestingUserGdprRoutes } from "./testing/testing-users-gdpr";
 import { handleTestingConfigSeedRoutes } from "./testing/testing-config-seeds";
 import { handleTestingTrashInviteMediaRoutes } from "./testing/testing-trash-invite-media";
 import { handleTestingPluginOutboxRoutes } from "./testing/testing-plugin-outbox";
+import { handleTestingEgressRoutes } from "./testing/testing-egress";
 
 /**
  * MASTER TESTING HANDLER
@@ -113,6 +114,7 @@ export async function handleTestingRoutes(
       handleTestingConfigSeedRoutes,
       handleTestingTrashInviteMediaRoutes,
       handleTestingPluginOutboxRoutes,
+      handleTestingEgressRoutes,
     ];
 
     for (const handler of handlers) {

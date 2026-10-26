@@ -45,7 +45,9 @@ graph TB
         UPLOAD[upload-client.ts]
         DASH[media-storage-analytics-widget]
         EDITOR[ImageEditor Shell]
-        WGPU[WebGPU/WASM Optimizer]
+        WGPU[Canvas 2D Optimizer]
+        HLS[hls-video-player.svelte]
+        TRANSCODE[transcode-modal.svelte]
     end
 
     subgraph "API Layer (src/routes/api/[...path])"
@@ -217,7 +219,7 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 
 ### Phase I: Ingestion (Client-Side & Hashing)
 
-- **WebGPU/WASM Optimization**: **[Client-Only]** Large images are compressed, focal-cropped, and converted to WebP/AVIF directly in the browser _before_ upload, saving >90% bandwidth (`local-upload.svelte`).
+- **Canvas 2D Optimization**: **[Client-Only]** Large images are downscaled to a 1920×1080 bounding box and re-encoded to WebP directly in the browser _before_ upload, saving bandwidth (`local-upload.svelte` → `canvas-image-optimizer.ts`). No GPU API is involved; browser WebGPU is only used by the LiteRT.js AI client.
 - **Smart Upload Routing** (`upload-client.ts`): The gallery and dedicated upload page route payloads automatically — files or batches under **10 MB** use the SvelteKit form action (`?/upload`); larger payloads stream to `POST /api/media/stream` with the `folder` field preserved. Both paths share one hard ceiling: the dispatcher bounds the request at `API_MAX_BODY_SIZE_BYTES` (**15 MB**, `Content-Length` and chunked alike) and `parseMultipartStream` receives the same cap for `maxFileSize`/`maxTotalSize`, aborting incrementally with `413 PAYLOAD_TOO_LARGE` instead of buffering toward the parser defaults. Files between **6 MB and 15 MB** take the **TUS resumable** lane (`POST /api/media/tus` + `PATCH`) so a reload or network drop resumes from the last committed offset; `resumable: false` restores the legacy routing.
 - **Direct-to-storage (S3 / R2)**: `POST /api/media/upload-instructions` issues a 15-minute SigV4 presigned `PUT` for a tenant-scoped staging key plus an HMAC token; `POST /api/media/direct-upload/complete` downloads the staged object, enforces the declared size, re-sniffs MIME (polyglot rejection), and runs the normal ingestion path. Local and Cloudinary installs fall back to TUS because no privileged storage endpoint is exposed. Contract: [Direct & Resumable Uploads](../api/media-uploads.mdx).
 - **Hash-First Approach**: Every file is identified by the full 64-character hex **SHA-256** digest of its bytes (`hashFileContent()` in `src/utils/media/media-processing.server.ts`). The hash is both the deduplication key and the storage directory of the file: `{tenantId}/{hash}/original/<name>-<hash>.<ext>`. The lookup happens **before any derivative work** and is scoped to the tenant — see _Storage & Deduplication_ below.
@@ -424,6 +426,13 @@ On desktop, **sidebar** and **breadcrumb** are first-class peers — same payloa
 
 On `/mediagallery`, the left sidebar shows virtual folders and a back-to-collections control (not dual Collections + Media section headers). On collection routes, only the collections tree is shown. See `left-sidebar.svelte`.
 
+The folder list is owned by `mediaFolderTree` (`src/stores/media-folder-tree.svelte.ts`), a module singleton:
+
+- **One fetch per session.** `ensureLoaded()` is used for first paint; moving between folders only updates `?folderId`/the selected row, so the tree never refetches on navigation. `load()` is reserved for `folderCreated` / `folderUpdated` / `folderDeleted` events and the error-state retry.
+- **No two-stage paint.** `media-folders.svelte` renders the loading state until `hasLoaded`, so a cold session never paints a childless “Media Root” that then expands.
+- **One tree chrome.** `media-folders.svelte` and `collections.svelte` both consume the same `TreeView` styling (row surface, primary selection, indent, chevrons, compact rail) — media no longer has a separate visual variant.
+- **SPA navigation.** Tree rows render as `<a>` for hover preload; the row handler cancels the anchor default when the node's `onClick` owns navigation, otherwise `stopPropagation()` lets the browser fall back to a full document reload (which used to wipe the cached tree on every folder click).
+
 ---
 
 ## 🗂️ DAM Admin UI Integration
@@ -443,6 +452,9 @@ The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third
 | **Lifecycle maintenance** | Admin/ops command (no UI required)                       | `POST /api/media/cleanup` (dry-run supported)              |
 | **Secure share links**    | Share tab in `media-details-modal.svelte`                | `POST /api/media/share/{id}`, `DELETE …/{token}`           |
 | **Streaming upload**      | Gallery toolbar + `local-upload.svelte`                  | `upload-client.ts` → form action or `/api/media/stream`    |
+| **Batch resize / filter** | Selection toolbar → `batch-processor.svelte` panel       | `POST /api/media/batch-process` (≤100 ids, publish gate)   |
+| **Adaptive HLS playback** | Details modal → `hls-video-player.svelte`                | `metadata.hls.master`; native HLS or lazy `hls.js`         |
+| **Video transcoding**     | Details modal → Transcode → `transcode-modal.svelte`     | `POST /api/media/transcode` (ffmpeg; `503` when absent)    |
 
 ### Media Details Modal
 

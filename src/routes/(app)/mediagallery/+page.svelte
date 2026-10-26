@@ -11,11 +11,11 @@
 -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import {
 		Collections_MediaGallery,
-		mediagallery_advanced_filters,
 		mediagallery_advanced_search,
+		mediagallery_batch_processor,
 		mediagallery_cancel_upload,
 		mediagallery_create_folder,
 		mediagallery_del_esc_hint,
@@ -27,39 +27,34 @@
 		mediagallery_filter_type,
 		mediagallery_folder_drop_path,
 		mediagallery_grid_size,
-		mediagallery_grid_size_aria,
 		mediagallery_grid_view,
-		mediagallery_json_path_filter,
-		mediagallery_json_path_format,
-		mediagallery_json_path_placeholder,
 		mediagallery_loading_table,
 		mediagallery_new_folder,
 		mediagallery_search_assets,
 		mediagallery_search_modf,
 		mediagallery_selected,
 		mediagallery_select_button,
-		mediagallery_sort,
 		mediagallery_sort_by,
 		mediagallery_status_all,
 		mediagallery_status_failed,
 		mediagallery_status_processing,
-		mediagallery_status_placeholder,
 		mediagallery_status_ready,
 		mediagallery_table_view,
 		mediagallery_tap_parent_hint,
-		mediagallery_title,
 		mediagallery_toggle_selection,
-		mediagallery_type_placeholder,
 		mediagallery_upload,
 		mediagallery_upload_progress,
 		mediagallery_view_mode,
+		media_root_title,
 		button_cancel
 	} from '@src/paraglide/messages';
 	import { slide } from 'svelte/transition';
-	import { refreshAll } from '$app/navigation';
+	import { refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import MediaGrid from './media-grid.svelte';
+	import AdminCard from '@components/admin-card.svelte';
+	import BatchProcessor from './batch-processor.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
 	import { mediaUrl } from '@utils/media/media-utils';
@@ -105,11 +100,43 @@
 
 	// State
 	let files = $state<Array<MediaBase | MediaImage>>([]);
+
+	/** Server page contract for the gallery (see `+page.server.ts` → `mediaPagination`). */
+	interface MediaPagination {
+		page: number;
+		pageSize: number;
+		total: number;
+		hasNextPage: boolean;
+		hasPreviousPage: boolean;
+	}
+
+	const mediaPagination = $derived<MediaPagination>(
+		(data as { mediaPagination?: MediaPagination }).mediaPagination ?? {
+			page: 1,
+			pageSize: 100,
+			total: files.length,
+			hasNextPage: false,
+			hasPreviousPage: false
+		}
+	);
+	let isLoadingMore = $state(false);
 	let globalSearchValue = $state('');
 	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
 	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>('all');
 	let view = $state<'grid' | 'table'>('grid');
 	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
+	/** Grid density is one cycling control; the four-letter segmented row was redundant chrome. */
+	const GRID_SIZES = ['tiny', 'small', 'medium', 'large'] as const;
+	const GRID_SIZE_LABELS: Record<(typeof GRID_SIZES)[number], string> = {
+		tiny: 'XS',
+		small: 'S',
+		medium: 'M',
+		large: 'L'
+	};
+	function cycleGridSize() {
+		const next = (GRID_SIZES.indexOf(gridSize) + 1) % GRID_SIZES.length;
+		gridSize = GRID_SIZES[next] ?? 'small';
+	}
 	let selectedFiles = $state(new SvelteSet<string>());
 	let isSelectionMode = $state(false);
 	let fileUploadInput = $state<HTMLInputElement>();
@@ -118,6 +145,7 @@
 	let uploadFileLabel = $state('');
 	let uploadCancel: (() => void) | null = $state(null);
 	let isBulkDownloading = $state(false);
+	let showBatchProcessor = $state(false);
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
 	// Seed from server ?jsonPath= for shareable filtered views
@@ -181,8 +209,62 @@
 	// a full page reload. Local optimistic edits (delete/edit) mutate `files`
 	// directly and are reconciled on the next invalidation.
 	$effect(() => {
-		files = [...((data?.media ?? []) as unknown as (MediaBase | MediaImage)[])];
+		const incoming = (data?.media ?? []) as unknown as (MediaBase | MediaImage)[];
+		if (mediaPagination.page <= 1) {
+			files = [...incoming];
+			return;
+		}
+		// `refreshAll()` on a deep page re-delivers only that page — merge instead of
+		// clobbering the pages the user already revealed by scrolling.
+		const known = new Set(untrack(() => files).map(mediaFileKey));
+		const additions = incoming.filter((file) => !known.has(mediaFileKey(file)));
+		if (additions.length > 0) files = [...files, ...additions];
 	});
+
+	/** Stable identity across server pages (`_id` is always present on gallery rows). */
+	function mediaFileKey(file: MediaBase | MediaImage): string {
+		return String(file._id ?? file.filename ?? '');
+	}
+
+	/**
+	 * Go to a server page of the listing. `?page=` is sanitised server-side; page 1
+	 * deletes the param so folder links and the browser URL stay clean.
+	 */
+	async function navigateMediaPage(pageNumber: number) {
+		const target = new URL(page.url.href);
+		if (pageNumber <= 1) target.searchParams.delete('page');
+		else target.searchParams.set('page', String(pageNumber));
+		if (target.href === page.url.href) {
+			await refreshAll();
+			return;
+		}
+		// Pagination is query state, not a route change — the sanctioned goto escape
+		// hatch. `replace` keeps infinite scroll from flooding the history stack.
+		await goto(target, { reset: false, replace: pageNumber > 1 });
+	}
+
+	/** Fetch the next 100 rows of the folder (grid sentinel / table "load more"). */
+	async function loadMoreMedia() {
+		if (isLoadingMore || !mediaPagination.hasNextPage) return;
+		isLoadingMore = true;
+		try {
+			await navigateMediaPage(mediaPagination.page + 1);
+		} catch (err) {
+			logger.error('Failed to load more media', err);
+			toast.error('Could not load more assets');
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
+	/** Uploads land on page 1 (newest first) — collapse the paged window to show them. */
+	async function reloadMediaFromFirstPage() {
+		if (mediaPagination.page <= 1) {
+			await refreshAll();
+			return;
+		}
+		await navigateMediaPage(1);
+	}
 
 	const mediaTypes = [
 		{ value: 'All', label: 'ALL' },
@@ -330,7 +412,9 @@
 	// the current folder's path is resolved back to its folder via systemVirtualFolders.
 	const breadcrumbs = $derived.by(() => {
 		const crumbs: Array<{ name: string; folderId: string | null }> = [
-			{ name: mediagallery_title(), folderId: null }
+			// The page title lives in AdminPageShell; the root crumb must read as a
+			// path ("Media Root", same as the sidebar), not repeat the page title.
+			{ name: media_root_title(), folderId: null }
 		];
 		const current = data.currentFolder as { path?: string } | null;
 		if (current?.path && current.path !== '/') {
@@ -354,6 +438,12 @@
 		filtered: filteredFiles.length,
 		selected: selectedFiles.size
 	}));
+
+	// The batch panel operates on the current selection only. Clearing the selection
+	// closes it; opening it again is an explicit action from the bulk bar.
+	$effect(() => {
+		if (assetStats.selected === 0) showBatchProcessor = false;
+	});
 
 	const currentFolderId = $derived(
 		((data.currentFolder as { _id?: string } | null)?._id as string | undefined) ?? null
@@ -560,20 +650,73 @@
 		}
 	}
 
+	/**
+	 * SvelteKit answers a form action with an `ActionResult` envelope (`type`
+	 * `success` | `failure` | `error`); a 200 status can still be a failure, so
+	 * both the status and the envelope are part of the outcome.
+	 */
+	async function evaluateDeleteResponse(
+		response: Response
+	): Promise<{ ok: boolean; message?: string }> {
+		const envelope = (await response.json().catch(() => null)) as {
+			type?: string;
+			error?: { message?: string };
+		} | null;
+		if (response.ok && envelope?.type === 'success') return { ok: true };
+		return {
+			ok: false,
+			message: envelope?.error?.message ?? `HTTP ${response.status}`
+		};
+	}
+
 	async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
 		showConfirm({
 			title: `Delete ${filesToDelete.length} files?`,
 			body: 'This action cannot be undone.',
 			onConfirm: async () => {
+				// Per-file outcomes: an HTTP or action error must never be announced as
+				// "complete" nor hide the asset — the row still exists on the server.
+				const deletedKeys = new Set<string>();
+				const failedNames: string[] = [];
+
 				for (const file of filesToDelete) {
 					const formData = new FormData();
 					formData.append('imageData', JSON.stringify(file));
-					await fetch('?/deleteMedia', { method: 'POST', body: formData });
+					try {
+						const response = await fetch('?/deleteMedia', { method: 'POST', body: formData });
+						const outcome = await evaluateDeleteResponse(response);
+						if (outcome.ok) {
+							deletedKeys.add(mediaFileKey(file));
+						} else {
+							failedNames.push(file.filename);
+							logger.warn(`Bulk delete failed for ${file._id}: ${outcome.message}`);
+						}
+					} catch (err) {
+						failedNames.push(file.filename);
+						logger.error(`Bulk delete request failed for ${file._id}`, err);
+					}
 				}
-				files = files.filter((f) => !selectedFiles.has(f._id as string));
-				selectedFiles.clear();
+
+				// Only confirmed deletions leave the list and the selection, so failed
+				// rows stay visible for a retry.
+				files = files.filter((f) => !deletedKeys.has(mediaFileKey(f)));
+				for (const key of deletedKeys) selectedFiles.delete(key);
 				await refreshAll();
-				toast.success('Batch delete complete');
+
+				if (failedNames.length === 0) {
+					toast.success('Batch delete complete');
+					return;
+				}
+
+				const listed = failedNames.slice(0, 3).join(', ');
+				const summary = failedNames.length > 3 ? `${listed}…` : listed;
+				if (deletedKeys.size === 0) {
+					toast.error(`Batch delete failed: ${summary}`);
+				} else {
+					toast.warning(
+						`${deletedKeys.size} of ${filesToDelete.length} files deleted — ${failedNames.length} failed: ${summary}`
+					);
+				}
 			}
 		});
 	}
@@ -615,7 +758,7 @@
 			} else if (result.success) {
 				const n = result.files?.length || list.length;
 				toast.success(n > 1 ? `${n} files uploaded successfully` : 'Media uploaded successfully');
-				await refreshAll();
+				await reloadMediaFromFirstPage();
 			} else {
 				toast.error(result.message || 'Upload failed');
 			}
@@ -707,8 +850,11 @@
 					});
 					if (response.ok) {
 						toast.success('Folder created');
+						// The sidebar owns its own data: `media-folders.svelte` listens for
+						// `folderCreated` and reloads only the folder tree. Re-running every
+						// page load (`refreshAll`) here re-fetched the whole media listing,
+						// counts, and layout data for a change that touches none of them.
 						document.dispatchEvent(new CustomEvent('folderCreated'));
-						await refreshAll();
 					} else {
 						const result = await response.json().catch(() => null);
 						toast.error(result?.error?.message || result?.message || 'Folder creation failed');
@@ -776,6 +922,23 @@
 	}
 </script>
 
+{#snippet gridSizeToggle()}
+	<Button
+		type="button"
+		variant="surface"
+		size="md"
+		onclick={cycleGridSize}
+		aria-label={`${mediagallery_grid_size()}: ${GRID_SIZE_LABELS[gridSize]}`}
+		title={mediagallery_grid_size()}
+		data-testid="media-grid-size-toggle"
+		data-size={gridSize}
+		class="h-10 min-w-14 shrink-0 gap-1.5 px-2"
+	>
+		<iconify-icon icon="mdi:image-size-select-small" width="16" aria-hidden="true"></iconify-icon>
+		<span class="text-xs font-bold tabular-nums">{GRID_SIZE_LABELS[gridSize]}</span>
+	</Button>
+{/snippet}
+
 <AdminPageShell
 	title={Collections_MediaGallery()}
 	icon="bi:images"
@@ -832,7 +995,7 @@
 	{/snippet}
 
 	{#if isUploading}
-		<div class="shrink-0 px-2 pb-1 sm:px-3">
+		<div class="shrink-0 pb-1">
 			<div
 				class="flex items-center gap-3 rounded border border-surface-500/30 bg-surface-500/10 p-2 text-xs dark:border-surface-500/40 dark:bg-surface-800"
 				role="progressbar"
@@ -875,7 +1038,7 @@
 
 	<div class="flex min-h-0 flex-1 flex-col gap-0">
 		{#if assetStats.selected > 0}
-			<div class="shrink-0 px-2 sm:px-3">
+			<div class="shrink-0">
 				<div
 					class="flex flex-wrap items-center justify-between gap-2 border-b border-primary-500/30 py-2"
 					role="status"
@@ -892,23 +1055,38 @@
 							{mediagallery_del_esc_hint()}</span
 						>
 					</p>
-					<Button
-						variant="surface"
-						size="sm"
-						onclick={handleBulkDownload}
-						disabled={isBulkDownloading}
-						aria-busy={isBulkDownloading}
-						aria-label={mediagallery_download_archive()}
-						data-testid="media-bulk-download"
-						class="h-8 gap-1.5 px-3"
-					>
-						<iconify-icon
-							icon={isBulkDownloading ? 'mdi:loading' : 'mdi:archive-arrow-down-outline'}
-							width="16"
-							class={isBulkDownloading ? 'animate-spin' : ''}
-						></iconify-icon>
-						<span>{isBulkDownloading ? 'Preparing…' : 'Download Archive'}</span>
-					</Button>
+					<div class="flex flex-wrap items-center gap-2">
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={() => (showBatchProcessor = !showBatchProcessor)}
+							aria-expanded={showBatchProcessor}
+							aria-controls="media-batch-processor"
+							aria-label={mediagallery_batch_processor()}
+							data-testid="media-bulk-batch-process"
+							class="h-8 gap-1.5 px-3"
+						>
+							<iconify-icon icon="mdi:auto-fix" width="16" aria-hidden="true"></iconify-icon>
+							<span>{mediagallery_batch_processor()}</span>
+						</Button>
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={handleBulkDownload}
+							disabled={isBulkDownloading}
+							aria-busy={isBulkDownloading}
+							aria-label={mediagallery_download_archive()}
+							data-testid="media-bulk-download"
+							class="h-8 gap-1.5 px-3"
+						>
+							<iconify-icon
+								icon={isBulkDownloading ? 'mdi:loading' : 'mdi:archive-arrow-down-outline'}
+								width="16"
+								class={isBulkDownloading ? 'animate-spin' : ''}
+							></iconify-icon>
+							<span>{isBulkDownloading ? 'Preparing…' : 'Download Archive'}</span>
+						</Button>
+					</div>
 				</div>
 			</div>
 		{/if}
@@ -921,9 +1099,9 @@
 			an ancestor takes the media (primary ring), the current folder rejects it
 			(error ring) rather than being inert, so the gesture always gets feedback.
 		-->
-		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-breadcrumbs">
+		<div class="shrink-0" data-testid="media-gallery-breadcrumbs">
 			<nav
-				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-base text-(--admin-text-muted) sm:gap-2.5 sm:py-2.5 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
+				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-sm text-(--admin-text-muted) sm:gap-2.5 sm:py-2 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
 				aria-label={mediagallery_folder_drop_path()}
 			>
 				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
@@ -1018,7 +1196,7 @@
 		</div>
 
 		<!-- Toolbar -->
-		<div class="shrink-0 px-2 sm:px-3" data-testid="media-gallery-toolbar">
+		<div class="shrink-0" data-testid="media-gallery-toolbar">
 			<!-- Mobile toolbar: search + expand button, then collapsible filters -->
 			<div class="flex flex-col gap-1.5 py-2 sm:hidden">
 				<div class="flex items-center gap-2">
@@ -1042,8 +1220,11 @@
 								variant="ghost"
 								size="sm"
 								onclick={() => (showAdvancedSearch = true)}
-								aria-label={mediagallery_advanced_filters()}
-								class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+								aria-label={mediagallery_advanced_search()}
+								class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+									? 'text-primary-500'
+									: ''}"
+								data-testid="media-advanced-search-mobile"
 							>
 								<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
 							</Button>
@@ -1079,7 +1260,7 @@
 									id="media-type-filter-m"
 									bind:value={selectedMediaType}
 									options={mediaTypeOptions}
-									placeholder={mediagallery_type_placeholder()}
+									placeholder=""
 									class="flex-1"
 								/>
 							{/if}
@@ -1090,7 +1271,7 @@
 								id="media-status-filter-m"
 								bind:value={selectedProcessingStatus}
 								options={processingStatusOptions}
-								placeholder={mediagallery_status_placeholder()}
+								placeholder=""
 								aria-label={mediagallery_filter_status()}
 								data-testid="media-status-filter-m"
 								class="flex-1"
@@ -1100,18 +1281,8 @@
 								id="sort-by-filter-m"
 								bind:value={sortBy}
 								options={sortOptions}
-								placeholder={mediagallery_sort()}
+								placeholder=""
 								class="flex-1"
-							/>
-						</div>
-						<div class="relative min-w-0 w-full">
-							<Input
-								bind:value={jsonPathFilter}
-								type="text"
-								placeholder={mediagallery_json_path_placeholder()}
-								class="w-full ps-2 text-xs"
-								aria-label={mediagallery_json_path_filter()}
-								title={mediagallery_json_path_format()}
 							/>
 						</div>
 						<div class="flex items-center gap-2">
@@ -1144,33 +1315,7 @@
 								</Button>
 							</div>
 							{#if view === 'grid'}
-								<div
-									class="flex overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
-									role="group"
-									aria-label={mediagallery_grid_size()}
-								>
-									{#each ['tiny', 'small', 'medium', 'large'] as const as size, i (size)}
-										<Button
-											type="button"
-											variant={gridSize === size ? 'primary' : 'ghost'}
-											size="md"
-											onclick={() => (gridSize = size)}
-											aria-label={mediagallery_grid_size_aria({ size })}
-											aria-pressed={gridSize === size}
-											class="h-10! w-8! px-0! text-xs! {i > 0
-												? 'border-s border-surface-500/30 dark:border-surface-600'
-												: ''}"
-										>
-											{size === 'tiny'
-												? 'XS'
-												: size === 'small'
-													? 'S'
-													: size === 'medium'
-														? 'M'
-														: 'L'}
-										</Button>
-									{/each}
-								</div>
+								{@render gridSizeToggle()}
 								<Button
 									type="button"
 									variant={isSelectionMode ? 'primary' : 'outline'}
@@ -1221,7 +1366,9 @@
 							onclick={() => (showAdvancedSearch = true)}
 							aria-label={mediagallery_advanced_search()}
 							data-testid="media-advanced-search"
-							class="h-7! w-7! min-w-0! px-0! {searchCriteria ? 'text-primary-500' : ''}"
+							class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+								? 'text-primary-500'
+								: ''}"
 						>
 							<iconify-icon icon="mdi:filter-variant" width="16"></iconify-icon>
 						</Button>
@@ -1235,41 +1382,25 @@
 							id="media-type-filter"
 							bind:value={selectedMediaType}
 							options={mediaTypeOptions}
-							placeholder={mediagallery_type_placeholder()}
+							placeholder=""
 						/>
 					</div>
 				{/if}
 
-				<div class="w-28 shrink-0">
+				<div class="w-40 shrink-0">
 					<label for="media-status-filter" class="sr-only">{mediagallery_filter_status()}</label>
 					<Select
 						id="media-status-filter"
 						bind:value={selectedProcessingStatus}
 						options={processingStatusOptions}
-						placeholder={mediagallery_status_placeholder()}
+						placeholder=""
 						data-testid="media-status-filter"
 					/>
 				</div>
 
 				<div class="w-36 shrink-0">
 					<label for="sort-by-filter" class="sr-only">{mediagallery_sort_by()}</label>
-					<Select
-						id="sort-by-filter"
-						bind:value={sortBy}
-						options={sortOptions}
-						placeholder={mediagallery_sort()}
-					/>
-				</div>
-
-				<div class="relative min-w-0 w-44 shrink-0">
-					<Input
-						bind:value={jsonPathFilter}
-						type="text"
-						placeholder={mediagallery_json_path_placeholder()}
-						class="w-full ps-2 text-xs"
-						aria-label={mediagallery_json_path_filter()}
-						title={mediagallery_json_path_format()}
-					/>
+					<Select id="sort-by-filter" bind:value={sortBy} options={sortOptions} placeholder="" />
 				</div>
 
 				<div
@@ -1305,27 +1436,7 @@
 				</div>
 
 				{#if view === 'grid'}
-					<div
-						class="flex shrink-0 overflow-hidden rounded border border-surface-500/30 dark:border-surface-600"
-						role="group"
-						aria-label={mediagallery_grid_size()}
-					>
-						{#each ['tiny', 'small', 'medium', 'large'] as const as size, i (size)}
-							<Button
-								type="button"
-								variant={gridSize === size ? 'primary' : 'ghost'}
-								size="md"
-								onclick={() => (gridSize = size)}
-								aria-label={mediagallery_grid_size_aria({ size })}
-								aria-pressed={gridSize === size}
-								class="h-10! w-8! px-0! text-xs! {i > 0
-									? 'border-s border-surface-500/30 dark:border-surface-600'
-									: ''}"
-							>
-								{size === 'tiny' ? 'XS' : size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}
-							</Button>
-						{/each}
-					</div>
+					{@render gridSizeToggle()}
 
 					<Button
 						type="button"
@@ -1348,6 +1459,21 @@
 			</div>
 		</div>
 
+		<!--
+			Server pagination state (audit F01): the SSR total, not the rendered slice.
+			Screen-reader text only — the grid/table carry the visible affordance.
+		-->
+		<p
+			class="sr-only"
+			data-testid="media-gallery-pagination"
+			data-page={mediaPagination.page}
+			data-loaded={files.length}
+			data-total={mediaPagination.total}
+			data-has-more={mediaPagination.hasNextPage}
+		>
+			Media list: {files.length} of {mediaPagination.total} assets loaded
+		</p>
+
 		<!-- Content — data-view is the canonical E2E signal for grid/table mode -->
 		<div
 			class="relative flex min-h-0 flex-1 flex-col"
@@ -1355,17 +1481,25 @@
 			data-view={view}
 		>
 			{#if view === 'grid'}
-				<MediaGrid
-					{filteredFiles}
-					{gridSize}
-					{isSelectionMode}
-					bind:selectedFiles
-					{publishedMediaIds}
-					onEditImage={handleEditImage}
-					onOpenFileDetails={handleOpenFileDetails}
-					ondeleteImage={handleDeleteImage}
-					onUpdateImage={handleUpdateImage}
-				/>
+				<AdminCard
+					class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
+					data-testid="media-grid-card"
+				>
+					<MediaGrid
+						{filteredFiles}
+						{gridSize}
+						{isSelectionMode}
+						bind:selectedFiles
+						{publishedMediaIds}
+						serverHasMore={mediaPagination.hasNextPage}
+						{isLoadingMore}
+						onLoadMore={loadMoreMedia}
+						onEditImage={handleEditImage}
+						onOpenFileDetails={handleOpenFileDetails}
+						ondeleteImage={handleDeleteImage}
+						onUpdateImage={handleUpdateImage}
+					/>
+				</AdminCard>
 			{:else}
 				{#await import('./media-table.svelte')}
 					<div
@@ -1379,6 +1513,11 @@
 						{isSelectionMode}
 						bind:selectedFiles
 						{publishedMediaIds}
+						serverHasMore={mediaPagination.hasNextPage}
+						serverTotal={mediaPagination.total}
+						serverLoaded={files.length}
+						{isLoadingMore}
+						onLoadMore={loadMoreMedia}
 						onEditImage={handleEditImage}
 						onOpenFileDetails={handleOpenFileDetails}
 						ondeleteImage={handleDeleteImage}
@@ -1390,6 +1529,10 @@
 	</div>
 
 	<Slot name="media_gallery" />
+
+	{#if showBatchProcessor && assetStats.selected > 0}
+		<BatchProcessor selectedIds={selectedFiles} onClose={() => (showBatchProcessor = false)} />
+	{/if}
 
 	{#if isMediaDragActive}
 		{#await import('./media-drag-preview.svelte') then mod}
@@ -1407,8 +1550,10 @@
 				{#await import('./advanced-search-modal.svelte') then mod}
 					<mod.default
 						{files}
-						onSearch={(criteria) => {
+						initialJsonPath={jsonPathFilter}
+						onSearch={(criteria, path) => {
 							searchCriteria = criteria;
+							jsonPathFilter = path;
 							showAdvancedSearch = false;
 						}}
 						onClose={() => {

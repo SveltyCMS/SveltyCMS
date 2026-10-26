@@ -1,7 +1,7 @@
 <!--
-@file src/routes/(app)/user/components/admin-area.svelte
+@file src/routes/(app)/user/components/user-management.svelte
 @component
-**Admin area for managing users and tokens — Smart Table server mode.**
+**User management panel — users and tokens Smart Table (server mode).**
 
 ### Features
 - `createSmartTable({ mode: 'server', onQueryChange })` owns page/sort/selection
@@ -67,8 +67,11 @@
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
+	import { TAB_ROW, TAB_STRIP_FLUSH, tabTrigger } from '@components/ui/tabs/chrome';
 	// Types
-	import { type Role as RoleType, type Token, type User } from '@src/databases/auth/types';
+	import type { Role as RoleType, Token, User } from '@src/databases/auth/types';
+	import { convertDateToExpiresFormat, type UserTableRow } from '../user-remote-utils';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { isAdmin } from '@src/databases/auth/constants';
 	// Types
 	import {
@@ -172,8 +175,17 @@
 	const {
 		currentUser = null,
 		isMultiTenant = false,
-		roles = []
-	}: { currentUser: User | null; isMultiTenant: boolean; roles: RoleType[] } = $props();
+		roles = [],
+		initialUsers = null,
+		initialTotal = null
+	}: {
+		currentUser: User | null;
+		isMultiTenant: boolean;
+		roles: RoleType[];
+		/** Page 1 delivered by `+page.server.ts` (LocalCMS) — renders before the first fetch. */
+		initialUsers?: UserTableRow[] | null;
+		initialTotal?: number | null;
+	} = $props();
 
 	// Core view state (must exist before smartTable onQueryChange can fetch)
 	let showUserList = $state(true);
@@ -249,61 +261,93 @@
 	const rowsPerPage = $derived(smartTable.pagination.pageSize);
 	const sorting = $derived(smartTable.sort);
 
-	async function fetchData() {
-		await globalLoadingStore.withLoading(
-			loadingOperations.dataFetch,
-			async () => {
-				const endpoint = showUserList ? '/api/user' : '/api/token';
-				// eslint-disable-next-line svelte/prefer-svelte-reactivity
-				const params = new URLSearchParams();
-				params.set('page', String(smartTable.pagination.currentPage));
-				params.set('limit', String(smartTable.pagination.pageSize));
-				params.set('sort', smartTable.sort.sortedBy || 'createdAt');
-				if (smartTable.sort.isSorted !== 0) {
-					params.set('order', smartTable.sort.isSorted === 1 ? 'asc' : 'desc');
-				}
-				if (globalSearchValue) {
-					params.set('search', globalSearchValue);
-				}
-				if (showUserList && activeFacet !== 'all') {
-					if (activeFacet === 'admin' || activeFacet === 'user') {
-						params.set('role', activeFacet);
-					} else if (activeFacet === 'active') {
-						params.set('blocked', 'false');
-					} else if (activeFacet === 'blocked') {
-						params.set('blocked', 'true');
-					}
-				}
+	// Seed the first page from the server load: the table paints with rows instead
+	// of an empty state until the refresh in the view effect below lands.
+	const serverPage = untrack(() => ({ users: initialUsers, total: initialTotal }));
+	if (serverPage.users) {
+		const seededRows = serverPage.users as unknown as TableDataType[];
+		const seededTotal = serverPage.total ?? seededRows.length;
+		smartTable.setRows(seededRows);
+		smartTable.setPaginationMeta({
+			totalItems: seededTotal,
+			pagesCount: Math.max(1, Math.ceil(seededTotal / smartTable.pagination.pageSize)),
+			currentPage: 1,
+			pageSize: smartTable.pagination.pageSize
+		});
+	}
 
-				try {
-					const response = await fetch(`${endpoint}?${params.toString()}`);
-					if (!response.ok) {
-						const errorData = await response.json();
-						throw new Error(errorData.message || useradmin_fetch_failed());
-					}
-					const result = await response.json();
-					if (result.success) {
-						const items = (result.data || []) as TableDataType[];
-						const total = Number(result.pagination?.totalItems ?? items.length);
-						smartTable.setRows(items);
-						smartTable.setPaginationMeta({
-							totalItems: total,
-							pagesCount: Math.max(1, Math.ceil(total / smartTable.pagination.pageSize)),
-							currentPage: smartTable.pagination.currentPage,
-							pageSize: smartTable.pagination.pageSize
-						});
-					}
-				} catch (err) {
-					const errorMessage = err instanceof Error ? err.message : useradmin_unknown_error();
-					logger.error('AdminArea fetch error:', errorMessage);
-					toast.error(useradmin_fetch_error({ error: errorMessage }));
-					smartTable.setRows([]);
-					smartTable.setPaginationMeta({ totalItems: 0, pagesCount: 1 });
-					throw err;
+	// Guard against out-of-order responses: a slower request issued for the previous
+	// view must never write rows/pagination into the table the user is viewing now.
+	let fetchRequestId = 0;
+	let fetchController: AbortController | null = null;
+
+	async function fetchData() {
+		const requestId = ++fetchRequestId;
+		const viewAtRequest = showUserList ? 'users' : 'tokens';
+		fetchController?.abort();
+		const controller = new AbortController();
+		fetchController = controller;
+		const isLatestRequest = () =>
+			requestId === fetchRequestId && (showUserList ? 'users' : 'tokens') === viewAtRequest;
+
+		globalLoadingStore.startLoading(loadingOperations.dataFetch, useradmin_fetching_data());
+		try {
+			const endpoint = showUserList ? '/api/user' : '/api/token';
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
+			const params = new URLSearchParams();
+			params.set('page', String(smartTable.pagination.currentPage));
+			params.set('limit', String(smartTable.pagination.pageSize));
+			params.set('sort', smartTable.sort.sortedBy || 'createdAt');
+			if (smartTable.sort.isSorted !== 0) {
+				params.set('order', smartTable.sort.isSorted === 1 ? 'asc' : 'desc');
+			}
+			if (globalSearchValue) {
+				params.set('search', globalSearchValue);
+			}
+			if (showUserList && activeFacet !== 'all') {
+				if (activeFacet === 'admin' || activeFacet === 'user') {
+					params.set('role', activeFacet);
+				} else if (activeFacet === 'active') {
+					params.set('blocked', 'false');
+				} else if (activeFacet === 'blocked') {
+					params.set('blocked', 'true');
 				}
-			},
-			useradmin_fetching_data()
-		);
+			}
+
+			const response = await fetch(`${endpoint}?${params.toString()}`, {
+				signal: controller.signal
+			});
+			if (!isLatestRequest()) return;
+			if (!response.ok) {
+				const errorData = (await response.json().catch(() => ({}))) as { message?: string };
+				throw new Error(errorData.message || useradmin_fetch_failed());
+			}
+			const result = await response.json();
+			if (!isLatestRequest() || !result.success) return;
+			const items = (result.data || []) as TableDataType[];
+			const total = Number(result.pagination?.totalItems ?? items.length);
+			smartTable.setRows(items);
+			smartTable.setPaginationMeta({
+				totalItems: total,
+				pagesCount: Math.max(1, Math.ceil(total / smartTable.pagination.pageSize)),
+				currentPage: smartTable.pagination.currentPage,
+				pageSize: smartTable.pagination.pageSize
+			});
+		} catch (err) {
+			// A superseded request is expected — never report it or clear the current table.
+			if (controller.signal.aborted || !isLatestRequest()) {
+				logger.debug('AdminArea fetch superseded; response discarded');
+				return;
+			}
+			const errorMessage = err instanceof Error ? err.message : useradmin_unknown_error();
+			logger.error('AdminArea fetch error:', errorMessage);
+			toast.error(useradmin_fetch_error({ error: errorMessage }));
+			smartTable.setRows([]);
+			smartTable.setPaginationMeta({ totalItems: 0, pagesCount: 1 });
+			throw err;
+		} finally {
+			if (isLatestRequest()) globalLoadingStore.stopLoading(loadingOperations.dataFetch);
+		}
 	}
 
 	// Custom event handler for updates from Multibutton
@@ -481,14 +525,29 @@
 		smartTable.setDensity(density);
 	});
 
-	// View / search / user context changes — reset to page 1 (no emit) + fetch once
+	// View / search / user context changes — reset to page 1 (no emit) + fetch once.
+	// Track primitive `currentUser?._id` rather than the derived `currentUser` object
+	// reference so parent re-renders do not reset pagination/selection or fire duplicate requests.
+	const currentUserId = $derived(currentUser?._id ?? '');
+	let skipInitialSeedFetch = Boolean(serverPage.users);
 	$effect(() => {
 		void showUserList;
 		void showUsertoken;
 		void globalSearchValue;
-		void currentUser;
+		void currentUserId;
 
 		untrack(() => {
+			if (
+				skipInitialSeedFetch &&
+				showUserList &&
+				!showUsertoken &&
+				!globalSearchValue &&
+				activeFacet === 'all'
+			) {
+				skipInitialSeedFetch = false;
+				return;
+			}
+			skipInitialSeedFetch = false;
 			smartTable.clearSelection();
 			smartTable.setPaginationMeta({ currentPage: 1 });
 			fetchData().catch((err) => {
@@ -528,41 +587,6 @@
 				}
 			}
 		);
-	}
-
-	// Helper function to convert Date to expires format expected by ModalEditToken
-	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
-		if (!expiresDate) {
-			return '2 days'; // Default
-		}
-
-		const now = new Date();
-		const expires = new Date(expiresDate);
-		const diffMs = expires.getTime() - now.getTime();
-		const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-		const diffDays = Math.ceil(diffHours / 24);
-
-		// Match the available options in ModalEditToken
-		if (diffHours <= 2) {
-			return '2 hrs';
-		}
-		if (diffHours <= 12) {
-			return '12 hrs';
-		}
-		if (diffDays <= 2) {
-			return '2 days';
-		}
-		if (diffDays <= 7) {
-			return '1 week';
-		}
-		if (diffDays <= 14) {
-			return '2 weeks';
-		}
-		if (diffDays <= 30) {
-			return '1 month';
-		}
-
-		return '1 month'; // Max available option
 	}
 
 	// Helper function to calculate remaining time until expiration for display in table
@@ -653,10 +677,7 @@
 		try {
 			const response = await fetch('/api/user/batch', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken || ''
-				},
+				headers: clientJsonHeaders(page.data.csrfToken),
 				body: JSON.stringify({
 					userIds: [user._id],
 					action
@@ -734,10 +755,7 @@
 		try {
 			const response = await fetch('/api/token/batch', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': page.data.csrfToken || ''
-				},
+				headers: clientJsonHeaders(page.data.csrfToken),
 				body: JSON.stringify({
 					tokenIds: [token._id],
 					action
@@ -815,26 +833,89 @@
 	}
 </script>
 
-<AdminCard
-	data-testid="user-admin-area"
-	class="flex flex-col border border-surface-500/30 bg-white shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
->
-	<!-- Header: Tabs + Invite button -->
-	<div class="flex items-center justify-between gap-3 px-4 pt-3">
-		<div
-			class="flex border-b border-(--admin-border-default) grow"
-			role="tablist"
-			aria-label={useradmin_views_aria()}
+<!-- Status facets: local snippet, rendered on the toolbar row. -->
+{#snippet facetChips()}
+	<div
+		class="flex flex-wrap items-center gap-1.5 text-xs"
+		role="group"
+		aria-label="Filter users"
+		data-testid="user-facets"
+	>
+		<button
+			type="button"
+			onclick={() => selectFacet('all')}
+			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+			'all'
+				? 'bg-primary-500 text-white'
+				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
 		>
+			<span>{useradmin_all()}</span>
+			<span class="opacity-70">({systemUserCount})</span>
+		</button>
+		<button
+			type="button"
+			onclick={() => selectFacet('admin')}
+			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+			'admin'
+				? 'bg-primary-500 text-white'
+				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+		>
+			<iconify-icon
+				icon="mdi:shield-crown-outline"
+				width="14"
+				class="text-tertiary-500 dark:text-primary-400"
+			></iconify-icon>
+			<span>{useradmin_admins()}</span>
+		</button>
+		<button
+			type="button"
+			onclick={() => selectFacet('user')}
+			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+			'user'
+				? 'bg-primary-500 text-white'
+				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+		>
+			<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
+			<span>{useradmin_users()}</span>
+		</button>
+		<button
+			type="button"
+			onclick={() => selectFacet('active')}
+			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+			'active'
+				? 'bg-primary-500 text-white'
+				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+		>
+			<span class="size-1.5 rounded-full bg-success-500"></span>
+			<span>{useradmin_active()}</span>
+		</button>
+		<button
+			type="button"
+			onclick={() => selectFacet('blocked')}
+			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
+			'blocked'
+				? 'bg-primary-500 text-white'
+				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+		>
+			<span class="size-1.5 rounded-full bg-error-500"></span>
+			<span>{useradmin_blocked()}</span>
+		</button>
+	</div>
+{/snippet}
+
+<AdminCard data-testid="user-admin-area" class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3">
+	<!-- Header: Tabs + Invite button. The rule belongs to the whole row (it used to end
+	     with the tablist, leaving a visible gap under Invite User). It is painted as an
+	     inset shadow so the tabs' 2px active underline covers it (`TAB_ROW`). -->
+	<div class={TAB_ROW} data-testid="user-admin-header">
+		<div class="{TAB_STRIP_FLUSH} grow" role="tablist" aria-label={useradmin_views_aria()}>
 			<button
 				type="button"
 				role="tab"
 				aria-selected={showUserList}
 				data-testid="admin-tab-users"
 				onclick={() => showView('users')}
-				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUserList
-					? 'border-primary-500 text-primary-600 dark:text-primary-500'
-					: 'border-transparent text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)'}"
+				class={tabTrigger(showUserList, 'gap-1.5')}
 			>
 				<iconify-icon icon="mdi:account-group" width={18}></iconify-icon>
 				{useradmin_users()}
@@ -846,9 +927,7 @@
 				aria-selected={showUsertoken}
 				data-testid="admin-tab-tokens"
 				onclick={() => showView('tokens')}
-				class="flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors {showUsertoken
-					? 'border-primary-500 text-primary-600 dark:text-primary-500'
-					: 'border-transparent text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)'}"
+				class={tabTrigger(showUsertoken, 'gap-1.5')}
 			>
 				<iconify-icon icon="material-symbols:key-outline" width={18}></iconify-icon>
 				{useradmin_invitations()}
@@ -866,9 +945,10 @@
 		</Button>
 	</div>
 
-	<!-- Toolbar -->
-	<div class="{SMART_TABLE_TOOLBAR} relative z-30">
-		<div class="order-3 flex items-center gap-2 sm:order-2">
+	<!-- Toolbar: search / filters / views / status facets share one band with the
+	     row actions — facets used to sit on their own row and pushed the table down. -->
+	<div class="{SMART_TABLE_TOOLBAR} relative z-30 px-4" data-testid="user-admin-toolbar">
+		<div class="order-3 flex flex-wrap items-center gap-2 sm:order-2">
 			<TableFilter
 				bind:globalSearchValue
 				bind:searchShow
@@ -882,6 +962,9 @@
 				onApply={applySavedView}
 			/>
 			<SmartTableMetricsBadge source={showUserList ? 'UserManagement.list' : 'Tokens.list'} />
+			{#if showUserList}
+				{@render facetChips()}
+			{/if}
 		</div>
 
 		<div class="order-2 flex items-center justify-center sm:order-3 relative z-30">
@@ -894,71 +977,6 @@
 			/>
 		</div>
 	</div>
-
-	{#if showUserList}
-		<!-- Facet Chips -->
-		<div class="flex flex-wrap items-center gap-1.5 px-3 py-1.5 text-xs">
-			<button
-				type="button"
-				onclick={() => selectFacet('all')}
-				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-				'all'
-					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
-			>
-				<span>{useradmin_all()}</span>
-				<span class="opacity-70">({systemUserCount})</span>
-			</button>
-			<button
-				type="button"
-				onclick={() => selectFacet('admin')}
-				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-				'admin'
-					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
-			>
-				<iconify-icon
-					icon="mdi:shield-crown-outline"
-					width="14"
-					class="text-tertiary-500 dark:text-primary-400"
-				></iconify-icon>
-				<span>{useradmin_admins()}</span>
-			</button>
-			<button
-				type="button"
-				onclick={() => selectFacet('user')}
-				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-				'user'
-					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
-			>
-				<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
-				<span>{useradmin_users()}</span>
-			</button>
-			<button
-				type="button"
-				onclick={() => selectFacet('active')}
-				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-				'active'
-					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
-			>
-				<span class="size-1.5 rounded-full bg-success-500"></span>
-				<span>{useradmin_active()}</span>
-			</button>
-			<button
-				type="button"
-				onclick={() => selectFacet('blocked')}
-				class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-				'blocked'
-					? 'bg-primary-500 text-white'
-					: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
-			>
-				<span class="size-1.5 rounded-full bg-error-500"></span>
-				<span>{useradmin_blocked()}</span>
-			</button>
-		</div>
-	{/if}
 
 	{#if columnShow && (tableData?.length || filterShow)}
 		<div class={SMART_TABLE_COLUMN_MANAGER}>
@@ -1018,12 +1036,10 @@
 		>
 			<thead class={SMART_TABLE_THEAD}>
 				<tr
-					class="border-b border-surface-500/30 dark:border-surface-50 font-semibold tracking-wide uppercase text-xs"
+					class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 				>
 					<TableIcons
-						cellClass="w-10 text-center border-e border-surface-500/30 dark:border-surface-600 {pinCellClass(
-							'start'
-						)}"
+						cellClass="w-10 {pinCellClass('start')}"
 						checked={selectAll.value}
 						onCheck={(checked: boolean) => {
 							selectAll.value = checked;
@@ -1033,7 +1049,7 @@
 					{#each displayTableHeaders.filter((header) => header.visible) as header (header.id)}
 						{@const colKey = String(header.key)}
 						<th
-							class="{SMART_TABLE_TH} relative cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800/50"
+							class="{SMART_TABLE_TH} relative cursor-pointer hover:bg-surface-500/10 dark:hover:bg-surface-800"
 							style={smartTable.getColumnWidthStyle(colKey)}
 							aria-sort={sorting.sortedBy === header.key
 								? sorting.isSorted === 1
@@ -1070,7 +1086,7 @@
 					<tr
 						class="{isExpired || isConsumed
 							? 'bg-surface-500/10 opacity-60 dark:bg-surface-900/20'
-							: ''} {isExpired ? 'bg-error-500/10 dark:bg-error-900/10' : ''} {rowSelected
+							: ''} {isExpired ? 'bg-error-500/10 dark:bg-error-900/20' : ''} {rowSelected
 							? SMART_TABLE_ROW_SELECTED
 							: showUsertoken
 								? `cursor-pointer ${SMART_TABLE_ROW_HOVER}`
@@ -1083,7 +1099,7 @@
 						}}
 					>
 						<TableIcons
-							cellClass="{SMART_TABLE_TD} border-e {pinCellClass('start')}"
+							cellClass="w-10 {pinCellClass('start')}"
 							checked={rowSelected}
 							onCheck={() => {
 								if (rowId) smartTable.toggleSelect(rowId);

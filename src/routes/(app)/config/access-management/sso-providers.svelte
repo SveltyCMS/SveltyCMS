@@ -20,6 +20,7 @@
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import {
 		button_cancel,
 		button_edit,
@@ -57,7 +58,6 @@
 		sso_issuer_label,
 		sso_issuer_placeholder,
 		sso_jit_disabled,
-		sso_jit_enable_aria,
 		sso_jit_enable_label,
 		sso_jit_heading,
 		sso_jit_intro,
@@ -84,7 +84,6 @@
 		sso_scopes_aria,
 		sso_scopes_label,
 		sso_scopes_placeholder,
-		sso_sync_roles_aria,
 		sso_sync_roles_label
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte';
@@ -572,17 +571,7 @@
 							{sso_jit_intro()}
 						</p>
 					</div>
-					<label class="flex items-center gap-2 cursor-pointer">
-						<input
-							aria-label={sso_jit_enable_aria()}
-							type="checkbox"
-							bind:checked={formJitProvisioning}
-							class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
-						/>
-						<span class="text-xs font-medium text-(--admin-text-muted)"
-							>{sso_jit_enable_label()}</span
-						>
-					</label>
+					<Checkbox size="sm" bind:checked={formJitProvisioning} label={sso_jit_enable_label()} />
 				</div>
 
 				{#if formJitProvisioning}
@@ -624,15 +613,11 @@
 						</div>
 
 						<div class="flex items-center pt-5">
-							<label class="flex items-center gap-2 cursor-pointer">
-								<input
-									aria-label={sso_sync_roles_aria()}
-									type="checkbox"
-									bind:checked={formSyncRolesOnLogin}
-									class="rounded border-surface-500/30 text-tertiary-500 focus:ring-tertiary-500"
-								/>
-								<span class="text-xs text-(--admin-text-muted)">{sso_sync_roles_label()}</span>
-							</label>
+							<Checkbox
+								size="sm"
+								bind:checked={formSyncRolesOnLogin}
+								label={sso_sync_roles_label()}
+							/>
 						</div>
 					</div>
 

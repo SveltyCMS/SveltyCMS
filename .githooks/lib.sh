@@ -141,16 +141,18 @@ run() {
         warn "Run ${BOLD}bun run format${NC} to auto-fix, then stage and commit again."
       fi
       ;;
-    *test*|*Unit*)
+    *test*|*Unit*|*Component*|*Mutation*|*Integration*|*parity*|*E2E*)
       local fails
-      fails=$(grep -E "^❯|FAIL|FAILED|✗" "$outfile" 2>/dev/null | grep -v "node_modules" | head -20)
+      fails=$(grep -E "^❯|FAIL|FAILED|✗|Uncaught Exception|Unhandled Rejection|Unhandled Errors|ReferenceError:|TypeError:|ERROR: Coverage" "$outfile" 2>/dev/null | grep -v "node_modules" | head -20)
       if [ -n "$fails" ]; then
-        printf '%b\n' "  ${BOLD}Failing tests:${NC}"
+        printf '%b\n' "  ${BOLD}Failing tests / unhandled errors:${NC}"
         printf '%s\n' "$fails" | while IFS= read -r line; do
           printf '%b\n' "    ${RED}✘${NC}  $line"
         done
+      else
+        tail -15 "$outfile" | sed 's/^/    /'
       fi
-      info "Run ${BOLD}bun run test:unit --reporter=verbose${NC} for full output."
+      info "Run ${BOLD}bun run test:unit --reporter=verbose${NC} (or ${BOLD}bun run test:unit:components${NC}) for full output."
       ;;
     *Security*)
       grep -E "\(fail\)|✗|FAIL" "$outfile" 2>/dev/null | head -15

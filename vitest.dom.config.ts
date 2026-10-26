@@ -35,6 +35,16 @@ export default defineConfig({
       "$app/paths": path.resolve(__dirname, "tests/unit/mocks/$app/paths.ts"),
       "$app/forms": path.resolve(__dirname, "tests/unit/mocks/$app/forms.ts"),
       "$app/server": path.resolve(__dirname, "tests/unit/mocks/$app/server.ts"),
+      // The real module schedules an icon fetch + render timer that fires after
+      // jsdom teardown (`document is not defined`). The DOM suite never asserts
+      // icon SVG, so an inert stub removes the timer entirely.
+      "iconify-icon": path.resolve(__dirname, "tests/unit/components/dom/mocks/iconify-icon.ts"),
+      // Optional native peer (MongoDB driver); absent in some checkouts. Reached via
+      // `@utils/error-handling` → `handle-compression`'s guarded dynamic import.
+      "@mongodb-js/zstd": path.resolve(
+        __dirname,
+        "tests/unit/components/dom/mocks/optional-zstd.ts",
+      ),
     },
   },
   define: {

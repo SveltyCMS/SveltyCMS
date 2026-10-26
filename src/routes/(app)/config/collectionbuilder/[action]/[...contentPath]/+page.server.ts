@@ -217,6 +217,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       ? deepCloneAndRemoveFunctions(currentCollection)
       : null;
 
+    // An adapter may hand back a non-string `_id` (ObjectId). The deep clone
+    // drops its prototype, so stringify from the original before it reaches the
+    // editor form (which posts this value back as the collection id).
+    if (serializableCollection && typeof serializableCollection === "object") {
+      const record = serializableCollection as Record<string, unknown>;
+      record._id = String((currentCollection as { _id?: unknown })?._id ?? record._id ?? "");
+    }
+
     return {
       user: serializedUser,
       roles: tenantRoles || [],

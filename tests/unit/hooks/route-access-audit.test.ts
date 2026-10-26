@@ -19,6 +19,7 @@ const PROTECTED_CMS_ROUTES = [
   "/mediagallery",
   "/user",
   "/en/posts",
+  "/admin",
   "/admin/tenants",
   "/api/collections/posts",
   "/api/media",

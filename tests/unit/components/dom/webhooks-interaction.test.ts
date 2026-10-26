@@ -18,8 +18,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Webhook } from "@src/services/background/webhook-service";
 import WebhooksPage from "@src/routes/(app)/config/webhooks/+page.svelte";
-import { click, renderComponent, settle, typeText } from "./render";
+import { click, renderComponent, renderPage, settle, typeText } from "./render";
 
 const h = vi.hoisted(() => ({
   list: vi.fn(),
@@ -56,7 +57,7 @@ vi.mock("@utils/modal.svelte", () => ({
 
 vi.mock("@src/stores/toast.svelte.ts", () => ({ toast: h.toast }));
 
-const WEBHOOKS = [
+const WEBHOOKS: Webhook[] = [
   {
     id: "hook-1",
     name: "Deploy Hook",
@@ -64,6 +65,7 @@ const WEBHOOKS = [
     events: ["entry:publish"],
     active: true,
     secret: "secret-one",
+    tenantId: "tenant-1",
   },
   {
     id: "hook-2",
@@ -72,14 +74,19 @@ const WEBHOOKS = [
     events: ["media:upload", "media:delete"],
     active: false,
     secret: "secret-two",
+    tenantId: "tenant-1",
   },
 ];
 
 type Rendered = ReturnType<typeof renderComponent>;
 
-async function mount(): Promise<Rendered> {
-  const rendered = renderComponent(WebhooksPage);
-  await vi.waitFor(() => expect(h.list).toHaveBeenCalled());
+/**
+ * SSR-first: the page receives its first list from the server load, so mounting
+ * only needs that payload. Post-mutation refreshes still go through `listWebhooks`.
+ */
+async function mount(webhooks: Webhook[] = WEBHOOKS): Promise<Rendered> {
+  const rendered = renderPage(WebhooksPage, { isAdmin: true, webhooks });
+  await settle();
   await vi.waitFor(() =>
     expect(
       rendered.target.querySelector("[data-testid='webhooks-list']") ??
@@ -126,21 +133,21 @@ beforeEach(() => {
 });
 
 describe("Webhooks page (client interaction)", () => {
-  it("renders the loaded webhooks", async () => {
+  it("renders the loaded webhooks without a client fetch", async () => {
     const { target, cleanup } = await mount();
     try {
       expect(target.textContent).toContain("Deploy Hook");
       expect(target.textContent).toContain("https://example.test/deploy");
       expect(target.querySelector("[data-testid='webhook-card-hook-1']")).toBeInTheDocument();
       expect(target.querySelector("[data-testid='webhook-card-hook-2']")).toBeInTheDocument();
+      expect(h.list).not.toHaveBeenCalled();
     } finally {
       cleanup();
     }
   });
 
   it("shows the empty state", async () => {
-    h.list.mockResolvedValue({ success: true, data: [] });
-    const { target, cleanup } = await mount();
+    const { target, cleanup } = await mount([]);
     try {
       expect(target.querySelector("[data-testid='webhooks-empty']")).toBeInTheDocument();
       expect(target.querySelector("[data-testid='webhooks-empty-cta']")).toBeInTheDocument();
@@ -235,7 +242,7 @@ describe("Webhooks page (client interaction)", () => {
       await vi.waitFor(() =>
         expect(target.querySelector("[data-testid='webhooks-modal']")).not.toBeInTheDocument(),
       );
-      expect(h.list).toHaveBeenCalledTimes(2);
+      expect(h.list).toHaveBeenCalledTimes(1);
     } finally {
       cleanup();
     }
@@ -302,7 +309,7 @@ describe("Webhooks page (client interaction)", () => {
 
       expect(h.confirm).toHaveBeenCalledTimes(1);
       await vi.waitFor(() => expect(h.remove).toHaveBeenCalledWith("hook-1"));
-      await vi.waitFor(() => expect(h.list).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(h.list).toHaveBeenCalledTimes(1));
       expect(h.toast.success).toHaveBeenCalledWith("Webhook deleted");
     } finally {
       cleanup();

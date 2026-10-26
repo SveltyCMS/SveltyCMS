@@ -1,15 +1,31 @@
-<!-- 
+<!--
 @file src/routes/(app)/mediagallery/batch-processor.svelte
-@component Batch Image Transformation Engine
- -->
+@component
+**Batch image transformation panel (filter presets + uniform resize)**
+
+### Props
+- `selectedIds` (SvelteSet<string>): The gallery selection at the time the panel opens.
+- `onClose` (function): Dismisses the panel.
+
+### Features:
+- Filters (`vivid`, `bw`, `sepia`, `dramatic`) and a uniform width, matching
+  `POST /api/media/batch-process` (`{ ids, operation, params }`).
+- Reports the server's per-asset outcome (`processed` / `failed`) instead of
+  claiming success for the whole batch.
+- Refreshes gallery data after a run so dimensions/thumbnails re-render.
+-->
+
 <script lang="ts">
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
-	import { slide } from 'svelte/transition';
+	import { refreshAll } from '$app/navigation';
+	import { adminSlide } from '@utils/admin-transitions';
 	import type { SvelteSet } from 'svelte/reactivity';
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import {
 		button_close,
 		mediagallery_batch_apply_filter,
@@ -23,8 +39,6 @@
 		mediagallery_batch_run,
 		mediagallery_batch_select_action
 	} from '@src/paraglide/messages';
-	import Input from '@components/ui/input.svelte';
-	import Select from '@components/ui/select.svelte';
 
 	interface Props {
 		selectedIds: SvelteSet<string>;
@@ -33,22 +47,26 @@
 
 	let { selectedIds, onClose }: Props = $props();
 
-	let operation = $state<'filter' | 'resize' | 'watermark'>('filter');
+	const widthInputId = $props.id();
+
+	let operation = $state<'filter' | 'resize'>('filter');
 	let filterPreset = $state('vivid');
 	let width = $state(1200);
 	let isProcessing = $state(false);
+	let errorMessage = $state('');
 
-	const presets = [
-		{ id: 'vivid', label: 'Vivid' },
-		{ id: 'bw', label: 'B&W' },
-		{ id: 'sepia', label: 'Sepia' },
-		{ id: 'dramatic', label: 'Dramatic' }
+	const presetOptions = [
+		{ value: 'vivid', label: 'Vivid' },
+		{ value: 'bw', label: 'B&W' },
+		{ value: 'sepia', label: 'Sepia' },
+		{ value: 'dramatic', label: 'Dramatic' }
 	];
 
-	const presetOptions = presets.map((p) => ({ value: p.id, label: p.label }));
-
 	async function runBatch() {
+		if (isProcessing || selectedIds.size === 0) return;
+
 		isProcessing = true;
+		errorMessage = '';
 
 		const ids = Array.from(selectedIds);
 
@@ -59,40 +77,68 @@
 				body: JSON.stringify({
 					ids,
 					operation,
-					params: operation === 'filter' ? { filterPreset } : { width }
+					params: operation === 'filter' ? { filterPreset } : { width: Number(width) }
 				})
 			});
 
-			if (response.ok) {
-				toast.success(`Successfully processed ${ids.length} images.`);
-				onClose();
-			} else {
-				throw new Error('Batch processing failed');
+			const payload = (await response.json().catch(() => null)) as {
+				success?: boolean;
+				message?: string;
+				code?: string;
+				data?: { processed?: number; failed?: number };
+			} | null;
+
+			if (!response.ok || !payload?.success) {
+				errorMessage = payload?.message ?? `Batch processing failed (HTTP ${response.status}).`;
+				toast.error(errorMessage);
+				return;
 			}
+
+			const processed = payload.data?.processed ?? 0;
+			const failed = payload.data?.failed ?? 0;
+
+			if (failed > 0) {
+				toast.warning(`Processed ${processed} of ${ids.length} assets — ${failed} failed.`);
+			} else {
+				toast.success(`Processed ${processed} ${processed === 1 ? 'asset' : 'assets'}.`);
+			}
+
+			if (processed > 0) {
+				await refreshAll();
+			}
+			onClose();
 		} catch (err) {
-			logger.error('Batch error', err);
-			toast.error('Batch processing encountered an error.');
+			logger.error('Batch processing request failed', err);
+			errorMessage = 'Batch processing encountered an error.';
+			toast.error(errorMessage);
 		} finally {
 			isProcessing = false;
 		}
 	}
 </script>
 
-<div class="pointer-events-none fixed inset-x-0 bottom-0 z-50 p-4">
-	<div transition:slide={{ axis: 'y', duration: 300 }}>
+<div class="pointer-events-none fixed inset-x-0 bottom-0 z-50 p-3 sm:p-4">
+	<div in:adminSlide={{ distance: 48 }}>
 		<AdminCard
-			class="pointer-events-auto mx-auto max-w-4xl border border-tertiary-500 bg-surface-500/10 p-6 shadow-2xl dark:border-primary-500/30 dark:bg-surface-800"
+			id="media-batch-processor"
+			class="pointer-events-auto mx-auto w-full max-w-4xl border border-(--admin-border-default) p-4 shadow-2xl sm:p-6"
+			data-testid="batch-processor"
 		>
-			<div class="mb-6 flex items-center justify-between">
-				<div class="flex items-center gap-3">
+			<div class="mb-4 flex items-center justify-between gap-3 sm:mb-6">
+				<div class="flex min-w-0 items-center gap-3">
 					<div
-						class="flex h-10 w-10 items-center justify-center rounded-full bg-tertiary-500 font-bold text-white shadow-lg dark:bg-primary-500"
+						class="flex size-10 shrink-0 items-center justify-center rounded-full bg-tertiary-500 font-bold text-white"
+						aria-hidden="true"
 					>
 						{selectedIds.size}
 					</div>
-					<div>
-						<h3 class="text-lg font-bold">{mediagallery_batch_processor()}</h3>
-						<p class="font-mono text-xs uppercase tracking-widest opacity-50">
+					<div class="min-w-0">
+						<h3 class="truncate text-base font-bold sm:text-lg">
+							{mediagallery_batch_processor()}
+						</h3>
+						<p
+							class="truncate font-mono text-[10px] uppercase tracking-widest text-(--admin-text-muted)"
+						>
 							{mediagallery_batch_engine()}
 						</p>
 					</div>
@@ -101,33 +147,43 @@
 					variant="surface"
 					onclick={onClose}
 					aria-label={button_close()}
-					class="min-w-0 p-0!"
+					class="min-w-0 shrink-0 p-0!"
 				>
 					<iconify-icon icon="mdi:close" width="20"></iconify-icon>
 				</Button>
 			</div>
 
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6">
 				<!-- Step 1: Operation -->
-				<div class="space-y-3">
-					<span class="block text-[10px] font-bold uppercase tracking-widest opacity-60"
-						>{mediagallery_batch_select_action()}</span
+				<div class="space-y-2">
+					<span
+						class="block text-[10px] font-bold uppercase tracking-widest text-(--admin-text-muted)"
 					>
-					<div class="flex flex-col gap-2">
+						{mediagallery_batch_select_action()}
+					</span>
+					<div
+						class="flex gap-2 md:flex-col"
+						role="group"
+						aria-label={mediagallery_batch_select_action()}
+					>
 						<Button
-							variant="tertiary"
+							variant={operation === 'filter' ? 'primary' : 'surface'}
 							onclick={() => (operation = 'filter')}
 							size="sm"
-							class="justify-start gap-2 {operation === 'filter' ? ' dark: ' : ' '}"
+							aria-pressed={operation === 'filter'}
+							class="flex-1 justify-start gap-2 md:flex-none"
+							data-testid="batch-operation-filter"
 						>
 							<iconify-icon icon="mdi:auto-fix" width="18"></iconify-icon>
 							{mediagallery_batch_apply_filter()}
 						</Button>
 						<Button
-							variant="tertiary"
+							variant={operation === 'resize' ? 'primary' : 'surface'}
 							onclick={() => (operation = 'resize')}
 							size="sm"
-							class="justify-start gap-2 {operation === 'resize' ? ' dark: ' : ' '}"
+							aria-pressed={operation === 'resize'}
+							class="flex-1 justify-start gap-2 md:flex-none"
+							data-testid="batch-operation-resize"
 						>
 							<iconify-icon icon="mdi:resize" width="18"></iconify-icon>
 							{mediagallery_batch_resize()}
@@ -136,36 +192,50 @@
 				</div>
 
 				<!-- Step 2: Params -->
-				<div class="space-y-3 border-x border-surface-500/30 px-6 dark:border-surface-500/40">
-					<span class="label text-[10px] font-bold uppercase tracking-widest opacity-60"
-						>{mediagallery_batch_configure()}</span
+				<div class="space-y-2 md:border-x md:border-(--admin-border-default) md:px-6">
+					<span
+						class="block text-[10px] font-bold uppercase tracking-widest text-(--admin-text-muted)"
 					>
+						{mediagallery_batch_configure()}
+					</span>
 					{#if operation === 'filter'}
 						<Select
+							label={mediagallery_batch_filter_preset()}
 							bind:value={filterPreset}
 							options={presetOptions}
-							placeholder={mediagallery_batch_filter_preset()}
 							size="sm"
+							placeholder=""
+							data_testid="batch-filter-preset"
 						/>
 					{:else}
 						<Input
-							id="batch-width"
+							id={widthInputId}
 							type="number"
+							min={32}
+							max={4096}
+							step={1}
 							bind:value={width}
 							label="Width (px)"
 							aria-label={mediagallery_batch_resize_width()}
+							data-testid="batch-width"
 						/>
 					{/if}
 				</div>
 
 				<!-- Step 3: Run -->
-				<div class="flex flex-col justify-end">
+				<div class="flex flex-col justify-end gap-2">
+					{#if errorMessage}
+						<p class="text-xs text-error-500" role="alert" data-testid="batch-error">
+							{errorMessage}
+						</p>
+					{/if}
 					<Button
-						variant="tertiary"
+						variant="primary"
 						onclick={runBatch}
-						disabled={isProcessing}
-						loading={isProcessing}
-						class="w-full gap-2 shadow-xl"
+						disabled={isProcessing || selectedIds.size === 0}
+						aria-busy={isProcessing}
+						class="w-full gap-2"
+						data-testid="batch-run"
 					>
 						{#if !isProcessing}
 							<iconify-icon icon="mdi:play-circle" width="20"></iconify-icon>

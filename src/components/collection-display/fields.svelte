@@ -41,6 +41,7 @@
 
 	import Tabs from '@components/ui/tabs';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import HelpIcon from '@src/components/ui/help-icon.svelte';
 	import {
 		applayout_version,
 		button_edit,
@@ -64,6 +65,8 @@
 	} from '@widgets/widget-loader-registry';
 	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-module';
 	import WidgetLoader from './widget-loader.svelte';
+	import { CONTENT_PADDING } from './content-classes';
+	import { buildFieldSkeleton } from './field-skeleton';
 
 	import Portal from '@components/ui/portal.svelte';
 	import RevisionDiffModal from './revision-diff-modal.svelte';
@@ -75,21 +78,45 @@
 	import { activeInput } from '@src/stores/active-input-store.svelte';
 
 	// Token Picker
-	// Token Picker
-
 	function openTokenPicker(field: any, e: MouseEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 
-		// Fallback: Try to find the input by ID (using db_fieldName as ID)
-		const id = field.db_fieldName;
-		const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
+		const fieldName = getFieldName(field, false);
+		const id = field.db_fieldName || fieldName;
+		const container = document.getElementById(`field-container-${fieldName}`);
+		const el =
+			(document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null) ??
+			(container?.querySelector('input:not([type="hidden"]), textarea') as
+				| HTMLInputElement
+				| HTMLTextAreaElement
+				| null);
+
 		if (el) {
 			el.focus();
-			activeInput.set({ element: el, field });
-		} else {
-			logger.warn('Could not find input for field', field);
 		}
+
+		activeInput.set({
+			element: el,
+			field,
+			onInsert: (tokenValue: string) => {
+				if (field.translated) {
+					const targetLocale = fieldLocaleOverrides.get(fieldName) ?? currentContentLanguage;
+					const existing = currentCollectionValue[fieldName];
+					const record = isLocaleRecord(existing) ? { ...existing } : {};
+					record[targetLocale] = tokenValue;
+					currentCollectionValue[fieldName] = record;
+				} else {
+					currentCollectionValue[fieldName] = tokenValue;
+				}
+				if (el) {
+					el.value = tokenValue;
+					el.dispatchEvent(new Event('input', { bubbles: true }));
+					el.dispatchEvent(new Event('change', { bubbles: true }));
+				}
+				syncFieldToStore(fieldName);
+			}
+		});
 	}
 	let widgetFunctions = $derived(widgets.widgetFunctions);
 
@@ -124,8 +151,27 @@
 	let localTabSet = $state('0');
 	let apiUrl = $state('');
 
+	/**
+	 * Seed every declared field before the first render.
+	 *
+	 * Widgets that declare a prop fallback (`value = $bindable([])`, e.g. Tags)
+	 * throw `props_invalid_value` when the parent binds `undefined`. A create
+	 * session starts from an empty store, so the skeleton must be built
+	 * synchronously here — the effects below run after the first mount, which is
+	 * too late for a freshly created `<Fields>` (SPA "Create" click).
+	 */
+	const initialFieldList: readonly any[] = untrack(() => fields ?? propCollection?.fields ?? []);
+	const initialEntryValue = untrack(() => collections.activeValue) as
+		| Record<string, any>
+		| undefined;
+
 	// This is form state, not fetched data, so it remains.
-	let currentCollectionValue = $state<Record<string, any>>({});
+	let currentCollectionValue = $state<Record<string, any>>(
+		buildFieldSkeleton(initialEntryValue, initialFieldList, {
+			locale: untrack(() => contentLanguage.value) as string,
+			isNewEntry: !initialEntryValue?._id
+		}) as Record<string, any>
+	);
 
 	// Revisions State (now simpler)
 	let selectedRevisionId = $state('');
@@ -160,6 +206,14 @@
 		const currentIdx = langs.indexOf(currentLocale);
 		const nextIdx = (currentIdx + 1) % langs.length;
 		const nextLocale = langs[nextIdx];
+
+		// The widget remounts bound to `record[nextLocale]`; a missing key would
+		// hand `undefined` to a prop with a fallback (props_invalid_value).
+		const record = currentCollectionValue[fieldName];
+		if (isLocaleRecord(record) && record[nextLocale] === undefined) {
+			record[nextLocale] = '';
+		}
+
 		fieldLocaleOverrides.set(fieldName, nextLocale);
 		manuallyOverridden.add(fieldName);
 	}
@@ -336,6 +390,15 @@
 		return typeof value === 'object' && value !== null && !Array.isArray(value);
 	}
 
+	/** Non-empty value for a locale — drives the per-field translation status dot. */
+	function hasTranslation(fieldName: string, locale: Locale): boolean {
+		const record = currentCollectionValue[fieldName];
+		if (!isLocaleRecord(record)) return false;
+		const value = record[locale];
+		if (value === null || value === undefined) return false;
+		return typeof value === 'string' ? value.trim().length > 0 : true;
+	}
+
 	/**
 	 * Migrate legacy plain-string values for translated fields into locale
 	 * records ({ [locale]: value }) and, for a new entry, seed schema defaults
@@ -362,6 +425,10 @@
 
 			if (isNewEntry && (value === null || value === undefined) && defaultValue !== undefined) {
 				data[fieldName] = defaultValue;
+			} else if (value === undefined) {
+				// Same invariant as buildFieldSkeleton(): a declared field must never
+				// reach a `bind:value` as `undefined` (props_invalid_value).
+				data[fieldName] = null;
 			}
 		}
 		return data;
@@ -603,7 +670,7 @@
 
 {#if collaborationService.isCollaborative && collaborationService.activeUsers.length > 0}
 	<div
-		class="mb-2 flex flex-wrap items-center gap-2 rounded border border-tertiary-500/30 bg-tertiary-500/10 px-3 py-1.5 text-xs dark:border-primary-500/30 dark:bg-primary-500/10"
+		class="mb-2 flex flex-wrap items-center gap-2 {CONTENT_PADDING} rounded border border-tertiary-500/30 bg-tertiary-500/10 px-3 py-1.5 text-xs dark:border-primary-500/30 dark:bg-primary-500/10"
 		role="status"
 		aria-live="polite"
 	>
@@ -630,7 +697,7 @@
 	<Tabs
 		value={localTabSet}
 		onValueChange={(e) => (localTabSet = e.value)}
-		class="flex flex-1 flex-col items-center"
+		class="flex flex-1 flex-col items-center {CONTENT_PADDING}"
 	>
 		<Tabs.List class="flex justify-between md:justify-around w-full">
 			<Tabs.Trigger value="0" class="flex-1">
@@ -666,15 +733,18 @@
 				</Tabs.Trigger>
 			{/each}
 
+			<!-- Required legend lives in the tab strip: as its own centered row it
+			     pushed the first field a full line away from the header. -->
+			<span class="ms-auto shrink-0 self-center whitespace-nowrap text-xs text-error-500">
+				{form_required()}
+			</span>
+
 			<Tabs.Indicator />
 		</Tabs.List>
 
 		<Tabs.Content value="0" class="w-full">
-			<div class="mb-1 text-center text-xs text-error-500">
-				{form_required()}
-			</div>
 			<div
-				class="rounded border bg-white px-3 py-4 drop-shadow-2xl sm:px-4 dark:border-surface-500 dark:bg-surface-900"
+				class="rounded border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-4 sm:px-4"
 			>
 				<div class="flex w-full flex-col gap-1">
 					{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
@@ -709,8 +779,7 @@
 												ariaLabel={field.helper}
 												positioning={{ placement: 'top' }}
 											>
-												<iconify-icon icon="mdi:help-circle-outline" width="14" aria-hidden="true"
-												></iconify-icon>
+												<HelpIcon ariaLabel={field.helper} />
 											</SystemTooltip>
 										{/if}
 										{#if isRequired}
@@ -729,31 +798,36 @@
 											})()}
 											{@const sourceLocale = contentLanguage.value as Locale}
 											{@const isTranslating = aiTranslatingFields.has(fieldName)}
+											{@const isTranslated = hasTranslation(fieldName, currentFieldLocale)}
 											<div class="flex items-center gap-1">
-												<!-- Locale badge / switcher -->
-												<Button
-													variant="ghost"
-													class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
-													style="background: var(--color-surface-200, #e5e7eb); color: var(--color-tertiary-500, #6b7280)"
+												<!-- Locale + translation status: a compact badge, not a button clone. -->
+												<button
+													type="button"
+													class="inline-flex h-7 items-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition-colors {isTranslated
+														? 'border-success-500/40 bg-success-500/10 text-success-500'
+														: 'border-warning-500/40 bg-warning-500/10 text-warning-500'} hover:border-tertiary-500/50 dark:hover:border-primary-500/50"
 													onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
+													title={isTranslated
+														? `${currentFieldLocale.toUpperCase()} translation present`
+														: `${currentFieldLocale.toUpperCase()} translation missing`}
 													aria-label="Switch locale for {field.label ||
-														fieldName}. Current: {currentFieldLocale.toUpperCase()}"
+														fieldName}. Current: {currentFieldLocale.toUpperCase()}, {isTranslated
+														? 'translated'
+														: 'translation missing'}"
 												>
-													<iconify-icon icon="bi:translate" width="14" aria-hidden="true"
-													></iconify-icon>
-													<span class="text-tertiary-600 dark:text-primary-500"
-														>{currentFieldLocale.toUpperCase()}</span
-													>
+													<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
+													<span>{currentFieldLocale.toUpperCase()}</span>
 													{#if availableLanguages.length > 1}
 														<iconify-icon icon="mdi:chevron-down" width="10" aria-hidden="true"
 														></iconify-icon>
 													{/if}
-												</Button>
+												</button>
+
 												<!-- AI Translate button -->
 												{#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
 													<Button
 														variant="ghost"
-														class="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
+														class="flex h-7 items-center gap-0.5 rounded-full px-1.5 text-xs transition-colors hover:bg-tertiary-500/10 dark:hover:bg-primary-500/20"
 														style="color: var(--color-tertiary-500)"
 														onclick={() =>
 															aiTranslateField(field, fieldName, sourceLocale, currentFieldLocale)}
@@ -781,6 +855,8 @@
 												class="h-7 w-7 p-0"
 												onclick={(e: MouseEvent) => openTokenPicker(field, e)}
 												aria-label="Insert token into {field.label}"
+												aria-haspopup="dialog"
+												data-testid="insert-token-button"
 											>
 												<iconify-icon
 													icon="mdi:code-braces"
@@ -982,7 +1058,7 @@
 					</Button>
 				</div>
 				<AdminCard
-					class="p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm `max-h-125"
+					class="p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm max-h-125"
 				>
 					<pre>{JSON.stringify(collections.activeValue, null, 2)}</pre>
 				</AdminCard>

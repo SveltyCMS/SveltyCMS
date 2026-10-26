@@ -304,6 +304,29 @@ export class MediaNamespace {
     }
   }
 
+  /**
+   * Patch only the metadata keys the caller owns (share links, processing
+   * state, transcoder output). Unlike {@link update}, concurrent writers cannot
+   * drop each other's keys because the stored blob is never replaced wholesale.
+   */
+  async patchMetadata(
+    mediaId: string,
+    patch: Record<string, unknown>,
+    options: TenantOptions = {},
+  ): Promise<DatabaseResult<void>> {
+    try {
+      await this.mediaService.patchMetadata(mediaId, patch, options.tenantId as DatabaseId);
+      this.invalidateCache(options.tenantId, mediaId);
+      return { success: true, data: undefined };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message,
+        error: err as import("@src/databases/db-interface").DatabaseError,
+      };
+    }
+  }
+
   async delete(fileId: string, options: TenantOptions = {}): Promise<DatabaseResult<void>> {
     try {
       if (!fileId) throw new AppError("File ID is required", 400);

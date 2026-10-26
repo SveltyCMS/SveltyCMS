@@ -1,14 +1,16 @@
 <!--
-@files src/components/user/Multibutton.svelte
+@file src/routes/(app)/user/components/multibutton.svelte
 @component
 **A unified multibutton component for managing users and tokens**
 
 Manages actions (edit, delete, block, unblock) with debounced submissions.
 
-@Example
-<Multibutton bind:selectedRows={selectedRows} type="user" />
+### Features:
+- Role-aware action enablement (edit, delete, block, unblock)
+- Batch mutations via `/api/user/batch` and `/api/token/batch`
+- Modal trigger integration with post-save table refresh
 
-#### Props
+@props
 - `selectedRows` {array} - Array of selected rows (User | Token)
 - `type` {"user" | "token"} - Type of data to manage (default: 'user')
 -->
@@ -67,6 +69,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { convertDateToExpiresFormat } from '../user-remote-utils';
 	import ModalEditForm from './modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
@@ -218,23 +221,6 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			});
 		}
 	});
-
-	// Helper function to convert Date to expires format expected by ModalEditToken
-	function convertDateToExpiresFormat(expiresDate: Date | string | null): string {
-		if (!expiresDate) return '2 days';
-		const now = new Date();
-		const expires = new Date(expiresDate);
-		const diffMs = expires.getTime() - now.getTime();
-		const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-		const diffDays = Math.ceil(diffHours / 24);
-
-		if (diffHours <= 2) return '2 hrs';
-		if (diffHours <= 12) return '12 hrs';
-		if (diffDays <= 2) return '2 days';
-		if (diffDays <= 7) return '1 week';
-		if (diffDays <= 14) return '2 weeks';
-		return '1 month';
-	}
 
 	// Action Configurations
 	interface ActionConfigItem {
@@ -395,14 +381,18 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		if (action === 'edit') {
 			if (type === 'user') {
 				const u = safeSelectedRows[0] as User;
-				modalState.trigger(ModalEditForm as any, {
-					isGivenData: true,
-					username: u.username,
-					email: u.email,
-					role: u.role,
-					user_id: u._id,
-					title: config.modalTitle()
-				});
+				modalState.trigger(
+					ModalEditForm as any,
+					{
+						isGivenData: true,
+						username: u.username,
+						email: u.email,
+						role: u.role,
+						user_id: u._id,
+						title: config.modalTitle()
+					},
+					(res: any) => res?.success && onUpdate({ action: 'refresh', type: 'user', ids: [] })
+				);
 			} else {
 				const t = safeSelectedRows[0] as Token;
 				modalState.trigger(
@@ -516,7 +506,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		<!-- Dropdown Menu -->
 		{#if isDropdownOpen}
 			<div
-				class="absolute inset-e-0 top-full z-50 mt-2 w-56 overflow-hidden rounded bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
+				class="absolute inset-e-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-(--admin-radius-card) bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md origin-top-right"
 				role="menu"
 				transition:adminFade={{ duration: 150 }}
 				onkeydown={handleDropdownKeydown}

@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:layers-triple"
 author: "SveltyCMS Team"
 created: "2026-07-15"
-updated: "2026-10-16"
+updated: "2026-10-24"
 tags:
   - "testing"
   - "strategy"
@@ -56,6 +56,23 @@ tags:
 | User cannot complete a product path          | E2E          |
 
 Do **not** push API matrices into Playwright. Do **not** claim E2E coverage from unit mocks.
+
+### Behaviour contracts (the gate that maps to real defects)
+
+The three layers say _where_ a proof lives; they do not say _what a route must prove_. The external audit of 2026-10-24 found ten user-visible defects in ~6 700 green tests, and nine of them lay **outside** the P0 line-coverage set. Two gates close that class:
+
+| Gate                      | Command                           | Rule                                                                                                                                                                                                                                                                                                                                         | Current                                                |
+| ------------------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **Route behaviour**       | `bun run check:routes`            | Every route scores four contracts — `load-contract`, `failure-path`, `persistence` (mutate → re-read), `concurrency` — from test evidence tied to the route module or URL. Applicability is per route: `persistence` only for endpoints with a mutation verb or pages with `actions`; `concurrency` only where requests share mutable state. | **99/99 applicable cells** across 37 routes (floor 99) |
+| **Unfailable assertions** | `bun run lint:trivial-assertions` | Rejects literal tautologies, complementary arms (`x === 200 \|\| x !== 200`), one-of status unions with no negative case, and `expect` swallowed by `try/catch`. Exemption: `// trivial-assert-ok: <reason>`.                                                                                                                                | 0 findings / 1 068 test files                          |
+| **Mutation (seams)**      | `bun run test:mutation`           | Rewrites one seam guarantee at a time; the mapped suite must fail.                                                                                                                                                                                                                                                                           | 7/7 killed                                             |
+
+Both static gates run inside `bun run check`, so a route without a failure-path test or a test that cannot fail now reds the fast tier.
+
+> [!IMPORTANT]
+> **Counting rule.** With the historical “four cells for every route” denominator the current figure is **99/148 = 66.9 %**; the gate reports **99/99 = 100 % of applicable cells**. The difference is 49 cells that can never apply (persistence/concurrency on redirect stubs and read-only pages). Never quote the applicable percentage as raw coverage; the score exists to find blind spots, not to flatter the suite.
+
+**What the gate cannot see:** visual chrome, control sizes, tab semantics, transactionality across a file write, and adapter capability gaps (e.g. media `search`). Those need visual regression, a11y sweeps, fault injection and adapter-contract tests respectively.
 
 ### Thin helpers fit (unit only)
 

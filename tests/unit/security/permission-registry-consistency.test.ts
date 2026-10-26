@@ -29,6 +29,8 @@ import {
   resolvePermissionId,
 } from "@src/databases/auth/permission-catalog";
 import { PERMISSION_BITS, getPermissionBit } from "@src/databases/auth/permission-bitmask";
+import { isAcceptablePermissionId } from "@src/databases/auth/permissions";
+import { corePermissions } from "@src/databases/auth/core-permissions";
 import { CORE_CAPABILITIES } from "@src/services/security/capability-registry";
 import { defaultRoles } from "@src/databases/auth/default-roles";
 import { API_PERMISSIONS } from "@src/databases/auth/api-permissions";
@@ -145,6 +147,41 @@ describe("Permission catalog — built-in roles", () => {
         expect(isCatalogPermissionId(permission), `${role} -> ${permission}`).toBe(true);
       }
     }
+  });
+});
+
+describe("Permission catalog — role-save acceptance", () => {
+  // `validateRoles` used to accept only ids present in the legacy `corePermissions`
+  // registry, which trails the catalog. The built-in Editor role grants
+  // `collections:read_drafts` (catalog-only), so saving the Roles tab answered
+  // HTTP 400 "Invalid permission: collections:read_drafts" for the whole payload.
+  it("accepts a catalog-only id that the legacy registry never registered", () => {
+    const registered = new Set(corePermissions.map((permission) => permission._id as string));
+
+    expect(registered.has("collections:read_drafts")).toBe(false);
+    expect(isAcceptablePermissionId("collections:read_drafts")).toBe(true);
+  });
+
+  it("accepts every id a built-in role can carry", () => {
+    for (const grants of Object.values(DEFAULT_ROLE_GRANTS)) {
+      for (const permission of grants) {
+        expect(isAcceptablePermissionId(permission), permission).toBe(true);
+      }
+    }
+    for (const role of defaultRoles) {
+      for (const permission of role.permissions ?? []) {
+        expect(isAcceptablePermissionId(permission), `${role.name} -> ${permission}`).toBe(true);
+      }
+    }
+  });
+
+  it("still accepts registry-only ids and their aliases", () => {
+    expect(isAcceptablePermissionId("system:dashboard")).toBe(true);
+    expect(isAcceptablePermissionId("collections:update")).toBe(true);
+  });
+
+  it("still rejects ids that no catalog or registry knows", () => {
+    expect(isAcceptablePermissionId("not:a:permission")).toBe(false);
   });
 });
 

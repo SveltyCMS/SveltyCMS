@@ -46,7 +46,7 @@ Home button and Settings available.
 	const VIBRATE_CLOSE_MS = 5;
 
 	// Get user from page data
-	const user = $derived(page.data.user as User | undefined);
+	const user = $derived((page.data.layoutUser ?? page.data.user) as User | undefined);
 
 	// Keep store scoped to the signed-in user (per-user prefs)
 	$effect(() => {

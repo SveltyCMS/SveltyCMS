@@ -94,6 +94,7 @@ function buildJsonResponse(
     headers,
   });
   (res as unknown as { __fastBody?: string }).__fastBody = serialized;
+  (res as unknown as { __fastHeaders?: Record<string, string> }).__fastHeaders = headers;
   return res;
 }
 

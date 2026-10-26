@@ -5,6 +5,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { runAfterHydration } from "../../helpers/hydration";
 
 test.describe("User Management — Invite Flow", () => {
   test.setTimeout(120_000);
@@ -93,9 +94,21 @@ test.describe("User Management — Invite Flow", () => {
       // The login page is fully client-rendered (root layout ssr=false); under
       // parallel CI load the bundle can take >15s to hydrate — wait generously.
       await signUpBtn.waitFor({ state: "visible", timeout: 30_000 });
-      await signUpBtn.click();
+      await runAfterHydration(invitePage, () => signUpBtn.click(), { selector: signUpBtn });
 
-      await expect(invitePage.locator("#signup-form")).toBeVisible({ timeout: 10_000 });
+      // The login page is client-rendered; a click that lands before the router
+      // is ready is a silent no-op. Retry the click until the form renders.
+      await expect(async () => {
+        if (
+          !(await invitePage
+            .locator("#signup-form")
+            .isVisible()
+            .catch(() => false))
+        ) {
+          await signUpBtn.click({ timeout: 2_000 }).catch(() => {});
+        }
+        await expect(invitePage.locator("#signup-form")).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
       await expect(invitePage.locator("#emailsignUp")).toHaveValue(inviteEmail, {
         timeout: 10_000,
       });

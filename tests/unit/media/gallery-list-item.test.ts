@@ -44,6 +44,29 @@ describe("toGalleryListItem", () => {
     expect(row?.thumbnails.junk).toBeUndefined();
   });
 
+  it("keeps the adaptive-playback and transcode fields", () => {
+    const row = toGalleryListItem({
+      _id: "v1",
+      hash: "vh",
+      filename: "clip.mp4",
+      mimeType: "video/mp4",
+      path: "global/clip.mp4",
+      url: "/files/global/clip.mp4",
+      metadata: {
+        hls: { master: "/files/hls/v1/master.m3u8", variants: [] },
+        mp4: { url: "/files/transcoded/v1/output.mp4" },
+        transcode: { status: "ready", format: "hls" },
+        embedding: [1, 2, 3],
+      },
+    });
+
+    expect(row?.type).toBe("video");
+    expect(row?.metadata.hls).toEqual({ master: "/files/hls/v1/master.m3u8", variants: [] });
+    expect(row?.metadata.mp4).toEqual({ url: "/files/transcoded/v1/output.mp4" });
+    expect(row?.metadata.transcode).toEqual({ status: "ready", format: "hls" });
+    expect(row?.metadata).not.toHaveProperty("embedding");
+  });
+
   it("returns null when required identity fields are missing", () => {
     expect(toGalleryListItem({ filename: "a.jpg", mimeType: "image/jpeg" })).toBeNull();
     expect(toGalleryListItem({ hash: "x", mimeType: "image/jpeg" })).toBeNull();

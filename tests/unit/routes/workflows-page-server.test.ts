@@ -11,7 +11,12 @@ describe("workflows +page.server admin gate", () => {
     const result: any = await load({
       locals: { user: { _id: "a1", role: "admin" }, isAdmin: true },
     } as any);
-    expect(result).toEqual({ isAdmin: true });
+    // Contract: the page no longer shadows page.data.user (partial shapes broke
+    // floatingNavStore.bindUser) — it only adds builder chrome for the workflow form.
+    expect(result).toMatchObject({ isAdmin: true });
+    expect(result).not.toHaveProperty("user");
+    expect(Array.isArray(result.collections)).toBe(true);
+    expect(Array.isArray(result.roles)).toBe(true);
   });
 
   it("rejects non-admin", async () => {

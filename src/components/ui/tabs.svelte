@@ -8,8 +8,11 @@
 - `activeTab` (string) - Currently active tab ID
 - `onTabChange` ((id: string) => void) - Tab selection handler
 - `variant` ('default' | 'pills' | 'underline') - Visual style (default: 'underline')
+- `bordered` (boolean) - Underline only: paint the strip rule (default: true). Pass
+  `false` when the parent row already paints it (e.g. a header row with actions).
 - `ariaLabel` (string) - Accessible label for the tablist (default: 'Navigation tabs')
 - `testId` (string) - Data-testid for the root element (default: 'tab-navigation')
+- `disabled` (boolean) - Render every trigger disabled (progressive hydration gate)
 
 ### Features
 - Keyboard-navigable (Arrow keys, Home, End)
@@ -18,10 +21,13 @@
 - Smooth transitions between tabs
 - Responsive: horizontal scroll on mobile
 - Support for icons + labels + short labels for mobile
+- Underline chrome comes from `./tabs/chrome` — the same strip as `Tabs.List` and
+  the hand-rolled admin strips (user management, extensions, sync, design system)
 -->
 
 <script lang="ts">
 	import Button from './button.svelte';
+	import { TAB_STRIP, TAB_STRIP_FLUSH, tabTrigger } from './tabs/chrome';
 
 	interface Tab {
 		id: string;
@@ -39,15 +45,24 @@
 		activeTab = $bindable(''),
 		onTabChange = (_id: string) => {},
 		variant = 'underline',
+		bordered = true,
 		ariaLabel = 'Navigation tabs',
-		testId = 'tab-navigation'
+		testId = 'tab-navigation',
+		disabled = false
 	}: {
 		tabs: Tab[];
 		activeTab?: string;
 		onTabChange?: (id: string) => void;
 		variant?: 'default' | 'pills' | 'underline';
+		bordered?: boolean;
 		ariaLabel?: string;
 		testId?: string;
+		/**
+		 * Disables every trigger (native `disabled`, so the server-rendered strip is
+		 * inert until the parent is hydrated). The parent owns the state — this
+		 * component stays free of app-wide imports.
+		 */
+		disabled?: boolean;
 	} = $props();
 
 	function handleTabClick(id: string) {
@@ -78,14 +93,17 @@
 	<div
 		role="tablist"
 		aria-label={ariaLabel}
-		class="flex gap-2 {variant === 'pills'
-			? 'p-1 bg-(--admin-bg-card) rounded-xl'
-			: ''} overflow-x-auto overflow-y-clip"
+		class={variant === 'underline'
+			? bordered
+				? TAB_STRIP
+				: TAB_STRIP_FLUSH
+			: `flex gap-2 overflow-x-auto overflow-y-clip ${variant === 'pills' ? 'p-1 bg-(--admin-bg-card) rounded-xl' : ''}`}
 	>
 		{#each tabs as tab, i (tab.id)}
 			<!-- Underline tabs are chrome-free; `ghost` paints a dark-mode fill behind each tab -->
 			<Button
 				variant={variant === 'underline' ? 'transparent' : 'ghost'}
+				{disabled}
 				role="tab"
 				aria-selected={activeTab === tab.id}
 				aria-controls="tabpanel-{tab.id}"
@@ -93,21 +111,19 @@
 				onclick={() => handleTabClick(tab.id)}
 				onkeydown={(e: KeyboardEvent) => handleKeyDown(e, i)}
 				data-testid="tab-{tab.id}"
-				class="flex items-center gap-2.5 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all duration-200 {variant ===
-				'pills'
-					? 'rounded-lg! ' +
-						(activeTab === tab.id
-							? 'bg-white dark:bg-surface-700 shadow-sm text-(--admin-text-body)'
-							: 'text-surface-500 hover:text-surface-600 dark:hover:text-surface-400')
-					: variant === 'underline'
-						? 'rounded-none! border-b-2 ' +
-							(activeTab === tab.id
-								? 'border-tertiary-500 text-tertiary-600 dark:border-primary-500 dark:text-primary-500'
-								: 'border-transparent text-surface-500 hover:text-surface-600 dark:hover:text-surface-400 hover:border-surface-500/30')
-						: 'rounded-lg! ' +
-							(activeTab === tab.id
-								? 'bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-400'
-								: 'text-surface-500 hover:text-surface-600 dark:hover:text-surface-400')}"
+				class={variant === 'underline'
+					? tabTrigger(activeTab === tab.id)
+					: variant === 'pills'
+						? `flex items-center gap-2.5 whitespace-nowrap rounded-lg! px-4 py-3 text-sm font-medium transition-all duration-200 ${
+								activeTab === tab.id
+									? 'bg-white dark:bg-surface-700 shadow-sm text-(--admin-text-body)'
+									: 'text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'
+							}`
+						: `flex items-center gap-2.5 whitespace-nowrap rounded-lg! px-4 py-3 text-sm font-medium transition-all duration-200 ${
+								activeTab === tab.id
+									? 'bg-tertiary-500/10 text-tertiary-600 dark:bg-primary-900/20 dark:text-primary-400'
+									: 'text-surface-500 hover:text-surface-600 dark:hover:text-surface-400'
+							}`}
 			>
 				{#if tab.step !== undefined}
 					<span

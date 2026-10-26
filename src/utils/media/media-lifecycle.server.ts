@@ -29,6 +29,7 @@ import { logger } from "@src/utils/logger";
 import { deleteAllVariants } from "@src/services/media/image-variant-storage";
 import type {
   BaseEntity,
+  CmsMediaMetadata,
   DatabaseId,
   EntityUpdate,
   IDBAdapter,
@@ -51,7 +52,7 @@ interface MediaLifecycleRow extends BaseEntity {
   hash?: string;
   metadata?: {
     imageVariants?: unknown[];
-    processingError?: string;
+    processingError?: string | null;
     processingStatus?: unknown;
     versions?: MediaLifecycleVersion[];
     [key: string]: unknown;
@@ -435,17 +436,16 @@ export async function syncMediaProcessingStatus(
       !!row.path;
 
     if (persist && (status !== previous || shouldRequeue)) {
-      const metadata: MediaLifecycleRow["metadata"] = {
-        ...row.metadata,
+      // Patch the two keys this reconciler owns. Re-writing the whole blob from
+      // `row` would delete anything a concurrent writer (share link, variant
+      // job, editor) added after this row was read.
+      const patch: Partial<CmsMediaMetadata> = {
         processingStatus: shouldRequeue ? "processing" : status,
       };
-      if (status !== "failed" && metadata) delete metadata.processingError;
-      const update = await db.crud.update(
-        "media",
-        row._id,
-        { metadata } as unknown as EntityUpdate<MediaLifecycleRow>,
-        { tenantId: tenantId ?? undefined },
-      );
+      if (status !== "failed") patch.processingError = null;
+      const update = await db.media.files.updateMetadata(row._id, patch, {
+        tenantId: tenantId ?? undefined,
+      });
       if (update.success) {
         result.updated++;
       } else {
@@ -464,14 +464,9 @@ export async function syncMediaProcessingStatus(
         relPath: row.path,
         tenantId,
         onVariants: async (variants) => {
-          const current = await db.crud.findOne<MediaLifecycleRow>(
-            "media",
-            { _id: recordId } as QueryFilter<MediaLifecycleRow>,
-            { tenantId: tenantId ?? undefined },
-          );
-          if (!current.success || !current.data) return;
-          const metadata = {
-            ...current.data.metadata,
+          // Partial patch — see the note above: never replace the whole blob
+          // from a snapshot taken before other writers ran.
+          const patch: Partial<CmsMediaMetadata> = {
             processingStatus: variants.length > 0 ? "ready" : "failed",
             ...(variants.length > 0
               ? {
@@ -484,15 +479,13 @@ export async function syncMediaProcessingStatus(
                     path: variant.path,
                     size: variant.size,
                   })),
+                  processingError: null,
                 }
               : { processingError: "No variants generated" }),
           };
-          await db.crud.update(
-            "media",
-            recordId,
-            { metadata } as unknown as EntityUpdate<MediaLifecycleRow>,
-            { tenantId: tenantId ?? undefined },
-          );
+          await db.media.files.updateMetadata(recordId, patch, {
+            tenantId: tenantId ?? undefined,
+          });
         },
       });
     }

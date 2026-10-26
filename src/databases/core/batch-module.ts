@@ -30,7 +30,7 @@ import {
   getTenantCondition,
   sameBatchPayload,
 } from "./relational-utils";
-import { executeWrite } from "./drizzle-sql-helpers";
+import { executeWrite, rowsAffected } from "./drizzle-sql-helpers";
 import { getJsonDataPatch } from "./query-primitives";
 
 import { DatabaseModule } from "../core/base-adapter";
@@ -309,15 +309,8 @@ export class BatchModule extends DatabaseModule<ISqlAdapter> {
               .set(values as Record<string, unknown>)
               .where(and(...conditions));
             const result = await executeWrite(query);
-            return {
-              modifiedCount:
-                result?.changes ??
-                result?.rowsAffected ??
-                result?.rowCount ??
-                result?.count ??
-                result?.affectedRows ??
-                -1,
-            };
+            // `-1` is this module's "driver did not report" sentinel; keep it.
+            return { modifiedCount: rowsAffected(result) ?? -1 };
           }
         }
 

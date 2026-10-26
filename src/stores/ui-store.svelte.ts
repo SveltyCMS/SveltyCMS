@@ -219,10 +219,15 @@ class UIStore {
     }
 
     // Desktop
-    this.state.leftSidebar = isViewMode ? "full" : "collapsed";
+    // The left sidebar stays full in every mode. Collapsing it on edit/create
+    // only bought the inspector ~120px and cost the navigation context; compact
+    // navigation is a tablet affordance (MD branch above), not a desktop one.
+    this.state.leftSidebar = "full";
     this.state.rightSidebar = isViewMode ? "hidden" : "full";
     this.state.pageheader = showPageHeader ? "full" : "hidden";
-    this.state.pagefooter = "hidden";
+    // The desktop right sidebar carries save/status/authorship in edit mode;
+    // the footer mirrors the entry metadata when this panel is unavailable.
+    this.state.pagefooter = showPageHeader ? "full" : "hidden";
     this.state.header = "hidden";
     this.state.footer = "hidden";
   }
@@ -233,8 +238,11 @@ class UIStore {
   toggle(element: keyof UIState, visibility: UIVisibility): void {
     this.state[element] = visibility;
 
-    if (element === "leftSidebar") this.leftSidebarTouched = true;
-    if (element === "rightSidebar") this.rightSidebarTouched = true;
+    // Only desktop toggles express a persistent layout preference. On mobile the
+    // same state backs a temporary drawer, so marking it “touched” would hide
+    // the sidebar on every later desktop edit session.
+    if (element === "leftSidebar" && screen.isDesktop) this.leftSidebarTouched = true;
+    if (element === "rightSidebar" && screen.isDesktop) this.rightSidebarTouched = true;
 
     // Prevent auto-updates for 600ms after manual toggle
     if (element === "leftSidebar" || element === "rightSidebar") {

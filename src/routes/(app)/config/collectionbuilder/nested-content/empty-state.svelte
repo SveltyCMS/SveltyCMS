@@ -127,7 +127,7 @@
 					href={newCollectionHref}
 					data-preload="hover"
 					onclick={onAddCollection}
-					variant="error"
+					variant="primary"
 					size="md"
 					class="group w-full min-w-0 justify-center"
 					data-testid="add-collection-button"

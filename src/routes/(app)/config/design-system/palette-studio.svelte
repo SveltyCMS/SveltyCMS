@@ -293,7 +293,7 @@ into theme customCss (marked block), and preview on native components.
 	</div>
 	<p class="text-[11px]" style="color: var(--admin-text-muted)">
 		{palette_css_hint_part1()}{' '}
-		<code class="text-[10px]">{palette_css_markers()}</code>{palette_css_hint_part2()}{' '}
-		<strong>{palette_css_hint_part3()}</strong>{palette_css_hint_part4()}
+		<code class="text-[10px]">{palette_css_markers()}</code>{' '}{palette_css_hint_part2()}{' '}
+		<strong>{palette_css_hint_part3()}</strong>{' '}{palette_css_hint_part4()}
 	</p>
 </AdminCard>

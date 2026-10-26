@@ -45,6 +45,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 	import { logger } from '@src/utils/logger';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
+	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 
@@ -337,10 +338,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 
 					const response = await fetch('/api/user/delete-avatar', {
 						method: 'DELETE',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-CSRF-Token': page.data.csrfToken || ''
-						},
+						headers: clientJsonHeaders(page.data.csrfToken),
 						body: JSON.stringify({ avatarUrl: currentAvatar })
 					});
 

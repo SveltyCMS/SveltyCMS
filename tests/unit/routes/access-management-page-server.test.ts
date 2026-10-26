@@ -29,7 +29,10 @@ describe("access-management +page.server load", () => {
       },
     } as any);
 
-    expect(data.user._id).toBe("u1");
+    // `user` is owned by (app)/+layout.server.ts. Returning a slim
+    // { _id, email, role } here shadowed the layout snapshot in the merged
+    // `page.data`, which cost the sidebar its username/avatar on this route.
+    expect(data).not.toHaveProperty("user");
     expect(Array.isArray(data.roles)).toBe(true);
     expect(Array.isArray(data.permissions)).toBe(true);
     expect(data.permissions.length).toBeGreaterThan(0);

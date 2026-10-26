@@ -2,7 +2,7 @@
  * @file tests/unit/user/type-guards.test.ts
  * @description White-box unit tests for isUser / isToken type guards.
  *
- * Extracted from: src/routes/(app)/user/components/admin-area.svelte
+ * Extracted from: src/routes/(app)/user/components/user-management.svelte
  *
  * isUser(row): returns true if row has _id AND (username OR role) AND NOT token
  *   Actually per source: !!row && '_id' in row && !('token' in row)
@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from "vitest";
 
-// Replicate the inline functions from admin-area.svelte for unit testing.
+// Replicate the inline functions from user-management.svelte for unit testing.
 // These are NOT exported — tests mirror the exact implementation.
 function isToken(row: any): row is { token: string; [key: string]: any } {
   return !!row && "token" in row && typeof row.token === "string";

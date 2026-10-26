@@ -39,6 +39,7 @@
 - **Motion**: use `@utils/admin-transitions` (`adminPage`, `adminFade`, `adminStagger`, `adminSlide`) — reduced-motion safe (0ms under `prefers-reduced-motion`). The `(app)` layout owns `adminPage` (keyed on pathname); `AdminPageShell` owns `adminFade`. No per-page `in:fly`/`in:scale` one-offs; animate only `transform` + `opacity`. Who plays which transition: `docs/development/ui/shells.mdx`.
 - **Accessibility** (WCAG 2.2 AA / ATAG 2.0, forward-aligned WCAG 3.0): accessible name on every interactive element; token-based `:focus-visible` rings (≥3:1, both modes); respect reduced motion & high contrast; `cursor: pointer` only on links, never buttons. Standards: `docs/contributing/accessibility.mdx`. Per-control notes (icon-only Button, `sr-only` Checkbox, portaled Modal): `docs/development/ui/primitives.mdx`.
 - **Admin UI**: every `(app)` page is `<AdminPageShell>` + one or more `<AdminCard>`. Omit `variant` and `preset` on `AdminCard` so flat / bordered / elevated themes apply; setting either renders `Card` and skips the `--admin-*` inline styles (`data-testid` forwards only on the token path). Import native controls from `@components/ui`: `<Button>`, `<Badge>`, `<Input>`, `<Select>`, `<Textarea>`, `<Toggle>`, `<Checkbox>`, `<Modal>`. Button's default variant is `surface`; the page action is `variant="primary"` (supporting action `tertiary` or `ghost`); do not pass `color` (a `#` / `rgb` / `hsl` / `var(` value selects `preset-custom`). Pass `href` to navigate — that renders an `<a>`. Never mix component CSS classes (`class="btn"` / `"badge"` / `"input"`). Attributes go on the opening tag (stray attribute text renders as visible content). Kit fields id themselves with `generateId()`; a control you write uses `$props.id()` — never `crypto.randomUUID()` during render. Props and composition: `docs/development/ui/` (`index.mdx`, `shells.mdx`, `primitives.mdx`). Shade, RTL, tokens: `docs/contributing/style-guide-gui.mdx`. Live check: `/config/design-system?tab=preview`.
+- **Tabs**: one strip for every admin surface. Use `@components/ui/tabs` (array) or `Tabs.List`/`Tabs.Trigger` (compound); their chrome lives in `src/components/ui/tabs/chrome.ts`. The rule is a 1px inset shadow (`TAB_STRIP`/`TAB_ROW`), never `border-b` on the strip, and never `-mb-px` — the strip scrolls (`overflow-y-clip`) and clips it. A strip that needs badges or per-tab tooltips keeps its own buttons but imports `TAB_STRIP`/`TAB_STRIP_FLUSH`/`tabTrigger()`; `tests/unit/components/tab-chrome-contract.test.ts` enforces it. Accent is tertiary light / primary dark; `Tabs` takes `bordered={false}` when the parent row paints the rule.
 - **Responsive**: every route works at mobile (<768px), tablet (768–1023px), desktop (≥1024px) — `sm/md/lg:` variants, `screen` store for JS, `overflow-x-auto` for wide tables, touch targets ≥40px.
 
 ## 2. Security (scanner-enforced, never bypass)
@@ -87,9 +88,25 @@ All public-facing documentation, marketing, and competitive comparisons MUST com
 - **Testing API is fail-closed**: `/api/testing` ⇒ 403 in production; gated on `TEST_MODE`/`PLAYWRIGHT_TEST` (not bare `NODE_ENV=test`, not `BENCHMARK`); `x-test-secret` matches `TEST_API_SECRET` (timing-safe); stripped from production bundles (`testBackdoorStripperPlugin`). Never add alternate entry points.
 - **New features MUST update docs**: `docs/project/roadmap-2026.mdx` is the TODO list — add/mark items there; when shipped, move completed items to `docs/project/achievements-2026.mdx` (achievements log); defensible differentiators also go into `docs/project/competitive-comparison.mdx` (EU/DE-compliant, UWG §6). Plus the relevant MDX (feature→doc matrix and test↔docs map: `docs/contributing/style-guide-gui.mdx` for UI rules, `docs/development/ui/` when a shell or native-control prop changes, `docs/contributing/agent-reference.mdx` for the full matrices, `docs/tests/test-to-docs-map.mdx` for test suites).
 
+### CI tiers (`ci.yml`)
+
+`ci.yml` runs in one of two tiers, decided by the `plan` job and shown in the run summary:
+
+| Tier                | Triggered by                                                           | Jobs                                                                          | Wall clock |
+| :------------------ | :--------------------------------------------------------------------- | :---------------------------------------------------------------------------- | :--------- |
+| **fast** (required) | `pull_request`, push to `next`                                         | `plan`, `bootstrap`, `whitebox` (policy/quality + unit), `build`, `all-green` | ~6 min     |
+| **full**            | `merge_group`, nightly `schedule`, `workflow_dispatch`, push to `main` | everything above + Docker images, DB ×4, bench ×4, E2E ×9 shards              | ~12 min    |
+
+Branch protection requires **`✅ All Green`** only. The gate counts `skipped` as not-failed, so the same check is valid in both tiers: a PR proves the fast tier, and the merge queue re-runs the full matrix on the merge commit before it can land. `pull_request` deliberately has **no** `paths-ignore` — GitHub never reports a required check for a workflow that path filters skip, which would make docs-only PRs unmergeable.
+
+Repository settings this file assumes (not configurable from the repo):
+
+1. **Branch protection** on `next` and `main`: require the status check `✅ All Green`, require branches to be up to date, and do not allow bypassing for admins.
+2. **Merge queue** enabled on `next` (Settings → Branches → Merge queue) so `merge_group` runs.
+
 ### CI gate parity (`ci.yml` → local mirror)
 
-CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 8 E2E shards on every push. Validate the mirror locally first — a green local tree must stay green on CI:
+CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench ×4 + 9 E2E shards in the **full** tier. Validate the mirror locally first — a green local tree must stay green on CI:
 
 | CI job (`ci.yml`)                  | Local mirror                                                                                                                                                                                                                       |
 | :--------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -103,6 +120,17 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`); local parity: `bun run test:parity` (add `--docker` to boot missing engines, `--require-all` to fail on skips) |
 | 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"`; flake gate: `bun run flake:budget`                                                                       |
 
+**Pre-push E2E is a contract set, not the whole suite** — `.githooks/pre-push` runs `tests/e2e/smoke.spec.ts` (auth → CRUD → persistence) and, depending on the changed paths, adds the contracts CI would otherwise catch first:
+
+| Changed paths                                                          | Added specs                                                                    |
+| :--------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
+| `src/components/`, `src/app.css`, `src/routes/**/*.svelte`, `(admin)/` | `routes/login/accessibility.spec.ts`, `routes/dashboard/accessibility.spec.ts` |
+| `src/components/ui/`, `src/app.css`, design-system route, `(admin)/`   | `routes/admin-theme/visual-regression.spec.ts`                                 |
+| `src/routes/(app)/mediagallery/`, `src/components/media/`              | `routes/mediagallery/theme-visual.spec.ts`                                     |
+| `src/widgets/`, `src/components/collection-display/`, collection route | `routes/collection-builder/kitchen-sink.spec.ts`                               |
+
+The mapping targets spec **paths**, never `--grep` (a path cannot be combined with `--shard` and cannot silently select zero tests). If you touch UI and the hook did not list one of these specs, the mapping is stale — fix the hook before trusting a green gate.
+
 **Parity rules — the ones that break otherwise-green trees:**
 
 - **Perf assertions need JIT warm-up** — the `<50ms` timed-loop budget flaked at 71ms cold on CI (`dashboard-runtime`). Run ≥1k warm-up iterations before any timed loop that asserts a budget.
@@ -110,7 +138,8 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 - **`lint-tenant-api` is incremental by default** (git-diff on a dirty tree); CI scans a clean checkout. Always `-- --full` locally.
 - **`svelte-kit sync`** after alias/type changes; prod boot is static-import-only — a missing import in `hooks.server.ts` is a `ReferenceError` at startup caught only by the integration harness, never by unit tests.
 - **E2E env must match `e2e-prep`** — `TEST_MODE=true`, `TEST_API_SECRET` in `tests/e2e/.auth/test-secret.txt`, `ORIGIN` pinned, `SKIP_TEST_CLEANUP=true`, `DB_NAME=e2e_auth_test`. The wizard → auth-setup chain seeds `tests/e2e/.auth/admin.json`; never skip it for a chromium run.
-- **Never combine `--grep` with `--shard`** — Playwright drops ~5/6 of each grep group and empty shards fail (see `.github/workflows/e2e-matrix.ts`).
+- **Never combine `--grep` with `--shard`** — Playwright drops ~5/6 of each grep group and empty shards fail (see `.github/workflows/e2e-matrix.ts`). The partition is pinned by `tests/unit/ci/e2e-partition.test.ts`: a spec matching zero groups silently never runs, one matching two runs twice.
+- **E2E shard budget is 3 minutes** — setup ~45 s, boot ~3 s, tests ~100 s. Chrome's system libraries are already on the runner image, so the shards probe with `ldd` and only touch apt on a miss; an unconditional `install-deps` cost 9m30s on one shard against a contended mirror.
 - **Axe audits run in the Auth & Branding shard** — any color change must keep `bg-{hue}-500` + `text-white` ≥ 4.5:1 (status-shade contract) or the RTL contrast audit fails.
 - **DB/contract changes must pass on all 4 adapters** — an adapter-specific bug (e.g. jsonPath re-filter after column-stripping) only surfaces on the DB matrix; when you touch adapter or load-path code, run `test:integration` on at least SQLite + one server DB locally.
 
@@ -123,7 +152,7 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                                                 |
 | Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile + **typecheck (`tsc` + `svelte-check`)**                           |
 |           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                                          |
-|           | `bun run typecheck`                                        | `svelte-kit sync` → `tsc --noEmit` → `svelte-check --threshold error`                                                   |
+|           | `bun run typecheck`                                        | `svelte-kit sync` → `tsc --noEmit` → `svelte-check` (errors **and** warnings gated)                                     |
 | Tests     | `bun run test:unit`                                        | Vitest unit suite (~60s)                                                                                                |
 |           | `bun run test:unit:components`                             | Client-build Svelte 5 component interaction tests (jsdom, ~14s)                                                         |
 |           | `bun run test:coverage`                                    | Unit suite + enforced P0 coverage floors (72/72/60/70)                                                                  |
@@ -138,6 +167,15 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB ×4/E2E/bench are CI-only — mirror each CI job via the table above                           |
 
 Pipeline: pre-commit = test-db-safety → format/lint/**typecheck** → risk audit → unit → **component interactions** → SBOM sync; pre-push = build (4 adapters) → **DB parity when `src/databases/` changed** → E2E smoke. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract, flake budget) before touching product code.
+
+> **Local gates are enforced (owner decision, 2026-10-24).** `git commit` runs the full pre-commit gate; `git push` runs the CI-parity Unit job (coverage + components + mutation), the build, SQLite integration, DB parity when adapter code changed, and the browser contract gate (including any changed E2E spec). There is no opt-out environment variable.
+>
+> ```sh
+> bun run git commit -m "…"   # ~3–4 min (format/lint/check + unit + components + diff integration)
+> bun run git push            # ~8–10 min (CI Unit parity + build + integration + parity + E2E)
+> ```
+>
+> This replaced the 2026-10-23 opt-in policy after two green-local/red-CI Unit runs: the hook had exited before running anything, and the CI-only failure was an unhandled jsdom timer error (all 155 component tests passing). A green hook is now evidence; GitHub Actions remains the authority for the multi-DB/E2E matrix. `--no-verify` is still blocked by `scripts/git-safe.ts`; the semantic-release step on `main` runs after a green gate.
 
 ## 5. Architecture (brief)
 
@@ -160,6 +198,7 @@ Pipeline: pre-commit = test-db-safety → format/lint/**typecheck** → risk aud
 - **Windows `bun install` corruption** (upstream Bun bug) → use `npm install`; runtime still works. NEVER `rm -rf node_modules bun.lock` together — incremental `bun install`; if corrupted: `git checkout HEAD -- bun.lock` then `bun install` (`repair:drizzle` for drizzle-orm).
 - **`bun:test` imports fail under the gate** → Vitest is canonical: import from `"vitest"` always (see §3.5).
 - **TS errors** → `bun x svelte-kit sync` to regenerate types.
+- **Stale "no exported member" in `@src/paraglide/messages`, or `Failed to load url ./de.js`** → dev, prod build, and the CLI are all pinned to `locale-modules` (`paraglideVitePlugin({ outputStructure })` + `--output-structure locale-modules`), so the shapes can no longer diverge. If an editor still reports missing exports, run `bun run paraglide`; if the error comes from a running dev server, restart it — a server that started before a regenerate keeps the old module ids in its graph.
 - **Upgrade** → clean worktree, `bun run scripts/upgrade.ts`, then `bun run check && bun run test:unit`.
 
 ## 8. Version Control & Releases

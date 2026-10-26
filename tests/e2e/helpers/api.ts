@@ -103,7 +103,35 @@ export async function resetAndSeedDatabase(page: Page) {
     },
   });
   if (!seed.ok()) throw new Error(`seed failed: ${seed.status()}`);
-  await applySessionCookie(page, seed).catch(() => false);
+  await applySessionCookie(page, seed);
+
+  // `applySessionCookie` used to be called with `.catch(() => false)`, so a rejected
+  // application left the context anonymous. The spec then failed on a redirect to
+  // /login or an empty table, passed on retry, and was reported as a UI flake — two
+  // specs in CI did exactly this. Verify the session is actually usable and repair it
+  // once, so a broken seed fails here, loudly, instead of in an unrelated assertion.
+  if (!(await hasUsableSession(page))) {
+    const retry = await page.request.post("/api/testing", {
+      headers: TEST_API_HEADERS,
+      data: {
+        action: "seed",
+        email: ADMIN_CREDENTIALS.email,
+        password: ADMIN_CREDENTIALS.password,
+        createSession: true,
+      },
+    });
+    if (!retry.ok()) throw new Error(`seed retry failed: ${retry.status()}`);
+    await applySessionCookie(page, retry);
+    if (!(await hasUsableSession(page))) {
+      throw new Error("resetAndSeedDatabase: no usable admin session after two attempts");
+    }
+  }
+}
+
+/** True when the context carries a session the API accepts. */
+async function hasUsableSession(page: Page): Promise<boolean> {
+  const res = await page.request.get("/api/user?page=1&limit=1");
+  return res.ok();
 }
 
 // ── Session management ─────────────────────────────────────────────────
@@ -416,6 +444,18 @@ export async function seedExpiredPasswordReset(
     userId: String(body.userId || ""),
     expires: String(body.expires || ""),
   };
+}
+
+/**
+ * Allow the app server to reach one exact origin (scheme + host + port).
+ *
+ * The production SSRF guard blocks loopback; a zero-mock E2E that ingests a
+ * remote URL needs the server to reach a fixture the test owns. The testing
+ * action is fail-closed and delegates to `allowTestEgressOrigin()`, which
+ * itself refuses to run outside TEST_MODE/PLAYWRIGHT_TEST.
+ */
+export async function allowTestEgressOrigin(page: Requestish, origin: string): Promise<void> {
+  await postTesting(page, { action: "allow-egress-origin", origin });
 }
 
 /** Seed media rows with distinct metadata for ?jsonPath= filter tests. */

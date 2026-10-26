@@ -81,7 +81,7 @@ dismiss button, action button, shrink timer bar, and pause-on-hover.
 		in:fly={{ y: 20, duration: 400 }}
 		out:fade={{ duration: 200 }}
 		class={cn(
-			'absolute inset-e-0 bottom-0 pointer-events-auto w-full sm:w-80 shadow-2xl rounded overflow-hidden transition-all duration-300 ease-out',
+			'absolute inset-e-0 bottom-0 pointer-events-auto w-full sm:w-80 shadow-2xl rounded-(--admin-radius-card) overflow-hidden transition-all duration-300 ease-out',
 			'border border-white/10 backdrop-blur-md',
 			styles[t.type]
 		)}

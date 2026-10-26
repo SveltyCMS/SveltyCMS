@@ -16,6 +16,8 @@ import {
   waitForLoadingGone,
 } from "../../helpers/stable";
 
+import { runAfterHydration } from "../../helpers/hydration";
+
 const ACTION_TIMEOUT = 20_000;
 
 async function goWebhooks(page: Page) {
@@ -58,7 +60,11 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     const url = `https://example.com/e2e-golden/${stamp}`;
 
     // --- Create ---
-    await page.getByTestId("webhooks-add").click();
+    // `webhooks-add` ships `disabled` until hydration, so Playwright's enabled
+    // auto-wait replaces the marker gate; the assertion pins the contract.
+    const addBtn = page.getByTestId("webhooks-add");
+    await expect(addBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await addBtn.click();
     await expect(page.getByTestId("webhooks-modal")).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // Validation guard (control risk: cannot save empty)
@@ -87,7 +93,9 @@ test.describe("Webhooks (Testing 2026 reference)", () => {
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
 
     // --- Delete ---
-    await card.getByTestId("webhook-delete").click();
+    await runAfterHydration(page, () => card.getByTestId("webhook-delete").click(), {
+      selector: card,
+    });
     await confirmModal(page);
     await expect(page.locator(`[data-webhook-name="${name}"]`)).toHaveCount(0, {
       timeout: ACTION_TIMEOUT,

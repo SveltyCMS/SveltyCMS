@@ -67,12 +67,7 @@
 		license?: string;
 	}
 
-	let { initialItems = [] }: { initialItems?: CatalogItem[] } = $props();
-
 	let items = $state<CatalogItem[]>([]);
-	$effect(() => {
-		items = [...initialItems];
-	});
 	let loading = $state(false);
 	let query = $state('');
 	let typeFilter = $state('all');

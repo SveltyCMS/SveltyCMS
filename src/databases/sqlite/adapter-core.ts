@@ -244,6 +244,25 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   /**
+   * Key-level JSON patch: `json_set(doc, '$.key', json(value))` per key, nested.
+   *
+   * `json_set` replaces exactly one top-level key, so a concurrent patch of a
+   * different key survives the write. `json(?)` parses the bound text first —
+   * without it the value would be stored as a JSON *string*; and a JSON `null`
+   * stays a value (SQL NULL would drop the key). `COALESCE` covers a NULL column.
+   */
+  protected override jsonKeyPatchExpression(
+    colSql: string,
+    entries: ReadonlyArray<readonly [string, string]>,
+  ): SQL {
+    let expr: SQL = sql`COALESCE(${sql.raw(colSql)}, '{}')`;
+    for (const [key, jsonText] of entries) {
+      expr = sql`json_set(${expr}, ${`$.${key}`}, json(${jsonText}))`;
+    }
+    return expr;
+  }
+
+  /**
    * Read the JSON `data` column of one row for the JS merge path (the only reader
    * of a single column on this adapter). Returns null when the row is absent, which
    * the caller treats as fail-closed — a merge with nothing to merge into must not

@@ -70,6 +70,7 @@ import { contentStore } from "@src/stores/content-registry.svelte";
 import type { DatabaseId, Schema } from "@src/content/types";
 import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
+import { versionTokenString } from "@utils/optimistic-lock";
 import { resolvePublicationFilter } from "@utils/security/publication-policy";
 import {
   serializeSuccessEnvelope,
@@ -206,36 +207,47 @@ function resolveReadLaneTarget(event: RequestEvent): ReadLaneTarget | null {
   if (!pathname.startsWith("/api/collections/")) {
     return remember(null);
   }
-  const parts = splitPathSegments(pathname);
-  // ["api", "collections", collectionId] or ["api", "collections", collectionId, entryId]
-  if (parts.length !== 3 && parts.length !== 4) {
-    return remember(null);
+
+  // Fast string slicing instead of splitPathSegments (zero array allocation)
+  const slash = pathname.indexOf("/", 17);
+  if (slash === -1 || slash === pathname.length - 1) {
+    const end = slash === -1 ? undefined : slash;
+    const collectionId = pathname.slice(17, end);
+    if (!collectionId || COLLECTION_ACTION_SEGMENTS.has(collectionId)) {
+      return remember(null);
+    }
+    if (
+      rawSearch.length > 1 &&
+      (rawSearch.includes("export") || rawSearch.includes("stream=true"))
+    ) {
+      const search = event.url.searchParams;
+      if (search.has("export") || search.get("stream") === "true") {
+        return remember(null);
+      }
+    }
+    return remember({ collectionId, entryId: null });
   }
-  const collectionId = parts[2];
+
+  const collectionId = pathname.slice(17, slash);
   if (!collectionId || COLLECTION_ACTION_SEGMENTS.has(collectionId)) {
     return remember(null);
   }
-  if (parts.length === 4) {
-    const entryId = parts[3];
-    if (
-      !entryId ||
-      COLLECTION_ACTION_SEGMENTS.has(entryId) ||
-      entryId === "revisions" ||
-      entryId === "export"
-    ) {
-      return remember(null);
-    }
-    return remember({ collectionId, entryId });
+
+  const nextSlash = pathname.indexOf("/", slash + 1);
+  if (nextSlash !== -1 && nextSlash !== pathname.length - 1) {
+    return remember(null);
   }
-  // Exclude export, count-only, and explicit streaming without materializing
-  // URLSearchParams on normal list queries (e.g. `?limit=20`).
-  if (rawSearch.length > 1 && (rawSearch.includes("export") || rawSearch.includes("stream=true"))) {
-    const search = event.url.searchParams;
-    if (search.has("export") || search.get("stream") === "true") {
-      return remember(null);
-    }
+  const end = nextSlash === -1 ? undefined : nextSlash;
+  const entryId = pathname.slice(slash + 1, end);
+  if (
+    !entryId ||
+    COLLECTION_ACTION_SEGMENTS.has(entryId) ||
+    entryId === "revisions" ||
+    entryId === "export"
+  ) {
+    return remember(null);
   }
-  return remember({ collectionId, entryId: null });
+  return remember({ collectionId, entryId });
 }
 
 /** True for GET/HEAD of a collection list or single entry. */
@@ -420,8 +432,8 @@ function normalizeSortParam(raw: string | null): string | null {
  * 4. Locale alignment: Either no locale parameter or locale strictly equals the collection's compiled default.
  * 5. No mutating collection hooks: The target collection defines no `afterRead`/`afterFind` hooks.
  * 6. Point vs List Predicate: Point-reads reject custom filters; list-reads reject custom filters and admit
- *    only the compiled default sort (fail closed when none is compiled) + fixed limit until Cell 3
- *    dynamic list SQL is compiled.
+ *    the compiled default sort or an explicit sort on an identifier-safe column (the wire builder validates
+ *    the column and falls back to the ORM path when it does not exist), plus a bounded limit/page.
  *
  * Fail Closed: If `collectionMeta` is omitted or null, returns `false` (Domain Plane default).
  */
@@ -439,6 +451,7 @@ export function isWirePlaneAdmissible(
   const isPoint = target
     ? target.entryId != null
     : splitPathSegments(event.url.pathname).length === 4;
+  const isList = !isPoint;
 
   // Fast path for simple point reads with no query parameters
   if (isPoint && (!event.url.search || event.url.search === "")) {
@@ -453,14 +466,13 @@ export function isWirePlaneAdmissible(
       ) {
         return false;
       }
-    } else {
-      if (
-        event.cookies.get("preview") === "true" ||
+    } else if (
+      event.cookies &&
+      (event.cookies.get("preview") === "true" ||
         event.cookies.get("preview_mode") === "true" ||
-        event.cookies.get("svelty_preview") === "true"
-      ) {
-        return false;
-      }
+        event.cookies.get("svelty_preview") === "true")
+    ) {
+      return false;
     }
     return true;
   }
@@ -521,9 +533,6 @@ export function isWirePlaneAdmissible(
   // 5. Projection equality check:
   // If `fields` param is provided:
   if (search.has("fields")) {
-    const parts = splitPathSegments(event.url.pathname);
-    const isList = parts.length === 3;
-
     // Single-pass trim + compact: the same values as the previous
     // `.split(",").map(trim).filter(Boolean)` chain, one array instead of three.
     const requested = search.get("fields")!.split(",");
@@ -579,19 +588,26 @@ export function isWirePlaneAdmissible(
   }
 
   // 7. Point vs List reading constraints:
-  const parts = splitPathSegments(event.url.pathname);
-  const isList = parts.length === 3;
-
   if (isList) {
     // List wire admits:
-    // (a) No sort or sort matching compiled defaultSort
-    // (b) Or an explicit sort on any published, identifier-safe schema column
+    // (a) No sort, or a sort matching the compiled defaultSort, and
+    // (b) an explicit sort on an identifier-safe column. Branch (b) used to fail
+    // closed "until Cell 3 dynamic list SQL is compiled" — that SQL exists now:
+    // findListWireStream validates the column against the table, builds
+    // `ORDER BY "<col>" ASC|DESC` plus a `"_id"` tiebreak for stable paging, and
+    // declines to the ORM path when the column is unknown. So an invalid sort
+    // costs a fallback (the previous behaviour), never a different result.
     if (search.has("sort")) {
       const requestedSort = normalizeSortParam(search.get("sort"));
       const compiledSort = collectionMeta.defaultSort
         ? normalizeSortParam(collectionMeta.defaultSort)
         : null;
-      if (!compiledSort || requestedSort !== compiledSort) return false;
+      const matchesCompiled = compiledSort !== null && requestedSort === compiledSort;
+      // The whole normalised form is validated, not just the field: `title:asc;DROP`
+      // must not reach the wire attempt. Anything that fails costs a fallback.
+      const isExplicitColumnSort =
+        requestedSort !== null && /^[A-Za-z0-9_]+:(asc|desc)$/.test(requestedSort);
+      if (!matchesCompiled && !isExplicitColumnSort) return false;
     }
     if (search.has("limit")) {
       const lim = Number(search.get("limit"));
@@ -709,7 +725,11 @@ async function executeWarmCollectionRead(
 
   const srvT0 = STAMP_SRV_DUR || STAMP_SRV_SPLIT ? performance.now() : 0;
   const marks = STAMP_SRV_SPLIT ? new Map<string, number>() : null;
-  const cached = maybeBypass ? null : responseCache.get(pathKey, cacheTenant);
+  const cached = maybeBypass
+    ? null
+    : entryId
+      ? responseCache.getPoint(pathKey, cacheTenant)
+      : responseCache.get(pathKey, cacheTenant, false);
   marks?.set("lookup", performance.now() - srvT0);
   if (cached?.body) {
     const res = serveTurboCacheEntry(event, cached);
@@ -721,7 +741,8 @@ async function executeWarmCollectionRead(
       // variant is almost never re-served before the FIFO evicts the key — so
       // they skip the stash (and the `Buffer.byteLength` walk) entirely (see
       // response-compression-stash.ts). The stash runs after the response.
-      const bodyBytes = cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
+      const bodyBytes =
+        cached.byteLength ?? cached.buffer?.byteLength ?? Buffer.byteLength(cached.body, "utf8");
       void scheduleTurboVariantStash({
         key: pathKey,
         body: cached.body,
@@ -866,8 +887,12 @@ async function rebuildWarmCollectionRead(
           // `locals` is passed directly (its `user` is what the policy reads; the
           // policy never reads `locals.system`, which the lane never sets) — the
           // previous `{ user: locals.user }` literal was a per-request allocation.
-          requirePublished:
-            resolvePublicationFilter(locals, event.url.searchParams.get("status")) !== "all",
+          requirePublished: !locals.user
+            ? true
+            : resolvePublicationFilter(
+                locals,
+                event.url.search ? event.url.searchParams.get("status") : null,
+              ) !== "all",
         },
       );
       if (wireRes?.success && wireRes.data) {
@@ -905,7 +930,7 @@ async function rebuildWarmCollectionRead(
         marks?.set("build", 0);
         const cacheT0 = marks ? performance.now() : 0;
         if (entryId) {
-          responseCache.setPoint(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
+          responseCache.setPointDirect(pathKey, apiBody, etag, 300_000, cacheTenant, {
             collection: collectionId,
             entryId,
           });
@@ -931,8 +956,12 @@ async function rebuildWarmCollectionRead(
         tenantId: locals.tenantId as DatabaseId,
         limit: listParams.limit,
         offset: listParams.offset,
-        requirePublished:
-          resolvePublicationFilter(locals, event.url.searchParams.get("status")) !== "all",
+        requirePublished: !locals.user
+          ? true
+          : resolvePublicationFilter(
+              locals,
+              event.url.search ? event.url.searchParams.get("status") : null,
+            ) !== "all",
         sortField: listParams.sortField,
         sortDirection: listParams.sortDirection,
         fields: listParams.fields,
@@ -1026,7 +1055,7 @@ async function rebuildWarmCollectionRead(
   const rawRow = record.data as { _id?: unknown; updatedAt?: unknown } | null;
   const pointEtag =
     entryId && rawRow && typeof rawRow === "object"
-      ? `"${String(rawRow._id ?? entryId)}-${String(rawRow.updatedAt ?? "")}"`
+      ? `"${String(rawRow._id ?? entryId)}-${versionTokenString(rawRow.updatedAt)}"`
       : null;
   // One JSON string. The lane builds the only Response, from the prebuilt
   // security-header template. A second Response here was pure overhead on a miss.
@@ -1077,21 +1106,20 @@ async function rebuildWarmCollectionRead(
   // same 199-row list cost 15.0 ms vs 10.8 ms with co-tenant p95 7.39 vs
   // 2.50 ms — the duplicate build dwarfs the compression.
   let compressedVariants: Record<string, Uint8Array> | undefined;
+  let bodyBytes: number | undefined;
   if (tags) {
+    bodyBytes = Buffer.byteLength(apiBody, "utf8");
     const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
-    if (acceptEncoding) {
-      const bodyBytes = Buffer.byteLength(apiBody, "utf8");
-      if (bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
-        const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
-          contentLength: bodyBytes,
-        });
-        if (algo) {
-          const variant =
-            bodyBytes <= SYNC_MAX_SIZE
-              ? compressSync(apiBody, algo, bodyBytes)
-              : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
-          if (variant) compressedVariants = { [algo]: variant };
-        }
+    if (acceptEncoding && bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
+      const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+        contentLength: bodyBytes,
+      });
+      if (algo) {
+        const variant =
+          bodyBytes <= SYNC_MAX_SIZE
+            ? compressSync(apiBody, algo, bodyBytes)
+            : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
+        if (variant) compressedVariants = { [algo]: variant };
       }
     }
   }
@@ -1110,8 +1138,8 @@ async function rebuildWarmCollectionRead(
     responseCache.set(
       pathKey,
       compressedVariants
-        ? { body: apiBody, etag, compressed: compressedVariants }
-        : { body: apiBody, etag },
+        ? { body: apiBody, etag, compressed: compressedVariants, byteLength: bodyBytes }
+        : { body: apiBody, etag, byteLength: bodyBytes },
       300_000,
       cacheTenant,
       tags ? { tags, skipSharedL1: false } : { skipSharedL1: true },
@@ -1125,7 +1153,7 @@ async function rebuildWarmCollectionRead(
       key: pathKey,
       body: apiBody,
       etag,
-      byteLength: Buffer.byteLength(apiBody, "utf8"),
+      byteLength: bodyBytes ?? Buffer.byteLength(apiBody, "utf8"),
       ttlMs: 300_000,
       tenantId: cacheTenant,
       setOptions: { tags, skipSharedL1: false },

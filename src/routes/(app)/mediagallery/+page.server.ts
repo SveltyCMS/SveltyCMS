@@ -51,6 +51,30 @@ import { matchesJsonPathFilter } from "@utils/json-path-filter";
 import { toGalleryListItem } from "./gallery-list-item";
 
 /**
+ * One server page of gallery rows. The grid/table reveal more via `?page=`;
+ * `total` is the adapter's COUNT, so the UI can say "100 of 2,431" instead of
+ * pretending the first slice is the whole folder.
+ */
+const GALLERY_PAGE_SIZE = 100;
+/** Absurd `?page=` values would otherwise become a huge OFFSET scan. */
+const MAX_GALLERY_PAGE = 10_000;
+
+interface GalleryPage {
+  items: Record<string, unknown>[];
+  page: number;
+  pageSize: number;
+  total: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+function parseGalleryPage(raw: string | null): number {
+  const parsed = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.min(parsed, MAX_GALLERY_PAGE);
+}
+
+/**
  * 🚀 Fast serializer: converts _id/parent ObjectIds to strings.
  * Uses JSON.stringify with a replacer — far faster than the previous
  * iterative DFS walker (eliminated ~50ms per large folder tree).
@@ -99,6 +123,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
     const folderId = url.searchParams.get("folderId"); // Get folderId from URL
     const recursive = url.searchParams.get("recursive") === "true";
+    // 1-based server page — the gallery used to hardcode page 1 and silently
+    // drop every asset past the first 100.
+    const mediaPage = parseGalleryPage(url.searchParams.get("page"));
     // Server-side JSON path filter (shareable via URL; same syntax as client filter)
     const jsonPath = (url.searchParams.get("jsonPath") || url.searchParams.get("jsonpath") || "")
       .trim()
@@ -114,69 +141,93 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     // the documented global scope for the global administrator.
     const tenantId = (locals.tenantId ?? null) as DatabaseId | null;
     const vfCacheKey = `mediagallery:virtualFolders:${locals.tenantId || "global"}`;
-    let virtualFoldersData: any[] = [];
-    try {
-      virtualFoldersData =
-        (await cacheService.getOrSetSWR<any[]>(
-          vfCacheKey,
-          async () => {
-            const result = await dbAdapter.system.virtualFolder.getAll({ tenantId });
-            if (!result.success) {
-              logger.warn("Virtual folder fetch failed — returning empty list");
-              return [];
-            }
-            return Array.isArray(result.data) ? result.data : [];
-          },
-          300_000, // Fresh: 5 min
-          1_800_000, // Stale: 30 min (serve stale while refreshing)
-        )) || [];
-    } catch (vfErr) {
-      logger.warn(
-        `Virtual folder load failed (non-fatal): ${vfErr instanceof Error ? vfErr.message : String(vfErr)}`,
-      );
-      virtualFoldersData = [];
-    }
 
-    const virtualFolders = virtualFoldersData || [];
+    // 🚀 The folder tree and the media listing are independent reads — run them
+    // together instead of paying both round-trips back to back. Each branch keeps
+    // its own soft-fail (an empty tree/list beats a 500 on the whole gallery).
+    const [virtualFolders, mediaResultPage] = await Promise.all([
+      (async (): Promise<SystemVirtualFolder[]> => {
+        try {
+          const cached = await cacheService.getOrSetSWR<SystemVirtualFolder[]>(
+            vfCacheKey,
+            async () => {
+              const result = await dbAdapter.system.virtualFolder.getAll({ tenantId });
+              if (!result.success) {
+                logger.warn("Virtual folder fetch failed — returning empty list");
+                return [];
+              }
+              return Array.isArray(result.data) ? result.data : [];
+            },
+            300_000, // Fresh: 5 min
+            1_800_000, // Stale: 30 min (serve stale while refreshing)
+            tenantId, // Scope invalidation/tags to the tenant, not just the key
+          );
+          return cached ?? [];
+        } catch (vfErr) {
+          logger.warn(
+            `Virtual folder load failed (non-fatal): ${vfErr instanceof Error ? vfErr.message : String(vfErr)}`,
+          );
+          return [];
+        }
+      })(),
+      (async (): Promise<GalleryPage> => {
+        const emptyPage: GalleryPage = {
+          items: [],
+          page: mediaPage,
+          pageSize: GALLERY_PAGE_SIZE,
+          total: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        };
+        // Use db-agnostic adapter method to fetch media (soft-fail: empty list > 500)
+        try {
+          const getByFolder = dbAdapter.media?.files?.getByFolder;
+          if (typeof getByFolder !== "function") {
+            logger.warn("media.files.getByFolder is unavailable — returning empty media list");
+            return emptyPage;
+          }
+          const mediaResult = await getByFolder(folderId as DatabaseId | undefined, {
+            pageSize: GALLERY_PAGE_SIZE,
+            page: mediaPage,
+            sortField: allowMediaSortField(url.searchParams.get("sort")),
+            sortDirection: allowMediaSortDirection(url.searchParams.get("dir")),
+            recursive,
+            user, // Pass user for ownership filtering
+            tenantId, // Explicit scope (raw adapter — see note above)
+            // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
+            ...(jsonPath ? { jsonPath } : {}),
+          });
+          if (!mediaResult?.success || !mediaResult.data) return emptyPage;
+          const { items, total, hasNextPage, hasPreviousPage } = mediaResult.data;
+          const pageItems = (items as unknown as Record<string, unknown>[]) || [];
+          return {
+            items: pageItems,
+            page: mediaPage,
+            pageSize: GALLERY_PAGE_SIZE,
+            total: typeof total === "number" ? total : pageItems.length,
+            hasNextPage: hasNextPage === true,
+            hasPreviousPage: hasPreviousPage === true,
+          };
+        } catch (mediaErr) {
+          logger.warn(
+            `Media getByFolder failed (non-fatal): ${mediaErr instanceof Error ? mediaErr.message : String(mediaErr)}`,
+          );
+          return emptyPage;
+        }
+      })(),
+    ]);
+
+    const allMediaResults = mediaResultPage.items;
 
     // Determine current folder (id compare without a JSON round-trip per folder)
     const currentFolder = folderId
-      ? virtualFolders.find(
-          (f) => String((f as Record<string, unknown>)?._id ?? "") === folderId,
-        ) || null
+      ? virtualFolders.find((f) => String(f?._id ?? "") === folderId) || null
       : null;
     logger.trace("Current folder determined:", currentFolder);
 
-    // Use db-agnostic adapter method to fetch media (soft-fail: empty list > 500)
-    let allMediaResults: Record<string, unknown>[] = [];
-    try {
-      const getByFolder = dbAdapter.media?.files?.getByFolder;
-      if (typeof getByFolder !== "function") {
-        logger.warn("media.files.getByFolder is unavailable — returning empty media list");
-      } else {
-        const mediaResult = await getByFolder(folderId as DatabaseId | undefined, {
-          pageSize: 100,
-          page: 1,
-          sortField: allowMediaSortField(url.searchParams.get("sort")),
-          sortDirection: allowMediaSortDirection(url.searchParams.get("dir")),
-          recursive,
-          user, // Pass user for ownership filtering
-          tenantId, // Explicit scope (raw adapter — see note above)
-          // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
-          ...(jsonPath ? { jsonPath } : {}),
-        });
-        if (mediaResult?.success && mediaResult.data) {
-          allMediaResults = (mediaResult.data.items as unknown as Record<string, unknown>[]) || [];
-        }
-      }
-    } catch (mediaErr) {
-      logger.warn(
-        `Media getByFolder failed (non-fatal): ${mediaErr instanceof Error ? mediaErr.message : String(mediaErr)}`,
-      );
-      allMediaResults = [];
-    }
-
-    logger.debug(`Fetched ${allMediaResults.length} media items for folder ${folderId || "root"}`);
+    logger.debug(
+      `Fetched ${allMediaResults.length} items (page ${mediaResultPage.page}, total ${mediaResultPage.total}) folder ${folderId || "root"}`,
+    );
 
     if (allMediaResults.length === 0) {
       logger.debug("No media items found");
@@ -237,23 +288,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     // Force JSON-safe payload — Buffers/ObjectIds in avatar or media metadata
     // previously crashed SvelteKit serialization after a successful load (500 UI).
     // One stringify for the whole tree (not once per folder).
+    //
+    // NOTE: do not return `user` here. Page data merges over layout data, and this
+    // load used to return a slim `{ role, _id, avatar }` object that shadowed the
+    // layout's full `safeUser` — which is why the sidebar footer lost the username
+    // on /mediagallery only. Nothing in this route reads `data.user`.
     return serializeIds({
-      user: {
-        role: user.role,
-        _id: String(user._id),
-        avatar:
-          typeof user.avatar === "string"
-            ? user.avatar
-            : user.avatar
-              ? String((user.avatar as any).url || (user.avatar as any).toString?.() || "")
-              : undefined,
-      },
       media: processedMedia,
       systemVirtualFolders: virtualFolders as SystemVirtualFolder[],
       currentFolder: currentFolder as SystemVirtualFolder | null,
       publishedMediaIds,
       /** Echo server-applied JSON path filter for client sync / shareable URLs */
       jsonPathFilter: jsonPath || "",
+      /** Server pagination — `total` is the folder count, not the rendered slice */
+      mediaPagination: {
+        page: mediaResultPage.page,
+        pageSize: mediaResultPage.pageSize,
+        total: mediaResultPage.total,
+        hasNextPage: mediaResultPage.hasNextPage,
+        hasPreviousPage: mediaResultPage.hasPreviousPage,
+      },
     });
   } catch (err) {
     if (isRedirect(err) || isHttpError(err)) {

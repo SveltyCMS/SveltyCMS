@@ -24,6 +24,7 @@ import type sharp from "sharp";
 import { deleteAllVariants } from "@src/services/media/image-variant-storage";
 import type {
   IDBAdapter,
+  CmsMediaMetadata,
   DatabaseError,
   DatabaseId,
   DatabaseResult,
@@ -517,6 +518,8 @@ export interface MediaManipulation {
   flipH?: boolean;
   flipV?: boolean;
   crop?: CropOptions;
+  /** Explicit output size (batch resize). Applied after composites so overlay coordinates stay in source space. */
+  resize?: { width?: number; height?: number };
   filters?: FilterOptions;
   blurRegions?: BlurRegion[];
   watermarks?: Watermark[];
@@ -668,18 +671,15 @@ export class MediaService {
       tenantId,
       onVariants: async (variants) => {
         try {
-          const current = await this.db.crud.findOne<DbMediaItem>(
-            "media",
-            { _id: recordId },
-            { tenantId: tenantId },
-          );
-          const metadata: Record<string, unknown> = {
-            ...(current.success ? current.data?.metadata : undefined),
+          // Patch only the keys this job owns. A whole-blob write here raced
+          // share-link creation and other metadata edits: the job's snapshot
+          // predated them, so writing it back silently deleted their keys.
+          const patch: Record<string, unknown> = {
             processingStatus:
               variants.length > 0 ? MediaProcessingStatus.Ready : MediaProcessingStatus.Failed,
           };
           if (variants.length > 0) {
-            metadata.imageVariants = variants.map((v) => ({
+            patch.imageVariants = variants.map((v) => ({
               preset: v.preset,
               width: v.width,
               height: v.height,
@@ -688,21 +688,12 @@ export class MediaService {
               path: v.path,
               size: v.size,
             }));
-            delete metadata.processingError;
+            patch.processingError = null;
           } else {
-            metadata.processingError = "No variants generated";
+            patch.processingError = "No variants generated";
           }
 
-          const update = await this.db.crud.update(
-            "media",
-            recordId,
-            { metadata } as unknown as EntityUpdate<DbMediaItem>,
-            { tenantId: tenantId },
-          );
-          if (!update.success) {
-            logger.warn("[Media] Variant status update failed", update.message);
-            return;
-          }
+          await this.patchMetadata(String(recordId), patch, tenantId);
           logger.debug("[Media] Variants generated for streamed upload", {
             hash: hash.slice(0, 12),
             count: variants.length,
@@ -1384,6 +1375,31 @@ export class MediaService {
     if (!res.success) throw new Error(res.message);
   }
 
+  /**
+   * Merge a partial patch into the stored `metadata` blob.
+   *
+   * `updateMedia(id, { metadata })` is a whole-blob replace: any writer that
+   * snapshots the blob and writes it back later (variant jobs, transcoders,
+   * share links) silently drops keys another writer added in between. This
+   * helper only touches the keys the caller owns. MongoDB does it with dotted
+   * `$set` paths; the relational adapters re-read inside the same adapter call.
+   *
+   * Pass `null` to clear a key (`processingError`).
+   */
+  public async patchMetadata(
+    mediaId: string,
+    patch: Partial<Record<keyof CmsMediaMetadata, unknown>>,
+    tenantId?: DatabaseId | null,
+  ): Promise<void> {
+    if (!mediaId) throw new AppError("Media ID is required", 400);
+    const res = await this.db.media.files.updateMetadata(
+      mediaId as DatabaseId,
+      patch as Partial<CmsMediaMetadata>,
+      { tenantId: tenantId as DatabaseId },
+    );
+    if (!res.success) throw new Error(res.message);
+  }
+
   public async deleteMedia(fileId: string, tenantId?: DatabaseId | null): Promise<void> {
     // Collect every content hash this row owns BEFORE deleting it. Only hashes
     // that no other record (active or retained version) still points at are
@@ -1488,14 +1504,23 @@ export class MediaService {
     if (flipH) pipeline = pipeline.flop();
     if (flipV) pipeline = pipeline.flip();
 
-    // After rotation the canvas dimensions may swap — re-read them from the intermediate buffer
+    // After rotation the canvas dimensions may swap — calculate mathematically for standard orthogonal angles,
+    // completely avoiding an intermediate buffer encode and 10-50MB RAM allocation.
     let postRotW = imgW;
     let postRotH = imgH;
-    if (rotation || flipH || flipV) {
-      const rotBuf = await pipeline.clone().toBuffer();
-      const rotMeta = await sharp(rotBuf).metadata();
-      postRotW = rotMeta.width ?? imgW;
-      postRotH = rotMeta.height ?? imgH;
+    if (rotation) {
+      const normRot = ((rotation % 360) + 360) % 360;
+      if (normRot === 90 || normRot === 270) {
+        postRotW = imgH;
+        postRotH = imgW;
+      } else if (normRot === 0 || normRot === 180) {
+        postRotW = imgW;
+        postRotH = imgH;
+      } else {
+        const rad = (normRot * Math.PI) / 180;
+        postRotW = Math.round(Math.abs(imgW * Math.cos(rad)) + Math.abs(imgH * Math.sin(rad)));
+        postRotH = Math.round(Math.abs(imgW * Math.sin(rad)) + Math.abs(imgH * Math.cos(rad)));
+      }
     }
 
     // Clamp crop to the post-rotation canvas so Sharp never gets an out-of-bounds extract
@@ -1523,28 +1548,15 @@ export class MediaService {
       });
 
       if (crop.shape === "circle") {
-        // Build circular alpha mask as raw RGBA pixels — no librsvg dependency
+        // Build circular alpha mask via SVG — rasterized natively in C by libvips with zero JS loop or huge pixel buffer allocations
         const cx = workW / 2;
         const cy = workH / 2;
         const rx = workW / 2;
         const ry = workH / 2;
-        const maskPixels = Buffer.alloc(workW * workH * 4, 0);
-        for (let y = 0; y < workH; y++) {
-          for (let x = 0; x < workW; x++) {
-            const dx = (x - cx) / rx;
-            const dy = (y - cy) / ry;
-            const inside = dx * dx + dy * dy <= 1;
-            const idx = (y * workW + x) * 4;
-            maskPixels[idx] = maskPixels[idx + 1] = maskPixels[idx + 2] = 255;
-            maskPixels[idx + 3] = inside ? 255 : 0;
-          }
-        }
-        const circleMask = await sharp(maskPixels, {
-          raw: { width: workW, height: workH, channels: 4 },
-        })
-          .png()
-          .toBuffer();
-        pipeline = pipeline.ensureAlpha().composite([{ input: circleMask, blend: "dest-in" }]);
+        const circleSvg = Buffer.from(
+          `<svg width="${workW}" height="${workH}"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#ffffff"/></svg>`,
+        );
+        pipeline = pipeline.ensureAlpha().composite([{ input: circleSvg, blend: "dest-in" }]);
       }
     }
 
@@ -1727,13 +1739,41 @@ export class MediaService {
     const isCircle = crop?.shape === "circle";
     const encoded = await encodeManipulatedOutput(pipeline, ext, isCircle);
 
+    let outputBuffer: Buffer = encoded;
+    let outputW = workW;
+    let outputH = workH;
+
+    // 5a. Explicit resize (editor/batch). A second encode is deliberate: Sharp
+    // applies `resize` before `composite` regardless of chain order, so resizing
+    // in the main pipeline would shift watermark/annotation coordinates.
+    const requestedResize = manipulations.resize;
+    if (requestedResize && (requestedResize.width || requestedResize.height)) {
+      const clampDimension = (value: number | undefined) =>
+        value === undefined
+          ? undefined
+          : Math.min(Math.max(Math.round(value), 32), MAX_OUTPUT_DIMENSION);
+      const resized = sharp(outputBuffer, {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "none",
+      }).resize({
+        width: clampDimension(requestedResize.width),
+        height: clampDimension(requestedResize.height),
+        fit: "inside",
+        withoutEnlargement: true,
+      });
+      outputBuffer = await encodeManipulatedOutput(resized, ext, isCircle);
+      const resizedMeta = await sharp(outputBuffer).metadata();
+      outputW = resizedMeta.width ?? outputW;
+      outputH = resizedMeta.height ?? outputH;
+      logger.debug(`[manipulateMedia] Explicit resize → ${outputW}x${outputH}`);
+    }
+
     // SECURITY: cap the editor output at the same ceiling as on-demand transforms.
     // A second pass is deliberate — Sharp applies `resize` before `composite`
     // regardless of chain order, so resizing after the overlay build would shift
     // watermark/annotation coordinates. Normal-size outputs still encode once.
-    const capped = clampManipulatedDimensions(workW, workH, MAX_OUTPUT_DIMENSION);
-    let outputBuffer: Buffer = encoded;
-    if (capped.width !== workW || capped.height !== workH) {
+    const capped = clampManipulatedDimensions(outputW, outputH, MAX_OUTPUT_DIMENSION);
+    if (capped.width !== outputW || capped.height !== outputH) {
       const downscaled = sharp(encoded, {
         limitInputPixels: MAX_INPUT_PIXELS,
         failOn: "none",
@@ -1745,7 +1785,7 @@ export class MediaService {
       });
       outputBuffer = await encodeManipulatedOutput(downscaled, ext, isCircle);
       logger.debug(
-        `[manipulateMedia] Capped output ${workW}x${workH} → ${capped.width}x${capped.height} (max ${MAX_OUTPUT_DIMENSION}px)`,
+        `[manipulateMedia] Capped output ${outputW}x${outputH} → ${capped.width}x${capped.height} (max ${MAX_OUTPUT_DIMENSION}px)`,
       );
     }
 

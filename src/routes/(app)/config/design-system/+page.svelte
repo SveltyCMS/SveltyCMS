@@ -32,6 +32,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	import Select from '@components/ui/select.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
+	import { TAB_STRIP, tabTrigger } from '@components/ui/tabs/chrome';
 	import {
 		theme_active,
 		theme_activate,
@@ -306,8 +307,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	const liveTheme = getThemeContext() as AdminTheme | undefined;
 
 	// ── Theme list management ──
-	let themes = $state<ThemeSummary[]>([]);
-	let loadingThemes = $state(true);
+	let themes = $state<ThemeSummary[]>(untrack(() => data.themes ?? []));
+	let loadingThemes = $state(false);
 	let newThemeName = $state('');
 	let cloneName = $state('');
 
@@ -370,7 +371,6 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 			userThemePrefs.apply(localPrefs as UserThemePreferences);
 		}
 		activeTab = resolveTabFromUrl(isAdmin);
-		loadThemes();
 		loadMarketplaceThemes();
 		if (activeTab === 'overrides') {
 			// Scroll target for /user deep link
@@ -422,9 +422,16 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 		untrack(() => resolveTabFromUrl(Boolean((data as { isAdmin?: boolean }).isAdmin)))
 	);
 
+	// Last tab value observed in the URL. The effect must only react to a real
+	// URL change: reading `activeTab` reactively made every programmatic switch
+	// (tab click, arrow key) re-run it, see the still-old URL and revert the tab.
+	let lastSyncedUrlTab: AppearanceTabId | null = null;
+
 	$effect(() => {
 		const tabFromUrl = resolveTabFromUrl(isAdmin);
-		if (tabFromUrl !== activeTab) {
+		if (tabFromUrl === lastSyncedUrlTab) return;
+		lastSyncedUrlTab = tabFromUrl;
+		if (tabFromUrl !== untrack(() => activeTab)) {
 			activeTab = tabFromUrl;
 		}
 	});
@@ -439,6 +446,29 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 		void goto(`${url.pathname}?${url.searchParams.toString()}`, {
 			replace: true,
 			reset: false
+		});
+	}
+
+	/** WAI-ARIA tabs keyboard model: arrows move + activate, Home/End jump. */
+	function onTabKeydown(event: KeyboardEvent) {
+		const isForward = event.key === 'ArrowRight' || event.key === 'ArrowDown';
+		const isBackward = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+		if (!isForward && !isBackward && event.key !== 'Home' && event.key !== 'End') return;
+
+		event.preventDefault();
+		const index = visibleTabs.findIndex((tab) => tab.id === activeTab);
+		const nextIndex =
+			event.key === 'Home'
+				? 0
+				: event.key === 'End'
+					? visibleTabs.length - 1
+					: (index + (isForward ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
+		const next = visibleTabs[nextIndex];
+		if (!next) return;
+
+		setActiveTab(next.id);
+		requestAnimationFrame(() => {
+			document.querySelector<HTMLElement>(`[data-testid="appearance-tab-${next.id}"]`)?.focus();
 		});
 	}
 
@@ -480,25 +510,116 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	} satisfies AdminLockedSettings);
 
 	let saving = $state(false);
-	let hasChanges = $state(false);
+
+	// ── Draft tracking ──
+	// The form edits a *draft* of the persisted theme. `savedDraft` is the snapshot the
+	// server currently holds, so `hasChanges` can be derived by comparison: a freshly
+	// loaded form is clean, and Discard restores both the controls and the shared
+	// live-preview theme instead of only hiding the warning.
+	type ThemeDraft = {
+		density: 'compact' | 'cozy' | 'spacious';
+		variant: 'flat' | 'bordered' | 'elevated';
+		stickyActionBar: boolean;
+		collapsibleSidebar: boolean;
+		brandedLogin: boolean;
+		highContrastMode: boolean;
+		reducedMotion: boolean;
+		collectionsLayout: 'left' | 'right' | 'both';
+		customCss: string;
+		lockDensity: boolean;
+		lockVariant: boolean;
+		lockReducedMotion: boolean;
+		lockHighContrast: boolean;
+		lockLayoutState: boolean;
+	};
+
+	const DRAFT_KEYS: (keyof ThemeDraft)[] = [
+		'density',
+		'variant',
+		'stickyActionBar',
+		'collapsibleSidebar',
+		'brandedLogin',
+		'highContrastMode',
+		'reducedMotion',
+		'collectionsLayout',
+		'customCss',
+		'lockDensity',
+		'lockVariant',
+		'lockReducedMotion',
+		'lockHighContrast',
+		'lockLayoutState'
+	];
+
+	function captureDraft(): ThemeDraft {
+		return {
+			density,
+			variant,
+			stickyActionBar,
+			collapsibleSidebar,
+			brandedLogin,
+			highContrastMode,
+			reducedMotion,
+			collectionsLayout,
+			customCss,
+			lockDensity,
+			lockVariant,
+			lockReducedMotion,
+			lockHighContrast,
+			lockLayoutState
+		};
+	}
+
+	function sameDraft(a: ThemeDraft, b: ThemeDraft): boolean {
+		return DRAFT_KEYS.every((key) => a[key] === b[key]);
+	}
+
+	let savedDraft = $state<ThemeDraft>(untrack(captureDraft));
+	const draft = $derived(captureDraft());
+	const hasChanges = $derived(!sameDraft(draft, savedDraft));
+
+	// Push a draft into the shared theme context so the live preview (and every
+	// `AdminCard` reading the context) reflects it immediately.
+	function applyDraftToLiveTheme(next: ThemeDraft) {
+		if (!liveTheme) return;
+		liveTheme.density = next.density;
+		liveTheme.variant = next.variant;
+		liveTheme.features = {
+			stickyActionBar: next.stickyActionBar,
+			collapsibleSidebar: next.collapsibleSidebar,
+			brandedLogin: next.brandedLogin,
+			highContrastMode: next.highContrastMode,
+			reducedMotion: next.reducedMotion,
+			layoutRegions: { collections: next.collectionsLayout, mediaGalleries: 'left' }
+		};
+		liveTheme.customCss = next.customCss || undefined;
+	}
+
+	function restoreDraft(target: ThemeDraft) {
+		density = target.density;
+		variant = target.variant;
+		stickyActionBar = target.stickyActionBar;
+		collapsibleSidebar = target.collapsibleSidebar;
+		brandedLogin = target.brandedLogin;
+		highContrastMode = target.highContrastMode;
+		reducedMotion = target.reducedMotion;
+		collectionsLayout = target.collectionsLayout;
+		customCss = target.customCss;
+		lockDensity = target.lockDensity;
+		lockVariant = target.lockVariant;
+		lockReducedMotion = target.lockReducedMotion;
+		lockHighContrast = target.lockHighContrast;
+		lockLayoutState = target.lockLayoutState;
+		applyDraftToLiveTheme(target);
+	}
 
 	// ── Live preview ──
 	$effect(() => {
-		if (liveTheme) {
-			liveTheme.density = density;
-			liveTheme.variant = variant;
-			liveTheme.features = {
-				stickyActionBar,
-				collapsibleSidebar,
-				brandedLogin,
-				highContrastMode,
-				reducedMotion,
-				layoutRegions: { collections: collectionsLayout, mediaGalleries: 'left' }
-			};
-			liveTheme.customCss = customCss || undefined;
-		}
-		hasChanges = true;
+		applyDraftToLiveTheme(draft);
 	});
+
+	function discardChanges() {
+		restoreDraft(savedDraft);
+	}
 
 	// ── Options ──
 	const densityOptions = [
@@ -538,7 +659,8 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 				}
 			}
 			if (a.customCss) customCss = a.customCss;
-			hasChanges = false;
+			// The activated theme is now the persisted baseline — no dirty state.
+			savedDraft = captureDraft();
 			await loadThemes();
 			toast.success(`Activated "${a.name}"`);
 		} catch (e: unknown) {
@@ -626,7 +748,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 			const res = await apiSaveAdminTheme(payload);
 			if (!res.success) throw new Error(res.message || 'Save failed');
 			toast.success('Theme saved');
-			hasChanges = false;
+			savedDraft = captureDraft();
 		} catch (e: unknown) {
 			toast.error(e instanceof Error ? e.message : String(e));
 		} finally {
@@ -646,8 +768,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 				highContrastMode =
 				reducedMotion =
 					false;
+			collectionsLayout = 'left';
 			customCss = '';
-			hasChanges = false;
+			savedDraft = captureDraft();
 			toast.success('Reset to defaults');
 		} catch (e: unknown) {
 			toast.error(e instanceof Error ? e.message : String(e));
@@ -758,29 +881,41 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 	<!-- Tab Navigation (all users: overrides + preview; admin: full workspace) -->
 	<AdminCard class="shadow-sm backdrop-blur-md">
+		<!-- Underline tab style of the shared Tabs component (ui/tabs/chrome.ts) -->
 		<div
-			class="flex flex-wrap gap-1 p-2 border-b"
-			style="border-color: var(--admin-border-default)"
+			class="{TAB_STRIP} px-2"
+			role="tablist"
+			tabindex="-1"
+			onkeydown={onTabKeydown}
 			data-testid="appearance-tabs"
 		>
 			{#each visibleTabs as tab (tab.id)}
 				<Button
-					variant="tertiary"
+					variant="transparent"
+					role="tab"
+					id={`appearance-tab-${tab.id}`}
+					aria-controls={`appearance-panel-${tab.id}`}
+					aria-selected={activeTab === tab.id}
+					tabindex={activeTab === tab.id ? 0 : -1}
 					onclick={() => setActiveTab(tab.id)}
-					size="sm"
 					data-testid={`appearance-tab-${tab.id}`}
-					class={activeTab === tab.id
-						? 'bg-surface-500/10 text-tertiary-600 dark:bg-surface-800 dark:text-primary-500'
-						: ''}
+					class={tabTrigger(activeTab === tab.id)}
 				>
-					<iconify-icon icon={tab.icon} width="16"></iconify-icon>
+					<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
 					<span>{tab.label}</span>
 				</Button>
 			{/each}
 		</div>
 
 		<!-- Tab Content -->
-		<div class="p-6" in:adminFade>
+		<div
+			class="p-6"
+			role="tabpanel"
+			id={`appearance-panel-${activeTab}`}
+			aria-labelledby={`appearance-tab-${activeTab}`}
+			tabindex="0"
+			in:adminFade
+		>
 			{#key activeTab}
 				<!-- ═══ MY OVERRIDES (all users) ═══ -->
 				{#if activeTab === 'overrides'}
@@ -1040,16 +1175,10 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 									<iconify-icon icon="mdi:compass-outline" width="16"></iconify-icon>
 									{theme_open_preview()}
 								</button>
-								— {theme_preview_rest()}
+								{theme_preview_rest()}
 							</p>
 
-							<PaletteStudio
-								bind:customCss
-								onApplied={() => {
-									hasChanges = true;
-								}}
-								onOpenPreview={() => setActiveTab('preview')}
-							/>
+							<PaletteStudio bind:customCss onOpenPreview={() => setActiveTab('preview')} />
 
 							<h4 class="font-bold text-sm mb-2 mt-2">{theme_layout_presets()}</h4>
 							<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -1426,17 +1555,17 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	<!-- Save Bar (admin theme edits only) -->
 	{#if hasChanges && isAdmin && activeTab !== 'overrides' && activeTab !== 'preview'}
 		<div
-			class="sticky bottom-0 z-30 -mx-6 -mb-6 px-6 py-4 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 backdrop-blur-md flex items-center justify-between"
+			class="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 border-t border-(--admin-border-default) bg-(--admin-bg-card)/90 px-4 py-4 backdrop-blur-md max-md:pe-20"
 		>
-			<p class="text-sm text-warning-600 dark:text-warning-400 font-medium">
-				<iconify-icon icon="mdi:alert-circle" class="inline me-1" width="16"></iconify-icon>
+			<p
+				class="flex items-center gap-1.5 text-sm font-medium text-warning-600 dark:text-warning-400"
+			>
+				<iconify-icon icon="mdi:alert-circle" class="shrink-0" width="16"></iconify-icon>
 				{theme_unsaved()}
 			</p>
 			<div class="flex gap-2">
-				<Button
-					variant="ghost"
-					onclick={() => (hasChanges = false)}
-					data-testid="appearance-theme-discard">{theme_discard()}</Button
+				<Button variant="ghost" onclick={discardChanges} data-testid="appearance-theme-discard"
+					>{theme_discard()}</Button
 				>
 				<Button
 					variant="primary"

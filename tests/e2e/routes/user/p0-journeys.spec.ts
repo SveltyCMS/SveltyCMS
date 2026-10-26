@@ -11,6 +11,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";
+import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { openTokenView, openUserManagement } from "../../helpers/user-page";
 
 const ACTION_TIMEOUT = 20_000;
@@ -34,10 +35,17 @@ async function goToUserPage(page: Page) {
 }
 
 async function openEditUserDialog(page: Page) {
+  // The consent banner renders as `div[role="dialog"]` and overlays the page, so
+  // clear it before touching the button.
+  await dismissCookieConsent(page);
   const editBtn = page.getByTestId("edit-user-settings-btn");
   await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
+  // The button ships `disabled` until hydration, so its enabled state is the
+  // readiness gate — the retry loop that repaired the pre-hydration click is
+  // gone. The dialog still needs its accessible name ("Edit User Data:") to
+  // avoid matching the cookie consent dialog.
+  await expect(editBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
   await editBtn.click();
-  // Use the dialog's accessible name to avoid matching the cookie consent dialog
   const dialog = page.getByRole("dialog", { name: /edit user data/i });
   await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   return dialog;

@@ -310,8 +310,10 @@ describe("GraphQL API Endpoint", () => {
         expect(fieldNames).toContain("mediaImages");
         expect(fieldNames).toContain("mediaDocuments");
       } else {
-        // Introspection disabled — errors should be present
-        expect(result.errors !== undefined || result.data !== undefined).toBe(true);
+        // Introspection is disabled by policy → the server must refuse with a
+        // validation error, never a 200 carrying an empty schema.
+        expect(Array.isArray(result.errors)).toBe(true);
+        expect(result.errors.length).toBeGreaterThan(0);
       }
     });
   });

@@ -9,6 +9,7 @@
 import { expect, test } from "@playwright/test";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
+import { runAfterHydration } from "../../helpers/hydration";
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -51,7 +52,9 @@ test("Check language selection updates UI text", async ({ page }) => {
   });
 
   // DE: open dropdown, pick Deutsch, assert the html lang attr + trigger label.
-  await languageTrigger.click();
+  // The trigger is SSR HTML until hydration attaches its handler; a click in that
+  // window is a silent no-op and the option list never opens (CI flake, 8/8 local).
+  await runAfterHydration(page, () => languageTrigger.click());
   const deOption = page.getByRole("button", { name: /deutsch|german/i }).first();
   await expect(deOption).toBeVisible({ timeout: 5_000 });
   await deOption.click();
@@ -113,13 +116,22 @@ test.describe("SignIn & SignOut Flows", () => {
 
     // Sign-in form may already be visible (no "Sign in" tab needed)
     const emailField = page.getByTestId("signin-email");
-    if (!(await emailField.isVisible({ timeout: 3000 }).catch(() => false))) {
-      await page
-        .getByText(/sign in/i)
-        .first()
-        .click();
-    }
+    // The landing state is the sign-up view; the sign-in form only exists after the
+    // "Go to Sign In" control is activated. That control is SSR HTML until hydration,
+    // and the old probe (isVisible({ timeout }) - the timeout is ignored) answered
+    // "absent" at once, so the fallback click was a silent no-op and the fill below
+    // burned the whole 60 s test timeout. Gate the switch on hydration, address the
+    // control by role, then assert the form really mounted.
+    await runAfterHydration(page, async () => {
+      if (!(await emailField.isVisible())) {
+        await page
+          .getByRole("button", { name: /sign in/i })
+          .first()
+          .click();
+      }
+    });
     await dismissCookieConsent(page);
+    await expect(emailField).toBeVisible({ timeout: 15_000 });
     await emailField.fill("test@test.de");
     await page.getByTestId("signin-password").fill("Test123!");
     await dismissCookieConsent(page);
@@ -129,12 +141,21 @@ test.describe("SignIn & SignOut Flows", () => {
     // once in ~6 local runs, 2026-09-27) — the outcome assertion stays exact, so a genuinely
     // failed login still fails after the budget.
     await expect(async () => {
-      await page.getByTestId("signin-submit").click({ force: true });
+      await page.getByTestId("signin-submit").click();
       await expect(page).not.toHaveURL(/\/login/, { timeout: 5_000 });
     }).toPass({ timeout: 30_000 });
 
     const signOutButton = page.getByRole("button", { name: /sign out/i });
-    if (await signOutButton.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    // `isVisible({ timeout })` ignores its timeout (playwright-core types): it
+    // answers immediately, so a slow page reads as "absent" and the block is
+    // silently skipped. Probe with a real expectation instead.
+    let signOutVisible = true;
+    try {
+      await expect(signOutButton).toBeVisible({ timeout: 10_000 });
+    } catch {
+      signOutVisible = false;
+    }
+    if (signOutVisible) {
       await signOutButton.click();
       await expect(page).toHaveURL(/\/login/);
     }
@@ -146,17 +167,24 @@ test.describe("SignIn & SignOut Flows", () => {
     await dismissCookieConsent(page);
 
     const emailField = page.getByTestId("signin-email");
-    if (!(await emailField.isVisible({ timeout: 3000 }).catch(() => false))) {
-      await page
-        .getByText(/sign in/i)
-        .first()
-        .click();
-    }
+    // Same landing-state switch as the sign-out test: the "Go to Sign In" control is
+    // SSR HTML until hydration and the old isVisible({ timeout }) probe ignored its
+    // timeout, so the fallback click hit the paragraph inside the button and the view
+    // never switched (snapshot: only "Go to Sign In" present, fill() then timed out).
+    await runAfterHydration(page, async () => {
+      if (!(await emailField.isVisible())) {
+        await page
+          .getByRole("button", { name: /sign in/i })
+          .first()
+          .click();
+      }
+    });
     await dismissCookieConsent(page);
+    await expect(emailField).toBeVisible({ timeout: 15_000 });
     await emailField.fill("test@test.de");
     await page.getByTestId("signin-password").fill("Test123!");
     await dismissCookieConsent(page);
-    await page.getByTestId("signin-submit").click({ force: true });
+    await page.getByTestId("signin-submit").click();
 
     // Login succeeds when we leave /login. Destination may be collectionbuilder,
     // a collection path, dashboard, or / — do not require a specific route.
@@ -171,7 +199,9 @@ test("Forgot Password Flow", async ({ page }) => {
 
   // The signup view is the landing state pre-setup; flip to the sign-in view
   // via the icon's own testid, then hard-assert the form actually mounted.
-  await page.getByTestId("signin-icon").click();
+  // The icon is SSR HTML until hydration attaches its onclick; a click in that
+  // window is a silent no-op and the password form never mounts (CI flake).
+  await runAfterHydration(page, () => page.getByTestId("signin-icon").click());
   await expect(page.getByTestId("signin-forgot-password")).toBeVisible({ timeout: 10_000 });
   await page.getByTestId("signin-forgot-password").click();
 

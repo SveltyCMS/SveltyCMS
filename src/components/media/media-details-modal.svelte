@@ -9,6 +9,8 @@
 - Live scan for collection references and usage
 - Password-secured expiring link generator with clipboard integration
 - High-fidelity visual previews for Images, Audio, Video, and Documents
+- Adaptive HLS playback when `metadata.hls.master` exists (native HLS or hls.js)
+- Inline video transcoding to HLS/MP4 via `POST /api/media/transcode`
 -->
 
 <script lang="ts">
@@ -18,6 +20,9 @@
 	import Badge from '@components/ui/badge.svelte';
 	import Tabs from '@components/ui/tabs.svelte';
 	import Image from '@components/ui/image.svelte';
+	import Modal from '@components/ui/modal.svelte';
+	import HlsVideoPlayer from '@components/media/hls-video-player.svelte';
+	import TranscodeModal from '@components/media/transcode-modal.svelte';
 	import { fade } from 'svelte/transition';
 	import { formatBytes } from '@utils/file';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -64,6 +69,34 @@
 	const processingStatus = $derived(
 		normalizeProcessingStatus(file?.metadata?.processingStatus) ?? 'ready'
 	);
+
+	/** Master playlist produced by `POST /api/media/transcode` (format: HLS). */
+	const hlsMaster = $derived(
+		typeof file?.metadata?.hls?.master === 'string' && file.metadata.hls.master.length > 0
+			? (file.metadata.hls.master as string)
+			: null
+	);
+
+	/** Poster for the video surface — a derivative thumbnail, never the video file. */
+	const videoPoster = $derived(
+		file
+			? ((file.thumbnailUrl ??
+					file.thumbnails?.thumbnail?.url ??
+					file.thumbnails?.sm?.url ??
+					(typeof file.metadata?.placeholder === 'string'
+						? file.metadata.placeholder
+						: undefined)) as string | undefined)
+			: undefined
+	);
+
+	const transcodeStatus = $derived(
+		(typeof file?.metadata?.transcode?.status === 'string'
+			? file.metadata.transcode.status
+			: null) as 'processing' | 'ready' | 'failed' | null
+	);
+
+	/** Video transcoding panel — opens as a nested dialog above this one. */
+	let showTranscode = $state(false);
 
 	// Tab State
 	let activeTab = $state<'info' | 'versions' | 'references' | 'share'>('info');
@@ -570,15 +603,30 @@
 				/>
 			</div>
 		{:else if file.type === 'video'}
-			<!-- Playback keeps the original: a `<video src>` must be the media file itself,
-			     a poster/thumbnail derivative would break playback. -->
-			<video
-				src={mediaUrl(file)}
-				controls
-				class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
-			>
-				<track kind="captions" />
-			</video>
+			<!-- Playback prefers the adaptive HLS derivative; the original is the fallback
+				 for assets that were never transcoded (a `<video src>` must be the media
+				 file itself, a poster/thumbnail derivative would break playback). -->
+			{#if hlsMaster}
+				<HlsVideoPlayer
+					src={hlsMaster}
+					poster={videoPoster}
+					label={`Preview ${file.filename}`}
+					class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg bg-surface-900 sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+				/>
+			{:else}
+				<!-- svelte-ignore a11y_media_has_caption — CMS assets carry no authored subtitle track; captions ship inside the source file when present. -->
+				<video
+					src={mediaUrl(file)}
+					poster={videoPoster}
+					controls
+					playsinline
+					preload="metadata"
+					aria-label={`Preview ${file.filename}`}
+					data-testid="media-video-player"
+					data-mode="direct"
+					class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg bg-surface-900 sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+				></video>
+			{/if}
 		{:else if file.type === 'audio'}
 			<div class="flex w-full max-w-sm flex-col items-center gap-4 py-4">
 				<div
@@ -616,6 +664,19 @@
 				<iconify-icon icon="mdi:download-outline" width="16"></iconify-icon>
 				<span>Download Original</span>
 			</Button>
+
+			{#if file.type === 'video'}
+				<Button
+					variant="tertiary"
+					size="sm"
+					class="h-9 w-full gap-1.5 sm:w-auto"
+					onclick={() => (showTranscode = true)}
+					data-testid="media-transcode-open"
+				>
+					<iconify-icon icon="mdi:video-settings" width="16"></iconify-icon>
+					<span>Transcode</span>
+				</Button>
+			{/if}
 
 			{#if onEdit || onDelete}
 				<div
@@ -875,6 +936,36 @@
 									{/if}
 								</dd>
 							</div>
+							{#if file.type === 'video'}
+								<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
+									<dt class="text-(--admin-text-muted)">Streaming</dt>
+									<dd
+										class="flex min-w-0 flex-col items-end gap-0.5"
+										data-testid="media-hls-status"
+									>
+										<Badge
+											variant={transcodeStatus === 'failed'
+												? 'error'
+												: transcodeStatus === 'processing' || !hlsMaster
+													? 'surface'
+													: 'success'}
+											preset="tonal"
+											size="sm"
+											class="gap-1"
+										>
+											{transcodeStatus ?? (hlsMaster ? 'ready' : 'original')}
+										</Badge>
+										{#if hlsMaster}
+											<span class="font-sans text-[10px] text-(--admin-text-muted)">
+												{file.metadata.hls.variants?.length ?? 0} rendition{(file.metadata.hls
+													.variants?.length ?? 0) === 1
+													? ''
+													: 's'}
+											</span>
+										{/if}
+									</dd>
+								</div>
+							{/if}
 							{#if file.width && file.height}
 								<div class="grid grid-cols-[minmax(0,7.5rem)_1fr] items-start gap-x-3 gap-y-0.5">
 									<dt class="text-(--admin-text-muted)">Dimensions</dt>
@@ -1372,6 +1463,12 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if file.type === 'video'}
+		<Modal bind:open={showTranscode} title="Transcode video" size="lg">
+			<TranscodeModal {file} onClose={() => (showTranscode = false)} />
+		</Modal>
+	{/if}
 </div>
 
 <style>

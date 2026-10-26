@@ -70,7 +70,29 @@ rather than bundling all widgets upfront.
 	let component: any = $state(null);
 	let loading = $state(true);
 	let error = $state<Error | null>(null);
-	let lastSyncedValue = $state.raw<unknown>(value);
+	const UNSET = Symbol('UNSET');
+	let lastSyncedPrimitive = $state.raw<unknown>(UNSET);
+	let lastSyncedToken = $state.raw<string>('');
+
+	function isPrimitive(val: unknown): boolean {
+		return val === null || (typeof val !== 'object' && typeof val !== 'function');
+	}
+
+	function safeSerialize(v: unknown): string {
+		const seen = new WeakSet();
+		try {
+			return JSON.stringify(v, (_key, val) => {
+				if (typeof val === 'bigint') return val.toString();
+				if (typeof val === 'object' && val !== null) {
+					if (seen.has(val)) return '[Circular]';
+					seen.add(val);
+				}
+				return val;
+			});
+		} catch {
+			return String(v);
+		}
+	}
 
 	function runWidgetValidation(v: unknown) {
 		const widget = effectiveField.widget as
@@ -95,8 +117,16 @@ rather than bundling all widgets upfront.
 
 	$effect(() => {
 		const v = value;
-		if (v === lastSyncedValue) return;
-		lastSyncedValue = v;
+		if (isPrimitive(v)) {
+			if (Object.is(v, lastSyncedPrimitive)) return;
+			lastSyncedPrimitive = v;
+			lastSyncedToken = '';
+		} else {
+			const token = safeSerialize(v);
+			if (lastSyncedPrimitive === UNSET && token === lastSyncedToken) return;
+			lastSyncedPrimitive = UNSET;
+			lastSyncedToken = token;
+		}
 		runWidgetValidation(v);
 		onFieldSync?.();
 	});

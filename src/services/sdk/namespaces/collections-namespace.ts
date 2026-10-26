@@ -66,7 +66,7 @@ import {
 } from "@src/services/security/access-rule-service";
 import { buildCollectionCacheTags, collectionTableName } from "@src/databases/core/collection-name";
 import { validateRequiredFields } from "@src/widgets/widget-validation";
-import { matchesVersion, normalizeExpectedVersion } from "@utils/optimistic-lock";
+import { matchesVersion, normalizeExpectedVersion, versionKey } from "@utils/optimistic-lock";
 import {
   getAllowedFilterFieldIds,
   getNestedFilterPaths,
@@ -311,6 +311,21 @@ function revisionLimitOf(schema: Schema): number {
   const configured = schema.revisionLimit;
   if (!Number.isFinite(configured) || (configured as number) < 5) return DEFAULT_REVISION_LIMIT;
   return Math.floor(configured as number);
+}
+
+/**
+ * Values to try in a compare-and-set filter for one row version.
+ *
+ * A `Date` binds correctly on Drizzle (`timestamp`) and Mongoose; the raw SDK
+ * value (an ISO string) is the fallback for adapters that store strings. Both
+ * represent the version the caller loaded, so a retry cannot mask a real change.
+ */
+function casVersionCandidates(version: unknown): unknown[] {
+  const candidates: unknown[] = [];
+  const ms = versionKey(version);
+  if (ms !== null) candidates.push(new Date(ms));
+  candidates.push(version);
+  return candidates;
 }
 
 /** Revision-row columns that are storage metadata, never part of the snapshot. */
@@ -2311,6 +2326,10 @@ export class CollectionsNamespace {
       if (!preloadedExisting) {
         preloadedExisting = await this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
           tenantId: tenantId as DatabaseId,
+          // A cached row can be older than the write that just landed
+          // (`schedulePostWrite` invalidates asynchronously), which would make a
+          // stale `If-Match` look current. The lock check must read the row.
+          bypassCache: true,
         });
       }
       if (!preloadedExisting.success || !preloadedExisting.data) {
@@ -2492,28 +2511,61 @@ export class CollectionsNamespace {
         // 🔒 Compare-and-set: one `UPDATE … WHERE _id = ? AND updatedAt = ?`.
         // Zero matched rows means another writer won the race after the fast
         // pre-check, so this is a genuine conflict, not a missing row.
-        const cas = await this._dbAdapter.crud.updateMany(
-          this.getCollectionName(schema._id as string),
-          { _id: entryId, updatedAt: casRowVersion } as any,
+        //
+        // The SDK hands `updatedAt` back as an ISO string. MariaDB/MySQL cannot
+        // parse the trailing `Z` in a comparison and MongoDB stores a real Date,
+        // so the raw token matched zero rows on those engines even when nothing
+        // had changed. Try the Date first, then the raw value, and only then call
+        // it a conflict — both attempts use the version the caller loaded.
+        const tableName = this.getCollectionName(schema._id as string);
+        const casCandidates = casVersionCandidates(casRowVersion);
+        let cas = await this._dbAdapter.crud.updateMany(
+          tableName,
+          { _id: entryId, updatedAt: casCandidates[0] } as any,
           finalData as any,
           { ...writeOptions, ...txOpts },
         );
+        for (const candidate of casCandidates.slice(1)) {
+          if (cas.success && (cas.data?.modifiedCount ?? 0) > 0) break;
+          cas = await this._dbAdapter.crud.updateMany(
+            tableName,
+            { _id: entryId, updatedAt: candidate } as any,
+            finalData as any,
+            { ...writeOptions, ...txOpts },
+          );
+        }
         if (!cas.success) return cas;
         if ((cas.data?.modifiedCount ?? 0) === 0) {
-          const current = await this._dbAdapter.crud.findOne(
-            this.getCollectionName(schema._id as string),
-            { _id: entryId } as any,
-            { tenantId: tenantId as DatabaseId },
-          );
+          const current = await this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
+            tenantId: tenantId as DatabaseId,
+            bypassCache: true,
+          });
+          const currentVersion = current.success
+            ? ((current.data as unknown as Record<string, unknown> | null)?.updatedAt ?? null)
+            : null;
+          // The CAS filter carries a timestamp column in an engine-specific
+          // representation; MariaDB/MongoDB can reject an unchanged row even when
+          // no writer intervened (the filter binds nothing). Re-verify against the
+          // version the caller loaded and, if it is still current, write without
+          // the compare-and-set instead of reporting a false conflict.
+          if (current.success && current.data && matchesVersion(currentVersion, expectedVersion)) {
+            const plain = await this._dbAdapter.crud.update(
+              tableName,
+              entryId as DatabaseId,
+              finalData,
+              { ...writeOptions, ...txOpts },
+            );
+            if (!plain.success) return plain;
+            return this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
+              tenantId: tenantId as DatabaseId,
+              ...txOpts,
+            });
+          }
           raise(
             409,
             "This entry was changed by someone else. Reload it and apply your changes again.",
             "VERSION_CONFLICT",
-            {
-              currentVersion: current.success
-                ? ((current.data as unknown as Record<string, unknown> | null)?.updatedAt ?? null)
-                : null,
-            },
+            { currentVersion },
           );
         }
         // `updateMany` reports a count, not the row — read it once for the
@@ -2677,18 +2729,25 @@ export class CollectionsNamespace {
         pageSize: 1,
       });
       const items = history.success ? history.data.items : [];
-      const latestVersion = items.length > 0 ? items[0].version : 0;
+      // `total` is the authoritative row count; the newest row's `version` can be
+      // unreadable on an adapter that does not echo it, and deriving the next
+      // version from 0 then re-writes version 1 forever (the history never reaches
+      // the prune threshold — observed on MongoDB). Fall back to `total + 1`.
+      const total = history.success ? Number(history.data.total) || 0 : 0;
+      const newestVersion = items.length > 0 ? Number(items[0].version) || 0 : 0;
+      const nextVersion = newestVersion > 0 ? newestVersion + 1 : total + 1;
+
       await this._dbAdapter.content.revisions.create({
         contentId: entryId as DatabaseId,
         authorId: (user?._id || "system") as DatabaseId,
         data: previousData,
-        version: latestVersion + 1,
+        version: nextVersion,
         tenantId: tenantId ?? undefined,
       });
 
-      // Bound the history once it would cross 2× the limit; keeps the newest
-      // `revisionLimit` snapshots.
-      if (latestVersion + 1 >= revisionLimit * 2) {
+      // Bound the history at 2× the limit (by version or by row count, whichever
+      // says the ceiling is reached); keeps the newest `revisionLimit` snapshots.
+      if (nextVersion >= revisionLimit * 2 || total + 1 > revisionLimit * 2) {
         await this._dbAdapter.content.revisions.cleanup(entryId as DatabaseId, revisionLimit);
       }
     } catch (err) {

@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { refreshAll } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { clearCompleted, deleteJob, retryJob } from './queue.remote';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -15,9 +15,16 @@
 	import Button from '@components/ui/button.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import Modal from '@components/ui/modal.svelte';
+	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import {
-		button_next,
-		button_previous,
+		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table';
+	import {
 		button_refresh,
 		queue_actions,
 		queue_attempts,
@@ -37,10 +44,6 @@
 		queue_refresh_aria,
 		queue_retry_title,
 		queue_running,
-		queue_showing_part1,
-		queue_showing_part2,
-		queue_showing_part3,
-		queue_showing_jobs,
 		queue_status,
 		queue_task_type,
 		queue_title,
@@ -54,9 +57,54 @@
 
 	let { data } = $props();
 
+	interface QueueJob {
+		_id: string;
+		taskType: string;
+		status: 'pending' | 'running' | 'completed' | 'failed';
+		attempts: number;
+		maxAttempts: number;
+		nextRunAt?: string | Date | null;
+		lastError?: string | null;
+		createdAt?: string | Date;
+		updatedAt?: string | Date;
+		payload?: Record<string, unknown>;
+		tenantId?: string | null;
+	}
+
 	let isRetrying = $state(false);
 	let isDeleting = $state(false);
 	let isClearing = $state(false);
+	let detailsOpen = $state(false);
+	let selectedJob = $state<QueueJob | null>(null);
+
+	/** What each built-in handler actually does — shown in the row detail dialog. */
+	const taskDescriptions: Record<string, string> = {
+		'publish-scheduled':
+			'Publishes entries whose scheduled time has passed, acting as the user who scheduled them. Runs every minute; a tick with nothing due still records a completed job.',
+		'session-cleanup':
+			'Deletes expired session and token rows, cleans rotated sessions and sweeps the in-memory session store. Runs every five minutes.',
+		'process-media':
+			'Builds the responsive image ladder (derivative sizes + placeholder) for one upload.',
+		'webhook-delivery': 'Delivers one outbound webhook with retries and exponential backoff.',
+		'import-data': 'Runs a queued content import (Smart Importer or content package).',
+		'bulk-translate': 'Translates the selected entries in batches.'
+	};
+
+	function openDetails(job: QueueJob) {
+		selectedJob = job;
+		detailsOpen = true;
+	}
+
+	/** ISO fallback for the native `title` tooltip — locale-independent, so no hydration drift. */
+	function isoTitle(value: string | Date | null | undefined): string | undefined {
+		if (!value) return undefined;
+		const date = typeof value === 'string' ? new Date(value) : value;
+		return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+	}
+
+	const pageSize = $derived(data.pagination.limit);
+	const currentPage = $derived(Math.floor(data.pagination.offset / Math.max(1, pageSize)) + 1);
+	const pagesCount = $derived(Math.max(1, Math.ceil(data.totalCount / Math.max(1, pageSize))));
 
 	async function handleClearCompleted() {
 		showConfirm({
@@ -119,7 +167,7 @@
 		failed: 'mdi:alert-circle-outline'
 	};
 
-	function formatDate(date: string | Date | undefined) {
+	function formatDate(date: string | Date | null | undefined) {
 		if (!date) return 'N/A';
 		try {
 			const d = typeof date === 'string' ? new Date(date) : date;
@@ -145,6 +193,13 @@
 		params.set('offset', '0');
 		return `?${params.toString()}`;
 	}
+
+	function getLimitUrl(limit: number) {
+		const params = new URLSearchParams(page.url.searchParams.toString());
+		params.set('limit', limit.toString());
+		params.set('offset', '0');
+		return `?${params.toString()}`;
+	}
 </script>
 
 <AdminPageShell
@@ -153,6 +208,7 @@
 	description="Monitor and manage background job processing"
 	showBackButton={true}
 	backUrl="/config"
+	fullHeight
 >
 	{#snippet actions()}
 		<Button
@@ -168,8 +224,45 @@
 	{/snippet}
 
 	<div data-testid="queue-page" class="contents">
+		<!-- First-run orientation: what the queue is, why periodic rows exist, what a row means. -->
+		<details
+			class="shrink-0 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-4 dark:border-primary-500/30 dark:bg-primary-500/10"
+			open
+			data-testid="queue-how-it-works"
+		>
+			<summary class="cursor-pointer text-sm font-semibold text-surface-900 dark:text-surface-100">
+				How the queue works
+			</summary>
+			<div class="mt-3 space-y-2 text-xs text-surface-600 dark:text-surface-400">
+				<p>
+					Every background task is one row in the <code class="font-mono">svelty_jobs</code> table. A
+					poller claims pending rows within 10 seconds, runs the handler and writes the outcome back —
+					that is all “completed” means. A tick with nothing to do still records a row (usually 0–5 ms),
+					which is why short rows usually mean “nothing to do”, not “work done”.
+				</p>
+				<ul class="list-disc space-y-1 ps-5">
+					<li>
+						<strong>publish-scheduled</strong> — every minute: publishes entries whose scheduled time
+						has passed.
+					</li>
+					<li>
+						<strong>session-cleanup</strong> — every five minutes: removes expired sessions/tokens and
+						sweeps the in-memory session store.
+					</li>
+					<li>
+						<strong>process-media · webhook-delivery · import-data · bulk-translate</strong> — created
+						by real work (uploads, webhooks, imports, translations), not by a timer.
+					</li>
+				</ul>
+				<p>
+					Click any row for the payload, attempts, timings and last error. Failed jobs retry with
+					exponential backoff (3 attempts by default); completed history is pruned after 7 days.
+				</p>
+			</div>
+		</details>
+
 		<div
-			class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
+			class="grid shrink-0 grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5"
 			in:adminFade={{ delay: 100 }}
 			data-testid="queue-stats"
 		>
@@ -288,7 +381,7 @@
 			</a>
 		</div>
 
-		<div class="flex flex-wrap items-center justify-between gap-4">
+		<div class="flex shrink-0 flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
 				<h2 class="text-lg font-bold">{queue_recent()}</h2>
 				{#if page.url.searchParams.has('status')}
@@ -316,41 +409,64 @@
 			</div>
 		</div>
 
-		<div in:adminFade>
+		<!-- Single scroll container: the shell owns the page, this card fills the rest and
+		     SmartTableShell scrolls the body (sticky header + pinned pagination). -->
+		<div in:adminFade class="flex min-h-0 flex-1 flex-col">
 			<AdminCard
-				class="p-0 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs overflow-hidden"
+				class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
 				data-testid="queue-jobs-table"
 			>
-				<div class="overflow-x-auto w-full">
-					<table class="w-full text-sm border-collapse whitespace-nowrap">
-						<thead>
+				<SmartTableShell
+					empty={data.jobs.length === 0}
+					emptyTitle={queue_empty()}
+					emptyDescription="Jobs appear here once a background task is queued."
+					emptyIcon="mdi:tray-off"
+					showPagination={data.totalCount > 0}
+					{currentPage}
+					rowsPerPage={pageSize}
+					{pagesCount}
+					totalItems={data.totalCount}
+					rowsPerPageOptions={[10, 25, 50, 100]}
+					onUpdatePage={(next) => goto(getPaginationUrl((next - 1) * pageSize))}
+					onUpdateRowsPerPage={(rows) => goto(getLimitUrl(rows))}
+				>
+					<table class={SMART_TABLE}>
+						<thead class={SMART_TABLE_THEAD}>
 							<tr
-								class="border-b border-(--admin-border-default) text-start text-xs uppercase tracking-wider text-surface-400"
+								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 							>
-								<th class="px-4 py-3 font-semibold">{queue_job_id()}</th>
-								<th class="px-4 py-3 font-semibold">{queue_task_type()}</th>
-								<th class="px-4 py-3 font-semibold">{queue_status()}</th>
-								<th class="px-4 py-3 font-semibold">{queue_attempts()}</th>
-								<th class="px-4 py-3 font-semibold">{queue_next_run()}</th>
-								<th class="px-4 py-3 font-semibold">{queue_created()}</th>
-								<th class="px-4 py-3 font-semibold text-end">{queue_actions()}</th>
+								<th class={SMART_TABLE_TH}>{queue_job_id()}</th>
+								<th class={SMART_TABLE_TH}>{queue_task_type()}</th>
+								<th class={SMART_TABLE_TH}>{queue_status()}</th>
+								<th class={SMART_TABLE_TH}>{queue_attempts()}</th>
+								<th class={SMART_TABLE_TH}>{queue_next_run()}</th>
+								<th class={SMART_TABLE_TH}>{queue_created()}</th>
+								<th class={SMART_TABLE_TH}>{queue_actions()}</th>
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
+						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 							{#each data.jobs as job (job._id)}
+								<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 								<tr
-									class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20"
+									class="{SMART_TABLE_ROW_HOVER} cursor-pointer"
+									data-testid="queue-job-row"
+									onclick={(event) => {
+										// Row = mouse shortcut; the eye button below is the accessible trigger.
+										if ((event.target as HTMLElement).closest('button, a')) return;
+										openDetails(job);
+									}}
 								>
-									<td class="px-4 py-3">
-										<span class="font-mono text-xs opacity-60" title={job._id}
-											>{job._id.slice(0, 8)}...</span
+									<td class={SMART_TABLE_TD}>
+										<span
+											class="font-mono text-xs text-tertiary-500 dark:text-primary-500"
+											title={job._id}>{job._id.slice(0, 8)}...</span
 										>
 									</td>
-									<td class="px-4 py-3">
+									<td class={SMART_TABLE_TD}>
 										<span class="font-medium">{job.taskType}</span>
 									</td>
-									<td class="px-4 py-3">
-										<div class="flex items-center gap-2">
+									<td class={SMART_TABLE_TD}>
+										<div class="flex items-center justify-center gap-2">
 											<Badge
 												{...statusBadgeProps[job.status]}
 												size="sm"
@@ -368,17 +484,28 @@
 											{/if}
 										</div>
 									</td>
-									<td class="px-4 py-3 text-sm">
+									<td class={SMART_TABLE_TD}>
 										{job.attempts} / {job.maxAttempts}
 									</td>
-									<td class="px-4 py-3 text-sm">
+									<td class={SMART_TABLE_TD}>
 										{formatDate(job.nextRunAt)}
 									</td>
-									<td class="px-4 py-3 text-surface-500 dark:text-surface-400 text-xs">
+									<td class="{SMART_TABLE_TD} text-(--admin-text-muted)">
 										{formatDate(job.createdAt)}
 									</td>
-									<td class="px-4 py-3 text-end">
-										<div class="flex items-center justify-end gap-1">
+									<td class={SMART_TABLE_TD}>
+										<div class="flex items-center justify-center gap-1">
+											<Button
+												variant="ghost"
+												title="Job details"
+												onclick={() => openDetails(job)}
+												size="sm"
+												data-testid="queue-job-details"
+												aria-label={`Job details for ${job.taskType} ${job._id}`}
+											>
+												<iconify-icon icon="mdi:eye-outline"></iconify-icon>
+											</Button>
+
 											{#if job.status === 'failed'}
 												<Button
 													variant="primary"
@@ -420,56 +547,81 @@
 										</div>
 									</td>
 								</tr>
-							{:else}
-								<tr>
-									<td
-										colspan="7"
-										class="px-4 py-12 text-center opacity-40"
-										data-testid="queue-empty"
-									>
-										<iconify-icon icon="mdi:tray-off" class="text-4xl mb-2"></iconify-icon>
-										<p>{queue_empty()}</p>
-									</td>
-								</tr>
 							{/each}
 						</tbody>
 					</table>
-				</div>
-
-				{#if data.totalCount > data.pagination.limit}
-					<div
-						class="p-4 bg-surface-500/10 dark:bg-surface-900 border-t border-(--admin-border-default) flex items-center justify-between"
-					>
-						<p class="text-xs opacity-60">
-							{queue_showing_part1()}
-							{data.pagination.offset + 1}
-							{queue_showing_part2()}{' '}
-							{Math.min(data.pagination.offset + data.pagination.limit, data.totalCount)}{' '}
-							{queue_showing_part3()}
-							{data.totalCount}
-							{queue_showing_jobs()}
-						</p>
-						<div class="flex gap-2">
-							<Button
-								variant="ghost"
-								size="sm"
-								href={getPaginationUrl(Math.max(0, data.pagination.offset - data.pagination.limit))}
-								disabled={data.pagination.offset === 0}
-							>
-								{button_previous()}
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								href={getPaginationUrl(data.pagination.offset + data.pagination.limit)}
-								disabled={data.pagination.offset + data.pagination.limit >= data.totalCount}
-							>
-								{button_next()}
-							</Button>
-						</div>
-					</div>
-				{/if}
+				</SmartTableShell>
 			</AdminCard>
 		</div>
 	</div>
+
+	<!-- Row details: what the task type does, the raw payload and the last error. -->
+	<Modal
+		bind:open={detailsOpen}
+		title="Job details"
+		size="lg"
+		data-testid="queue-job-details-modal"
+	>
+		{#if selectedJob}
+			<div class="space-y-5">
+				<div class="flex flex-wrap items-center gap-2">
+					<Badge
+						{...statusBadgeProps[selectedJob.status]}
+						size="sm"
+						class="uppercase flex items-center gap-1"
+					>
+						<iconify-icon icon={statusIcons[selectedJob.status]}></iconify-icon>
+						{selectedJob.status}
+					</Badge>
+					<span class="font-mono text-sm">{selectedJob.taskType}</span>
+				</div>
+
+				<p class="text-xs text-surface-500">
+					{taskDescriptions[selectedJob.taskType] ??
+						'A job dispatched by a plugin. The payload below is what the handler received.'}
+				</p>
+
+				<dl class="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[9rem_1fr]">
+					<dt class="text-surface-500">Job ID</dt>
+					<dd class="font-mono text-xs break-all">{selectedJob._id}</dd>
+					<dt class="text-surface-500">Attempts</dt>
+					<dd>{selectedJob.attempts} / {selectedJob.maxAttempts}</dd>
+					<dt class="text-surface-500">Created</dt>
+					<dd title={isoTitle(selectedJob.createdAt)}>{formatDate(selectedJob.createdAt)}</dd>
+					<dt class="text-surface-500">Last update</dt>
+					<dd title={isoTitle(selectedJob.updatedAt)}>{formatDate(selectedJob.updatedAt)}</dd>
+					<dt class="text-surface-500">Next run</dt>
+					<dd title={isoTitle(selectedJob.nextRunAt)}>{formatDate(selectedJob.nextRunAt)}</dd>
+					{#if selectedJob.tenantId}
+						<dt class="text-surface-500">Tenant</dt>
+						<dd class="font-mono text-xs">{selectedJob.tenantId}</dd>
+					{/if}
+				</dl>
+
+				{#if selectedJob.lastError}
+					<div class="space-y-1">
+						<h4 class="text-xs font-semibold uppercase tracking-wide text-error-500">Last error</h4>
+						<pre
+							class="overflow-x-auto whitespace-pre-wrap rounded-lg border border-error-500/30 bg-error-500/10 p-3 font-mono text-xs text-error-500">{selectedJob.lastError}</pre>
+					</div>
+				{/if}
+
+				<div class="space-y-1">
+					<h4 class="text-xs font-semibold uppercase tracking-wide text-surface-500">Payload</h4>
+					<pre
+						class="max-h-64 overflow-auto rounded-lg border border-surface-500/30 bg-surface-900 p-3 font-mono text-xs text-surface-100">{JSON.stringify(
+							selectedJob.payload ?? {},
+							null,
+							2
+						)}</pre>
+				</div>
+			</div>
+		{/if}
+
+		{#snippet footer()}
+			<div class="flex justify-end">
+				<Button variant="secondary" onclick={() => (detailsOpen = false)}>Close</Button>
+			</div>
+		{/snippet}
+	</Modal>
 </AdminPageShell>

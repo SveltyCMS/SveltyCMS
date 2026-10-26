@@ -31,7 +31,7 @@ Sidebar navigation for System Settings
 	let searchTerm = $state('');
 
 	// Derived
-	const user = $derived(page.data.user);
+	const user = $derived(page.data.layoutUser ?? page.data.user);
 	const isAdmin = $derived(checkIsAdmin(user));
 	const availableGroups: SettingGroup[] = $derived(
 		getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name))

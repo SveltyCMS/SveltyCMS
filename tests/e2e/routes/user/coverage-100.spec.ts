@@ -137,12 +137,18 @@ test.describe("GDPR privacy flows", () => {
     // Privacy & Data (GDPR) lives in the Settings tab.
     await openUserSettings(page);
 
-    await page.getByTestId("privacy-data-btn").click();
     // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
     // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
-    await dismissCookieConsent(page);
     const dialog = page.locator("dialog[open]");
-    await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+    // Retry the open: a click that lands before Svelte hydrates is a silent no-op,
+    // and this spec runs late in a loaded shard where hydration can lag the SSR paint
+    // (same idiom as the 2FA modal below).
+    await expect(async () => {
+      if (await dialog.isVisible().catch(() => false)) return;
+      await page.getByTestId("privacy-data-btn").click({ timeout: 2_000 });
+      await expect(dialog).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
+    await dismissCookieConsent(page);
 
     const downloadPromise = page
       .waitForEvent("download", { timeout: ACTION_TIMEOUT })
@@ -182,12 +188,15 @@ test.describe("GDPR privacy flows", () => {
     // Privacy & Data (GDPR) lives in the Settings tab.
     await openUserSettings(page);
 
-    await page.getByTestId("privacy-data-btn").click();
     // Scope to the native <dialog> — the cookie-consent banner is a <div role="dialog">
     // and can co-exist on first visits, breaking getByRole("dialog") strict mode.
-    await dismissCookieConsent(page);
     const dialog = page.locator("dialog[open]");
-    await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
+    await expect(async () => {
+      if (await dialog.isVisible().catch(() => false)) return;
+      await page.getByTestId("privacy-data-btn").click({ timeout: 2_000 });
+      await expect(dialog).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
+    await dismissCookieConsent(page);
 
     const wipeBtn = dialog.getByRole("button", {
       name: /permanently anonymize|anonymize account/i,

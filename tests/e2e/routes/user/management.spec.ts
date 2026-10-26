@@ -103,7 +103,7 @@ async function selectDeveloperRow(page: Page, options?: DeveloperRowOptions) {
   }
 }
 
-/** Block or unblock a single user via the per-row action button (admin-area.svelte). */
+/** Block or unblock a single user via the per-row action button (user-management.svelte). */
 async function runRowUserAction(page: Page, action: "block" | "unblock") {
   const row = await developerRow(page);
   const rowButton = row.getByRole("button", {
@@ -254,14 +254,11 @@ test.describe.serial("User Management Flow", () => {
       .filter({ hasText: /edit user data|username/i })
       .first();
 
-    // SSR-rendered button — a pre-hydration click is a silent no-op. Click
-    // until the dialog reports the outcome (same pattern as openUserTab).
-    await expect(async () => {
-      if (!(await editDialog.isVisible().catch(() => false))) {
-        await editBtn.click({ timeout: 5_000 }).catch(() => {});
-      }
-      await expect(editDialog).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: 15_000, intervals: [500, 1_000, 2_000] });
+    // The button ships `disabled` until hydration, so its own enabled state is
+    // the readiness gate — no re-click loop.
+    await expect(editBtn).toBeEnabled({ timeout: 15_000 });
+    await editBtn.click();
+    await expect(editDialog).toBeVisible({ timeout: 15_000 });
 
     const newUsername = `updatedUser_${Date.now().toString(36).slice(-6)}`;
     const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');

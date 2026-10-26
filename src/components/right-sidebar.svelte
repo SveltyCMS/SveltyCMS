@@ -59,7 +59,7 @@
 	}
 
 	// --- Derived from page & stores ---
-	let user = $derived(page.data.user);
+	let user = $derived(page.data.layoutUser ?? page.data.user);
 	let isAdmin = $derived(page.data.isAdmin === true);
 
 	let currentMode = $derived(collections.mode);
@@ -275,7 +275,7 @@
 </script>
 
 {#if showSidebar || showCollectionsHere}
-	<div class="flex h-full flex-col gap-4 overflow-y-auto px-3 py-4">
+	<div class="flex h-full flex-col gap-4 overflow-y-auto px-2 py-3">
 		<!-- Collections tree (when theme moves it to end sidebar) -->
 		{#if showCollectionsHere}
 			<div class="shrink-0">
@@ -370,8 +370,6 @@
 					</section>
 				{/if}
 
-				<Slot name="entry_edit_sidebar" props={{ collection: currentCollection, currentEntry }} />
-
 				<!-- Publishing -->
 				<section class="shrink-0 space-y-2">
 					<h3 class="text-[11px] font-semibold uppercase tracking-wider text-(--admin-text-muted)">
@@ -443,6 +441,10 @@
 						{/if}
 					</div>
 				</section>
+
+				<!-- Plugin inspector panels (audit history, verify chain) sit below the
+				     entry metadata, next to the timestamp footer. -->
+				<Slot name="entry_edit_sidebar" props={{ collection: currentCollection, currentEntry }} />
 
 				<footer class="mt-auto shrink-0 border-t border-(--admin-border-default) pt-3">
 					<div class="space-y-1.5 text-xs">

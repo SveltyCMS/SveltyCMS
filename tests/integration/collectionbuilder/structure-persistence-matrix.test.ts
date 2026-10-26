@@ -98,6 +98,7 @@ describe("Structure persistence matrix (adapter-agnostic)", () => {
   it("boot reconciles manifest when organizational drift exists", async () => {
     const bootResult = await syncContentState({ reason: "boot", tenantId: TENANT, adapter: db });
     expect(bootResult.orgDrift).toBeDefined();
+    // trivial-assert-ok: reconciled covers the drifted case; not-drifted needs no reconcile
     expect(bootResult.orgDrift?.reconciled === true || bootResult.orgDrift?.drifted === false).toBe(
       true,
     );

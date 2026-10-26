@@ -50,6 +50,8 @@ vi.mock("@utils/media/media-utils", () => ({
 }));
 
 import { load, actions } from "../../../src/routes/(app)/mediagallery/+page.server";
+import { dbAdapter } from "@src/databases/db";
+import { cacheService } from "@src/databases/cache/cache-service";
 
 function makeEvent(locals: Record<string, unknown>, search = "") {
   return {
@@ -75,7 +77,40 @@ describe("mediagallery +page.server load", () => {
     vi.clearAllMocks();
   });
 
-  it("allows admin", async () => {
+  it("scopes the virtual-folder cache entry to the tenant (F09 cache isolation)", async () => {
+    await load(
+      makeEvent({
+        user: { _id: { toString: () => "u1" }, email: "a@b.co" },
+        isAdmin: true,
+        roles: [],
+        tenantId: "t1",
+      }),
+    );
+
+    expect(vi.mocked(cacheService.getOrSetSWR)).toHaveBeenCalledWith(
+      "mediagallery:virtualFolders:t1",
+      expect.any(Function),
+      300_000,
+      1_800_000,
+      "t1",
+    );
+  });
+
+  it("allows admin and keeps the adapter page total (F01)", async () => {
+    // F01: the loader used to replace `total` with items.length. An empty slice of
+    // a 7-row folder is exactly the shape that kept that regression green — the
+    // old assertion ended in `|| true`.
+    vi.mocked(dbAdapter.media.files.getByFolder).mockResolvedValueOnce({
+      success: true,
+      data: {
+        items: [],
+        total: 7,
+        pageSize: 100,
+        hasNextPage: true,
+        hasPreviousPage: false,
+      },
+    });
+
     const data: any = (await load(
       makeEvent({
         user: { _id: { toString: () => "u1" }, email: "a@b.co" },
@@ -84,10 +119,15 @@ describe("mediagallery +page.server load", () => {
         tenantId: "t1",
       }),
     )) as any;
-    expect(data).toBeDefined();
-    expect(Array.isArray((data as any).media) || (data as any).media === undefined || true).toBe(
-      true,
-    );
+
+    expect(data.media).toEqual([]);
+    expect(data.mediaPagination).toEqual({
+      page: 1,
+      pageSize: 100,
+      total: 7,
+      hasNextPage: true,
+      hasPreviousPage: false,
+    });
   });
 
   it("allows user with media:read", async () => {
@@ -174,24 +214,26 @@ describe("mediagallery remoteUpload action (VULN-002 class)", () => {
     expect(saveRemoteMedia.mock.calls[0][0]).toBe("https://cdn.example.com/photo.jpg");
   });
 
-  it("does not persist when saveRemoteMedia blocks private targets", async () => {
+  it("rejects the action when saveRemoteMedia blocks every URL", async () => {
     saveRemoteMedia.mockResolvedValue({
       success: false,
       message: "Blocked private IP: 127.0.0.1",
     });
-    const result = await actions.remoteUpload(
-      makeRemoteUploadEvent(
-        {
-          user: { _id: "writer-1", email: "w@b.co" },
-          isAdmin: true,
-          roles: [],
-          tenantId: "t1",
-        },
-        ["http://127.0.0.1:9000/secret"],
+    // A batch where nothing was stored is a failure — the UI must not report a
+    // successful import for URLs the SSRF guard rejected.
+    await expect(
+      actions.remoteUpload(
+        makeRemoteUploadEvent(
+          {
+            user: { _id: "writer-1", email: "w@b.co" },
+            isAdmin: true,
+            roles: [],
+            tenantId: "t1",
+          },
+          ["http://127.0.0.1:9000/secret"],
+        ),
       ),
-    );
-    // Action still returns success envelope; individual URL failures are logged
-    expect(result).toEqual({ success: true });
+    ).rejects.toMatchObject({ status: 400 });
     expect(saveRemoteMedia).toHaveBeenCalledWith(
       "http://127.0.0.1:9000/secret",
       expect.anything(),
@@ -199,5 +241,66 @@ describe("mediagallery remoteUpload action (VULN-002 class)", () => {
       "t1",
       "global",
     );
+  });
+});
+
+interface MediaGalleryPageData {
+  media: Array<{ _id: string; tenantId?: string | null }>;
+  systemVirtualFolders: unknown[];
+  mediaPagination: { page: number; pageSize: number; total: number };
+}
+
+function makeTenantLoadEvent(tenantId: string) {
+  return makeEvent({
+    user: { _id: { toString: () => `${tenantId}-user` }, email: `${tenantId}@b.co` },
+    isAdmin: true,
+    roles: [],
+    tenantId,
+  }) as unknown as Parameters<typeof load>[0];
+}
+
+describe("mediagallery +page.server load — concurrency", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("keeps each tenant's media list on its own parallel load", async () => {
+    vi.mocked(dbAdapter.media.files.getByFolder).mockImplementation(async (_folderId, options) => {
+      const tenantId = String(options?.tenantId ?? "global");
+      return {
+        success: true,
+        data: {
+          items: [
+            {
+              _id: `${tenantId}-asset`,
+              filename: `${tenantId}-asset.png`,
+              hash: `${tenantId}-hash`,
+              mimeType: "image/png",
+              path: "global",
+              tenantId,
+              metadata: {},
+            },
+          ],
+          total: 1,
+          pageSize: 100,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      } as unknown as Awaited<ReturnType<typeof dbAdapter.media.files.getByFolder>>;
+    });
+
+    const [first, second] = (await Promise.all([
+      load(makeTenantLoadEvent("t1")),
+      load(makeTenantLoadEvent("t2")),
+    ])) as unknown as [MediaGalleryPageData, MediaGalleryPageData];
+
+    // Each request reads its own tenant scope — the adapter call is not shared state.
+    expect(first.media).toHaveLength(1);
+    expect(second.media).toHaveLength(1);
+    expect(first.media[0].tenantId).toBe("t1");
+    expect(second.media[0].tenantId).toBe("t2");
+    expect(first.media[0]._id).toBe("t1-asset");
+    expect(second.media[0]._id).toBe("t2-asset");
+    expect(first.media[0]._id).not.toBe(second.media[0]._id);
   });
 });

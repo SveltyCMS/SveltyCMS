@@ -9,6 +9,7 @@
  */
 
 import { assertSafeSqlIdentifier, buildRawTenantClause } from "../core/relational-utils";
+import { hasTenantBypass } from "../system-tenant-scope";
 import { getMaterializedFieldColumns } from "../core/drizzle-sql-helpers";
 import type { BaseQueryOptions, DatabaseId } from "../db-interface";
 import type { RawPointWireStreamResult, RawListWireStreamResult } from "../core/sql-adapter-core";
@@ -26,6 +27,7 @@ interface PointWireSql {
   tenantPub: string | null;
   tenantNull: string;
   tenantPubNull: string | null;
+  declined?: boolean;
 }
 
 interface ListWireSql {
@@ -55,14 +57,16 @@ export class PostgresWireStreamEngine {
     if (!exec) return { kind: "declined" };
 
     try {
-      const hasDataCol = !!executor.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" };
-
-      const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "''";
-
       let cachedWireSql = this._pointSqlCache.get(table);
-      if (!cachedWireSql) {
+      if (cachedWireSql === undefined) {
+        const hasDataCol = !!executor.getColumn(table, "data");
+        if (!hasDataCol) {
+          this._pointSqlCache.set(table, { declined: true } as PointWireSql);
+          return { kind: "declined" };
+        }
+
+        const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
+        const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "''";
         const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
@@ -71,7 +75,10 @@ export class PostgresWireStreamEngine {
         if (hasStatusCol) pairs.push(`'status', "status"`);
         if (hasSlugCol) pairs.push(`'slug', "slug"`);
         for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
+          if (!/^[A-Za-z0-9_]+$/.test(rawName)) {
+            this._pointSqlCache.set(table, { declined: true } as PointWireSql);
+            return { kind: "declined" };
+          }
           const name = assertSafeSqlIdentifier(rawName, "column");
           pairs.push(`'${name}', "${name}"`);
         }
@@ -99,27 +106,30 @@ export class PostgresWireStreamEngine {
             : null,
         };
         this._pointSqlCache.set(table, cachedWireSql);
+      } else if (cachedWireSql.declined) {
+        return { kind: "declined" };
       }
 
-      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
-      const hasTenantParam = tenantClause.params.length > 0;
-      const hasTenantClause = tenantClause.sql !== "";
       const wantPublished = options?.requirePublished === true;
       if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
 
+      const bypass = hasTenantBypass(options);
+      const rawTenant = bypass ? undefined : options?.tenantId;
+      const tenantId = rawTenant === undefined || rawTenant === "global" ? undefined : rawTenant;
+
       let sqlText: string;
-      if (hasTenantClause) {
-        sqlText = hasTenantParam
-          ? wantPublished
-            ? cachedWireSql.tenantPub!
-            : cachedWireSql.tenant
-          : wantPublished
-            ? cachedWireSql.tenantPubNull!
-            : cachedWireSql.tenantNull;
+      let params: unknown[];
+      if (tenantId !== undefined && tenantId !== null) {
+        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
+        params = [String(id), String(tenantId)];
+      } else if (tenantId === null) {
+        sqlText = wantPublished ? cachedWireSql.tenantPubNull! : cachedWireSql.tenantNull;
+        params = [String(id)];
       } else {
         sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
+        params = [String(id)];
       }
-      const params = [String(id), ...tenantClause.params];
+
       const rows = await exec.unsafe(sqlText, params, { prepare: true });
       if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
       const first = rows[0];
@@ -232,7 +242,13 @@ export class PostgresWireStreamEngine {
         }
 
         const subSelect = `SELECT ${doc} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
-        const orderClause = `ORDER BY ${sortCol} ${sortDirection}`;
+        // A custom sort column is not unique: without a tiebreak PostgreSQL may return
+        // equal-valued rows in a different order per page, so a paginated client could
+        // see a row twice and miss another. `_id` exists on every content table.
+        const orderClause =
+          sortField && sortCol !== '"_id"'
+            ? `ORDER BY ${sortCol} ${sortDirection}, "_id" ASC`
+            : `ORDER BY ${sortCol} ${sortDirection}`;
 
         const wrap = (wherePart: string, limitIdx: number, offsetIdx: number) => `
           SELECT coalesce(jsonb_agg(sub.doc), '[]'::jsonb)::text AS wire_body,

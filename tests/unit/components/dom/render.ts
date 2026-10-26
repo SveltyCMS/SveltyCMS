@@ -15,6 +15,7 @@
 
 import { flushSync, mount, tick, unmount } from "svelte";
 import type { Component, ComponentProps } from "svelte";
+import { hydration } from "@src/stores/hydration.svelte";
 
 export interface RenderedComponent {
   /** Container element the component was mounted into. */
@@ -34,6 +35,11 @@ export function renderComponent<C extends Component<any, any, any>>(
   const target = document.createElement("div");
   document.body.appendChild(target);
   const instance = mount(component, { target, props });
+  // In the browser `+layout.svelte` calls this once the client runtime is attached.
+  // These tests mount a single page in isolation, so the layout never runs and every
+  // control gated on hydration would stay disabled forever — the click would be a
+  // silent no-op. Marking it here reproduces the state the component expects.
+  hydration.markHydrated();
   flushSync();
 
   return {
@@ -43,6 +49,20 @@ export function renderComponent<C extends Component<any, any, any>>(
       target.remove();
     },
   };
+}
+
+/**
+ * Mount an `(app)` page with a partial `data` payload.
+ *
+ * Page components type `data` as the merged layout + page shape, but these tests
+ * only exercise page-level keys; the layout half (user, theme, sidebar, …) is
+ * intentionally omitted.
+ */
+export function renderPage<C extends Component<any, any, any>>(
+  component: C,
+  data: Record<string, unknown>,
+): RenderedComponent {
+  return renderComponent(component, { data } as unknown as ComponentProps<C>);
 }
 
 /** Flush Svelte effects and one microtask tick (for async component updates). */

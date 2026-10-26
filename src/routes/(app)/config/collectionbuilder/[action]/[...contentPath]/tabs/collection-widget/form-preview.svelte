@@ -23,6 +23,7 @@ before saving to the database.
 
 <script lang="ts">
 	import Button from '@src/components/ui/button.svelte';
+	import HelpIcon from '@src/components/ui/help-icon.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import {
 		builder_required,
@@ -405,11 +406,7 @@ before saving to the database.
 										{/if}
 										{#if item.helper}
 											<SystemTooltip title={item.helper}>
-												<iconify-icon
-													icon="mdi:information-outline"
-													width="15"
-													class="text-(--admin-text-muted) hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted) cursor-help"
-												></iconify-icon>
+												<HelpIcon ariaLabel={item.helper} />
 											</SystemTooltip>
 										{/if}
 									</div>

@@ -26,6 +26,8 @@ import type { RequestHandler } from "./$types";
 
 // Module-level action cache — import() fires once per plugin, cached forever
 const RESOLVED_ACTIONS = new Map<string, Record<string, Function>>();
+// In-flight loads: two concurrent first dispatches must share one import().
+const PENDING_ACTION_LOADS = new Map<string, Promise<Record<string, Function>>>();
 
 // Short-lived state cache — plugin enabled/disabled changes infrequently (30s TTL)
 const _stateCache = new Map<string, { enabled: boolean; ts: number }>();
@@ -92,14 +94,23 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
     }
 
     // ── Load & cache server module actions ─────────────────────────
+    // ── Load & cache server module actions (single-flight per plugin) ─────
     let pluginActions = RESOLVED_ACTIONS.get(pluginId);
     if (!pluginActions) {
-      const loader = pluginServerRegistry.getLoader(pluginId);
-      if (!loader) {
-        throw new AppError(`Plugin '${pluginId}' has no server actions`, 404, "NOT_FOUND");
+      let pending = PENDING_ACTION_LOADS.get(pluginId);
+      if (!pending) {
+        const loader = pluginServerRegistry.getLoader(pluginId);
+        if (!loader) {
+          throw new AppError(`Plugin '${pluginId}' has no server actions`, 404, "NOT_FOUND");
+        }
+        pending = loader().then((serverMod) => serverMod.actions || {});
+        PENDING_ACTION_LOADS.set(pluginId, pending);
       }
-      const serverMod = await loader();
-      pluginActions = serverMod.actions || {};
+      try {
+        pluginActions = await pending;
+      } finally {
+        PENDING_ACTION_LOADS.delete(pluginId);
+      }
       RESOLVED_ACTIONS.set(pluginId, pluginActions);
     }
 
@@ -185,6 +196,9 @@ export const POST: RequestHandler = async ({ params, request: originalRequest, l
       params,
       request: originalRequest,
       locals,
-    } as any);
+      // handleApiError logs `url.pathname` for every status; a partial event
+      // without it throws a TypeError that masks the mapped 401/403/404.
+      url: new URL(originalRequest.url),
+    } as unknown as Parameters<typeof handleApiError>[1]);
   }
 };

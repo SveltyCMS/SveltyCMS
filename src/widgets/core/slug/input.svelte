@@ -101,10 +101,7 @@
 </script>
 
 <div class="mb-4 flex flex-col gap-1.5">
-	<div class="flex items-center justify-between">
-		<label for={inputId} class="text-sm font-semibold text-(--admin-text-body)">
-			{field.label || 'Slug'}
-		</label>
+	<div class="flex items-center justify-end">
 		{#if !locked}
 			<span
 				class="inline-flex items-center gap-1 rounded border border-success-500/30 bg-success-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-500"

@@ -263,9 +263,9 @@ test.describe.serial("User Profile Management", () => {
       // (intermittent because consent storage can be cleared between specs).
       await dismissCookieConsent(page);
 
-      // Hydration-race guard (same idiom as the avatar tests below): the SSR button renders
-      // before its onclick is attached, so a first click can be swallowed and the dialog never
-      // opens. Re-click until the dialog is actually visible — a genuine failure still fails.
+      // The button ships `disabled` until hydration (progressive-hydration gate in
+      // src/routes/(app)/user/+page.svelte), so its own enabled state is the
+      // readiness signal — the re-click loop is gone.
       const editSettingsBtn = page
         .getByTestId("edit-user-settings-btn")
         .or(page.getByRole("button", { name: /Edit User Settings/i }))
@@ -273,37 +273,18 @@ test.describe.serial("User Profile Management", () => {
 
       // Scope to the edit dialog so Save/username resolve unambiguously
       const editDialog = getAppDialog(page, /Edit User Data|edit user|username/i);
-      await expect(async () => {
-        await editSettingsBtn
-          .click({ timeout: 2_000 })
-          .catch(() => editSettingsBtn.evaluate((el: HTMLElement) => el.click()));
-        await expect(editDialog).toBeVisible({ timeout: 2_000 });
-      }).toPass({ timeout: 15_000 });
+      await expect(editSettingsBtn).toBeEnabled({ timeout: 15_000 });
+      await editSettingsBtn.click();
+      await expect(editDialog).toBeVisible({ timeout: 15_000 });
 
       // Unique username each run — avoids uniqueness validation failures
       const newUsername = `TestUser_${Date.now().toString(36).slice(-6)}`;
       const usernameInput = editDialog.locator('input[name="username"]:not([disabled])');
       await expect(usernameInput).toBeVisible({ timeout: 10_000 });
       await usernameInput.fill(newUsername);
-
-      const updateRespPromise = page
-        .waitForResponse(
-          (res) =>
-            res.url().includes("/api/user/update-user-attributes") &&
-            ["PUT", "POST", "PATCH"].includes(res.request().method()),
-          { timeout: 15_000 },
-        )
-        .catch(() => null);
+      await expect(usernameInput).toHaveValue(newUsername);
 
       await editDialog.getByRole("button", { name: /^save$/i }).click();
-
-      const updateResp = await updateRespPromise;
-      if (updateResp && !updateResp.ok()) {
-        const body = await updateResp.text().catch(() => "");
-        throw new Error(
-          `update-user-attributes failed: HTTP ${updateResp.status()} ${body.slice(0, 300)}`,
-        );
-      }
 
       // Prefer outcome over toast flash: dialog closes, username visible, or success toast
       const { expectToast } = await import("../../helpers/stable");

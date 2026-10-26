@@ -26,6 +26,7 @@ import {
   runMigrationImport,
 } from "@plugins/smart-importer/import-runner";
 import { getKnownMappingsForFormat } from "@plugins/smart-importer/known-mappings";
+import { detectCsv } from "@plugins/smart-importer/csv-detect";
 import {
   inferTargetCollectionFromMigration,
   resolveTargetCollection,
@@ -130,6 +131,20 @@ export const actions = {
         contentTypes = ["entry"];
       } else if (ext === "csv" && (header.includes("_id,") || header.includes("Name,"))) {
         format = "webflow";
+      } else if (ext === "csv" || ext === "tsv") {
+        // Generic spreadsheet (any delimiter, any header language). Universal
+        // CSV support used to be unreachable from the wizard: no branch claimed
+        // a plain CSV, so detection returned "unknown" with no field mappings.
+        const csv = detectCsv(text, ext === "tsv" ? "\t" : undefined);
+        if (csv) {
+          format = "csv";
+          // A flat table has no platform content types. Reporting a synthetic one
+          // ("entry") also armed the wizard's content-type filter, which matched
+          // on `rawCustomFields.type` and dropped every row.
+          contentTypes = [];
+          fieldMappings = csv.mappings;
+          estimatedCount = csv.estimatedCount;
+        }
       } else if (header.includes('"products"') || header.includes('"product_type"')) {
         format = "shopify";
         fieldMappings = getKnownMappingsForFormat("shopify");

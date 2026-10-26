@@ -94,7 +94,9 @@ test.describe("Account Smoke", () => {
         const usernameInput = dialog.locator('input[name="username"]:not([disabled])');
         await usernameInput.fill(originalUsername);
         await dialog.getByRole("button", { name: /^save$/i }).click();
-        await expect(page.getByText(/user data updated/i)).toBeVisible({
+        // The revert is best-effort (the body assertion already ran), but its
+        // outcome is still recorded — a caught hard assertion would not be.
+        await expect.soft(page.getByText(/user data updated/i)).toBeVisible({
           timeout: USER_ACTION_TIMEOUT,
         });
       } catch (err) {

@@ -148,7 +148,7 @@ describe("Bulk Operations Contract — All Adapters", () => {
       // Must return valid DatabaseResult
     });
 
-    it("returns modifiedCount >= 0", async () => {
+    it("returns modifiedCount 0 when the filter matches nothing", async () => {
       const result = await db.crud.updateMany(
         TEST_COLLECTION,
         { status: "nonexistent" },
@@ -156,10 +156,8 @@ describe("Bulk Operations Contract — All Adapters", () => {
         tenantOpts,
       );
 
-      if (result.success && result.data) {
-        const count = result.data.modifiedCount ?? result.data;
-        expect(typeof count === "number" || typeof count === "object").toBe(true);
-      }
+      // `modifiedCount` is a number on every adapter (never the result object).
+      expect(result).toMatchObject({ success: true, data: { modifiedCount: 0 } });
     });
 
     // A bulk patch must merge the JSON `data` blob, not replace it — the same
@@ -489,17 +487,15 @@ describe("Bulk Operations Contract — All Adapters", () => {
       });
     });
 
-    it("returns deletedCount", async () => {
+    it("returns deletedCount for the single matching row", async () => {
       const result = await db.crud.deleteMany(
         TEST_COLLECTION,
         { _id: DEL_IDS[2] },
         { tenantId: TEST_TENANT, permanent: true },
       );
 
-      if (result.success && result.data) {
-        const count = result.data.deletedCount ?? result.data;
-        expect(typeof count === "number" || typeof count === "object").toBe(true);
-      }
+      // DEL_IDS[2] was inserted in this block's beforeAll and is not deleted above.
+      expect(result).toMatchObject({ success: true, data: { deletedCount: 1 } });
     });
   });
 

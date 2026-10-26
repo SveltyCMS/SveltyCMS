@@ -187,6 +187,28 @@ export abstract class AdapterCore extends SqlAdapterCore {
   }
 
   /**
+   * Key-level JSON patch: `JSON_SET(doc, '$.key', value)` per key, nested.
+   *
+   * MariaDB has no `CAST(? AS JSON)` (a JSON column is LONGTEXT, and the value
+   * argument of `JSON_SET` is typed as a *string*), so a bound JSON text would be
+   * stored double-encoded (`"{\"a\":1}"`). `JSON_EXTRACT(?,'$')` parses the bound
+   * text into a JSON value first — verified against MariaDB 13: objects, arrays,
+   * strings and JSON `null` all round-trip, and `COALESCE` covers a NULL column.
+   * Paths are bound parameters; `jsonKeyPatchSetValue` already rejected anything
+   * that is not a plain top-level identifier.
+   */
+  protected override jsonKeyPatchExpression(
+    colSql: string,
+    entries: ReadonlyArray<readonly [string, string]>,
+  ): SQL {
+    let expr: SQL = sql`COALESCE(${sql.raw(colSql)}, '{}')`;
+    for (const [key, jsonText] of entries) {
+      expr = sql`JSON_SET(${expr}, ${`$.${key}`}, JSON_EXTRACT(${jsonText}, '$'))`;
+    }
+    return expr;
+  }
+
+  /**
    * Read the JSON `data` column of one row for the JS merge path. Null means the
    * row is absent — the caller then fails closed instead of writing the patch as
    * the whole document. Stays on the txn connection when the update is in one.
@@ -579,6 +601,13 @@ export abstract class AdapterCore extends SqlAdapterCore {
       }
 
       this._rawPoolConfig = poolConfig;
+      // DATETIME columns carry no zone. The adapter writes UTC wall-clock values
+      // (`mariaDateString`) and the ETag/write lanes compare them as UTC, so parse
+      // and bind Dates as UTC too. With the default (`timezone: 'local'`) a host
+      // offset changes both the JS Date produced from a DATETIME and the SQL a JS
+      // Date is escaped into — the two sides of an optimistic-lock comparison then
+      // disagree on a non-UTC runner.
+      if (poolConfig && typeof poolConfig === "object") poolConfig.timezone = "Z";
       this.pool = mysql.createPool(poolConfig);
       this.activeDatabaseName =
         poolConfig.database ||
@@ -773,10 +802,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
       data: json("data").notNull().default({}),
       status: varchar("status", { length: 50 }).notNull().default("draft"),
       isDeleted: boolean("isDeleted").notNull().default(false),
-      createdAt: datetime("createdAt")
+      createdAt: datetime("createdAt", { fsp: 3 })
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
-      updatedAt: datetime("updatedAt")
+      updatedAt: datetime("updatedAt", { fsp: 3 })
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
     };
@@ -2274,7 +2303,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
           logger.debug(`[DB Provision] BENCHMARK=${process.env.BENCHMARK || "standalone"}`);
         }
 
-        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`updatedAt\` DATETIME DEFAULT CURRENT_TIMESTAMP, \`data\` LONGTEXT);`;
+        // Millisecond precision: `updatedAt` is the optimistic-lock version. With
+        // DATETIME(0) an update inside the same second left the version (and the
+        // wire ETag) unchanged, so a stale `If-Match` still matched.
+        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`updatedAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`data\` LONGTEXT);`;
 
         if (ddl) {
           if (process.env.BENCHMARK_DEBUG === "true") {
@@ -2287,8 +2319,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           { name: "isDeleted", type: "TINYINT(1) DEFAULT 0" },
           { name: "status", type: "VARCHAR(255) DEFAULT 'draft'" },
           { name: "tenantId", type: "VARCHAR(36)" },
-          { name: "createdAt", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
-          { name: "updatedAt", type: "DATETIME DEFAULT CURRENT_TIMESTAMP" },
+          { name: "createdAt", type: "DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)" },
+          { name: "updatedAt", type: "DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)" },
           { name: "collection", type: "VARCHAR(255)" },
           { name: "slug", type: "VARCHAR(255)" },
           { name: "locale", type: "VARCHAR(50)" },

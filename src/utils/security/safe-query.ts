@@ -52,6 +52,7 @@ export function resetSafeQueryCache(): void {
 
 /**
  * Sync, cached MULTI_TENANT detection. Hot-path safe (no await).
+ * Demo mode implies tenant isolation (one seeded tenant per visitor).
  */
 export function isMultiTenantMode(): boolean {
   const now = Date.now();
@@ -59,8 +60,13 @@ export function isMultiTenantMode(): boolean {
     return cachedIsMultiTenant;
   }
   try {
-    const privateEnv = getPrivateEnv() as { MULTI_TENANT?: boolean | string } | null;
-    cachedIsMultiTenant = privateEnv?.MULTI_TENANT === true || privateEnv?.MULTI_TENANT === "true";
+    const privateEnv = getPrivateEnv() as {
+      MULTI_TENANT?: boolean | string;
+      DEMO?: boolean | string;
+    } | null;
+    const multiTenant = privateEnv?.MULTI_TENANT === true || privateEnv?.MULTI_TENANT === "true";
+    const demo = privateEnv?.DEMO === true || privateEnv?.DEMO === "true";
+    cachedIsMultiTenant = multiTenant || demo;
   } catch {
     cachedIsMultiTenant = false;
   }

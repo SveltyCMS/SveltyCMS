@@ -12,7 +12,7 @@
  * - **Advanced Aggregation**: Performs a `$lookup` to filter/sort based on actual media metadata.
  */
 
-import { widget_media_description as mediaWidgetDescription } from "@src/paraglide/messages";
+import { widget_media_description } from "@src/paraglide/messages";
 import { createWidget } from "@src/widgets/widget-factory";
 
 // import Checkbox from '@src/widgets/core/checkbox/index';
@@ -62,7 +62,7 @@ const MediaWidget = createWidget<MediaProps>({
   Name: "MediaUpload",
   version: "1.0.0",
   Icon: "mdi:image-multiple",
-  Description: mediaWidgetDescription(),
+  Description: widget_media_description(),
   inputComponentPath: "/src/widgets/core/media-upload/input.svelte",
   displayComponentPath: "/src/widgets/core/media-upload/display.svelte",
   validationSchema: createValidationSchema,

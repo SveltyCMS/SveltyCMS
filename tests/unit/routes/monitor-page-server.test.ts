@@ -42,13 +42,19 @@ describe("monitor +page.server load", () => {
   });
 
   it("returns safe defaults for admin when services fail", async () => {
+    const depends = vi.fn();
     const data: any = await load({
       locals: {
         user: { _id: "u1", role: "admin" },
         isAdmin: true,
         tenantId: "t1",
       },
+      depends,
     } as any);
+
+    // The page's 30 s poll invalidates this dependency; a load that forgets to
+    // register it freezes the dashboard on first paint.
+    expect(depends).toHaveBeenCalledWith("app:monitor");
 
     expect(data.security.incidentCount).toBe(0);
     expect(data.webhooks.total).toBe(0);
@@ -64,6 +70,7 @@ describe("monitor +page.server load", () => {
           isAdmin: false,
           tenantId: "t1",
         },
+        depends: vi.fn(),
       } as any),
     ).rejects.toMatchObject({ status: 403 });
   });

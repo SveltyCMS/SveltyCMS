@@ -88,6 +88,7 @@ describe("Streaming Read Contract", () => {
       allowNullData: true,
     });
     if (result.success && result.data) {
+      // trivial-assert-ok: either iteration protocol is a valid streamMany contract
       expect(
         typeof result.data[Symbol.asyncIterator] === "function" ||
           typeof result.data[Symbol.iterator] === "function",

@@ -216,6 +216,17 @@ The module uses a `MutationObserver` on `document.body` to detect new `<a data-p
 
 ---
 
+## Navigation must consume the preload
+
+Preloading is only worth its requests if the navigation actually reuses the payload. Two rules keep that true:
+
+- **Use `goto(target)` for primary navigation** — SvelteKit reuses the hover/preload payload. `goto(target, { refreshAll: true })` re-runs _every_ load function (user, plugins, user count, content structure, settings) and discards what the preload fetched; the sidebar collection tree used to do exactly that on every click (`src/components/collections.svelte` → `navigate()`). `refreshAll()` is reserved for re-selecting the **current** route, where nothing was preloaded.
+- **Filters, sorting and pagination** are the sanctioned `goto(url, { reset: false })` escape hatch — they change query state, not the route.
+
+Server-side caches are invalidated by the mutations themselves (see [Cache System](./cache-system.mdx)), so a preloaded payload is already fresh; forcing `refreshAll` to get fresh data usually just re-reads the same cached rows.
+
+---
+
 ## Cost-Benefit Analysis
 
 | Strategy | Wasted Requests | Perceived Latency | Server Load | Best Use Case                 |

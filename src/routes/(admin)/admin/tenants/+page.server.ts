@@ -6,7 +6,8 @@
  * Uses the database-agnostic adapter (dbAdapter.system.tenants) for multi-DB compatibility.
  */
 
-import { error, redirect } from "@sveltejs/kit";
+import { redirect } from "@sveltejs/kit";
+import { raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 
@@ -32,7 +33,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     await getDbInitPromise(false, "CORE");
     if (!dbAdapter) {
       logger.error("Database adapter not available");
-      throw error(500, "Database adapter not available");
+      raise(500, "Database adapter not available", "INTERNAL_SERVER_ERROR");
     }
 
     const result = await dbAdapter.system.tenants.list({
@@ -41,7 +42,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
     if (!result.success) {
       logger.error("Failed to list tenants", result.error);
-      throw error(500, result.message || "Failed to load tenants");
+      raise(500, result.message || "Failed to load tenants", "INTERNAL_SERVER_ERROR");
     }
 
     return {
@@ -52,7 +53,8 @@ export const load: PageServerLoad = async ({ locals }) => {
     if (err && typeof err === "object" && "status" in err) {
       throw err;
     }
+    rethrow(err);
     logger.error("Failed to load tenants", err);
-    throw error(500, "Failed to load tenants");
+    raise(500, "Failed to load tenants", "INTERNAL_SERVER_ERROR");
   }
 };

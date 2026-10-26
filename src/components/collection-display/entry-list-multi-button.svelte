@@ -532,7 +532,7 @@
 				? entrylist_multibutton_viewing_archived()
 				: entrylist_multibutton_viewing_active()}
 			aria-pressed={showDeleted}
-			class="h-10 w-10 p-0 flex items-center justify-center rounded-xl border transition-all active:scale-95 {!showDeleted
+			class="h-10 w-10 p-0 flex items-center justify-center rounded-(--admin-radius-input) border transition-all active:scale-95 {!showDeleted
 				? 'border-(--admin-border-default) bg-(--admin-bg-card)/80 text-surface-600 dark:text-surface-300 hover:bg-surface-200 dark:hover:bg-surface-700'
 				: 'border-error-500/80 bg-error-500/10 text-error-600 dark:text-error-400 ring-2 ring-error-500/30'}"
 		>
@@ -570,17 +570,21 @@
 				<span>{dynamicLabel}</span>
 			</Button>
 		{:else}
-			<!-- Split Action Button with Dropdown when entries are selected -->
-			<div class="flex items-center rounded-xl overflow-hidden border border-white/20 shadow-md">
+			<!-- Split Action Button + dropdown: one gradient surface, split by a white
+			     divider on the chevron's start edge. The chevron segment is black with
+			     white text, and the end stays square so the group reads as a segmented
+			     control, not a pill. `Button` sets an inline `border-radius`, so every
+			     radius here needs `!` or the theme token wins again. -->
+			<div
+				class="flex items-center overflow-hidden rounded-s-(--admin-radius-button) rounded-e-none border border-white/20 shadow-md transition-all duration-200 hover:brightness-110 {currentConfig.gradient}"
+			>
 				<Button
 					variant="ghost"
 					data-testid="entry-list-action-{currentAction}"
 					onclick={handleMainButtonClick}
 					disabled={isProcessing}
-					class="h-10 px-4 rounded-s-xl rounded-e-none font-semibold text-sm transition-all duration-200
-						active:scale-95
-						{currentConfig.gradient} {currentConfig.textColor}
-						flex items-center gap-2 border-e border-white/20
+					class="flex h-10 items-center gap-2 rounded-none! bg-transparent! px-4 text-sm font-semibold transition-all duration-200 focus-visible:ring-inset active:scale-95
+						{currentConfig.textColor}
 						disabled:opacity-50 disabled:cursor-not-allowed"
 					aria-label={dynamicLabel}
 					aria-busy={isProcessing}
@@ -593,25 +597,25 @@
 						<iconify-icon icon={currentConfig.icon} width="20"></iconify-icon>
 					{/if}
 					<span>{dynamicLabel}</span>
+					<!-- Selection count lives inside the button: the old absolutely
+					     positioned badge sat above the toolbar and was clipped at the
+					     viewport edge. -->
+					{#if selectedCount > 0}
+						<span
+							class="ms-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-black/25 px-1.5 text-[10px] font-bold leading-none text-white ring-1 ring-white/25"
+							data-testid="entry-list-multi-button-count"
+						>
+							{selectedCount}
+						</span>
+					{/if}
 				</Button>
 
-				<!-- Selection Badge -->
-				{#if selectedCount > 0}
-					<span
-						class="absolute -top-2 inset-s-3 flex h-5 min-w-5 items-center justify-center rounded-full bg-surface-900 border border-white/20 text-[10px] font-bold text-white shadow-xl z-20 px-1.5"
-						transition:scale={{ duration: 200, easing: quintOut }}
-					>
-						{selectedCount}
-					</span>
-				{/if}
-
-				<!-- Dropdown Toggle -->
+				<!-- Dropdown Toggle: black segment, white divider on its start edge. -->
 				<Button
 					variant="ghost"
 					onclick={toggleDropdown}
 					disabled={isProcessing}
-					class="h-10 w-9 rounded-e-xl rounded-s-none border-s border-white/20 transition-all duration-200 text-white flex items-center justify-center
-						{currentConfig.gradient} hover:brightness-110 active:scale-95 cursor-pointer"
+					class="flex h-10 w-9 shrink-0 cursor-pointer items-center justify-center rounded-none! border-s border-white bg-black! text-white! transition-all duration-200 hover:bg-surface-900! focus-visible:ring-inset active:scale-95"
 					aria-haspopup="menu"
 					aria-expanded={isDropdownOpen}
 					aria-label={entrylist_multibutton_toggle_menu()}
@@ -628,7 +632,7 @@
 		<!-- Dropdown Menu -->
 		{#if isDropdownOpen}
 			<div
-				class="absolute inset-e-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-surface-800/95 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
+				class="absolute inset-e-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl bg-black/95 shadow-2xl ring-1 ring-white/10 backdrop-blur-md"
 				role="menu"
 				aria-label={entrylist_multibutton_available_actions()}
 				transition:scale={{ duration: 150, easing: quintOut, start: 0.95, opacity: 0 }}
@@ -646,7 +650,7 @@
 									variant="ghost"
 									onclick={(e: MouseEvent) => handleOptionClick(e, config.type)}
 									role="menuitem"
-									class="group/item relative flex w-full items-center gap-3 rounded-lg px-3 py-2 text-start text-white transition-all duration-150 hover:bg-white/10"
+									class="group/item relative flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-start text-sm text-white transition-all duration-150 hover:bg-white/10"
 									aria-label="{config.label} {config.shortcut ? `(${config.shortcut})` : ''}"
 								>
 									<!-- Icon -->
@@ -664,9 +668,9 @@
 
 									<!-- Label & Shortcut -->
 									<div class="relative z-10 flex-1 min-w-0">
-										<div class="font-medium text-xs truncate">{config.label}</div>
+										<div class="font-semibold text-sm truncate">{config.label}</div>
 										{#if config.shortcut}
-											<div class="text-[10px] text-surface-400">{config.shortcut}</div>
+											<div class="text-xs text-surface-400">{config.shortcut}</div>
 										{/if}
 									</div>
 

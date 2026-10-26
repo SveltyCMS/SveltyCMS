@@ -1564,7 +1564,16 @@ export default defineConfig(() => {
       bundleBackgroundWorkerPlugin(),
       adapterNodeBuildPatchPlugin(),
       paraglideColdStartNoticePlugin(),
-      paraglideVitePlugin({ project: "./project.inlang", outdir: "./src/paraglide" }),
+      // One structure for every writer (dev, prod build, `bun run paraglide`).
+      // The plugin defaults to locale-modules in dev and message-modules in prod,
+      // while the CLI defaults to message-modules — running the CLI (or a build)
+      // against a live dev server then deleted the `de.js` the dev graph still
+      // imported (`Failed to load url ./de.js` → 500 on every admin page).
+      paraglideVitePlugin({
+        project: "./project.inlang",
+        outdir: "./src/paraglide",
+        outputStructure: "locale-modules",
+      }),
     ],
     // 🚀 SK3: aliases moved from the deprecated `config.alias` to plain Vite
     // resolve.alias (types are wired via `paths` in tsconfig.json). Vite needs
@@ -1573,6 +1582,13 @@ export default defineConfig(() => {
       alias: RESOLVED_ALIASES,
     },
     server: {
+      // The dev origin is pinned in several places (ORIGIN, CORS allowlist, E2E
+      // auth setup). Letting Vite silently move to 5174 starts a server the app
+      // does not trust — and a second instance doubles the watcher/optimizer work
+      // (measured: 2 s ready with one server, 19 s with two). Fail loudly instead;
+      // an intentional second port still works via `vite dev --port 5175`.
+      port: 5173,
+      strictPort: true,
       fs: { allow: ["static", "."], deny: ["**/tests/**"] },
       watch: {
         ignored: [

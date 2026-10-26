@@ -109,7 +109,10 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 		if (isCustomColor) return 'preset-custom';
 		switch (variant) {
 			case 'primary':
-				return 'preset-filled-primary-500 shadow-primary-500/20';
+				// Brand accent: tertiary blue in light, primary green in dark. The light
+				// fill is 600, not 500: white on tertiary-500 (#0378ef) is 4.25:1 and
+				// fails WCAG AA 4.5:1 (blocking Axe in the Auth & Branding / Media shards).
+				return 'preset-filled-tertiary-600 shadow-tertiary-600/20 dark:preset-filled-primary-500 dark:shadow-primary-500/20';
 			case 'secondary':
 				return 'preset-filled-secondary-500 shadow-secondary-500/20';
 			case 'tertiary':

@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:page-layout-header"
 author: "SveltyCMS Team"
 created: "2026-10-11"
-updated: "2026-10-11"
+updated: "2026-10-25"
 tags:
   - "ui"
   - "admin-page-shell"
@@ -80,20 +80,31 @@ Leave `animate` on. Add `in:adminStagger` on a grid of cards when a list should 
 | `navColor`        | favorite color      | theme default | Tailwind background class for this route's FloatingNav spoke when a user favorites it.       |
 | `children`        | snippet             | —             | The page body.                                                                               |
 
+## Anatomy of a data page
+
+A page with tabs and a table reads top to bottom as one column, and the rule does the separating:
+
+1. **`PageTitle`** from the shell. The description belongs here; an intro paragraph inside the card pushes the tab row down and makes the page look unlike its siblings.
+2. **Tab row** — tabs plus the trailing action, with the rule spanning the whole row (`TAB_ROW`) or the strip (`TAB_STRIP`). The active tab owns a 2px accent underline; pages do not declare their own tab classes. Props and tokens: [Tabs](./primitives.mdx#tabs).
+3. **Toolbar band** — search, filter, column picker, saved views, metrics, facet chips, and the row action in one `SMART_TABLE_TOOLBAR` row (`my-4`, `justify-between`).
+4. **Table** — `SmartTableShell` is the only scroller. With `fullHeight` on the shell the page never scrolls; the table body does.
+
+`/user` (management), `/config/queue`, `/config/access-management`, and `/config/design-system` follow this order. A change to one that does not is a layout bug, not a variant — fix the page instead of adding a fourth tab dialect or a second scroller.
+
 ## AdminCard
 
 `AdminCard` (`src/components/admin-card.svelte`) is the content surface. It reads `getThemeContext()` and paints the **card** role, which sits above the page canvas.
 
-On the default path (no `variant`, no `preset`) the root is a `div.card` with inline style:
+On the default path (no `variant`, no `preset`) the root is `div.card.rounded` with inline style:
 
-| Property     | Token                    | Theme variant effect                                                                                        |
-| :----------- | :----------------------- | :---------------------------------------------------------------------------------------------------------- |
-| Background   | `--admin-bg-card`        | Follows light and dark.                                                                                     |
-| Text         | `--admin-text-body`      | Follows light and dark.                                                                                     |
-| Radius       | `--admin-radius-card`    | Follows density (compact, cozy, spacious).                                                                  |
-| Border color | `--admin-border-default` | —                                                                                                           |
-| Border width | `theme.cardBorder`       | `0` when the theme variant is `flat`. Otherwise `--admin-border-width`.                                     |
-| Shadow       | `theme.cardShadow`       | `none` when `flat`. A soft elevation shadow when `bordered` (the default). A larger shadow when `elevated`. |
+| Property     | Token                               | Theme variant effect                                                                                        |
+| :----------- | :---------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| Background   | `--admin-bg-card`                   | Follows light and dark.                                                                                     |
+| Text         | `--admin-text-body`                 | Follows light and dark.                                                                                     |
+| Radius       | `--radius` (`--admin-radius-input`) | The `rounded` utility keeps the compact card radius token-driven and density-aware.                         |
+| Border color | `--admin-border-default`            | —                                                                                                           |
+| Border width | `theme.cardBorder`                  | `0` when the theme variant is `flat`. Otherwise `--admin-border-width`.                                     |
+| Shadow       | `theme.cardShadow`                  | `none` when `flat`. A soft elevation shadow when `bordered` (the default). A larger shadow when `elevated`. |
 
 A `flat` theme therefore has no shadow and no border. `hover:shadow-lg` on the card paints a shadow the theme just removed. Put padding on the card with `class` (`class="p-4"`). Nest a second `AdminCard` when a block inside the page needs its own surface.
 
@@ -154,6 +165,16 @@ That path renders `Card` from `@components/ui` and **does not** apply the inline
 The header `Button` with `href` is a link. The save `Button` is a submit control associated with the form by `form="general-form"`, because the action sits outside the `<form>`.
 
 Wide tables inside the card need `class="overflow-x-auto"` on a wrapper. Touch targets on actions stay at least 40px: `Button` size `md` (the default) is 40px tall; `sm` is 32px and is for dense toolbars.
+
+## Plugin workspaces
+
+A plugin that declares a `plugin_workspace` slot (Smart Importer, Unified Data Hub) is rendered by `PluginWorkspaceOverlay` **inside the shell's `<main>`**, not over the viewport:
+
+- The overlay is `absolute inset-0 z-30` against the `relative` `<main>`, so the left and right sidebars stay visible and usable — the same contract as Media Gallery and the Collection Builder.
+- While a workspace is open, the underlying page content and the sticky action bar are unmounted, so the workspace title is the only `<h1>` on screen and nothing behind it is focusable.
+- `?plugin=<id>` is the source of truth: the overlay syncs the store with `page.url` on navigation, which is what makes the shell's back button (`goto('/config')`) actually close it.
+
+Don't wrap a plugin workspace in a second `AdminPageShell` that also owns the page title — pick one owner. See `src/components/system/plugin-workspace-overlay.svelte` and `src/routes/(app)/+layout.svelte`.
 
 ## Next steps
 

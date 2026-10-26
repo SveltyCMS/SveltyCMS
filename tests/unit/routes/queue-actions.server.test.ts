@@ -75,5 +75,12 @@ describe("queue-actions.server", () => {
       expect(result).toEqual({ success: true, count: 3 });
       expect(cleanupMock).toHaveBeenCalled();
     });
+
+    it("scopes the sweep to the request tenant", async () => {
+      // The adapter deletes `completed` rows only; the tenant filter keeps a
+      // tenant admin from clearing another tenant's history.
+      await clearCompleted();
+      expect(cleanupMock).toHaveBeenCalledWith(expect.any(Date), { tenantId: "test-tenant-id" });
+    });
   });
 });

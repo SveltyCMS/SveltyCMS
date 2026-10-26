@@ -45,14 +45,21 @@
 	import { obj2formData } from '@utils/form.svelte';
 	import { registerHotkey } from '@src/utils/hotkeys';
 	import { onMount, onDestroy, untrack } from 'svelte';
+	// Programmatic re-submit (`fetch('?/save', …)`) must decode the action's devalue
+	// envelope; `deserialize` is the only supported decoder, and remote functions
+	// cannot express "resubmit the same payload with confirmDeletions".
+	// oxlint-disable-next-line eslint/no-restricted-imports
+	import { deserialize } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import type { MigrationPlan } from '@src/services/core/migration-engine';
 	import CollectionForm from './tabs/collection-form.svelte';
 	import CollectionWidget from './tabs/collection-widget.svelte';
 	import CollectionPermissions from './tabs/collection-permissions.svelte';
 	import { validateMinimumCollectionFields } from '../../collectionbuilder-utils';
 	import Tabs from '@src/components/ui/tabs.svelte';
 	import Button from '@components/ui/button.svelte';
+	import { TAB_RULE } from '@components/ui/tabs/chrome';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 
 	const action = $derived(page.params.action);
@@ -245,6 +252,37 @@
 		ui.toggle('pagefooter', 'hidden');
 	});
 
+	type CollectionSaveData = {
+		driftDetected?: boolean;
+		plan?: MigrationPlan;
+		contentVersion?: string;
+		changedIds?: string[];
+		error?: string;
+		message?: string;
+	};
+
+	/** Escape server-provided plan text before it is injected into the sanitized modal body. */
+	const HTML_ESCAPES: Record<string, string> = {
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#39;'
+	};
+	function escapeHtml(value: string): string {
+		return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char] ?? char);
+	}
+
+	/** Compact human-readable rendering of the returned migration plan. */
+	function buildMigrationPlanBody(plan?: MigrationPlan): string {
+		if (!plan) return 'Review the planned schema changes before saving.';
+		const changes = plan.changes.map((change) => escapeHtml(change.message));
+		const impact = plan.impact.dataLossPotential
+			? `<strong>This migration can destroy data.</strong> ${plan.impact.documentsAffected} existing document(s) affected.`
+			: `${plan.impact.documentsAffected} existing document(s) affected.`;
+		return ['Review the planned schema changes before saving:', ...changes, impact].join('<br>');
+	}
+
 	async function handleCollectionSave(confirmDeletions = false) {
 		// Clear stale validation errors so the save can proceed after
 		// the user has corrected field values (e.g. name validation from
@@ -285,7 +323,7 @@
 		try {
 			isLoading = true;
 			// Ensure fields always serializes as JSON array for the server action
-			const payload = {
+			const payload: Record<string, unknown> = {
 				originalName,
 				...collections.active,
 				name,
@@ -298,35 +336,59 @@
 						.replace(/\s+/g, '-')
 						.replace(/[^a-z0-9-]/g, '')
 			};
-			if (confirmDeletions) (payload as any).confirmDeletions = 'true';
+			if (confirmDeletions) payload.confirmDeletions = 'true';
 
 			const response = await fetch('?/saveCollection', {
 				method: 'POST',
-				body: obj2formData(payload as Record<string, unknown>)
+				body: obj2formData(payload)
 			});
 
-			const result = await response.json().catch(() => ({}) as any);
-			// SvelteKit action wrappers: prefer nested data.status when present
-			const status =
-				typeof result?.data?.status === 'number'
-					? result.data.status
-					: typeof result?.status === 'number'
-						? result.status
-						: response.ok
-							? 200
-							: response.status;
-			const actionError =
-				result?.data?.error || result?.error || result?.data?.message || result?.message;
+			// SvelteKit serializes action data with devalue: `response.json()` leaves
+			// `data` as an opaque string, so the returned migration plan (and failures)
+			// never reached the UI. `deserialize` decodes it with the framework codec.
+			const result = deserialize<CollectionSaveData, CollectionSaveData>(await response.text());
 
-			if (status === 202 || result?.data?.driftDetected || result?.driftDetected) {
-				toast.warning('Schema drift detected — confirm deletions and save again');
+			if (result.type === 'redirect') {
+				await goto(result.location, { refreshAll: false, reset: false });
+				return;
+			}
+			if (result.type === 'error') {
+				const message =
+					typeof result.error?.message === 'string' && result.error.message
+						? result.error.message
+						: 'Failed to save collection';
+				logger.error('Save failed', message);
+				toast.error(message);
 				return;
 			}
 
-			if (!response.ok || (status >= 400 && status !== 202)) {
+			const actionData = result.data;
+			if (actionData?.driftDetected) {
+				// The save is blocked until the user explicitly approves the plan.
+				if (confirmDeletions) {
+					logger.error('Save blocked again after migration confirmation', actionData.plan);
+					toast.error('Schema migration could not be applied');
+					return;
+				}
+				const confirmed = await showConfirm({
+					title: 'Schema migration required',
+					body: buildMigrationPlanBody(actionData.plan),
+					confirmText: 'Apply migration & save',
+					theme:
+						actionData.plan?.risk === 'destructive'
+							? { color: 'error', variant: 'filled' }
+							: { color: 'warning', variant: 'filled' }
+				});
+				if (confirmed) {
+					await handleCollectionSave(true);
+				}
+				return;
+			}
+
+			if (result.type === 'failure') {
 				const msg =
-					typeof actionError === 'string' && actionError
-						? actionError
+					typeof actionData?.error === 'string' && actionData.error
+						? actionData.error
 						: 'Failed to save collection';
 				logger.error('Save failed', msg);
 				toast.error(msg);
@@ -527,7 +589,7 @@
 
 	<!-- Tab Navigation -->
 	<div
-		class="z-20 shrink-0 border-b border-surface-500/30 bg-(--admin-bg-card) px-4 pt-2 pb-2 dark:border-surface-500/40 shadow-xs"
+		class="z-20 shrink-0 {TAB_RULE} bg-(--admin-bg-card) px-4 pt-2 shadow-xs"
 		data-testid="collection-editor-tabs"
 	>
 		<div class="flex items-center justify-between gap-4">
@@ -536,6 +598,7 @@
 				bind:activeTab
 				onTabChange={(tabId: string) => goToTab(tabId)}
 				variant="underline"
+				bordered={false}
 			/>
 			<div class="flex items-center gap-3 shrink-0">
 				{#if activeTab === 'widgets'}

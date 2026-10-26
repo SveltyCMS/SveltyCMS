@@ -32,15 +32,15 @@
 	];
 
 	const total = $derived(Object.values(facets).reduce((a: number, b) => a + (Number(b) || 0), 0));
-	const hasAny = $derived(total > 0 || Object.keys(facets).length > 0);
+	// Empty collections often arrive as `{ publish: 0, draft: 0, … }` — keys with no
+	// entries. Rendering the group then showed a lone "ALL" chip above an empty
+	// table, which looked like an unexplained control. Hide it unless there is
+	// something to filter (or an active status filter to clear).
+	const hasAny = $derived(total > 0 || Boolean(active));
 </script>
 
 {#if hasAny}
-	<div
-		class="flex flex-wrap items-center gap-1.5 px-1 py-1"
-		role="group"
-		aria-label="Filter by status"
-	>
+	<div class="flex flex-wrap items-center gap-1.5 py-1" role="group" aria-label="Filter by status">
 		<button
 			type="button"
 			class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors
@@ -48,6 +48,8 @@
 				? 'bg-tertiary-500 text-white dark:bg-surface-500'
 				: 'bg-surface-500/10 text-surface-600 hover:bg-surface-200 dark:bg-surface-800 dark:text-surface-300'}"
 			aria-pressed={!active}
+			aria-label="All statuses"
+			title="Show entries with any status"
 			onclick={() => onSelect('')}
 		>
 			All{#if total > 0}<span class="ms-1 opacity-80">({total})</span>{/if}

@@ -17,6 +17,7 @@ New Features:
 	import type { WidgetSize } from '@src/content/types';
 	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
+	import { getThemeContext } from '@components/ui/theme-context.svelte';
 	import type { Snippet } from 'svelte';
 	import { shouldFetchOnVisibility, shouldSkipScheduledPoll } from './widget-runtime';
 	import {
@@ -87,6 +88,9 @@ New Features:
 	let internalData = $state(undefined);
 	let lastFetchTime = $state<number>(0);
 	let currentRetry = $state(0);
+
+	/** Variant-aware chrome (flat/bordered/elevated) — same source as `AdminCard`. */
+	const themeCtx = getThemeContext();
 
 	$effect(() => {
 		if (passedInitialData !== undefined) {
@@ -401,12 +405,14 @@ New Features:
 
 <article
 	bind:this={widgetEl}
-	class="widget-base-container group relative flex h-full flex-col rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) shadow-sm transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200 dark:text-surface-50 dark:bg-surface-800"
+	class="widget-base-container group relative flex h-full flex-col border-solid border-(--admin-border-default) transition-all duration-150 focus-within:ring-2 focus-within:ring-primary-200"
 	aria-labelledby="widget-title-{widgetId || label}"
-	style="overflow: visible;"
+	style="overflow: visible; border-radius: var(--admin-radius-card, 0.75rem); border-width: {themeCtx?.cardBorder ??
+		'var(--admin-border-width, 1px)'}; box-shadow: {themeCtx?.cardShadow ??
+		'var(--admin-shadow-elevation, 0 1px 3px 0 rgb(0 0 0 / 0.1))'}; background-color: var(--admin-bg-card, var(--color-surface-50)); color: var(--admin-text-body, var(--color-surface-900));"
 >
 	<header
-		class="widget-header flex cursor-grab items-center justify-between border-b border-surface-500/20 bg-(--admin-bg-card,var(--color-surface-50)) py-2 ps-4 pe-2 dark:text-surface-50 dark:bg-surface-800"
+		class="widget-header flex cursor-grab items-center justify-between border-b border-(--admin-border-default) py-2 ps-4 pe-2"
 		style="touch-action: none; overflow: visible; position: relative; z-index: 10;"
 	>
 		<div class="flex flex-1 flex-col gap-0.5">
@@ -463,7 +469,7 @@ New Features:
 				</Button>
 				{#if showSizeMenu}
 					<div
-						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-surface-500/30 bg-(--admin-bg-card,var(--color-surface-50)) py-1 shadow-xl dark:text-surface-50 dark:bg-surface-800"
+						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) py-1 shadow-(--admin-shadow-elevated)"
 						style="z-index: 9999; position: absolute;"
 					>
 						{#each availableSizes as s (s.w + 'x' + s.h)}
@@ -499,7 +505,7 @@ New Features:
 		</div>
 	</header>
 	<section
-		class="widget-body relative min-h-12.5 flex-1 bg-(--admin-bg-card,var(--color-surface-50)) px-3 pb-2 dark:bg-surface-800"
+		class="widget-body relative min-h-12.5 flex-1 px-3 pb-2"
 		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
 		<div aria-live="polite" class="contents">

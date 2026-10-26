@@ -5,6 +5,7 @@
  *
  * ### Features:
  * - Tenant-scoped redirect MV lookups with negative caching
+ * - Exact-path match first, then cached regex-pattern rules (save-time ReDoS guard)
  * - In-flight coalescing to prevent stampede under cold cache
  * - Buffered 404 hit logging with atomic upsert flush and delta-safe drain
  * - Content-system existence checks for language-prefixed collection paths
@@ -20,6 +21,10 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getRequestFlags } from "@utils/hook-utils";
 import { locales } from "@src/paraglide/runtime";
+import { findRegexRedirect } from "@src/routes/(app)/config/redirects/redirects-utils";
+
+/** Pattern rules are cached in-process per tenant; saves invalidate the entry. */
+const REGEX_RULE_CACHE_TTL_MS = 60_000;
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
 let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
@@ -131,6 +136,9 @@ function scheduleFlush() {
 }
 
 class RedirectIndexService {
+  /** Cached active pattern rules per tenant (bounded by rule count, not path count). */
+  private regexRules = new Map<string, { at: number; rows: any[] }>();
+
   async getRedirects(
     tenantId: string,
     path: string,
@@ -163,6 +171,37 @@ class RedirectIndexService {
         error: { code: "QUERY_FAILED", message: err.message },
       };
     }
+  }
+
+  /**
+   * Active `isRegex` rows for a tenant. Cached briefly because a miss on every
+   * unmatched URL would otherwise re-query the MV on each request.
+   */
+  async getRegexRules(tenantId: string): Promise<any[]> {
+    const cached = this.regexRules.get(tenantId);
+    if (cached && Date.now() - cached.at < REGEX_RULE_CACHE_TTL_MS) return cached.rows;
+
+    const db = getDb();
+    if (!db) return [];
+
+    try {
+      const result = await db.crud.findMany<any>(
+        "redirectsMV",
+        { tenantId, active: true, isRegex: true } as any,
+        { tenantId: tenantId as DatabaseId },
+      );
+      const rows = result.success ? (result.data ?? []) : [];
+      this.regexRules.set(tenantId, { at: Date.now(), rows });
+      return rows;
+    } catch (err) {
+      logger.error("[Redirects] Pattern rule lookup failed:", err);
+      return [];
+    }
+  }
+
+  clearRegexRules(tenantId?: string): void {
+    if (tenantId) this.regexRules.delete(tenantId);
+    else this.regexRules.clear();
   }
 }
 
@@ -220,8 +259,18 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
       }
 
       const match = await dbPromise;
-      if (match) {
-        redirectEntry = match;
+      let resolved = match;
+
+      // Exact paths always win; only then evaluate pattern rules for the tenant.
+      if (!resolved) {
+        const patterns = await redirectIndexService.getRegexRules(tenantId);
+        resolved = findRegexRedirect(path, patterns, (row) =>
+          String(row?.source ?? row?.from ?? ""),
+        );
+      }
+
+      if (resolved) {
+        redirectEntry = resolved;
         hasRedirect = true;
         await cacheService.set(cacheKey, redirectEntry, 3600, tenantId, CacheCategory.API);
       } else {
@@ -353,5 +402,6 @@ function applyRedirect(requestUrl: URL, redirect: any) {
 }
 
 export function invalidateRedirectCache(tenantId: string) {
+  redirectIndexService.clearRegexRules(tenantId);
   cacheService.clearByPattern("redirect:", tenantId);
 }

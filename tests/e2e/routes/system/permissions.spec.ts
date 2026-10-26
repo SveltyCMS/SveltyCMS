@@ -15,6 +15,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { toggleCheckbox } from "../../helpers/checkbox";
 
 /** Extract role metadata (ID, name, isAdmin) from the Roles tab DOM. */
 async function scrapeRoleMetadata(page: import("@playwright/test").Page) {
@@ -235,15 +236,9 @@ test.describe("Permission Management Flow", () => {
     for (let i = 0; i < toToggle; i++) {
       const cb = toggleableCheckboxes.nth(i);
       before.set(i, await cb.isChecked());
-      // No force: an obscured permission checkbox is a real admin-UI regression.
-      await cb.click({ timeout: 5_000 });
-      // Verify the toggle actually changed the checkbox state
-      await expect
-        .poll(async () => (await cb.isChecked()) !== before.get(i), {
-          timeout: 10_000,
-          message: `Checkbox ${i} did not toggle — state remained ${before.get(i)}`,
-        })
-        .toBe(true);
+      // The shared <Checkbox> input is sr-only — toggleCheckbox clicks its
+      // visible label (a direct input click fails Playwright's hit-target check).
+      await toggleCheckbox(cb);
     }
 
     // ── Save via direct API call ──
@@ -342,13 +337,7 @@ test.describe("Permission Management Flow", () => {
       const cb = restoreCheckboxes.nth(i);
       const wantChecked = before.get(i) ?? false;
       if ((await cb.isChecked()) !== wantChecked) {
-        await cb.click({ force: true, timeout: 5_000 });
-        await expect
-          .poll(async () => (await cb.isChecked()) === wantChecked, {
-            timeout: 10_000,
-            message: `Restore: checkbox ${i} did not return to ${wantChecked}`,
-          })
-          .toBe(true);
+        await toggleCheckbox(cb);
       }
     }
 

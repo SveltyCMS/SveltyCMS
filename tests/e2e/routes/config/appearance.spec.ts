@@ -6,7 +6,7 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { seedCookieConsent } from "../../helpers/cookie-consent";
 
 async function openOverrides(page: Page): Promise<void> {
@@ -20,6 +20,11 @@ async function openOverrides(page: Page): Promise<void> {
   }
   await expect(page).toHaveURL(/\/config\/design-system/, { timeout: 15_000 });
   await expect(page).not.toHaveURL(/\/login/);
+  // The overrides panel and its #layout-pref-* selects exist in the SSR HTML
+  // before Svelte binds them. A selectOption() in that window is overwritten
+  // by the hydration-time value assignment (CI: value reverted to the
+  // persisted "hidden" and toHaveValue never saw "full").
+  await waitForHydration(page);
 
   const title = page.getByTestId("page-title");
   if (await title.isVisible({ timeout: 10_000 }).catch(() => false)) {

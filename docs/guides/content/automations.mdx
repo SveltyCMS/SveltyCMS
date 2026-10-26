@@ -90,6 +90,9 @@ All text fields in operations support **token placeholders** for dynamic values:
 
 Navigate to **Config → Automations** and click **New Automation**.
 
+> [!NOTE]
+> New automations open with a **How automations work** panel and per-step guidance. **Next** stays disabled until the step is valid — a name plus at least one event (or a cron expression) on step 1, and at least one operation on step 2 — and the missing requirement is spelled out below the editor.
+
 - Enter a descriptive **name** (e.g., "Notify editors on publish")
 - Select the **trigger type** (Event Hook, Schedule, or Manual)
 - For event triggers, check the **specific events** you want to react to
@@ -109,7 +112,10 @@ Operations execute **in order**. Reorder them using the up/down arrows, or remov
 
 ### Step 3: Preview & Test
 
-Review your complete flow summary and run a **test execution** with mock data. The test result shows per-operation status, duration, and any errors.
+Review your complete flow summary and run a **test execution** with a mock payload. The test result shows per-operation status, duration, and any errors.
+
+> [!WARNING]
+> A test executes the configured operations **for real** — webhooks are sent and emails are queued. Point test flows at a safe endpoint or temporarily disable the flow. New automations must be created before they can be tested.
 
 ---
 

@@ -101,7 +101,7 @@ describe("saveContentStructure", () => {
 
     const result = await saveContentStructure(makeEvent(), null as never);
 
-    expect(result).toMatchObject({ status: 400, data: { message: "Invalid operations" } });
+    expect(result).toMatchObject({ success: false, status: 400, message: "Invalid operations" });
     expect(executeGuiStructureSave).not.toHaveBeenCalled();
   });
 
@@ -117,8 +117,9 @@ describe("saveContentStructure", () => {
     ]);
 
     expect(result).toMatchObject({
+      success: false,
       status: 400,
-      data: { message: "A category needs a name before it can be saved." },
+      message: "A category needs a name before it can be saved.",
     });
     expect(executeGuiStructureSave).not.toHaveBeenCalled();
   });
@@ -135,8 +136,9 @@ describe("saveContentStructure", () => {
     ]);
 
     expect(result).toMatchObject({
+      success: false,
       status: 400,
-      data: { message: "A structure node needs a path before it can be saved." },
+      message: "A structure node needs a path before it can be saved.",
     });
     expect(executeGuiStructureSave).not.toHaveBeenCalled();
   });

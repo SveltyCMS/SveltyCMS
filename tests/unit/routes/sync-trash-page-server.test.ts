@@ -16,8 +16,9 @@ describe("sync +page.server", () => {
       locals: { user: { _id: "u1", email: "a@b.co" }, isAdmin: true },
     } as any);
     // Contract: the page no longer shadows page.data.user (partial shapes broke
-    // floatingNavStore.bindUser) — admin access resolves with an empty payload.
-    expect(data).toEqual({});
+    // floatingNavStore.bindUser) — admin access resolves with only the drift status.
+    expect(data).not.toHaveProperty("user");
+    expect(data).toHaveProperty("status");
   });
 
   it("throws 403 for non-admin", async () => {

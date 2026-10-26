@@ -35,41 +35,92 @@ interface E2eMatrix {
 }
 
 /**
- * Named groups — Playwright --grep matches file path + title.
- * Keep anchors path-based so unrelated specs (e.g. "journey" in user/p0) don't leak.
+ * Named groups — Playwright's `--grep` matches the spec path (relative to
+ * `testDir`, OS-separated) followed by every describe/test title.
+ *
+ * Two rules keep this a true partition:
+ * 1. Anchor on the **path**, not on loose words — a title mentioning "dashboard"
+ *    or "rbac" used to pull eleven specs into a second shard.
+ * 2. Never match `/` only — Windows hands Playwright `routes\config\...`, so a
+ *    slash-only pattern silently selects zero tests and the shard looks green.
+ *
+ * `tests/unit/ci/e2e-matrix-partition.test.ts` fails the fast tier when a spec
+ * matches zero groups (silently never runs) or two (runs twice).
+ *
+ * Groups are sized for a 3-minute shard budget: setup (~45 s) + boot (~3 s) leaves
+ * ~100 s of test time, so the 14-spec Config group was split rather than left to
+ * drift.
  */
+/** Path separator as either slash form. */
+const S = "[\\\\/]";
+
+/** Any run of characters inside a single path segment (no separator). */
+const SEG = "[^\\\\/]*";
+
+/** Start of the haystack or a space — top-level specs have no `routes/` prefix. */
+const TOP = "(?:^|\\s)";
+
+/** Files owned by the "Config — Ops & Extensions" shard (kept in one place so the
+ * split stays a partition). New config specs fall into "Config & System" by
+ * default instead of silently matching nothing. */
+const CONFIG_OPS = "extensions|operations|redirects|route-breadth|unified-hub|webhooks|workflows";
+
 export const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   {
     name: "Config & System",
-    grep: "(routes/config/|config/|operations|system-settings|monitor|queue|extensions|unified-hub|workflows)",
+    grep: `routes${S}config${S}(?!${SEG}(${CONFIG_OPS})\\.spec)`,
+  },
+  {
+    name: "Config — Ops & Extensions",
+    grep: `routes${S}config${S}${SEG}(${CONFIG_OPS})\\.spec`,
   },
   {
     name: "Builder & Content",
-    grep: "(routes/collection-builder/|content-smoke|empty-state|structure-persistence|federation)",
+    grep: `(routes${S}collection-builder${S}|${TOP}smoke\\.spec\\.ts)`,
   },
   {
+    // Split from one shard: five specs did not fit the 6-minute job ceiling
+    // (cancelled at 6m33s on b6aeab94e, before any test change). Two shards keep
+    // each well inside the budget without raising the timeout.
     name: "Users & Profile",
-    grep: "(routes[\\\\/]user[\\\\/](account-smoke|profile|session-revocation|token-actions|management)|account-smoke|session-revocation|token-actions)",
+    grep: `routes${S}user${S}(account-smoke|profile)${SEG}\\.spec`,
+  },
+  {
+    // Rebalanced after measurement: three specs at ~2.2 min each still exceeded the
+    // 6-minute job ceiling (cancelled at 6m31s), while the sibling shard finished in
+    // 2 min. `management` joins Users & Profile; two specs remain here.
+    name: "User Accounts & Sessions",
+    grep: `routes${S}user${S}(session-revocation|token-actions)${SEG}\\.spec`,
+  },
+  {
+    // `management` alone costs ~4.4 min (measured: account-smoke+profile = 2 min,
+    // both shards that included management were cancelled at 6m26s / 6m31s), so it
+    // gets its own shard instead of dragging a neighbour over the ceiling.
+    name: "User Management",
+    grep: `routes${S}user${S}management${SEG}\\.spec`,
   },
   {
     name: "RBAC & Enforcement",
-    grep: "(routes[\\\\/]system[\\\\/](permissions|rbac|permission-enforcement)|rbac)",
+    grep: `routes${S}system${S}(permissions|rbac|permission-enforcement)\\.spec`,
   },
   {
     name: "User Journeys",
-    grep: "(routes[\\\\/]user[\\\\/](coverage-100|p0-journeys|complete-coverage)|coverage-100|p0-journeys|complete-coverage)",
+    grep: `routes${S}user${S}(coverage-100|p0-journeys|complete-coverage)\\.spec`,
   },
   {
     name: "Media & Dashboard",
-    grep: "(routes/mediagallery/|routes/dashboard/|image-editor|mediagallery|dashboard)",
+    // The dashboard axe audit belongs to Auth & Branding (the a11y shard).
+    grep: `routes${S}(mediagallery${S}|dashboard${S}(?!accessibility\\.spec))`,
   },
   {
     name: "Auth & Branding",
-    grep: "(routes/login/branding|routes/login/accessibility|routes/login/extended-auth|routes/admin-theme/|accessibility\\.spec|branding|visual-regression|routes/system/language)",
+    grep: `(${TOP}accessibility\\.spec\\.ts|routes${S}dashboard${S}accessibility\\.spec\\.ts|routes${S}login${S}(branding|accessibility|extended-auth)\\.spec|routes${S}admin-theme${S}|routes${S}system${S}language\\.spec)`,
   },
   {
     name: "Admin & Catch-All",
-    grep: "(routes/admin/|routes/system/settings|routes/system/hooks-lane-smoke|admin/tenants|catch-all|isolation|routes/site/|multi-tenancy)",
+    // `routes/meta` holds cross-cutting contracts (hydration marker/gate) — it
+    // matches no other group, so without this the spec would never run in CI.
+    grep: `(${TOP}(browser-vitality|layout-shift)\\.spec|multi-tenancy${S}|routes${S}admin${S}|routes${S}meta${S}|routes${S}site${S}|routes${S}system${S}(settings|hooks-lane-smoke)\\.spec)`,
   },
 ];
 

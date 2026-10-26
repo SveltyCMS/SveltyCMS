@@ -7,6 +7,8 @@
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
+	import SystemTooltip from '@components/system/system-tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -33,6 +35,16 @@
 		api_gql_run,
 		api_gql_running,
 		api_gql_variables,
+		api_help_body,
+		api_help_copy_code,
+		api_help_endpoint,
+		api_help_gql_query,
+		api_help_gql_result,
+		api_help_gql_variables,
+		api_help_method,
+		api_help_presets,
+		api_help_response,
+		api_help_snippet_language,
 		api_openapi_spec,
 		api_playground_title,
 		api_quick_presets,
@@ -46,7 +58,8 @@
 		api_snippet_typescript,
 		api_status_label,
 		api_system_version,
-		api_tenant_label
+		api_tenant_label,
+		api_vqb_help_collection
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -269,6 +282,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	});
 </script>
 
+<!-- Field help: the `?` icon is the only tooltip trigger; labels stay inert. -->
+{#snippet helpTrigger(text: string, label: string)}
+	<SystemTooltip title={text}>
+		<HelpIcon ariaLabel={`Help: ${label}`} tabindex={0} />
+	</SystemTooltip>
+{/snippet}
+
 <AdminPageShell
 	title={api_playground_title()}
 	description="Test REST and GraphQL endpoints directly with active session credentials"
@@ -323,7 +343,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 				<div class="space-y-4">
 					<!-- Method + Endpoint Bar -->
-					<div class="flex gap-2">
+					<div class="flex items-center gap-1.5">
 						<div class="w-28">
 							<Select
 								value={restMethod}
@@ -334,14 +354,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 								onchange={(val: string) => (restMethod = val as 'GET' | 'POST')}
 							/>
 						</div>
+						{@render helpTrigger(api_help_method(), 'HTTP method')}
 						<div class="flex-1">
 							<Input bind:value={restEndpoint} placeholder={api_endpoint_placeholder()} />
 						</div>
+						{@render helpTrigger(api_help_endpoint(), 'Endpoint')}
 					</div>
 
 					<!-- Presets for fast testing -->
 					<div class="flex flex-wrap items-center gap-1.5">
-						<span class="text-xs text-surface-500">{api_quick_presets()}</span>
+						<span class="inline-flex items-center gap-1.5 text-xs text-surface-500">
+							{api_quick_presets()}
+							{@render helpTrigger(api_help_presets(), 'Quick presets')}
+						</span>
 						<Button
 							type="button"
 							variant="ghost"
@@ -382,9 +407,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 					<!-- Request Body (for POST) -->
 					{#if restMethod === 'POST'}
 						<div class="space-y-1">
-							<label for="rest-body-input" class="block text-xs font-medium text-surface-500">
-								{api_request_body()}
-							</label>
+							<div class="flex items-center gap-1.5">
+								<label for="rest-body-input" class="block text-xs font-medium text-surface-500">
+									{api_request_body()}
+								</label>
+								{@render helpTrigger(api_help_body(), api_request_body())}
+							</div>
 							<Textarea
 								id="rest-body-input"
 								value={restBody}
@@ -416,8 +444,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<!-- Response Viewer -->
 			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
+					<h3
+						class="flex items-center gap-1.5 text-base font-semibold text-surface-900 dark:text-surface-50"
+					>
 						{api_response()}
+						{@render helpTrigger(api_help_response(), api_response())}
 					</h3>
 					<div class="flex items-center gap-2">
 						{#if restStatus !== null}
@@ -480,9 +511,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 				<div class="space-y-4">
 					<div class="space-y-1">
-						<label for="gql-query-input" class="block text-xs font-medium text-surface-500">
-							{api_gql_operation()}
-						</label>
+						<div class="flex items-center gap-1.5">
+							<label for="gql-query-input" class="block text-xs font-medium text-surface-500">
+								{api_gql_operation()}
+							</label>
+							{@render helpTrigger(api_help_gql_query(), api_gql_operation())}
+						</div>
 						<Textarea
 							id="gql-query-input"
 							value={gqlQuery}
@@ -493,9 +527,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</div>
 
 					<div class="space-y-1">
-						<label for="gql-vars-input" class="block text-xs font-medium text-surface-500">
-							{api_gql_variables()}
-						</label>
+						<div class="flex items-center gap-1.5">
+							<label for="gql-vars-input" class="block text-xs font-medium text-surface-500">
+								{api_gql_variables()}
+							</label>
+							{@render helpTrigger(api_help_gql_variables(), api_gql_variables())}
+						</div>
 						<Textarea
 							id="gql-vars-input"
 							value={gqlVariables}
@@ -536,8 +573,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<!-- Response Viewer -->
 			<AdminCard class={cardClass}>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
+					<h3
+						class="flex items-center gap-1.5 text-base font-semibold text-surface-900 dark:text-surface-50"
+					>
 						{api_gql_result()}
+						{@render helpTrigger(api_help_gql_result(), api_gql_result())}
 					</h3>
 					<div class="flex items-center gap-2">
 						{#if gqlStatus !== null}
@@ -601,7 +641,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				<div class="flex flex-wrap items-center gap-3">
 					<!-- Target Collection -->
 					<div class="flex items-center gap-2">
-						<span class="text-xs text-surface-500">{api_collection_label()}</span>
+						<span class="inline-flex items-center gap-1.5 text-xs text-surface-500">
+							{api_collection_label()}
+							{@render helpTrigger(api_vqb_help_collection(), api_collection_label())}
+						</span>
 						<Select
 							value={selectedCollection}
 							options={data.collections.map((col) => ({ value: col.id, label: col.name }))}
@@ -610,16 +653,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 					</div>
 
 					<!-- Language Selector -->
-					<SegmentedControl
-						name="snippet-language"
-						bind:value={selectedSnippetType}
-						options={[
-							{ label: api_snippet_typescript(), value: 'typescript' },
-							{ label: api_snippet_localcms(), value: 'localcms' },
-							{ label: api_snippet_curl(), value: 'curl' },
-							{ label: api_snippet_python(), value: 'python' }
-						]}
-					/>
+					<div class="flex items-center gap-1.5">
+						<SegmentedControl
+							name="snippet-language"
+							bind:value={selectedSnippetType}
+							options={[
+								{ label: api_snippet_typescript(), value: 'typescript' },
+								{ label: api_snippet_localcms(), value: 'localcms' },
+								{ label: api_snippet_curl(), value: 'curl' },
+								{ label: api_snippet_python(), value: 'python' }
+							]}
+						/>
+						{@render helpTrigger(api_help_snippet_language(), 'Snippet language')}
+					</div>
 				</div>
 			</div>
 
@@ -627,7 +673,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			<div
 				class="relative rounded-lg border border-surface-500/20 bg-surface-900 p-4 text-xs font-mono text-surface-100"
 			>
-				<div class="absolute top-3 inset-e-3">
+				<div class="absolute top-3 inset-e-3 flex items-center gap-1.5">
+					{@render helpTrigger(api_help_copy_code(), api_copy_code())}
 					<Button
 						variant="secondary"
 						size="sm"

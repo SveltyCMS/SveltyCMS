@@ -65,15 +65,16 @@ flowchart TB
 
 ### Component Roles
 
-| Component              | Path                                                          | Role                                                                                                                                               |
-| ---------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **header-edit**        | `src/components/header-edit.svelte`                           | Mobile save/cancel/delete actions, validation gating                                                                                               |
-| **right-sidebar**      | `src/components/right-sidebar.svelte`                         | Desktop save/status/scheduling actions                                                                                                             |
-| **fields**             | `src/components/collection-display/fields.svelte`             | Dynamic field rendering, validation                                                                                                                |
-| **widget-loader**      | `src/components/collection-display/widget-loader.svelte`      | Async widget loading with error handling                                                                                                           |
-| **translation-status** | `src/components/collection-display/translation-status.svelte` | Translation progress per language                                                                                                                  |
-| **TokenPicker**        | `src/components/token-picker.svelte`                          | Dynamic token insertion for fields (component is **unwired**: `fields.svelte` keeps the `openTokenPicker()` handler but nothing mounts the picker) |
-| **Revisions**          | (within fields)                                               | Historical snapshots with revert capability                                                                                                        |
+| Component              | Path                                                          | Role                                                                                                                                    |
+| ---------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **header-edit**        | `src/components/header-edit.svelte`                           | Mobile save/cancel/delete actions, validation gating                                                                                    |
+| **right-sidebar**      | `src/components/right-sidebar.svelte`                         | Desktop save/status/scheduling actions                                                                                                  |
+| **fields**             | `src/components/collection-display/fields.svelte`             | Dynamic field rendering, validation                                                                                                     |
+| **widget-loader**      | `src/components/collection-display/widget-loader.svelte`      | Async widget loading with error handling                                                                                                |
+| **translation-status** | `src/components/collection-display/translation-status.svelte` | Translation progress per language                                                                                                       |
+| **TokenPicker**        | `src/components/token-picker.svelte`                          | Dynamic token insertion; mounted once in `(app)/+layout.svelte`, opened by `activeInput` from `fields.svelte` and `tokenTarget` widgets |
+| **page-footer**        | `src/components/page-footer.svelte`                           | Desktop fallback metadata: created/updated timestamps, authors, and revision count when the right sidebar is hidden                     |
+| **Revisions**          | (within fields)                                               | Historical snapshots with revert capability                                                                                             |
 
 ---
 
@@ -170,6 +171,14 @@ flowchart TB
 
 ---
 
+## Render-safe form skeleton
+
+`buildFieldSkeleton()` (`src/components/collection-display/field-skeleton.ts`) gives every declared field a value **before the first widget mounts**: the schema `default` for new entries, `null` otherwise, and `{ [locale]: value }` for translated fields.
+
+This is a hard requirement, not a nicety. Widgets declare their value prop with a fallback (`let { value = $bindable([]) }` in Tags), and binding `undefined` into such a prop throws `props_invalid_value` — "Cannot do `bind:value={undefined}` when `value` has a fallback value". SvelteKit turns that render error into the route error page, which is how `/collection/posts?create=true` used to return a 500 when Create was clicked from the entry list.
+
+The seeding effects (`applyFieldDefaults`) run _after_ the first mount, and a create session starts from an empty store, so the skeleton must be built during component init. `applyFieldDefaults` keeps the same invariant for later store swaps (entry switch, revert), and `cycleFieldLocale()` creates the target locale key before the widget remounts.
+
 ## Features
 
 | Feature                          | Description                                                  |
@@ -207,8 +216,10 @@ const canSave = $derived(validationStore.isValid && dataChangeStore.hasChanges);
 Visible on screens >= 1024px. Additionally provides:
 
 - **Entry Status**: Binary publish/unpublish toggle (only in `edit`/`create` with write access)
-- **Metadata Display**: Created/Updated timestamps
+- **Metadata Display**: Created/Updated timestamps and authors
 - **Scheduling Panel**: Date/time picker plus change/cancel controls; the selected action is not persisted
+
+When the right sidebar is hidden (or on tablets), the desktop page footer mirrors the entry metadata: created/updated timestamps with authors and the revision count. The footer is shown for `edit`/`create`/`modify` routes and stays hidden in view mode.
 
 Both components integrate with `validationStore` to prevent saving invalid entries.
 
@@ -319,7 +330,7 @@ const progress = (translated.size / total.size) * 100;
 
 ## TokenPicker
 
-A floating panel for inserting dynamic tokens into input fields:
+A floating panel for inserting dynamic tokens into input fields. It is mounted once in the `(app)` layout; field-level Insert Token buttons and `use:tokenTarget` widgets only publish the target through `activeInput`.
 
 ### Features {#features-3}
 

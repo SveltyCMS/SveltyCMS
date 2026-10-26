@@ -167,6 +167,9 @@ test.describe("Guest commerce golden journey", () => {
       (res) => res.url().includes("/api/commerce/cart") && res.request().method() === "POST",
       { timeout: 20_000 },
     );
+    // /shop ships the add button `disabled` until hydration, so the click waits
+    // for its own enabled state — the hydration-marker gate is gone.
+    await expect(addBtn).toBeEnabled({ timeout: 20_000 });
     await addBtn.click();
     const res = await cartRes;
     expect(res.ok(), `POST /api/commerce/cart status=${res.status()}`).toBeTruthy();

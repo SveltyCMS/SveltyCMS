@@ -2,11 +2,13 @@
  * @file tests/e2e/routes/system/settings.spec.ts
  * @description System Settings shell + group panels + save/export/discard/import controls.
  * Groups are catalog-driven; tests assert structure, not every field value.
- * Navigation between groups happens via the sidebar SettingsMenu.
+ * Navigation between groups is page-local (desktop rail, mobile picker); the
+ * sidebar SettingsMenu remains available and links to the same `?group=` URLs.
  */
 
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
+import { fillUntil, selectAndWaitForUrl } from "../../helpers/hydration";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -68,6 +70,39 @@ test.describe("System Settings shell", () => {
     });
   });
 
+  test("page does not duplicate the sidebar settings navigation", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await goSettings(page, "cache");
+
+    // The global left sidebar renders the settings menu; a second in-page rail
+    // produced two sidebars and squeezed the settings form.
+    await expect(page.getByTestId("system-settings-group-nav")).toHaveCount(0);
+    await expect(page.getByTestId("settings-panel-cache")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+  });
+
+  test("mobile picker switches groups", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await goSettings(page, "cache");
+
+    // The page has no second rail; the picker is the in-page navigation.
+    await expect(page.getByTestId("system-settings-group-nav")).toHaveCount(0);
+    const picker = page.getByTestId("system-settings-group-select");
+    await expect(picker).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // The select handler is attached on hydration and navigation is client-side,
+    // so a change event issued in the gap between SSR paint and hydration is
+    // silently dropped. The helper waits for hydration and re-dispatches until
+    // the URL reflects the selection — no sleep, no widened timeout.
+    await selectAndWaitForUrl(page, picker, "email", /group=email/, {
+      timeout: ACTION_TIMEOUT,
+    });
+    await expect(page.getByTestId("settings-panel-email")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+  });
+
   test("unknown group shows missing state with recovery", async ({ page }) => {
     await goSettings(page, "this-group-does-not-exist-xyz");
     await expect(page.getByTestId("system-settings-group-missing")).toBeVisible({
@@ -106,17 +141,22 @@ test.describe("System Settings shell", () => {
     const input = field.locator("input").first();
     await expect(input).toBeVisible({ timeout: ACTION_TIMEOUT });
 
-    const current = await input.inputValue();
-    const nextValue = current === "120" ? "121" : "120";
-    await input.fill(nextValue);
-
     // Scope group-level save/discard: buttons render in the sticky action bar
     const groupSave = page.getByTestId("settings-group-save");
     const groupDiscard = page.getByTestId("settings-group-discard");
 
-    await expect(groupSave).toBeEnabled({
-      timeout: ACTION_TIMEOUT,
-    });
+    const current = await input.inputValue();
+    const nextValue = current === "120" ? "121" : "120";
+    // The dirty flag comes from the hydrated binding; a fill that lands in the
+    // gap before hydration attaches is silently lost. Re-apply until the action
+    // bar reflects the edit — no sleep, no widened timeout.
+    await fillUntil(
+      page,
+      input,
+      nextValue,
+      () => expect(groupSave).toBeEnabled({ timeout: 2_000 }),
+      { timeout: ACTION_TIMEOUT },
+    );
     await expect(groupDiscard).toBeEnabled();
 
     await groupDiscard.click();
@@ -144,14 +184,11 @@ test.describe("System Settings shell", () => {
       target = String(Number(target) + 1);
     }
 
-    await input.fill(target);
-    // Trigger native events to ensure Svelte bindings propagate through Input wrapper
-    await input.blur();
     const groupSave = page.getByTestId("settings-group-save");
-    // Expect auto-waits for the reactivity-driven enabled state
-    await expect(groupSave).toBeEnabled({
-      timeout: ACTION_TIMEOUT,
-    });
+    // The input binding only exists after hydration; a fill that lands earlier
+    // leaves the save button disabled forever. Retry the fill until the dirty
+    // state actually enables the group save (same pattern as the cache test).
+    await fillUntil(page, input, target, () => expect(groupSave).toBeEnabled({ timeout: 2_000 }));
 
     const saveRes = page
       .waitForResponse((res) => res.url().includes("/api/system/settings") && res.status() < 400, {
@@ -201,7 +238,11 @@ test.describe("System Settings shell", () => {
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("system-settings-check-structure")).toBeVisible();
 
-    await page.getByTestId("system-settings-check-structure").click();
+    // The control ships `disabled` until hydration, so its own enabled state is
+    // the readiness gate — the hydration-marker wait is gone.
+    const checkStructure = page.getByTestId("system-settings-check-structure");
+    await expect(checkStructure).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await checkStructure.click();
     // Result may succeed or show mode text
     await expect(page.getByTestId("system-settings-structure-info")).toBeVisible({
       timeout: ACTION_TIMEOUT,

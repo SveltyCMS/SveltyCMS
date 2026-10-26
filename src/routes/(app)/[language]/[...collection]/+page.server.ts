@@ -223,14 +223,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     // =================================================================
 
     const returnData = {
-      user: {
-        _id: typedUser?._id,
-        username: typedUser?.username,
-        email: typedUser?.email,
-        role: typedUser?.role,
-        avatar: typedUser?.avatar,
-        locale: typedUser?.locale,
-      },
+      // No `user` key on purpose: SvelteKit merges page data over layout data, so
+      // returning a slim user here shadowed `(app)`'s full snapshot (firstName /
+      // lastName / isAdmin / preferences) and the admin shell lost fields on this
+      // route. The layout owns `user` (same rule as config/access-management).
       isAdmin: locals.isAdmin,
       hasManageUsersPermission: locals.hasManageUsersPermission,
       roles: locals.roles,

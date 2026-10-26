@@ -81,8 +81,10 @@ Route-driven sidebar content (no dual collapsible section headers):
 	type AvailableLanguage = string;
 	type SidebarState = 'full' | 'collapsed' | 'hidden';
 
-	// Reactive user data
-	const user = $derived(page.data.user);
+	// Reactive user data. `layoutUser` is the layout-owned snapshot: page loads may
+	// return a slim `user` (permissions only) that shadows it in merged page data,
+	// which is why the avatar used to lose its name on /config and friends.
+	const user = $derived(page.data.layoutUser ?? page.data.user);
 	const currentPath = $derived(page.url.pathname);
 
 	// Next-navigation hint computed server-side by the behavioral learner
@@ -131,7 +133,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 	// enforces 403 on the route regardless.
 	const pluginNavItems = $derived.by(() => {
 		void pluginPageRegistry.version;
-		const u = page.data.user as any;
+		const u = (page.data.layoutUser ?? page.data.user) as any;
 		const isAdmin = !!u?.isAdmin || u?.role === 'admin' || u?.role === 'super-admin';
 		return pluginPageRegistry
 			.getNavItems()
@@ -330,9 +332,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 	</div>
 
 	<!-- Expand/Collapse Button -->
+	<!-- Centred placement: an `-end` alignment bottom-aligns this shorter
+	     tooltip against the 40px toggle and pushes its arrow to a corner. -->
 	<SystemTooltip
 		title={isSidebarFull ? 'Collapse Sidebar' : 'Expand Sidebar'}
-		positioning={{ placement: isRTL ? 'left-end' : 'right-end' }}
+		positioning={{ placement: isRTL ? 'left' : 'right' }}
 		triggerClass="absolute top-3 z-20 -inset-e-4"
 	>
 		<Button
@@ -799,20 +803,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 		position: relative;
 	}
 
-	.sidebar-root::after {
-		content: '';
-		position: absolute;
-		inset-inline-end: -0.5rem;
-		top: 3.5rem;
-		bottom: 0;
-		width: 1px;
-		background-color: var(--color-surface-200, #e2e8f0);
-		pointer-events: none;
-	}
-
-	:global(.dark) .sidebar-root::after {
-		background-color: var(--color-surface-500, #64748b);
-	}
+	/* The old `.sidebar-root::after` 1px rule lived here. It painted a vertical
+	   "white line" at the aside edge in both themes; the sidebar/main separation is
+	   now carried by the surface tokens alone. */
 
 	/* Scrollbar styling */
 	.overflow-y-auto {

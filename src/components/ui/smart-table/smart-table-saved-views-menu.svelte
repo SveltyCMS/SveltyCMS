@@ -89,7 +89,7 @@
 			open = !open;
 			if (open) refresh();
 		}}
-		class="h-10 gap-1.5 rounded-xl border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
+		class="h-10 gap-1.5 border border-surface-500/30 bg-surface-500/10 px-3 text-surface-600 transition-colors hover:bg-surface-200 dark:border-surface-500/40 dark:bg-surface-800/80 dark:text-surface-300 dark:hover:bg-surface-700"
 	>
 		<iconify-icon icon="mdi:bookmark-outline" width={18}></iconify-icon>
 		<span class="hidden sm:inline">Views</span>
@@ -107,7 +107,7 @@
 	{#if open}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
-			class="absolute inset-e-0 z-50 mt-1 w-64 rounded-lg border border-surface-500/30 bg-white p-2 shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
+			class="absolute inset-e-0 z-50 mt-1 w-64 rounded-(--admin-radius-card) border border-surface-500/30 bg-white p-2 shadow-lg dark:border-surface-500/40 dark:bg-surface-900"
 			role="menu"
 			aria-label="Saved views"
 		>
@@ -115,7 +115,7 @@
 				<input
 					aria-label="New view name"
 					type="text"
-					class="input input-sm flex-1 rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1 text-xs dark:border-surface-500/40 dark:bg-surface-800"
+					class="input input-sm flex-1 rounded-(--admin-radius-input) border border-surface-500/30 bg-surface-500/10 px-2 py-1 text-xs dark:border-surface-500/40 dark:bg-surface-800"
 					placeholder="View name…"
 					bind:value={saveName}
 					onkeydown={(e) => {
@@ -141,7 +141,7 @@
 						<li>
 							<button
 								type="button"
-								class="flex w-full items-center justify-between gap-2 rounded px-2 py-1.5 text-start text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800"
+								class="flex w-full items-center justify-between gap-2 rounded-(--admin-radius-input) px-2 py-1.5 text-start text-xs hover:bg-surface-500/10 dark:hover:bg-surface-800"
 								role="menuitem"
 								onclick={() => handleApply(view)}
 							>
@@ -149,7 +149,7 @@
 								<span
 									role="button"
 									tabindex="0"
-									class="shrink-0 rounded p-0.5 text-surface-400 hover:bg-error-500/10 hover:text-error-500 cursor-pointer"
+									class="shrink-0 rounded-(--admin-radius-button) p-0.5 text-surface-400 hover:bg-error-500/10 hover:text-error-500 cursor-pointer"
 									aria-label="Delete view {view.name}"
 									onclick={(e) => handleDelete(view.id, e)}
 									onkeydown={(e) => {
@@ -169,7 +169,7 @@
 
 			<button
 				type="button"
-				class="mt-1 w-full rounded px-2 py-1 text-center text-[10px] text-surface-400 hover:bg-surface-500/10 dark:hover:bg-surface-800"
+				class="mt-1 w-full rounded-(--admin-radius-input) px-2 py-1 text-center text-[10px] text-surface-400 hover:bg-surface-500/10 dark:hover:bg-surface-800"
 				onclick={() => (open = false)}
 			>
 				Close

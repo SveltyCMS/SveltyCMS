@@ -67,22 +67,72 @@ describe("pre-commit hook", () => {
     const hook = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
     expect(hook).toContain("test:unit:components");
   });
+
+  it("builds before the diff integration instead of always deferring", () => {
+    const hook = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
+    expect(hook).toContain("Harness build (backend change)");
+    expect(hook).toContain("run-integration.ts --no-build --diff");
+    // The old freshness check skipped integration whenever src/ was edited.
+    expect(hook).not.toContain("deferred to pre-push");
+  });
 });
 
 describe("pre-push hook", () => {
-  it("runs build + integration (not unit tests)", () => {
+  it("re-runs the CI unit job and build/integration", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
     expect(prePush).toMatch(/(pm_run|\$RUN_CMD|\$PM_BIN" run|bun run) build/);
     expect(prePush).toContain("COMPILE_ALL_ADAPTERS");
-    expect(prePush).not.toContain("test:unit");
+    // CI Unit parity: coverage + components + mutation, because a suite can be
+    // 100 % green and still exit 1 on unhandled errors under the CI reporter.
+    expect(prePush).toContain("test:unit:coverage");
+    expect(prePush).toContain("test:unit:components");
+    expect(prePush).toContain("test:mutation");
+    // The plain suite is not re-run: pre-commit already did it.
+    expect(prePush).not.toMatch(/(?:pm_run|bun run) test:unit(?!:)/);
     expect(prePush).toContain("run-integration.ts");
     expect(prePush).not.toContain("run-integration-tests");
   });
 
+  it("has no opt-out environment variable", () => {
+    for (const hook of ["pre-commit", "pre-push"]) {
+      const source = readFileSync(join(ROOT, ".githooks", hook), "utf8");
+      expect(source, `${hook} must not exit early`).not.toContain("Local gates disabled");
+      expect(source, `${hook} must not gate on an env var`).not.toMatch(/SVELTY_LOCAL_GATES:-0/);
+    }
+  });
+
+  it("enforces the CI flake budget and the full static gates", () => {
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    expect(prePush).toContain("check-flake-budget.ts");
+    expect(prePush).toContain("--max-flaky=0");
+    expect(prePush).toContain("probe-hardware-tiers.ts");
+    expect(prePush).toContain("lint:tenant -- --full");
+  });
+
+  it("diagnoses unhandled errors instead of swallowing them", () => {
+    const lib = readFileSync(join(ROOT, ".githooks/lib.sh"), "utf8");
+    expect(lib).toContain("Unhandled Errors");
+    expect(lib).toContain("Uncaught Exception");
+    expect(lib).toContain("ERROR: Coverage");
+  });
+
   it("runs the E2E smoke gate against a harness build", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
-    expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build tests/e2e/smoke.spec.ts");
+    expect(prePush).toContain('E2E_TARGETS="tests/e2e/smoke.spec.ts"');
+    expect(prePush).toContain("tests/e2e/routes/collection-builder/kitchen-sink.spec.ts");
+    expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build $E2E_TARGETS");
     expect(prePush).toContain("SKIP_E2E_SMOKE");
+  });
+
+  it("runs mutation last and restores a dirty target", () => {
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    // The mutation harness rewrites source files. If it ran before the build,
+    // integration or browser gate, an interrupted write would make every later
+    // step fail on a mutated tree (observed locally as a cascade of unrelated
+    // `includeDeleted` / `db.crud` errors).
+    expect(prePush.indexOf("test:mutation")).toBeGreaterThan(prePush.indexOf("E2E Browser Gate"));
+    expect(prePush).toContain("MUTATION_CLEAN_BEFORE");
+    expect(prePush).toContain("git checkout -- $MUTATION_TARGETS");
   });
 });
 
@@ -90,5 +140,44 @@ describe("CI wiring", () => {
   it("runs the DOM interaction suite in the unit job", () => {
     const ci = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
     expect(ci).toContain("bun run test:unit:components");
+  });
+
+  it("runs every policy gate that `bun run check` and the policy job run", () => {
+    const ci = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
+    for (const gate of [
+      "bun run format --check",
+      "bun run lint:ci",
+      "bun run scripts/lint/lint-design.ts",
+      "bun run scripts/lint/lint-duplicate-testids.ts",
+      "bun run scripts/lint/consolidate-shades.ts --check",
+      "bun run scripts/lint/lint-widgets.ts",
+      "bun run lint:e2e-hydration",
+      "bun run lint:trivial-assertions",
+      "bun run check:routes",
+      "bun run test:isolation",
+      "bun run scripts/check/check-lockfile-sync.ts",
+      "bun run check:seams",
+      "bun run version:verify",
+      "bun run typecheck",
+      "bun run scripts/security/scan-security-risk.ts --strict",
+      "bun run scripts/security/scan-secret-misuse.ts --strict --full",
+      "bun run scripts/security/slop-scanner.ts --strict",
+      "bun run scripts/probe/probe-hardware-tiers.ts",
+      "bun run lint:tenant -- --full",
+      "bun run test:tenant",
+      "bun run scripts/probe/probe-deploy-testing-api.ts",
+    ]) {
+      expect(ci, `ci.yml 01-policy is missing: ${gate}`).toContain(gate);
+    }
+    expect(ci).not.toContain("matrix.task == '01-static'");
+  });
+
+  it("fails relative benchmark drift only on main / merge_group", () => {
+    const ci = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
+    expect(ci).toContain(
+      "BENCHMARK_GATE_POLICY: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'merge_group') && 'fail' || 'warn' }}",
+    );
+    // The CVE summary must target the task that exists.
+    expect(ci).toContain("if: matrix.task == '01-policy'");
   });
 });

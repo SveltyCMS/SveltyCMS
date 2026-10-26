@@ -1,12 +1,12 @@
 ---
 path: "docs/development/ui/primitives.mdx"
 title: "Native Controls"
-description: "Props, usage, and accessibility for Button, Badge, Input, Select, Textarea, Toggle, Checkbox, and Modal."
+description: "Props, usage, and accessibility for Button, Badge, Input, Select, Textarea, Toggle, Checkbox, Tabs, and Modal."
 order: 3
 icon: "mdi:button-pointer"
 author: "SveltyCMS Team"
 created: "2026-10-11"
-updated: "2026-10-11"
+updated: "2026-10-25"
 tags:
   - "ui"
   - "button"
@@ -218,6 +218,42 @@ Radius follows `--admin-radius-input`. The control stays user-resizable (`resize
 
 Keyboard: Space and Enter toggle. Focus uses the theme ring.
 
+## Tabs
+
+`src/components/ui/tabs.svelte` (array) and `src/components/ui/tabs/` (compound `Tabs.List` / `Tabs.Trigger` / `Tabs.Content`). Both render one tab strip, and that strip is defined once in `src/components/ui/tabs/chrome.ts`:
+
+| Token                  | Role                                                                                       |
+| :--------------------- | :----------------------------------------------------------------------------------------- |
+| `TAB_STRIP`            | Scrollable strip that paints the rule.                                                     |
+| `TAB_STRIP_FLUSH`      | Strip for a header row that already paints the rule.                                       |
+| `TAB_ROW`              | Header row hosting tabs plus trailing actions (rule spans the whole row, e.g. /user).      |
+| `TAB_RULE`             | The 1px inset-shadow rule on its own, for a row that wraps a flush strip.                  |
+| `TAB_TRIGGER`          | Square 2px-underline trigger (`rounded-none!`, `px-4 py-3`, `text-sm`).                    |
+| `TAB_TRIGGER_ACTIVE`   | Brand accent: tertiary-500/600 in light mode, primary-500 in dark mode.                    |
+| `TAB_TRIGGER_INACTIVE` | `--admin-text-muted` with a hairline hover border.                                         |
+| `tabTrigger(active)`   | Compose a trigger; pass layout tweaks as the second argument (`flex-1`, `justify-center`). |
+
+The rule is a 1px **inset shadow**, not `border-b`. The strip scrolls horizontally (`overflow-x-auto` + `overflow-y-clip`), which clips anything hanging outside its padding box — that is why `-mb-px` overlaps cannot be used. The inset shadow sits inside the strip, so the trigger's 2px active border paints over it and the accent line stays crisp.
+
+```svelte
+<!-- Array API: the strip paints its own rule -->
+<Tabs tabs={[{ id: 'permissions', label: 'Permissions', icon: 'mdi:shield-lock-outline' }]} bind:activeTab />
+
+<!-- Compound API: one trigger per panel, same chrome -->
+<Tabs bind:value={tab}>
+  <Tabs.List>
+    <Tabs.Trigger value="permissions">Permissions</Tabs.Trigger>
+  </Tabs.List>
+  <Tabs.Content value="permissions"><Permissions /></Tabs.Content>
+</Tabs>
+```
+
+Pass `bordered={false}` when a surrounding row paints the rule (the collection builder header, the widget editor dialog). Put the row's rule on the row with `TAB_RULE` and keep the trigger's underline for the active tab. A strip that needs badges or a per-tab tooltip keeps its own `<button>` / `<Button>` elements but imports `TAB_STRIP`/`TAB_STRIP_FLUSH`/`tabTrigger` — user management, extensions, sync, and the design system all do this.
+
+Do not re-declare `border-b-2`, `-mb-px`, or an accent pair in a page, and do not wrap a hand-rolled strip in its own bordered box (the old sync segmented control). `tests/unit/components/tab-chrome-contract.test.ts` fails when a strip stops importing the shared tokens.
+
+At the call site, keep icon + label in the trigger, put counts in a `Badge` after the label, and leave `Tab`/`aria-selected`/roving `tabindex` to the component. Arrow keys, Home, and End move selection in both APIs.
+
 ## Modal
 
 `src/components/ui/modal.svelte`. A native `<dialog>` portaled to the document, with focus held inside while it is open and restored to the opener on close. `title` is both the header text and the dialog's accessible name. The close icon is named "Close modal".
@@ -258,3 +294,4 @@ Because the dialog is portaled, a Playwright locator scoped to the button that o
 - Compose them inside [Page shells](./shells.mdx).
 - See the other exports on the [Native UI hub](./index.mdx).
 - Cursor, focus, and contrast rules: [Accessibility guide](../../contributing/accessibility.mdx).
+- Tab strips and their scroll/rule trade-off: [Tabs](#tabs).

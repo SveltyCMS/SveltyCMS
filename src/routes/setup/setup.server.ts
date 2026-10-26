@@ -53,7 +53,7 @@ import { describeHardware } from "@utils/hardware-profile";
 import { databaseConfigSchema } from "@src/databases/schemas";
 import { setupAdminSchema, smtpConfigSchema } from "@utils/schemas";
 import { safeParse } from "valibot";
-import type { ISODateString } from "@src/databases/db-interface";
+import type { DatabaseId, ISODateString } from "@src/databases/db-interface";
 
 export interface DbConfig {
   type: string;
@@ -381,7 +381,7 @@ export async function completeSetup(
     });
     try {
       const { refreshContent } = await loadEngineServerModule();
-      await refreshContent(null, { mode: "schemas", adapter: dbAdapter });
+      await refreshContent(effectiveTenantId ?? null, { mode: "schemas", adapter: dbAdapter });
     } catch (e) {
       logger.warn("[Setup] Content refresh after preset seeding failed:", e);
     }
@@ -545,7 +545,9 @@ export async function completeSetup(
       try {
         const { updatePrivateConfigMode } = await import("./write-private-config");
         await updatePrivateConfigMode({
-          multiTenant: system.multiTenant,
+          // Demo visitors each get a seeded ephemeral tenant, so DEMO always
+          // implies tenant isolation even if the wizard toggle was left off.
+          multiTenant: system.multiTenant || system.demoMode,
           demoMode: system.demoMode,
         });
       } catch (modeError) {
@@ -603,13 +605,20 @@ export async function completeSetup(
     });
     await auth.updateUser(
       existing._id,
-      { username: admin.username, role: "admin", isRegistered: true, isAdmin: true },
+      {
+        username: admin.username,
+        role: "admin",
+        isRegistered: true,
+        isAdmin: true,
+        ...(effectiveTenantId ? { tenantId: effectiveTenantId as DatabaseId } : {}),
+      },
       { ...withSystemScope("setup"), allowPrivilegeEscalation: true },
     );
     session = await auth.createSession(
       {
         user_id: existing._id,
         expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
+        ...(effectiveTenantId ? { tenantId: effectiveTenantId as DatabaseId } : {}),
       },
       withSystemScope("bootstrap"),
     );
@@ -621,9 +630,11 @@ export async function completeSetup(
         password: admin.password,
         role: "admin",
         isRegistered: true,
+        ...(effectiveTenantId ? { tenantId: effectiveTenantId as DatabaseId } : {}),
       },
       {
         expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
+        ...(effectiveTenantId ? { tenantId: effectiveTenantId as DatabaseId } : {}),
       },
       withSystemScope("bootstrap"),
     );

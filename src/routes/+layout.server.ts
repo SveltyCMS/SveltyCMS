@@ -118,6 +118,21 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
     // This is critical for the first load after setup.
     await contentSystem.initialize(locals.tenantId);
 
+    // Self-heal in-memory contentStore from DB when initialized but empty for this tenant
+    // (e.g. after skipReconciliation setup or when nodes were seeded directly in DB).
+    if (contentStore.getNodesForTenant(locals.tenantId).length === 0) {
+      const dbNodes = await contentSystem
+        .getContentStructureFromDatabase("flat", locals.tenantId)
+        .catch(() => []);
+      if (Array.isArray(dbNodes) && dbNodes.length > 0) {
+        const normalizedNodes = dbNodes.map((n) => ({
+          ...n,
+          tenantId: (n.tenantId || locals.tenantId || "global") as typeof n.tenantId,
+        }));
+        contentStore.sync(normalizedNodes);
+      }
+    }
+
     contentVersion = contentSystem.getContentVersion();
     const tid = locals.tenantId ? String(locals.tenantId) : "global";
     // 🚀 Version-keyed cache for the progressive nav tree: contentStore is

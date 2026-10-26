@@ -17,7 +17,7 @@ tags:
 
 # Content Security Policy & Isolation Headers
 
-SveltyCMS enforces a **multi-tiered, context-aware Content Security Policy (CSP)** and cross-origin isolation headers at the protocol level. Each route domain (Admin GUI, JSON REST APIs, Asset Streaming, GraphQL Playground, and AI Workers) receives an isolated, least-privilege security header profile.
+SveltyCMS enforces a **multi-tiered, context-aware Content Security Policy (CSP)** and cross-origin isolation headers at the protocol level. Each route domain (Admin GUI, JSON REST APIs, Asset Streaming, and GraphQL Playground) receives an isolated, least-privilege security header profile.
 
 ---
 
@@ -31,7 +31,6 @@ flowchart TD
     RouteCheck -- "REST APIs /api/*" --> ApiCSP[Strict API CSP + COOP/COEP/CORP Isolation]
     RouteCheck -- "Media /api/media/*" --> MediaCSP[Media CSP + COEP: credentialless + CORP]
     RouteCheck -- "GraphQL /api/graphql" --> GqlCSP[Prod: Strict Block / Dev: Controlled Playground]
-    RouteCheck -- "AI Worker /ai/worker" --> AiCSP[Isolated WebWorker CSP: LiteRT.js]
 ```
 
 ### Key Security Objectives:
@@ -116,15 +115,17 @@ Content-Security-Policy: script-src 'self' 'nonce-...'; style-src 'self' 'nonce-
 
 ---
 
-### 5. On-Device AI Worker (`/ai/worker`)
+### 5. On-Device AI Worker (Vite bundle)
 
-The on-device machine learning worker (LiteRT.js / TensorFlow.js WebAssembly) runs inside a dedicated Web Worker with a strict WASM and model binary sandbox:
+The on-device machine learning worker (LiteRT.js WebAssembly) runs inside a dedicated Web Worker, but it has **no serving route and no route-specific CSP**. Vite bundles `src/services/ai-client/ai.worker.ts` as a separate chunk, and `runtime.ts` loads it with `new URL("./ai.worker.ts", import.meta.url)`; there is no separate HTTP response that could carry a worker-specific CSP.
+
+If a future deployment adds a worker-specific CSP, it must allow:
 
 ```http
-Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' blob:; worker-src 'self' blob:
+Content-Security-Policy: worker-src 'self'; script-src 'self' 'wasm-unsafe-eval'
 ```
 
-- **WASM Acceleration**: Allows `'wasm-unsafe-eval'` exclusively within the worker context for SIMD/WASM inference acceleration while completely forbidding JS `eval()`.
+- **WASM Acceleration**: `'wasm-unsafe-eval'` permits SIMD/WASM inference compilation while still forbidding JS `eval()`.
 
 ---
 

@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { pluginWorkspace } from '@stores/plugin-workspace.svelte';
+	import { CONFIG_TILE_CLASS } from '@components/ui/config-tile-classes';
 
 	interface Props {
 		pluginId?: string;
@@ -26,12 +27,7 @@
 <button
 	type="button"
 	onclick={openWorkspace}
-	class="group flex h-24 w-full flex-col items-center justify-center gap-2 rounded border border-surface-500/30 bg-white p-2 text-center shadow-sm transition-all duration-300 ease-out
-         hover:-translate-y-1 hover:border-tertiary-500 hover:bg-primary-500/10 hover:shadow-xl
-         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 focus-visible:ring-offset-2
-         dark:bg-surface-800 dark:hover:border-primary-500 dark:hover:bg-surface-700
-         lg:h-32
-         {enabled ? '' : 'pointer-events-none opacity-60 grayscale'}"
+	class="{CONFIG_TILE_CLASS} {enabled ? '' : 'pointer-events-none opacity-60 grayscale'}"
 	aria-label="Open Unified Data Hub — connect and govern external data sources"
 	aria-disabled={!enabled}
 >

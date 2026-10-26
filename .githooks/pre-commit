@@ -1,9 +1,12 @@
 #!/usr/bin/env sh
 # =============================================================================
-# SveltyCMS Pre-Commit — Format → Lint → Unit → Components → SBOM Sync (~45s)
+# SveltyCMS Pre-Commit — Format → Lint → Unit → Components → Integration → SBOM
 #
-# Pre-push runs build + SQLite integration.
-# POLICY: --no-verify is blocked. Use 'bun run scripts/git-safe.ts commit'.
+# Fast by design (~60-90 s, or ~4 min when backend files change). Pre-push runs
+# the CI-parity unit job, the build, SQLite integration, DB parity and the
+# browser gate.
+# POLICY: enforced. A commit only lands when the unit and component suites pass.
+# --no-verify is blocked; use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================
 set -u
 [ "${CI:-false}" = "true" ] && exit 0
@@ -14,7 +17,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 header "Pre-Commit"
 require_bun
 
-TOTAL=7; OK=0
+# Local gates are ENFORCED (owner decision 2026-10-24). The earlier opt-in
+# policy was the reason a commit could be green locally while the CI Unit job
+# was red: the hook exited before running anything. The hook now runs on every
+# commit; CI remains the authority for the multi-DB/E2E matrix.
+
+TOTAL=9; OK=0
 
 # Step 1 — Database safety
 if run "🛡️  Database safety" pm_run scripts/check/check-test-db-safety.ts; then
@@ -69,6 +77,24 @@ if has_staged_changes '\.(md|mdx)$' && ! has_staged_changes '\.(ts|js|svelte)$';
   TOTAL=$((TOTAL - 1))
 elif run "🧩  Component interactions" pm_run test:unit:components; then
   OK=$((OK + 1))
+fi
+
+# Step 5c — Diff-scoped integration (backend changes only)
+#
+# Unit tests cannot see routing, persistence or an adapter contract; those only
+# fail against a real server + database. `--no-build` reuses build/, and an edit
+# to src/ always makes the bundle stale — so build first instead of skipping.
+# (The old freshness check meant this step never ran when it mattered.)
+if has_staged_changes '^(src/databases/|src/services/sdk/|src/hooks/|src/routes/api/|src/utils/(optimistic-lock|date|relational)|src/lib/server/)'; then
+  if run "🏗️  Harness build (backend change)" env COMPILE_ALL_ADAPTERS=true "$PM_BIN" run build; then
+    OK=$((OK + 1))
+    if run "🗄️  Integration (diff, SQLite)" pm_run scripts/runs/run-integration.ts --no-build --diff; then
+      OK=$((OK + 1))
+    fi
+  fi
+else
+  info "No backend/database changes — integration not required at commit time"
+  TOTAL=$((TOTAL - 2))
 fi
 
 # Step 6 — SBOM sync (keeps sbom.json in lockstep with bun.lock)

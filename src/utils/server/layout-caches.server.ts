@@ -15,6 +15,7 @@
 import type { User } from "@src/databases/auth/types";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { toSafeSessionUser } from "@src/databases/auth/session-user";
 import { pluginRegistry } from "@src/plugins/registry";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { logger } from "@utils/logger";
@@ -128,8 +129,12 @@ async function fetchFreshLayoutUser(
       ...withSystemScope("cache-warming", { tenantId: tenantId as DatabaseId }),
     });
     if (dbUser) {
-      void cacheService.set(layoutUserCacheKey(uid), dbUser, LAYOUT_CACHE_TTL_S, tenantId);
-      return dbUser;
+      // The layout snapshot is serialized into every admin HTML payload. The raw
+      // DB row carries `password` (argon2id), `totpSecret`, `backupCodes`, …, so
+      // strip credentials at this single choke point before caching/returning.
+      const safeUser = toSafeSessionUser(dbUser);
+      void cacheService.set(layoutUserCacheKey(uid), safeUser, LAYOUT_CACHE_TTL_S, tenantId);
+      return safeUser;
     }
 
     if (sessionUser.email) {
@@ -138,13 +143,14 @@ async function fetchFreshLayoutUser(
         { ...withSystemScope("cache-warming", { tenantId: tenantId as DatabaseId }) },
       );
       if (byEmail) {
+        const safeByEmail = toSafeSessionUser(byEmail);
         void cacheService.set(
           layoutUserCacheKey(String(byEmail._id ?? uid)),
-          byEmail,
+          safeByEmail,
           LAYOUT_CACHE_TTL_S,
           tenantId,
         );
-        return byEmail;
+        return safeByEmail;
       }
     }
   } catch (err) {
@@ -155,8 +161,13 @@ async function fetchFreshLayoutUser(
     );
   }
 
-  void cacheService.set(layoutUserCacheKey(uid), sessionUser, LAYOUT_CACHE_TTL_S, tenantId);
-  return sessionUser;
+  void cacheService.set(
+    layoutUserCacheKey(uid),
+    toSafeSessionUser(sessionUser),
+    LAYOUT_CACHE_TTL_S,
+    tenantId,
+  );
+  return toSafeSessionUser(sessionUser);
 }
 
 /**

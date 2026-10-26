@@ -7,8 +7,7 @@
 
 import type { FieldInstance } from "@src/content/types";
 import { createWidget } from "@src/widgets/widget-factory";
-// Shares the radio widget copy until a dedicated `widget_select_description` string lands.
-import { widget_radio_description as radioWidgetDescription } from "@src/paraglide/messages";
+import { widget_select_description } from "@src/paraglide/messages";
 import { literal, nullable, union, string, type InferInput as ValibotInput } from "valibot";
 import type { SelectProps } from "./types";
 
@@ -37,7 +36,7 @@ const SelectWidget = createWidget<SelectProps>({
   Name: "Select",
   version: "1.0.0",
   Icon: "mdi:form-select",
-  Description: radioWidgetDescription(), // Reusing radio description for now
+  Description: widget_select_description(),
 
   // Define paths to the dedicated Svelte components.
   inputComponentPath: "/src/widgets/core/select/input.svelte",

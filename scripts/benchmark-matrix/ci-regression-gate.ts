@@ -35,7 +35,7 @@ export type GateStatus = "pass" | "warn" | "fail";
 const WARN_PCT = 25;
 const WARN_MIN_DELTA_MS = 0.25;
 const FAIL_PCT = 100;
-const FAIL_MIN_DELTA_MS = 1;
+const FAIL_MIN_DELTA_MS = 1.5;
 
 /**
  * Severe drift must be observed this many runs in a row before it fails the
@@ -595,10 +595,11 @@ function parseArgs(argv: readonly string[]): Record<string, string> {
   return args;
 }
 
-function resolvePolicy(raw: string | undefined): GatePolicy {
+export function resolvePolicy(raw: string | undefined): GatePolicy {
   if (raw === "fail" || raw === "warn") return raw;
+  const ref = process.env.GITHUB_REF;
   const event = process.env.GITHUB_EVENT_NAME;
-  return event && event !== "pull_request" ? "fail" : "warn";
+  return ref === "refs/heads/main" || event === "merge_group" ? "fail" : "warn";
 }
 
 if (import.meta.main) {

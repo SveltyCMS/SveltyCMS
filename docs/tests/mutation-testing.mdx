@@ -74,7 +74,7 @@ bun run test:mutation
 node ./node_modules/vitest/vitest.mjs run tests/mutation/seam-mutation.test.ts
 ```
 
-A full pass takes a few seconds (the first import of the generated `@src/paraglide/messages` barrel dominates; the mutants themselves run in single-digit milliseconds). It runs via `test:mutation` (and as a separate step in CI `04-unit`), **not** as part of `test:unit` — keeping its temp-file dynamic `import()` out of the `--coverage` run, where v8 instrumentation would otherwise make it flaky.
+A full pass takes a few seconds (the first import of the generated `@src/paraglide/messages` barrel dominates; the mutants themselves run in single-digit milliseconds). It runs via `test:mutation`, as a separate step in CI `04-unit`, and **last** in `.githooks/pre-push` (after the browser gate): the runner rewrites source files in place, writes atomically, restores in a `finally`/exit handler, and falls back to `git checkout -- <file>` if a target is left dirty. It is **not** part of `test:unit` — keeping its temp-file dynamic `import()` out of the `--coverage` run, where v8 instrumentation would otherwise make it flaky.
 
 Expected output summary line:
 

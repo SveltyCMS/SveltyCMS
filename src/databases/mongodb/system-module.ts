@@ -27,6 +27,24 @@ import { MongoWebsiteTokenMethods } from "./website-token";
 
 export { systemSettingSchema, SystemSettingModel, type SystemSetting };
 
+/**
+ * Accept both shapes the adapters are called with for a tenant:
+ * a bare id (`"acme"`) and the SQL-style options object (`{ tenantId: "acme" }`).
+ *
+ * The `virtualFolder` methods below take a tenant **id**, while shared handlers
+ * and page loaders call every adapter with `{ tenantId }`. Passing that object
+ * through made mongoose cast `{ tenantId: null }` into the String `tenantId`
+ * path and answer 400 — invisible until the suite ran on MongoDB.
+ */
+function tenantIdOf(value: unknown): string | null {
+  if (typeof value === "string") return value || null;
+  if (value && typeof value === "object") {
+    const tenantId = (value as { tenantId?: unknown }).tenantId;
+    return typeof tenantId === "string" && tenantId ? tenantId : null;
+  }
+  return null;
+}
+
 export class MongoSystemMethods {
   private readonly SystemPreferencesModel: Model<SystemPreferencesDocument>;
   private readonly SystemSettingModel: Model<SystemSetting>;
@@ -651,11 +669,14 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
         count: (f: any) => jobRepo.count(f),
         update: (id: DatabaseId, d: any, o?: any) => jobRepo.update(id, d, o),
         delete: (id: DatabaseId) => jobRepo.delete(id),
-        cleanup: async (olderThan: Date) => {
-          const res = await jobRepo.deleteMany(
-            { createdAt: { $lt: olderThan.toISOString() } } as any,
-            { permanent: true },
-          );
+        cleanup: async (olderThan: Date, options?: any) => {
+          // Completed history only — see the SQL adapter parity note.
+          const filter: Record<string, unknown> = {
+            createdAt: { $lt: olderThan.toISOString() },
+            status: "completed",
+          };
+          if (options?.tenantId) filter.tenantId = options.tenantId;
+          const res = await jobRepo.deleteMany(filter as any, { permanent: true });
           return res.success ? { success: true, data: res.data.deletedCount } : (res as any);
         },
       },
@@ -810,29 +831,31 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
     update: async (id: DatabaseId, data: any, options?: any) =>
       (await this._getMethods()).jobs.update(id, data, options),
     delete: async (id: DatabaseId) => (await this._getMethods()).jobs.delete(id),
-    cleanup: async (olderThan: Date) => (await this._getMethods()).jobs.cleanup(olderThan),
+    cleanup: async (olderThan: Date, options?: any) =>
+      (await this._getMethods()).jobs.cleanup(olderThan, options),
   };
 
   virtualFolder = {
     create: async (folder: any, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.create(folder, tenantId),
+      (await this._getMethods()).virtualFolder.create(folder, tenantIdOf(tenantId)),
     getById: async (id: DatabaseId, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.getById(id, tenantId),
+      (await this._getMethods()).virtualFolder.getById(id, tenantIdOf(tenantId)),
     getByParentId: async (parentId: DatabaseId | null, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.getByParentId(parentId, tenantId),
-    getAll: async (tenantId?: any) => (await this._getMethods()).virtualFolder.getAll(tenantId),
+      (await this._getMethods()).virtualFolder.getByParentId(parentId, tenantIdOf(tenantId)),
+    getAll: async (tenantId?: any) =>
+      (await this._getMethods()).virtualFolder.getAll(tenantIdOf(tenantId)),
     update: async (id: DatabaseId, data: any, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.update(id, data, tenantId),
+      (await this._getMethods()).virtualFolder.update(id, data, tenantIdOf(tenantId)),
     addToFolder: async (contentId: DatabaseId, path: string, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.addToFolder(contentId, path, tenantId),
+      (await this._getMethods()).virtualFolder.addToFolder(contentId, path, tenantIdOf(tenantId)),
     getContents: async (path: string, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.getContents(path, tenantId),
+      (await this._getMethods()).virtualFolder.getContents(path, tenantIdOf(tenantId)),
     ensure: async (folder: any, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.ensure(folder, tenantId),
+      (await this._getMethods()).virtualFolder.ensure(folder, tenantIdOf(tenantId)),
     delete: async (id: DatabaseId, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.delete(id, tenantId),
+      (await this._getMethods()).virtualFolder.delete(id, tenantIdOf(tenantId)),
     exists: async (path: string, tenantId?: any) =>
-      (await this._getMethods()).virtualFolder.exists(path, tenantId),
+      (await this._getMethods()).virtualFolder.exists(path, tenantIdOf(tenantId)),
   };
 
   websiteTokens = {

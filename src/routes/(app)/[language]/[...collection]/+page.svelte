@@ -584,10 +584,12 @@ This page dynamically switches between List views and Field editors based on the
 		{@const activeEntryId = String(collections.activeValue?._id || urlEditParam || '')}
 		<div
 			id="fields_container"
-			class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)] space-y-6"
+			class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)]"
 		>
 			{#if effectiveMode === 'edit' && activeEntryId}
-				<WorkflowActions collectionId={activeCollection._id!} entryId={activeEntryId} />
+				<div class="mb-3">
+					<WorkflowActions collectionId={activeCollection._id!} entryId={activeEntryId} />
+				</div>
 			{/if}
 			<!-- Pass the server-loaded data directly as props -->
 			<Fields

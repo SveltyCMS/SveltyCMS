@@ -35,6 +35,8 @@ The Media API provides a centralized interface for managing all assets within Sv
 | **Delete Media**        | `/api/media/{id}`                   | `DELETE`            | `media:delete`      |
 | **Bulk Download**       | `/api/media/bulk-download`          | `GET/POST`          | `media:read`        |
 | **Batch Process**       | `/api/media/process`                | `POST`              | `media:write`       |
+| **Batch Resize/Filter** | `/api/media/batch-process`          | `POST`              | `media:write`       |
+| **Video Transcode**     | `/api/media/transcode`              | `POST`              | `media:write`       |
 | **Analytics**           | `/api/media/analytics`              | `GET`               | `media:read`        |
 | **Version List**        | `/api/media/version/{id}/list`      | `GET`               | `media:read`        |
 | **Version Compare**     | `/api/media/version/{id}/compare`   | `GET`               | `media:read`        |
@@ -193,6 +195,52 @@ Apply one transformation set to many assets in a single request.
 
 > [!IMPORTANT]
 > **100-id ceiling (`MAX_BATCH_PROCESS_IDS`).** A `mediaIds` list longer than **100** entries is rejected with `400 INVALID_BATCH_SIZE` — the check runs before any asset is touched, because each id otherwise feeds a serial `manipulateMedia()` loop downstream (`payload-exhaustion` guard). The cap mirrors the sibling surfaces `MAX_BULK_DOWNLOAD_IDS` (bulk download), `MAX_BATCH_SIZE` (`/api/token/batch`) and `MAX_USER_BATCH_SIZE` (`/api/user/batch`). Malformed JSON or a non-array `mediaIds` returns `400 INVALID_BATCH_IDS`.
+
+### Batch Resize & Filters (`/api/media/batch-process`)
+
+Applies **one** uniform transform to a selection (the gallery's `batch-processor.svelte` panel). Unlike `process`, the payload is JSON and the result reports per-asset outcomes instead of aborting the batch.
+
+**Endpoint**: `POST /api/media/batch-process`
+**Permission**: `media:write` · **Handler**: `handleMediaBatchProcess` in `handlers/media.ts`
+
+```json
+{
+  "ids": ["uuid-1", "uuid-2"],
+  "operation": "resize",
+  "params": { "width": 320 }
+}
+```
+
+| `operation` | `params`                      | Applied manipulation                                  |
+| :---------- | :---------------------------- | :---------------------------------------------------- |
+| `resize`    | `{ width }` — integer 32–4096 | `resize: { width }` with `fit: inside` + no upscaling |
+| `filter`    | `{ filterPreset }`            | `vivid` · `bw` · `sepia` · `dramatic`                 |
+| `watermark` | `{ text }` (≤120 chars)       | top-start text watermark at 24 px                     |
+
+Limits and gates: **≤100 ids**, each asset passes the publish-state gate (`409 MEDIA_REFERENCED_BY_PUBLISHED_CONTENT`), and the file is overwritten through the same Sharp pipeline as the image editor. A failed asset does **not** stop the others:
+
+```json
+{ "success": true, "data": { "processed": 1, "failed": 1, "results": [ … ] } }
+```
+
+### Video Transcoding (`/api/media/transcode`)
+
+Produces adaptive **HLS** (master playlist + per-resolution variant playlists and segments) or a single **faststart MP4** from a stored video asset.
+
+**Endpoint**: `POST /api/media/transcode`
+**Permission**: `media:write` · **Handler**: `handleMediaTranscode` in `handlers/media-transcode.ts`
+
+```json
+{ "mediaId": "uuid", "format": "hls", "resolutions": ["1080p", "720p", "480p"], "bitrate": "auto" }
+```
+
+- `format` — `hls` (default) or `mp4`; `resolutions` ⊆ `1080p | 720p | 480p | 360p`; `bitrate` — `auto` or `<n>k`.
+- Responds `202` immediately and records progress on the asset: `metadata.transcode = { status: processing | ready | failed }`. Playback URLs land on `metadata.hls.master` / `metadata.mp4.url`.
+- **Requires `ffmpeg`** on the server `PATH` (or `FFMPEG_PATH`). Without it the endpoint fails closed with `503 FFMPEG_UNAVAILABLE` — it never pretends a job started.
+- Videos above **512 MB** are rejected with `413 FILE_TOO_LARGE`; non-video assets with `400 NOT_A_VIDEO`.
+- Only the `media:write` holder's tenant is read/written (`tenantId` scope on every lookup).
+
+**Admin UI**: the **Transcode** button in `media-details-modal.svelte` opens `transcode-modal.svelte`; the details modal mounts `hls-video-player.svelte` when `metadata.hls.master` is present and falls back to a direct `<video src>` otherwise.
 
 ### Image Manipulation API
 

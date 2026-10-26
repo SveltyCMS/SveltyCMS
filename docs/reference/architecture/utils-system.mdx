@@ -25,7 +25,7 @@ SveltyCMS utilities are organized by domain into flat files and subdirectories. 
 ```
 src/utils/
 ├── compilation/      3 files   AST compilation for content scanner
-├── media/           14 files   DAM engine — storage, processing, search, sharing, MIME, WebGPU
+├── media/           14 files   DAM engine — storage, processing, search, sharing, MIME, Canvas 2D
 ├── schema/           5 files   Validation, comparison, tree, field utilities, Web Worker
 ├── security/        11 files   Crypto, CSRF, CORS, credential hashing, auth utils
 ├── server/           5 files   Setup checks, batch loading, deferred SSR elements
@@ -95,7 +95,7 @@ All 14 files are **wired to API handlers** or planned for wiring:
 | `streaming-upload.ts`        | `parseMultipartStream`                                                              | Stream upload                               |
 | `media-processing.server.ts` | `hashFileContent`, `MediaProcessingService`                                         | Processing                                  |
 | `slim-sniffer.server.ts`     | `sniffMimeType`, `resolveMimeType`, `assertMimeAgreement`, `resolveRemoteAssetMime` | Binary MIME detection + write/serve resolve |
-| `webgpu-processor.ts`        | `optimizeImage`                                                                     | Client-side GPU optimization                |
+| `canvas-image-optimizer.ts`  | `optimizeImage`                                                                     | Client-side Canvas 2D optimization          |
 
 ### Infrastructure
 

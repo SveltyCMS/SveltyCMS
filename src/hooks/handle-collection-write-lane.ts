@@ -391,6 +391,8 @@ export function isSimpleCollectionWrite(event: RequestEvent): boolean {
 export function resolveWarmWriteSession(
   event: RequestEvent,
 ): NonNullable<ReturnType<typeof getTurboAuthContext>> | null {
+  const stuffed = (event.locals as { turboSessionId?: string | null } | undefined)?.turboSessionId;
+  if (stuffed !== undefined) return stuffed ? getTurboAuthContext(stuffed) : null;
   const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
   const sessionId = readSessionCookie(event.cookies, isSecure);
   // Slides TTL — must use getTurboAuthContext, not a raw Map get.
@@ -486,7 +488,7 @@ async function executeWarmCollectionWrite(
     (typeof bodyExpected === "string" || typeof bodyExpected === "number"
       ? bodyExpected
       : undefined) ??
-    url.searchParams.get("expectedVersion");
+    (url.search ? url.searchParams.get("expectedVersion") : null);
   if (marks) marks.set("parse", performance.now() - tParse);
   const cms = getLaneCms();
   if (!cms) return null;

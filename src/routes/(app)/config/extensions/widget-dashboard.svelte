@@ -14,7 +14,7 @@ Features:
 	import { widgets as widgetRegistry } from '@src/stores/widget-store.svelte.ts';
 	import { logger } from '@utils/logger';
 	// Using iconify-icon web component
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import WidgetCard from './widget-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
@@ -59,11 +59,24 @@ Features:
 		listWidgets,
 		unwrapWidgetList,
 		setWidgetStatus,
-		uninstallWidget as apiUninstallWidget
+		uninstallWidget as apiUninstallWidget,
+		type WidgetListItem
 	} from './widgets-api';
 
+	interface WidgetDashboardData {
+		tenantId?: string;
+		user?: {
+			tenantId?: string;
+			role?: string;
+			permissions?: string[];
+		};
+	}
+
 	// Props
-	const { data }: { data: any } = $props();
+	const {
+		data,
+		initialWidgets = []
+	}: { data: WidgetDashboardData; initialWidgets?: WidgetListItem[] } = $props();
 
 	// Define the Widget type
 	interface Widget {
@@ -80,9 +93,22 @@ Features:
 		};
 	}
 
+	function toWidgets(list: WidgetListItem[]): Widget[] {
+		return list.map((w) => ({
+			name: w.name,
+			icon: w.icon ?? 'mdi:puzzle',
+			isCore: w.isCore ?? false,
+			isActive: w.isActive,
+			canDisable: w.canDisable ?? true,
+			dependencies: w.dependencies ?? [],
+			description: w.description,
+			pillar: w.pillar
+		}));
+	}
+
 	// State
-	let widgets: Widget[] = $state([]);
-	let isLoading = $state(true);
+	let widgets: Widget[] = $state(untrack(() => toWidgets(initialWidgets)));
+	let isLoading = $state(false);
 	let searchQuery = $state('');
 	let activeFilter = $state('all');
 	let error: string | null = $state(null);
@@ -145,8 +171,6 @@ Features:
 	);
 
 	onMount(() => {
-		loadWidgets();
-
 		// Keyboard shortcuts
 		const handleKeyboard = (e: KeyboardEvent) => {
 			// Ctrl/Cmd + F: Focus search
@@ -176,16 +200,7 @@ Features:
 			if (!result.success) {
 				throw new Error(result.message || 'Failed to load widgets');
 			}
-			widgets = unwrapWidgetList(result).map((w) => ({
-				name: w.name,
-				icon: w.icon ?? 'mdi:puzzle',
-				isCore: w.isCore ?? false,
-				isActive: w.isActive,
-				canDisable: w.canDisable ?? true,
-				dependencies: w.dependencies ?? [],
-				description: w.description,
-				pillar: w.pillar
-			}));
+			widgets = toWidgets(unwrapWidgetList(result));
 
 			logger.debug('Loaded widgets:', {
 				total: widgets.length,

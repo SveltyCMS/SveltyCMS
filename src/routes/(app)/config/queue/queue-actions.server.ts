@@ -68,7 +68,10 @@ export const clearCompleted = async (_data?: any) => {
   const db = getDb();
   if (!db?.system?.jobs) throw error(500, "Database adapter not ready or jobs not supported.");
 
-  const result = await db.system.jobs.cleanup(new Date());
+  // Tenant-scoped when the request carries one; the adapter only removes
+  // `completed` rows, so pending retries and failed jobs survive.
+  const tenantId = getRequestEvent()?.locals?.tenantId as any;
+  const result = await db.system.jobs.cleanup(new Date(), tenantId ? { tenantId } : undefined);
 
   if (!result.success) {
     logger.error("Failed to clear completed jobs:", result.message);

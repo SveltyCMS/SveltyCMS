@@ -27,14 +27,18 @@ export function prefersMinimalReturn(
   urlOrQuery?: URL | URLSearchParams | string | null | undefined,
 ): boolean {
   if (urlOrQuery) {
-    const searchParams =
-      urlOrQuery instanceof URL
+    const hasSearch = urlOrQuery instanceof URL ? !!urlOrQuery.search : true;
+    const searchParams = hasSearch
+      ? urlOrQuery instanceof URL
         ? urlOrQuery.searchParams
         : urlOrQuery instanceof URLSearchParams
           ? urlOrQuery
           : typeof urlOrQuery === "string"
-            ? new URLSearchParams(urlOrQuery.startsWith("?") ? urlOrQuery.slice(1) : urlOrQuery)
-            : null;
+            ? urlOrQuery
+              ? new URLSearchParams(urlOrQuery.startsWith("?") ? urlOrQuery.slice(1) : urlOrQuery)
+              : null
+            : null
+      : null;
     if (searchParams) {
       // Query params are the strongest signal — explicit per-request override.
       const ret = searchParams.get("return")?.toLowerCase();

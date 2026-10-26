@@ -216,6 +216,29 @@ describe("relational-utils — convertDatesToISO json flattening", () => {
     expect(row2.createdAt).toBe("2026-08-09T22:25:38.000Z");
   });
 
+  it("normalizes MariaDB / MySQL datetime strings to ISODateString (raw reads)", () => {
+    utils.registerTableSchema("collection_maria_raw", ["_id", "createdAt", "updatedAt"]);
+
+    const row = {
+      _id: "m-1",
+      createdAt: "2026-10-23 13:19:26.410",
+      updatedAt: "2026-10-23 13:19:26",
+    };
+    const converted = utils.convertDatesToISO(row, { table: "collection_maria_raw" });
+    expect(converted.createdAt).toBe("2026-10-23T13:19:26.410Z");
+    expect(converted.updatedAt).toBe("2026-10-23T13:19:26.000Z");
+
+    // inPlace fast path
+    const row2 = { _id: "m-2", createdAt: "2026-10-23 13:19:26.410" };
+    utils.convertDatesToISO(row2, { table: "collection_maria_raw", inPlace: true });
+    expect(row2.createdAt).toBe("2026-10-23T13:19:26.410Z");
+
+    // Unregistered table fallback
+    const row3 = { _id: "m-3", createdAt: "2026-10-23 13:19:26.410" };
+    const converted3 = utils.convertDatesToISO(row3, {});
+    expect(converted3.createdAt).toBe("2026-10-23T13:19:26.410Z");
+  });
+
   it("does not mangle small numbers or non-date values in date columns", () => {
     utils.registerTableSchema("collection_mixed", ["_id", "expires", "count"]);
 

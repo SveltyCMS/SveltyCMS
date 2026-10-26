@@ -23,9 +23,10 @@
 	import { formatBytes } from '@utils/file';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
-	import { optimizeImage } from '@src/utils/media/webgpu-processor';
+	import { optimizeImage } from '@src/utils/media/canvas-image-optimizer';
 	import { uploadMediaFilesHandle } from '@utils/media/upload-client';
 	import Button from '@components/ui/button.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import {
 		button_cancel,
 		common_input,
@@ -39,7 +40,7 @@
 		mediagallery_files,
 		mediagallery_max_file_size,
 		mediagallery_multiple_files,
-		mediagallery_optimize_webgpu,
+		mediagallery_optimize_before_upload,
 		mediagallery_queue_hint,
 		mediagallery_remove_file,
 		mediagallery_size,
@@ -371,20 +372,20 @@
 			></iconify-icon>
 
 			<div class="min-w-0 flex-1 space-y-4 text-center sm:text-start">
-				<p class="font-bold">
-					<span class="text-tertiary-500 dark:text-primary-500">{mediagallery_upload_title()}</span>
-					{mediagallery_drag_files_hint()}
-				</p>
+				<div class="space-y-1">
+					<p class="font-bold text-tertiary-500 dark:text-primary-500">
+						{mediagallery_upload_title()}
+					</p>
+					<p class="text-sm">{mediagallery_drag_files_hint()}</p>
+				</div>
 
-				<label class="flex items-center gap-2 cursor-pointer justify-center mt-2 sm:justify-start">
-					<input
-						type="checkbox"
+				<div class="mt-2 flex justify-center sm:justify-start">
+					<Checkbox
+						size="sm"
 						bind:checked={optimizeBeforeUpload}
-						class="checkbox checkbox-sm"
-						aria-label={common_input()}
+						label={mediagallery_optimize_before_upload()}
 					/>
-					<span class="text-xs font-bold opacity-75">{mediagallery_optimize_webgpu()}</span>
-				</label>
+				</div>
 
 				<p class="text-sm opacity-75">{mediagallery_multiple_files()}</p>
 

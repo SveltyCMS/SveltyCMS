@@ -352,7 +352,7 @@
 										{item.key === 'completed'
 											? ' bg-tertiary-500 dark:bg-primary-500 text-white'
 											: item.key === 'current'
-												? 'bg-error-500 text-white shadow-sm'
+												? 'bg-surface-500/10 text-surface-900 shadow-sm ring-1 ring-surface-500/30 dark:text-surface-100'
 												: 'bg-(--admin-border-subtle) text-(--admin-text-muted) ring-1 ring-(--admin-border-default)'}"
 									>
 										<span class="text-[0.65rem]">{item.content}</span>

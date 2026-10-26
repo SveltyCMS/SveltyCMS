@@ -1,8 +1,11 @@
 /**
- * @file src/utils/media/webgpu-processor.ts
- * @description Client-side media processing engine using Canvas 2D API
- * (not WebGPU — the name is retained for backward compatibility).
- * Handles resizing, compression, and metadata generation before upload.
+ * @file src/utils/media/canvas-image-optimizer.ts
+ * @description Client-side image optimizer built on the Canvas 2D API.
+ *
+ * Runs in the browser before upload: downscales to a bounding box, re-encodes
+ * to WebP, and produces a tiny placeholder. No GPU API is involved — the file
+ * was previously called `webgpu-processor.ts`, a label that never matched the
+ * implementation (browser WebGPU is only used by the LiteRT.js AI client).
  *
  * ### Limitations / Future:
  * - EXIF orientation is NOT applied during canvas rendering. Images uploaded
