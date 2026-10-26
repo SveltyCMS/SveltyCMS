@@ -45,6 +45,22 @@ const AUDIT_OUTBOX_CAPACITY = 2048;
 const auditOutboxQueue: QueuedAuditItem[] = [];
 let isOutboxFlushing = false;
 
+/** Materialize the log payload only when the level is actually emitted. */
+function auditLogEntry(item: QueuedAuditItem): Record<string, unknown> {
+  return {
+    timestamp: item.timestamp,
+    method: item.method,
+    path: item.path,
+    status: item.status,
+    userId: item.userId,
+    tenantId: item.tenantId,
+    ip: item.ip,
+    durationMs: item.durationMs,
+    success: item.success,
+    ...(item.errorMessage ? { error: { message: item.errorMessage } } : {}),
+  };
+}
+
 function flushAuditOutbox() {
   if (isOutboxFlushing || auditOutboxQueue.length === 0) return;
   isOutboxFlushing = true;
@@ -54,26 +70,19 @@ function flushAuditOutbox() {
     try {
       const batch = auditOutboxQueue.splice(0);
       const hashesToAppend: string[] = [];
+      // Build the log-entry object only when the level would emit it: production
+      // runs at `error`, so the success branch used to allocate an 8-field object
+      // per mutation only for `log()` to discard it.
+      const debugEnabled = logger.isEnabled("debug");
       for (let i = 0; i < batch.length; i++) {
         const item = batch[i];
 
-        const logEntry: Record<string, unknown> = {
-          timestamp: item.timestamp,
-          method: item.method,
-          path: item.path,
-          status: item.status,
-          userId: item.userId,
-          tenantId: item.tenantId,
-          ip: item.ip,
-          durationMs: item.durationMs,
-          success: item.success,
-          ...(item.errorMessage ? { error: { message: item.errorMessage } } : {}),
-        };
-
         if (item.success) {
-          logger.debug("[AUDIT] Mutation completed", logEntry);
+          if (debugEnabled) {
+            logger.debug("[AUDIT] Mutation completed", auditLogEntry(item));
+          }
         } else {
-          logger.warn("[AUDIT] Mutation logged with failure flags", logEntry);
+          logger.warn("[AUDIT] Mutation logged with failure flags", auditLogEntry(item));
         }
 
         // Fast O(1) rolling Merkle accumulator update

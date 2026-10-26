@@ -910,6 +910,7 @@ async function rebuildWarmCollectionRead(
         } else {
           responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
             skipSharedL1: true,
+            point: false,
           });
         }
         marks?.set("cachewrite", performance.now() - cacheT0);
@@ -937,6 +938,7 @@ async function rebuildWarmCollectionRead(
         } else {
           responseCache.set(pathKey, { body: apiBody, etag }, 300_000, cacheTenant, {
             skipSharedL1: true,
+            point: false,
           });
         }
         marks?.set("cachewrite", performance.now() - cacheT0);

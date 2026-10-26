@@ -502,6 +502,11 @@ class ResponseCacheService {
    * True when this point-tier key may take a slot (second sighting). Generational
    * nursery + mature rotation with Smi hashing completely avoids string allocation
    * and eviction churn on cold sweeps.
+   *
+   * Measured 2026-10-26: accepting a first sighting while the tier had room looked
+   * attractive for uniform random reads, but it lost 12 % on `findByIdRandom` and
+   * ~17 % on `update` (whose response is also point-cached) — the insert/index cost
+   * per cold miss outweighs the extra hits. Keep the two-touch gate.
    */
   private admitPointRead(key: string, tenantId?: string | null): boolean {
     const hash = hashKey31(key, tenantId);
@@ -894,10 +899,12 @@ class ResponseCacheService {
     entry: CachedResponseEntry,
     ttlMs: number = 300_000,
     tenantId?: string | null,
-    opts?: { skipSharedL1?: boolean; tags?: string[]; preserveStale?: boolean },
+    opts?: { skipSharedL1?: boolean; tags?: string[]; preserveStale?: boolean; point?: boolean },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
-    const inferredPointRead = classifyTurboKey(key)?.entryId != null;
+    // Callers that already know the tier (the read lane's list branch) can skip
+    // the `classifyTurboKey` pathname scan; unknown callers keep inference.
+    const inferredPointRead = opts?.point ?? classifyTurboKey(key)?.entryId != null;
     const store = inferredPointRead ? this.pointL1 : this.localL1;
     entry.expiresAt = Date.now() + ttlMs;
     // An update to an ALREADY-LIVE entry (the variant stash, `response-compression-stash.ts`)
