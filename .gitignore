@@ -126,3 +126,4 @@ bun.lock
 # Root app config only. Unanchored, this also hid every new
 # tests/e2e/routes/config/*.spec.ts from git (tests must never be git-ignored).
 /config/
+logs/
