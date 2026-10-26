@@ -22,7 +22,25 @@
  * pointer/drag dispatches in `collection-builder/builder.spec.ts`, which are
  * pointer primitives with no hydration-safe helper equivalent.
  *
- * ### Rule 2 — `fill()` followed by a save/dirty assertion: intentionally NOT implemented
+ * ### Rule 2 — ungated click on a hydration-gated control
+ * Flags a `.click()` on a `getByTestId()` / `getByRole()` locator whose target is
+ * one of the controls that ships `disabled` until hydration (`GATED_TESTIDS` /
+ * `GATED_LABELS`; the product side binds `disabled={!hydration.hydrated}` from
+ * `src/stores/hydration.svelte.ts`). The click is accepted when the same test
+ * body already proves interactivity: `waitForHydration()` /
+ * `runAfterHydration()` / `selectAndWaitForUrl()` / `fillUntil()`, a
+ * `toBeEnabled()` / `toBeDisabled()` assertion, or `// hydration-ok: <reason>`.
+ *
+ * Locators held in variables are resolved (`const addBtn = page.getByTestId(...)`
+ * then `addBtn.click()`), including assignments spanning several lines.
+ *
+ * Scope is deliberately the gated set, not "every click on every locator": the
+ * tree holds 14 legitimate one-shot clicks on controls that never ship disabled
+ * (login submit, media view toggles, confirm dialogs), so the broad form would
+ * fail on correct code — the same false-positive argument as rule 3. A new
+ * hydration-gated flow must be added to `GATED_TESTIDS`.
+ *
+ * ### Rule 3 — `fill()` followed by a save/dirty assertion: intentionally NOT implemented
  * "Within 3 lines of a `.fill(`" cannot distinguish `input.fill(x)` from
  * `saveBtn.click()` or an unrelated search assertion. The tree already has
  * legitimate neighbours (`collection-builder/builder.spec.ts` fills a name and
@@ -57,8 +75,40 @@ const DISPATCH_CALL = /\.dispatchEvent\s*\(/g;
 const CHANGE_ARG = /^\s*(["'`])change\1(?![A-Za-z0-9_$])/;
 const HYDRATION_OK = /hydration-ok:\s*\S/;
 
+const CLICK_CALL = /\.click\s*\(/g;
+const LOCATOR_CALL = /\.(?:getByTestId|getByRole)\s*\(/;
+/** Start of a Playwright test body — the window rule 2 looks for proof in. */
+const TEST_START = /^\s*test\s*(?:\.(?:only|skip|fixme|fail))?\s*\(/;
+
+/**
+ * Controls whose product code binds `disabled` to `hydration.hydrated`.
+ * `"<page>: <testid>"` — the page half is documentation, the id half is matched.
+ * Keep in sync when a flow becomes hydration-gated.
+ */
+const GATED_CONTROLS: readonly string[] = [
+  "src/routes/(app)/config/webhooks/+page.svelte: webhooks-add",
+  "src/routes/(app)/config/system-settings/+page.svelte: system-settings-check-structure",
+  "src/routes/(app)/user/+page.svelte: edit-user-settings-btn",
+  "src/routes/(app)/user/+page.svelte: user-account-tabs",
+  "src/components/ui/tabs.svelte: tab-identity",
+  "src/components/ui/tabs.svelte: tab-security",
+  "src/components/ui/tabs.svelte: tab-settings",
+  "src/components/ui/tabs.svelte: tab-management",
+];
+
+const GATED_TESTIDS = GATED_CONTROLS.map((entry) => entry.slice(entry.indexOf(": ") + 2));
+
+/** `/shop`'s add-to-cart button carries no testid — it is gated by label. */
+const GATED_LABELS = [/add to cart/i];
+
+/** Everything that already proves the page (or the control) is interactive. */
+const GATE_PROOF =
+  /(?:waitForHydration|runAfterHydration|selectAndWaitForUrl|fillUntil)\s*\(|\.(?:toBeEnabled|toBeDisabled)\s*\(|hydration-ok:/;
+
 const FIX_HINT =
-  "route it through selectAndWaitForUrl()/fillUntil()/runAfterHydration() from " +
+  "gate the control (`disabled={!hydration.hydrated}`) and assert its own state " +
+  "(`await expect(locator).toBeEnabled()`), route the interaction through " +
+  "waitForHydration()/runAfterHydration()/selectAndWaitForUrl()/fillUntil() from " +
   "tests/e2e/helpers/hydration.ts, or annotate `// hydration-ok: <reason>`";
 
 export interface HydrationFinding {
@@ -66,7 +116,7 @@ export interface HydrationFinding {
   file: string;
   /** 1-based line of the offending call. */
   line: number;
-  rule: "change-dispatch";
+  rule: "change-dispatch" | "ungated-click";
   message: string;
 }
 
@@ -174,6 +224,152 @@ export function findHydrationViolations(text: string, file = "<snippet>"): Hydra
     });
   }
 
+  findings.push(...findUngatedClicks(text, masked, file));
+
+  return findings;
+}
+
+/** Line boundaries of `text` (index of each line's first character). */
+function lineStartsOf(text: string): number[] {
+  const starts = [0];
+  for (let i = 0; i < text.length; i += 1) {
+    if (text[i] === "\n") starts.push(i + 1);
+  }
+  return starts;
+}
+
+/** 1-based line number of a character offset. */
+function lineOf(starts: number[], index: number): number {
+  let lo = 0;
+  let hi = starts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (starts[mid] <= index) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo + 1;
+}
+
+/**
+ * End of the statement that starts at `start`, tolerant of multi-line call
+ * chains: a newline only ends the statement when parens are balanced and the
+ * next line does not continue with `.`/`?.`.
+ */
+function statementEnd(masked: string, start: number): number {
+  let depth = 0;
+  for (let i = start; i < masked.length; i += 1) {
+    const ch = masked[i];
+    if (ch === "(" || ch === "[" || ch === "{") depth += 1;
+    else if (ch === ")" || ch === "]" || ch === "}") {
+      depth -= 1;
+      if (depth < 0) return i;
+    } else if (ch === ";" && depth === 0) return i;
+    else if (ch === "\n" && depth === 0) {
+      let j = i + 1;
+      while (j < masked.length && (masked[j] === " " || masked[j] === "\t")) j += 1;
+      if (masked[j] === "." || (masked[j] === "?" && masked[j + 1] === ".")) continue;
+      return i;
+    }
+  }
+  return masked.length;
+}
+
+interface LocatorAssignment {
+  name: string;
+  value: string;
+  index: number;
+}
+
+/** `const foo = page.getByTestId(...)` (any line span) → foo's locator text. */
+function collectLocatorAssignments(text: string, masked: string): LocatorAssignment[] {
+  const assignments: LocatorAssignment[] = [];
+  const declaration = /(?:^|[;{}\n])\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/g;
+
+  for (const match of masked.matchAll(declaration)) {
+    const name = match[1];
+    const valueStart = (match.index ?? 0) + match[0].length;
+    const value = text.slice(valueStart, statementEnd(masked, valueStart));
+    if (!LOCATOR_CALL.test(value)) continue;
+    assignments.push({ name, value, index: valueStart });
+  }
+
+  return assignments;
+}
+
+/** Extend a click's line backwards over a call chain that continues it. */
+function statementStartOf(masked: string, lineStart: number): number {
+  let start = lineStart;
+  while (start > 0) {
+    const previousLineEnd = start - 1;
+    if (masked[previousLineEnd] !== "\n") break;
+    const previousStart = masked.lastIndexOf("\n", previousLineEnd - 1) + 1;
+    const previous = masked.slice(previousStart, previousLineEnd).trimEnd();
+    const current = masked.slice(start).trimStart();
+    if (current.startsWith(".") || previous.endsWith("(") || previous.endsWith(",")) {
+      start = previousStart;
+      continue;
+    }
+    break;
+  }
+  return start;
+}
+
+/** Is this click target one of the disabled-until-hydrated controls? */
+function isGatedTarget(target: string): boolean {
+  if (GATED_TESTIDS.some((id) => target.includes(`"${id}"`) || target.includes(`'${id}'`))) {
+    return true;
+  }
+  return GATED_LABELS.some((label) => LOCATOR_CALL.test(target) && label.test(target));
+}
+
+/**
+ * Rule 2: a click on a gated control with nothing in the enclosing test body
+ * proving the page is interactive yet.
+ */
+function findUngatedClicks(text: string, masked: string, file: string): HydrationFinding[] {
+  const findings: HydrationFinding[] = [];
+  const lines = text.split("\n");
+  const starts = lineStartsOf(text);
+  const assignments = collectLocatorAssignments(text, masked);
+
+  for (const match of masked.matchAll(CLICK_CALL)) {
+    const index = match.index ?? 0;
+    const line = lineOf(starts, index);
+    const lineStart = starts[line - 1];
+    const before = text.slice(statementStartOf(masked, lineStart), index);
+
+    // Resolve `locator.click()` through the variable that holds the locator.
+    let target = before;
+    if (!LOCATOR_CALL.test(before)) {
+      const ident = before.match(/([A-Za-z_$][\w$]*)\s*$/);
+      if (!ident) continue;
+      const holder = assignments.filter((a) => a.name === ident[1] && a.index < index).at(-1);
+      if (!holder) continue;
+      target = holder.value;
+    }
+
+    if (!isGatedTarget(target)) continue;
+
+    let bodyStart = 0;
+    for (let i = line - 2; i >= 0; i -= 1) {
+      if (TEST_START.test(lines[i])) {
+        bodyStart = i;
+        break;
+      }
+    }
+    const body = lines.slice(bodyStart, line).join("\n");
+    if (GATE_PROOF.test(body)) continue;
+
+    findings.push({
+      file,
+      line,
+      rule: "ungated-click",
+      message:
+        "click on a hydration-gated control with no hydration/enabled proof earlier in this " +
+        "test body — the control is disabled in the server HTML",
+    });
+  }
+
   return findings;
 }
 
@@ -233,7 +429,8 @@ function run(): void {
   }
 
   console.log(
-    `✅ E2E hydration lint OK — no direct change dispatches in ${specFiles.length} spec files.`,
+    `✅ E2E hydration lint OK — no direct change dispatches and no ungated clicks on ` +
+      `${GATED_TESTIDS.length} hydration-gated controls in ${specFiles.length} spec files.`,
   );
 }
 

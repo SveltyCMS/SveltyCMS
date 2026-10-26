@@ -8,7 +8,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { loginAsAdmin } from "../../helpers/auth";
-import { fillUntil, runAfterHydration, selectAndWaitForUrl } from "../../helpers/hydration";
+import { fillUntil, selectAndWaitForUrl } from "../../helpers/hydration";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -238,13 +238,11 @@ test.describe("System Settings shell", () => {
     await expect(card).toBeVisible({ timeout: ACTION_TIMEOUT });
     await expect(page.getByTestId("system-settings-check-structure")).toBeVisible();
 
-    // The card is SSR-rendered: a click issued before hydration is a silent
-    // no-op, so structureInfo never gets set and the info block never mounts.
-    await runAfterHydration(
-      page,
-      () => page.getByTestId("system-settings-check-structure").click(),
-      { selector: card },
-    );
+    // The control ships `disabled` until hydration, so its own enabled state is
+    // the readiness gate — the hydration-marker wait is gone.
+    const checkStructure = page.getByTestId("system-settings-check-structure");
+    await expect(checkStructure).toBeEnabled({ timeout: ACTION_TIMEOUT });
+    await checkStructure.click();
     // Result may succeed or show mode text
     await expect(page.getByTestId("system-settings-structure-info")).toBeVisible({
       timeout: ACTION_TIMEOUT,

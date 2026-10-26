@@ -73,6 +73,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 		stopAutoRefresh,
 		themeStore
 	} from '@src/stores/theme-store.svelte';
+	import { hydration } from '@src/stores/hydration.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
 	import { logger } from '@utils/logger';
 
@@ -284,7 +285,9 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 		// against SSR HTML before hydration are silent no-ops (measured 2026-09-21:
 		// media-gallery dialogs/uploads and the dashboard widget menu raced their
 		// own hydration and timed out).
-		if (browser) document.documentElement.dataset.hydrated = 'true';
+		// `markHydrated()` stamps that attribute AND flips `hydration.hydrated`,
+		// which the gated controls bind — one writer, so they cannot diverge.
+		if (browser) hydration.markHydrated();
 
 		// Initialize screen size tracking (resize listener + window.innerWidth)
 		// Without this, screen.isMobile/isDesktop use SSR defaults (1024px)

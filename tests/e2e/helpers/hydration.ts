@@ -10,8 +10,11 @@
  * simply not wired yet (three separate flakes in one day came from this).
  *
  * `html[data-hydrated="true"]` is set by `src/routes/+layout.svelte`'s
- * `onMount`, which only runs after the synchronous SSR hydration walk — so it
- * is the truthful "listeners exist now" signal. (`waitForHydration` in
+ * `onMount` -> `hydration.markHydrated()`, which only runs after the
+ * synchronous SSR hydration walk — so it is the truthful "listeners exist now"
+ * signal. The attribute name is owned by `src/stores/hydration.svelte.ts`
+ * (`HYDRATION_ATTRIBUTE`); it is mirrored here as `HYDRATION_ATTRIBUTE` so a
+ * rename breaks one constant, not every spec. (`waitForHydration` in
  * `tests/e2e/helpers/auth.ts` waits for the same marker one-shot.)
  *
  * These helpers retry through Playwright's `expect.toPass` budget. They never
@@ -26,8 +29,17 @@
 
 import { expect, type Locator, type Page } from "@playwright/test";
 
-/** The root layout flips this attribute after the hydration walk completes. */
-export const HYDRATION_SELECTOR = "html[data-hydrated='true']";
+/**
+ * The root layout flips this attribute after the hydration walk completes.
+ * Must match `HYDRATION_ATTRIBUTE` in `src/stores/hydration.svelte.ts`.
+ */
+export const HYDRATION_ATTRIBUTE = "data-hydrated";
+
+/** Selector form used by `waitFor`/`locator`. */
+export const HYDRATION_SELECTOR = `html[${HYDRATION_ATTRIBUTE}='true']`;
+
+/** Where the marker is published — quoted in every failure message. */
+const HYDRATION_PUBLISHER = "src/routes/+layout.svelte";
 
 /** Default budget for hydration + retries (matches the settings spec's). */
 const DEFAULT_TIMEOUT = 20_000;
@@ -81,10 +93,16 @@ async function waitForHydrationSignal(page: Page, options: HydrationOptions): Pr
   try {
     await page.locator(HYDRATION_SELECTOR).waitFor({ state: "attached", timeout });
   } catch (err) {
+    // Loud by design: a bare TimeoutError hides the one thing worth knowing —
+    // which attribute never appeared and which file is supposed to publish it.
     throw new Error(
-      `Never hydrated: ${HYDRATION_SELECTOR} did not appear within ${timeout}ms, so every ` +
-        `listener in the tree is still unwired and the interaction would be a silent no-op. ` +
-        `Check the trace for a client-side error thrown before the root layout's onMount.`,
+      `"${HYDRATION_ATTRIBUTE}" was never set to "true" on <html> within ${timeout}ms — ` +
+        `published by ${HYDRATION_PUBLISHER} (onMount -> hydration.markHydrated()), attribute ` +
+        `name owned by HYDRATION_ATTRIBUTE in src/stores/hydration.svelte.ts; if it was ` +
+        `renamed, update that constant AND HYDRATION_ATTRIBUTE in this file. Until it is set, ` +
+        `every listener in the tree is still unwired, so the interaction would have been a ` +
+        `silent no-op. Check the trace for a client-side error thrown before the root ` +
+        `layout's onMount.`,
       { cause: err },
     );
   }
@@ -99,6 +117,18 @@ async function waitForHydrationSignal(page: Page, options: HydrationOptions): Pr
       { cause: err },
     );
   }
+}
+
+/**
+ * Wait for the hydration marker alone (no action), failing with the message that
+ * names the attribute and its publisher.
+ *
+ * This is the single loud wait for the marker: `waitForHydration()` in
+ * `tests/e2e/helpers/auth.ts` delegates here, so both names report the same
+ * diagnosis instead of a bare TimeoutError.
+ */
+export async function waitForHydrationMarker(page: Page, timeout = DEFAULT_TIMEOUT): Promise<void> {
+  await waitForHydrationSignal(page, { timeout });
 }
 
 /**

@@ -1,7 +1,8 @@
 /**
  * @file tests/unit/scripts/lint-e2e-hydration.test.ts
  * @description Unit tests for the E2E hydration guard
- * (scripts/lint/lint-e2e-hydration.ts) — rule 1 (direct change dispatch in a spec).
+ * (scripts/lint/lint-e2e-hydration.ts) — rule 1 (direct change dispatch in a spec)
+ * and rule 2 (ungated click on a control that ships disabled until hydration).
  *
  * Features:
  * - Flags `.dispatchEvent("change")` / `'change'` / backtick, with line numbers
@@ -9,6 +10,9 @@
  * - Allows the `// hydration-ok: <reason>` exemption on the same or previous line
  * - Requires a reason: a bare `hydration-ok:` is still reported
  * - Ignores comments, string-only occurrences, `new Event("change")`, and other event types
+ * - Flags an unproven click on a gated control; accepts an enabled assertion or a
+ *   hydration helper earlier in the same test body; resolves locators held in
+ *   variables (multi-line assignments) and the testid-less /shop add-to-cart button
  */
 import { describe, expect, it } from "vitest";
 import { findHydrationViolations } from "../../../scripts/lint/lint-e2e-hydration.ts";
@@ -90,5 +94,70 @@ describe("lint-e2e-hydration — direct change dispatch", () => {
     ].join("\n");
 
     expect(findings(text).map((f) => f.line)).toEqual([1, 3]);
+  });
+});
+
+describe("lint-e2e-hydration — ungated clicks on gated controls", () => {
+  /** A test body whose lines precede one click on a hydration-gated control. */
+  function specWith(prelude: string[]): string {
+    return [
+      'test("golden", async ({ page }) => {',
+      ...prelude,
+      '  await page.getByTestId("webhooks-add").click();',
+      "});",
+    ].join("\n");
+  }
+
+  it("flags a bare click on a gated control", () => {
+    const result = findings(specWith([]));
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ rule: "ungated-click", line: 2 });
+  });
+
+  it("accepts a gated-control enabled assertion earlier in the test body", () => {
+    const prelude = ['  await expect(page.getByTestId("webhooks-add")).toBeEnabled();'];
+    expect(findings(specWith(prelude))).toHaveLength(0);
+  });
+
+  it("accepts waitForHydration / runAfterHydration earlier in the test body", () => {
+    expect(findings(specWith(["  await waitForHydration(page);"]))).toHaveLength(0);
+    expect(
+      findings(specWith(['  await runAfterHydration(page, () => page.getByTestId("x").click());'])),
+    ).toHaveLength(0);
+  });
+
+  it("resolves a locator held in a variable, across lines", () => {
+    const text = [
+      'test("golden", async ({ page }) => {',
+      "  const editBtn = page",
+      '    .getByTestId("edit-user-settings-btn")',
+      "    .first();",
+      "  await editBtn.click();",
+      "});",
+    ].join("\n");
+
+    expect(findings(text).map((f) => f.rule)).toEqual(["ungated-click"]);
+  });
+
+  it("flags the /shop add-to-cart button by label (it has no testid)", () => {
+    const text = [
+      'test("guest", async ({ page }) => {',
+      '  const addBtn = page.getByRole("button", { name: "Add to cart" }).first();',
+      "  await addBtn.click();",
+      "});",
+    ].join("\n");
+
+    expect(findings(text)).toHaveLength(1);
+  });
+
+  it("ignores clicks on controls that are not gated", () => {
+    const text = [
+      'test("other", async ({ page }) => {',
+      '  await page.getByTestId("webhook-delete").click();',
+      '  await page.getByRole("button", { name: /save/i }).click();',
+      "});",
+    ].join("\n");
+
+    expect(findings(text)).toHaveLength(0);
   });
 });

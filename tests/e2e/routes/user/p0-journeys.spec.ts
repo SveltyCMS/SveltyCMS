@@ -40,18 +40,14 @@ async function openEditUserDialog(page: Page) {
   await dismissCookieConsent(page);
   const editBtn = page.getByTestId("edit-user-settings-btn");
   await expect(editBtn).toBeVisible({ timeout: ACTION_TIMEOUT });
-  // Use the dialog's accessible name ("Edit User Data:", set from the modal
-  // title) to avoid matching the cookie consent dialog. The button is
-  // SSR-rendered, so a click that lands before Svelte attaches `onclick` is a
-  // silent no-op — click until the dialog actually opens (same pattern as
-  // management.spec.ts / openUserTab).
+  // The button ships `disabled` until hydration, so its enabled state is the
+  // readiness gate — the retry loop that repaired the pre-hydration click is
+  // gone. The dialog still needs its accessible name ("Edit User Data:") to
+  // avoid matching the cookie consent dialog.
+  await expect(editBtn).toBeEnabled({ timeout: ACTION_TIMEOUT });
+  await editBtn.click();
   const dialog = page.getByRole("dialog", { name: /edit user data/i });
-  await expect(async () => {
-    if (!(await dialog.isVisible().catch(() => false))) {
-      await editBtn.click({ timeout: 5_000 }).catch(() => {});
-    }
-    await expect(dialog).toBeVisible({ timeout: 3_000 });
-  }).toPass({ timeout: ACTION_TIMEOUT, intervals: [500, 1_000, 2_000] });
+  await expect(dialog).toBeVisible({ timeout: ACTION_TIMEOUT });
   return dialog;
 }
 

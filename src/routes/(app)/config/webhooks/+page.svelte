@@ -15,6 +15,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import type { Webhook } from '@src/services/background/webhook-service';
+	import { hydration } from '@src/stores/hydration.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { generateSecureToken } from '@utils/native-utils';
@@ -226,11 +227,13 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 			>
 				{webhooks_delivery_logs()}
 			</Button>
+			<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
 			<Button
 				variant="primary"
 				onclick={openAddModal}
 				aria-label={webhooks_add_aria()}
 				leadingIcon="mdi:plus"
+				disabled={!hydration.hydrated}
 				data-testid="webhooks-add"
 			>
 				{webhooks_add()}

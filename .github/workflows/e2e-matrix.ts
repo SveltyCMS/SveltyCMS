@@ -118,7 +118,9 @@ export const SHARD_GROUPS: Array<{ name: string; grep: string }> = [
   },
   {
     name: "Admin & Catch-All",
-    grep: `(${TOP}(browser-vitality|layout-shift)\\.spec|multi-tenancy${S}|routes${S}admin${S}|routes${S}site${S}|routes${S}system${S}(settings|hooks-lane-smoke)\\.spec)`,
+    // `routes/meta` holds cross-cutting contracts (hydration marker/gate) — it
+    // matches no other group, so without this the spec would never run in CI.
+    grep: `(${TOP}(browser-vitality|layout-shift)\\.spec|multi-tenancy${S}|routes${S}admin${S}|routes${S}meta${S}|routes${S}site${S}|routes${S}system${S}(settings|hooks-lane-smoke)\\.spec)`,
   },
 ];
 
