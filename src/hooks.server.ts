@@ -98,7 +98,6 @@ import {
   hardwareDiagnostics,
   isHeapAligned,
 } from "@utils/hardware-profile";
-import { getSharp } from "@utils/media/sharp-loader.server";
 import { generateUUID } from "@utils/native-utils";
 import { startCpuProfilerIfEnabled } from "@utils/cpu-profiler";
 import { installFastLanes } from "./hooks/fast-lane.server";
@@ -328,23 +327,11 @@ if (!building) {
         // 1.25 when set in the environment). The entry (`index.cjs`) applies the
         // profile's derived value before the server starts; `hw.threadPoolSize`
         // is the reported/derived value and honours an operator-set env.
+        //
+        // sharp is NOT warmed here either: the loader applies these same libvips
+        // knobs on first use. Loading libvips at boot kept its native heap
+        // resident on API-only deployments that never touch media.
         const hw = getHardwareProfile();
-        getSharp()
-          .then((sharp) => {
-            // Measured: variant pipelines are generated in parallel, so the
-            // machine saturates at low libvips concurrency (4≈24 threads on a
-            // 24-core host). The profile caps concurrency per tier to leave CPU
-            // headroom for the event loop, DB pool and other requests.
-            sharp.concurrency(hw.sharpConcurrency);
-            sharp.cache({ memory: 16, files: 10, items: 50 });
-            logger.debug(
-              `[System] Hardware optimized: ThreadPool=${hw.threadPoolSize} | SharpConcurrency=${hw.sharpConcurrency}`,
-            );
-          })
-          .catch((err) => {
-            logger.warn("[System] Image processing initialization failed", err);
-            hw.sharpConcurrency = 0;
-          });
 
         logger.info(`[System] ${describeHardware(hw)}`);
 

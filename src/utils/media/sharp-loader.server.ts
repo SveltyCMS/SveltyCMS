@@ -18,6 +18,7 @@
  */
 
 import { raise, rethrow } from "@utils/error-handling";
+import { getHardwareProfile } from "@utils/hardware-profile";
 import type sharp from "sharp";
 import type { OverlayOptions } from "sharp";
 
@@ -38,7 +39,21 @@ let sharpPromise: Promise<SharpFactory> | null = null;
 export function getSharp(): Promise<SharpFactory> {
   if (!sharpPromise) {
     sharpPromise = import("sharp")
-      .then((mod) => (mod.default || mod) as SharpFactory)
+      .then((mod) => {
+        const sharp = (mod.default || mod) as SharpFactory;
+        // Apply the hardware profile's libvips knobs on FIRST USE, not at boot:
+        // sharp is only needed by media routes, and loading libvips eagerly kept
+        // its native heap resident on API-only deployments. Best-effort — a tuning
+        // knob must never turn a healthy engine into a failed load.
+        try {
+          const hw = getHardwareProfile();
+          sharp.concurrency(hw.sharpConcurrency);
+          sharp.cache({ memory: 16, files: 10, items: 50 });
+        } catch {
+          /* tuning is best-effort */
+        }
+        return sharp;
+      })
       .catch((err: unknown) => {
         rethrow(err);
         sharpPromise = null;

@@ -105,22 +105,35 @@ const alreadyReexec = process.env.SVELTY_HEAP_REEXEC === "1";
 
 if (heapMb > 0 && !hasHeapFlag && !underPassenger && !optedOut && !alreadyReexec) {
   const semiSpaceMb = Math.max(2, Math.round(heapMb / 8));
-  const { spawn } = require("node:child_process");
+  const childArgs = [
+    `--max-old-space-size=${heapMb}`,
+    `--max-semi-space-size=${semiSpaceMb}`,
+    ...process.execArgv,
+    __filename,
+  ];
   console.error(
     `[SveltyCMS] Container heap cap: re-exec with --max-old-space-size=${heapMb} --max-semi-space-size=${semiSpaceMb} ` +
       `(limit ${Math.round(limitMb)}MB, body ceiling ${Math.round(desiredBodyLimitBytes() / 1048576)}MB). ` +
       `Set NODE_HEAP_MB or SVELTY_NO_HEAP_CAP=1 to override.`,
   );
-  const child = spawn(
-    process.execPath,
-    [
-      `--max-old-space-size=${heapMb}`,
-      `--max-semi-space-size=${semiSpaceMb}`,
-      ...process.execArgv,
-      __filename,
-    ],
-    { stdio: "inherit", env: { ...process.env, SVELTY_HEAP_REEXEC: "1" } },
-  );
+
+  // POSIX: REPLACE this process instead of supervising a child. `spawn` keeps a
+  // second Node isolate alive for the whole deployment (~45 MB RSS) solely to
+  // forward signals; execve carries the same argv/env/stdio with no supervisor.
+  // Windows has no execve — the spawn fallback below stays for it.
+  if (process.platform !== "win32" && typeof process.execve === "function") {
+    try {
+      process.execve(process.execPath, childArgs, { ...process.env, SVELTY_HEAP_REEXEC: "1" });
+    } catch (err) {
+      console.error("[SveltyCMS] execve re-exec failed, falling back to a supervised child:", err);
+    }
+  }
+
+  const { spawn } = require("node:child_process");
+  const child = spawn(process.execPath, childArgs, {
+    stdio: "inherit",
+    env: { ...process.env, SVELTY_HEAP_REEXEC: "1" },
+  });
   // Forward termination signals so `docker stop` / Ctrl+C reach the server.
   for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"]) {
     process.on(signal, () => {
