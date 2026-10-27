@@ -22,6 +22,7 @@
 		cookie_necessary_title,
 		cookie_privacy_policy
 	} from '@src/paraglide/messages';
+	import { page } from '$app/state';
 	import { consentStore } from './consent-store.svelte';
 	import { fade, slide } from 'svelte/transition';
 
@@ -69,6 +70,10 @@
 		showBanner = false;
 	}
 
+	// The setup wizard keeps its step list (start) and Next button (footer, end) visible:
+	// lift the banner above the wizard footer and dock it to the content column.
+	const onSetup = $derived(page.url.pathname.startsWith('/setup'));
+
 	// Allows re-opening the banner from an external component (like a footer link)
 	export function openConsentBanner() {
 		showDetails = false;
@@ -79,7 +84,9 @@
 {#if showBanner && !consentStore.responded}
 	<div
 		transition:fade={{ duration: 300 }}
-		class="fixed inset-x-0 bottom-0 z-9999 p-4 md:bottom-6 md:inset-s-6 md:inset-e-auto md:w-full md:max-w-md"
+		class="fixed inset-x-0 z-9999 p-2 sm:p-4 md:w-full md:max-w-md {onSetup
+			? 'bottom-16 md:bottom-20 md:inset-s-auto md:inset-e-6'
+			: 'bottom-0 md:bottom-6 md:inset-s-6 md:inset-e-auto'}"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="cookie-heading"
@@ -90,13 +97,19 @@
 		>
 			<!-- Header -->
 			<div class="flex items-start gap-3">
-				<div class="text-5xl" aria-hidden="true">🍪</div>
+				<div class="hidden text-5xl sm:block" aria-hidden="true">🍪</div>
 				<div class="flex-1 text-center">
-					<h2 id="cookie-heading" class="text-xl font-bold text-surface-900 dark:text-surface-100">
+					<h2
+						id="cookie-heading"
+						class="text-base font-bold text-surface-900 sm:text-xl dark:text-surface-100"
+					>
 						{cookie_heading()}
 					</h2>
 
-					<p id="cookie-description" class="mt-2 text-sm text-surface-600 dark:text-surface-400">
+					<p
+						id="cookie-description"
+						class="mt-1 text-xs text-surface-600 sm:mt-2 sm:text-sm dark:text-surface-400"
+					>
 						{cookie_description()}
 					</p>
 				</div>
@@ -149,9 +162,9 @@
 			{/if}
 
 			<!-- Actions -->
-			<div class="mt-6 flex flex-col gap-3 sm:flex-row">
+			<div class="mt-3 grid grid-cols-3 gap-2 sm:mt-6 sm:flex sm:flex-row sm:gap-3">
 				{#if showDetails}
-					<Button onclick={handleSavePreferences} variant="primary" class="flex-1">
+					<Button onclick={handleSavePreferences} variant="primary" class="col-span-3 flex-1">
 						{cookie_button_save()}
 					</Button>
 				{:else}
