@@ -298,8 +298,14 @@ const MEMORY_BUDGET_ROWS: ReadonlyArray<{ minMb: number; budgets: MemoryBudgets 
   {
     minMb: 1024,
     budgets: {
-      l1CacheMb: 64,
-      l1PointCacheMb: 32,
+      // The list tier is the only one that fills its byte budget (50–100 KB
+      // list bodies); 64 MB of headroom was never justified on a 1 GB
+      // container, so this row matches the 512 MB tier. The point budget is
+      // a safety cap for large documents — `MAX_POINT_L1_ENTRIES` (2,000)
+      // binds first at typical ~1.5 KB docs (~3 MB), so it is not resident
+      // memory and cutting it reclaims nothing.
+      l1CacheMb: 32,
+      l1PointCacheMb: 16,
       dbPoolCap: 8,
       workerCap: 2,
       compileCap: 4,

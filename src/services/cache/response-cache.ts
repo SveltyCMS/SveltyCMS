@@ -63,21 +63,16 @@ const MAX_POINT_ADMISSION = 8192;
 const MAX_LIST_ADMISSION = 8192;
 /**
  * Byte budgets per L1 tier (env-tunable, `SVELTY_L1_MAX_MB` / `SVELTY_L1_POINT_MAX_MB`).
- * Entry counts alone do not bound memory: list bodies are 50-100 KB each.
  *
+ * Precedence: explicit env → the hardware profile's memory tier → absolute floor.
  * Resolved through `l1BudgetEnvMb`, which re-reads the raw env value when it
  * changes — an operator (or a test) can retune the ceiling without a reboot,
  * and the parse cost stays a string compare per enforcement call.
- */
-/**
- * Byte budgets per L1 tier (env-tunable, `SVELTY_L1_MAX_MB` / `SVELTY_L1_POINT_MAX_MB`).
- * Entry counts alone do not bound memory: list bodies are 50-100 KB each.
  *
- * Precedence: explicit env → the hardware profile's memory tier (so a 256 MB
- * container gets a 16 MB list tier instead of a fixed 64 MB) → absolute floor.
- * Resolved through `l1BudgetEnvMb`, which re-reads the raw env value when it
- * changes — an operator (or a test) can retune the ceiling without a reboot,
- * and the parse cost stays a string compare per enforcement call.
+ * The point tier is entry-capped (`MAX_POINT_L1_ENTRIES`): at typical ~1.5 KB
+ * documents, 2,000 entries occupy ~3 MB, so its byte budget is a safety ceiling
+ * for large documents, not a resident-memory figure. The list tier is the one
+ * that actually fills its budget (50–100 KB bodies).
  */
 const FLOOR_L1_MB = 16;
 const FLOOR_POINT_L1_MB = 8;

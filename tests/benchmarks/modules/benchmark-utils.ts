@@ -1424,16 +1424,16 @@ export async function seedBenchmarkState(): Promise<void> {
         },
       ],
     },
-	    {
-	      _id: "BenchmarkStable",
-	      name: "BenchmarkStable",
-	      defaultLimit: 10,
-	      // The competitive workloads filter/sort only materialized columns
-	      // (`status`, `count`), and Keystone has no dynamic-JSON index. Without
-	      // this opt-out the 100k table carries an unused `jsonb_path_ops` GIN,
-	      // which dominates the DB-footprint row without serving any query.
-	      jsonIndex: false,
-	      fields: [
+    {
+      _id: "BenchmarkStable",
+      name: "BenchmarkStable",
+      defaultLimit: 10,
+      // The competitive workloads filter/sort only materialized columns
+      // (`status`, `count`), and Keystone has no dynamic-JSON index. Without
+      // this opt-out the 100k table carries an unused `jsonb_path_ops` GIN,
+      // which dominates the DB-footprint row without serving any query.
+      jsonIndex: false,
+      fields: [
         { db_fieldName: "_id", label: "ID", widget: { Name: "Input" }, type: "string" },
         { db_fieldName: "title", label: "Title", widget: { Name: "Input" }, type: "string" },
         { db_fieldName: "slug", label: "Slug", widget: { Name: "Input" }, type: "string" },
