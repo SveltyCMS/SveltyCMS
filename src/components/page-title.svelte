@@ -176,7 +176,7 @@
 
 <div
 	data-testid="admin-page-title"
-	class="sticky top-0 z-40 flex w-full min-w-0 flex-wrap items-center justify-between max-md:grid! max-md:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] {titleStartPadding} pe-2 pt-2 backdrop-blur-sm
+	class="sticky top-0 z-40 flex w-full min-w-0 flex-wrap items-center justify-between max-md:grid! max-md:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] max-md:items-start {titleStartPadding} pe-2 pt-2 backdrop-blur-sm
 		{compact || description || subtitle ? 'min-h-12 gap-3 pb-2 sm:pe-3' : 'min-h-12 gap-4'}"
 	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless
 		? ''
@@ -194,7 +194,7 @@
 					window.innerWidth >= 768 && window.innerWidth < 1024 ? 'collapsed' : 'full'
 				)}
 			aria-label="Open Sidebar"
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 max-md:justify-self-start dark:border-surface-500/40 dark:hover:bg-surface-500/20 {ui
+			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 max-md:mt-0.5 max-md:justify-self-start dark:border-surface-500/40 dark:hover:bg-surface-500/20 {ui
 				.state.leftSidebar === 'hidden'
 				? ''
 				: 'md:hidden'}"
@@ -203,7 +203,8 @@
 		</Button>
 		<div class="flex min-w-0 flex-col justify-center max-md:col-start-2 max-md:justify-self-center">
 			<div class="flex min-w-0 flex-wrap items-center gap-2 max-md:justify-center sm:gap-3">
-				<div class="flex min-w-0 items-center gap-1">
+				<!-- Phone: the title row is as tall as the back button (40px) so menu, title and back line up -->
+				<div class="flex min-w-0 items-center gap-1 max-md:min-h-10">
 					<h1
 						class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-tight font-bold {longMobileTitle
 							? 'long-mobile-title'
@@ -255,24 +256,20 @@
 							aria-label={favoriteTooltip}
 							aria-pressed={isFavorited}
 							disabled={isFixedNavItem}
-							class="title-star ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFavorited
-								? 'text-warning-500 opacity-100'
-								: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
+							class="title-star ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 text-warning-500 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFixedNavItem
 								? 'cursor-default'
-								: ''}"
-							style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
+								: 'hover:opacity-80'}"
 						>
-							<iconify-icon
-								icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
-								width={compact ? '22' : '32'}
-								aria-hidden="true"
+							<iconify-icon icon="mdi:star" width={compact ? '22' : '32'} aria-hidden="true"
 							></iconify-icon>
 						</button>
 					</SystemTooltip>
 				</div>
 
 				{#if subtitle}
-					<div class="flex items-center ps-2 sm:ps-3 border-s border-(--admin-border-default)">
+					<div
+						class="flex items-center ps-2 sm:ps-3 border-s border-(--admin-border-default) max-md:w-full max-md:justify-center max-md:border-s-0 max-md:ps-0"
+					>
 						{@render subtitle()}
 					</div>
 				{/if}

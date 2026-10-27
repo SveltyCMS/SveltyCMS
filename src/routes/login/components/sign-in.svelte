@@ -702,7 +702,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 				<!-- Required sits on the field row, beside the back button -->
 				<div class="relative mt-4 mb-1 flex items-center justify-between gap-3">
-					<p class="text-sm font-medium leading-none text-error-600 dark:text-error-400">
+					<p class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400">
 						{form_required()}
 					</p>
 					<div>

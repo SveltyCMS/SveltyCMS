@@ -396,6 +396,8 @@ their arrows so the canvas stays readable.
 	<AdminPageShell
 		title={workflows_title()}
 		icon="mdi:sitemap"
+		showBackButton={true}
+		backUrl="/config"
 		description="Visual Lifecycle Management (FSM)"
 		fullHeight
 		spaceY="4"

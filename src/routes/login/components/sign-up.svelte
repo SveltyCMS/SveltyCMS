@@ -322,7 +322,9 @@
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />
 
 					<h1 class="text-3xl font-bold text-white lg:text-4xl">
-						<div class="text-xs text-surface-200"><SiteName {siteName} highlight="CMS" /></div>
+						<div class="text-xs">
+							<SiteName {siteName} highlight="CMS" textClass="text-white" />
+						</div>
 						<div class="wrap-break-word lg:-mt-1">
 							{#if isInviteFlow}
 								{form_signup()}
@@ -337,7 +339,7 @@
 
 				<!-- Required sits on the field row, beside the back button -->
 				<div class="relative mt-4 mb-1 flex items-center justify-between gap-3">
-					<p class="text-sm font-medium leading-none text-error-600 dark:text-error-400">
+					<p class="text-sm font-medium leading-none text-white/70">
 						{form_required()}
 					</p>
 
