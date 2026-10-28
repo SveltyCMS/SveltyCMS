@@ -26,12 +26,32 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import type { WidgetSize } from '@src/content/types';
+	import BaseWidget from '../../base-widget.svelte';
 	import { formatDate } from '@utils/format-date';
 	import {
 		widget_calendar_title,
 		widget_calendar_prev_month,
 		widget_calendar_next_month
 	} from '@src/paraglide/messages';
+
+	const {
+		label = widget_calendar_title(),
+		theme = 'light',
+		icon = 'mdi:calendar-month-outline',
+		widgetId = undefined,
+		size = { w: 2, h: 2 } as WidgetSize,
+		onSizeChange = (_newSize: WidgetSize) => {},
+		onRemove = () => {}
+	}: {
+		label?: string;
+		theme?: 'light' | 'dark';
+		icon?: string;
+		widgetId?: string;
+		size?: WidgetSize;
+		onSizeChange?: (newSize: WidgetSize) => void;
+		onRemove?: () => void;
+	} = $props();
 
 	let selectedDate = $state(new Date());
 	let events = $state<{ dateStr: string; title: string; type: string }[]>([
@@ -68,69 +88,66 @@
 	}
 </script>
 
-<div
-	class="card p-5 bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-800 border border-(--admin-border-default) rounded-2xl shadow-sm space-y-4"
->
-	<div
-		class="flex items-center justify-between border-b border-surface-100 dark:border-surface-500/40 pb-3"
-	>
-		<div class="flex items-center gap-2">
-			<iconify-icon icon="mdi:calendar-month-outline" width="20" class="text-warning-500"
-			></iconify-icon>
-			<h3 class="font-bold text-sm text-(--admin-text-body) dark:text-white">
-				{widget_calendar_title()}
-			</h3>
-		</div>
-		<div class="flex items-center gap-1">
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onclick={prevMonth}
-				aria-label={widget_calendar_prev_month()}
-			>
-				<iconify-icon icon="mdi:chevron-left" width="18"></iconify-icon>
-			</Button>
-			<span class="text-xs font-bold text-(--admin-text-body) dark:text-white px-1"
-				>{monthName} {currentYear}</span
-			>
-			<Button
-				type="button"
-				variant="ghost"
-				size="sm"
-				onclick={nextMonth}
-				aria-label={widget_calendar_next_month()}
-			>
-				<iconify-icon icon="mdi:chevron-right" width="18"></iconify-icon>
-			</Button>
-		</div>
-	</div>
-
-	<!-- Calendar Grid -->
-	<div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-(--admin-text-muted)">
-		{#each daysOfWeek as day (day)}
-			<div class="py-1">{day}</div>
-		{/each}
-
-		{#each Array(firstDayIndex) as _, i (i)}
-			<div class="h-7"></div>
-		{/each}
-
-		{#each Array(daysInMonth) as _, i (i)}
-			{@const dayNum = i + 1}
-			{@const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`}
-			{@const hasEvent = events.some((e) => e.dateStr === dateStr)}
-			{@const isToday = new Date().toISOString().split('T')[0] === dateStr}
-			<div
-				class="h-7 flex items-center justify-center rounded-lg text-xs font-semibold relative transition-all {isToday
-					? 'bg-primary-500 text-white shadow-md'
-					: 'text-surface-700 dark:text-surface-300 hover:bg-surface-500/10 dark:hover:bg-surface-700'}"
-			>
-				{dayNum}
-				{#if hasEvent && !isToday}
-					<span class="absolute bottom-1 w-1 h-1 bg-warning-500 rounded-full"></span>
-				{/if}
+<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
+	{#snippet children()}
+		<div class="flex flex-col h-full gap-2">
+			<!-- Month navigation bar -->
+			<div class="flex items-center justify-between pb-1">
+				<span class="text-xs font-bold text-(--admin-text-body) dark:text-white px-1">
+					{monthName}
+					{currentYear}
+				</span>
+				<div class="flex items-center gap-1">
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onclick={prevMonth}
+						aria-label={widget_calendar_prev_month()}
+					>
+						<iconify-icon icon="mdi:chevron-left" width="18"></iconify-icon>
+					</Button>
+					<Button
+						type="button"
+						variant="ghost"
+						size="sm"
+						onclick={nextMonth}
+						aria-label={widget_calendar_next_month()}
+					>
+						<iconify-icon icon="mdi:chevron-right" width="18"></iconify-icon>
+					</Button>
+				</div>
 			</div>
-		{/each}
-	</div>
-</div>
+
+			<!-- Calendar Grid -->
+			<div
+				class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-(--admin-text-muted) flex-1"
+			>
+				{#each daysOfWeek as day (day)}
+					<div class="py-1">{day}</div>
+				{/each}
+
+				{#each Array(firstDayIndex) as _, i (i)}
+					<div class="h-6"></div>
+				{/each}
+
+				{#each Array(daysInMonth) as _, i (i)}
+					{@const dayNum = i + 1}
+					{@const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`}
+					{@const hasEvent = events.some((e) => e.dateStr === dateStr)}
+					{@const isToday = new Date().toISOString().split('T')[0] === dateStr}
+					<div
+						class="h-6 flex items-center justify-center rounded-lg text-xs font-semibold relative transition-all {isToday
+							? 'bg-primary-500 text-white shadow-md'
+							: 'text-surface-700 dark:text-surface-300 hover:bg-surface-500/10 dark:hover:bg-surface-700'}"
+					>
+						{dayNum}
+						{#if hasEvent && !isToday}
+							<span class="absolute bottom-1 w-1 h-1 bg-warning-500 rounded-full"></span>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/snippet}
+</BaseWidget>

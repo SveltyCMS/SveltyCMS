@@ -81,6 +81,8 @@
     "node_modules",
     ".svelte-kit",
     "src/service-worker/**",
+    "config/private.test.ts",
+    "config/test-collections/**",
     // Install artifacts: the vendored package types under src/types/* are a bun
     // copyfile install of nested node_modules, and they ship their own (older)
     // @types/node. Matching only the root "node_modules" left them inside the

@@ -505,7 +505,7 @@ New Features:
 		</div>
 	</header>
 	<section
-		class="widget-body relative min-h-12.5 flex-1 px-3 pb-2"
+		class="widget-body relative min-h-0 flex-1 overflow-y-auto px-3 pb-2"
 		style="width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: stretch; align-items: stretch;"
 	>
 		<div aria-live="polite" class="contents">

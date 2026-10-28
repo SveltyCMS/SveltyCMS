@@ -310,7 +310,10 @@
 	}
 
 	async function loadWidgetComponent(widgetId: string, componentName: string) {
-		if (loadedWidgets.has(widgetId) || inflightWidgetLoads.has(widgetId)) {
+		if (
+			(loadedWidgets.has(widgetId) && loadedWidgets.get(widgetId) !== null) ||
+			inflightWidgetLoads.has(widgetId)
+		) {
 			return;
 		}
 
@@ -318,6 +321,14 @@
 		try {
 			const folder = componentName;
 			const entryFile = widgetRegistry[folder]?.entryFile || 'index';
+
+			// First-screen eager packages (cpu, disk, memory, system-messages) are statically bundled in widget-ssr.ts.
+			const firstScreen = getFirstScreenWidget(folder, entryFile);
+			if (firstScreen) {
+				loadedWidgets.set(widgetId, firstScreen);
+				return;
+			}
+
 			const path = `./widgets/${folder}/${entryFile}.svelte`;
 			const loader = widgetLoaders[path];
 			if (!loader) {
@@ -936,14 +947,16 @@
 								style:grid-column="span {item.size.w}"
 								style:grid-row="span {item.size.h}"
 								style:touch-action="manipulation"
-								style:min-height="{item.size.h * 180}px"
+								style:min-height="{item.size.h * 160}px"
+								style:height="100%"
+								style:overflow="hidden"
 								animate:flip={{ duration: motionDuration(150) }}
 								in:adminStagger={{ index: i, rise: 0 }}
 								onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
 								onkeydown={(event) => handleWidgetKeydown(event, item)}
 								use:setupWidgetObserver={[item.id, item.component, FirstScreenWidget !== null]}
 							>
-								{#if WidgetComponent === null}
+								{#if WidgetComponent === null && !FirstScreenWidget}
 									{@render widgetLoadError(item)}
 								{:else if WidgetComponent}
 									{@render widgetTile(WidgetComponent, item)}
@@ -1011,7 +1024,7 @@
 		position: relative;
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		grid-auto-rows: 180px;
+		grid-auto-rows: 160px;
 		grid-auto-flow: row dense;
 		gap: 1rem;
 	}

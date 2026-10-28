@@ -11,7 +11,7 @@
   "component": "index",
   "defaultSize": {
     "w": 1,
-    "h": 1
+    "h": 2
   },
   "category": "static",
   "sveltycms": ">=0.0.8"
