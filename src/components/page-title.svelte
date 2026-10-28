@@ -256,11 +256,17 @@
 							aria-label={favoriteTooltip}
 							aria-pressed={isFavorited}
 							disabled={isFixedNavItem}
-							class="title-star ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 text-warning-500 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFixedNavItem
+							class="title-star ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFavorited
+								? 'text-warning-500 opacity-100'
+								: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
 								? 'cursor-default'
-								: 'hover:opacity-80'}"
+								: ''}"
+							style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
 						>
-							<iconify-icon icon="mdi:star" width={compact ? '22' : '32'} aria-hidden="true"
+							<iconify-icon
+								icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
+								width={compact ? '22' : '32'}
+								aria-hidden="true"
 							></iconify-icon>
 						</button>
 					</SystemTooltip>

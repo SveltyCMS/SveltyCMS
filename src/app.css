@@ -517,6 +517,6 @@
 /* Dev-only Svelte inspector mark. Its own rule pins it 8px from the corner,
    which sits on the phone frame. Nudge it in so the frame line stays clear. */
 #svelte-inspector-toggle {
-  right: 16px !important;
+  inset-inline-end: 16px !important;
   bottom: 16px !important;
 }

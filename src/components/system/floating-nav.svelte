@@ -37,7 +37,7 @@ Home button and Settings available.
 	import { page } from '$app/state';
 
 	// Constants
-	const BUTTON_RADIUS = 16;
+	const BUTTON_RADIUS = 20;
 	const EDGE_MARGIN = 12;
 	const MENU_RADIUS = 160;
 	const DRAG_THRESHOLD = 10;
@@ -432,7 +432,9 @@ Home button and Settings available.
 		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 		loadSavedPosition();
 		// The corner logo is injected after this component mounts.
-		logoNudgeTimer = setTimeout(() => loadSavedPosition(), 600);
+		if (import.meta.env.DEV) {
+			logoNudgeTimer = setTimeout(() => loadSavedPosition(), 600);
+		}
 
 		window.addEventListener('resize', handleResize, { passive: true });
 		window.addEventListener('keydown', onKeyDown);
@@ -497,7 +499,7 @@ Home button and Settings available.
 			}
 		}}
 	>
-		<iconify-icon icon="tdesign:map-route-planning" width="18" style="color:white"></iconify-icon>
+		<iconify-icon icon="tdesign:map-route-planning" width="22" style="color:white"></iconify-icon>
 	</div>
 </SystemTooltip>
 
