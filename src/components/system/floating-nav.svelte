@@ -37,7 +37,7 @@ Home button and Settings available.
 	import { page } from '$app/state';
 
 	// Constants
-	const BUTTON_RADIUS = 25;
+	const BUTTON_RADIUS = 16;
 	const EDGE_MARGIN = 12;
 	const MENU_RADIUS = 160;
 	const DRAG_THRESHOLD = 10;
@@ -79,6 +79,7 @@ Home button and Settings available.
 
 	// Refs
 	let firstLine: SVGLineElement | undefined = $state(undefined);
+	let logoNudgeTimer: ReturnType<typeof setTimeout> | undefined;
 	let firstCircle: HTMLDivElement | undefined = $state(undefined);
 	let svg: SVGSVGElement | undefined = $state(undefined);
 	const circles: (HTMLAnchorElement | undefined)[] = $state([]);
@@ -118,6 +119,64 @@ Home button and Settings available.
 		}
 	}
 
+	/** Keep the blue button on-screen. */
+	function screenClamp(x: number, y: number): { x: number; y: number } {
+		const min = BUTTON_RADIUS + EDGE_MARGIN;
+		return {
+			x: Math.min(Math.max(x, min), window.innerWidth - min),
+			y: Math.min(Math.max(y, min), window.innerHeight - min)
+		};
+	}
+
+	/**
+	 * The dev logo sits in the same bottom corner as this button.
+	 * Place the button to its left, on the same line, when they would overlap.
+	 */
+	function avoidLogo(x: number, y: number): { x: number; y: number } {
+		const logo = document.getElementById('svelte-inspector-toggle');
+		if (!logo) return { x, y };
+		const box = logo.getBoundingClientRect();
+		if (box.width < 8 || box.height < 8) return { x, y };
+
+		const hits = (px: number, py: number) => {
+			const left = px - BUTTON_RADIUS;
+			const top = py - BUTTON_RADIUS;
+			const right = px + BUTTON_RADIUS;
+			const bottom = py + BUTTON_RADIUS;
+			return !(
+				right <= box.left - EDGE_MARGIN ||
+				left >= box.right + EDGE_MARGIN ||
+				bottom <= box.top - EDGE_MARGIN ||
+				top >= box.bottom + EDGE_MARGIN
+			);
+		};
+
+		if (!hits(x, y)) return { x, y };
+
+		// Sit on the logo's line. The corner margin would lift the button above it.
+		const besideX = Math.min(
+			Math.max(box.left - EDGE_MARGIN - BUTTON_RADIUS, BUTTON_RADIUS + EDGE_MARGIN),
+			window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN)
+		);
+		const besideY = Math.min(
+			Math.max(box.top + box.height / 2, BUTTON_RADIUS),
+			window.innerHeight - BUTTON_RADIUS
+		);
+		const beside = { x: besideX, y: besideY };
+		if (!hits(beside.x, beside.y)) return beside;
+
+		const above = screenClamp(x, box.top - EDGE_MARGIN - BUTTON_RADIUS);
+		if (!hits(above.x, above.y)) return above;
+
+		return beside;
+	}
+
+	function placeButton(x: number, y: number): void {
+		const onScreen = screenClamp(x, y);
+		const settled = avoidLogo(onScreen.x, onScreen.y);
+		buttonInfo = { x: settled.x, y: settled.y, radius: BUTTON_RADIUS };
+	}
+
 	function loadSavedPosition(): void {
 		if (!browser) {
 			return;
@@ -129,20 +188,18 @@ Home button and Settings available.
 			const SAVED = NAVIGATION_INFO[KEY] as { x?: number; y?: number } | undefined;
 
 			if (SAVED && typeof SAVED.x === 'number' && typeof SAVED.y === 'number') {
-				buttonInfo = { x: SAVED.x, y: SAVED.y, radius: BUTTON_RADIUS };
+				placeButton(SAVED.x, SAVED.y);
 			} else {
-				buttonInfo = {
-					x: window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN),
-					y: window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN),
-					radius: BUTTON_RADIUS
-				};
+				placeButton(
+					window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN),
+					window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN)
+				);
 			}
 		} catch {
-			buttonInfo = {
-				x: window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN),
-				y: window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN),
-				radius: BUTTON_RADIUS
-			};
+			placeButton(
+				window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN),
+				window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN)
+			);
 		}
 	}
 
@@ -166,13 +223,7 @@ Home button and Settings available.
 			return;
 		}
 
-		const MIN_X = BUTTON_RADIUS + EDGE_MARGIN;
-		const MAX_X = window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN);
-		const MIN_Y = BUTTON_RADIUS + EDGE_MARGIN;
-		const MAX_Y = window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN);
-
-		buttonInfo.x = Math.min(Math.max(buttonInfo.x, MIN_X), MAX_X);
-		buttonInfo.y = Math.min(Math.max(buttonInfo.y, MIN_Y), MAX_Y);
+		placeButton(buttonInfo.x, buttonInfo.y);
 		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
 		if (firstLine && firstCircle) {
@@ -286,7 +337,7 @@ Home button and Settings available.
 				return;
 			}
 
-			// Snap to nearest edge
+			// Snap to nearest edge, then step aside if that lands on the corner logo.
 			const DISTANCES = [
 				buttonInfo.x,
 				window.innerWidth - buttonInfo.x,
@@ -295,58 +346,23 @@ Home button and Settings available.
 			];
 
 			const NEAREST_EDGE_INDEX = DISTANCES.indexOf(Math.min(...DISTANCES));
-			let promise: Promise<void> = Promise.resolve();
+			let targetX = buttonInfo.x;
+			let targetY = buttonInfo.y;
+			const edge = BUTTON_RADIUS + EDGE_MARGIN;
+			if (NEAREST_EDGE_INDEX === 0) targetX = edge;
+			else if (NEAREST_EDGE_INDEX === 1) targetX = window.innerWidth - edge;
+			else if (NEAREST_EDGE_INDEX === 2) targetY = edge;
+			else targetY = window.innerHeight - edge;
 
-			switch (NEAREST_EDGE_INDEX) {
-				case 0: // Left edge
-					promise = motion([buttonInfo.x], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
-						buttonInfo.x = t[0];
-						await tick();
-						if (firstLine) {
-							firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-						}
-					});
-					break;
-				case 1: // Right edge
-					promise = motion(
-						[buttonInfo.x],
-						[window.innerWidth - (BUTTON_RADIUS + EDGE_MARGIN)],
-						motionMs,
-						async (t) => {
-							buttonInfo.x = t[0];
-							await tick();
-							if (firstLine) {
-								firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-							}
-						}
-					);
-					break;
-				case 2: // Top edge
-					promise = motion([buttonInfo.y], [BUTTON_RADIUS + EDGE_MARGIN], motionMs, async (t) => {
-						buttonInfo.y = t[0];
-						await tick();
-						if (firstLine) {
-							firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-						}
-					});
-					break;
-				case 3: // Bottom edge
-					promise = motion(
-						[buttonInfo.y],
-						[window.innerHeight - (BUTTON_RADIUS + EDGE_MARGIN)],
-						motionMs,
-						async (t) => {
-							buttonInfo.y = t[0];
-							await tick();
-							if (firstLine) {
-								firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
-							}
-						}
-					);
-					break;
-			}
-
-			await promise;
+			const settled = avoidLogo(targetX, targetY);
+			await motion([buttonInfo.x, buttonInfo.y], [settled.x, settled.y], motionMs, async (t) => {
+				buttonInfo.x = t[0];
+				buttonInfo.y = t[1];
+				await tick();
+				if (firstLine) {
+					firstLine.style.strokeDasharray = firstLine.getTotalLength().toString();
+				}
+			});
 			savePosition();
 		};
 	}
@@ -415,6 +431,8 @@ Home button and Settings available.
 
 		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 		loadSavedPosition();
+		// The corner logo is injected after this component mounts.
+		logoNudgeTimer = setTimeout(() => loadSavedPosition(), 600);
 
 		window.addEventListener('resize', handleResize, { passive: true });
 		window.addEventListener('keydown', onKeyDown);
@@ -427,6 +445,7 @@ Home button and Settings available.
 
 		window.removeEventListener('resize', handleResize);
 		window.removeEventListener('keydown', onKeyDown);
+		clearTimeout(logoNudgeTimer);
 	});
 
 	const centerEndpoint = $derived(endpoints[0]);
@@ -478,7 +497,7 @@ Home button and Settings available.
 			}
 		}}
 	>
-		<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white"></iconify-icon>
+		<iconify-icon icon="tdesign:map-route-planning" width="18" style="color:white"></iconify-icon>
 	</div>
 </SystemTooltip>
 

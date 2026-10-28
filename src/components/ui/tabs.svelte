@@ -138,7 +138,18 @@
 					</span>
 				{/if}
 				{#if tab.icon}
-					<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
+					<!-- Icon-only on phones: the done check sits on the icon's corner, not beside it -->
+					<span class="relative inline-flex shrink-0">
+						<iconify-icon icon={tab.icon} width="18" height="18" aria-hidden="true"></iconify-icon>
+						{#if tab.done && !tab.shortLabel}
+							<iconify-icon
+								icon="mdi:check-circle"
+								width="12"
+								class="absolute -top-1.5 -inset-e-2 rounded-full bg-(--admin-bg-card) text-success-500 md:hidden"
+								aria-hidden="true"
+							></iconify-icon>
+						{/if}
+					</span>
 				{/if}
 				<span class="hidden md:inline">{tab.label}</span>
 				{#if tab.shortLabel}
@@ -148,7 +159,7 @@
 					<iconify-icon
 						icon="mdi:check-circle"
 						width="16"
-						class="text-success-500"
+						class="text-success-500 {tab.icon && !tab.shortLabel ? 'max-md:hidden' : ''}"
 						aria-hidden="true"
 					></iconify-icon>
 				{/if}

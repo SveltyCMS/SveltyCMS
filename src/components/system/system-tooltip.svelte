@@ -75,7 +75,7 @@ This component provides a tooltip for any element.
 	import Tooltip from '@components/ui/tooltip.svelte';
 
 	const resolvedTriggerClass = $derived(
-		`p-0 m-0 border-none ${!triggerClass ? 'bg-transparent' : ''} ${wFull ? 'block w-full' : 'inline-block'} ${triggerClass}`
+		`p-0 m-0 border-none ${!triggerClass ? 'bg-transparent' : ''} ${wFull ? 'block w-full' : 'inline-flex items-center'} ${triggerClass}`
 	);
 </script>
 

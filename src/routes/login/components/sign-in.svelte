@@ -29,7 +29,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import FloatingPaths from '@src/components/system/floating-paths.svelte';
 	import { generateUUID } from '@utils/native-utils';
 	import SveltyCMSLogo from '@src/components/system/icons/svelty-cms-logo.svelte';
-	import SveltyCMSLogoFull from '@src/components/system/icons/svelty-cms-logo-full.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Button from '@components/ui/button.svelte';
@@ -672,12 +671,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				</div>
 			{/if}
 			<div
-				class="absolute inset-s-1/2 top-[20%] z-20 hidden -translate-x-1/2 -translate-y-1/2 transform xl:block"
-			>
-				<SveltyCMSLogoFull {siteName} />
-			</div>
-			<div
-				class="relative z-10 mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto rounded p-6 backdrop-blur lg:w-4/5 {brandedLogin &&
+				class="relative z-10 mx-auto my-auto w-full max-w-xl overflow-y-auto rounded p-6 backdrop-blur {brandedLogin &&
 				brandedVariant === 'elevated'
 					? 'bg-white dark:bg-surface-900 shadow-xl border border-surface-500/30'
 					: 'bg-white/0'}"
@@ -706,10 +700,12 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 					</h1>
 				</div>
 
-				<!-- Required label + Back button -->
-				<div class="relative mb-2 flex h-12 items-center justify-center text-xs text-error-500">
-					{form_required()}
-					<div class="absolute inset-e-0">
+				<!-- Required sits on the field row, beside the back button -->
+				<div class="relative mt-4 mb-1 flex items-center justify-between gap-3">
+					<p class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400">
+						{form_required()}
+					</p>
+					<div>
 						<Button
 							variant="outline"
 							type="button"

@@ -169,36 +169,46 @@
 	const titleStartPadding = $derived(
 		ui.state.leftSidebar === 'hidden' ? 'ps-2 sm:ps-3' : 'ps-2 sm:ps-3 md:ps-10'
 	);
+
+	/** Long names wrap between the menu and back buttons and leave the star in the gap. */
+	const longMobileTitle = $derived(name.trim().length > 16);
 </script>
 
 <div
 	data-testid="admin-page-title"
-	class="sticky top-0 z-40 flex w-full min-w-0 flex-wrap items-center justify-between {titleStartPadding} pe-2 pt-2 backdrop-blur-sm
+	class="sticky top-0 z-40 flex w-full min-w-0 flex-wrap items-center justify-between max-md:grid! max-md:grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] max-md:items-start {titleStartPadding} pe-2 pt-2 backdrop-blur-sm
 		{compact || description || subtitle ? 'min-h-12 gap-3 pb-2 sm:pe-3' : 'min-h-12 gap-4'}"
 	style="background-color: color-mix(in srgb, var(--admin-bg-page, var(--color-surface-50)) 95%, transparent); color: var(--admin-text-body, var(--color-surface-900)); {borderless
 		? ''
 		: 'border-bottom: 1px solid color-mix(in srgb, var(--admin-border-default, var(--color-surface-200)) 80%, transparent);'}"
 >
-	<div class="flex min-w-[min(100%,11rem)] flex-1 items-center">
+	<div class="flex min-w-[min(100%,11rem)] flex-1 items-center max-md:contents">
 		<!-- Below md the sidebar always resolves to "hidden"; render the toggle from the
 		     first (SSR) paint there so the title does not jump when the store hydrates. -->
 		<Button
 			variant="ghost"
 			type="button"
-			onclick={() => ui.toggle('leftSidebar', window.innerWidth >= 1024 ? 'full' : 'collapsed')}
+			onclick={() =>
+				ui.toggle(
+					'leftSidebar',
+					window.innerWidth >= 768 && window.innerWidth < 1024 ? 'collapsed' : 'full'
+				)}
 			aria-label="Open Sidebar"
-			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-500/20 {ui
+			class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full! border border-surface-500/30 p-0! min-w-0 hover:bg-surface-500/10 max-md:mt-0.5 max-md:justify-self-start dark:border-surface-500/40 dark:hover:bg-surface-500/20 {ui
 				.state.leftSidebar === 'hidden'
 				? ''
 				: 'md:hidden'}"
 		>
 			<iconify-icon icon="mingcute:menu-fill" width="20" aria-hidden="true"></iconify-icon>
 		</Button>
-		<div class="flex min-w-0 flex-col justify-center">
-			<div class="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-				<div class="flex min-w-0 items-center gap-1">
+		<div class="flex min-w-0 flex-col justify-center max-md:col-start-2 max-md:justify-self-center">
+			<div class="flex min-w-0 flex-wrap items-center gap-2 max-md:justify-center sm:gap-3">
+				<!-- Phone: the title row is as tall as the back button (40px) so menu, title and back line up -->
+				<div class="flex min-w-0 items-center gap-1 max-md:min-h-10">
 					<h1
-						class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-tight font-bold"
+						class="transition-max-width h1 relative flex min-w-0 items-center gap-1 leading-tight font-bold {longMobileTitle
+							? 'long-mobile-title'
+							: ''}"
 						style="font-size: {compact
 							? 'clamp(1.125rem, 2vw + 0.75rem, 1.5rem)'
 							: 'clamp(1.25rem, 2vw + 0.75rem, 1.75rem)'};"
@@ -210,7 +220,7 @@
 						{#if icon}
 							<!-- Fixed box: iconify-icon has no size until its SVG loads (layout shift) -->
 							<span
-								class="me-1 inline-flex shrink-0 items-center justify-center sm:me-2"
+								class="title-icon me-1 inline-flex shrink-0 items-center justify-center sm:me-2"
 								style="width: {compact ? '22' : iconSize}px; height: {compact ? '22' : iconSize}px"
 							>
 								<iconify-icon
@@ -227,7 +237,7 @@
 							class:overflow-hidden={truncate}
 							class:text-ellipsis={truncate}
 							class:whitespace-nowrap={truncate}
-							class="max-md:whitespace-normal"
+							class:max-md:whitespace-normal={truncate && !longMobileTitle}
 						>
 							{#each titleParts as part, i (i)}
 								<span
@@ -246,24 +256,20 @@
 							aria-label={favoriteTooltip}
 							aria-pressed={isFavorited}
 							disabled={isFixedNavItem}
-							class="ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFavorited
-								? 'text-warning-500 opacity-100'
-								: 'opacity-60 hover:opacity-100 hover:text-warning-500'} {isFixedNavItem
+							class="title-star ms-0.5 inline-flex shrink-0 items-center justify-center rounded-sm p-0.5 text-warning-500 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tertiary-500 dark:focus-visible:outline-primary-500 {isFixedNavItem
 								? 'cursor-default'
-								: ''}"
-							style={isFavorited ? undefined : 'color: var(--admin-text-muted)'}
+								: 'hover:opacity-80'}"
 						>
-							<iconify-icon
-								icon={isFavorited ? 'mdi:star' : 'mdi:star-outline'}
-								width={compact ? '18' : '20'}
-								aria-hidden="true"
+							<iconify-icon icon="mdi:star" width={compact ? '22' : '32'} aria-hidden="true"
 							></iconify-icon>
 						</button>
 					</SystemTooltip>
 				</div>
 
 				{#if subtitle}
-					<div class="flex items-center ps-2 sm:ps-3 border-s border-(--admin-border-default)">
+					<div
+						class="flex items-center ps-2 sm:ps-3 border-s border-(--admin-border-default) max-md:w-full max-md:justify-center max-md:border-s-0 max-md:ps-0"
+					>
 						{@render subtitle()}
 					</div>
 				{/if}
@@ -278,23 +284,51 @@
 		</div>
 	</div>
 
-	<div class="ms-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+	<div
+		class="ms-auto flex shrink-0 flex-wrap items-center justify-end gap-1.5 max-md:contents sm:gap-2"
+	>
 		{#if children}
-			{@render children()}
+			<!-- Phone: keep Save and status chips off the title row so the icon and star stay lined up. -->
+			<div
+				class="flex shrink-0 items-center gap-1.5 max-md:col-span-3 max-md:row-start-2 max-md:justify-self-end max-md:px-2 max-md:pb-2"
+			>
+				{@render children()}
+			</div>
 		{/if}
 
 		{#if showBackButton}
-			{#if backUrl}
-				<SystemTooltip title={error_goback()} role={null} tabindex={null}>
-					<a
-						href={backUrl}
-						aria-label={error_goback()}
-						class="flex shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-(--admin-border-subtle)
+			<div class="max-md:col-start-3 max-md:row-start-1 max-md:justify-self-end">
+				{#if backUrl}
+					<SystemTooltip title={error_goback()} role={null} tabindex={null}>
+						<a
+							href={backUrl}
+							aria-label={error_goback()}
+							class="flex shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-(--admin-border-subtle)
 							{compact ? 'h-9 w-9' : 'h-10 w-10'}"
-						style="border-color: var(--admin-border-default); color: var(--admin-text-body)"
+							style="border-color: var(--admin-border-default); color: var(--admin-text-body); background-color: var(--admin-bg-card)"
+							data-cms-action="back"
+							data-sveltekit-preload-data="hover"
+							onclick={(e) => handleBackClick(e)}
+						>
+							<iconify-icon
+								icon="ri:arrow-left-line"
+								width={compact ? '20' : '24'}
+								class="rtl:rotate-180"
+								aria-hidden="true"
+							></iconify-icon>
+						</a>
+					</SystemTooltip>
+				{:else}
+					<button
+						type="button"
+						onclick={(e: MouseEvent) => handleBackClick(e)}
+						aria-label={error_goback()}
+						tabindex="0"
+						class="flex shrink-0 items-center justify-center rounded-full border transition-colors hover:bg-(--admin-border-subtle) {compact
+							? 'h-9 w-9'
+							: 'h-10 w-10'}"
+						style="border-color: var(--admin-border-default); color: var(--admin-text-body); background-color: var(--admin-bg-card)"
 						data-cms-action="back"
-						data-sveltekit-preload-data="hover"
-						onclick={(e) => handleBackClick(e)}
 					>
 						<iconify-icon
 							icon="ri:arrow-left-line"
@@ -302,28 +336,24 @@
 							class="rtl:rotate-180"
 							aria-hidden="true"
 						></iconify-icon>
-					</a>
-				</SystemTooltip>
-			{:else}
-				<Button
-					variant="outline"
-					onclick={(e: MouseEvent) => handleBackClick(e)}
-					aria-label={error_goback()}
-					tabindex="0"
-					rounded={true}
-					class="flex min-w-0 shrink-0 items-center justify-center p-0! {compact
-						? 'h-9 w-9'
-						: 'h-10 w-10'}"
-					data-cms-action="back"
-				>
-					<iconify-icon
-						icon="ri:arrow-left-line"
-						width={compact ? '20' : '24'}
-						class="rtl:rotate-180"
-						aria-hidden="true"
-					></iconify-icon>
-				</Button>
-			{/if}
+					</button>
+				{/if}
+			</div>
 		{/if}
 	</div>
 </div>
+
+<style>
+	/* Long names stay one line. Icon and star stay 32px, same as User Profile. */
+	@media (max-width: 767px) {
+		h1.long-mobile-title {
+			font-size: 17px !important;
+		}
+
+		h1.long-mobile-title .title-icon,
+		h1.long-mobile-title .title-icon iconify-icon {
+			width: 32px !important;
+			height: 32px !important;
+		}
+	}
+</style>

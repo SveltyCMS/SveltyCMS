@@ -291,6 +291,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 <AdminPageShell
 	title={api_playground_title()}
+	icon="mdi:api"
+	showBackButton={true}
+	backUrl="/config"
 	description="Test REST and GraphQL endpoints directly with active session credentials"
 >
 	{#snippet actions()}
