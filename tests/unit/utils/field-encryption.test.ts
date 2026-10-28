@@ -60,8 +60,11 @@ describe("field-level AES-256-GCM encryption", () => {
 
   it("returns null for tampered ciphertext", async () => {
     const envelope = await encryptFieldValue("secret", CTX, "ssn");
-    const lastChar = envelope.slice(-1);
-    const tampered = envelope.slice(0, -1) + (lastChar === "a" ? "b" : "a");
+    const parts = envelope.split(":");
+    // Tamper the auth tag (part 3) by flipping the first character (never a padding bit)
+    const tag = parts[3];
+    parts[3] = (tag[0] === "A" ? "B" : "A") + tag.slice(1);
+    const tampered = parts.join(":");
     expect(await decryptFieldValue(tampered, CTX, "ssn")).toBeNull();
   });
 
