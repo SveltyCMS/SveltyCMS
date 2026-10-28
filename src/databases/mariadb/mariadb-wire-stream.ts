@@ -106,7 +106,7 @@ export class MariadbWireStreamEngine {
         }
 
         const dataExpr = `JSON_SET(COALESCE(\`data\`, '{}')${overrides.map((o) => `, ${o}`).join("")})`;
-        const selectPrefix = `SELECT JSON_OBJECT('success', true, 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const selectPrefix = `SELECT CAST(JSON_OBJECT('success', true, 'data', ${dataExpr}) AS CHAR) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
 
         const del = hasDeletedCol ? " AND `isDeleted` = 0" : "";
         cachedWireSql = {

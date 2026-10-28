@@ -219,6 +219,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
 
     process.env.SVELTY_SRV_SPLIT = process.env.SVELTY_SRV_SPLIT || "1";
     process.env.SVELTY_SRV_DUR = process.env.SVELTY_SRV_DUR || "1";
+    process.env.SVELTY_NO_HEAP_CAP = process.env.SVELTY_NO_HEAP_CAP || "1";
 
     const serverInfo = await setupBenchmarkServer();
     stopServer = serverInfo.stop;

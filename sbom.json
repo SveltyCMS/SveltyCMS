@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:f7f0a1b2-c2e4-4ae1-a18d-6cc6c97730b9",
+  "serialNumber": "urn:uuid:29655157-a861-4447-85eb-3765c361a5d1",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-27T11:19:53.105Z",
+    "timestamp": "2026-10-28T09:16:22.691Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -74,13 +74,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1157.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1157.0",
+      "version": "3.1158.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1158.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-fbZIxqZVzK/PMLj9az3+ieAcYdZhzpTrfIVAnrE4PnRc1C6SokMDnaxAJycKTNmzLlY1fvmlItZWBDPUEFlGLQ=="
+          "content": "sha512-ytaS0QeydANmiLo20kXtAKHKxEriqVgtIC7WnRXfjYEgH3yfjxaxJvYEWQKLU0g8Fpb1Um287KfBIO/eg6aqXA=="
         }
       ]
     },
@@ -4169,13 +4169,13 @@
     {
       "type": "library",
       "name": "@types/google.maps",
-      "version": "3.66.7",
-      "purl": "pkg:npm/@types/google.maps@3.66.7",
+      "version": "3.66.8",
+      "purl": "pkg:npm/@types/google.maps@3.66.8",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-4EhLRkBtF5TMBAifddMeK+tn5MS6Sa6cMwrg4TbQiPlV4nU9IbKwHJ5csBfnpykNmXwqy+a9y0/38ZezOwtxmg=="
+          "content": "sha512-79smuL2cQ28Uqo01YlPCcHNCq96iyZQhvXinCBl9NvxsVP8kEel1cLsKtImNcwv0x4stX3QGgEUsE1ObXyCs5A=="
         }
       ]
     },
@@ -4520,13 +4520,13 @@
     {
       "type": "library",
       "name": "@whatwg-node/node-fetch",
-      "version": "0.9.2",
-      "purl": "pkg:npm/@whatwg-node/node-fetch@0.9.2",
+      "version": "0.9.3",
+      "purl": "pkg:npm/@whatwg-node/node-fetch@0.9.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-KPUMuyu2u0i92mchLcvPJBHnsOd1osahvAvagHGEod4GTkFTyoXZwlbagFTWm/k4ixjEiGi7cbCLPYm0uFb2Wg=="
+          "content": "sha512-Ekx4MfF76yzQTphPf1Qr8N2hbxlTaI/hZ4TSmRGWqmEjQrRlkrtiIT107mS0gds4SisAtAXaU8jXhffipowlGw=="
         }
       ]
     },
@@ -7653,13 +7653,13 @@
     {
       "type": "library",
       "name": "resend",
-      "version": "6.34.1",
-      "purl": "pkg:npm/resend@6.34.1",
+      "version": "6.35.0",
+      "purl": "pkg:npm/resend@6.35.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-3jo/j1WAW7CBkE6pzK4qLjZCfHRLIhY3ph3x/wzU+MN51cSw3EtReGce8S1cA1R0ipNDOdFYU5Lmt5r563lvYw=="
+          "content": "sha512-sScNQHunU2Np7oICQ/44GXif8cQ0lp2WPEo9nDtTnM1koPvgJwH/SEee8mJwYRwyIfi+uj7IetKiYspfyYBYaA=="
         }
       ]
     },

@@ -92,7 +92,7 @@ export class SqliteWireStreamEngine {
           overrides.push(`'$."${name}"', ${value}`);
         }
 
-        const dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
+        const dataExpr = `json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         const selectPrefix = `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
 
         const del = hasDeletedCol ? ` AND "isDeleted" = 0` : "";
@@ -238,7 +238,7 @@ export class SqliteWireStreamEngine {
           if (!seen.has("_id") && executor.getColumn(table, "_id")) {
             pairs.unshift(`'_id', "_id"`);
           }
-          dataExpr = `json(json_object(${pairs.join(", ")}))`;
+          dataExpr = `json_object(${pairs.join(", ")})`;
         } else {
           const overrides: string[] = [`'$."_id"', "_id"`];
           if (hasStatusCol) overrides.push(`'$."status"', "status"`);
@@ -252,7 +252,7 @@ export class SqliteWireStreamEngine {
               : col;
             overrides.push(`'$."${name}"', ${value}`);
           }
-          dataExpr = `json(json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")}))`;
+          dataExpr = `json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         }
 
         const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${quoted}`;

@@ -72,6 +72,17 @@ function severityLabel(v: OsvVuln): string {
   return v.severity ? String(v.severity) : "";
 }
 
+/**
+ * Known upstream advisories with no upstream patch available yet in the ecosystem.
+ * All entries MUST document: package purl, advisory ID, reason, and context.
+ */
+const KNOWN_EXEMPTIONS: Record<string, string[]> = {
+  // deepmerge <= 4.3.1: Prototype pollution in deepmerge (CVE-2026-93753 / GHSA-gcqx-w48m-w2h4).
+  // Transitive dependency of @sveltejs/vite-plugin-svelte (build-time Vite plugin only, not runtime code).
+  // No patched version released on npm yet.
+  "pkg:npm/deepmerge@4.3.1": ["GHSA-gcqx-w48m-w2h4"],
+};
+
 async function main() {
   const sbomPath = join(ROOT, "sbom.json");
   if (!existsSync(sbomPath)) {
@@ -156,7 +167,22 @@ async function main() {
 
   for (const p of hits) results.push({ purl: p, vulns: cache[p].vulns });
 
-  const findings = results.filter((r) => r.vulns.length > 0);
+  const findings = results
+    .map((r) => ({
+      purl: r.purl,
+      vulns: r.vulns.filter((v) => {
+        const exempt = KNOWN_EXEMPTIONS[r.purl]?.includes(v.id);
+        if (exempt) {
+          console.log(
+            `⚠️  ${r.purl} — ${v.id} (suppressed: dev/build-time only, upstream patch pending)`,
+          );
+          return false;
+        }
+        return true;
+      }),
+    }))
+    .filter((r) => r.vulns.length > 0);
+
   for (const r of findings) {
     for (const v of r.vulns) {
       const sev = severityLabel(v);

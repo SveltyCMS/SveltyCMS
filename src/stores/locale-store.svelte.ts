@@ -40,23 +40,38 @@ export const contentLanguage = {
   },
 };
 
+export interface LanguageTranslationProgress {
+  translated: SvelteSet<string>;
+  total: SvelteSet<string>;
+  percentage?: number;
+}
+
+export type TranslationProgressMap = {
+  show?: boolean;
+  [locale: string]: LanguageTranslationProgress | boolean | undefined;
+};
+
+export function isLanguageProgress(val: unknown): val is LanguageTranslationProgress {
+  return typeof val === "object" && val !== null && "translated" in val && "total" in val;
+}
+
 // --- Translation Progress ---
-let _transProgress = $state<any>(null);
+let _transProgress = $state<TranslationProgressMap | null>(null);
 
 export const translationProgress = {
-  get value() {
+  get value(): TranslationProgressMap | null {
     return _transProgress;
   },
-  set value(v: any) {
+  set value(v: TranslationProgressMap | null) {
     _transProgress = v;
   },
-  set(v: any) {
+  set(v: TranslationProgressMap | null) {
     _transProgress = v;
   },
   markFieldTranslated(locale: string, fieldPath: string) {
     if (!_transProgress) return;
     const langProgress = _transProgress[locale];
-    if (!langProgress) return;
+    if (!isLanguageProgress(langProgress)) return;
     if (!langProgress.translated) {
       langProgress.translated = new SvelteSet<string>();
     }
@@ -69,7 +84,7 @@ export const translationProgress = {
   markFieldUntranslated(locale: string, fieldPath: string) {
     if (!_transProgress) return;
     const langProgress = _transProgress[locale];
-    if (!langProgress) return;
+    if (!isLanguageProgress(langProgress)) return;
     if (langProgress.translated) {
       langProgress.translated.delete(fieldPath);
     }

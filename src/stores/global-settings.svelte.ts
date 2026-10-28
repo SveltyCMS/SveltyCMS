@@ -41,7 +41,7 @@ type PublicEnv = InferOutput<typeof publicConfigSchema> & {
  */
 class GlobalStore {
   private static instance: GlobalStore;
-  state = $state<PublicEnv>({
+  state = $state.raw<PublicEnv>({
     SETUP_COMPLETE:
       typeof (globalThis as any).__SVELTY_SETUP_COMPLETE__ !== "undefined"
         ? (globalThis as any).__SVELTY_SETUP_COMPLETE__
@@ -59,11 +59,11 @@ class GlobalStore {
   }
 
   update<K extends keyof PublicEnv>(key: K, value: PublicEnv[K]) {
-    this.state[key] = value;
+    this.state = { ...this.state, [key]: value };
   }
 
   init(env: PublicEnv) {
-    Object.assign(this.state, env);
+    this.state = { ...this.state, ...env };
   }
 }
 
@@ -180,7 +180,7 @@ export const publicEnv: PublicEnv = new Proxy({} as PublicEnv, {
     return (getStore().state as any)[prop];
   },
   set: (_, prop, value) => {
-    (getStore().state as any)[prop] = value;
+    getStore().update(prop as any, value);
     return true;
   },
   ownKeys: () => {

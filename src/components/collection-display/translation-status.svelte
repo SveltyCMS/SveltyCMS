@@ -24,7 +24,11 @@ FIXES:
 	import type { Locale } from '@src/paraglide/runtime';
 	import { collections } from '@src/stores/collection-store.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
-	import { contentLanguage, translationProgress } from '@src/stores/locale-store.svelte';
+	import {
+		contentLanguage,
+		isLanguageProgress,
+		translationProgress
+	} from '@src/stores/locale-store.svelte';
 	import { getLanguageName } from '@utils/language-utils';
 	import { logger } from '@utils/logger';
 	import { getFieldName } from '@utils/schema/field-utils';
@@ -75,7 +79,7 @@ FIXES:
 
 		for (const lang of availableLanguages) {
 			const langProgress = currentProgress?.[lang as Locale];
-			if (langProgress && langProgress.total.size > 0) {
+			if (isLanguageProgress(langProgress) && langProgress.total.size > 0) {
 				progress[lang] = Math.round((langProgress.translated.size / langProgress.total.size) * 100);
 			} else {
 				progress[lang] = 0;
@@ -208,9 +212,12 @@ FIXES:
 
 				// Add each path to all languages
 				for (const lang of availableLanguages) {
-					fieldPaths.forEach((path) => {
-						newProgress[lang]?.total.add(path);
-					});
+					const langEntry = newProgress[lang];
+					if (isLanguageProgress(langEntry)) {
+						fieldPaths.forEach((path) => {
+							langEntry.total.add(path);
+						});
+					}
 				}
 			}
 		}
@@ -231,7 +238,7 @@ FIXES:
 
 		for (const lang of availableLanguages) {
 			const originalLangProgress = newProgress[lang];
-			if (!originalLangProgress) {
+			if (!isLanguageProgress(originalLangProgress)) {
 				continue;
 			}
 
@@ -315,9 +322,14 @@ FIXES:
 		let total = 0;
 		let translated = 0;
 
+		if (!progress) {
+			completionTotals = { total, translated };
+			return;
+		}
+
 		for (const lang of availableLanguages) {
 			const langProgress = progress[lang as Locale];
-			if (!langProgress) {
+			if (!isLanguageProgress(langProgress)) {
 				continue;
 			}
 			translated += langProgress.translated.size;

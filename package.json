@@ -172,7 +172,7 @@
     "migrate": "bun run src/plugins/smart-importer/cli.ts"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1157.0",
+    "@aws-sdk/client-s3": "^3.1158.0",
     "@better-svelte-email/components": "^2.3.0",
     "@better-svelte-email/preview": "^2.3.0",
     "@better-svelte-email/server": "^2.3.0",
@@ -236,7 +236,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@types/bun": "^1.4.4",
-    "@types/google.maps": "^3.66.7",
+    "@types/google.maps": "^3.66.8",
     "@types/node": "^26.6.5",
     "@types/nodemailer": "^8.0.2",
     "@types/ws": "^8.18.2",
