@@ -3,11 +3,16 @@
  * @description Persistent security state storage using Redis with memory fallback.
  */
 
+import { dev } from "$app/env";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 import type { SecurityIncident } from "./types";
 
 const PREFIX = "svelty:sec:";
+
+function isLoopback(ip: string): boolean {
+  return ip === "127.0.0.1" || ip === "::1" || ip === "localhost" || ip === "::ffff:127.0.0.1";
+}
 
 let _l2At = 0;
 let _l2Open = false;
@@ -28,6 +33,7 @@ export class PersistentSecurityStore {
    * With Redis up, L1 miss still reads L2 so multi-instance blocks propagate.
    */
   async isBlocked(ip: string): Promise<boolean> {
+    if (dev && isLoopback(ip)) return false;
     const key = `${PREFIX}block:${ip}`;
     if (cacheService.getSync<string>(key)) return true;
     if (!l2IsOpen()) return false;
@@ -36,6 +42,7 @@ export class PersistentSecurityStore {
 
   /** Synchronous L1 block check — no microtask. Redis misses still use `isBlocked()`. */
   isBlockedSync(ip: string): boolean {
+    if (dev && isLoopback(ip)) return false;
     return !!cacheService.getSync<string>(`${PREFIX}block:${ip}`);
   }
 
@@ -46,6 +53,7 @@ export class PersistentSecurityStore {
 
   /** Blocks an IP address with TTL (seconds). */
   async blockIp(ip: string, reason: string, ttlSeconds: number): Promise<void> {
+    if (dev && isLoopback(ip)) return;
     await cacheService.set(`${PREFIX}block:${ip}`, reason, ttlSeconds);
     logger.warn(`Security Store: IP Blocked: ${ip} | Reason: ${reason} | TTL: ${ttlSeconds}s`);
   }
@@ -88,6 +96,7 @@ export class PersistentSecurityStore {
   async getThrottle(
     ip: string,
   ): Promise<{ throttled: boolean; factor: number; until: number } | null> {
+    if (dev && isLoopback(ip)) return null;
     const key = `${PREFIX}throttle:${ip}`;
     const l1 = cacheService.getSync<string>(key);
     if (l1) return this.parseThrottle(l1, ip);
@@ -97,6 +106,7 @@ export class PersistentSecurityStore {
 
   /** Synchronous L1 throttle check — no microtask. */
   getThrottleSync(ip: string): { throttled: boolean; factor: number; until: number } | null {
+    if (dev && isLoopback(ip)) return null;
     return this.parseThrottle(cacheService.getSync<string>(`${PREFIX}throttle:${ip}`), ip);
   }
 
