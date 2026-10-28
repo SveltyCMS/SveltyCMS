@@ -66,9 +66,7 @@ export class PostgresWireStreamEngine {
         }
 
         const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-        const updatedAtSelect = hasUpdatedAtCol
-          ? 'to_char("updatedAt", \'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"\')'
-          : "''";
+        const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "''";
         const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");

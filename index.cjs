@@ -104,7 +104,13 @@ const optedOut = process.env.SVELTY_NO_HEAP_CAP === "1";
 const alreadyReexec = process.env.SVELTY_HEAP_REEXEC === "1";
 
 if (heapMb > 0 && !hasHeapFlag && !underPassenger && !optedOut && !alreadyReexec) {
-  const semiSpaceMb = Math.max(2, Math.round(heapMb / 8));
+  // V8's own 64-bit default is 16 MB per semi-space; the old `heapMb / 8` raised
+  // it to 64 MB (a 128 MB young generation) on a 1 GB container. Measured
+  // 2026-10-27 (1 GB cgroup, 100k docs, 8 workers): the 64 MB semi-space held a
+  // 377 MB RSS plateau, the 16 MB default 281 MB — same throughput (7,340 vs
+  // 7,311 RPS median) and same CoV. The extra young-gen space is reserved, not
+  // used, so it is a ceiling, not a tuning knob.
+  const semiSpaceMb = Math.min(16, Math.max(2, Math.round(heapMb / 8)));
   const childArgs = [
     `--max-old-space-size=${heapMb}`,
     `--max-semi-space-size=${semiSpaceMb}`,

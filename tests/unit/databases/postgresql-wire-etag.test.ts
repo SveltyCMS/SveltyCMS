@@ -54,7 +54,7 @@ describe("PostgreSQL point wire ETag", () => {
     "data",
   ]);
 
-  it("renders the ISO version inside SQL instead of handing the raw timestamptz column to the driver", async () => {
+  it("selects raw updatedAt column to avoid SQL to_char compute overhead", async () => {
     const { statements, executor, exec } = executorFor({
       doc_text: '{"_id":"doc-1"}',
       updated_at: ISO,
@@ -72,10 +72,8 @@ describe("PostgreSQL point wire ETag", () => {
     expect(result.kind).toBe("found");
     const [sqlText] = statements;
     expect(sqlText).toBeDefined();
-    // Canonical UTC ISO formatting in SQL
-    expect(sqlText).toContain('to_char("updatedAt", \'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"\')');
-    // The bare column is the regression: it forces the driver to allocate a Date object in JS.
-    expect(sqlText).not.toMatch(/,\s*"updatedAt"\s+AS\s+updated_at/i);
+    expect(sqlText).toContain('"updatedAt" AS updated_at');
+    expect(sqlText).not.toContain("to_char");
   });
 
   it("emits an ETag that matches the row version the write path compares", async () => {

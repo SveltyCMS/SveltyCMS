@@ -72,7 +72,12 @@ import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { versionTokenString } from "@utils/optimistic-lock";
 import { resolvePublicationFilter } from "@utils/security/publication-policy";
-import { serializeSuccessEnvelope, STATIC_ENVELOPES } from "@utils/fast-json";
+import {
+  serializeSuccessEnvelope,
+  serializeArrayFast,
+  serializeRowFast,
+  STATIC_ENVELOPES,
+} from "@utils/fast-json";
 
 interface CoalescedCollectionRead {
   body: string;
@@ -1062,7 +1067,9 @@ async function rebuildWarmCollectionRead(
     data?: unknown;
     meta?: unknown;
   };
-  const dataJson = JSON.stringify(envelope.data);
+  const dataJson = Array.isArray(envelope.data)
+    ? serializeArrayFast(envelope.data as unknown[], serializeRowFast)
+    : JSON.stringify(envelope.data);
   // Byte-identity with the dispatcher fallback: list meta stays a NESTED `meta`
   // object (`_collection` included) — not the flat total/limit shape of
   // `serializeListEnvelope`. Only the point-read success branch uses the
