@@ -90,7 +90,11 @@ export const contentSystemBase = {
 
   setContext(tenantId: string | null = null) {
     const ctx = { tenantId, version: this.version };
-    setContext(CONTENT_CONTEXT_KEY, ctx);
+    try {
+      setContext(CONTENT_CONTEXT_KEY, ctx);
+    } catch {
+      // Fails soft if called outside active component initialization (e.g. async SSR / HMR)
+    }
     return ctx;
   },
   getContext() {

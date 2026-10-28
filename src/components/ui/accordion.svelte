@@ -29,18 +29,22 @@
 	let activeId = $state<string | null>(null);
 
 	// Provide context to AccordionItems
-	setContext('accordion', {
-		get activeId() {
-			return activeId;
-		},
-		setActive: (id: string | null) => {
-			const shouldAutoClose = autoclose;
-			activeId = shouldAutoClose && id === activeId ? null : id;
-		},
-		get autoclose() {
-			return autoclose;
-		}
-	});
+	try {
+		setContext('accordion', {
+			get activeId() {
+				return activeId;
+			},
+			setActive: (id: string | null) => {
+				const shouldAutoClose = autoclose;
+				activeId = shouldAutoClose && id === activeId ? null : id;
+			},
+			get autoclose() {
+				return autoclose;
+			}
+		});
+	} catch {
+		// Fails soft if called outside component initialization
+	}
 </script>
 
 <div

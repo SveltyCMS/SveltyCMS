@@ -70,7 +70,11 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 	let modalContainer: HTMLDivElement | undefined = $state(undefined);
 
 	// Provide watermark preset to child widgets via context
-	setContext('watermarkPreset', () => watermarkPreset);
+	try {
+		setContext('watermarkPreset', () => watermarkPreset);
+	} catch {
+		// Fails soft if called outside component initialization
+	}
 
 	let editorComponent: Editor | undefined = $state();
 

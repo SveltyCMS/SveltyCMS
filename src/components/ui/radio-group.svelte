@@ -112,30 +112,34 @@ card variants, and full keyboard navigation per ARIA radiogroup pattern.
 
 	const describedBy = $derived([descriptionId, errorId].filter(Boolean).join(' ') || undefined);
 
-	setContext<RadioGroupContext>('RADIO_GROUP', {
-		get value() {
-			return value;
-		},
-		get name() {
-			return groupName;
-		},
-		get disabled() {
-			return disabled;
-		},
-		get required() {
-			return required;
-		},
-		get invalid() {
-			return invalid;
-		},
-		get size() {
-			return size;
-		},
-		get variant() {
-			return variant;
-		},
-		selectValue
-	});
+	try {
+		setContext<RadioGroupContext>('RADIO_GROUP', {
+			get value() {
+				return value;
+			},
+			get name() {
+				return groupName;
+			},
+			get disabled() {
+				return disabled;
+			},
+			get required() {
+				return required;
+			},
+			get invalid() {
+				return invalid;
+			},
+			get size() {
+				return size;
+			},
+			get variant() {
+				return variant;
+			},
+			selectValue
+		});
+	} catch {
+		// Fails soft if called outside component initialization
+	}
 </script>
 
 <fieldset

@@ -42,7 +42,11 @@
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 	const keyMapper = new KeyMapper();
-	setContext('key_mapper', keyMapper);
+	try {
+		setContext('key_mapper', keyMapper);
+	} catch {
+		// Fails soft if called outside component initialization
+	}
 
 	$effect(() => {
 		const external = JSON.stringify(document);

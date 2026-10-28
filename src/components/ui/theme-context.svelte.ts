@@ -271,7 +271,11 @@ export class AdminTheme {
 
 export function setThemeContext(config?: Partial<ThemeConfig>): AdminTheme {
   const theme = new AdminTheme(config);
-  setContext(ADMIN_THEME_KEY, theme);
+  try {
+    setContext(ADMIN_THEME_KEY, theme);
+  } catch {
+    // Fails soft if called outside active component initialization (e.g. async SSR / HMR)
+  }
   return theme;
 }
 
