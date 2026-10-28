@@ -378,37 +378,34 @@
 		return Math.round((filled / langs.length) * 100);
 	}
 
-	/** Non-empty value for a locale — drives the per-field translation status dot. */
-	function hasTranslation(fieldName: string, locale: Locale): boolean {
-		const record = currentCollectionValue[fieldName];
-		if (!isLocaleRecord(record)) return false;
-		const value = record[locale];
-		if (value === null || value === undefined) return false;
-		if (typeof value === 'string') {
+	/** Recursive check whether a value contains actual user content (ignores empty HTML tags/blank strings). */
+	function isValueNonEmpty(val: unknown): boolean {
+		if (val === null || val === undefined) return false;
+		if (typeof val === 'string') {
 			return (
-				value
+				val
 					.replace(/<[^>]*>/g, '')
 					.replace(/&nbsp;/g, ' ')
 					.trim().length > 0
 			);
 		}
-		if (typeof value === 'object') {
-			const entries = Object.values(value);
-			if (entries.length === 0) return false;
-			return entries.some((val) => {
-				if (val === null || val === undefined) return false;
-				if (typeof val === 'string') {
-					return (
-						val
-							.replace(/<[^>]*>/g, '')
-							.replace(/&nbsp;/g, ' ')
-							.trim().length > 0
-					);
-				}
-				return true;
-			});
+		if (typeof val === 'number' || typeof val === 'boolean') return true;
+		if (Array.isArray(val)) {
+			return val.some(isValueNonEmpty);
 		}
-		return true;
+		if (typeof val === 'object') {
+			const values = Object.values(val as Record<string, unknown>);
+			if (values.length === 0) return false;
+			return values.some(isValueNonEmpty);
+		}
+		return false;
+	}
+
+	/** Non-empty value for a locale — drives the per-field translation status dot. */
+	function hasTranslation(fieldName: string, locale: Locale): boolean {
+		const record = currentCollectionValue[fieldName];
+		if (!isLocaleRecord(record)) return false;
+		return isValueNonEmpty(record[locale]);
 	}
 
 	/**

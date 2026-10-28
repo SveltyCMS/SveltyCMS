@@ -11,6 +11,7 @@
  * - Client IP via `getClientIp()` only (no X-Forwarded-For spoofing)
  */
 
+import { dev } from "$app/env";
 import { metricsService } from "@src/services/observability/metrics-service";
 import { getHeapUsedRatio } from "@utils/heap-pressure";
 import { securityResponseService } from "@src/services/security/response-service";
@@ -172,7 +173,12 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
   if (flags?.isBootstrap && !forceSecurity) return resolve(event);
 
   const clientIp = getClientIp(event);
-  const isLocal = clientIp === "127.0.0.1" || clientIp === "::1" || url.hostname === "localhost";
+  const isLocal =
+    clientIp === "127.0.0.1" ||
+    clientIp === "::1" ||
+    clientIp === "0.0.0.0" ||
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1";
   // Security/WAF layer bypasses ONLY in explicit test environments (E2E/integration).
   // A validated x-test-secret alone is NOT sufficient — benchmark runs exercise
   // the full WAF/firewall path like real production traffic.
@@ -399,6 +405,10 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
       payloadSnapshot,
     );
     if (securityStatus.action !== "allow") {
+      // In local development, never lock the developer out with a loopback IP block
+      if (dev && isLocal && securityStatus.reason === "IP is blocked" && !forceSecurity) {
+        return await resolve(event);
+      }
       metricsService.incrementSecurityViolations(tenantId);
       const statusCode = securityStatus.action === "block" ? 403 : 429;
       if (url.pathname.startsWith("/api/"))
