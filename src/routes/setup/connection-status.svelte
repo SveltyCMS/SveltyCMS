@@ -131,6 +131,17 @@ Features:
 		return setup_connection_ready();
 	}
 
+	/**
+	 * Split plain status text so quoted names (e.g. 'sveltycms.db') can be
+	 * emphasised with normal text interpolation (no raw HTML injection).
+	 */
+	function statusSegments(text: string): { text: string; quoted: boolean }[] {
+		return text
+			.split(/('[^']+'|"[^"]+")/)
+			.filter(Boolean)
+			.map((part) => ({ text: part, quoted: /^(['"]).*$/.test(part) }));
+	}
+
 	function formatBytes(bytes: number | undefined): string {
 		if (!bytes) {
 			return 'N/A';
@@ -236,8 +247,11 @@ Features:
 				{getStatusIcon(state)}
 			</span>
 			<div class="flex-1">
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				<p class="font-semibold {getStatusColor(state)}">{@html getStatusText(state, result)}</p>
+				<p class="font-semibold {getStatusColor(state)}">
+					{#each statusSegments(getStatusText(state, result)) as segment, i (i)}{#if segment.quoted}<span
+								class="font-bold text-tertiary-500 dark:text-primary-500">{segment.text}</span
+							>{:else}{segment.text}{/if}{/each}
+				</p>
 				{#if result?.latencyMs && state === 'success'}
 					<p class="text-sm text-(--admin-text-body)">
 						{setup_connection_latency({ ms: result.latencyMs })}
