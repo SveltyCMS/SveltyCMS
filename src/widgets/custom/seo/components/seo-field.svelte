@@ -2,15 +2,14 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
-	import { common_input, common_insert_token, common_textarea } from '@src/paraglide/messages';
+	import Tooltip from '@components/ui/tooltip.svelte';
+	import { common_input, common_textarea } from '@src/paraglide/messages';
 	import type { FieldInstance } from '@src/content/types';
 	import type { Locale } from '@src/paraglide/runtime';
 	import { tokenTarget } from '@src/services/token/token-target';
+	import { activeInput } from '@src/stores/active-input-store.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@src/components/ui/help-icon.svelte';
-
-	// Lucide Icons
-
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -59,10 +58,42 @@
 		const inst = tokenTarget(el, {
 			name: field.db_fieldName,
 			label: field.label,
-			collection: field.collection as string
+			collection: field.collection as string,
+			onInsert: (token: string) => {
+				onUpdate(token);
+			}
 		});
 		return () => inst.destroy();
 	});
+
+	function openTokenPicker(e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+
+		const el =
+			type === 'textarea' ? (document.getElementById(id) as HTMLTextAreaElement | null) : inputRef;
+		if (el) {
+			el.focus();
+		}
+
+		activeInput.set({
+			element: el ?? null,
+			field: {
+				name: field.db_fieldName || id,
+				label: label || field.label,
+				collection: field.collection as string
+			},
+			onInsert: (tokenValue: string) => {
+				value = tokenValue;
+				onUpdate(tokenValue);
+				if (el) {
+					el.value = tokenValue;
+					el.dispatchEvent(new Event('input', { bubbles: true }));
+					el.dispatchEvent(new Event('change', { bubbles: true }));
+				}
+			}
+		});
+	}
 
 	// Reactive — recalculates whenever value/maxLength/optimalMin/optimalMax change
 	const lengthClass = $derived(
@@ -74,43 +105,83 @@
 	);
 </script>
 
-<div class="space-y-2">
-	<div class="flex items-center justify-between mb-1">
-		<div class="flex items-center gap-2">
-			<label for={id} class="font-bold text-sm dark:text-surface-50">{label}</label>
-			{@render icon?.()}
-			<SystemTooltip title={placeholder}>
-				<HelpIcon ariaLabel="Field information" />
-			</SystemTooltip>
+<div class="space-y-1">
+	<div class="mb-1 flex items-center justify-between gap-2 px-0.5 text-start field-label">
+		<div class="flex min-w-0 items-center gap-1.5">
+			{#if icon}
+				{@render icon()}
+			{/if}
+			<p class="inline-block truncate font-semibold capitalize">
+				{label}
+			</p>
+			{#if placeholder}
+				<SystemTooltip
+					title={placeholder}
+					ariaLabel={placeholder}
+					positioning={{ placement: 'top' }}
+				>
+					<HelpIcon ariaLabel={placeholder} />
+				</SystemTooltip>
+			{/if}
 		</div>
 
-		<div class="flex items-center gap-3 text-xs">
-			<SystemTooltip title={common_insert_token()}>
-				<Button
-					variant="outline"
-					type="button"
-					aria-label={common_insert_token()}
-					onclick={() => inputRef?.focus()}
-				>
-					<iconify-icon icon="mdi:code-braces" width={16} class="dark:text-primary-500"
-					></iconify-icon>
-				</Button>
-			</SystemTooltip>
-
+		<div class="flex shrink-0 items-center gap-1">
 			{#if maxLength}
-				<!-- Identical output for both types — no branch needed -->
-				<span class={lengthClass}>({value.length}/{maxLength})</span>
+				<span class="text-xs me-2 font-mono {lengthClass}">({value.length}/{maxLength})</span>
 			{/if}
 
 			{#if translated}
-				<div class="flex items-center gap-1 text-xs">
-					<iconify-icon icon="bi:translate" width={16}></iconify-icon>
-					<span class="font-medium text-tertiary-500 dark:text-primary-500"
-						>{lang.toUpperCase()}</span
-					>
-					<span class="font-medium text-error-500">({translationPct}%)</span>
-				</div>
+				<Tooltip
+					title={translationPct === 100
+						? `${lang.toUpperCase()} translation complete (100%)`
+						: `${lang.toUpperCase()} translation present (${translationPct}%)`}
+					positioning={{ placement: 'top', gutter: 4 }}
+				>
+					{#snippet children()}
+						<div
+							class="flex h-7 items-center gap-1 rounded-full px-1 text-xs font-medium text-black dark:text-white"
+						>
+							<iconify-icon
+								icon="bi:translate"
+								width="14"
+								class="text-black dark:text-white"
+								aria-hidden="true"
+							></iconify-icon>
+							<span class="font-semibold text-tertiary-600 dark:text-primary-500"
+								>{lang.toUpperCase()}</span
+							>
+							<span
+								class="text-[11px] font-medium {translationPct === 100
+									? 'text-success-500'
+									: translationPct > 0
+										? 'text-warning-500'
+										: 'text-surface-400'}"
+							>
+								{translationPct}%
+							</span>
+						</div>
+					{/snippet}
+				</Tooltip>
 			{/if}
+
+			<SystemTooltip title="Insert Token">
+				<Button
+					variant="transparent"
+					size="sm"
+					type="button"
+					class="h-7 w-7 p-0"
+					onclick={openTokenPicker}
+					aria-label="Insert token into {label}"
+					aria-haspopup="dialog"
+					data-testid="insert-token-button"
+				>
+					<iconify-icon
+						icon="mdi:code-braces"
+						width="16"
+						class="font-bold text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+				</Button>
+			</SystemTooltip>
 		</div>
 	</div>
 
@@ -120,7 +191,7 @@
 				aria-label={common_textarea()}
 				{id}
 				class="space-y-0"
-				textareaClass="pe-12 resize-y"
+				textareaClass="pe-12 resize-y text-black dark:text-white"
 				{rows}
 				{placeholder}
 				bind:value
@@ -133,7 +204,7 @@
 				{id}
 				type="text"
 				class="space-y-0"
-				inputClass="pe-12"
+				inputClass="pe-12 text-black dark:text-white"
 				{placeholder}
 				bind:value
 				oninput={(e) => onUpdate((e.currentTarget as HTMLInputElement).value)}

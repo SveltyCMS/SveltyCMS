@@ -277,7 +277,7 @@ Part of the Three Pillars Architecture for widget system.
 				bind:value={urlInput}
 				oninput={handleUrlInput}
 				oninvalid={(e) => e.preventDefault()}
-				inputClass="h-auto w-full rounded-none border-0 bg-transparent py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:text-primary-500 {error ||
+				inputClass="h-auto w-full rounded-none border-0 bg-transparent py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:text-white {error ||
 				fetchError
 					? 'bg-error-500/10!'
 					: ''} {isLoading ? 'opacity-50' : ''}"

@@ -44,6 +44,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		class?: string;
 		expanded?: boolean;
 		isAnalyzing?: boolean;
+		onOpenModal?: () => void;
 	}
 
 	let {
@@ -53,7 +54,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		collectionId = '',
 		class: className = '',
 		expanded = $bindable(false),
-		isAnalyzing = false
+		isAnalyzing = false,
+		onOpenModal
 	}: Props = $props();
 
 	let linkSuggestions = $state<Array<{ title: string; url: string; score: number }>>([]);
@@ -97,19 +99,30 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 </script>
 
 <div
-	class="card pt-1 preset-tonal-surface flex flex-col overflow-hidden {className} transition-all duration-300 {expanded
-		? 'h-125'
-		: 'h-16'}"
+	class="card pt-1 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm border border-(--admin-border-default) rounded-(--admin-radius-card) flex flex-col overflow-hidden {className} transition-all duration-300 {onOpenModal
+		? 'h-auto'
+		: expanded
+			? 'h-125'
+			: 'h-16'}"
 >
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors text-start"
-		onclick={() => (expanded = !expanded)}
-		aria-label={seo_analysis_toggle_aria()}
-		aria-expanded={expanded}
+		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors text-start cursor-pointer rounded-t-(--admin-radius-card)"
+		onclick={() => {
+			if (onOpenModal) {
+				onOpenModal();
+			} else {
+				expanded = !expanded;
+			}
+		}}
+		aria-label={onOpenModal ? 'Open detailed SEO analysis report' : seo_analysis_toggle_aria()}
+		aria-expanded={onOpenModal ? undefined : expanded}
 	>
 		<div class="flex items-center gap-2 flex-1">
-			<iconify-icon icon="mdi:information" width="24" class="text-tertiary-500 text-xl"
+			<iconify-icon
+				icon="mdi:google-analytics"
+				width="24"
+				class="text-tertiary-500 dark:text-primary-500 text-xl"
 			></iconify-icon>
 			<h3 class="h3 text-lg!">{common_analysis()}</h3>
 		</div>
@@ -134,7 +147,9 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 						{seo_analysis_needs_work()}
 					{/if}
 				</div>
-				{#if expanded}
+				{#if onOpenModal}
+					<iconify-icon icon="mdi:open-in-new" class="text-surface-400"></iconify-icon>
+				{:else if expanded}
 					<iconify-icon icon="mdi:chevron-up" class="text-surface-400"></iconify-icon>
 				{:else}
 					<iconify-icon icon="mdi:chevron-down" class="text-surface-400"></iconify-icon>
@@ -166,14 +181,18 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 		{:else if analysisResult}
 			<!-- Metrics Summary -->
 			<div class="grid grid-cols-2 gap-2 p-3 bg-surface-500/10 border-b border-surface-500/10">
-				<div class="card p-2 preset-soft-surface">
+				<div
+					class="card p-2 bg-surface-500/10 dark:bg-surface-800/50 rounded-(--admin-radius-input)"
+				>
 					<div class="text-[10px] uppercase opacity-50 font-bold">{common_readability()}</div>
 					<div class="text-sm font-bold">{analysisResult.readability.fleschKincaidScore}</div>
 					<div class="text-[9px] opacity-70 leading-tight">
 						{getReadingEaseDescription(analysisResult.readability.fleschKincaidScore)}
 					</div>
 				</div>
-				<div class="card p-2 preset-soft-surface">
+				<div
+					class="card p-2 bg-surface-500/10 dark:bg-surface-800/50 rounded-(--admin-radius-input)"
+				>
 					<div class="text-[10px] uppercase opacity-50 font-bold">{seo_analysis_word_count()}</div>
 					<div class="text-sm font-bold">{analysisResult.readability.wordCount}</div>
 					<div class="text-[9px] opacity-70">
@@ -197,7 +216,8 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 											? 'mdi:alert'
 											: 'mdi:information'}
 								<div
-									class="card border-s-4 p-3 {suggestion.type === 'error'
+									class="card border-s-4 p-3 rounded-(--admin-radius-input) {suggestion.type ===
+									'error'
 										? 'border-error-500 bg-error-500/10'
 										: suggestion.type === 'warning'
 											? 'border-warning-500 bg-warning-500/10'
@@ -228,7 +248,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 											</SystemTooltip>
 											{#if suggestion.fix}
 												<div
-													class="mt-1.5 text-[10px] font-mono bg-surface-500/10 dark:bg-surface-700 p-1.5 rounded opacity-80"
+													class="mt-1.5 text-[10px] font-mono bg-surface-500/10 dark:bg-surface-700 p-1.5 rounded-(--admin-radius-input) opacity-80"
 												>
 													<strong>{seo_analysis_fix()}</strong>
 													{suggestion.fix}
@@ -240,7 +260,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 							{/each}
 						{:else}
 							<div
-								class="flex items-center gap-2 rounded border border-success-500/30 bg-success-500/50 p-3 text-success-600 dark:border-success-500/40 dark:bg-success-900/20 dark:text-success-400"
+								class="flex items-center gap-2 rounded-(--admin-radius-card) border border-success-500/30 bg-success-500/50 p-3 text-success-600 dark:border-success-500/40 dark:bg-success-900/20 dark:text-success-400"
 							>
 								<iconify-icon icon="mdi:check-circle" class="text-xl"></iconify-icon>
 								<span class="text-sm">{seo_analysis_no_issues()}</span>

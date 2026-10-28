@@ -88,15 +88,9 @@ This component provides a tooltip for any element.
 	{role}
 	{tabindex}
 	aria-label={ariaLabel}
+	content={contentProp}
 >
 	{#snippet children()}
 		{@render childrenProp?.()}
-	{/snippet}
-	{#snippet content()}
-		{#if contentProp}
-			{@render contentProp()}
-		{:else}
-			{title}
-		{/if}
 	{/snippet}
 </Tooltip>

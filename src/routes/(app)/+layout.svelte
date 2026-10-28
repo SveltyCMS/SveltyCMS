@@ -272,13 +272,12 @@ This layout provides the administrative shell, including sidebars and header con
 		if (editingRoute && screen.isDesktop) return 'full';
 		return ui.state.rightSidebar;
 	});
-	// Desktop edit/create keeps the entry metadata visible even when the right
-	// sidebar is collapsed or hidden. Matches the SSR frame (URL-derived).
+	// Desktop edit/create does not use the page footer — right sidebar carries metadata and full space is used
 	const showPageFooter = $derived(
-		ui.state.pagefooter !== 'hidden' || (editingRoute && screen.isDesktop)
+		!editingRoute &&
+			!['edit', 'create', 'modify'].includes(collections.mode) &&
+			ui.state.pagefooter !== 'hidden'
 	);
-	/** True when the footer is only the edit-metadata fallback (no explicit layout pref). */
-	const pageFooterIsFallback = $derived(ui.state.pagefooter === 'hidden');
 
 	// ── Layout state: tenant defaults, then per-user overrides ──
 	let layoutStateRestored = false;
@@ -641,9 +640,9 @@ This layout provides the administrative shell, including sidebars and header con
 					<!-- `overflow-x-clip` keeps wide author content (tables, embeds) from
 					     painting underneath the end sidebar; vertical scroll stays owned
 					     by each route so sticky bars are unaffected. -->
-					<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col overflow-x-clip">
+					<main class="relative z-0 flex w-full min-w-0 flex-1 flex-col overflow-x-clip min-h-0">
 						{#if showPageHeader && ui.state.pageheader !== 'hidden'}
-							<header class="sticky top-0 z-20 w-full"><HeaderEdit /></header>
+							<header class="sticky top-0 z-20 w-full shrink-0"><HeaderEdit /></header>
 						{/if}
 
 						<!-- Standardized page-entry motion for every admin route. Keyed on
@@ -659,7 +658,7 @@ This layout provides the administrative shell, including sidebars and header con
 							{#key page.url.pathname}
 								<div
 									in:adminPage={{ duration: viewTransitionsEnabled ? 0 : 240, rise: 8 }}
-									class="relative flex w-full min-w-0 flex-1 flex-col"
+									class="relative flex w-full min-w-0 flex-1 flex-col min-h-0"
 								>
 									{@render children?.()}
 								</div>
@@ -688,9 +687,7 @@ This layout provides the administrative shell, including sidebars and header con
 
 						{#if !pluginWorkspace.isOpen && showPageFooter}
 							<footer
-								class="mt-auto w-full bg-surface-500/10 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900 {pageFooterIsFallback
-									? 'max-lg:hidden'
-									: ''}"
+								class="mt-auto w-full bg-surface-500/10 bg-linear-to-b px-1 text-center dark:from-surface-700 dark:to-surface-900"
 							>
 								<PageFooter />
 							</footer>

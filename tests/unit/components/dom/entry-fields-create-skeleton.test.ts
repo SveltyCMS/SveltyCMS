@@ -19,6 +19,7 @@ import MockWidgetInput from "./mocks/mock-widget-input.svelte";
 import { collections } from "@src/stores/collection-store.svelte";
 import { validationStore } from "@src/stores/validation-store.svelte";
 import type { Schema } from "@src/content/types";
+import { publicEnv } from "@src/stores/global-settings.svelte";
 import { renderComponent, settle, typeText, type RenderedComponent } from "./render";
 
 vi.mock("$app/state", () => ({
@@ -108,24 +109,57 @@ describe("entry fields create-mode first render", () => {
   });
 
   it("reflects translation status on the locale badge as the field is edited", async () => {
-    collections.setCollectionValue({ title: { en: "" }, slug: "hello", tags: [] });
+    publicEnv.AVAILABLE_CONTENT_LANGUAGES = ["en", "de"] as any;
+    collections.setCollectionValue({ title: { en: "", de: "" }, slug: "hello", tags: [] });
 
     rendered = renderComponent(FieldsComponent, { collection: schema, fields: schema.fields });
     await settle();
 
-    const badge = rendered.target.querySelector<HTMLButtonElement>(
-      'button[aria-label^="Switch locale for Title"]',
-    );
+    const badge = rendered.target.querySelector<HTMLElement>('[data-testid="field-locale-status"]');
     expect(badge).not.toBeNull();
     expect(badge?.textContent).toContain("EN");
-    expect(badge?.className).toContain("warning");
-    expect(badge?.getAttribute("title")).toContain("missing");
+    expect(badge?.textContent).toContain("0%");
+    expect(badge?.getAttribute("aria-label")).toContain("missing");
 
     const input = rendered.target.querySelector<HTMLInputElement>('[data-testid="input-title"]');
     await typeText(input, "Hello");
     await settle();
 
-    expect(badge?.className).toContain("success");
-    expect(badge?.getAttribute("title")).toContain("present");
+    expect(badge?.textContent).toContain("50%");
+    expect(badge?.getAttribute("aria-label")).toContain("present");
+  });
+
+  it("treats empty rich text objects and blank HTML wrappers as untranslated (0%)", async () => {
+    publicEnv.AVAILABLE_CONTENT_LANGUAGES = ["en", "de"] as any;
+    const richTextSchema = {
+      _id: "pages_col",
+      name: "pages",
+      slug: "pages",
+      fields: [
+        { db_fieldName: "body", label: "Body", widget: { Name: "RichText" }, translated: true },
+      ],
+    } as unknown as Schema;
+
+    collections.setCollection(richTextSchema);
+    // Seed with empty RichText object structure as generated on initialization
+    collections.setCollectionValue({ body: { en: { title: "", content: "" }, de: "" } });
+
+    rendered = renderComponent(FieldsComponent, {
+      collection: richTextSchema,
+      fields: richTextSchema.fields,
+    });
+    await settle();
+
+    const badge = rendered.target.querySelector<HTMLElement>('[data-testid="field-locale-status"]');
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent).toContain("0%");
+    expect(badge?.getAttribute("aria-label")).toContain("missing");
+
+    // Also verify HTML-only empty wrappers like <p><br></p> are detected as untranslated
+    collections.setCollectionValue({ body: { en: "<p><br></p>", de: "" } });
+    await settle();
+
+    expect(badge?.textContent).toContain("0%");
+    expect(badge?.getAttribute("aria-label")).toContain("missing");
   });
 });

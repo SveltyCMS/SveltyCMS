@@ -39,6 +39,7 @@
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
 	import {
+		form_required,
 		status_publish,
 		status_unpublish,
 		validation_fix_before_save
@@ -458,8 +459,15 @@
 		{/if}
 	</div>
 
+	{#if ['edit', 'create'].includes(currentMode)}
+		<div class="pointer-events-none absolute inset-x-0 flex items-center justify-center">
+			<span class="whitespace-nowrap text-xs text-error-500 font-medium">
+				{form_required()}
+			</span>
+		</div>
+	{/if}
+
 	<div class="flex items-center gap-2 shrink-0">
-		<!-- Mobile & Tablet: Translation + Save/Next + More -->
 		{#if !isDesktop}
 			{#if showMore}
 				<TranslationStatus />
@@ -518,12 +526,7 @@
 		{/if}
 
 		{#if !ui.wizard.headerActionButton}
-			<Button
-				variant="outline"
-				onclick={cancel}
-				aria-label="Cancel"
-				class="rounded-full p-0! min-w-0"
-			>
+			<Button variant="outline" onclick={cancel} aria-label="Cancel" class="p-0! min-w-0">
 				<iconify-icon icon="material-symbols:close" width="24"></iconify-icon>
 			</Button>
 		{/if}

@@ -40,14 +40,10 @@
 	const tenantId = $derived(page.data?.tenantId);
 
 	import Tabs from '@components/ui/tabs';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import HelpIcon from '@src/components/ui/help-icon.svelte';
-	import {
-		applayout_version,
-		button_edit,
-		Fields_no_widgets_found,
-		form_required
-	} from '@src/paraglide/messages';
+	import { applayout_version, button_edit, Fields_no_widgets_found } from '@src/paraglide/messages';
 	import type { Locale } from '@src/paraglide/runtime';
 	// Stores
 	import { setCollectionValue, collections } from '@src/stores/collection-store.svelte';
@@ -196,27 +192,6 @@
 	let manuallyOverridden = $state(new Set<string>());
 	// AI translate loading state per field
 	let aiTranslatingFields = $state(new Set<string>());
-
-	/**
-	 * Cycles a translated field's locale to the next available language.
-	 */
-	function cycleFieldLocale(fieldName: string, currentLocale: Locale) {
-		const langs = availableLanguages;
-		if (langs.length <= 1) return;
-		const currentIdx = langs.indexOf(currentLocale);
-		const nextIdx = (currentIdx + 1) % langs.length;
-		const nextLocale = langs[nextIdx];
-
-		// The widget remounts bound to `record[nextLocale]`; a missing key would
-		// hand `undefined` to a prop with a fallback (props_invalid_value).
-		const record = currentCollectionValue[fieldName];
-		if (isLocaleRecord(record) && record[nextLocale] === undefined) {
-			record[nextLocale] = '';
-		}
-
-		fieldLocaleOverrides.set(fieldName, nextLocale);
-		manuallyOverridden.add(fieldName);
-	}
 
 	/**
 	 * AI-translates a field's value from source locale to target locale.
@@ -390,13 +365,50 @@
 		return typeof value === 'object' && value !== null && !Array.isArray(value);
 	}
 
+	/** Calculates the translation completion percentage for a field across all available languages. */
+	function getFieldTranslationPercentage(fieldName: string): number {
+		const langs = availableLanguages;
+		if (!langs || langs.length === 0) return 0;
+		let filled = 0;
+		for (const l of langs) {
+			if (hasTranslation(fieldName, l as Locale)) {
+				filled++;
+			}
+		}
+		return Math.round((filled / langs.length) * 100);
+	}
+
 	/** Non-empty value for a locale — drives the per-field translation status dot. */
 	function hasTranslation(fieldName: string, locale: Locale): boolean {
 		const record = currentCollectionValue[fieldName];
 		if (!isLocaleRecord(record)) return false;
 		const value = record[locale];
 		if (value === null || value === undefined) return false;
-		return typeof value === 'string' ? value.trim().length > 0 : true;
+		if (typeof value === 'string') {
+			return (
+				value
+					.replace(/<[^>]*>/g, '')
+					.replace(/&nbsp;/g, ' ')
+					.trim().length > 0
+			);
+		}
+		if (typeof value === 'object') {
+			const entries = Object.values(value);
+			if (entries.length === 0) return false;
+			return entries.some((val) => {
+				if (val === null || val === undefined) return false;
+				if (typeof val === 'string') {
+					return (
+						val
+							.replace(/<[^>]*>/g, '')
+							.replace(/&nbsp;/g, ' ')
+							.trim().length > 0
+					);
+				}
+				return true;
+			});
+		}
+		return true;
 	}
 
 	/**
@@ -697,9 +709,9 @@
 	<Tabs
 		value={localTabSet}
 		onValueChange={(e) => (localTabSet = e.value)}
-		class="flex flex-1 flex-col items-center {CONTENT_PADDING}"
+		class="flex flex-1 flex-col items-center {CONTENT_PADDING} w-full min-h-0"
 	>
-		<Tabs.List class="flex justify-between md:justify-around w-full">
+		<Tabs.List class="flex justify-between md:justify-around w-full shrink-0">
 			<Tabs.Trigger value="0" class="flex-1">
 				<iconify-icon icon="mdi:pen" width="18" height="18" aria-hidden="true"></iconify-icon>
 				{button_edit()}
@@ -732,12 +744,6 @@
 					{slot.props?.label || slot.id}
 				</Tabs.Trigger>
 			{/each}
-
-			<!-- Required legend lives in the tab strip: as its own centered row it
-			     pushed the first field a full line away from the header. -->
-			<span class="ms-auto shrink-0 self-center whitespace-nowrap text-xs text-error-500">
-				{form_required()}
-			</span>
 
 			<Tabs.Indicator />
 		</Tabs.List>
@@ -799,29 +805,46 @@
 											{@const sourceLocale = contentLanguage.value as Locale}
 											{@const isTranslating = aiTranslatingFields.has(fieldName)}
 											{@const isTranslated = hasTranslation(fieldName, currentFieldLocale)}
+											{@const percent = getFieldTranslationPercentage(fieldName)}
 											<div class="flex items-center gap-1">
-												<!-- Locale + translation status: a compact badge, not a button clone. -->
-												<button
-													type="button"
-													class="inline-flex h-7 items-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition-colors {isTranslated
-														? 'border-success-500/40 bg-success-500/10 text-success-500'
-														: 'border-warning-500/40 bg-warning-500/10 text-warning-500'} hover:border-tertiary-500/50 dark:hover:border-primary-500/50"
-													onclick={() => cycleFieldLocale(fieldName, currentFieldLocale)}
+												<!-- Locale indicator: icon + current locale + percentage wrapped in Tooltip (pure status indicator) -->
+												<Tooltip
 													title={isTranslated
-														? `${currentFieldLocale.toUpperCase()} translation present`
-														: `${currentFieldLocale.toUpperCase()} translation missing`}
-													aria-label="Switch locale for {field.label ||
-														fieldName}. Current: {currentFieldLocale.toUpperCase()}, {isTranslated
-														? 'translated'
-														: 'translation missing'}"
+														? `${currentFieldLocale.toUpperCase()} translation present (${percent}%)`
+														: `${currentFieldLocale.toUpperCase()} translation missing (${percent}%)`}
+													positioning={{ placement: 'top', gutter: 4 }}
 												>
-													<span class="size-1.5 rounded-full bg-current" aria-hidden="true"></span>
-													<span>{currentFieldLocale.toUpperCase()}</span>
-													{#if availableLanguages.length > 1}
-														<iconify-icon icon="mdi:chevron-down" width="10" aria-hidden="true"
-														></iconify-icon>
-													{/if}
-												</button>
+													{#snippet children()}
+														<div
+															role="status"
+															class="flex h-7 items-center gap-1 px-1 text-xs font-medium text-black dark:text-white"
+															aria-label="Translation status for {field.label ||
+																fieldName}: {currentFieldLocale.toUpperCase()} ({percent}%, {isTranslated
+																? 'present'
+																: 'missing'})"
+															data-testid="field-locale-status"
+														>
+															<iconify-icon
+																icon="bi:translate"
+																width="14"
+																class="text-black dark:text-white"
+																aria-hidden="true"
+															></iconify-icon>
+															<span class="font-semibold text-tertiary-600 dark:text-primary-500"
+																>{currentFieldLocale.toUpperCase()}</span
+															>
+															<span
+																class="text-[11px] font-medium {percent === 100
+																	? 'text-success-500'
+																	: percent > 0
+																		? 'text-warning-500'
+																		: 'text-surface-400'}"
+															>
+																{percent}%
+															</span>
+														</div>
+													{/snippet}
+												</Tooltip>
 
 												<!-- AI Translate button -->
 												{#if availableLanguages.length > 1 && currentFieldLocale !== sourceLocale}
@@ -847,6 +870,10 @@
 												{/if}
 											</div>
 										{/if}
+										<div
+											id="field-header-actions-{fieldName}"
+											class="flex items-center gap-1"
+										></div>
 										<SystemTooltip title="Insert Token">
 											<Button
 												variant="transparent"
@@ -1042,27 +1069,44 @@
 				{/if}
 			</div>
 		</Tabs.Content>
-		<Tabs.Content value="3" class="w-full">
-			<div class="space-y-4 p-4">
-				<div class="flex items-center gap-2">
-					<Input type="text" class="grow" readonly value={apiUrl} label="API URL" />
-					<Button
-						variant="outline"
-						onclick={() => {
-							navigator.clipboard.writeText(apiUrl);
-							toast.success('API URL Copied');
-						}}
-						class="preset-outlined-surface-500"
+		<Tabs.Content value="3" class="w-full flex-1 flex flex-col min-h-0 pb-2">
+			<AdminCard class="w-full flex-1 flex flex-col min-h-0 p-3 sm:p-4 gap-3">
+				<div class="shrink-0">
+					<label
+						for="api-url-input"
+						class="mb-1.5 block text-sm font-semibold text-(--admin-text-muted)">API URL</label
 					>
-						Copy
-					</Button>
+					<div class="flex items-center gap-2">
+						<Input
+							id="api-url-input"
+							type="text"
+							class="grow space-y-0"
+							readonly
+							value={apiUrl}
+							aria-label="API URL"
+						/>
+						<Button
+							variant="outline"
+							onclick={() => {
+								navigator.clipboard.writeText(apiUrl);
+								toast.success('API URL Copied');
+							}}
+							class="preset-outlined-surface-500 shrink-0"
+						>
+							Copy
+						</Button>
+					</div>
 				</div>
-				<AdminCard
-					class="p-4 overflow-x-auto bg-surface-800 text-white font-mono text-sm max-h-125"
+				<div
+					class="flex-1 min-h-0 rounded border border-(--admin-border-default) bg-surface-900/80 dark:bg-surface-900/80 p-3 font-mono text-xs sm:text-sm text-white overflow-auto"
 				>
-					<pre>{JSON.stringify(collections.activeValue, null, 2)}</pre>
-				</AdminCard>
-			</div>
+					<pre class="whitespace-pre-wrap wrap-break-word">{JSON.stringify(
+							collections.activeValue,
+							null,
+							2
+						)}</pre>
+				</div>
+			</AdminCard>
 		</Tabs.Content>
 
 		<!-- Plugin Slots Content -->

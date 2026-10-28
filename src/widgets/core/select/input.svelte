@@ -8,6 +8,7 @@
 	import Select from '@components/ui/select.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
+	import { untrack } from 'svelte';
 	import type { SelectOption } from './types';
 
 	interface Props {
@@ -59,7 +60,7 @@
 			extracted = String(parentVal);
 		}
 
-		if (extracted !== localValue) {
+		if (extracted !== untrack(() => localValue)) {
 			localValue = extracted;
 		}
 	});

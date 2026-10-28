@@ -572,8 +572,8 @@ export function setCompressionHeaders(
 export const handleCompression: Handle = async ({ event, resolve }) => {
   const flags = getRequestFlags(event.locals);
 
-  // Fast-path: skip compression for static assets and internal requests
-  if (flags.isStatic) return resolve(event);
+  // Fast-path: skip compression for static assets, internal requests, or aborted requests
+  if (flags.isStatic || event.request?.signal?.aborted) return resolve(event);
   if (flags.isTestMode || (event.locals as { __testBypass?: boolean }).__testBypass) {
     return resolve(event);
   }
@@ -710,6 +710,14 @@ export const handleCompression: Handle = async ({ event, resolve }) => {
     });
   } catch (error) {
     logger.error("Compression failed, serving uncompressed:", error);
+    // If the original response was disturbed or locked, return a clean fallback
+    if (response.bodyUsed || response.body?.locked) {
+      return new Response(null, {
+        headers: response.headers,
+        status: response.status,
+        statusText: response.statusText,
+      });
+    }
     return response;
   }
 };

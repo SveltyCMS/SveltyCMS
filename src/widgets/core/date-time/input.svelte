@@ -184,7 +184,7 @@ Part of the Three Pillars Architecture for widget system.
 				oninput={handleInput}
 				onblur={handleBlur}
 				oninvalid={(e) => e.preventDefault()}
-				inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500 {error
+				inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-white {error
 					? 'bg-error-500-10!'
 					: ''}"
 				aria-invalid={!!error}

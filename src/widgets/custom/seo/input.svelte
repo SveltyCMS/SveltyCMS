@@ -42,6 +42,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	import type { SeoWidgetData } from '.';
 	import Tabs from '@components/ui/tabs';
 	import SeoAnalysisPanel from './components/seo-analysis-panel.svelte';
+	import AnalysisModal from './components/analysis-modal.svelte';
 	import SeoField from './components/seo-field.svelte';
 	// Components
 	import SeoPreview from './components/seo-preview.svelte';
@@ -63,7 +64,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	let activeTab = $state<'basic' | 'social' | 'advanced'>('basic');
 	let seoPreviewMobile = $state(false);
 	let analysisResults: any = $state(null);
-	let showAnalysis = $state(false); // Collapsible analysis panel
+	let showAnalysisModal = $state(false); // Modal overlay for detailed analysis report
 	let isAnalyzing = $state(false);
 
 	// License State
@@ -211,7 +212,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 	{#if !isCheckingLicense}
 		{#if !licenseStatus.hasLicense && licenseStatus.active && licenseStatus.daysRemaining !== null}
 			<div
-				class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-4 rounded-lg"
+				class="alert bg-warning-500/10 text-warning-600 dark:text-warning-400 flex items-center justify-between p-4 rounded-(--admin-radius-card) border border-warning-500/30"
 			>
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:clock-alert-outline" width="24"></iconify-icon>
@@ -223,7 +224,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 				<a
 					href="https://marketplace.sveltycms.com"
 					target="_blank"
-					class="preset-filled-warning-500 rounded text-sm px-3 py-1 font-medium shadow-xs"
+					class="preset-filled-warning-500 rounded-(--admin-radius-button) text-sm px-3 py-1 font-medium shadow-xs"
 					>{seo_input_get_license()}</a
 				>
 			</div>
@@ -241,12 +242,12 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 			/>
 		</div>
 
-		<!-- Right: Analysis Panel -->
+		<!-- Right: Analysis Panel (compact with modal trigger) -->
 		<div class="lg:col-span-1">
 			<SeoAnalysisPanel
 				analysisResult={analysisResults}
 				{isAnalyzing}
-				bind:expanded={showAnalysis}
+				onOpenModal={() => (showAnalysisModal = true)}
 				content={typeof (collections.activeValue as any)?.content === 'string'
 					? (collections.activeValue as any).content
 					: typeof (collections.activeValue as any)?.body === 'string'
@@ -258,16 +259,19 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 		</div>
 	</div>
 
+	<!-- Modal for detailed SEO analysis -->
+	<AnalysisModal bind:show={showAnalysisModal} analysisResult={analysisResults} />
+
 	<!-- Bottom Area: Tabs & Inputs -->
 	<div
-		class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden"
+		class="card p-4 bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm relative overflow-hidden rounded-(--admin-radius-card) border border-(--admin-border-default)"
 	>
 		{#if !isCheckingLicense && !licenseStatus.active}
 			<div
-				class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-lg"
+				class="absolute inset-0 z-10 bg-surface-500/10 dark:bg-surface-900/80 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center pointer-events-none rounded-(--admin-radius-card)"
 			>
 				<div
-					class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20"
+					class="card p-6 shadow-xl max-w-lg pointer-events-auto border border-error-500/30 bg-error-500/10 dark:bg-error-900/20 rounded-(--admin-radius-card)"
 				>
 					<iconify-icon icon="mdi:lock-outline" width="48" class="text-error-500 mb-4"
 					></iconify-icon>
@@ -278,7 +282,7 @@ Handles meta tags, social previews, and schema markup with multi-language suppor
 					<a
 						href="https://marketplace.sveltycms.com"
 						target="_blank"
-						class="preset-filled-error-500 w-full text-center py-2 px-4 rounded font-medium shadow-xs"
+						class="preset-filled-error-500 w-full text-center py-2 px-4 rounded-(--admin-radius-button) font-medium shadow-xs"
 						>{seo_input_purchase_license()}</a
 					>
 				</div>

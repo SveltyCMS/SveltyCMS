@@ -76,7 +76,7 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 </script>
 
 <section
-	class="space-y-3 rounded-lg border border-surface-500/30 p-4"
+	class="space-y-3 rounded-(--admin-radius-card) border border-(--admin-border-default) p-4"
 	aria-labelledby="seo-cwv-heading"
 >
 	<h3 id="seo-cwv-heading" class="flex items-center gap-2 text-sm font-bold">
@@ -92,7 +92,7 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 	{:else}
 		<button
 			type="button"
-			class="preset-filled-primary-500 rounded px-3 py-1.5 text-sm font-medium shadow-xs"
+			class="preset-filled-primary-500 rounded-(--admin-radius-button) px-3 py-1.5 text-sm font-medium shadow-xs"
 			onclick={measure}
 			disabled={isLoading}
 		>
@@ -117,13 +117,13 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 				<ul class="space-y-2">
 					{#each report.field as reading (reading.metric)}
 						<li
-							class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-surface-500/20 p-3"
+							class="flex flex-wrap items-center justify-between gap-3 rounded-(--admin-radius-input) border border-(--admin-border-default) p-3"
 						>
 							<span class="text-sm">{reading.label}</span>
 							<span class="flex items-center gap-2">
 								<span class="text-sm font-semibold tabular-nums">{reading.display}</span>
 								<span
-									class="rounded border px-2 py-0.5 text-xs font-medium {ratingClasses(
+									class="rounded-(--admin-radius-button) border px-2 py-0.5 text-xs font-medium {ratingClasses(
 										reading.rating
 									)}"
 								>
@@ -148,13 +148,13 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 				<ul class="space-y-2">
 					{#each report.lab as reading (reading.metric)}
 						<li
-							class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-surface-500/20 p-3"
+							class="flex flex-wrap items-center justify-between gap-3 rounded-(--admin-radius-input) border border-(--admin-border-default) p-3"
 						>
 							<span class="text-sm">{reading.label}</span>
 							<span class="flex items-center gap-2">
 								<span class="text-sm font-semibold tabular-nums">{reading.display}</span>
 								<span
-									class="rounded border px-2 py-0.5 text-xs font-medium {ratingClasses(
+									class="rounded-(--admin-radius-button) border px-2 py-0.5 text-xs font-medium {ratingClasses(
 										reading.rating
 									)}"
 								>

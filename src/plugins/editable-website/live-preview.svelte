@@ -35,7 +35,7 @@
 	import type { CmsEditModeMessage, CmsUpdateMessage } from './types';
 
 	interface Props {
-		collection: { value: Schema };
+		collection: { value: Schema } | Schema;
 		contentLanguage: string;
 		currentCollectionValue: CollectionEntry;
 		tenantId: string;
@@ -80,8 +80,21 @@
 		};
 	});
 
+	const resolvedSchema = $derived.by(() => {
+		if (!collection) return undefined;
+		if (
+			typeof collection === 'object' &&
+			'value' in collection &&
+			(collection as { value: Schema }).value
+		) {
+			return (collection as { value: Schema }).value as Schema & { previewTargetUrl?: string };
+		}
+		return collection as Schema & { previewTargetUrl?: string };
+	});
+
 	const livePreviewPattern = $derived.by(() => {
-		const schema = collection.value as Schema & { previewTargetUrl?: string };
+		const schema = resolvedSchema;
+		if (!schema) return publicEnv.HOST_PROD || 'http://localhost:5173';
 		if (schema.previewTargetUrl) return schema.previewTargetUrl;
 		if (typeof schema.livePreview === 'string') return schema.livePreview;
 		if (schema.livePreview === true) return '/{slug}?lang={lang}';
@@ -113,7 +126,7 @@
 				method: 'POST',
 				headers: clientJsonHeaders(),
 				body: JSON.stringify({
-					schema: collection.value,
+					schema: resolvedSchema,
 					entry: currentCollectionValue,
 					contentLanguage,
 					tenantId,
@@ -157,7 +170,7 @@
 
 		const message: CmsUpdateMessage = {
 			type: 'svelty:update',
-			collection: collection.value?.name || collection.value?._id || 'unknown',
+			collection: resolvedSchema?.name || resolvedSchema?._id || 'unknown',
 			data: currentCollectionValue as Record<string, unknown>
 		};
 

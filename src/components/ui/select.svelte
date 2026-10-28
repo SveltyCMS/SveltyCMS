@@ -129,6 +129,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				{required}
 				bind:value
 				onchange={handleChange}
+				oninput={handleChange}
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}
 				aria-required={required}
@@ -202,6 +203,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 				{required}
 				bind:value
 				onchange={handleChange}
+				oninput={handleChange}
 				aria-invalid={invalid || !!error}
 				aria-describedby={describedBy}
 				aria-required={required}

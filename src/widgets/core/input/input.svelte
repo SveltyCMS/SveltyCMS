@@ -29,7 +29,6 @@
 	import Input from '@components/ui/input.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
 	import { widget_char_count, widget_validating, widget_min_hint } from '@src/paraglide/messages';
-	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
 	import { validationStore } from '@src/stores/validation-store.svelte';
@@ -257,130 +256,128 @@
 </script>
 
 <div class="relative mb-4 min-h-10 w-full">
-	<SystemTooltip title={validationError || ''} wFull={true}>
-		<div
-			class="flex w-full overflow-hidden bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
-			style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
-			role="group"
-		>
-			{#if field?.prefix}
-				<div
-					class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
-					aria-label={`${field.prefix} prefix`}
-				>
-					{field?.prefix}
-				</div>
-			{/if}
+	<div
+		class="flex w-full overflow-hidden bg-white dark:bg-surface-900 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:space-y-0"
+		style="border-radius: var(--admin-radius-input, 0.25rem); border: var(--admin-border-width, 1px) solid var(--admin-border-default, var(--color-surface-200))"
+		role="group"
+	>
+		{#if field?.prefix}
+			<div
+				class="flex items-center bg-surface-200 px-3 text-surface-700 dark:bg-surface-800 dark:text-surface-200"
+				aria-label={`${field.prefix} prefix`}
+			>
+				{field?.prefix}
+			</div>
+		{/if}
 
-			{#if textareaRows > 1}
-				<Textarea
-					aria-label={field.label || fieldName || 'Text input'}
-					value={safeValue}
-					oninput={(e) => {
-						updateValue((e.currentTarget as HTMLTextAreaElement).value);
-						handleInput();
-					}}
-					onblur={handleBlur}
-					name={field?.db_fieldName}
-					id={field?.db_fieldName}
-					rows={textareaRows}
-					placeholder={(field?.placeholder && field?.placeholder !== ''
-						? field?.placeholder
-						: field?.db_fieldName) as string | undefined}
-					required={field?.required as boolean | undefined}
-					disabled={field?.disabled as boolean | undefined}
-					readonly={field?.readonly as boolean | undefined}
-					textareaClass="h-auto min-h-32 w-full flex-1 rounded-none border-0 bg-white py-2 font-mono text-xs text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
-						? 'bg-error-500-10!'
-						: ''}"
-					aria-invalid={!!validationError}
-					data-testid="text-input"
-				/>
-			{:else}
-				<Input
-					type="text"
-					aria-label={field.label || fieldName || 'Text input'}
-					value={safeValue}
-					oninput={(e) => {
-						updateValue(e.currentTarget.value);
-						handleInput();
-					}}
-					onblur={handleBlur}
-					onfocus={handleFocus}
-					oninvalid={(e) => e.preventDefault()}
-					name={field?.db_fieldName}
-					id={field?.db_fieldName}
-					placeholder={(field?.placeholder && field?.placeholder !== ''
-						? field?.placeholder
-						: field?.db_fieldName) as string | undefined}
-					required={field?.required as boolean | undefined}
-					disabled={field?.disabled as boolean | undefined}
-					readonly={field?.readonly as boolean | undefined}
-					minlength={field?.minLength as number | undefined}
-					maxlength={field?.maxLength as number | undefined}
-					inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-primary-500 {validationError
-						? 'bg-error-500-10!'
-						: ''}"
-					aria-invalid={!!validationError}
-					aria-describedby={validationError
-						? `${fieldName}-error`
-						: field.helper
-							? `${fieldName}-helper`
-							: undefined}
-					aria-required={field?.required}
-					data-testid="text-input"
-				/>
-			{/if}
+		{#if textareaRows > 1}
+			<Textarea
+				aria-label={field.label || fieldName || 'Text input'}
+				value={safeValue}
+				oninput={(e) => {
+					updateValue((e.currentTarget as HTMLTextAreaElement).value);
+					handleInput();
+				}}
+				onblur={handleBlur}
+				name={field?.db_fieldName}
+				id={field?.db_fieldName}
+				rows={textareaRows}
+				placeholder={(field?.placeholder && field?.placeholder !== ''
+					? field?.placeholder
+					: field?.db_fieldName) as string | undefined}
+				required={field?.required as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				textareaClass="h-auto min-h-32 w-full flex-1 rounded-none border-0 bg-white py-2 font-mono text-xs text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-white {validationError
+					? 'bg-error-500-10!'
+					: ''}"
+				aria-invalid={!!validationError}
+				data-testid="text-input"
+			/>
+		{:else}
+			<Input
+				type="text"
+				aria-label={field.label || fieldName || 'Text input'}
+				value={safeValue}
+				oninput={(e) => {
+					updateValue(e.currentTarget.value);
+					handleInput();
+				}}
+				onblur={handleBlur}
+				onfocus={handleFocus}
+				oninvalid={(e) => e.preventDefault()}
+				name={field?.db_fieldName}
+				id={field?.db_fieldName}
+				placeholder={(field?.placeholder && field?.placeholder !== ''
+					? field?.placeholder
+					: field?.db_fieldName) as string | undefined}
+				required={field?.required as boolean | undefined}
+				disabled={field?.disabled as boolean | undefined}
+				readonly={field?.readonly as boolean | undefined}
+				minlength={field?.minLength as number | undefined}
+				maxlength={field?.maxLength as number | undefined}
+				inputClass="h-auto w-full flex-1 rounded-none border-0 bg-white py-2 font-medium text-black shadow-none outline-none focus-visible:ring-0 dark:bg-surface-900 dark:text-white {validationError
+					? 'bg-error-500-10!'
+					: ''}"
+				aria-invalid={!!validationError}
+				aria-describedby={validationError
+					? `${fieldName}-error`
+					: field.helper
+						? `${fieldName}-helper`
+						: undefined}
+				aria-required={field?.required}
+				data-testid="text-input"
+			/>
+		{/if}
 
-			<!-- suffix and count -->
-			{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
-				<div
-					class="flex items-center bg-white px-2 dark:bg-surface-900"
-					role="status"
-					aria-live="polite"
-				>
-					{#if field?.count || field?.minLength || field?.maxLength}
-						<Badge variant={badgeVariant} class="me-1" aria-label={widget_char_count()}>
-							{#if field?.count && field?.minLength && field?.maxLength}
-								{count}/{field?.maxLength}
-							{:else if field?.count && field?.maxLength}
-								{count}/{field?.maxLength}
-							{:else if field?.count && field?.minLength}
-								{count}
-								=> {field?.minLength}
-							{:else if field?.minLength && field?.maxLength}
-								{count}
-								=> {field?.minLength}/{field?.maxLength}
-							{:else if field?.count}
-								{count}/{field?.count}
-							{:else if field?.maxLength}
-								{count}/{field?.maxLength}
-							{:else if field?.minLength}
-								{widget_min_hint()} {field?.minLength}
-							{/if}
-						</Badge>
-					{/if}
-					{#if field?.suffix}
-						<span class="text-(--admin-text-muted)" aria-label={`${field.suffix} suffix`}
-							>{field?.suffix}</span
-						>
-					{/if}
-				</div>
-			{/if}
+		<!-- suffix and count -->
+		{#if field?.suffix || field?.count || field?.minLength || field?.maxLength}
+			<div
+				class="flex items-center bg-white px-2 dark:bg-surface-900"
+				role="status"
+				aria-live="polite"
+			>
+				{#if field?.count || field?.minLength || field?.maxLength}
+					<Badge variant={badgeVariant} class="me-1" aria-label={widget_char_count()}>
+						{#if field?.count && field?.minLength && field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.count && field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.count && field?.minLength}
+							{count}
+							=> {field?.minLength}
+						{:else if field?.minLength && field?.maxLength}
+							{count}
+							=> {field?.minLength}/{field?.maxLength}
+						{:else if field?.count}
+							{count}/{field?.count}
+						{:else if field?.maxLength}
+							{count}/{field?.maxLength}
+						{:else if field?.minLength}
+							{widget_min_hint()} {field?.minLength}
+						{/if}
+					</Badge>
+				{/if}
+				{#if field?.suffix}
+					<span class="text-(--admin-text-muted)" aria-label={`${field.suffix} suffix`}
+						>{field?.suffix}</span
+					>
+				{/if}
+			</div>
+		{/if}
 
-			<!-- Validation indicator -->
-			{#if isValidating}
+		<!-- Validation indicator -->
+		{#if isValidating}
+			<div
+				class="flex items-center bg-white px-2 dark:bg-surface-900"
+				aria-label={widget_validating()}
+			>
 				<div
-					class="flex items-center bg-white px-2 dark:bg-surface-900"
-					aria-label={widget_validating()}
-				>
-					<div
-						class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
-					></div>
-				</div>
-			{/if}
-		</div>
-	</SystemTooltip>
+					class="h-4 w-4 animate-spin rounded-full border-2 border-tertiary-500 dark:border-primary-500 border-t-transparent"
+				></div>
+			</div>
+		{/if}
+	</div>
 
 	<!-- Helper Text removed (moved to label tooltip) -->
 

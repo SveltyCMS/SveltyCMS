@@ -29,7 +29,12 @@ Drawer, Popover, and Tooltip to escape overflow/stacking context constraints.
 	let portalEl = $state<HTMLElement | null>(null);
 
 	onMount(() => {
-		const targetEl = typeof target === 'string' ? document.querySelector(target) : target;
+		const targetEl =
+			typeof target === 'string'
+				? target.startsWith('#')
+					? document.getElementById(target.slice(1)) || document.querySelector(target)
+					: document.querySelector(target)
+				: target;
 		if (!targetEl || !portalEl) return;
 
 		targetEl.appendChild(portalEl);

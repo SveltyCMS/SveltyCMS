@@ -108,9 +108,6 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	// Derived values
 	const isSidebarFull = $derived(ui.state.leftSidebar === 'full');
-	/** One circle for every footer control: profile, theme, language, sign-out, config, version, Discord. */
-	const footerControl =
-		'flex !h-12 !w-12 shrink-0 items-center justify-center !rounded-full !border-0 !p-0 !min-w-0 !bg-(--admin-bg-chip) text-xs font-bold text-surface-900 hover:!bg-surface-300 dark:text-white dark:hover:!bg-surface-600';
 
 	// RTL-aware: the sidebar `<aside>` is the first flex child, so it flips to the
 	// inline-end in RTL — the collapse control and its tooltip must mirror with it.
@@ -614,41 +611,48 @@ Route-driven sidebar content (no dual collapsible section headers):
 			style="color: var(--admin-text-body)"
 		>
 			<!-- Avatar -->
-			<div class="order-1 flex items-center justify-center">
-				<SystemTooltip
-					title={user?.username || applayout_userprofile()}
-					positioning={{ placement: 'right' }}
-				>
+			<div
+				class="{isSidebarFull ? 'order-1 row-span-2' : 'order-1'} flex items-center justify-center"
+			>
+				<SystemTooltip title={applayout_userprofile()} positioning={{ placement: 'right' }}>
 					<a
 						href="/user"
 						data-sveltekit-preload-data="hover"
 						data-testid="nav-user-profile"
 						onclick={handleUserClick}
 						aria-label="User Profile"
-						class="{footerControl} no-underline!"
+						class={isSidebarFull
+							? 'flex w-full flex-col items-center justify-center p-1 text-center'
+							: 'flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20'}
 					>
 						<Avatar
 							src={avatarUrl}
 							alt="User Avatar"
-							size="size-8"
+							size={isSidebarFull ? 'size-12' : 'size-10'}
 							rounded="rounded-full"
 							class="mx-auto"
 						/>
-						{#if user?.username}
-							<span class="sr-only">{user.username}</span>
+						{#if isSidebarFull && user?.username}
+							<div
+								class="mt-1 w-full overflow-hidden text-ellipsis whitespace-nowrap text-center text-xs font-semibold leading-tight"
+								title={user.username}
+							>
+								{user.username}
+							</div>
 						{/if}
 					</a>
 				</SystemTooltip>
 			</div>
 
 			<!-- Theme Toggle -->
-			<div class="order-2 flex items-center justify-center">
+			<div class="{isSidebarFull ? 'order-2' : 'order-2'} flex items-center justify-center">
 				<SystemTooltip title={themeTooltipText} positioning={{ placement: 'right' }}>
+					<!-- Wrapper div needed because ThemeToggle might not forward all events/props or to serve as reliable trigger anchor -->
 					<div class="flex items-center justify-center">
 						<ThemeToggle
 							showTooltip={false}
 							variant="transparent"
-							buttonClass={footerControl}
+							buttonClass="text-surface-900 dark:text-white"
 							iconSize={28}
 						/>
 					</div>
@@ -656,7 +660,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 			</div>
 
 			<!-- Language Selector -->
-			<div class="{isSidebarFull ? 'order-3' : 'order-4'} flex items-center justify-center">
+			<div
+				class="{isSidebarFull
+					? 'order-3 row-span-2'
+					: 'order-4'} flex items-center justify-center px-1"
+			>
 				<SystemTooltip
 					title={applayout_systemlanguage()}
 					positioning={{ placement: 'right' }}
@@ -671,7 +679,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 									rounded
 									aria-label={applayout_select_language()}
 									data-testid="language-selector-trigger"
-									class="{footerControl} uppercase"
+									class="mb-3 flex items-center justify-center uppercase bg-(--admin-bg-chip) text-surface-900 dark:text-white hover:bg-surface-300 dark:hover:bg-surface-600 {isSidebarFull
+										? 'h-12 w-12 text-xs font-bold'
+										: 'h-11 w-11 text-xs font-bold'}"
 								>
 									{languageTag}
 								</Button>
@@ -741,11 +751,11 @@ Route-driven sidebar content (no dual collapsible section headers):
 						type="button"
 						aria-label="Sign Out"
 						data-testid="sign-out-button"
-						class={footerControl}
+						class="flex h-12 w-12 items-center justify-center rounded-full p-0! min-w-0"
 					>
 						<iconify-icon
 							icon="uil:signout"
-							width="28"
+							width="32"
 							class="text-surface-900 dark:text-white"
 							aria-hidden="true"
 						></iconify-icon>
@@ -761,43 +771,34 @@ Route-driven sidebar content (no dual collapsible section headers):
 						data-sveltekit-preload-data="hover"
 						onclick={handleConfigClick}
 						aria-label="System Configuration"
-						class="{footerControl} no-underline!"
+						class="flex items-center justify-center rounded-full hover:bg-surface-500/20"
 					>
-						<iconify-icon
-							icon="material-symbols:build-circle"
-							width="28"
-							class="text-surface-900 dark:text-white"
-						></iconify-icon>
+						<iconify-icon icon="material-symbols:build-circle" width="35" class=""></iconify-icon>
 					</a>
 				</SystemTooltip>
 			</div>
 
 			<!-- Version -->
-			<div
-				class="{isSidebarFull
-					? 'order-7'
-					: 'order-6'} flex items-center justify-center [&_a]:!inline-flex [&_a]:!h-12 [&_a]:!w-12 [&_a]:!min-w-12 [&_a]:!items-center [&_a]:!justify-center [&_a]:!rounded-full [&_a]:!border-0 [&_a]:!bg-(--admin-bg-chip) [&_a]:!px-0 [&_a]:!py-0 [&_a]:!text-[9px] [&_a]:!leading-none [&_a]:!tracking-tight [&_a]:!text-surface-900 dark:[&_a]:!text-white"
-			>
+			<div class="{isSidebarFull ? 'order-7' : 'order-6'} flex items-center justify-center">
 				<VersionCheck compact={true} />
 			</div>
 
-			<div class="order-8 flex items-center justify-center">
-				<SystemTooltip title={applayout_discord()} positioning={{ placement: 'right' }}>
-					<a
-						href="https://discord.gg/VrvZF6e2sC"
-						target="_blank"
-						rel="noopener noreferrer"
-						aria-label={applayout_discord()}
-						class="{footerControl} no-underline!"
-					>
-						<iconify-icon
-							icon="ic:baseline-discord"
-							width="28"
-							class="text-surface-900 dark:text-white"
-						></iconify-icon>
-					</a>
-				</SystemTooltip>
-			</div>
+			<!-- Community Links (only when expanded) -->
+			{#if isSidebarFull}
+				<div class="order-8 flex items-center justify-center gap-1">
+					<SystemTooltip title={applayout_discord()} positioning={{ placement: 'right' }}>
+						<a
+							href="https://discord.gg/VrvZF6e2sC"
+							target="_blank"
+							rel="noopener noreferrer"
+							aria-label={applayout_discord()}
+							class="flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20"
+						>
+							<iconify-icon icon="ic:baseline-discord" width="32" class=""></iconify-icon>
+						</a>
+					</SystemTooltip>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>

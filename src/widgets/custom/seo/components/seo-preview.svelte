@@ -125,7 +125,9 @@
 	<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
 		<h3 class="h3 text-xl">{seo_preview_title()}</h3>
 
-		<div class="btn-group border border-surface-500 overflow-hidden">
+		<div
+			class="btn-group border border-surface-500/30 rounded-(--admin-radius-button) overflow-hidden"
+		>
 			<!-- Device Toggle: Desktop -->
 			<SystemTooltip title={common_desktop_view()}>
 				<Button
@@ -170,7 +172,7 @@
 
 	<!-- Preview Card -->
 	<div
-		class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 {SeoPreviewToggle
+		class="card bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm p-4 transition-all duration-200 rounded-(--admin-radius-card) border border-(--admin-border-default) {SeoPreviewToggle
 			? 'max-w-93.75 mx-auto'
 			: 'w-full'}"
 	>
@@ -235,23 +237,33 @@
 
 	{#if heatmapMode}
 		<div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-2 text-[10px]" transition:fade>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
+			<div
+				class="flex items-center gap-1.5 p-1 rounded-(--admin-radius-input) bg-(--admin-bg-card)"
+			>
 				<div class="w-2 h-2 rounded-full bg-error-500"></div>
 				<span>{common_keyword()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
+			<div
+				class="flex items-center gap-1.5 p-1 rounded-(--admin-radius-input) bg-(--admin-bg-card)"
+			>
 				<div class="w-2 h-2 rounded-full bg-warning-500"></div>
 				<span>{seo_preview_power_word()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
+			<div
+				class="flex items-center gap-1.5 p-1 rounded-(--admin-radius-input) bg-(--admin-bg-card)"
+			>
 				<div class="w-2 h-2 rounded-full bg-warning-400"></div>
 				<span>{seo_preview_prominent()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
+			<div
+				class="flex items-center gap-1.5 p-1 rounded-(--admin-radius-input) bg-(--admin-bg-card)"
+			>
 				<div class="w-2 h-2 rounded-full bg-success-500"></div>
 				<span>{seo_preview_good_length()}</span>
 			</div>
-			<div class="flex items-center gap-1.5 p-1 rounded bg-(--admin-bg-card)">
+			<div
+				class="flex items-center gap-1.5 p-1 rounded-(--admin-radius-input) bg-(--admin-bg-card)"
+			>
 				<div class="w-2 h-2 rounded-full bg-tertiary-500"></div>
 				<span>{seo_preview_neutral()}</span>
 			</div>

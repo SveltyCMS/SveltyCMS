@@ -153,7 +153,7 @@
 			>
 				{word}
 				<span
-					class="absolute bottom-full inset-s-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-gray-800 p-1 text-xs text-white group-hover:block"
+					class="absolute bottom-full inset-s-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-(--admin-radius-input) bg-gray-800 p-1 text-xs text-white group-hover:block"
 				>
 					{seo_heatmap_heat_label()}
 					{heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}

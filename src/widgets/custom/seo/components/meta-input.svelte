@@ -127,7 +127,7 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 		bind:value
 		oninput={handleInput}
 		class="space-y-0"
-		textareaClass="text-black dark:text-primary-500"
+		textareaClass="text-black dark:text-white"
 		aria-describedby={statusId}
 	/>
 {:else}
@@ -139,7 +139,7 @@ Replaces the now-removed TitleInput.svelte and DescriptionInput.svelte.
 		bind:value
 		oninput={handleInput}
 		class="space-y-0"
-		inputClass="text-black dark:text-primary-500"
+		inputClass="text-black dark:text-white"
 		aria-describedby={statusId}
 	/>
 {/if}

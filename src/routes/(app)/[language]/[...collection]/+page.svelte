@@ -584,10 +584,10 @@ This page dynamically switches between List views and Field editors based on the
 		{@const activeEntryId = String(collections.activeValue?._id || urlEditParam || '')}
 		<div
 			id="fields_container"
-			class="fields max-h-[calc(100vh-100px)] overflow-y-auto overflow-x-visible max-md:max-h-[calc(100vh-120px)]"
+			class="fields flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-visible"
 		>
 			{#if effectiveMode === 'edit' && activeEntryId}
-				<div class="mb-3">
+				<div class="mb-3 shrink-0">
 					<WorkflowActions collectionId={activeCollection._id!} entryId={activeEntryId} />
 				</div>
 			{/if}

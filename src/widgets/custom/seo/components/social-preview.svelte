@@ -80,7 +80,9 @@ Displays a preview of the shared link for different platforms.
 	);
 </script>
 
-<div class="card preset-tonal-surface p-4 rounded-lg mb-6">
+<div
+	class="card p-4 rounded-(--admin-radius-card) border border-(--admin-border-default) bg-white/50 dark:bg-surface-900/50 backdrop-blur-sm mb-6"
+>
 	<div class="flex items-center gap-2 mb-4">
 		<iconify-icon icon="mdi:share-variant" width="24" class="text-secondary-500 text-xl"
 		></iconify-icon>
@@ -112,11 +114,11 @@ Displays a preview of the shared link for different platforms.
 
 	<!-- Preview Card Area -->
 	<div
-		class="bg-surface-500/10 dark:bg-surface-900 rounded p-4 md:p-8 flex justify-center border border-surface-500/30 dark:text-surface-50"
+		class="bg-surface-500/10 dark:bg-surface-900 rounded-(--admin-radius-card) p-4 md:p-8 flex justify-center border border-(--admin-border-default) dark:text-surface-50"
 	>
 		<!-- Dynamic Preview Styling based on Platform -->
 		<div
-			class="w-full max-w-125 bg-white text-black overflow-hidden shadow-lg rounded transition-all duration-300"
+			class="w-full max-w-125 bg-white text-black overflow-hidden shadow-lg rounded-(--admin-radius-card) transition-all duration-300"
 		>
 			<!-- Image Area -->
 			<div

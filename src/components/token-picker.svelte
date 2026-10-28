@@ -51,7 +51,6 @@
 	let previousTokenResult = $state('');
 
 	// UI state
-	let showInfo = $state<Record<string, boolean>>({});
 	let openCategories = $state<Record<string, boolean>>({
 		entry: true,
 		user: false,
@@ -148,7 +147,6 @@
 			search = '';
 			resolvedPreview = '';
 			isLoadingPreview = false;
-			showInfo = {};
 			editablePreview = '';
 			previousTokenResult = '';
 			return;
@@ -214,6 +212,32 @@
 
 	// Actions
 	function selectToken(t: TokenDefinition) {
+		const tokenString = `{{ ${t.token} }}`;
+		const active = activeInput.current;
+		if (!active) return;
+
+		if (active.onInsert) {
+			active.onInsert(tokenString);
+			activeInput.set(null);
+			return;
+		}
+
+		const el = active.element;
+		if (!el) return;
+
+		const start = el.selectionStart ?? el.value.length;
+		const end = el.selectionEnd ?? start;
+		el.value = el.value.slice(0, start) + tokenString + el.value.slice(end);
+		el.focus();
+		el.setSelectionRange(start + tokenString.length, start + tokenString.length);
+		el.dispatchEvent(new Event('input', { bubbles: true }));
+		el.dispatchEvent(new Event('change', { bubbles: true }));
+
+		activeInput.set(null);
+	}
+
+	function configureToken(t: TokenDefinition, e?: Event) {
+		e?.stopPropagation();
 		selectedToken = t;
 		selectedModifiers = [];
 		mode = 'configure';
@@ -292,11 +316,6 @@
 		activeInput.set(null);
 	}
 
-	function toggleInfo(token: string, e: Event) {
-		e.stopPropagation();
-		showInfo[token] = !showInfo[token];
-	}
-
 	// Draggable
 	function draggable(node: HTMLElement) {
 		let x = 0,
@@ -328,7 +347,7 @@
 
 {#if activeInput.current}
 	<div
-		class="token-window fixed z-9999 flex max-h-[80vh] w-full max-w-md flex-col overflow-hidden rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 shadow-xl text-(--admin-text-body)"
+		class="token-window fixed z-9999 flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded border border-(--admin-border-default) bg-(--admin-bg-card) p-4 shadow-xl text-(--admin-text-body)"
 		style="bottom: 2rem; inset-inline-end: {rightPosition};"
 		transition:adminFade={{ duration: 150 }}
 	>
@@ -406,35 +425,31 @@
 										<div class="flex items-start justify-between gap-2">
 											<div class="flex-1 text-start">
 												<div class="text-sm font-medium">{t.name}</div>
-												<code class="code text-[10px] opacity-70">{t.token}</code>
+												<div class="flex items-center gap-2 mt-0.5">
+													<code
+														class="code text-[11px] text-tertiary-500 dark:text-primary-500 font-mono"
+														>{`{{ ${t.token} }}`}</code
+													>
+												</div>
+												{#if t.description}
+													<p class="text-[11px] opacity-70 mt-0.5 leading-snug">{t.description}</p>
+												{/if}
 											</div>
-											<div class="flex items-center gap-1">
+											<div class="flex items-center gap-1.5 shrink-0">
 												<Badge variant="secondary" preset="tonal" class="text-[10px] uppercase"
 													>{t.type}</Badge
 												>
 												<Button
 													variant="outline"
-													onclick={(e: MouseEvent) => toggleInfo(t.token, e)}
-													aria-label="More information"
-													title="Info"
-													class="p-0! min-w-0"
+													onclick={(e: MouseEvent) => configureToken(t, e)}
+													aria-label="Configure token"
+													title="Configure token modifiers"
+													class="p-0! min-w-0 size-7"
 												>
-													<iconify-icon icon="mdi:information-outline"></iconify-icon>
+													<iconify-icon icon="mdi:plus" width="16"></iconify-icon>
 												</Button>
 											</div>
 										</div>
-
-										{#if showInfo[t.token]}
-											<div
-												transition:adminSlide
-												class="mt-2 border-t border-surface-500/20 pt-2 text-xs"
-											>
-												<p class="mb-2 opacity-80">{t.description}</p>
-												<code class="code block overflow-x-auto p-2">
-													{t.example || `{{ ${t.token} }}`}
-												</code>
-											</div>
-										{/if}
 									</AdminCard>
 								{/each}
 							</div>

@@ -30,6 +30,7 @@ Renders radio group with options from field.options array
 	import { widget_radio_value } from '@src/paraglide/messages';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { locale } from '@src/stores/locale-store.svelte';
+	import { untrack } from 'svelte';
 
 	import type { FieldType } from './';
 
@@ -74,7 +75,7 @@ Renders radio group with options from field.options array
 		}
 
 		// Only update local if different to avoid loops (though primitives are safe-ish)
-		if (extracted !== localValue) {
+		if (extracted !== untrack(() => localValue)) {
 			localValue = extracted;
 		}
 	});

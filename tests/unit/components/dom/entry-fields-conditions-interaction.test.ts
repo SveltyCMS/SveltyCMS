@@ -363,10 +363,10 @@ describe("entry fields showIf and requiredIf DOM interactions", () => {
     expect(tokenWindow?.textContent).toContain("Select Token");
     expect(tokenWindow?.textContent).toContain("Headline");
 
-    // Select a token from the entry category (e.g., "Entry ID" or "Headline")
-    const tokenCards = tokenWindow?.querySelectorAll('[role="button"]');
-    expect(tokenCards && tokenCards.length > 0).toBe(true);
-    await click(tokenCards?.[0] as HTMLElement);
+    // Select a token or configure it via the '+' button
+    const configureBtn = tokenWindow?.querySelector('button[aria-label="Configure token"]');
+    expect(configureBtn).not.toBeNull();
+    await click(configureBtn as HTMLElement);
     await settle();
 
     expect(tokenWindow?.textContent).toContain("Configure Token");

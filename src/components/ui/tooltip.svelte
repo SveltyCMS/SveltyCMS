@@ -68,6 +68,9 @@ reveal after position calculation prevents layout flash.
 
 	const placement = $derived(positioning.placement ?? 'top');
 	const gutter = $derived(positioning.gutter ?? 8);
+	const hasContent = $derived(
+		Boolean((typeof title === 'string' ? title.trim() : title) || content)
+	);
 
 	function resolveReference(): HTMLElement | null {
 		if (!referenceEl) return null;
@@ -84,7 +87,7 @@ reveal after position calculation prevents layout flash.
 		placement: () => placement,
 		offset: () => gutter,
 		padding: 5,
-		enabled: () => open,
+		enabled: () => open && hasContent,
 		showArrow: () => true,
 		arrowSize: 14
 	});
@@ -97,7 +100,7 @@ reveal after position calculation prevents layout flash.
 			hasFocusableDescendant = focusable.length > 0;
 			if (hasFocusableDescendant) {
 				for (const el of focusable) {
-					if (open) {
+					if (open && hasContent) {
 						el.setAttribute('aria-describedby', tooltipId);
 					} else {
 						el.removeAttribute('aria-describedby');
@@ -161,7 +164,14 @@ reveal after position calculation prevents layout flash.
 	// `position: fixed` inside it still resolves against the viewport.
 	let portalTarget = $state<HTMLElement | string>('body');
 
+	$effect(() => {
+		if (open && !hasContent) {
+			open = false;
+		}
+	});
+
 	function show() {
+		if (!hasContent) return;
 		portalTarget = (referenceEl?.closest('dialog[open]') as HTMLElement | null) ?? 'body';
 		open = true;
 	}
@@ -183,7 +193,7 @@ reveal after position calculation prevents layout flash.
 	onmouseleave={hide}
 	onfocusin={show}
 	onfocusout={hide}
-	aria-describedby={open && !hasFocusableDescendant ? tooltipId : undefined}
+	aria-describedby={open && hasContent && !hasFocusableDescendant ? tooltipId : undefined}
 	tabindex={activeTabindex}
 	role={activeRole}
 	{...rest}
@@ -193,7 +203,7 @@ reveal after position calculation prevents layout flash.
 	{/if}
 </div>
 
-{#if open}
+{#if open && hasContent}
 	<Portal target={portalTarget}>
 		<div
 			bind:this={floatingEl}
