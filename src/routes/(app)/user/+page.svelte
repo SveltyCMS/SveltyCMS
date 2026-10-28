@@ -824,7 +824,10 @@
 
 	/** Compact help control — same pattern as Security / Setup */
 	const helpBtnClass =
-		'ms-0.5 shrink-0 text-(--admin-text-muted) hover:text-tertiary-500 dark:hover:text-primary-500';
+		'inline-flex size-5 shrink-0 items-center justify-center self-center rounded-full border-0 bg-transparent p-0 leading-none shadow-none [appearance:none] text-(--admin-text-muted) transition-colors hover:bg-tertiary-500/10 hover:text-tertiary-500 dark:hover:bg-primary-500/10 dark:hover:text-primary-500 [&_iconify-icon]:!size-3.5';
+	/** Same help button on the coloured role / ID / tenant badges: white so it stays readable */
+	const helpBtnOnBadgeClass =
+		'inline-flex size-5 shrink-0 items-center justify-center self-center rounded-full border-0 bg-transparent p-0 leading-none shadow-none [appearance:none] text-white/80 transition-colors hover:bg-white/15 hover:text-white [&_iconify-icon]:!size-3.5';
 
 	const roleDisplay = $derived.by(() => {
 		const r = String(user.role).toLowerCase();
@@ -1023,10 +1026,16 @@
 			}}
 		/>
 
-		<div id="tabpanel-{activeTab}" role="tabpanel" class="min-w-0" data-testid="user-tab-panel">
+		<!-- Every tab fills to the bottom of the screen, so switching tabs never makes the card jump -->
+		<div
+			id="tabpanel-{activeTab}"
+			role="tabpanel"
+			class="flex min-w-0 flex-col lg:min-h-[calc(100dvh-8rem)]"
+			data-testid="user-tab-panel"
+		>
 			{#if activeTab === 'identity'}
 				<!-- ═══ TAB 1: Identity — left: avatar + equal badges · right: fields ═══ -->
-				<AdminCard class={cardClass} data-testid="user-identity-panel">
+				<AdminCard class="{cardClass} flex-1" data-testid="user-identity-panel">
 					<div
 						class="grid grid-cols-1 gap-4 md:grid-cols-[minmax(10rem,12rem)_1fr] md:items-start md:gap-8 lg:gap-10"
 					>
@@ -1087,7 +1096,7 @@
 												type="button"
 												tabindex="-1"
 												aria-label={userpage_help_role_aria()}
-												class="text-white/80 hover:text-white"
+												class={helpBtnOnBadgeClass}
 											>
 												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
 												></iconify-icon>
@@ -1106,7 +1115,7 @@
 												type="button"
 												tabindex="-1"
 												aria-label={userpage_help_id_aria()}
-												class="text-white/80 hover:text-white"
+												class={helpBtnOnBadgeClass}
 											>
 												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
 												></iconify-icon>
@@ -1126,7 +1135,7 @@
 													type="button"
 													tabindex="-1"
 													aria-label={userpage_help_tenant_aria()}
-													class="text-white/80 hover:text-white"
+													class={helpBtnOnBadgeClass}
 												>
 													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
 													></iconify-icon>
@@ -1314,10 +1323,7 @@
 				</AdminCard>
 			{:else if activeTab === 'security'}
 				<!-- ═══ TAB 2: Security — help icons match /setup pattern ═══ -->
-				<div
-					class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:min-h-[calc(100dvh-14rem)]"
-					data-testid="user-security-panel"
-				>
+				<div class="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-security-panel">
 					<AdminCard class={cardClass}>
 						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider">
 							{userpage_sessions_2fa_title()}
@@ -1644,7 +1650,7 @@
 											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
 										>
 											{userpage_passkeys()}
-											<SystemTooltip title={helpTitle('passkeys')}>
+											<SystemTooltip title={helpTitle('passkeys')} triggerClass="shrink-0">
 												<button
 													type="button"
 													tabindex="-1"
@@ -1681,7 +1687,7 @@
 											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
 										>
 											{userpage_magic_link()}
-											<SystemTooltip title={helpTitle('magic')}>
+											<SystemTooltip title={helpTitle('magic')} triggerClass="shrink-0">
 												<button
 													type="button"
 													tabindex="-1"
@@ -1718,7 +1724,7 @@
 											class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)"
 										>
 											{userpage_oauth_login()}
-											<SystemTooltip title={helpTitle('oauth')}>
+											<SystemTooltip title={helpTitle('oauth')} triggerClass="shrink-0">
 												<button
 													type="button"
 													tabindex="-1"
@@ -1802,7 +1808,7 @@
 				</div>
 			{:else if activeTab === 'settings'}
 				<!-- ═══ TAB 3: User Settings — two columns (Appearance/Collab | Privacy) ═══ -->
-				<div class="grid grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-settings-panel">
+				<div class="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2" data-testid="user-settings-panel">
 					<AdminCard class={cardClass}>
 						<h3 class="mb-3 text-sm font-semibold uppercase tracking-wider">
 							{userpage_workspace_collab_title()}
@@ -2103,7 +2109,7 @@
 				</div>
 			{:else if activeTab === 'management' && canManageUsers}
 				<!-- ╭╥╮ TAB 4: User Management (full width; sub-tabs Users | Invitations) ╭╥╮ -->
-				<div class="min-w-0">
+				<div class="flex min-w-0 flex-1 flex-col">
 					<p
 						class="mb-3 text-center text-sm font-medium text-tertiary-600 dark:text-primary-500"
 						data-testid="user-management-intro"
