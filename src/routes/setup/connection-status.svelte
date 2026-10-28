@@ -139,7 +139,7 @@ Features:
 		return text
 			.split(/('[^']+'|"[^"]+")/)
 			.filter(Boolean)
-			.map((part) => ({ text: part, quoted: /^(['"]).*$/.test(part) }));
+			.map((part) => ({ text: part, quoted: /^(['"]).*\1$/.test(part) }));
 	}
 
 	function formatBytes(bytes: number | undefined): string {
