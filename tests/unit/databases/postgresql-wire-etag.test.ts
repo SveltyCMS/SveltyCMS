@@ -97,6 +97,21 @@ describe("PostgreSQL point wire ETag", () => {
     expect(matchesVersion(new Date(ISO), result.etag)).toBe(true);
     expect(matchesVersion(ISO, result.etag)).toBe(true);
     expect(versionTokenString(ISO)).toBe(ISO);
+
+    // Also assert when postgres driver returns a Date object directly
+    const dateObj = new Date(ISO);
+    const dateResult = await new PostgresWireStreamEngine().findPointWireStream(
+      executor as never,
+      { unsafe: async () => [{ doc_text: "{}", updated_at: dateObj }] } as never,
+      table,
+      "collection_wire_etag",
+      "doc-1" as DatabaseId,
+      {},
+    );
+    expect(dateResult.kind).toBe("found");
+    if (dateResult.kind !== "found") return;
+    expect(dateResult.etag).toBe(`"doc-1-${ISO}"`);
+    expect(matchesVersion(dateObj, dateResult.etag)).toBe(true);
   });
 
   it("reports a missing row without inventing a version", async () => {
