@@ -17,6 +17,7 @@ New Features:
 	import type { WidgetSize } from '@src/content/types';
 	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
 	import type { Snippet } from 'svelte';
 	import { shouldFetchOnVisibility, shouldSkipScheduledPoll } from './widget-runtime';
@@ -57,6 +58,7 @@ New Features:
 		onDataLoaded = (_fetchedData: any) => {},
 		// Enhanced features (all optional)
 		showRefreshButton = false,
+		license = 'free' as 'free' | 'freemium' | 'paid',
 		cacheKey = undefined as string | undefined,
 		cacheTTL = 300_000,
 		retryCount = 3,
@@ -75,6 +77,7 @@ New Features:
 		initialData?: any;
 		onDataLoaded?: (fetchedData: any) => void;
 		showRefreshButton?: boolean;
+		license?: 'free' | 'freemium' | 'paid';
 		cacheKey?: string;
 		cacheTTL?: number;
 		retryCount?: number;
@@ -428,6 +431,15 @@ New Features:
 						: 'text-tertiary-500 dark:text-primary-500'}
 				></iconify-icon>
 				<span class="truncate">{label}</span>
+				{#if license === 'freemium'}
+					<Badge variant="warning" size="sm" class="text-[9px] px-1.5 py-0 leading-tight"
+						>Freemium</Badge
+					>
+				{:else if license === 'paid'}
+					<Badge variant="primary" size="sm" class="text-[9px] px-1.5 py-0 leading-tight"
+						>Paid</Badge
+					>
+				{/if}
 			</h2>
 
 			{#if endpoint && lastFetchTime && showRefreshButton}

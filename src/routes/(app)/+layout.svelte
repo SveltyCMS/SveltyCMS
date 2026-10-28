@@ -582,7 +582,7 @@ This layout provides the administrative shell, including sidebars and header con
 	</div>
 {:else}
 	<div
-		class="relative h-lvh w-full"
+		class="relative h-lvh w-full overflow-hidden"
 		data-admin-theme={theme.themeName}
 		data-density={theme.density}
 		data-reduced-motion={theme.features.reducedMotion ? 'true' : 'false'}
@@ -606,7 +606,7 @@ This layout provides the administrative shell, including sidebars and header con
 		<!-- One global picker: every tokenTarget / fields.svelte trigger writes to activeInput. -->
 		<TokenPicker />
 
-		<div class="relative z-0">
+		<div class="relative z-0 h-full overflow-hidden">
 			<div class="flex h-lvh flex-col overflow-hidden">
 				{#if ui.state.header !== 'hidden'}
 					<header

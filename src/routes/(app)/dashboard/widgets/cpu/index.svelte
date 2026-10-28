@@ -90,21 +90,23 @@
 
 		{#if data?.cpuInfo}
 			<!-- SVG Chart / Sparkline Calculations -->
-			{const chartHeight = size.h === 1 ? 40 : 150}
-			{const points = cpu.usage.map((val: number, i: number) => ({
-				x: (i / Math.max(1, cpu.usage.length - 1)) * 300,
+			{@const chartHeight = size.h === 1 ? 40 : 150}
+			{@const rawUsage = cpu.usage.length > 0 ? cpu.usage : [cpu.current]}
+			{@const displayUsage = rawUsage.length === 1 ? [rawUsage[0], rawUsage[0]] : rawUsage}
+			{@const points = displayUsage.map((val: number, i: number) => ({
+				x: (i / Math.max(1, displayUsage.length - 1)) * 300,
 				y:
 					chartHeight -
 					(val / 100) * (chartHeight - (size.h === 1 ? 4 : 20)) -
 					(size.h === 1 ? 2 : 10)
 			}))}
-			{const linePath = points
+			{@const linePath = points
 				.map(
 					(p: { x: number; y: number }, i: number) =>
 						`${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`
 				)
 				.join(' ')}
-			{const areaPath = points.length
+			{@const areaPath = points.length
 				? `${linePath} L ${points.at(-1)!.x.toFixed(2)} ${chartHeight} L 0 ${chartHeight} Z`
 				: ''}
 
@@ -195,7 +197,7 @@
 					>
 						{#if size.h !== 1}
 							<!-- Grid -->
-							<g class="stroke-gray-200/60 dark:stroke-gray-800/60">
+							<g class="stroke-surface-500/20 dark:stroke-surface-500/30">
 								<line x1="0" y1="37.5" x2="300" y2="37.5" stroke-dasharray="3 2" />
 								<line x1="0" y1="75" x2="300" y2="75" stroke-dasharray="3 2" />
 								<line x1="0" y1="112.5" x2="300" y2="112.5" stroke-dasharray="3 2" />
@@ -204,7 +206,11 @@
 
 						<!-- Area -->
 						{#if areaPath}
-							<path d={areaPath} fill={theme === 'dark' ? '#6366f120' : '#3b82f620'} />
+							<path
+								d={areaPath}
+								fill="currentColor"
+								class="text-tertiary-500/15 dark:text-primary-500/20"
+							/>
 						{/if}
 
 						<!-- Line -->
@@ -212,7 +218,8 @@
 							<path
 								d={linePath}
 								fill="none"
-								stroke={theme === 'dark' ? '#6366f1' : '#3b82f6'}
+								stroke="currentColor"
+								class="text-tertiary-500 dark:text-primary-500"
 								stroke-width={size.h === 1 ? '1.8' : '2.5'}
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -238,16 +245,17 @@
 										cx={p.x}
 										cy={p.y}
 										r="3.5"
-										fill={theme === 'dark' ? '#a5b4fc' : '#60a5fa'}
+										fill="currentColor"
+										class="text-tertiary-500 dark:text-primary-400"
 									/>
 									<circle
 										cx={p.x}
 										cy={p.y}
 										r="7"
-										stroke={theme === 'dark' ? '#6366f1' : '#3b82f6'}
+										stroke="currentColor"
 										stroke-width="1.5"
 										fill="none"
-										class="animate-ping"
+										class="text-tertiary-500 dark:text-primary-500 animate-ping"
 									/>
 								{/if}
 							{/each}
@@ -256,8 +264,9 @@
 
 					<!-- Tooltip (Only in rich layout) -->
 					{#if size.h !== 1 && activeIndex !== null && points[activeIndex]}
-						{const val = cpu.usage[activeIndex]}
-						{const time = formatTime(cpu.timestamps[activeIndex], {
+						{@const val = displayUsage[activeIndex] ?? cpu.current}
+						{@const rawTime = cpu.timestamps[activeIndex] || new Date().toISOString()}
+						{@const time = formatTime(rawTime, {
 							hour: '2-digit',
 							minute: '2-digit'
 						})}

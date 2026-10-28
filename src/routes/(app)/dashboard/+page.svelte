@@ -52,6 +52,7 @@
 	import Button from '@components/ui/button.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Loader from '@components/ui/loader.svelte';
+	import Badge from '@components/ui/badge.svelte';
 	import {
 		button_Collections,
 		dashboard_add_first_widget,
@@ -130,6 +131,7 @@
 	let mainContainerEl: HTMLElement | null = $state(null);
 	let dropdownOpen = $state(false);
 	let searchQuery = $state('');
+	let licenseFilter = $state<'all' | 'free' | 'freemium' | 'paid'>('all');
 	const widgetRegistry = $derived(
 		pickerListToRegistry((data.availableWidgets ?? []) as DashboardWidgetPickerInfo[])
 	);
@@ -403,8 +405,12 @@
 	);
 	const filteredWidgets = $derived(
 		availableWidgets.filter((folder) => {
-			const query = searchQuery.toLowerCase();
 			const info = widgetRegistry[folder];
+			const widgetLicense = info?.license || 'free';
+			if (licenseFilter !== 'all' && widgetLicense !== licenseFilter) {
+				return false;
+			}
+			const query = searchQuery.toLowerCase();
 			return (
 				folder.toLowerCase().includes(query) || (info?.name ?? '').toLowerCase().includes(query)
 			);
@@ -747,12 +753,14 @@
 {/snippet}
 
 {#snippet widgetTile(Widget: Component, item: DashboardWidgetConfig)}
+	{@const widgetInfo = widgetRegistry[item.component]}
 	<Widget
 		config={item}
 		label={item.label}
 		icon={item.icon}
 		widgetId={item.id}
 		size={item.size}
+		license={widgetInfo?.license ?? 'free'}
 		onRemove={() => removeWidget(item.id)}
 		onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
 		theme={currentTheme}
@@ -760,202 +768,242 @@
 	/>
 {/snippet}
 
-<div>
-	<AdminPageShell
-		title={dashboard_title()}
-		icon="bi:bar-chart-line"
-		showBackButton={true}
-		backUrl="/config"
-	>
-		{#snippet actions()}
-			<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
+<AdminPageShell
+	title={dashboard_title()}
+	icon="bi:bar-chart-line"
+	showBackButton={true}
+	backUrl="/config"
+>
+	{#snippet actions()}
+		<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
+			<Button
+				variant="outline"
+				onclick={toggleAiMode}
+				aria-label={dashboard_ai_toggle()}
+				title={dashboard_ai_toggle()}
+				data-testid="dashboard-ai-toggle"
+				class="w-10 p-0! min-w-0"
+			>
+				<iconify-icon
+					icon="mdi:robot-outline"
+					width={20}
+					class={aiDashboardSpec ? 'text-tertiary-500 dark:text-primary-500' : ''}
+				></iconify-icon>
+			</Button>
+			{#if currentPreferences.length > 0}
 				<Button
 					variant="outline"
-					onclick={toggleAiMode}
-					aria-label={dashboard_ai_toggle()}
-					title={dashboard_ai_toggle()}
-					data-testid="dashboard-ai-toggle"
+					onclick={resetAllWidgets}
+					aria-label={dashboard_reset_widgets()}
+					title={dashboard_reset_widgets()}
+					data-testid="dashboard-reset-widgets"
 					class="w-10 p-0! min-w-0"
 				>
-					<iconify-icon
-						icon="mdi:robot-outline"
-						width={20}
-						class={aiDashboardSpec ? 'text-tertiary-500 dark:text-primary-500' : ''}
-					></iconify-icon>
+					<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
 				</Button>
-				{#if currentPreferences.length > 0}
+			{/if}
+			<div class="relative">
+				{#if availableWidgets.length > 0}
 					<Button
-						variant="outline"
-						onclick={resetAllWidgets}
-						aria-label={dashboard_reset_widgets()}
-						title={dashboard_reset_widgets()}
-						data-testid="dashboard-reset-widgets"
-						class="w-10 p-0! min-w-0"
+						variant="primary"
+						onclick={() => (dropdownOpen = !dropdownOpen)}
+						aria-haspopup="true"
+						aria-expanded={dropdownOpen}
+						aria-label={dashboard_add_widget()}
+						data-testid="dashboard-add-widget"
 					>
-						<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
+						<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
+						{dashboard_add_widget()}
 					</Button>
 				{/if}
-				<div class="relative">
-					{#if availableWidgets.length > 0}
-						<Button
-							variant="primary"
-							onclick={() => (dropdownOpen = !dropdownOpen)}
-							aria-haspopup="true"
-							aria-expanded={dropdownOpen}
-							aria-label={dashboard_add_widget()}
-							data-testid="dashboard-add-widget"
-						>
-							<iconify-icon icon="mdi:plus" width={18} class="me-2"></iconify-icon>
-							{dashboard_add_widget()}
-						</Button>
-					{/if}
-					{#if dropdownOpen}
-						<div
-							class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded-(--admin-radius-card) border bg-(--admin-bg-card,var(--color-surface-50)) shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
-							role="menu"
-							data-testid="dashboard-widget-menu"
-						>
-							<div class="p-2">
-								<Input
-									type="search"
-									bind:value={searchQuery}
-									placeholder={dashboard_search_widgets_ph()}
-									aria-label={dashboard_search_widgets()}
-									data-testid="dashboard-widget-search"
-									class="w-full"
-								/>
-							</div>
-							<div class="max-h-64 overflow-y-auto py-1">
-								{#each filteredWidgets as widgetName (widgetName)}
-									{@const widgetInfo = widgetRegistry[widgetName]}
-									<Button
-										variant="ghost"
-										class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-500/10 dark:hover:bg-primary-900/20"
-										onclick={() => addNewWidget(widgetName)}
-										title={widgetInfo?.description}
-										role="menuitem"
-									>
-										{#if widgetInfo?.icon}
-											<iconify-icon
-												icon={widgetInfo.icon}
-												width="20"
-												class="text-tertiary-500 dark:text-primary-500"
-											></iconify-icon>
-										{:else}
-											<iconify-icon
-												icon="mdi:view-dashboard"
-												width={20}
-												class="text-tertiary-500 dark:text-primary-500"
-											></iconify-icon>
-										{/if}
-										<span class="truncate">{widgetInfo?.name || widgetName}</span>
-										{#if widgetInfo?.license && widgetInfo.license !== 'free'}
-											<span
-												class="ms-auto text-[10px] font-semibold uppercase tracking-wide text-warning-500"
-												>{widgetInfo.license}</span
+				{#if dropdownOpen}
+					<div
+						class="widget-dropdown absolute inset-e-0 z-30 mt-2 w-84 sm:w-96 rounded-(--admin-radius-card) border bg-(--admin-bg-card,var(--color-surface-50)) shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
+						role="menu"
+						data-testid="dashboard-widget-menu"
+					>
+						<div class="p-2 border-b border-surface-500/20">
+							<Input
+								type="search"
+								bind:value={searchQuery}
+								placeholder={dashboard_search_widgets_ph()}
+								aria-label={dashboard_search_widgets()}
+								data-testid="dashboard-widget-search"
+								class="w-full"
+							/>
+						</div>
+						<div class="flex items-center gap-1 border-b border-surface-500/20 px-2 py-1.5 text-xs">
+							{#each [{ id: 'all', label: 'All' }, { id: 'free', label: 'Free' }, { id: 'freemium', label: 'Freemium' }, { id: 'paid', label: 'Paid' }] as tab (tab.id)}
+								<button
+									type="button"
+									class="rounded px-2 py-0.5 text-xs font-medium transition-colors {licenseFilter ===
+									tab.id
+										? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400 font-semibold'
+										: 'text-(--admin-text-muted) hover:bg-surface-500/10'}"
+									onclick={() => (licenseFilter = tab.id as any)}
+								>
+									{tab.label}
+								</button>
+							{/each}
+						</div>
+						<div class="max-h-64 overflow-y-auto py-1">
+							{#each filteredWidgets as widgetName (widgetName)}
+								{@const widgetInfo = widgetRegistry[widgetName]}
+								<Button
+									variant="ghost"
+									class="w-full justify-start gap-2 px-4 py-2 hover:bg-primary-500/10 dark:hover:bg-primary-900/20"
+									onclick={() => addNewWidget(widgetName)}
+									title={widgetInfo?.description}
+									role="menuitem"
+								>
+									{#if widgetInfo?.icon}
+										<iconify-icon
+											icon={widgetInfo.icon}
+											width="20"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+									{:else}
+										<iconify-icon
+											icon="mdi:view-dashboard"
+											width={20}
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+									{/if}
+									<div class="flex min-w-0 flex-1 flex-col text-start">
+										<div class="flex items-center gap-1.5">
+											<span class="truncate font-medium">{widgetInfo?.name || widgetName}</span>
+											{#if widgetInfo?.license === 'freemium'}
+												<Badge
+													variant="warning"
+													size="sm"
+													class="text-[9px] px-1.5 py-0 leading-tight">Freemium</Badge
+												>
+											{:else if widgetInfo?.license === 'paid'}
+												<Badge
+													variant="primary"
+													size="sm"
+													class="text-[9px] px-1.5 py-0 leading-tight">Paid</Badge
+												>
+											{:else}
+												<Badge
+													variant="surface"
+													size="sm"
+													class="text-[9px] px-1.5 py-0 leading-tight text-(--admin-text-muted)"
+													>Free</Badge
+												>
+											{/if}
+										</div>
+										{#if widgetInfo?.description}
+											<span class="truncate text-[11px] text-(--admin-text-muted)"
+												>{widgetInfo.description}</span
 											>
 										{/if}
-									</Button>
-								{:else}
-									<div class="px-4 py-2 text-sm text-(--admin-text-muted)">
-										{dashboard_no_widgets()}
 									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			</div>
-		{/snippet}
-
-		<div
-			bind:this={mainContainerEl}
-			class="relative m-0 w-full p-0"
-			style="touch-action: pan-y;"
-			data-testid="dashboard-main"
-		>
-			<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
-				{#if hotCollectionLinks.length > 0}
-					<div class="w-full px-1 pb-1" data-testid="dashboard-hot-collections">
-						<span class="text-[10px] font-bold uppercase tracking-wider text-(--admin-text-muted)"
-							>{button_Collections()}</span
-						>
-						<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-							{#each hotCollectionLinks as link (link.id)}
-								<a
-									href={link.href}
-									data-preload="hover"
-									class="inline-flex items-center gap-1.5 rounded-full border border-surface-500/30 bg-surface-500/10 px-3 py-1 text-xs font-semibold text-(--admin-text-muted) no-underline transition-colors hover:border-tertiary-500/40 hover:text-tertiary-500 focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:border-surface-500/40 dark:text-(--admin-text-muted) dark:hover:border-primary-500/40 dark:hover:text-primary-500"
-								>
-									<span class="truncate">{link.label}</span>
-								</a>
+								</Button>
+							{:else}
+								<div class="px-4 py-2 text-sm text-(--admin-text-muted)">
+									{dashboard_no_widgets()}
+								</div>
 							{/each}
 						</div>
 					</div>
 				{/if}
-				{#if aiLoading}
-					<AdminCard
-						class="flex flex-col items-center justify-center border border-surface-500/30 py-20 dark:border-surface-500/40"
-					>
-						<Loader
-							variant="circle"
-							width="size-16"
-							height="size-16"
-							ariaLabel="Generating AI dashboard"
-						/>
-						<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">
-							{dashboard_ai_generating_title()}
-						</p>
-						<p class="text-sm text-(--admin-text-muted)">{dashboard_ai_connecting()}</p>
-					</AdminCard>
-				{:else if aiDashboardSpec && GenerativeDashboardComp}
-					<GenerativeDashboardComp spec={aiDashboardSpec} />
-				{:else if sortedPreferences.length > 0}
-					<div
-						class="responsive-dashboard-grid"
-						role="list"
-						data-testid="dashboard-widget-grid"
-						aria-label={dashboard_grid_aria()}
-					>
-						{#if gridDropIndicator}
-							<div
-								class="pointer-events-none absolute z-30 rounded border-2 border-dashed border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/20"
-								style:grid-column="span {gridDropIndicator.width}"
-								style:grid-row="span {gridDropIndicator.height}"
-								style:grid-column-start={gridDropIndicator.col + 1}
-								style:grid-row-start={gridDropIndicator.row + 1}
-							></div>
-						{/if}
+			</div>
+		</div>
+	{/snippet}
 
-						{#each sortedPreferences as item, i (item.id)}
-							{@const widgetName = item.label || item.component}
-							{@const WidgetComponent = loadedWidgets.get(item.id)}
-							{@const FirstScreenWidget = getFirstScreenWidget(
-								item.component,
-								widgetRegistry[item.component]?.entryFile
-							)}
-							<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-							<div
-								role="listitem"
-								aria-label={dashboard_widget_reorder_aria({ name: widgetName })}
-								tabindex="0"
-								class="widget-container group relative select-none rounded transition-all duration-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
-								data-widget-id={item.id}
-								data-widget-order={item.order ?? 0}
-								data-testid="dashboard-widget"
-								style:grid-column="span {item.size.w}"
-								style:grid-row="span {item.size.h}"
-								style:touch-action="manipulation"
-								style:min-height="{item.size.h * 160}px"
-								style:height="100%"
-								style:overflow="hidden"
-								animate:flip={{ duration: motionDuration(150) }}
-								in:adminStagger={{ index: i, rise: 0 }}
-								onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
-								onkeydown={(event) => handleWidgetKeydown(event, item)}
-								use:setupWidgetObserver={[item.id, item.component, FirstScreenWidget !== null]}
+	<div
+		bind:this={mainContainerEl}
+		class="relative m-0 w-full p-0"
+		style="touch-action: pan-y;"
+		data-testid="dashboard-main"
+	>
+		<section class="w-full px-1 py-4" data-testid="dashboard-grid-section">
+			{#if hotCollectionLinks.length > 0}
+				<div class="w-full px-1 pb-1" data-testid="dashboard-hot-collections">
+					<span class="text-[10px] font-bold uppercase tracking-wider text-(--admin-text-muted)"
+						>{button_Collections()}</span
+					>
+					<div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+						{#each hotCollectionLinks as link (link.id)}
+							<a
+								href={link.href}
+								data-preload="hover"
+								class="inline-flex items-center gap-1.5 rounded-full border border-surface-500/30 bg-surface-500/10 px-3 py-1 text-xs font-semibold text-(--admin-text-muted) no-underline transition-colors hover:border-tertiary-500/40 hover:text-tertiary-500 focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:border-surface-500/40 dark:text-(--admin-text-muted) dark:hover:border-primary-500/40 dark:hover:text-primary-500"
 							>
+								<span class="truncate">{link.label}</span>
+							</a>
+						{/each}
+					</div>
+				</div>
+			{/if}
+			{#if aiLoading}
+				<AdminCard
+					class="flex flex-col items-center justify-center border border-surface-500/30 py-20 dark:border-surface-500/40"
+				>
+					<Loader
+						variant="circle"
+						width="size-16"
+						height="size-16"
+						ariaLabel="Generating AI dashboard"
+					/>
+					<p class="mt-4 text-lg font-bold text-tertiary-500 dark:text-primary-500">
+						{dashboard_ai_generating_title()}
+					</p>
+					<p class="text-sm text-(--admin-text-muted)">{dashboard_ai_connecting()}</p>
+				</AdminCard>
+			{:else if aiDashboardSpec && GenerativeDashboardComp}
+				<GenerativeDashboardComp spec={aiDashboardSpec} />
+			{:else if sortedPreferences.length > 0}
+				<div
+					class="responsive-dashboard-grid"
+					role="list"
+					data-testid="dashboard-widget-grid"
+					aria-label={dashboard_grid_aria()}
+				>
+					{#if gridDropIndicator}
+						<div
+							class="pointer-events-none absolute z-30 rounded border-2 border-dashed border-tertiary-500 dark:border-primary-500 bg-tertiary-500 dark:bg-primary-500/20"
+							style:grid-column="span {gridDropIndicator.width}"
+							style:grid-row="span {gridDropIndicator.height}"
+							style:grid-column-start={gridDropIndicator.col + 1}
+							style:grid-row-start={gridDropIndicator.row + 1}
+						></div>
+					{/if}
+
+					{#each sortedPreferences as item, i (item.id)}
+						{@const widgetName = item.label || item.component}
+						{@const WidgetComponent = loadedWidgets.get(item.id)}
+						{@const FirstScreenWidget = getFirstScreenWidget(
+							item.component,
+							widgetRegistry[item.component]?.entryFile
+						)}
+						<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+						<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+						<div
+							role="listitem"
+							aria-label={dashboard_widget_reorder_aria({ name: widgetName })}
+							tabindex="0"
+							class="widget-container group relative select-none rounded transition-all duration-300 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+							data-widget-id={item.id}
+							data-widget-order={item.order ?? 0}
+							data-testid="dashboard-widget"
+							style:grid-column="span {item.size.w}"
+							style:grid-row="span {item.size.h}"
+							style:touch-action="manipulation"
+							style:min-height="{item.size.h * 160}px"
+							style:height="100%"
+							style:overflow="hidden"
+							animate:flip={{ duration: motionDuration(150) }}
+							in:adminStagger={{ index: i, rise: 0 }}
+							onpointerdown={(event) => handleDragStart(event, item, event.currentTarget)}
+							onkeydown={(event) => handleWidgetKeydown(event, item)}
+							use:setupWidgetObserver={[item.id, item.component, FirstScreenWidget !== null]}
+						>
+							<svelte:boundary>
+								{#snippet failed(_error)}
+									{@render widgetLoadError(item)}
+								{/snippet}
 								{#if WidgetComponent === null && !FirstScreenWidget}
 									{@render widgetLoadError(item)}
 								{:else if WidgetComponent}
@@ -965,59 +1013,59 @@
 								{:else}
 									{@render widgetSkeleton()}
 								{/if}
-								{#if dropIndicator}
-									{@const currentIndex = sortedPreferences.findIndex(
-										(p: DashboardWidgetConfig) => p.id === item.id
-									)}
-									{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
-									{#if isDropTarget}
-										<div
-											class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-tertiary-500 dark:bg-primary-500"
-											style:transform="translateY(-50%)"
-										></div>
-									{/if}
+							</svelte:boundary>
+							{#if dropIndicator}
+								{@const currentIndex = sortedPreferences.findIndex(
+									(p: DashboardWidgetConfig) => p.id === item.id
+								)}
+								{@const isDropTarget = dropIndicator.targetIndex === currentIndex}
+								{#if isDropTarget}
+									<div
+										class="pointer-events-none absolute inset-x-0 top-0 z-20 h-1 bg-tertiary-500 dark:bg-primary-500"
+										style:transform="translateY(-50%)"
+									></div>
 								{/if}
-							</div>
-						{/each}
-					</div>
-				{:else}
-					<div
-						class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center"
-						data-testid="dashboard-empty-state"
-					>
-						<div class="flex flex-col items-center px-10 py-12">
-							<iconify-icon
-								icon="mdi:view-dashboard"
-								width={80}
-								class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"
-							></iconify-icon>
-							<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">
-								{dashboard_empty_title()}
-							</p>
-							<p class="mb-6 text-base text-(--admin-text-muted)">
-								{dashboard_empty_desc()}
-							</p>
-							<Button
-								variant="outline"
-								onclick={() => (dropdownOpen = true)}
-								aria-label={dashboard_add_first_widget()}
-								data-testid="dashboard-add-first-widget"
-								class="rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
-							>
-								<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
-								{dashboard_add_widget()}
-							</Button>
+							{/if}
 						</div>
+					{/each}
+				</div>
+			{:else}
+				<div
+					class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center"
+					data-testid="dashboard-empty-state"
+				>
+					<div class="flex flex-col items-center px-10 py-12">
+						<iconify-icon
+							icon="mdi:view-dashboard"
+							width={80}
+							class="mb-6 text-tertiary-500 drop-shadow-lg dark:text-primary-500"
+						></iconify-icon>
+						<p class="mb-2 text-2xl font-bold text-tertiary-500 dark:text-primary-500">
+							{dashboard_empty_title()}
+						</p>
+						<p class="mb-6 text-base text-(--admin-text-muted)">
+							{dashboard_empty_desc()}
+						</p>
+						<Button
+							variant="outline"
+							onclick={() => (dropdownOpen = true)}
+							aria-label={dashboard_add_first_widget()}
+							data-testid="dashboard-add-first-widget"
+							class="rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
+						>
+							<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
+							{dashboard_add_widget()}
+						</Button>
 					</div>
-				{/if}
+				</div>
+			{/if}
 
-				<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot">
-					<Slot name="dashboard" /><AdminZone zone="dashboard" />
-				</section>
+			<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot">
+				<Slot name="dashboard" /><AdminZone zone="dashboard" />
 			</section>
-		</div>
-	</AdminPageShell>
-</div>
+		</section>
+	</div>
+</AdminPageShell>
 
 <style>
 	.responsive-dashboard-grid {

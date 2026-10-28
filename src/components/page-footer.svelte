@@ -26,7 +26,7 @@ footer when the right sidebar is unavailable. View routes render nothing.
 		updatedBy?: string;
 	}
 
-	const { user } = page.data;
+	const user = $derived(page.data?.user);
 
 	const activeEntry = $derived(collections.activeValue as EntryMeta | undefined);
 
