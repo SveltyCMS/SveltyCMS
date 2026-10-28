@@ -42,6 +42,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 	import BaseWidget from '../../base-widget.svelte';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
@@ -303,16 +304,17 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 				<span class="text-xs font-medium text-(--admin-text-muted) uppercase tracking-wider">
 					{metricData?.periodLabel || selectedPeriod || 'All Time'}
 				</span>
-				<Button
-					variant="ghost"
-					size="sm"
-					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
-					onclick={openSettings}
-					aria-label={widget_figure_configure_label()}
-					title={widget_figure_configure_title()}
-				>
-					<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
-				</Button>
+				<Tooltip title={widget_figure_configure_title()} positioning={{ placement: 'top' }}>
+					<Button
+						variant="ghost"
+						size="sm"
+						class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
+						onclick={openSettings}
+						aria-label={widget_figure_configure_label()}
+					>
+						<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
+					</Button>
+				</Tooltip>
 			</div>
 
 			{#if !selectedCollection && !savedSettings.collectionId}

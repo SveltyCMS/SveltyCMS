@@ -85,7 +85,7 @@ class SystemWatchdog {
   private recoveryAttempts = new Map<string, { count: number; lastAttempt: number }>();
   private readonly CHECK_INTERVAL = 10_000; // 10 seconds
   private readonly MAINTENANCE_INTERVAL = 300_000; // 5 minutes
-  private lastMaintenance = 0;
+  private lastMaintenance = Date.now();
   private readonly MAX_RECOVERY_ATTEMPTS = 3;
   private readonly RECOVERY_BACKOFF_BASE = 5_000; // 5 seconds base backoff
   // A DB that stays "initializing" this long while the system claims READY is a
@@ -117,8 +117,11 @@ class SystemWatchdog {
         this.responseCache?.trimLocal();
       },
       now: () => Date.now(),
-      log: (message, level = "warn") =>
-        level === "info" ? logger.info(message) : logger.warn(message),
+      log: (message, level = "debug") => {
+        if (level === "warn") logger.warn(message);
+        else if (level === "info") logger.info(message);
+        else logger.debug(message);
+      },
     });
   }
 
@@ -160,11 +163,20 @@ class SystemWatchdog {
   public start() {
     // Production parity: the watchdog runs during benchmarks too — autonomous
     // recovery is part of real production behavior.
+    const g = globalThis as unknown as {
+      __sveltyWatchdogInterval?: NodeJS.Timeout | null;
+      __sveltyMemoryInterval?: NodeJS.Timeout | null;
+    };
+    if (g.__sveltyWatchdogInterval) {
+      clearInterval(g.__sveltyWatchdogInterval);
+      g.__sveltyWatchdogInterval = null;
+    }
     if (this.intervalId) return;
     logger.info("🛡️ Autonomous System Watchdog started");
     this.intervalId = setInterval(() => {
       this.check().catch((err) => logger.error("Watchdog health check failed", err));
     }, this.CHECK_INTERVAL);
+    g.__sveltyWatchdogInterval = this.intervalId;
     // .unref() — consistent with JobQueue and Outbox: the watchdog timer must not
     // keep the process alive on its own when all requests have drained. This eliminates
     // event-loop pressure during idle periods and allows clean graceful shutdown.
@@ -187,10 +199,26 @@ class SystemWatchdog {
    * tick so the release latency after a burst is measured in seconds.
    */
   private startMemoryGovernor(): void {
+    // In Vite dev mode, forcing synchronous V8 garbage collection starves the event loop,
+    // blocks Vite SSR module-runner transport (causing 60s invoke timeouts), and leads to GC thrashing
+    // against Vite's in-memory module graph. The governor is designed for production containers.
+    if (
+      (import.meta.env?.DEV || process.env.NODE_ENV === "development") &&
+      !process.env.SVELTY_FORCE_MEMORY_GOVERNOR
+    ) {
+      logger.debug("[Memory] Governor skipped in development mode");
+      return;
+    }
+    const g = globalThis as unknown as { __sveltyMemoryInterval?: NodeJS.Timeout | null };
+    if (g.__sveltyMemoryInterval) {
+      clearInterval(g.__sveltyMemoryInterval);
+      g.__sveltyMemoryInterval = null;
+    }
     if (this.memoryIntervalId) return;
     this.memoryIntervalId = setInterval(() => {
       this.governor.tick().catch((err) => logger.debug("[Memory] governor tick failed", err));
     }, this.MEMORY_CHECK_INTERVAL);
+    g.__sveltyMemoryInterval = this.memoryIntervalId;
     if (typeof this.memoryIntervalId.unref === "function") {
       this.memoryIntervalId.unref();
     }
@@ -305,18 +333,36 @@ class SystemWatchdog {
   }
 
   public stop() {
+    const g = globalThis as unknown as {
+      __sveltyWatchdogInterval?: NodeJS.Timeout | null;
+      __sveltyMemoryInterval?: NodeJS.Timeout | null;
+    };
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+    if (g.__sveltyWatchdogInterval) {
+      clearInterval(g.__sveltyWatchdogInterval);
+      g.__sveltyWatchdogInterval = null;
     }
     if (this.memoryIntervalId) {
       clearInterval(this.memoryIntervalId);
       this.memoryIntervalId = null;
     }
+    if (g.__sveltyMemoryInterval) {
+      clearInterval(g.__sveltyMemoryInterval);
+      g.__sveltyMemoryInterval = null;
+    }
   }
 }
 
-export const watchdog = new SystemWatchdog();
+const globalForWatchdog = globalThis as unknown as { __sveltyWatchdog?: SystemWatchdog };
+if (globalForWatchdog.__sveltyWatchdog) {
+  globalForWatchdog.__sveltyWatchdog.stop();
+}
+
+export const watchdog = globalForWatchdog.__sveltyWatchdog || new SystemWatchdog();
+globalForWatchdog.__sveltyWatchdog = watchdog;
 
 // 🛡️ HMR SAFETY: Stop the watchdog when Vite hot-reloads this module
 // to prevent stale timers from using the closed module runner.
@@ -325,8 +371,6 @@ if (import.meta.hot) {
     watchdog.stop();
   });
   import.meta.hot.accept(() => {
-    // The new module instance must be started since the original
-    // `watchdog.start()` call in hooks.server.ts won't re-trigger.
     watchdog.start();
   });
 }

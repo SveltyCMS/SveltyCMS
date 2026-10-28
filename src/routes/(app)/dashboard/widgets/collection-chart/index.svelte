@@ -41,6 +41,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 	import BaseWidget from '../../base-widget.svelte';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
@@ -335,16 +336,17 @@ Supports time-series binning and categorical distributions with live drill-down.
 						</span>
 					{/if}
 				</div>
-				<Button
-					variant="ghost"
-					size="sm"
-					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
-					onclick={openSettings}
-					aria-label={widget_chart_configure_label()}
-					title={widget_chart_configure_title()}
-				>
-					<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
-				</Button>
+				<Tooltip title={widget_chart_configure_title()} positioning={{ placement: 'top' }}>
+					<Button
+						variant="ghost"
+						size="sm"
+						class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
+						onclick={openSettings}
+						aria-label={widget_chart_configure_label()}
+					>
+						<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
+					</Button>
+				</Tooltip>
 			</div>
 
 			{#if !selectedCollection && !savedSettings.collectionId}

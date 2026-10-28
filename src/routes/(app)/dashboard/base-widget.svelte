@@ -18,6 +18,7 @@ New Features:
 	import { logger } from '@utils/logger';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import { getThemeContext } from '@components/ui/theme-context.svelte';
 	import type { Snippet } from 'svelte';
 	import { shouldFetchOnVisibility, shouldSkipScheduledPoll } from './widget-runtime';
@@ -458,27 +459,30 @@ New Features:
 		</div>
 
 		<div class="flex items-center gap-1">
-			<Button
-				variant="ghost"
-				onclick={() => refresh()}
-				aria-label={widget_base_refresh_aria()}
-				disabled={loading}
-				title={widget_base_refresh_title()}
-				class="p-0! min-w-0"
-			>
-				<iconify-icon icon="mdi:refresh" width={16} class={loading ? 'animate-spin' : ''}
-				></iconify-icon>
-			</Button>
-
-			<div class="relative" style="overflow: visible;">
+			<Tooltip title={widget_base_refresh_title()} positioning={{ placement: 'top' }}>
 				<Button
 					variant="ghost"
-					onclick={() => (showSizeMenu = !showSizeMenu)}
-					aria-label={widget_base_size_aria()}
+					onclick={() => refresh()}
+					aria-label={widget_base_refresh_aria()}
+					disabled={loading}
 					class="p-0! min-w-0"
 				>
-					<iconify-icon icon="mdi:dots-vertical" width={18}></iconify-icon>
+					<iconify-icon icon="mdi:refresh" width={16} class={loading ? 'animate-spin' : ''}
+					></iconify-icon>
 				</Button>
+			</Tooltip>
+
+			<div class="relative" style="overflow: visible;">
+				<Tooltip title={widget_base_size_aria()} positioning={{ placement: 'top' }}>
+					<Button
+						variant="ghost"
+						onclick={() => (showSizeMenu = !showSizeMenu)}
+						aria-label={widget_base_size_aria()}
+						class="p-0! min-w-0"
+					>
+						<iconify-icon icon="mdi:dots-vertical" width={18}></iconify-icon>
+					</Button>
+				</Tooltip>
 				{#if showSizeMenu}
 					<div
 						class="absolute inset-e-0 top-full z-50 mt-2 w-48 rounded border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) py-1 shadow-(--admin-shadow-elevated)"
@@ -506,14 +510,16 @@ New Features:
 					</div>
 				{/if}
 			</div>
-			<Button
-				variant="ghost"
-				onclick={onCloseRequest}
-				aria-label={widget_base_remove_aria({ label })}
-				class="p-0! min-w-0"
-			>
-				<iconify-icon icon="mdi:close" width={18}></iconify-icon>
-			</Button>
+			<Tooltip title={widget_base_remove_aria({ label })} positioning={{ placement: 'top' }}>
+				<Button
+					variant="ghost"
+					onclick={onCloseRequest}
+					aria-label={widget_base_remove_aria({ label })}
+					class="p-0! min-w-0"
+				>
+					<iconify-icon icon="mdi:close" width={18}></iconify-icon>
+				</Button>
+			</Tooltip>
 		</div>
 	</header>
 	<section

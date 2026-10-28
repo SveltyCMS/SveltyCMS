@@ -14,6 +14,7 @@
 </script>
 
 <script lang="ts">
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import { getClientLicenseStatus } from '@utils/client-license-cache';
 	import type { LicenseStatus } from '@utils/license-manager';
 
@@ -188,17 +189,17 @@
 						</div>
 					{:else}
 						<!-- Status Header -->
-						<div class="flex items-center gap-3">
+						<div class="flex items-center gap-2.5">
 							<div class="relative">
 								<div
-									class="h-4 w-4 rounded-full {scim.status === 'healthy'
+									class="h-3.5 w-3.5 rounded-full {scim.status === 'healthy'
 										? 'bg-success-500'
 										: scim.status === 'degraded'
 											? 'bg-warning-500'
 											: 'bg-error-500'}"
 								></div>
 								<div
-									class="absolute inset-0 h-4 w-4 rounded-full {scim.status === 'healthy'
+									class="absolute inset-0 h-3.5 w-3.5 rounded-full {scim.status === 'healthy'
 										? 'bg-success-500'
 										: scim.status === 'degraded'
 											? 'bg-warning-500'
@@ -207,7 +208,7 @@
 							</div>
 							<div>
 								<div
-									class="text-xl font-bold capitalize {scim.status === 'healthy'
+									class="text-lg font-bold capitalize leading-tight {scim.status === 'healthy'
 										? 'text-success-600 dark:text-success-400'
 										: scim.status === 'degraded'
 											? 'text-warning-600 dark:text-warning-400'
@@ -215,73 +216,78 @@
 								>
 									{scim.status}
 								</div>
-								<div class="text-xs text-(--admin-text-muted)">
+								<div class="text-[11px] text-(--admin-text-muted)">
 									{widget_scim_sync_status()}
 								</div>
 							</div>
 						</div>
 
 						<!-- Main Stats -->
-						<div class="my-4 grid grid-cols-2 gap-3.5">
+						<div class="my-2 grid grid-cols-2 gap-2.5">
 							<div
-								class="rounded-2xl bg-surface-500/10 p-4 text-center dark:bg-surface-800 border border-transparent dark:border-gray-800"
+								class="rounded-xl bg-surface-500/10 px-3 py-2 text-center dark:bg-surface-800/50 border border-(--admin-border-default)"
 							>
 								<div
-									class="text-3xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
+									class="text-2xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
 								>
 									{scim.activeUsers}
 								</div>
 								<div
-									class="text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted) mt-1"
+									class="text-[9px] font-semibold uppercase tracking-wider text-(--admin-text-muted) mt-0.5"
 								>
 									{widget_scim_active_users()}
 								</div>
 							</div>
 
 							<div
-								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 border border-transparent dark:border-gray-800 flex flex-col justify-between items-center relative overflow-hidden"
+								class="rounded-xl bg-surface-500/10 px-3 py-2 dark:bg-surface-800/50 border border-(--admin-border-default) flex flex-col justify-between items-center relative overflow-hidden"
 							>
 								<div
-									class="text-3xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
+									class="text-2xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
 								>
 									{scim.syncedToday}
 								</div>
 								<div
-									class="text-[10px] font-semibold uppercase tracking-wider text-(--admin-text-muted) mt-1"
+									class="text-[9px] font-semibold uppercase tracking-wider text-(--admin-text-muted) mt-0.5"
 								>
 									{widget_scim_synced_today()}
 								</div>
 
 								<!-- Client-side mini sparkline for trend -->
 								{#if syncHistory.length > 1}
-									<div class="w-20 h-4 overflow-visible mt-1.5 opacity-80 shrink-0">
-										<svg viewBox="0 0 80 18" class="w-full h-full overflow-visible">
-											<path
-												d={linePath}
-												fill="none"
-												stroke-width="1.8"
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												class={scim.status === 'healthy'
-													? 'stroke-success-500'
-													: 'stroke-warning-500'}
-											/>
-										</svg>
-									</div>
+									<Tooltip
+										title={`${scim.syncedToday} synced today (history trend)`}
+										positioning={{ placement: 'top' }}
+									>
+										<div class="w-16 h-3.5 overflow-visible mt-1 opacity-80 shrink-0">
+											<svg viewBox="0 0 80 18" class="w-full h-full overflow-visible">
+												<path
+													d={linePath}
+													fill="none"
+													stroke-width="1.8"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													class={scim.status === 'healthy'
+														? 'stroke-success-500'
+														: 'stroke-warning-500'}
+												/>
+											</svg>
+										</div>
+									</Tooltip>
 								{/if}
 							</div>
 						</div>
 
 						<!-- Details -->
-						<div class="space-y-2 text-sm pt-2">
-							<div class="flex justify-between items-center py-1">
+						<div class="space-y-1 text-xs pt-1">
+							<div class="flex justify-between items-center py-0.5">
 								<span class="text-(--admin-text-muted)">{widget_scim_last_sync()}</span>
-								<span class="font-medium font-mono text-(--admin-text-muted) tabular-nums"
+								<span class="font-medium font-mono text-(--admin-text-body) tabular-nums"
 									>{scim.lastSync}</span
 								>
 							</div>
 							<div
-								class="flex justify-between items-center py-1 border-b border-gray-100 dark:border-gray-800 pb-2"
+								class="flex justify-between items-center py-0.5 border-b border-(--admin-border-default) pb-1"
 							>
 								<span class="text-(--admin-text-muted)">{widget_scim_provider()}</span>
 								<span class="font-mono text-tertiary-600 dark:text-primary-500 font-semibold"
@@ -291,7 +297,7 @@
 
 							{#if scim.lastError}
 								<div
-									class="text-xs text-error-500 bg-error-500/10 dark:bg-error-900/20 p-2.5 rounded border border-error-500/30 dark:border-error-500/40 mt-1"
+									class="text-[11px] text-error-500 bg-error-500/10 dark:bg-error-900/20 p-2 rounded border border-error-500/30 dark:border-error-500/40 mt-1"
 								>
 									{scim.lastError}
 								</div>
@@ -299,21 +305,30 @@
 						</div>
 
 						<!-- Health Footer -->
-						<div class="mt-auto pt-3 border-t border-surface-100 dark:border-surface-500/40">
-							<div class="flex items-center gap-2 text-sm font-medium">
-								<iconify-icon
-									icon={scim.endpointsHealthy ? 'mdi:check-circle' : 'mdi:alert-circle'}
-									width={18}
-									class={scim.endpointsHealthy ? 'text-success-500' : 'text-warning-500'}
-								></iconify-icon>
-								<span
-									class={scim.endpointsHealthy
-										? 'text-success-600 dark:text-success-400'
-										: 'text-warning-600'}
-								>
-									{scim.endpointsHealthy ? widget_scim_all_healthy() : widget_scim_some_degraded()}
-								</span>
-							</div>
+						<div class="mt-auto pt-2 border-t border-(--admin-border-default)">
+							<Tooltip
+								title={scim.endpointsHealthy
+									? widget_scim_all_healthy()
+									: widget_scim_some_degraded()}
+								positioning={{ placement: 'top' }}
+							>
+								<div class="flex items-center gap-1.5 text-xs font-medium">
+									<iconify-icon
+										icon={scim.endpointsHealthy ? 'mdi:check-circle' : 'mdi:alert-circle'}
+										width={16}
+										class={scim.endpointsHealthy ? 'text-success-500' : 'text-warning-500'}
+									></iconify-icon>
+									<span
+										class={scim.endpointsHealthy
+											? 'text-success-600 dark:text-success-400'
+											: 'text-warning-600'}
+									>
+										{scim.endpointsHealthy
+											? widget_scim_all_healthy()
+											: widget_scim_some_degraded()}
+									</span>
+								</div>
+							</Tooltip>
 						</div>
 					{/if}
 				</div>

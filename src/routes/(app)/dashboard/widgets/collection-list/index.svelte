@@ -41,6 +41,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 	import BaseWidget from '../../base-widget.svelte';
 	import { systemPreferences } from '../../dashboard-preferences.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
@@ -260,16 +261,17 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 				>
 					{activeSource?.label || activeSource?.name || selectedCollection || 'Collection'}
 				</span>
-				<Button
-					variant="ghost"
-					size="sm"
-					class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
-					onclick={openSettings}
-					aria-label={widget_list_configure_label()}
-					title={widget_list_configure_title()}
-				>
-					<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
-				</Button>
+				<Tooltip title={widget_list_configure_title()} positioning={{ placement: 'top' }}>
+					<Button
+						variant="ghost"
+						size="sm"
+						class="p-1! h-auto min-w-0 text-(--admin-text-muted) hover:text-(--admin-text-muted)"
+						onclick={openSettings}
+						aria-label={widget_list_configure_label()}
+					>
+						<iconify-icon icon="mdi:cog-outline" width={15}></iconify-icon>
+					</Button>
+				</Tooltip>
 			</div>
 
 			{#if !selectedCollection && !savedSettings.collectionId}

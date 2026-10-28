@@ -58,7 +58,7 @@ export interface MemoryGovernorDeps {
   trimCaches: () => void | Promise<void>;
   now: () => number;
   /** Evidence-line sink. `level` lets routine idle reclaims stay at info instead of warn. */
-  log: (message: string, level?: "info" | "warn") => void;
+  log: (message: string, level?: "debug" | "info" | "warn") => void;
 }
 
 export interface MemoryGovernorConfig {
@@ -113,6 +113,7 @@ export class MemoryGovernor {
   private lastTickAt = 0;
   private lastCpuMs = 0;
   private lastSweepAt = 0;
+  private lastWarnLoggedAt = 0;
   private cooldownMs: number;
   private unproductive = 0;
   /** Highest RSS this process actually needs right now (live set + runtime). */
@@ -221,12 +222,21 @@ export class MemoryGovernor {
         await this.deps.yieldToLoop();
         after = this.deps.read();
         const gain = before.rss - after.rss;
+        const isCritical = after.heapLimit > 0 && after.heapUsed / after.heapLimit > 0.9;
+        const now = this.deps.now();
+        let logLevel: "debug" | "info" | "warn" = trigger === "idle" ? "info" : "debug";
+        if (isCritical) {
+          if (now - this.lastWarnLoggedAt > 30_000) {
+            logLevel = "warn";
+            this.lastWarnLoggedAt = now;
+          }
+        }
         this.deps.log(
           `🧹 [Memory] pass ${pass}/${this.config.maxPasses} (${trigger}) ` +
             `rss ${mb(before.rss)}→${mb(after.rss)}MB · heap ${mb(before.heapUsed)}→${mb(after.heapUsed)}MB ` +
             `· ext+ab ${mb(before.external + before.arrayBuffers)}→${mb(after.external + after.arrayBuffers)}MB ` +
             `· limit ${mb(after.heapLimit)}MB · busy ${(busyRatio * 100).toFixed(0)}%`,
-          trigger === "idle" ? "info" : "warn",
+          logLevel,
         );
         if (gain >= this.config.minGainBytes) break;
         if (!this.stillPressured(after)) break;
@@ -246,6 +256,7 @@ export class MemoryGovernor {
             0,
           )}% of limit) heap ${mb(heapBefore)}→${mb(trimmed.heapUsed)}MB · ` +
             `rss ${mb(after.rss)}→${mb(trimmed.rss)}MB`,
+          "debug",
         );
         after = trimmed;
       }

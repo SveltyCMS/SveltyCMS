@@ -24,6 +24,7 @@
 </script>
 
 <script lang="ts">
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
 	import {
@@ -73,12 +74,30 @@
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{const mem = (() => {
-			const totalObj = data?.memoryInfo?.total || {};
-			const usedMb = Number(totalObj.usedMemMb ?? 0);
-			const freeMb = Number(totalObj.freeMemMb ?? 0);
-			const totalMb = usedMb + freeMb;
-			const percent = Number(totalObj.usedMemPercentage ?? 0);
+		{@const mem = (() => {
+			const info = data?.memoryInfo;
+			const totalObj = (typeof info?.total === 'object' ? info.total : info?.totalObj) || {};
+
+			const totalBytes = Number(
+				info?.totalBytes ?? (typeof info?.total === 'number' ? info.total : 0)
+			);
+			const usedBytes = Number(info?.usedBytes ?? 0);
+			const freeBytes = Number(
+				info?.freeBytes ?? (totalBytes > usedBytes ? totalBytes - usedBytes : 0)
+			);
+			const usagePercent = Number(info?.usagePercent ?? 0);
+
+			let totalMb = totalBytes > 0 ? totalBytes / (1024 * 1024) : Number(totalObj.totalMemMb ?? 0);
+			let usedMb = usedBytes > 0 ? usedBytes / (1024 * 1024) : Number(totalObj.usedMemMb ?? 0);
+			let freeMb = freeBytes > 0 ? freeBytes / (1024 * 1024) : Number(totalObj.freeMemMb ?? 0);
+			let percent =
+				usagePercent > 0
+					? usagePercent
+					: Number(totalObj.usedMemPercentage ?? (totalMb > 0 ? (usedMb / totalMb) * 100 : 0));
+
+			if (totalMb === 0 && (usedMb > 0 || freeMb > 0)) {
+				totalMb = usedMb + freeMb;
+			}
 
 			const swapObj = data?.memoryInfo?.swap;
 			const swapUsedMb = swapObj ? Number(swapObj.usedMemMb ?? 0) : 0;
@@ -109,7 +128,7 @@
 			};
 		})()}
 
-		{#if data?.memoryInfo?.total}
+		{#if data?.memoryInfo}
 			<div
 				class="flex h-full flex-col justify-between space-y-4"
 				role="region"
@@ -203,94 +222,96 @@
 
 					<!-- SVG Concentric Doughnuts -->
 					<div class="relative flex items-center justify-center py-2" style="min-height: 148px;">
-						<div
-							class="relative focus:outline-hidden"
-							onmouseenter={() => (activeRing = true)}
-							onmouseleave={() => (activeRing = false)}
-							role="img"
-							aria-label={dashboard_memory_chart_aria()}
+						<Tooltip
+							title={`${mem.usedGB.toFixed(1)} GB used of ${mem.totalGB.toFixed(1)} GB RAM (${mem.percent.toFixed(1)}%)`}
+							positioning={{ placement: 'top' }}
 						>
-							<svg
-								width="148"
-								height="148"
-								viewBox="0 0 42 42"
-								class="transform -rotate-90 overflow-visible"
-							>
-								<!-- Outer RAM background ring -->
-								<circle
-									cx="21"
-									cy="21"
-									r="15.915"
-									fill="none"
-									stroke={theme === 'dark' ? '#1f2937' : '#f3f4f6'}
-									stroke-width="3"
-								/>
-								<!-- Outer RAM progress ring -->
-								<circle
-									cx="21"
-									cy="21"
-									r="15.915"
-									fill="none"
-									stroke-width="3"
-									stroke-dasharray="100"
-									stroke-dashoffset={100 - mem.percent}
-									stroke-linecap="round"
-									class="transition-all duration-700 ease-out {mem.level === 'high'
-										? 'stroke-error-500'
-										: mem.level === 'medium'
-											? 'stroke-warning-500'
-											: 'stroke-success-500'}"
-									style="filter: {activeRing ? 'brightness(1.08)' : 'none'};"
-								/>
-
-								<!-- Inner Swap Rings (if available in the backend) -->
-								{#if mem.swapPercent !== null}
-									<!-- Inner Swap background ring -->
-									<circle
-										cx="21"
-										cy="21"
-										r="12.5"
-										fill="none"
-										stroke={theme === 'dark' ? '#111827' : '#e5e7eb'}
-										stroke-width="1.8"
-									/>
-									<!-- Inner Swap progress ring -->
-									<circle
-										cx="21"
-										cy="21"
-										r="12.5"
-										fill="none"
-										stroke-width="1.8"
-										stroke-dasharray="78.54"
-										stroke-dashoffset={78.54 * (1 - mem.swapPercent / 100)}
-										stroke-linecap="round"
-										class="transition-all duration-700 ease-out {mem.swapLevel === 'high'
-											? 'stroke-error-500'
-											: mem.swapLevel === 'medium'
-												? 'stroke-warning-500'
-												: 'stroke-tertiary-500'}"
-									/>
-								{/if}
-							</svg>
-
-							<!-- Center Content -->
 							<div
-								class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
+								class="relative focus:outline-hidden"
+								onmouseenter={() => (activeRing = true)}
+								onmouseleave={() => (activeRing = false)}
+								role="img"
+								aria-label={dashboard_memory_chart_aria()}
 							>
-								<span
-									class="text-3xl font-semibold tabular-nums {theme === 'dark'
-										? 'text-white'
-										: 'text-gray-900'}"
+								<svg
+									width="148"
+									height="148"
+									viewBox="0 0 42 42"
+									class="transform -rotate-90 overflow-visible"
 								>
-									{mem.percent.toFixed(0)}
-								</span>
-								<span
-									class="text-[9px] font-bold tracking-widest uppercase {theme === 'dark'
-										? 'text-(--admin-text-muted)'
-										: 'text-(--admin-text-muted)'}">{dashboard_memory_ram_used()}</span
+									<!-- Outer RAM background ring -->
+									<circle
+										cx="21"
+										cy="21"
+										r="15.915"
+										fill="none"
+										class="stroke-surface-500/20 dark:stroke-surface-500/30"
+										stroke-width="3"
+									/>
+									<!-- Outer RAM progress ring -->
+									<circle
+										cx="21"
+										cy="21"
+										r="15.915"
+										fill="none"
+										stroke-width="3"
+										stroke-dasharray="100"
+										stroke-dashoffset={100 - mem.percent}
+										stroke-linecap="round"
+										class="transition-all duration-700 ease-out {mem.level === 'high'
+											? 'stroke-error-500'
+											: mem.level === 'medium'
+												? 'stroke-warning-500'
+												: 'stroke-success-500'}"
+										style="filter: {activeRing ? 'brightness(1.08)' : 'none'};"
+									/>
+
+									<!-- Inner Swap Rings (if available in the backend) -->
+									{#if mem.swapPercent !== null}
+										<!-- Inner Swap background ring -->
+										<circle
+											cx="21"
+											cy="21"
+											r="12.5"
+											fill="none"
+											class="stroke-surface-500/15 dark:stroke-surface-500/25"
+											stroke-width="1.8"
+										/>
+										<!-- Inner Swap progress ring -->
+										<circle
+											cx="21"
+											cy="21"
+											r="12.5"
+											fill="none"
+											stroke-width="1.8"
+											stroke-dasharray="78.54"
+											stroke-dashoffset={78.54 * (1 - mem.swapPercent / 100)}
+											stroke-linecap="round"
+											class="transition-all duration-700 ease-out {mem.swapLevel === 'high'
+												? 'stroke-error-500'
+												: mem.swapLevel === 'medium'
+													? 'stroke-warning-500'
+													: 'stroke-tertiary-500 dark:stroke-primary-500'}"
+										/>
+									{/if}
+								</svg>
+
+								<!-- Center Content -->
+								<div
+									class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
 								>
+									<span
+										class="text-3xl font-semibold tabular-nums text-(--admin-text-body) dark:text-white"
+									>
+										{mem.percent.toFixed(0)}
+									</span>
+									<span
+										class="text-[9px] font-bold tracking-widest uppercase text-(--admin-text-muted)"
+										>{dashboard_memory_ram_used()}</span
+									>
+								</div>
 							</div>
-						</div>
+						</Tooltip>
 					</div>
 
 					<!-- Statistics -->
@@ -342,11 +363,9 @@
 
 						<!-- Compact Swap Stats sub-section -->
 						{#if mem.swapPercent !== null}
-							<div
-								class="border-t pt-2.5 {theme === 'dark' ? 'border-gray-800' : 'border-gray-150'}"
-							>
+							<div class="border-t border-(--admin-border-default) pt-2.5">
 								<div
-									class="flex justify-between text-xs font-semibold text-(--admin-text-muted) dark:text-(--admin-text-muted) mb-1.5 px-1"
+									class="flex justify-between text-xs font-semibold text-(--admin-text-muted) mb-1.5 px-1"
 								>
 									<span>{dashboard_memory_swap_memory()}</span>
 									<span class="tabular-nums"
@@ -355,32 +374,26 @@
 								</div>
 								<div class="grid grid-cols-3 gap-2 text-center text-xs">
 									<div>
-										<div
-											class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted)"
-										>
+										<div class="text-[10px] text-(--admin-text-muted)">
 											{dashboard_memory_total()}
 										</div>
-										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">
+										<div class="font-medium text-(--admin-text-body) tabular-nums">
 											{mem.swapTotalGB.toFixed(1)} GB
 										</div>
 									</div>
 									<div>
-										<div
-											class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted)"
-										>
+										<div class="text-[10px] text-(--admin-text-muted)">
 											{dashboard_memory_used()}
 										</div>
-										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">
+										<div class="font-medium text-(--admin-text-body) tabular-nums">
 											{mem.swapUsedGB.toFixed(1)} GB
 										</div>
 									</div>
 									<div>
-										<div
-											class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted)"
-										>
+										<div class="text-[10px] text-(--admin-text-muted)">
 											{dashboard_memory_free()}
 										</div>
-										<div class="font-medium text-gray-600 dark:text-gray-300 tabular-nums">
+										<div class="font-medium text-(--admin-text-body) tabular-nums">
 											{mem.swapFreeGB.toFixed(1)} GB
 										</div>
 									</div>

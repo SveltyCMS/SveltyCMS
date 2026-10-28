@@ -16,6 +16,7 @@
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import type { WidgetSize } from '@src/content/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -171,7 +172,8 @@
 	onDataLoaded={handleDataLoaded}
 >
 	{#snippet children({ data })}
-		{const healthData = data as HealthData | null}
+		{@const healthData = data as HealthData | null}
+		{@const components = healthData?.components || {}}
 
 		{#if !healthData}
 			<div class="flex h-full items-center justify-center">
@@ -207,25 +209,27 @@
 						</div>
 
 						<div class="flex items-center gap-2 font-medium text-(--admin-text-muted)">
-							{#each Object.entries(healthData.components).slice(0, 3) as [name, service] (name)}
-								<div
-									class="flex items-center gap-1"
+							{#each Object.entries(components).slice(0, 3) as [name, service] (name)}
+								<Tooltip
 									title={`${formatServiceName(name)}: ${service.status}`}
+									positioning={{ placement: 'top' }}
 								>
-									<span class="relative flex h-1.5 w-1.5">
-										<span
-											class="relative inline-flex rounded-full h-1.5 w-1.5
+									<div class="flex items-center gap-1 cursor-default">
+										<span class="relative flex h-1.5 w-1.5">
+											<span
+												class="relative inline-flex rounded-full h-1.5 w-1.5
 											{service.status === 'healthy'
-												? 'bg-success-500'
-												: service.status === 'unhealthy'
-													? 'bg-error-500'
-													: 'bg-warning-500'}"
-										></span>
-									</span>
-									<span class="text-[10px] opacity-80"
-										>{formatServiceName(name).substring(0, 2)}</span
-									>
-								</div>
+													? 'bg-success-500'
+													: service.status === 'unhealthy'
+														? 'bg-error-500'
+														: 'bg-warning-500'}"
+											></span>
+										</span>
+										<span class="text-[10px] opacity-80"
+											>{formatServiceName(name).substring(0, 2)}</span
+										>
+									</div>
+								</Tooltip>
 							{/each}
 						</div>
 					</div>
@@ -265,9 +269,9 @@
 
 						<!-- Services Cards Feed -->
 						<div class="flex-1 overflow-y-auto pe-1 space-y-2 custom-scroll max-h-55">
-							{#each Object.entries(healthData.components) as [name, service] (name)}
-								{const latency = service.performance?.latency}
-								{const history = latencyHistory[name] || []}
+							{#each Object.entries(components) as [name, service] (name)}
+								{@const latency = service.performance?.latency}
+								{@const history = latencyHistory[name] || []}
 								<div
 									class="rounded-2xl bg-surface-500/10 dark:bg-surface-800/40 p-3 border border-(--admin-border-default) flex items-center justify-between gap-3"
 								>
@@ -287,41 +291,41 @@
 												>{formatServiceName(name)}</span
 											>
 										</div>
-										<div
-											class="text-xs text-(--admin-text-muted) line-clamp-1 mt-0.5"
-											title={service.message}
-										>
-											{service.message}
-										</div>
+										<Tooltip title={service.message} positioning={{ placement: 'top' }}>
+											<div class="text-xs text-(--admin-text-muted) line-clamp-1 mt-0.5">
+												{service.message}
+											</div>
+										</Tooltip>
 									</div>
 
 									<div class="flex items-center gap-3">
 										<!-- Mini SVG Latency Sparkline inside card -->
 										{#if history.length > 1}
-											{const maxVal = Math.max(...history, 50)}
-											{const points = history.map((val, i) => ({
+											{@const maxVal = Math.max(...history, 50)}
+											{@const points = history.map((val, i) => ({
 												x: (i / Math.max(1, history.length - 1)) * 40,
 												y: 14 - (val / maxVal) * 12
 											}))}
-											{const linePath = points
+											{@const linePath = points
 												.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
 												.join(' ')}
-											<div
-												class="w-10 h-4 opacity-70 hidden sm:block"
-												aria-hidden="true"
+											<Tooltip
 												title={dashboard_health_latency_trend()}
+												positioning={{ placement: 'top' }}
 											>
-												<svg viewBox="0 0 40 14" class="w-full h-full overflow-visible">
-													<path
-														d={linePath}
-														fill="none"
-														stroke="rgb(16, 185, 129)"
-														stroke-width="1.2"
-														stroke-linecap="round"
-														stroke-linejoin="round"
-													/>
-												</svg>
-											</div>
+												<div class="w-10 h-4 opacity-70 hidden sm:block" aria-hidden="true">
+													<svg viewBox="0 0 40 14" class="w-full h-full overflow-visible">
+														<path
+															d={linePath}
+															fill="none"
+															stroke="rgb(16, 185, 129)"
+															stroke-width="1.2"
+															stroke-linecap="round"
+															stroke-linejoin="round"
+														/>
+													</svg>
+												</div>
+											</Tooltip>
 										{/if}
 
 										<div class="flex flex-col items-end gap-0.5">

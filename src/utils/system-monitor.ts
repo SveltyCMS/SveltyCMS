@@ -64,12 +64,38 @@ let _lastSnapshot: SystemHealthSnapshot | null = null;
 const _history: HistoricalPoint[] = [];
 
 let _lagHistogram: ReturnType<typeof monitorEventLoopDelay> | null = null;
+let _lastCpuTimes: { idle: number; total: number } | null = null;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 /** Calculates CPU usage over the interval window instantly without blocking */
 function calculateCpuUsagePercentage(): number {
-  return Math.min(Math.round(sampleProcessCpuShare() * 100), 100);
+  try {
+    const cpus = os.cpus();
+    let idle = 0;
+    let total = 0;
+    for (const cpu of cpus) {
+      for (const t of Object.values(cpu.times)) {
+        total += t;
+      }
+      idle += cpu.times.idle;
+    }
+    if (!_lastCpuTimes) {
+      _lastCpuTimes = { idle, total };
+      return Math.min(Math.round(sampleProcessCpuShare() * 100), 100);
+    }
+    const idleDelta = idle - _lastCpuTimes.idle;
+    const totalDelta = total - _lastCpuTimes.total;
+    _lastCpuTimes = { idle, total };
+    if (totalDelta <= 0) return 0;
+    const systemUsage = Math.max(
+      0,
+      Math.min(100, Math.round(((totalDelta - idleDelta) / totalDelta) * 100)),
+    );
+    return systemUsage;
+  } catch {
+    return Math.min(Math.round(sampleProcessCpuShare() * 100), 100);
+  }
 }
 
 function getMemoryUsedPercent(): number {

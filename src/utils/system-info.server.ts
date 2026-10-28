@@ -60,6 +60,12 @@ export interface MemoryInfoResponse {
   usagePercent: number;
   /** @deprecated backward compat — use totalBytes */
   total: number;
+  totalObj?: {
+    totalMemMb: number;
+    usedMemMb: number;
+    freeMemMb: number;
+    usedMemPercentage: number;
+  };
 }
 
 export interface SystemInfoResponse {
@@ -73,7 +79,7 @@ export interface SystemInfoResponse {
   cpu: CpuInfoResponse;
   memory: MemoryInfoResponse;
   disk: {
-    root: { totalGb: number; usedGb: number; freeGb: number };
+    root: { totalGb: number; usedGb: number; freeGb: number; usedPercentage: number };
   };
 }
 
@@ -95,30 +101,43 @@ function getOsBaseline(): SystemInfoResponse["os"] {
  */
 async function getDiskSpaceBaseline(): Promise<SystemInfoResponse["disk"]["root"]> {
   try {
-    // statfs is available on Linux/macOS. Returns blocks and block size.
-    const stats = await statfs("/");
+    const target = platform() === "win32" ? process.cwd() : "/";
+    const stats = await statfs(target);
     const totalBytes = stats.blocks * stats.bsize;
     const freeBytes = stats.bfree * stats.bsize;
+    const totalGb = Math.round(totalBytes / 1024 / 1024 / 1024);
+    const usedGb = Math.round((totalBytes - freeBytes) / 1024 / 1024 / 1024);
+    const freeGb = Math.round(freeBytes / 1024 / 1024 / 1024);
+    const usedPercentage =
+      totalBytes > 0 ? Math.round(((totalBytes - freeBytes) / totalBytes) * 1000) / 10 : 0;
 
     return {
-      totalGb: Math.round(totalBytes / 1024 / 1024 / 1024),
-      usedGb: Math.round((totalBytes - freeBytes) / 1024 / 1024 / 1024),
-      freeGb: Math.round(freeBytes / 1024 / 1024 / 1024),
+      totalGb,
+      usedGb,
+      freeGb,
+      usedPercentage,
     };
   } catch {
-    return { totalGb: 0, usedGb: 0, freeGb: 0 };
+    return { totalGb: 0, usedGb: 0, freeGb: 0, usedPercentage: 0 };
   }
 }
 
 function formatMemory(total: number, free: number, snapshotPercent?: number): MemoryInfoResponse {
   const usagePercent = snapshotPercent ?? Math.round(((total - free) / total) * 100);
   const usedBytes = Math.round((total * usagePercent) / 100);
+  const freeBytes = total - usedBytes;
   return {
     total,
     totalBytes: total,
     usedBytes,
-    freeBytes: total - usedBytes,
+    freeBytes,
     usagePercent,
+    totalObj: {
+      totalMemMb: Math.round(total / 1024 / 1024),
+      usedMemMb: Math.round(usedBytes / 1024 / 1024),
+      freeMemMb: Math.round(freeBytes / 1024 / 1024),
+      usedMemPercentage: usagePercent,
+    },
   };
 }
 

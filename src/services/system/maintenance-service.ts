@@ -16,6 +16,7 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
 export class MaintenanceService {
   private static instance: MaintenanceService;
   private lastRun = 0;
+  private running = false;
   private readonly FRAGMENTATION_THRESHOLD = 10000; // items
 
   private constructor() {}
@@ -31,16 +32,25 @@ export class MaintenanceService {
    * Runs periodic maintenance tasks.
    */
   public async runMaintenance() {
+    if (this.running) {
+      logger.debug("[Maintenance] Cycle already running; skipping concurrent execution.");
+      return;
+    }
+    this.running = true;
     const now = Date.now();
     this.lastRun = now;
 
-    logger.debug("🛠️ Starting Autonomous Maintenance Cycle...");
+    try {
+      logger.debug("🛠️ Starting Autonomous Maintenance Cycle...");
 
-    await this.checkCacheHealth();
-    await this.checkIndexHealth();
-    await this.cleanupExpiredData();
+      await this.checkCacheHealth();
+      await this.checkIndexHealth();
+      await this.cleanupExpiredData();
 
-    logger.trace("✅ Maintenance Cycle Completed.");
+      logger.trace("✅ Maintenance Cycle Completed.");
+    } finally {
+      this.running = false;
+    }
   }
 
   /**

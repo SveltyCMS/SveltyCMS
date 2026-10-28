@@ -53,6 +53,7 @@
 	import Input from '@components/ui/input.svelte';
 	import Loader from '@components/ui/loader.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import {
 		button_Collections,
 		dashboard_add_first_widget,
@@ -776,31 +777,33 @@
 >
 	{#snippet actions()}
 		<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
-			<Button
-				variant="outline"
-				onclick={toggleAiMode}
-				aria-label={dashboard_ai_toggle()}
-				title={dashboard_ai_toggle()}
-				data-testid="dashboard-ai-toggle"
-				class="w-10 p-0! min-w-0"
-			>
-				<iconify-icon
-					icon="mdi:robot-outline"
-					width={20}
-					class={aiDashboardSpec ? 'text-tertiary-500 dark:text-primary-500' : ''}
-				></iconify-icon>
-			</Button>
-			{#if currentPreferences.length > 0}
+			<Tooltip title={dashboard_ai_toggle()} positioning={{ placement: 'bottom' }}>
 				<Button
 					variant="outline"
-					onclick={resetAllWidgets}
-					aria-label={dashboard_reset_widgets()}
-					title={dashboard_reset_widgets()}
-					data-testid="dashboard-reset-widgets"
+					onclick={toggleAiMode}
+					aria-label={dashboard_ai_toggle()}
+					data-testid="dashboard-ai-toggle"
 					class="w-10 p-0! min-w-0"
 				>
-					<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
+					<iconify-icon
+						icon="mdi:robot-outline"
+						width={20}
+						class={aiDashboardSpec ? 'text-tertiary-500 dark:text-primary-500' : ''}
+					></iconify-icon>
 				</Button>
+			</Tooltip>
+			{#if currentPreferences.length > 0}
+				<Tooltip title={dashboard_reset_widgets()} positioning={{ placement: 'bottom' }}>
+					<Button
+						variant="outline"
+						onclick={resetAllWidgets}
+						aria-label={dashboard_reset_widgets()}
+						data-testid="dashboard-reset-widgets"
+						class="w-10 p-0! min-w-0"
+					>
+						<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
+					</Button>
+				</Tooltip>
 			{/if}
 			<div class="relative">
 				{#if availableWidgets.length > 0}
