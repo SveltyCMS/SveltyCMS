@@ -57,7 +57,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { themeStore } from '@src/stores/theme-store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { Form } from '@utils/form.svelte.ts';
 	import { logger } from '@utils/logger';
@@ -632,8 +631,8 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		P_WRESET = false;
 	}
 
-	// Ink colour for the legacy FloatingInput colour props: follows light/dark mode
-	const ink = $derived(themeStore.isDarkMode ? 'white' : 'black');
+	// Ink colour for the legacy FloatingInput colour props: always black on white SignIn
+	const ink = 'black';
 
 	// Class computations
 	const isActive = $derived(active === 0);
@@ -654,7 +653,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	onkeydown={(e) => e.key === 'Enter' && onClick?.()}
 	onpointerenter={onPointerEnterProp}
 	tabindex={cardTabIndex}
-	class="{baseClasses} bg-white focus-visible:outline-2 focus-visible:outline-primary-500 dark:bg-(--admin-bg-page)"
+	class="{baseClasses} bg-white focus-visible:outline-2 focus-visible:outline-primary-500"
 	class:active={isActive}
 	class:inactive={isInactive}
 	class:hover={isHover}
@@ -666,14 +665,14 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		>
 			{#if screen.isDesktop}
 				<div class="absolute inset-0 z-0">
-					<FloatingPaths position={1} background={themeStore.isDarkMode ? 'dark' : 'white'} />
-					<FloatingPaths position={-1} background={themeStore.isDarkMode ? 'dark' : 'white'} />
+					<FloatingPaths position={1} background="white" />
+					<FloatingPaths position={-1} background="white" />
 				</div>
 			{/if}
 			<div
-				class="relative z-10 mx-auto my-auto w-full max-w-xl overflow-y-auto rounded p-6 backdrop-blur {brandedLogin &&
+				class="relative z-10 mx-auto my-auto w-full lg:w-4/5 max-w-4xl overflow-y-auto rounded p-6 backdrop-blur {brandedLogin &&
 				brandedVariant === 'elevated'
-					? 'bg-white dark:bg-surface-900 shadow-xl border border-surface-500/30'
+					? 'bg-white shadow-xl border border-surface-500/30'
 					: 'bg-white/0'}"
 				class:hide={active !== 0}
 			>
@@ -684,25 +683,27 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 				>
 				<div class="flex flex-row gap-3 items-center">
 					<SveltyCMSLogo size={68} className="w-14" fill="red" />
-					<h1 class="text-3xl font-bold text-black lg:text-4xl dark:text-white">
+					<h1 class="text-3xl font-bold text-black lg:text-4xl">
 						<div class="text-xs text-surface-300">
-							<SiteName {siteName} highlight="CMS" textClass="text-black dark:text-white" />
+							<SiteName {siteName} highlight="CMS" textClass="text-black" />
 						</div>
 						{#if !P_WFORGOT && !P_WRESET && !P_WMAGIC}
 							<div class="lg:-mt-1">{form_signin()}</div>
 						{:else if P_WMAGIC}
-							<div class="text-2xl lg:-mt-1 lg:text-4xl">Sign in via Magic Link</div>
+							<div class="text-2xl lg:-mt-1 lg:text-4xl text-black">Sign in via Magic Link</div>
 						{:else if P_WFORGOT && !P_WRESET}
-							<div class="text-2xl lg:-mt-1 lg:text-4xl">{signin_forgottenpassword()}</div>
+							<div class="text-2xl lg:-mt-1 lg:text-4xl text-black">
+								{signin_forgottenpassword()}
+							</div>
 						{:else if P_WFORGOT && P_WRESET}
-							<div class="lg:-mt-1">{form_resetpassword()}</div>
+							<div class="lg:-mt-1 text-black">{form_resetpassword()}</div>
 						{/if}
 					</h1>
 				</div>
 
 				<!-- Required sits on the field row, beside the back button -->
 				<div class="relative mt-4 mb-1 flex items-center justify-between gap-3">
-					<p class="text-sm font-medium leading-none text-surface-600 dark:text-surface-400">
+					<p class="text-sm font-medium leading-none text-surface-600">
 						{form_required()}
 					</p>
 					<div>
@@ -712,12 +713,12 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							rounded={true}
 							onclick={handleBack}
 							aria-label={button_back()}
-							class="h-10 w-10 min-w-0 p-0! rounded-full border-black/25 text-black hover:bg-black/8 hover:border-black/40 dark:border-white/25 dark:text-white dark:hover:bg-white/10 dark:hover:border-white/40"
+							class="h-10 w-10 min-w-0 p-0! rounded-full border-black/25 text-black hover:bg-black/8 hover:border-black/40"
 						>
 							<iconify-icon
 								icon="ri:arrow-left-line"
 								width={24}
-								class="text-black dark:text-white"
+								class="text-black"
 								aria-hidden="true"
 							></iconify-icon>
 						</Button>
@@ -818,7 +819,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									<Button
 										type="button"
 										variant="outline"
-										class="w-full sm:w-auto text-black! dark:text-white! flex items-center justify-center gap-1.5"
+										class="w-full sm:w-auto text-black! flex items-center justify-center gap-1.5"
 										aria-label="Sign in with Passkey or Biometrics"
 										onclick={handlePasskeySignIn}
 										loading={isPasskeyLoading}
@@ -832,7 +833,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									<Button
 										type="button"
 										variant="outline"
-										class="w-full sm:w-auto text-black! dark:text-white!"
+										class="w-full sm:w-auto text-black!"
 										aria-label="Sign in via Magic Link"
 										onclick={() => {
 											P_WMAGIC = true;
@@ -844,7 +845,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 								<Button
 									type="button"
 									variant="outline"
-									class="w-full sm:w-auto text-black! dark:text-white!"
+									class="w-full sm:w-auto text-black!"
 									aria-label={signin_forgottenpassword()}
 									onclick={handleForgotPassword}
 									data-testid="signin-forgot-password"
@@ -869,7 +870,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									<iconify-icon icon="mdi:shield-key" width={24} aria-hidden="true"></iconify-icon>
 								</div>
 								<h3 class="h3 mb-2">{twofa_verify_title()}</h3>
-								<p class="text-sm text-surface-600 dark:text-surface-400">
+								<p class="text-sm text-surface-600">
 									{useBackupCode ? 'Enter your backup recovery code:' : twofa_verify_description()}
 								</p>
 							</div>
@@ -893,10 +894,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 										inputmode={useBackupCode ? 'text' : 'numeric'}
 									/>
 									{#if useBackupCode}
-										<div
-											class="mt-1 text-center text-xs text-surface-600 dark:text-surface-400"
-											aria-live="polite"
-										>
+										<div class="mt-1 text-center text-xs text-surface-600" aria-live="polite">
 											{twoFACode.length}/10
 										</div>
 									{/if}
@@ -951,10 +949,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 									</Button>
 								</div>
 
-								<div
-									class="mt-2 text-center text-xs text-surface-600 dark:text-surface-400"
-									aria-live="polite"
-								>
+								<div class="mt-2 text-center text-xs text-surface-600" aria-live="polite">
 									{#if !useBackupCode}
 										<p>Enter the 6-digit code from your authenticator app</p>
 									{:else}

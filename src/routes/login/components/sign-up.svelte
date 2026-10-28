@@ -307,7 +307,7 @@
 				</div>
 			{/if}
 			<div
-				class="relative z-10 mx-auto my-auto w-full max-w-xl rounded p-6 backdrop-blur {brandedLogin &&
+				class="relative z-10 mx-auto my-auto w-full lg:w-4/5 max-w-4xl rounded p-6 backdrop-blur {brandedLogin &&
 				brandedVariant === 'elevated'
 					? 'bg-surface-900/95 shadow-xl border border-surface-500/40'
 					: 'bg-surface-900/0'}"

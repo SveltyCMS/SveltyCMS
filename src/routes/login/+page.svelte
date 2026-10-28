@@ -46,7 +46,6 @@
 	import { getPublicSetting, publicEnv } from '@src/stores/global-settings.svelte';
 	// Stores
 	import { systemLanguage } from '@src/stores/locale-store.svelte';
-	import { themeStore } from '@src/stores/theme-store.svelte.ts';
 	import { getLanguageName } from '@utils/language-utils';
 	// SvelteKit
 	// Components
@@ -300,9 +299,7 @@
 
 <div
 	class={`flex min-h-lvh w-full overflow-y-auto transition-colors duration-300`}
-	style="background-color: {background === 'white' && themeStore.isDarkMode
-		? 'var(--admin-bg-page, var(--color-surface-950))'
-		: background}"
+	style="background-color: {background}"
 	role="main"
 	aria-label="Authentication Page"
 >
