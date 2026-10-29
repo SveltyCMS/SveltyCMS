@@ -983,8 +983,71 @@ This UI interacts directly with `TenantService`, ensuring all changes are audita
 
 ---
 
+## Intelligent Multi-Platform Hub-and-Spoke Architecture
+
+Enterprises often manage a global corporate entity operating across multiple markets (e.g. Germany, USA, Japan), product lines, and digital channels (Web, Mobile Apps, In-Store Kiosks, B2B Partner Portals, Social, and Email). Rather than treating multi-tenancy as isolated silos, SveltyCMS enables an **Intelligent Hub-and-Spoke Master Data Management (MDM)** model.
+
+```mermaid
+graph TD
+    subgraph Corporate["Global Master Hub (tenantId: null)"]
+        MasterContent["Global Master Content / Campaign"]
+        BrandRules["Corporate Tone of Voice & Regulatory Rules"]
+    end
+
+    subgraph AgenticSyndication["Intelligent Multi-Platform Syndication Engine"]
+        ChannelAdapter["Platform Channel Adapters (Web / Mobile / Kiosk)"]
+        ComplianceAuditor["Corporate Alignment & Regulatory Guard"]
+    end
+
+    subgraph SpokeTenants["Spoke Tenants (tenantId: string)"]
+        TenantDE["🇩🇪 German Web Tenant (Formal, EU UWG §6 Compliant)"]
+        TenantUS["🇺🇸 US Web Tenant (FTC Disclosures, Casual Tone)"]
+        TenantApp["📱 Mobile App Tenant (Concise JSON, Push-Ready)"]
+        TenantKiosk["🖥️ Kiosk Signage Tenant (Plain Text, Spec Bulletins)"]
+    end
+
+    Corporate -->|1. Syndicate Master Entry| ChannelAdapter
+    ChannelAdapter -->|2. Adapt Constraints & Format| ComplianceAuditor
+    ComplianceAuditor -->|3. Validate Brand & Legal Safety| SpokeTenants
+    SpokeTenants -->|4. FSM Review Gatekeeper| SpokeTenants
+```
+
+### 1. Global Master Hub vs. Spoke Tenants
+
+- **Global Master Hub (`tenantId: null`)**: Holds canonical product catalogs, global marketing campaigns, corporate brand books, and regulatory policies.
+- **Spoke Tenants (`tenantId: string`)**: Regional subsidiaries, brand sites, or dedicated application backends. They receive syndicated master entries with explicit lineage (`_masterEntryId`, `_masterCollectionId`) while maintaining their own local revisions and editorial autonomy.
+
+### 2. Automated Platform Channel Adaptation
+
+Each target platform enforces distinct content and presentation constraints. The syndication engine automatically shapes master content:
+
+| Platform                      | Channel Characteristics                    | Formatting & Clamping                                               |
+| :---------------------------- | :----------------------------------------- | :------------------------------------------------------------------ |
+| **Web** (`web`)               | Rich editorial content, responsive layouts | Full HTML/Markdown, rich media, structured schema                   |
+| **Mobile** (`mobile`)         | High-density screen, low latency           | Title $\le 60$ chars, body $\le 3,000$ chars, pre-generated excerpt |
+| **Kiosk** (`kiosk`)           | High contrast, quick glance, offline-first | Plain text/markdown, title $\le 45$ chars, body $\le 350$ chars     |
+| **B2B Portal** (`b2b_portal`) | Technical documentation, wholesale data    | Structured JSON/Markdown, complete technical specification tables   |
+| **Email** (`email`)           | Client-rendered HTML, spam filters         | Subject $\le 70$ chars, email-safe HTML, mandatory privacy footer   |
+| **Social** (`social`)         | Microcopy, character caps                  | Plain text $\le 280$ chars, auto-generated campaign hashtags        |
+
+### 3. Multisite & Multi-Platform Competitive Landscape
+
+_Based on publicly available documentation as of October 2026. Self-assessment of architectural characteristics._
+
+| CMS Platform              | Multi-Tenancy Architecture                                                                                          | Cross-Site Syndication                                                                        | Multi-Platform Adaptation                                                            | Corporate Governance & Workflows                                                                  |
+| :------------------------ | :------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| **SveltyCMS** (this tree) | **Native in core** (`tenantId: null` Global Hub + `tenantId` Spokes). Zero plugin cost.                             | **Intelligent Semantic Syndication**: auto-formats for target channels with lineage tracking. | Native channel adapters (`web`, `mobile`, `kiosk`, `b2b_portal`, `email`, `social`). | **Visual FSM Workflow** with automated agentic alignment guards (<2ms hot-path audit).            |
+| **PayloadCMS** (v3.x)     | Official `@payloadcms/plugin-multi-tenant` (adds `tenant` relationship field to collections).                       | Custom hooks required; no out-of-the-box cross-tenant syndication engine.                     | Handled at frontend consumption layer (Next.js / GraphQL).                           | Standard collection hooks and draft/publish states; no visual FSM.                                |
+| **Directus** (v12.x)      | Manual modeling via `tenants` collection + custom RBAC row-level filters, or multi-project workspaces (Enterprise). | Manual Webhooks or custom Directus Flows; entity replication must be hand-configured.         | Raw JSON payloads; formatting logic lives in client applications.                    | Directus Flows event hooks; status fields with permission rules.                                  |
+| **Strapi** (v5.x)         | Separate instances per tenant, or custom relational field modeling; workspaces on Strapi Cloud.                     | No native cross-tenant content syndication; requires custom REST replication scripts.         | REST and GraphQL endpoints; client-side formatting.                                  | Review Workflows (linear stages: Draft $\to$ In Review $\to$ Ready to Publish); Enterprise gated. |
+| **Contentful** (SaaS)     | Multi-space architecture ("Spaces" & "Environments"). Multi-tenant via isolated spaces.                             | Contentful CLI / Space Sync tools or custom App Framework webhooks; spaces are silos.         | Multiple delivery API endpoints; content transformations handled externally.         | Workflows app (Enterprise); sequential approval steps.                                            |
+
+---
+
 ## Related
 
 - [Architecture Overview](./index.mdx)
 - [Security Overview](../security/index.mdx)
 - [State Management](./state-management.mdx)
+- [Multi-Tenant Security](../security/multi-tenancy.mdx)
+- [Visual Workflow Engine](../../guides/content/workflows.mdx)

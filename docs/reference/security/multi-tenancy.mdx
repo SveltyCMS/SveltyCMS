@@ -69,19 +69,28 @@ All data exports (Standard and Full) are tenant-scoped. Sensitive fields (API ke
 
 The import system validates the scope of incoming settings. It dynamically looks up setting definitions to ensure that user-specific preferences are never imported into the global system scope, preventing database corruption.
 
+### 4.3 Cross-Tenant Syndication & The Draft Airgap
+
+When corporate master content is syndicated from the Global Hub (`tenantId: null`) to Spoke Tenants (`tenantId: string`), SveltyCMS enforces rigorous security and privilege boundary rules:
+
+- **Strict Tenant Re-Keying**: Replicated child entries are assigned newly generated cryptographic UUIDs and stamped with the destination `tenantId`. A spoke tenant never holds pointers that allow mutating another tenant's rows.
+- **The Human-in-the-Loop Draft Airgap**: Syndicated entries land in the spoke tenant strictly in `draft` or `in_review` state. Master syndication cannot force a child entry to live `published` status without the destination tenant's authorized editors executing the appropriate FSM transition. This prevents a compromised master account from immediately defacing multi-tenant production sites.
+- **Lineage Integrity & Audit Logging**: Syndication events record `_masterEntryId` and `_masterCollectionId` in the spoke document metadata, and emit structured `AuditEventType.CONTENT_CREATE` audit entries containing both master and target identifiers for end-to-end traceability.
+
 ## 5. Summary of Boundaries
 
-| Boundary           | Mechanism                                | Enforcement Point             |
-| :----------------- | :--------------------------------------- | :---------------------------- |
-| **Data**           | Explicit `tenantId` filters              | Database Adapters             |
-| **CRUD Guard**     | Auto-inject + warn on missing `tenantId` | `crud-tenant-guard.ts`        |
-| **File Server**    | Tenant-scoped path ACL                   | `/files/[...path]/+server.ts` |
-| **Batch**          | Mixed-tenant rejection guard             | `batch-module.ts`             |
-| **Schema**         | Isolated Yoga Instances                  | GraphQL Handler               |
-| **Real-Time**      | Payload Filtering                        | SSE Controller                |
-| **Secrets**        | AES-256-GCM Encryption                   | Export Utility                |
-| **UI/Prefs**       | Compound `tenantId:userId` keys          | Preferences API               |
-| **Infrastructure** | Super-Admin Restrictons                  | RBAC Middleware               |
+| Boundary           | Mechanism                                | Enforcement Point              |
+| :----------------- | :--------------------------------------- | :----------------------------- |
+| **Data**           | Explicit `tenantId` filters              | Database Adapters              |
+| **CRUD Guard**     | Auto-inject + warn on missing `tenantId` | `crud-tenant-guard.ts`         |
+| **File Server**    | Tenant-scoped path ACL                   | `/files/[...path]/+server.ts`  |
+| **Batch**          | Mixed-tenant rejection guard             | `batch-module.ts`              |
+| **Schema**         | Isolated Yoga Instances                  | GraphQL Handler                |
+| **Syndication**    | Draft-by-default airgap + re-keying      | `multiplatform-syndication.ts` |
+| **Real-Time**      | Payload Filtering                        | SSE Controller                 |
+| **Secrets**        | AES-256-GCM Encryption                   | Export Utility                 |
+| **UI/Prefs**       | Compound `tenantId:userId` keys          | Preferences API                |
+| **Infrastructure** | Super-Admin Restrictons                  | RBAC Middleware                |
 
 This architecture ensures that SveltyCMS remains secure, compliant, and performant even when hosting thousands of isolated customers on a single installation.
 

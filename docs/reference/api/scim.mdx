@@ -1,17 +1,22 @@
 ---
 path: "docs/reference/api/scim.mdx"
-title: "SCIM 2.0 (scim.ts)"
-description: "Reference for SCIM 2.0 (RFC 7644) user provisioning — automated identity lifecycle management for Okta and Azure AD."
+title: "SCIM 2.0 User Provisioning API (RFC 7644) — Okta & Entra ID Sync"
+description: "Automate user lifecycles with SCIM 2.0: provision users and groups from Okta, Microsoft Entra ID (Azure AD), per-tenant certificate rotation, and audit logs."
 order: 55
 icon: "mdi:account-sync-outline"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-04-12"
+updated: "2026-10-29"
 tags:
   - "api"
   - "scim"
   - "provisioning"
   - "enterprise"
+  - "okta"
+  - "azure-ad"
+  - "entra-id"
+  - "idp-connector"
+  - "certificate-rotation"
 ---
 
 # SCIM 2.0 Reference (`scim.ts`)
@@ -78,6 +83,27 @@ sequenceDiagram
     SDK->>DB: INSERT INTO users ...
     SCIM-->>IdP: 201 Created (SCIM JSON)
 ```
+
+---
+
+## 4. Enterprise IdP Integration: SCIM, Certificate Rotation, & Audit Exports
+
+Enterprise organizations require unified identity governance across multi-tenant environments:
+
+### Automated SCIM 2.0 Ingestion
+
+- Ingest user lifecycle state changes (new hires, department transfers, terminations) in sub-second timeframes.
+- Map custom enterprise claims and multi-tenant department assignments directly into SveltyCMS RBAC roles.
+
+### Per-Customer / Per-Tenant Certificate Rotation
+
+- Rotate SAML 2.0 signing certificates and OIDC client secrets independently per tenant without system-wide service disruption.
+- Fail-safe dual-certificate grace periods prevent accidental authentication lockouts during enterprise key rotation cycles.
+
+### Tamper-Evident SIEM Audit Log Exports
+
+- Stream security events (logins, privilege escalations, SCIM sync actions) to corporate SIEM endpoints (Splunk, Datadog, Elastic).
+- HMAC-SHA256 crypto-chained audit records guarantee verifiable non-repudiation for SOC 2 Type II and ISO 27001 compliance.
 
 ---
 

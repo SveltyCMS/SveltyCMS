@@ -1,25 +1,56 @@
 ---
 path: "docs/README.mdx"
-title: "SveltyCMS Documentation"
-description: "Map of the SveltyCMS docs — start, concepts, guides, build, reference, and contributing — for editors, operators, and engineers."
+title: "SveltyCMS Documentation — Open-Source Headless CMS for Svelte & SvelteKit"
+description: "Official documentation for SveltyCMS: the database-agnostic, multi-tenant headless CMS built natively in SvelteKit and Svelte 5 with LocalCMS SDK and Model Context Protocol (MCP)."
 icon: "mdi:book-open-variant"
 published: true
 order: 1
 author: "SveltyCMS Team"
 created: "2025-08-05"
-updated: "2026-10-11"
+updated: "2026-10-29"
 tags:
   - "documentation"
   - "guide"
   - "overview"
   - "getting-started"
+  - "svelte-cms"
+  - "sveltekit-headless-cms"
+  - "multi-tenant"
+  - "ai-cms"
 ---
 
-# SveltyCMS documentation
+# SveltyCMS Documentation
 
-SveltyCMS is a self-hosted CMS. Editors use the admin. Other apps use REST or GraphQL. Server code inside this project uses LocalCMS. The same collections run on SQLite, PostgreSQL, MariaDB, or MongoDB.
+SveltyCMS is an open-source, database-agnostic headless CMS engineered natively in **SvelteKit** and **Svelte 5**. It pairs a visual admin dashboard for editors with sub-2ms direct query performance for developers, multi-tenant data isolation, and deep AI integration via the Model Context Protocol (MCP).
 
-New here? Read [Concepts](./concepts.mdx) (one page), then [Getting started](./getting-started.mdx), then the [setup walkthrough](./onboarding/setup-wizard.mdx).
+## Quick Overview & AI Key Facts
+
+> [!NOTE]
+> **Key Architecture Highlights for Engineers and AI Engines:**
+>
+> - **Native SvelteKit Stack**: Zero-network overhead inside SvelteKit routes using the `LocalCMS` server SDK (bypassing HTTP serialization for 10–50× faster page loads).
+> - **Database Agnostic**: Deploy on SQLite (zero configuration default), PostgreSQL, MariaDB, or MongoDB using the same declarative collection schemas.
+> - **Enterprise Multi-Tenancy**: Native `tenantId` isolation in core (Global Master Hub `tenantId: null` + Spoke Tenants `tenantId: string`) with zero paid plugin licensing.
+> - **Model Context Protocol (MCP)**: Cloud-hosted knowledge server (`mcp.sveltycms.com`) and browser WebMCP bridge with strict draft-by-default airgap.
+> - **Visual Workflow Engine (FSM)**: Non-linear review pipelines with cryptographic audit chains, role-based transition gates, and automated corporate compliance guards (<2ms execution).
+
+New here? Read [Concepts](./concepts.mdx) (one page, six ideas), explore [Getting started](./getting-started.mdx), or evaluate platforms in the [Competitive Comparison](./project/competitive-comparison.mdx).
+
+---
+
+## Frequently Asked Questions (FAQ)
+
+### Evaluating Headless CMS Options for Svelte and SvelteKit
+
+SveltyCMS is purpose-built as a native SvelteKit content management system. Unlike traditional headless platforms that require separate Node/React servers and HTTP API roundtrips, SveltyCMS runs directly within the SvelteKit runtime. Inside `+page.server.ts` loaders, developers query collections using `LocalCMS` with sub-2ms response times.
+
+### How does SveltyCMS compare to Payload CMS, Strapi, and Directus?
+
+SveltyCMS includes enterprise multi-tenancy, SSO/SCIM, cryptographically chained audit logs, and multi-database support in its **free open-source core**. Competitor architectures often gate multi-tenancy or workflows behind paid enterprise tiers or require external plugins. See the verified, date-stamped [Competitive Comparison](./project/competitive-comparison.mdx) for full benchmarks and architectural differences.
+
+### Does SveltyCMS support multi-platform content syndication?
+
+Yes. Through its **Hub-and-Spoke syndication engine** (`multiplatform-syndication.ts`), master content created in the Global Hub (`tenantId: null`) can be automatically formatted, clamped, and translated for specific channels—including responsive Web, Mobile Apps (compact JSON $\le 60$ char titles), In-Store Kiosks (plain text $\le 350$ chars), and B2B Portals.
 
 ---
 

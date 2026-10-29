@@ -1,18 +1,22 @@
 ---
 path: "docs/reference/api/graphql-subscriptions.mdx"
-title: "Real-Time Updates Reference"
-description: "Real-time updates in SveltyCMS: Server-Sent Events (SSE) for event streaming and Yjs collaboration for concurrent editing — both adapter-node compatible."
+title: "Real-Time Updates & Event Streams — Server-Sent Events (SSE) & Yjs CRDT Sync"
+description: "Real-time updates in SveltyCMS: Server-Sent Events (SSE) for event streaming, GraphQL API considerations, and Yjs CRDT WebSocket collaboration."
 order: 8
 icon: "mdi:websocket"
 author: "SveltyCMS Team"
 created: "2025-10-29"
-updated: "2026-08-10"
+updated: "2026-10-29"
 tags:
   - "graphql"
   - "websocket"
   - "subscriptions"
   - "real-time"
   - "sse"
+  - "real-time-updates"
+  - "yjs"
+  - "crdt"
+  - "event-streaming"
 ---
 
 # Real-Time Updates Reference
@@ -41,7 +45,7 @@ GraphQL **queries and mutations** remain HTTP-based (`POST /api/graphql`). There
 
 ## 1. The Goal
 
-Maintain a live, reactive UI (collaborative editor, real-time dashboard, settings sync) that updates instantly when content is modified by other users or background jobs — a superior, type-safe alternative to polling.
+Maintain a live, reactive UI (collaborative editor, real-time dashboard, settings sync) that updates instantly when content is modified by other users or background jobs — a reactive, type-safe alternative to polling.
 
 ---
 

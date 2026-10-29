@@ -1,26 +1,109 @@
 ---
 path: "docs/troubleshooting.mdx"
-title: "Troubleshooting Guide"
-description: "Solutions to common SveltyCMS issues — Setup Wizard, database connections, authentication, performance."
+title: "Troubleshooting Guide — Fix Localhost 5173, Port Collisions, Setup, & Errors"
+description: "Diagnose and fix SveltyCMS issues: localhost:5173 /admin and /login access, port collisions (lsof -i :5173, kill process), setup wizard, database errors, and auth."
 order: 2
 icon: "mdi:wrench"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-09-19"
+updated: "2026-10-29"
 tags:
   - "troubleshooting"
   - "debugging"
   - "support"
   - "faq"
+  - "localhost-5173"
+  - "lsof-5173"
+  - "kill-process"
+  - "netstat"
+  - "localhost-admin"
+  - "localhost-login"
+  - "vite-dev-server"
 ---
 
 # Troubleshooting Guide
 
-Solutions for common installation, configuration, and operational issues.
+Solutions for common installation, configuration, local dev, port collisions, and operational issues.
 
 ---
 
-## 🚀 Setup & Installation
+## 🚀 Local Access & Dev Server Port Collisions (localhost:5173 / localhost:3000)
+
+### Accessing Local Admin (`http://localhost:5173/admin`, `/login`, or `/dashboard`)
+
+**Symptoms**: Opening `localhost:5173/admin` redirects to `/setup`, `/login`, or throws a 404/CSRF error.
+
+**Causes & Fixes**:
+
+1. **First-Run Setup Redirection**:
+   - If `config/private.ts` has not been generated yet, SveltyCMS runs in unconfigured mode. Any request to `/admin` or `/login` will fail-closed and automatically redirect to `http://localhost:5173/setup`.
+   - Complete the 5-step wizard at `/setup` to generate the system keys and initial admin user.
+2. **Post-Setup Login Route**:
+   - Once setup is completed, `/login` is the primary authentication route.
+   - The admin dashboard is mounted at `/dashboard` (and collection routes `/(app)`), rather than a standalone static `/admin` path. Typing `/admin` automatically routes to `/dashboard` when authenticated, or `/login` when unauthenticated.
+3. **CSRF / Origin Mismatch on Preview**:
+   - When running on non-standard ports (e.g., `http://localhost:4173`), ensure the request origin is listed in `csrf.trustedOrigins` inside `vite.config.ts`. SveltyCMS automatically trusts the full loopback range (`http://localhost:4173`–`4773`).
+
+---
+
+### Port Collisions & Killing Hanging Processes (5173 / 3000)
+
+**Symptoms**: `Error: listen EADDRINUSE: address already in use :::5173` or Vite automatically starts on `5174` / `5175`.
+
+**Step 1: Identify the process occupying the port**
+
+- **macOS / Linux**:
+
+  ```bash
+  # Check port 5173
+  lsof -i :5173
+
+  # Check port 3000
+  lsof -i :3000
+  ```
+
+- **Windows (PowerShell / Command Prompt)**:
+
+  ```powershell
+  # Find PID listening on 5173
+  netstat -ano | findstr :5173
+
+  # Find PID listening on 3000
+  netstat -ano | findstr :3000
+  ```
+
+**Step 2: Terminate the blocking process**
+
+- **macOS / Linux**:
+
+  ```bash
+  # Terminate by Process ID (PID)
+  kill -9 <PID>
+
+  # Or kill by port directly
+  npx kill-port 5173
+  ```
+
+- **Windows**:
+
+  ```powershell
+  # Command Prompt / PowerShell
+  taskkill /PID <PID> /F
+
+  # PowerShell native
+  Stop-Process -Id <PID> -Force
+  ```
+
+**Step 3: Test connection using curl**
+
+```bash
+# Verify the dev server responds with HTTP 200 / 303
+curl -i http://localhost:5173/
+```
+
+---
+
+## 🛠️ Setup & Installation
 
 ### "Initializing System" hangs
 

@@ -1,17 +1,22 @@
 ---
 path: "docs/guides/legal/gdpr-compliance.mdx"
-title: "GDPR Compliance Suite"
-description: "Handling Right to Erasure and Data Portability in SveltyCMS."
+title: "GDPR Compliance Suite — Privacy, Data Portability, & Erasure in SveltyCMS"
+description: "Native GDPR compliance for headless CMS: automated Right to Erasure (Art 17), Data Portability (Art 20), crypto-chained audit logs, and self-service export."
 order: 10
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2026-02-10"
-updated: "2026-05-05"
+updated: "2026-10-29"
 tags:
   - "gdpr"
   - "compliance"
   - "legal"
   - "security"
+  - "gdpr-compliant-cms"
+  - "gdpr-cms-integration"
+  - "data-portability"
+  - "right-to-erasure"
+  - "eu-compliance"
 ---
 
 # GDPR Compliance Suite
@@ -84,7 +89,21 @@ SveltyCMS includes a native **Cookie Consent Plugin** (`src/plugins/cookie-conse
 
 All GDPR requests (Export, Erasure) are strictly logged in the **Audit Log** to prove compliance to regulators if requested.
 
+## Headless CMS Integration for GDPR Compliance
+
+When integrating decoupled web frontends (SvelteKit, Next.js, Nuxt, Astro) or mobile applications with SveltyCMS:
+
+1. **Self-Service Data Export Endpoint**:
+   Frontend user profile portals can allow users to request an archive of their account, activity, and preferences via `POST /api/user/export`. The server returns an RFC-compliant JSON payload.
+2. **Anonymized Erasure Endpoint**:
+   When a user requests account termination, calling `POST /api/user/anonymize` soft-deletes the identity, clears all personal attributes (email, names, phone numbers), replaces author references with an anonymized ghost actor, and records a cryptographically signed entry in the immutable audit trail.
+3. **Decoupled Cookie Consent Coordination**:
+   Decoupled frontends can query the Cookie Consent configuration or mirror user privacy preferences to block analytics or third-party marketing tags until explicit consent is obtained.
+
 ## Industry Comparison
+
+> [!NOTE]
+> Competitive comparisons based on publicly available documentation as of June 2026 in compliance with EU Directive 2006/114/EC and German UWG §6.
 
 How SveltyCMS compares to other platforms for GDPR implementation:
 

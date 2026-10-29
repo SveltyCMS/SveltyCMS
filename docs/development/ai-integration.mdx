@@ -37,17 +37,18 @@ SveltyCMS 2026 leverages a fully implemented and hosted **Model Context Protocol
 
 Based on publicly available documentation as of June 2026, SveltyCMS offers MCP capabilities that other headless CMS platforms are beginning to adopt.
 
-| Capability                   | SveltyCMS                                         | PayloadCMS (new)                       | Strapi (new)              | Directus (new) |
-| :--------------------------- | :------------------------------------------------ | :------------------------------------- | :------------------------ | :------------- |
-| **Semantic vector search**   | ✅ `search_knowledge_base`                        | ❌                                     | ❌                        | ❌             |
-| **Source code reading**      | ✅ `read_source_code`                             | ❌                                     | ❌                        | ❌             |
-| **Project file tree**        | ✅ `get_file_tree`, `list_directory`              | ❌                                     | ❌                        | ❌             |
-| **Content CRUD via MCP**     | ✅ WebMCP (7 tools, draft-gated)                  | ✅ `@payloadcms/plugin-mcp` (granular) | ✅ Collection/single-type | ❌             |
-| **Content quality scoring**  | ✅ `score_content` (AI Co-Pilot)                  | ❌                                     | ❌                        | ❌             |
-| **Generative UI layouts**    | ✅ Agentic Dashboard via `json-render-svelte`     | ❌                                     | ❌                        | ❌             |
-| **Enterprise awareness**     | ✅ Trash recovery, DLQ, Yjs presence              | ❌                                     | ❌                        | ❌             |
-| **Bulk AI translation**      | ✅ `/api/ai/translate-collection`                 | ❌                                     | ❌                        | ❌             |
-| **Agentic automation tasks** | ✅ `agentic_task` operation in Automation Builder | ❌                                     | ❌                        | ❌             |
+| Capability                     | SveltyCMS                                          | PayloadCMS (new)                       | Strapi (new)              | Directus (new) |
+| :----------------------------- | :------------------------------------------------- | :------------------------------------- | :------------------------ | :------------- |
+| **Semantic vector search**     | ✅ `search_knowledge_base`                         | ❌                                     | ❌                        | ❌             |
+| **Source code reading**        | ✅ `read_source_code`                              | ❌                                     | ❌                        | ❌             |
+| **Project file tree**          | ✅ `get_file_tree`, `list_directory`               | ❌                                     | ❌                        | ❌             |
+| **Content CRUD via MCP**       | ✅ WebMCP (7 tools, draft-gated)                   | ✅ `@payloadcms/plugin-mcp` (granular) | ✅ Collection/single-type | ❌             |
+| **Content quality scoring**    | ✅ `score_content` (AI Co-Pilot)                   | ❌                                     | ❌                        | ❌             |
+| **Generative UI layouts**      | ✅ Agentic Dashboard via `json-render-svelte`      | ❌                                     | ❌                        | ❌             |
+| **Enterprise awareness**       | ✅ Trash recovery, DLQ, Yjs presence               | ❌                                     | ❌                        | ❌             |
+| **Bulk AI translation**        | ✅ `/api/ai/translate-collection`                  | ❌                                     | ❌                        | ❌             |
+| **Agentic automation tasks**   | ✅ `agentic_task` operation in Automation Builder  | ❌                                     | ❌                        | ❌             |
+| **Multi-platform syndication** | ✅ Channel adaptation + corporate governance agent | ❌                                     | ❌                        | ❌             |
 
 | **AI Widget Scaffolder** | ✅ Generate 3-pillar widgets from config | ❌ | ❌ | ❌ |
 | **Marketplace** | ✅ Hosted marketplace.sveltycms.com + API client | ✅ Built-in marketplace | ❌ (GitHub only) | ⚠️ Marketplace |
@@ -209,6 +210,14 @@ Content-Type: application/json
 ```
 
 The job runs in the background via the Job Queue Service, iterating through entries, identifying missing locales, and generating translations while respecting field-level constraints. Track progress via `/api/system/jobs/{jobId}`.
+
+### Multi-Platform Corporate Alignment & Syndication Agent
+
+The `multiplatform-syndication.ts` service (`src/services/intelligence/multiplatform-syndication.ts`) provides high-speed, zero-degradation governance across multiple tenants and delivery channels:
+
+- **Corporate Guideline Auditing**: Runs deterministic policy checks (<2ms) against tone of voice, terminology, and legal regulations (e.g. EU UWG §6 comparative advertising checks, GDPR references, FTC disclaimers).
+- **Platform Channel Adapters**: Automatically adapts master content for `web`, `mobile`, `kiosk`, `b2b_portal`, `email`, and `social` without corrupting master schemas.
+- **Cross-Tenant Re-Keying & Lineage**: Safely replicates master entries into spoke tenants under the **Draft Airgap** with cryptographic audit tracking.
 
 ---
 

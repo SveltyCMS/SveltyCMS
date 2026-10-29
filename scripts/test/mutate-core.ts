@@ -38,7 +38,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { copyFileSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 interface Mutation {
@@ -198,7 +198,29 @@ function writeTarget(relativePath: string, content: string): void {
   const target = join(ROOT, relativePath);
   const temporary = `${target}.mutation-${process.pid}.tmp`;
   writeFileSync(temporary, content);
-  renameSync(temporary, target);
+  try {
+    renameSync(temporary, target);
+  } catch (err) {
+    if (process.platform === "win32") {
+      // Windows NTFS anti-virus/indexer file lock: retry with backoff, then copy fallback
+      let success = false;
+      for (let i = 0; i < 5; i++) {
+        try {
+          copyFileSync(temporary, target);
+          unlinkSync(temporary);
+          success = true;
+          break;
+        } catch {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+        }
+      }
+      if (!success) {
+        throw err;
+      }
+    } else {
+      throw err;
+    }
+  }
 }
 
 /**

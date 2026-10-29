@@ -1,27 +1,38 @@
 ---
 path: "docs/guides/deployment/vercel-deployment.mdx"
-title: "Deploy to Vercel"
-description: "Deploy SveltyCMS to Vercel with MongoDB Atlas, S3 media storage, and serverless optimization."
+title: "Deploy SveltyCMS to Vercel — Serverless SvelteKit Headless CMS"
+description: "Step-by-step guide to deploying SveltyCMS on Vercel with serverless databases (Neon PostgreSQL, MongoDB Atlas, PlanetScale) and S3/R2 media storage."
 order: 5
 icon: "mdi:cloud-upload"
 author: "SveltyCMS Team"
 created: "2026-07-29"
-updated: "2026-07-29"
+updated: "2026-10-29"
 tags:
   - "vercel"
   - "deployment"
   - "serverless"
   - "cloud"
   - "mongodb"
+  - "postgresql"
   - "s3"
+  - "sveltekit-vercel"
+  - "vercel-sqlite-ephemeral-filesystem"
+  - "serverless-database"
 ---
 
-# Deploy SveltyCMS to Vercel
+# Deploy SveltyCMS to Vercel (Serverless Guide)
 
-SveltyCMS runs on Vercel just like any SvelteKit app. This guide covers the serverless-specific configuration: database choice, media storage, environment variables, and build settings.
+Deploying SveltyCMS to Vercel leverages SvelteKit's native serverless adapter. Because serverless environments utilize ephemeral filesystems, this guide covers configuring cloud databases (Neon PostgreSQL, MongoDB Atlas), persistent object storage (Cloudflare R2, AWS S3), and required production environment variables.
 
-> [!IMPORTANT]
-> Vercel has an **ephemeral filesystem** — SQLite and local file storage do NOT work. You must use a hosted database (MongoDB Atlas, Neon PostgreSQL, PlanetScale MySQL) and cloud storage (S3, R2, Cloudinary) for media.
+## Vercel Serverless Architecture & Ephemeral Filesystem Mechanics
+
+When deploying on Vercel's serverless infrastructure:
+
+- **Why SQLite Cannot Run on Vercel**: Vercel functions execute in stateless, short-lived micro-VM containers (AWS Lambda / Firecracker). Any files written to the local disk (such as `data/sveltycms.db` or uploads in `mediaFolder/`) are destroyed when the execution instance shuts down or a new cold start initializes.
+- **Persistent Data Tier**: For production Vercel deployments, connect a serverless database over TCP or WebSocket (such as **Neon Serverless PostgreSQL** via `@neondatabase/serverless` or **MongoDB Atlas**).
+- **Persistent Media Tier**: Media uploads stream directly to S3-compatible cloud object storage (**Cloudflare R2**, **AWS S3**, or **Backblaze B2**), ensuring asset URLs remain permanent and globally edge-cached.
+
+---
 
 ## Quick Start
 

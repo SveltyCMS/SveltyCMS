@@ -1,17 +1,20 @@
 ---
 path: "docs/guides/configuration/email-system.mdx"
-title: "Email System Guide"
-description: "Documentation for the SveltyCMS email system, covering templates, SMTP configuration, and integration with the Automation System."
+title: "Email System Guide — Svelte Templates, SMTP, & Notifications in SveltyCMS"
+description: "Configure SMTP delivery, responsive Svelte email components with Tailwind CSS v4 inlining, Nodemailer transport, and automated system alerts."
 order: 10
 icon: "mdi:email-outline"
 author: "SveltyCMS Team"
 created: "2026-02-13"
-updated: "2026-07-07"
+updated: "2026-10-29"
 tags:
   - "email"
   - "smtp"
   - "notifications"
   - "guide"
+  - "svelte-email"
+  - "tailwind-email"
+  - "nodemailer"
 ---
 
 # Email System Guide
@@ -33,7 +36,7 @@ Emails are built using standard Svelte components located in `src/components/ema
 
 SveltyCMS uses `@better-svelte-email/server` as its email rendering engine, which processes Tailwind CSS v4 classes at runtime. This means you can use classes like `bg-blue-500` or `p-4` in your Svelte files, and they will be converted to inline `style="background-color: #3b82f6; padding: 1rem;"` attributes in the generated email HTML.
 
-### 2. Zero-Configuration Preview (Dev Mode)
+### 3. Zero-Configuration Preview (Dev Mode)
 
 When running in development mode or when SMTP is not configured, SveltyCMS skips
 actual SMTP delivery. The rendered email HTML is logged to the server console and,

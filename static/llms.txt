@@ -1,74 +1,70 @@
 # SveltyCMS
 
-> SveltyCMS is a self-hosted CMS. Editors use the admin. Other applications call REST or GraphQL. Server code inside this project calls LocalCMS. Collections run on SQLite, PostgreSQL, MariaDB, or MongoDB. The stack is SvelteKit 3 (RC), Svelte 5, TypeScript, and Tailwind CSS v4.
+> SveltyCMS is a database-agnostic headless CMS built with SvelteKit 3, Svelte 5 (runes), TypeScript, and Tailwind CSS v4. Editors manage content in the responsive admin UI; consumer apps connect via REST, GraphQL, and Server-Sent Events (SSE); server routes call the in-process LocalCMS SDK (0–2ms latency). Collections run with full feature parity across SQLite, PostgreSQL, MariaDB, and MongoDB. Supports multi-tenant isolation, hub-and-spoke multi-platform syndication, and enterprise SCIM 2.0.
 
-The public docs are organized by the question the reader has. Architecture essays, test write-ups, and project records are linked from these sections. They are not the first page a new editor should open.
+The public docs are organized by reader goals and architectural layers:
 
 ## Get started
 
-- [Getting started](https://docs.sveltycms.com/docs/getting-started): Install SveltyCMS and open the setup wizard.
-- [Onboarding](https://docs.sveltycms.com/docs/onboarding): Tutorials after install.
-- [Setup walkthrough](https://docs.sveltycms.com/docs/onboarding/setup-wizard): Database, admin, blueprint, optional email, and completion.
-- [Persona paths](https://docs.sveltycms.com/docs/onboarding/persona-paths): Next reading for editors, administrators, and developers.
-- [Troubleshooting](https://docs.sveltycms.com/docs/troubleshooting): Common failures.
+- [Getting started](https://docs.sveltycms.com/docs/getting-started): Install SveltyCMS and run the 5-step setup wizard.
+- [Onboarding](https://docs.sveltycms.com/docs/onboarding): First steps after installation.
+- [Setup walkthrough](https://docs.sveltycms.com/docs/onboarding/setup-wizard): Database selection, admin creation, blueprint seeding, and completion.
+- [Persona paths](https://docs.sveltycms.com/docs/onboarding/persona-paths): Guided paths for editors, administrators, and developers.
+- [Troubleshooting](https://docs.sveltycms.com/docs/troubleshooting): Resolving localhost:5173 access, port collisions (lsof, kill-port), and common errors.
 
-## Concepts
+## Concepts & Comparisons
 
-- [Concepts](https://docs.sveltycms.com/docs/concepts): Collection, entry, widget, tenant, the three APIs, and the database adapter.
+- [Concepts](https://docs.sveltycms.com/docs/concepts): Collection schemas, entries, widget architecture, multi-tenancy, APIs, and database adapters.
+- [Headless CMS Comparison 2026](https://docs.sveltycms.com/docs/project/competitive-comparison): Objective comparison with Payload CMS, Strapi, and Directus under EU Directive 2006/114/EC and German UWG §6.
+- [SvelteKit 3 Migration Guide](https://docs.sveltycms.com/docs/development/sveltekit-v3-migration): Breaking changes, process.env.ORIGIN replacement, and Svelte 5 runes conventions.
 
 ## Guides
 
-Task recipes for the admin and for operations.
+Task-oriented recipes for editorial, administration, and deployment operations:
 
-- [Guides](https://docs.sveltycms.com/docs/guides): Index.
-- [Collection Builder](https://docs.sveltycms.com/docs/guides/content/collection-builder): Collections, fields, and relations.
-- [Workflows](https://docs.sveltycms.com/docs/guides/content/workflows): Draft, review, and publish.
-- [Automations](https://docs.sveltycms.com/docs/guides/content/automations): Emails, webhooks, and field updates when an entry changes.
-- [E-commerce](https://docs.sveltycms.com/docs/guides/content/ecommerce): Optional catalog, orders, and payments.
-- [Maintenance](https://docs.sveltycms.com/docs/guides/configuration/maintenance): Watchdog, cache compaction, and trash purge.
-- [Image editor](https://docs.sveltycms.com/docs/guides/content/image-editor): Crop and edit media.
-- [Migration and import](https://docs.sveltycms.com/docs/guides/content/migration-and-import): Bring content in from a file or another CMS.
-- [Access management](https://docs.sveltycms.com/docs/guides/configuration/access-management): Roles and permissions.
-- [System settings](https://docs.sveltycms.com/docs/guides/configuration/system-settings): Site, cache, and security settings.
-- [System languages](https://docs.sveltycms.com/docs/guides/configuration/system-languages): Admin locales.
-- [Email](https://docs.sveltycms.com/docs/guides/configuration/email-system): SMTP and templates.
-- [Upgrading](https://docs.sveltycms.com/docs/guides/configuration/upgrading): Move an existing install forward.
-- [Production deployment](https://docs.sveltycms.com/docs/guides/deployment/production-deployment): Run for real traffic.
-- [GDPR](https://docs.sveltycms.com/docs/guides/legal/gdpr-compliance): Privacy obligations for an install.
+- [Guides Index](https://docs.sveltycms.com/docs/guides): Directory of task guides.
+- [Collection Builder](https://docs.sveltycms.com/docs/guides/content/collection-builder): Visual schema designer with bidirectional code-GUI parity.
+- [Workflows & Syndication](https://docs.sveltycms.com/docs/guides/content/workflows): Draft, review, publish, and corporate multi-platform brand governance.
+- [Automations](https://docs.sveltycms.com/docs/guides/content/automations): Event-driven triggers, webhooks, cron schedules, and agentic tasks.
+- [E-commerce](https://docs.sveltycms.com/docs/guides/content/ecommerce): Product catalogs, orders, and payment integrations.
+- [Image Editor](https://docs.sveltycms.com/docs/guides/content/image-editor): Non-destructive in-browser Canvas editing and Sharp.js transforms.
+- [Migration & Import](https://docs.sveltycms.com/docs/guides/content/migration-and-import): Moving content from WordPress, Strapi, or flat files.
+- [Access Management](https://docs.sveltycms.com/docs/guides/configuration/access-management): RBAC, permissions, and session policies.
+- [Email System](https://docs.sveltycms.com/docs/guides/configuration/email-system): Svelte email templates with Tailwind CSS inlining and SMTP.
+- [Production Deployment](https://docs.sveltycms.com/docs/guides/deployment/production-deployment): Docker and Node.js production hosting.
+- [Vercel Deployment](https://docs.sveltycms.com/docs/guides/deployment/vercel-deployment): Serverless deployment with remote PostgreSQL / MongoDB and S3 storage.
+- [GDPR Compliance](https://docs.sveltycms.com/docs/guides/legal/gdpr-compliance): Automated Right to Erasure, Data Portability, and cryptographic audit logs.
 
-## Build
+## Build & Extend
 
-Extend the CMS.
-
-- [Development](https://docs.sveltycms.com/docs/development): Index.
-- [Native UI](https://docs.sveltycms.com/docs/development/ui): AdminPageShell, AdminCard, and the controls in src/components/ui.
-- [Widgets](https://docs.sveltycms.com/docs/development/widgets): Custom fields. Definition, input, and display.
-- [Dashboard widgets](https://docs.sveltycms.com/docs/development/dashboard): Cards on the admin dashboard.
-- [Local SDK vs HTTP](https://docs.sveltycms.com/docs/development/local-vs-http-api): When server code should call LocalCMS.
-- [Site starter](https://docs.sveltycms.com/docs/development/site-starter): Optional public site in this repo.
-- [Plugins](https://docs.sveltycms.com/docs/development/plugins/development): Server hooks. The runtime (boot, capabilities, encrypted settings) is [Plugin runtime](https://docs.sveltycms.com/docs/reference/architecture/plugin-architecture).
+- [Development Index](https://docs.sveltycms.com/docs/development): Extending SveltyCMS.
+- [Native UI Primitives](https://docs.sveltycms.com/docs/development/ui): AdminPageShell, AdminCard, Button, and theme tokens.
+- [Custom Widgets](https://docs.sveltycms.com/docs/development/widgets): Creating custom field widgets with schema, input, and display layers.
+- [Local SDK vs HTTP](https://docs.sveltycms.com/docs/development/local-vs-http-api): Performance benchmarks and architectural guidance for LocalCMS.
+- [Site Starter](https://docs.sveltycms.com/docs/development/site-starter): Built-in public website template.
+- [Plugins System](https://docs.sveltycms.com/docs/development/plugins/development): Server hooks, capabilities, and encrypted settings.
 
 ## Reference
 
-Look up a contract.
-
-- [Reference](https://docs.sveltycms.com/docs/reference): Index.
-- [API](https://docs.sveltycms.com/docs/reference/api): REST, GraphQL, and related endpoints.
-- [Security](https://docs.sveltycms.com/docs/reference/security): Auth, CSP, field access, incident response.
-- [Database](https://docs.sveltycms.com/docs/reference/database): SQLite, PostgreSQL, MariaDB, and MongoDB adapters.
-- [Components](https://docs.sveltycms.com/docs/reference/components): Admin collection UI.
-- [Architecture](https://docs.sveltycms.com/docs/reference/architecture): Why the engine is built this way. Read the page for the subsystem you are changing.
+- [Reference Index](https://docs.sveltycms.com/docs/reference): Technical reference hub.
+- [API Reference](https://docs.sveltycms.com/docs/reference/api): REST, GraphQL, and Remote Functions.
+- [SCIM 2.0 User Provisioning](https://docs.sveltycms.com/docs/reference/api/scim): RFC 7644 enterprise IdP integration (Okta, Entra ID).
+- [Real-Time Updates](https://docs.sveltycms.com/docs/reference/api/graphql-subscriptions): Server-Sent Events (SSE) and Yjs CRDT collaboration.
+- [Security Architecture](https://docs.sveltycms.com/docs/reference/security): CSP, field-level access control, and Passkeys/WebAuthn.
+- [Database Adapters](https://docs.sveltycms.com/docs/reference/database): Strict agnosticism across SQLite, PostgreSQL, MariaDB, and MongoDB.
+- [Multi-Tenancy Architecture](https://docs.sveltycms.com/docs/reference/architecture/multi-tenancy): Cross-tenant syndication, draft airgaps, and channel constraints.
+- [Live Preview Architecture](https://docs.sveltycms.com/docs/reference/architecture/live-preview-architecture): Cryptographic handshake and iframe visual editing.
 
 ## Contribute
 
-- [Contributing to the documentation](https://docs.sveltycms.com/docs/contributing/contributing-docs): Where a page belongs, style, and the pull request.
-- [Admin style guide](https://docs.sveltycms.com/docs/contributing/style-guide-gui): Admin UI patterns.
-- [Accessibility](https://docs.sveltycms.com/docs/contributing/accessibility): WCAG 2.2 AA and ATAG 2.0.
-- [Validation pipeline](https://docs.sveltycms.com/docs/contributing/validation-pipeline): Git hooks and CI.
+- [Contributing to Documentation](https://docs.sveltycms.com/docs/contributing/contributing-docs): Style standards and PR workflow.
+- [Admin UI Style Guide](https://docs.sveltycms.com/docs/contributing/style-guide-gui): Single-shade token contract and accessible logical properties.
+- [Accessibility Standards](https://docs.sveltycms.com/docs/contributing/accessibility): WCAG 2.2 AA and ATAG 2.0 compliance.
+- [Validation Pipeline](https://docs.sveltycms.com/docs/contributing/validation-pipeline): Pre-commit git hooks, linting, and CI gates.
 
-## Machine-readable extras
+## Machine-Readable Extras
 
-- [OpenAPI](https://demo.sveltycms.com/api/openapi.json): Generated from the running CMS.
-- [MCP knowledge server](https://mcp.sveltycms.com/mcp): Live tools over the project knowledge base.
-- [Source](https://github.com/SveltyCMS/SveltyCMS): The product repository. These docs live in `docs/`.
-- [Marketplace](https://marketplace.sveltycms.com): Widgets, plugins, and themes.
+- [OpenAPI Spec](https://demo.sveltycms.com/api/openapi.json): Live generated schema.
+- [MCP Knowledge Server](https://mcp.sveltycms.com/mcp): Model Context Protocol endpoints for AI agent tool integration.
+- [GitHub Repository](https://github.com/SveltyCMS/SveltyCMS): Open-source source code and issue tracker.
+- [Marketplace](https://marketplace.sveltycms.com): Community widgets, plugins, and themes.

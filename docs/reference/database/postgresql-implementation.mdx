@@ -1,17 +1,20 @@
 ---
 path: "docs/reference/database/postgresql-implementation.mdx"
-title: "PostgreSQL Implementation"
-description: "PostgreSQL adapter implementation using Drizzle ORM for SveltyCMS."
+title: "PostgreSQL Database Adapter & SQLite-to-PostgreSQL Migration"
+description: "Enterprise PostgreSQL adapter for SveltyCMS using Drizzle ORM and postgres.js: connection pooling, zero-drift declarative schema bootstrap, and migrating from SQLite."
 order: 4
 icon: "mdi:elephant"
 author: "SveltyCMS Team"
 created: "2026-02-04"
-updated: "2026-09-22"
+updated: "2026-10-29"
 tags:
   - "database"
   - "postgresql"
   - "drizzle"
   - "production"
+  - "sqlite-to-postgres"
+  - "postgres-migration"
+  - "db-adapter"
 ---
 
 # PostgreSQL Implementation
@@ -314,6 +317,57 @@ SveltyCMS's built-in `ConnectionPoolOptions` and `getConnectionPoolStats()` work
 - `cl_waiting` (should stay near 0 — increase `default_pool_size` if growing)
 - `avg_wait_time` (should be < 1ms)
 - Postgres `active` connections (should be stable, not climbing)
+
+## Migrating from SQLite to PostgreSQL
+
+Migrating from local SQLite development to production PostgreSQL is straightforward thanks to SveltyCMS's declarative schema and universal database interface:
+
+### 1. Export Content from SQLite
+
+Using the Content Transfer API or the Admin UI (**Config → Content Transfer**):
+
+```bash
+# Export all collections, entries, and schema configurations to JSON
+curl -X POST http://localhost:5173/api/content-transfer/export \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"includeCollections": true, "includeEntries": true}' \
+  -o sveltycms-export.json
+```
+
+### 2. Update Environment Configuration
+
+In your production environment or `config/private.ts`, switch the database type and provide your PostgreSQL credentials:
+
+```bash
+DB_TYPE=postgresql
+DB_HOST=your-postgres-host.internal
+DB_PORT=5432
+DB_USER=svelty_admin
+DB_PASSWORD=your_secure_password
+DB_NAME=svelty_production
+DB_SSL=true
+```
+
+### 3. Start SveltyCMS to Auto-Bootstrap Schemas
+
+On first boot with `DB_TYPE=postgresql`, SveltyCMS automatically creates all required core tables and system indexes:
+
+```bash
+bun run build
+bun run preview
+```
+
+### 4. Import Content into PostgreSQL
+
+Restore your content and schema into the new PostgreSQL instance:
+
+```bash
+curl -X POST https://your-cms-domain.com/api/content-transfer/import \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d @sveltycms-export.json
+```
 
 ---
 

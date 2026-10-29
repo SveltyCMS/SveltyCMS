@@ -132,6 +132,35 @@ The Workflow Engine integrates deeply with:
 
 - **Automation System**: Automatically trigger workflows based on events.
 - **AI Agent**: Use the agent to "Analyze and advance" content based on quality checks.
+- **Corporate Governance & Alignment Guard**: Automated policy auditing before allowing transitions into `approved`, `scheduled`, or `published` states.
+
+### Multi-Platform Corporate Alignment Guard
+
+In multi-tenant or multi-platform environments, content must comply with corporate guidelines, brand tone, and regional legal standards before going live:
+
+```typescript
+import { workflowAlignmentGuard } from "@src/services/intelligence/multiplatform-syndication";
+
+// Automated pre-transition check
+const { allow, reason, report } = await workflowAlignmentGuard({
+  collectionId: "articles",
+  entryId: "entry_123",
+  targetState: "approved",
+  minScore: 80, // Minimum acceptable score out of 100
+});
+
+if (!allow) {
+  // Rejects transition and records violations in the editorial review history
+  throw new AppError(reason, 400, "ALIGNMENT_VIOLATION");
+}
+```
+
+#### What the Guard Evaluates (<2ms execution):
+
+1. **Regulatory Compliance**: Flags unsupported superlative claims under EU UWG §6 ("the best", "unbeatable") and missing regional legal disclosures.
+2. **Fair Competition**: Prevents discrediting competitor remarks ("broken", "inferior").
+3. **Terminology Consistency**: Enforces corporate product names, trademark symbols, and casing.
+4. **Platform Formats**: Validates title and body length limits for specific channels (e.g. Mobile $\le 60$ char titles, Kiosk $\le 350$ char plain-text).
 
 ---
 

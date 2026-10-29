@@ -1,35 +1,49 @@
 ---
 path: "docs/project/competitive-comparison.mdx"
-title: "Competitive Comparison"
-description: "A strategic, EU-compliant buyer's guide comparing SveltyCMS with Payload CMS, Strapi, and Directus across total cost of ownership, compliance readiness, and time-to-market."
+title: "Headless CMS Comparison 2026: SveltyCMS vs. Payload CMS vs. Strapi vs. Directus"
+description: "Objective 2026 technical comparison of open-source headless CMS platforms: SveltyCMS, Payload CMS, Strapi, and Directus across performance, multi-tenancy, AI capabilities, and total cost of ownership."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-10-19"
+updated: "2026-10-29"
 tags:
   - "comparison"
   - "buyers-guide"
   - "tco"
   - "compliance"
   - "payload"
+  - "payload-cms-alternative"
   - "strapi"
+  - "strapi-vs-payload"
   - "directus"
   - "seo"
   - "geo"
   - "ai-visibility"
 ---
 
-# Competitive Comparison: The Buyer's Guide
+# Competitive Comparison: SveltyCMS vs. Payload CMS vs. Strapi vs. Directus (2026)
 
-This guide is written for CTOs, lead architects, and agency owners evaluating a content platform — not for a feature-list debate. Instead of comparing how the engines work, it compares what each platform lets your team do:
+This guide is written for CTOs, lead architects, and engineering teams evaluating modern headless content platforms—specifically teams comparing **Payload CMS, Strapi, Directus, and SveltyCMS** or seeking an alternative to legacy monoliths:
 
-- **What it costs to run** (total cost of ownership)
-- **How fast you can ship** (time-to-market)
-- **Whether you pass the security review** (compliance readiness)
-- **What is included versus what is paid** (free core vs. paid tiers)
+- **What it costs to run** (total cost of ownership, free core vs. enterprise paywalls)
+- **How fast you can ship** (time-to-market, developer experience, Svelte 5 vs. React VDOM)
+- **Whether you pass the security review** (SSO, SCIM 2.0, multi-tenancy, audit logging)
+- **Multi-platform & AI readiness** (Model Context Protocol, FSM review workflows, zero-network LocalCMS SDK)
 
-We compare SveltyCMS with Payload CMS, Strapi, and Directus based on publicly available documentation and pricing pages as of July 2026, on a like-for-like basis: SveltyCMS's free core is compared against each platform's free/community edition, with paid-tier availability noted separately. Where a competitor offers something we include for free in paid tiers, we say so. Where a competitor is genuinely stronger — a bigger marketplace, a deeper React integration — the [Verdict](#verdict) section says that too.
+We compare SveltyCMS with Payload CMS, Strapi, and Directus based on publicly available documentation and pricing pages as of October 2026, on a like-for-like basis: SveltyCMS's free open-source core is compared against each platform's free/community edition, with paid-tier availability noted separately. Where a competitor offers something in a paid tier that we include in core, we say so. Where a competitor is genuinely stronger—such as Payload's deeper React/Next.js ecosystem or Strapi's massive plugin marketplace—the [Verdict](#verdict) section explicitly highlights that.
 
-This page follows EU Directive 2006/114/EC and German UWG §6 requirements for comparative advertising: all claims are date-stamped, based on verifiable public sources, and written in neutral, descriptive language. See [Sources and Methodology](#sources-and-methodology) for details.
+This page complies with EU Directive 2006/114/EC and German UWG §6 requirements for comparative advertising: all claims are date-stamped, based on verifiable public sources, and written in neutral, descriptive language. See [Sources and Methodology](#sources-and-methodology) for details.
+
+---
+
+## Evaluating Payload CMS vs. Strapi vs. SveltyCMS (2026 Overview)
+
+### Why Teams Look for Alternatives to Payload CMS or Strapi:
+
+- **React VDOM Overhead**: Payload and Strapi administer their backends using React. In content-dense table views or complex form trees, VDOM reconciliation creates noticeable client CPU lag. SveltyCMS is compiled with **Svelte 5 runes**, delivering sub-millisecond reactive updates with a minimal JavaScript footprint.
+- **Enterprise Multi-Tenancy Paywalls**: In Payload and Strapi, multi-tenancy, SAML SSO, and SCIM provisioning are either enterprise-only offerings or require custom relational plumbing. SveltyCMS includes **native `tenantId` isolation, Global-to-Spoke syndication, and SSO/SCIM in its open-source core**.
+- **Internal Server Query Latency**: Connecting a SvelteKit, Next.js, or Nuxt frontend to Strapi requires HTTP/REST network requests on every server loader. In SveltyCMS, the **`LocalCMS` SDK** allows server-side loaders to query the database directly in under 2ms without HTTP serialization or rate-limit overhead.
+
+---
 
 ## Decision snapshot (facts, not pitch)
 

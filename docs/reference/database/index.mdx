@@ -1,21 +1,37 @@
 ---
 path: "docs/reference/database/index.mdx"
-title: "Database Documentation Hub"
-description: "Central hub for SveltyCMS database architecture — 4 production adapters, findPage/hasMore, count modes + cache, allocation-floor engine, and zero-tax LocalCMS."
+title: "Database Agnostic Headless CMS Architecture — SQLite, PostgreSQL, MariaDB, & MongoDB"
+description: "Explore database-agnostic headless CMS architecture in SveltyCMS: swap between SQLite, PostgreSQL, MariaDB, and MongoDB with 100% schema parity and zero code changes."
 order: 1
 icon: "mdi:database"
 author: "SveltyCMS Team"
 created: "2024-01-15"
-updated: "2026-10-06"
+updated: "2026-10-29"
 tags:
   - "database"
   - "architecture"
   - "hub"
+  - "database-agnostic"
+  - "db-agnostic"
+  - "sqlite"
+  - "postgresql"
+  - "mariadb"
+  - "mongodb"
+  - "headless-cms-database"
 ---
 
 # Database Documentation Hub
 
-Welcome to the SveltyCMS Database Engine documentation. Our architecture is built on the principle of **Strict Agnosticism**, allowing you to swap between NoSQL and Relational engines without changing a single line of application logic.
+Welcome to the SveltyCMS Database Engine documentation. Our architecture is built on the principle of **Strict Database Agnosticism**, allowing you to swap between NoSQL and Relational engines without changing a single line of application logic or frontend code.
+
+## What Does "Database-Agnostic" Mean in SveltyCMS?
+
+In traditional CMS architectures, changing databases usually requires rewriting schemas, ORM models, or migration files. SveltyCMS solves this through the **Unified `IDBAdapter` Interface**:
+
+1. **Local & Edge (SQLite)**: Sub-millisecond queries in WAL mode with zero network latency. Ideal for local development, testing, and single-node production.
+2. **Enterprise Relational (PostgreSQL & MariaDB)**: Native connection pooling, ACID transaction guarantees, and compiled prepared-statement plans for high-concurrency clustered workloads.
+3. **Document Store (MongoDB)**: High-throughput document operations with type-safe query guards and automatic connection failover.
+4. **Zero Code Changes**: Collections, field widgets, workflows, and search indexes behave identically across all four supported engines.
 
 ---
 

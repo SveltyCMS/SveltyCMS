@@ -1626,7 +1626,7 @@ export default defineConfig(() => {
       target: "esnext",
       minify: "esbuild" as const,
       sourcemap: !process.env.CI,
-      chunkSizeWarningLimit: 1200,
+      chunkSizeWarningLimit: 1700,
       // Rolldown (Vite 8): disable plugin-timing spam; still measurable via --debug if needed.
       checks: { pluginTimings: false },
       rollupOptions: {

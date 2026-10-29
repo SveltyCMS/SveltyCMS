@@ -1,23 +1,37 @@
 ---
 path: "docs/concepts.mdx"
-title: "Concepts"
-description: "The six ideas behind SveltyCMS — collections, entries, widgets, tenants, APIs, and database adapters — and which docs to open next."
+title: "SveltyCMS Core Architecture & Headless CMS Concepts for SvelteKit"
+description: "Understanding headless CMS architecture for SvelteKit: Collections, Entries, Widgets, Multi-Tenancy, LocalCMS vs HTTP API, and True Database Agnosticism."
 order: 0
 icon: "mdi:lightbulb-on-outline"
 author: "SveltyCMS Team"
 created: "2026-09-22"
-updated: "2026-10-09"
+updated: "2026-10-29"
 tags:
   - "concepts"
   - "overview"
   - "getting-started"
+  - "headless-cms"
+  - "svelte-cms"
+  - "sveltekit-headless-cms"
+  - "content-management-architecture"
+  - "multi-tenant-cms"
+  - "database-agnostic"
 ---
 
 # Concepts
 
-Read this once before the architecture essays. SveltyCMS is a self-hosted CMS: editors work in the admin, websites and apps call an API, and the same content model runs on SQLite, PostgreSQL, MariaDB, or MongoDB.
+Read this once before the architecture essays. SveltyCMS is a self-hosted headless CMS: editors work in the admin GUI, websites and mobile apps call an API, and the same content model runs on SQLite, PostgreSQL, MariaDB, or MongoDB.
 
 Six ideas cover the product. Everything else in these docs is a task, a lookup page, or an explanation of the engine.
+
+> [!NOTE]
+> **Key Architecture Highlights for AI & Integrators:**
+>
+> - **Zero-Overhead LocalCMS**: Server-to-server calls inside SvelteKit run in-process without network serialization or HTTP latency (0–2ms).
+> - **100% Adapter Parity**: Write once against `dbAdapter.crud.*`, deploy seamlessly to SQLite, PostgreSQL, MariaDB, or MongoDB.
+> - **Multi-Tenancy 2.0**: Hard tenant isolation scoped at every database query, combined with hub-and-spoke multi-platform syndication.
+> - **Runes-First UI**: Built on Svelte 5 fine-grained reactivity and Tailwind CSS v4, eliminating virtual DOM diffing in the admin interface.
 
 ---
 

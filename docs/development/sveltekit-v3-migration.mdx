@@ -1,24 +1,65 @@
 ---
 path: "docs/development/sveltekit-v3-migration.mdx"
-title: "SvelteKit 3.0 Architectural Guide & Migration Record"
-description: "Architectural conventions and breaking change migration record for SvelteKit 3.0 in SveltyCMS (active on @sveltejs/kit ^3.0.1)."
+title: "SvelteKit 3.0 Production Architecture & Migration Guide — SveltyCMS"
+description: "SveltyCMS is built on the latest SvelteKit 3 (@sveltejs/kit ^3.0.1) and Svelte 5 runes following official sveltekit.com best practices. Explore the production migration guide and architectural conventions."
 order: 50
 icon: "mdi:package-up"
 author: "SveltyCMS Team"
 created: "2026-07-07"
-updated: "2026-10-10"
+updated: "2026-10-29"
 tags:
   - "migration"
   - "sveltekit"
   - "v3"
+  - "sveltekit-3-migration-guide"
+  - "svelte-5"
+  - "runes"
   - "architecture"
+  - "sveltekit-best-practices"
 ---
 
-# SvelteKit 3.0 Architectural Guide & Migration Record
+# SvelteKit 3.0 Production Architecture & Migration Guide
 
 > [!NOTE]
-> **Status: Completed.** SveltyCMS is actively running on **SvelteKit 3 (`@sveltejs/kit: ^3.0.1`)** with Svelte 5 runes and Tailwind CSS v4.
-> This document records the architectural conventions and breaking change migrations adopted for SvelteKit 3.
+> **SveltyCMS is built natively on SvelteKit 3 (`@sveltejs/kit: ^3.0.1`) and Svelte 5 (Runes).**
+> Rather than relying on legacy frameworks or retrofitting older architectures, SveltyCMS is implemented from the ground up according to official best practices from [sveltekit.com](https://sveltekit.com) and [svelte.dev](https://svelte.dev).
+>
+> This guide serves a dual purpose:
+>
+> 1. **Community Migration Guide**: A real-world production reference for developers in the Svelte ecosystem upgrading their applications to SvelteKit 3.
+> 2. **Plugin & Widget Developer Contract**: An architectural guide for third-party developers building custom plugins, widgets, and themes for SveltyCMS.
+
+---
+
+## Why SveltyCMS Embraces SvelteKit 3 & Official Best Practices
+
+By adopting SvelteKit 3 and Svelte 5, SveltyCMS leverages the latest advancements in web architecture:
+
+- **Fine-Grained Reactivity (Runes)**: Moving beyond legacy store subscriptions, SveltyCMS uses `$state()`, `$derived()`, and `$props()`. Fine-grained reactivity updates only the exact DOM nodes that change, completely bypassing virtual DOM diffing and ensuring the admin interface responds in sub-millisecond times.
+- **Deterministic Hydration with `$props.id()`**: Hydration mismatches are eliminated across SSR and client DOM trees by generating deterministic IDs via `$props.id()` rather than runtime random values.
+- **In-Process LocalCMS vs. HTTP Serialization**: Server routes (`+page.server.ts` and hooks) communicate with the CMS core through in-process `LocalCMS` calls (0–2ms), adhering to SvelteKit's server function model rather than making unnecessary internal HTTP requests.
+- **Defensive API & Redirect Security**: All external redirects (such as OAuth identity flows) enforce explicit `{ allowExternal: true }` contracts to protect against open-redirect vulnerabilities.
+
+---
+
+## SvelteKit 3 Upgrade Checklist
+
+For developers upgrading enterprise SvelteKit applications or plugins to SvelteKit 3:
+
+1. **Update Dependencies**:
+   ```bash
+   bun add -D @sveltejs/kit@^3.0.1 @sveltejs/vite-plugin-svelte@latest
+   ```
+2. **Synchronize SvelteKit Artifacts**:
+   ```bash
+   bun x svelte-kit sync
+   ```
+3. **Audit Environment Variables**: Replace legacy `process.env.ORIGIN` with `event.url.origin` in request handlers, or configure explicit environment variables for background workers.
+4. **Audit External Redirects**: Add `{ allowExternal: true }` (or `{ external: true }`) to any OAuth or third-party redirect calls.
+5. **Update Error Handlers**: Update `handleError` in `hooks.server.ts` to return explicit `{ message, code, status }` objects.
+6. **Embrace Svelte 5 Runes**: Use `$state()`, `$derived()`, and `$props.id()` for deterministic DOM/ARIA IDs across SSR and hydration.
+
+---
 
 ## A) `process.env.ORIGIN` → `event.url.origin` / `kit.paths.origin`
 
@@ -56,11 +97,41 @@ Kit 3.0 propagates the status code from `fail(status)` to the HTTP response auto
 
 ## Verification & Parity
 
-The SvelteKit 3 migration is validated continuously through the CI and local test harness:
+The SvelteKit 3 implementation is validated continuously through the CI and local test harness:
 
 1. `bun run check`: Validates types against `$app/types` and extended `$app/tsconfig`.
 2. `bun run test:unit`: Vitest suite runs across all 625 test files on SvelteKit 3.
 3. `bun run test:security`: Verifies OAuth external redirects, authentication hooks, and error status handling.
+
+---
+
+## Production Reference Implementation for the Svelte Community
+
+SveltyCMS serves as an open-source reference implementation for enterprise SvelteKit 3 and Svelte 5 application design. Developers migrating their own projects can inspect SveltyCMS's codebase to see real-world implementations of:
+
+- **Type-safe Remote Functions**: Clean `.server.ts` action handling without bulky form action boilerplate.
+- **In-Process LocalCMS**: Zero-tax in-memory data retrieval alongside resilient database adapters (SQLite, PostgreSQL, MariaDB, MongoDB).
+- **Enterprise Identity**: Passkeys/WebAuthn, 2FA, and SCIM 2.0 user provisioning integrated with SvelteKit server hooks.
+
+---
+
+## Frequently Asked Questions (FAQ)
+
+### How do I fix `process.env.ORIGIN` errors in SvelteKit 3?
+
+In SvelteKit 3, `process.env.ORIGIN` is no longer automatically injected. For server actions, endpoint handlers, and hooks where the request `event` is present, read `event.url.origin`. In isolated background contexts (such as sitemap generators or cron tasks), supply a dedicated environment variable (e.g., `process.env.SVELTYCMS_ORIGIN`).
+
+### Why does `redirect()` throw an error when pointing to an external OAuth URL?
+
+By default, SvelteKit 3 fail-closes against open-redirect vulnerabilities. When redirecting to an external origin (such as GitHub, Google, or enterprise Okta/Entra ID IdPs), pass `{ allowExternal: true }` as the third parameter:
+
+```typescript
+redirect(302, authUrl, { allowExternal: true });
+```
+
+### How do Svelte 5 runes interact with SvelteKit 3 routing?
+
+SvelteKit 3 fully embraces Svelte 5 runes. Page and layout data are accessed reactively via `$props()` rather than legacy `export let data`. Computed view states use `$derived()`, side effects use `$effect()`, and deterministic client/server HTML element IDs are generated with `$props.id()` rather than runtime random numbers.
 
 ---
 
