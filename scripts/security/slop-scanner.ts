@@ -42,7 +42,11 @@ const PRINT_CAP = Math.max(0, Number(process.env.SLOP_PRINT_CAP ?? 25) || 25);
  * are summarised as counts and listed only under `--surface` / `--verbose`, so
  * a clean run is not buried under hundreds of lines of ecosystem inventory.
  */
-const ADVISORY_INFO_CATEGORIES = new Set(["export-surface", "duplicate-export-name"]);
+const ADVISORY_INFO_CATEGORIES = new Set([
+  "export-surface",
+  "duplicate-export-name",
+  "adapter-parity",
+]);
 
 // Suppressed files/categories to suppress known legacy exceptions
 const SUPPRESS: { file: string; category: string }[] = [];
@@ -1481,7 +1485,10 @@ function scanDuplicateExportNames(entries: { rel: string; content: string }[]) {
  * export surfaces of the four `adapter-core.ts` files and reports asymmetries
  * as inventory (the shared adapter contract itself is enforced by tsc).
  */
-function scanAdapterParity(entries: { rel: string; content: string }[]) {
+function scanAdapterParity(entries: { rel: string; content: string }[], isPartial = false) {
+  if (isPartial && !entries.some((e) => e.rel.endsWith("/adapter-core.ts"))) {
+    return;
+  }
   const ADAPTERS = ["sqlite", "postgresql", "mariadb", "mongodb"];
   const surfaces = new Map<string, Set<string>>();
   for (const db of ADAPTERS) {
@@ -1642,7 +1649,7 @@ async function main() {
 
   // Cross-module checks (need the full file set)
   scanDuplicateExportNames(entries);
-  scanAdapterParity(entries);
+  scanAdapterParity(entries, targetFiles !== null);
 
   await scanUnusedExports(tsFiles, svelteFiles);
 

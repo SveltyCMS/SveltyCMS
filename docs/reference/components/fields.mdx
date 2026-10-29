@@ -591,27 +591,35 @@ export const seoPlugin: Plugin = {
 
 ## 🧩 Visual Polymorphic Block Builder Widget {#visual-polymorphic-block-builder-widget}
 
-The **Block Builder Widget** (`src/widgets/custom/block-builder/`) provides visual page-building capabilities directly inside SveltyCMS collection schemas. Instead of rigid, flat form fields, authors assemble modular, responsive page layouts out of polymorphic, reusable content blocks.
+The **Block Builder Widget** (`src/widgets/custom/block-builder/`) provides visual Canvas page-building capabilities directly inside SveltyCMS collection schemas. Instead of rigid, flat form fields, authors assemble modular, responsive page layouts out of polymorphic, reusable content blocks with instant 1-click starter blueprints and prompt-to-layout AI generation.
 
-### 3-Pillar Widget Architecture
+### Modern Canvas Component Architecture
 
-1. **Definition (`index.ts`)**:
+1. **Definition (`index.ts` & `blueprints.ts`)**:
    - Factory `createWidget()` conforming to the standard `GuiField` contract.
-   - Strict Valibot validation schema (`blockBuilderSchema`) enforcing required block identifiers, titles, and variant data structures.
+   - Strict Valibot validation schema enforcing required block identifiers, titles, and variant data structures with zero `any`.
    - Built-in block preset registry:
      - `hero`: Title, subtitle, primary CTA label, CTA URL, background image URL, alignment (`left`, `center`, `right`).
      - `features`: Feature list with item titles, descriptions, and Iconify icon identifiers.
-     - `cta`: Call-to-action title, description, button label, button URL, style variant (`primary`, `secondary`, `outline`).
-     - `testimonials`: Quotes, author names, roles/companies, and avatar image URLs.
+     - `stats`: Key metrics and performance indicators (e.g., 99.99% uptime, 10x velocity).
+     - `pricing`: 3-tier subscription pricing comparison table with features and signup URLs.
+     - `logo-cloud`: Partner and customer proof brand badges.
+     - `cta`: Call-to-action title, description, button label, button URL, style variant.
+     - `testimonial`: Customer endorsement quotes, author names, roles/companies, and avatars.
      - `faq`: Interactive question-and-answer pairs.
-     - `rich-text`: Formatted HTML or Markdown body content.
+     - `media`: Rich media showcase with aspect ratios, captions, and accessible alt text.
+     - `text` / `rich-text`: Formatted HTML or Markdown body copy.
+   - **Production Blueprints**: 1-click full page compositions for SaaS Product Launch, Company Profile, Product Showcase, FAQ Knowledge Base, and Lead Generation.
+   - **Prompt-to-Layout AI**: Intelligent natural language generator transforming user prompts into structured, typed block sequences with contextual copy.
 
 2. **Input Component (`input.svelte`)**:
-   - Interactive block inserter drawer with preset icons and human-friendly descriptions.
+   - Dual-mode viewing: **Edit Fields** mode for fine-grained content editing and **Visual Wireframe** mode for scannable structural page flow.
+   - 1-click starter blueprint selector modal with visual flow badges.
+   - AI layout prompt modal with quick starter suggestions.
    - Move-up and move-down block reordering with keyboard and click accessibility.
    - Collapsible cards allowing editors to manage complex long-form pages without visual clutter.
    - In-line type-specific field editors bound directly to the active collection document state.
-   - Per-block clone/duplicate and delete actions with confirmation safeguards.
+   - Per-block duplicate and delete actions.
    - Status badge displaying total block count and real-time schema validation feedback.
 
 3. **Display Component (`display.svelte`)**:

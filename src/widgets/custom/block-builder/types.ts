@@ -4,8 +4,9 @@
  *
  * Features:
  * - Polymorphic block definitions with per-block schemas
- * - Standard block presets (Hero, Text, Media, CTA, Features, Testimonial, FAQ, Rich Text)
+ * - Standard block presets (Hero, Text, Media, CTA, Features, Testimonial, FAQ, Rich Text, Pricing, Stats, Logo Cloud)
  * - Flexible serialization format compatible with headless frontends
+ * - Page blueprints and prompt-to-layout composition models
  */
 
 export interface BlockFieldDefinition {
@@ -33,6 +34,18 @@ export interface BlockInstance {
   _type: string;
   data: Record<string, unknown>;
   collapsed?: boolean;
+}
+
+export interface PageBlueprint {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  category: "landing" | "marketing" | "content" | "conversion";
+  blocks: Array<{
+    type: string;
+    data: Record<string, unknown>;
+  }>;
 }
 
 export interface BlockBuilderProps {

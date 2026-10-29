@@ -4,9 +4,10 @@
  *
  * Features:
  * - Polymorphic block model: each block has a distinct type and internal schema
- * - Built-in presets for Hero, Text, Media, Call to Action, Features, Testimonial, FAQ, and Rich Text
+ * - Built-in presets for Hero, Text, Media, CTA, Features, Testimonial, FAQ, Rich Text, Pricing, Stats, and Logo Cloud
+ * - Blueprints and prompt-to-layout generator for instant 1-click compositions
  * - Keyboard-accessible reordering (Move Up / Down)
- * - Valibot runtime schema validation
+ * - Valibot runtime schema validation with zero `any`
  * - Headless JSON export compatible with Astro, Next.js, SvelteKit, and mobile apps
  */
 
@@ -26,6 +27,16 @@ import {
   unknown,
 } from "valibot";
 import type { BlockBuilderProps, BlockTypeDefinition } from "./types";
+
+export { DEFAULT_PAGE_BLUEPRINTS, generateAiLayout } from "./blueprints";
+export type {
+  BlockBuilderProps,
+  BlockBuilderValue,
+  BlockFieldDefinition,
+  BlockInstance,
+  BlockTypeDefinition,
+  PageBlueprint,
+} from "./types";
 
 export const DEFAULT_BLOCK_PRESETS: BlockTypeDefinition[] = [
   {
@@ -258,6 +269,151 @@ export const DEFAULT_BLOCK_PRESETS: BlockTypeDefinition[] = [
     },
   },
   {
+    type: "stats",
+    label: "Key Metrics & Stats",
+    icon: "mdi:chart-timeline-variant",
+    description: "Highlight key performance numbers and social proof metrics",
+    color: "tertiary",
+    fields: [
+      {
+        name: "heading",
+        label: "Section Heading",
+        widget: "input",
+        placeholder: "Proven Performance at Scale",
+      },
+      {
+        name: "stat1_value",
+        label: "Stat 1 Number / Metric",
+        widget: "input",
+        placeholder: "99.99%",
+      },
+      {
+        name: "stat1_label",
+        label: "Stat 1 Description",
+        widget: "input",
+        placeholder: "Uptime SLA",
+      },
+      {
+        name: "stat2_value",
+        label: "Stat 2 Number / Metric",
+        widget: "input",
+        placeholder: "10x",
+      },
+      {
+        name: "stat2_label",
+        label: "Stat 2 Description",
+        widget: "input",
+        placeholder: "Faster Deployment",
+      },
+      {
+        name: "stat3_value",
+        label: "Stat 3 Number / Metric",
+        widget: "input",
+        placeholder: "50k+",
+      },
+      {
+        name: "stat3_label",
+        label: "Stat 3 Description",
+        widget: "input",
+        placeholder: "Global Developers",
+      },
+    ],
+    defaultData: {
+      heading: "Proven Performance at Global Scale",
+      stat1_value: "99.99%",
+      stat1_label: "Uptime SLA",
+      stat2_value: "10x",
+      stat2_label: "Faster Deployment",
+      stat3_value: "50k+",
+      stat3_label: "Global Developers",
+    },
+  },
+  {
+    type: "pricing",
+    label: "Pricing Tiers",
+    icon: "mdi:tag-outline",
+    description: "Tiered subscription or service pricing comparison",
+    color: "warning",
+    fields: [
+      {
+        name: "title",
+        label: "Section Title",
+        widget: "input",
+        placeholder: "Simple, Transparent Pricing",
+      },
+      {
+        name: "description",
+        label: "Section Subtitle",
+        widget: "textarea",
+        placeholder: "Choose the plan that fits your growth.",
+      },
+      { name: "tier1_name", label: "Tier 1 Name", widget: "input", placeholder: "Starter" },
+      { name: "tier1_price", label: "Tier 1 Price", widget: "input", placeholder: "$0" },
+      {
+        name: "tier1_features",
+        label: "Tier 1 Features",
+        widget: "textarea",
+        placeholder: "1 Project, Community Support, 5GB Storage",
+      },
+      { name: "tier2_name", label: "Tier 2 Name", widget: "input", placeholder: "Pro" },
+      { name: "tier2_price", label: "Tier 2 Price", widget: "input", placeholder: "$49/mo" },
+      {
+        name: "tier2_features",
+        label: "Tier 2 Features",
+        widget: "textarea",
+        placeholder: "Unlimited Projects, Priority Support, 100GB Storage",
+      },
+      { name: "tier3_name", label: "Tier 3 Name", widget: "input", placeholder: "Enterprise" },
+      { name: "tier3_price", label: "Tier 3 Price", widget: "input", placeholder: "Custom" },
+      {
+        name: "tier3_features",
+        label: "Tier 3 Features",
+        widget: "textarea",
+        placeholder: "Dedicated SLA, Custom Integrations, 24/7 Phone Support",
+      },
+      { name: "buttonUrl", label: "Button URL", widget: "input", placeholder: "/signup" },
+    ],
+    defaultData: {
+      title: "Simple, Predictable Pricing",
+      description: "Scale seamlessly from prototype to enterprise workloads.",
+      tier1_name: "Community",
+      tier1_price: "$0",
+      tier1_features: "SQLite engine, self-hosted, community support",
+      tier2_name: "Pro",
+      tier2_price: "$49/mo",
+      tier2_features: "PostgreSQL/MariaDB/MongoDB, multi-tenancy, priority updates",
+      tier3_name: "Enterprise",
+      tier3_price: "Custom",
+      tier3_features: "Dedicated SLA, SSO/SAML, white-glove migration advisory",
+      buttonUrl: "/signup",
+    },
+  },
+  {
+    type: "logo-cloud",
+    label: "Partner & Customer Logos",
+    icon: "mdi:domain",
+    description: "Trusted company logos and partner social proof",
+    color: "secondary",
+    fields: [
+      {
+        name: "headline",
+        label: "Headline",
+        widget: "input",
+        placeholder: "Trusted by forward-thinking teams",
+      },
+      {
+        name: "logos",
+        label: "Company Names (comma-separated)",
+        widget: "textarea",
+        placeholder: "Acme, Globex, Initech, Umbrellacorp, Stark Ind",
+      },
+    ],
+    defaultData: {
+      headline: "Trusted by forward-thinking engineering and content teams",
+      logos: "Acme Cloud, HyperScale, Vertex AI, OmniCorp, StackCraft, NextGen Data",
+    },
+  },
+  {
     type: "testimonial",
     label: "Quote / Testimonial",
     icon: "mdi:format-quote-close",
@@ -350,13 +506,29 @@ const singleBlockSchema = object({
 });
 
 const validationSchema = (field: FieldInstance & BlockBuilderProps) => {
-  let schema: any = array(singleBlockSchema);
+  const baseArray = array(singleBlockSchema);
+  const hasMin = typeof field.min === "number" && field.min > 0;
+  const hasMax = typeof field.max === "number" && field.max > 0;
 
-  if (typeof field.min === "number" && field.min > 0) {
-    schema = pipe(schema, minLength(field.min, `Must have at least ${field.min} blocks.`));
-  }
-  if (typeof field.max === "number" && field.max > 0) {
-    schema = pipe(schema, maxLength(field.max, `Cannot have more than ${field.max} blocks.`));
+  let schema;
+  if (hasMin && hasMax) {
+    schema = pipe(
+      baseArray,
+      minLength(field.min as number, `Must have at least ${field.min} blocks.`),
+      maxLength(field.max as number, `Cannot have more than ${field.max} blocks.`),
+    );
+  } else if (hasMin) {
+    schema = pipe(
+      baseArray,
+      minLength(field.min as number, `Must have at least ${field.min} blocks.`),
+    );
+  } else if (hasMax) {
+    schema = pipe(
+      baseArray,
+      maxLength(field.max as number, `Cannot have more than ${field.max} blocks.`),
+    );
+  } else {
+    schema = baseArray;
   }
 
   return field.required
