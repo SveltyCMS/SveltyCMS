@@ -85,8 +85,8 @@ describe("Modal Utilities", () => {
       expect(modalState.trigger).toHaveBeenCalledWith(
         ConfirmDialog,
         {
-          htmlTitle: "Delete 5 item",
-          body: 'Are you sure you want to delete <span class="text-tertiary-500 dark:text-primary-500 font-bold">5 item(s)</span>?',
+          htmlTitle: "Delete 5 items",
+          body: 'Are you sure you want to delete <span class="text-tertiary-500 dark:text-primary-500 font-bold">5 items</span>?',
           buttonTextConfirm: "Delete",
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-error-500/10 !border-error-500/20",
@@ -104,8 +104,8 @@ describe("Modal Utilities", () => {
       expect(modalState.trigger).toHaveBeenCalledWith(
         ConfirmDialog,
         {
-          htmlTitle: "Archive  item",
-          body: 'Are you sure you want to archive <span class="text-tertiary-500 dark:text-primary-500 font-bold">1 item(s)</span>?',
+          htmlTitle: "Archive item",
+          body: 'Are you sure you want to archive <span class="text-tertiary-500 dark:text-primary-500 font-bold">1 item</span>?',
           buttonTextConfirm: "Archive",
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-warning-500/10 !border-warning-500/20",

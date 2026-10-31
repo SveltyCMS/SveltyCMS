@@ -1764,7 +1764,11 @@ export class CollectionsNamespace {
     return result;
   }
 
-  async bulkDelete(collectionId: string, ids: string[], options: LocalApiOptions = {}) {
+  async bulkDelete(
+    collectionId: string,
+    ids: string[],
+    options: LocalApiOptions & { permanent?: boolean } = {},
+  ) {
     if (!Array.isArray(ids) || ids.length === 0) {
       throw new AppError("entryIds[] is required for bulk delete", 400);
     }
@@ -1812,11 +1816,16 @@ export class CollectionsNamespace {
     }
 
     // Single DELETE WHERE _id IN (...) with tenant isolation via mapQuery.
-    // `permanent: true` matches previous batch.bulkDelete (hard delete, not isDeleted).
+    // `permanent` is explicit: false (default) soft-deletes into the Trash (`isDeleted`),
+    // true issues a real DELETE. The UI asks for the Trash; purge paths pass true.
     const result = await this._dbAdapter.crud.deleteMany(
       this.getCollectionName(schema._id as string),
       { _id: { $in: ids as DatabaseId[] } } as any,
-      { tenantId: tenantId as DatabaseId, userId: user?._id as DatabaseId, permanent: true },
+      {
+        tenantId: tenantId as DatabaseId,
+        userId: user?._id as DatabaseId,
+        permanent: options.permanent === true,
+      },
     );
 
     if (result.success && !shouldSkipWriteSideEffects(options)) {
@@ -2853,7 +2862,11 @@ export class CollectionsNamespace {
     return result;
   }
 
-  async delete(collectionId: string, entryId: string, options: LocalApiOptions = {}) {
+  async delete(
+    collectionId: string,
+    entryId: string,
+    options: LocalApiOptions & { permanent?: boolean } = {},
+  ) {
     const { user, tenantId, system } = options;
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const schema = await this.schemaOf(collectionId, tenantId);
@@ -2872,6 +2885,9 @@ export class CollectionsNamespace {
           entryId as DatabaseId,
           {
             tenantId: tenantId as DatabaseId,
+            // false (default) = soft delete into the Trash, true = real DELETE.
+            permanent: options.permanent === true,
+            userId: effectiveUser?._id as DatabaseId,
             ...txOpts,
           },
         ),

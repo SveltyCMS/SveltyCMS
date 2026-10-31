@@ -855,7 +855,7 @@ export async function handleCollectionBulkDelete(
 ) {
   const payload = await event.request.json();
   const ids = extractEntryIds(payload);
-  return runBulkDelete(event, cms, tenantId, user, collectionId, ids);
+  return runBulkDelete(event, cms, tenantId, user, collectionId, ids, payload?.permanent === true);
 }
 
 /**
@@ -889,7 +889,15 @@ export async function handleCollectionBatchAction(
   }
 
   if (action === "delete") {
-    return runBulkDelete(event, cms, tenantId, user, collectionId, extractEntryIds(body));
+    return runBulkDelete(
+      event,
+      cms,
+      tenantId,
+      user,
+      collectionId,
+      extractEntryIds(body),
+      body.permanent === true,
+    );
   }
 
   if (action === "status") {
@@ -998,6 +1006,7 @@ async function runBulkDelete(
   user: any,
   collectionId: string,
   ids: string[],
+  permanent = false,
 ) {
   if (ids.length === 0) {
     throw new AppError("entryIds[] is required for bulk delete", 400);
@@ -1010,11 +1019,13 @@ async function runBulkDelete(
   }
 
   // Schema disableBulkDelete + tenant-scoped DELETE/UPDATE WHERE _id IN (...) live in the SDK.
+  // `permanent: false` = move to Trash (soft delete), the default for the UI.
   return successResponse(
     event,
     await cms.collections.bulkDelete(collectionId, ids, {
       user: user!,
       tenantId,
+      permanent,
     }),
   );
 }

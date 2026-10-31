@@ -199,43 +199,61 @@ describe("entry-actions", () => {
   });
 
   describe("deleteEntries", () => {
-    it("archives entries when USE_ARCHIVE_ON_DELETE is true and isPermanentDelete is false", async () => {
+    it("moves entries to the Trash when USE_ARCHIVE_ON_DELETE is true and isPermanentDelete is false", async () => {
       publicEnv.USE_ARCHIVE_ON_DELETE = true;
-      vi.mocked(batchUpdateEntries).mockResolvedValue({ success: true } as any);
+      vi.mocked(batchDeleteEntries).mockResolvedValue({ success: true } as any);
       const onSuccess = vi.fn();
 
       await deleteEntries(["e1", "e2"], false, onSuccess);
 
-      expect(batchUpdateEntries).toHaveBeenCalledWith("posts_coll", {
-        ids: ["e1", "e2"],
-        status: "archive",
+      // BUG M5: this used to send `status: "archive"`, so /config/trash never received
+      // anything. Trash = soft delete, one batch request for the whole selection.
+      expect(batchDeleteEntries).toHaveBeenCalledTimes(1);
+      expect(batchDeleteEntries).toHaveBeenCalledWith("posts_coll", ["e1", "e2"], {
+        permanent: false,
       });
+      expect(batchUpdateEntries).not.toHaveBeenCalled();
       expect(toast.success).toHaveBeenCalled();
       expect(onSuccess).toHaveBeenCalled();
     });
 
-    it("batch deletes entries when isPermanentDelete is true", async () => {
+    it("batch deletes entries permanently when isPermanentDelete is true", async () => {
       vi.mocked(batchDeleteEntries).mockResolvedValue({ success: true } as any);
       const onSuccess = vi.fn();
 
       await deleteEntries(["e1", "e2"], true, onSuccess);
 
-      expect(batchDeleteEntries).toHaveBeenCalledWith("posts_coll", ["e1", "e2"]);
+      expect(batchDeleteEntries).toHaveBeenCalledTimes(1);
+      expect(batchDeleteEntries).toHaveBeenCalledWith("posts_coll", ["e1", "e2"], {
+        permanent: true,
+      });
       expect(toast.success).toHaveBeenCalled();
       expect(onSuccess).toHaveBeenCalled();
     });
 
-    it("falls back to individual deletes if batch delete throws", async () => {
-      vi.mocked(batchDeleteEntries).mockRejectedValue(new Error("Batch failed"));
-      vi.mocked(deleteEntry).mockResolvedValue({ success: true } as any);
+    it("deletes permanently when archive-on-delete is off", async () => {
+      publicEnv.USE_ARCHIVE_ON_DELETE = false;
+      vi.mocked(batchDeleteEntries).mockResolvedValue({ success: true } as any);
+
+      await deleteEntries(["e1"], false, vi.fn());
+
+      expect(batchDeleteEntries).toHaveBeenCalledWith("posts_coll", ["e1"], { permanent: true });
+    });
+
+    it("reports a failed batch delete without falling back to one request per row", async () => {
+      vi.mocked(batchDeleteEntries).mockResolvedValue({
+        success: false,
+        error: "Batch delete disabled",
+      } as any);
       const onSuccess = vi.fn();
 
-      await deleteEntries(["e1", "e2"], true, onSuccess);
+      await deleteEntries(["e1", "e2"], false, onSuccess);
 
-      expect(deleteEntry).toHaveBeenCalledWith("posts_coll", "e1");
-      expect(deleteEntry).toHaveBeenCalledWith("posts_coll", "e2");
-      expect(toast.success).toHaveBeenCalled();
-      expect(onSuccess).toHaveBeenCalled();
+      expect(deleteEntry).not.toHaveBeenCalled();
+      expect(toast.error).toHaveBeenCalledWith(
+        expect.objectContaining({ description: "Batch delete disabled" }),
+      );
+      expect(onSuccess).not.toHaveBeenCalled();
     });
   });
 });

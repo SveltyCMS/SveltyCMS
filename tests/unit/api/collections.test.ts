@@ -309,7 +309,7 @@ describe("Collections API Unit Tests", () => {
         .mockResolvedValue({ success: true, data: [] });
     });
 
-    it("deletes selected ids instead of creating a new entry", async () => {
+    it("moves selected ids to the Trash instead of creating a new entry", async () => {
       const response = await dispatch(
         event("POST", "collections/col-1/batch", {
           action: "delete",
@@ -319,12 +319,30 @@ describe("Collections API Unit Tests", () => {
       const data = await response!.json();
       expect(data.success).toBe(true);
       expect((mockDbAdapter as any).crud.deleteMany).toHaveBeenCalledTimes(1);
+      // BUG M5: a plain delete soft-deletes (isDeleted) so /config/trash receives the rows.
+      expect((mockDbAdapter as any).crud.deleteMany).toHaveBeenCalledWith(
+        expect.any(String),
+        { _id: { $in: ["e1", "e2"] } },
+        expect.objectContaining({ permanent: false }),
+      );
+      expect((mockDbAdapter as any).crud.insert).not.toHaveBeenCalled();
+    });
+
+    it("deletes permanently only when the batch request asks for it", async () => {
+      const response = await dispatch(
+        event("POST", "collections/col-1/batch", {
+          action: "delete",
+          entryIds: ["e1", "e2"],
+          permanent: true,
+        }),
+      );
+      const data = await response!.json();
+      expect(data.success).toBe(true);
       expect((mockDbAdapter as any).crud.deleteMany).toHaveBeenCalledWith(
         expect.any(String),
         { _id: { $in: ["e1", "e2"] } },
         expect.objectContaining({ permanent: true }),
       );
-      expect((mockDbAdapter as any).crud.insert).not.toHaveBeenCalled();
     });
 
     it("bulk-updates status for all entryIds in a single query", async () => {

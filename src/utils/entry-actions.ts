@@ -17,7 +17,7 @@ import {
 import { collections, setCollectionValue, setMode } from "@src/stores/collection-store.svelte.ts";
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
-import { showCloneModal, showConfirm } from "@utils/modal.svelte";
+import { DEFAULT_THEMES, showCloneModal, showConfirm } from "@utils/modal.svelte";
 import {
   batchDeleteEntries,
   batchUpdateEntries,
@@ -26,18 +26,20 @@ import {
   deleteEntry,
   invalidateCollectionCache,
   updateEntry,
-  updateEntryStatus,
 } from "./api";
 import { entryMessages } from "./entry-actions-messages";
 import { logger } from "./logger";
 
-// Helper function to update entry status
-async function updateStatus(collectionId: string, entryId: string, status: string) {
-  const result = await updateEntryStatus(collectionId, entryId, status);
-  if (!result.success) {
-    throw new Error(result.error || "Failed to update status");
-  }
-  return result;
+/**
+ * Delete intent → transport flag.
+ *
+ * `USE_ARCHIVE_ON_DELETE` is the site switch for *restorable* deletes ("Archive files
+ * instead of permanent deletion"): on → the row is soft-deleted (`isDeleted`) and lands
+ * in Config → Trash, off → a real DELETE. It must never be read as "set status=archive":
+ * that is a content status (see setEntriesStatus), not a delete.
+ */
+function resolvePermanentDelete(explicitPermanent: boolean): boolean {
+  return explicitPermanent || !publicEnv.USE_ARCHIVE_ON_DELETE;
 }
 
 // Sets the status for one or more entries
@@ -123,7 +125,9 @@ export async function bulkEditEntries(
   }
 }
 
-// Deletes or archives one or more entries with improved batch delete
+// Moves one or more entries to the Trash (default) or deletes them permanently.
+// Exactly ONE request for the whole selection — no per-row fallback, which used to hide
+// individual failures behind a success toast.
 export async function deleteEntries(
   entryIds: string[],
   isPermanentDelete: boolean,
@@ -137,56 +141,26 @@ export async function deleteEntries(
     return;
   }
 
-  const isArchiving = publicEnv.USE_ARCHIVE_ON_DELETE && !isPermanentDelete;
+  const permanent = resolvePermanentDelete(isPermanentDelete);
 
   try {
-    if (isArchiving) {
-      // Archive entries by updating their status to 'archive'
-      const result = await batchUpdateEntries(collId, {
-        ids: entryIds,
-        status: StatusTypes.archive,
+    const result = await batchDeleteEntries(collId, entryIds, { permanent });
+    if (!result.success) {
+      toast.error({
+        description:
+          result.error || entryMessages.deleteFailed(permanent ? StatusTypes.delete : "trash"),
       });
-      if (result.success) {
-        toast.success({
-          description: entryMessages.entriesArchived(entryIds.length),
-        });
-        onSuccess();
-      } else {
-        toast.error({
-          description: result.error || entryMessages.updateFailed(StatusTypes.archive),
-        });
-      }
-    } else {
-      // Use batch delete API if available, fallback to individual deletes
-      try {
-        const result = await batchDeleteEntries(collId, entryIds);
-        if (result.success) {
-          toast.success({
-            description: entryMessages.entriesDeleted(entryIds.length),
-          });
-          onSuccess();
-        } else {
-          // Fallback to individual deletes if batch delete fails
-          throw new Error("Batch delete not supported, falling back to individual deletes");
-        }
-      } catch (batchError) {
-        // Fallback: delete entries one by one
-        logger.warn("Batch delete failed, using chunked individual deletes:", batchError);
-        // Chunk processing to avoid rate-limiting on massive selections
-        const chunkSize = 10;
-        for (let i = 0; i < entryIds.length; i += chunkSize) {
-          const chunk = entryIds.slice(i, i + chunkSize);
-          await Promise.all(chunk.map((entryId) => deleteEntry(collId, entryId)));
-        }
-        toast.success({
-          description: entryMessages.entriesDeleted(entryIds.length),
-        });
-        onSuccess();
-      }
+      return;
     }
+    toast.success({
+      description: permanent
+        ? entryMessages.entriesDeleted(entryIds.length)
+        : entryMessages.entriesTrashed(entryIds.length),
+    });
+    onSuccess();
   } catch (e) {
     toast.error(
-      `${entryMessages.deleteFailed(isArchiving ? StatusTypes.archive : StatusTypes.delete)}: ${(e as Error).message}`,
+      `${entryMessages.deleteFailed(permanent ? StatusTypes.delete : "trash")}: ${(e as Error).message}`,
     );
   }
 }
@@ -268,7 +242,14 @@ export async function saveEntry(
   return false;
 }
 
-// Deletes the currently active entry after confirmation
+// Deletes the currently active entry after confirmation.
+//
+// One dialog, one action. The previous "Archive Entry" dialog moved the permanent delete
+// onto the Cancel button and chained a second confirm from `onCancel`; that chain
+// cancelled the dialog it was opened from, re-fired its onCancel and recursed until
+// `RangeError: Maximum call stack size exceeded` (BUG M3). A two-button confirm cannot
+// express a three-way choice, so Delete now has exactly one meaning: move the entry to the
+// Trash when deletes are restorable, otherwise remove it for good.
 export async function deleteCurrentEntry(isAdmin = false) {
   const entry = collections.activeValue;
   const coll = collections.active;
@@ -283,87 +264,43 @@ export async function deleteCurrentEntry(isAdmin = false) {
 
   const entryStatus: StatusType = (entry.status as StatusType) || StatusTypes.draft;
   const isArchived = entryStatus === StatusTypes.archive;
-  const useArchiving = publicEnv.USE_ARCHIVE_ON_DELETE;
 
-  // Determine what options to show based on rules
-  if (!useArchiving) {
-    // USE_ARCHIVE_ON_DELETE: false - Always delete directly
-    showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete);
-  } else if (isArchived) {
-    // Archived entry - only admins can permanently delete
-    if (isAdmin) {
-      showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete);
-    } else {
-      toast.warning("Only administrators can delete archived entries.");
-    }
-  } else {
-    // Active entry (draft, clone, publish, unpublish, test)
-    if (isAdmin) {
-      // Admin can choose: show both options in one modal
-      showAdminChoiceModal(collectionId, entryId);
-    } else {
-      // Non-admin can only archive
-      showDeleteConfirmationModal(collectionId, entryId, StatusTypes.archive);
-    }
+  // Archived entries stay admin-only: deleting one is final (they never sit in the Trash).
+  if (isArchived && !isAdmin) {
+    toast.warning({ description: entryMessages.onlyAdminsCanDelete() });
+    return;
   }
-}
 
-// Helper function to show admin choice modal (Archive or Delete options)
-function showAdminChoiceModal(collectionId: string, entryId: string) {
-  // First show archive option with Cancel leading to delete option
-  showConfirm({
-    title: "Archive Entry",
-    body: `
-			<div class="space-y-3">
-				<p>Do you want to <strong class="text-warning-600">archive</strong> this entry?</p>
-				<p class="text-sm text-surface-600 dark:text-surface-50">Archived entries are hidden from view but kept in the database and can be restored later.</p>
-			</div>
-		`,
-    confirmText: "Archive",
-    cancelText: "Show Delete Option",
-    onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, StatusTypes.archive),
-    onCancel: () =>
-      void showConfirm({
-        title: "Delete Entry Permanently",
-        body: `
-					<div class="space-y-3">
-						<p>Do you want to <strong class="text-error-600">permanently delete</strong> this entry?</p>
-						<p class="text-sm text-surface-600 dark:text-surface-50">This will completely remove the entry from the database. This action cannot be undone.</p>
-					</div>
-				`,
-        confirmText: "Delete Permanently",
-        onConfirm: () => showDeleteConfirmationModal(collectionId, entryId, StatusTypes.delete),
-      }),
+  // An archived entry is already out of the collection, so "delete" there means permanent.
+  showDeleteConfirmation(collectionId, entryId, {
+    permanent: resolvePermanentDelete(isArchived),
   });
 }
 
-// Helper function to show final confirmation modal
-function showDeleteConfirmationModal(
+// Single confirmation for the active entry: Trash (restorable) or permanent delete.
+function showDeleteConfirmation(
   collectionId: string,
   entryId: string,
-  action: typeof StatusTypes.archive | typeof StatusTypes.delete,
+  options: { permanent: boolean },
 ) {
-  const isArchive = action === StatusTypes.archive;
+  const { permanent } = options;
   showConfirm({
-    title: `Please Confirm <span class="text-error-500 font-bold">${isArchive ? "Archiving" : "Deletion"}</span>`,
-    body: isArchive
-      ? `Are you sure you want to <span class="text-warning-500 font-semibold">archive</span> this entry? Archived items can be restored later.`
-      : `Are you sure you want to <span class="text-error-500 font-semibold">delete</span> this entry? This action will remove the entry from the system.`,
-    confirmText: isArchive ? "Archive" : "Delete",
+    title: permanent ? "Delete Entry Permanently" : "Move Entry to Trash",
+    body: permanent
+      ? `This entry will be <span class="text-error-500 font-semibold">permanently deleted</span>. This action cannot be undone.`
+      : `This entry will be moved to the <span class="text-warning-500 font-semibold">Trash</span> and hidden from the collection. You can restore it from Config → Trash.`,
+    confirmText: permanent ? "Delete Permanently" : "Move to Trash",
     cancelText: button_cancel(),
+    theme: permanent ? DEFAULT_THEMES.delete : DEFAULT_THEMES.archive,
     onConfirm: async () => {
       try {
-        if (isArchive) {
-          await updateStatus(collectionId, entryId, StatusTypes.archive);
-          setCollectionValue({
-            ...collections.activeValue,
-            status: StatusTypes.archive,
-          });
-          toast.success("Entry archived successfully.");
-        } else {
-          await deleteEntry(collectionId, entryId);
-          toast.success({ description: entry_deleted_success() });
+        const result = await deleteEntry(collectionId, entryId, { permanent });
+        if (!result.success) {
+          throw new Error(result.error || result.message || "Delete failed");
         }
+        toast.success({
+          description: permanent ? entry_deleted_success() : "Entry moved to the Trash.",
+        });
         setMode("view");
         setCollectionValue({});
         invalidateCollectionCache(collectionId);

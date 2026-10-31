@@ -87,14 +87,14 @@ bulk actions, and predictive preloading.
 	import { ui } from '@src/stores/ui-store.svelte.ts';
 	import Sanitize from '@src/utils/sanitize.svelte';
 	// Utils
-	import {
-		batchDeleteEntries,
-		deleteEntry,
-		invalidateCollectionCache,
-		updateEntryStatus
-	} from '@utils/api';
+	import { invalidateCollectionCache, updateEntryStatus } from '@utils/api';
 	import { formatDisplayDate } from '@utils/date';
-	import { bulkEditEntries, cloneEntries, setEntriesStatus } from '@utils/entry-actions';
+	import {
+		bulkEditEntries,
+		cloneEntries,
+		deleteEntries,
+		setEntriesStatus
+	} from '@utils/entry-actions';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -1042,61 +1042,34 @@ bulk actions, and predictive preloading.
 	const onUnpublish = () =>
 		setEntriesStatus(getSelectedIds(), StatusTypes.unpublish, onActionSuccess);
 	const onDraft = () => setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess);
-	const onDelete = (isPermanent = false) => {
+	// Delete = move to the Trash (soft delete), which is the only restorable-delete path the
+	// app implements (Config → Trash + /api/trash/restore). It used to send
+	// `status: "archive"`, so nothing ever reached the Trash and the dialog offered to
+	// "Archive" while the button said Delete (BUG M5). The Archived view holds entries that
+	// are already archived, so deleting there is final.
+	// One dialog, one batch request for the whole selection — no request per row.
+	const onDelete = (permanentRequest = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
 			toast.warning('No entries selected');
 			return;
 		}
 
-		const useArchiving = publicEnv?.USE_ARCHIVE_ON_DELETE ?? false;
-		const isForArchived = showDeleted || isPermanent;
-		const willDelete = !useArchiving || isForArchived;
-		const actionVerb = willDelete ? 'delete' : 'archive';
+		const permanent = permanentRequest || !(publicEnv?.USE_ARCHIVE_ON_DELETE ?? false);
 
 		showDeleteConfirm({
-			isArchive: !willDelete,
+			isArchive: false,
+			itemType: 'entry',
 			count: selectedIds.length,
+			description: permanent
+				? 'This cannot be undone.'
+				: 'The entries move to the Trash and can be restored from Config → Trash.',
 			onConfirm: async () => {
-				try {
-					if (willDelete) {
-						try {
-							const collId = collections.active?._id;
-							if (collId) {
-								const result = await batchDeleteEntries(collId, selectedIds);
-								if (result.success) {
-									toast.success(
-										`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`
-									);
-								} else {
-									throw new Error('Batch delete failed');
-								}
-							}
-						} catch (batchError) {
-							logger.warn('Batch delete failed, using individual deletes:', batchError);
-							await Promise.all(
-								selectedIds.map((entryId) => {
-									const collId = collections.active?._id;
-									if (collId) {
-										return deleteEntry(collId, entryId);
-									}
-									return Promise.resolve();
-								})
-							);
-							toast.success(
-								`${selectedIds.length} ${selectedIds.length === 1 ? 'entry' : 'entries'} deleted successfully`
-							);
-						}
-					} else {
-						await setEntriesStatus(selectedIds, StatusTypes.archive, () => {});
-					}
-					onActionSuccess();
-				} catch (error) {
-					toast.error(`Failed to ${actionVerb} entries: ${(error as Error).message}`);
-				}
+				await deleteEntries(selectedIds, permanent, onActionSuccess);
 			}
 		});
 	};
+
 	const onClone = () => cloneEntries(getSelectedRawEntries(), onActionSuccess);
 
 	let isBulkEditOpen = $state(false);

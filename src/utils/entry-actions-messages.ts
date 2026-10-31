@@ -66,6 +66,9 @@ export const entryMessages = {
     entries_deleted?.({ count }) ||
     `${count} ${count === 1 ? "entry" : "entries"} deleted successfully`,
 
+  entriesTrashed: (count: number) =>
+    `${count} ${count === 1 ? "entry" : "entries"} moved to the Trash`,
+
   entriesScheduled: (count: number) =>
     entries_scheduled?.({ count }) ||
     `${count} ${count === 1 ? "entry" : "entries"} scheduled successfully`,
