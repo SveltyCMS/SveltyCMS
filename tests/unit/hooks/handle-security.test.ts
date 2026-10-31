@@ -119,10 +119,12 @@ function okResolve() {
   return vi.fn(async () => new Response("resolved", { status: 200 }));
 }
 
+// The resolver may be a bare mock (okResolve) or a mock that inspects the event,
+// so the parameter stays open here - this is a test helper, not the hook contract.
 async function run(
   eventInit: EventInit = {},
-  resolve = okResolve(),
-): Promise<{ response: Response | null; error: any; resolve: ReturnType<typeof okResolve> }> {
+  resolve: any = okResolve(),
+): Promise<{ response: Response | null; error: any; resolve: any }> {
   try {
     const response = await handleSecurity({ event: makeEvent(eventInit), resolve } as any);
     return { response, error: null, resolve };
