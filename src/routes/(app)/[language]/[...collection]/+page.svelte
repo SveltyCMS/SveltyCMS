@@ -318,6 +318,21 @@ This page dynamically switches between List views and Field editors based on the
 					// Clear errors from the previous entry — a stale key for a field the
 					// new entry lacks would otherwise block Save (isFormValid sums all keys).
 					validationStore.clearAllErrors();
+
+					// Row activation loads the STORED document (openEntryForEdit) and only
+					// then reflects the URL, so the store already holds the entry this URL
+					// names. `entries` carries the one-language display projection — writing
+					// it back here is exactly the data loss this route must not repeat
+					// (blocker B2), so an already-loaded entry wins.
+					// untrack: the URL effect must not re-run on every keystroke.
+					const loadedEntryId = untrack(() => collections.activeValue?._id);
+					if (loadedEntryId && String(loadedEntryId) === String(parsed.entryId)) {
+						untrack(() => {
+							initialCollectionValue = JSON.stringify(collections.activeValue);
+						});
+						return;
+					}
+
 					const matchedEntry =
 						entries?.find((e: any) => String(e?._id) === String(parsed.entryId)) ??
 						(entries && entries.length === 1 ? entries[0] : null);

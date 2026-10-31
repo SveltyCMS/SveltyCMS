@@ -90,11 +90,13 @@ bulk actions, and predictive preloading.
 	import {
 		batchDeleteEntries,
 		deleteEntry,
+		getEntry,
 		invalidateCollectionCache,
 		updateEntryStatus
 	} from '@utils/api';
 	import { formatDisplayDate } from '@utils/date';
 	import { bulkEditEntries, cloneEntries, setEntriesStatus } from '@utils/entry-actions';
+	import { loadEntryFormValues } from '@utils/entry-values';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -1279,23 +1281,61 @@ bulk actions, and predictive preloading.
 			case 'Enter': {
 				e.preventDefault();
 				const entryToOpen = tableData[focusedRowIndex];
-				if (entryToOpen) {
-					modeTransitionGuard.setMode('edit');
-					setCollectionValue(entryToOpen);
-					reflectModeInURL('edit', entryToOpen._id as string);
-				}
+				if (entryToOpen) void openEntryForEdit(entryToOpen);
 				break;
 			}
 		}
 	}
 
 	/**
-	 * Shared row activation (table `Enter`, card click/`Enter`): open the entry in edit mode.
+	 * Entry id whose editor is currently loading — guards double clicks.
 	 */
-	function openEntryForEdit(entry: CollectionEntry): void {
-		modeTransitionGuard.setMode('edit');
-		setCollectionValue(entry);
-		reflectModeInURL('edit', entry._id as string);
+	let openingEntryId = $state<string | null>(null);
+
+	/**
+	 * Shared row activation (table click/`Enter`, card click/`Enter`, edit
+	 * button): open the entry in edit mode.
+	 *
+	 * A list row is a DISPLAY projection — one language, formatted for the
+	 * table. Seeding the editor with it emptied the rich-text body, showed "-"
+	 * in every empty cell and wrote that projection back over the stored
+	 * document on save (destroying the localizations). So the form is filled
+	 * from the stored document instead: exactly one point read per activation,
+	 * none per row, and nothing in a render path.
+	 */
+	async function openEntryForEdit(entry: CollectionEntry): Promise<void> {
+		const entryId = entry?._id ? String(entry._id) : '';
+		const collectionId = currentCollection?._id ? String(currentCollection._id) : '';
+		if (!entryId || !collectionId || openingEntryId) return;
+
+		openingEntryId = entryId;
+		try {
+			// A list row is a DISPLAY projection — one language, formatted for the
+			// table. Seeding the editor with it emptied the rich-text body, showed
+			// "-" in every empty cell and wrote that projection back over the stored
+			// document on save (blocker B2). So the form is filled from the stored
+			// document: exactly one point read per activation, none per row.
+			const loaded = await loadEntryFormValues({
+				collectionId,
+				entryId,
+				fields: currentCollection?.fields,
+				language: (contentLanguage.value as string) || propContentLanguage || 'en',
+				readEntry: getEntry
+			});
+
+			if (!loaded.ok) {
+				logger.error(`[Edit] Could not load entry ${entryId}: ${loaded.error}`);
+				toast.error(`Could not open this entry: ${loaded.error}`);
+				return;
+			}
+
+			modeTransitionGuard.setMode('edit');
+			setCollectionValue(loaded.values);
+			reflectModeInURL('edit', entryId);
+			logger.debug(`[Edit] Loaded stored document for entry ${entryId}`);
+		} finally {
+			openingEntryId = null;
+		}
 	}
 
 	$effect(() => {
@@ -1709,9 +1749,7 @@ bulk actions, and predictive preloading.
 													size="sm"
 													class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
 													onclick={() => {
-														modeTransitionGuard.setMode('edit');
-														setCollectionValue(entry);
-														reflectModeInURL('edit', entry._id as string);
+														void openEntryForEdit(entry);
 													}}
 												>
 													<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
@@ -1841,11 +1879,7 @@ bulk actions, and predictive preloading.
 													const originalEntry = tableData.find(
 														(item: CollectionEntry) => item._id === entry._id
 													);
-													if (originalEntry) {
-														modeTransitionGuard.setMode('edit');
-														setCollectionValue(originalEntry);
-														reflectModeInURL('edit', originalEntry._id as string);
-													}
+													if (originalEntry) void openEntryForEdit(originalEntry);
 												}}
 											>
 												<TableIcons
@@ -1925,27 +1959,12 @@ bulk actions, and predictive preloading.
 																		}
 																	});
 																} else {
-																	// GUI-FIRST PATTERN: Navigate to edit mode (loads full multilingual data)
+																	// Open the entry from the stored document (see openEntryForEdit):
+																	// list rows are one-language display projections.
 																	const originalEntry = tableData.find(
 																		(e: CollectionEntry) => e._id === entry._id
 																	);
-																	if (originalEntry) {
-																		// 1. Check cache & load if needed
-																		// Navigate to edit mode - this triggers SSR to load full multilingual data
-																		// List view has language-projected data, edit mode needs all languages
-
-																		// 2. Update stores INSTANTLY (no waiting)
-																		// The URL pattern document mandates GUI-First: state first, URL second
-																		modeTransitionGuard.setMode('edit');
-																		setCollectionValue(originalEntry);
-
-																		// 3. Reflect in URL (passive, no reload if we use replaceState, but we want history so we use reflectModeInURL)
-																		reflectModeInURL('edit', originalEntry._id as string);
-
-																		logger.debug(
-																			`[Edit] Loading full data for entry ${originalEntry._id}`
-																		);
-																	}
+																	if (originalEntry) void openEntryForEdit(originalEntry);
 																}
 															}}
 														>
