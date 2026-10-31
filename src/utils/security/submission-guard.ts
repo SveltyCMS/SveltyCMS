@@ -9,6 +9,14 @@
  * - Thread-safe, bounded memory replay cache with 60-second sliding TTL
  * - Automatic lazy pruning to protect heap boundaries under concurrent load
  *
+ * ### Token channel
+ * The token is read from the request URL only (`_id=<v7-uuid>`), never from the
+ * form body: `_id` is also the record-id field of every SveltyCMS form, so a
+ * body `_id` cannot be told apart from payload without parsing the body — which
+ * this guard must not do. Clients that want a malformed or missing token to be
+ * rejected (instead of treated as ordinary payload) opt in with
+ * `_submission_guard=1` or `X-Submission-Guard: 1`.
+ *
  * ### Features:
  * - zero external dependencies (pure Web Crypto + Bitwise checks)
  * - strict version/variant bitmask verification (rejects UUIDv1/v4 or non-standard tokens)
@@ -90,6 +98,73 @@ export function isValidSubmissionId(id: unknown): id is string {
   }
 
   return true;
+}
+
+/** Query parameter that explicitly opts a request into replay protection. */
+export const SUBMISSION_GUARD_MARKER = "_submission_guard";
+
+/** Request header that explicitly opts a request into replay protection. */
+export const SUBMISSION_GUARD_HEADER = "x-submission-guard";
+
+/**
+ * Result of the guard decision.
+ *
+ * `engaged: false` means "this request carries no submission token" — the
+ * request continues as an ordinary form post. `engaged: true` means the request
+ * claims the double-submit contract and must then pass format validation
+ * (`submissionId` non-null and {@link isValidSubmissionId}) and the replay cache.
+ */
+export type SubmissionGuardDecision =
+  | { engaged: false; reason: "no-candidate" | "ordinary-id" }
+  | { engaged: true; submissionId: string | null };
+
+/**
+ * Detects the explicit opt-in marker (`_submission_guard=1` query parameter or
+ * `X-Submission-Guard: 1` header). Opted-in requests fail closed: a missing or
+ * malformed token is a 400 instead of being ignored.
+ */
+export function isSubmissionGuardOptedIn(
+  searchParams: URLSearchParams,
+  headerValue?: string | null,
+): boolean {
+  return searchParams.get(SUBMISSION_GUARD_MARKER) === "1" || (headerValue ?? "").trim() === "1";
+}
+
+/**
+ * Decides whether the double-submit guard applies to this request.
+ *
+ * The rule is deliberately value-based, because `_id` is a shared field name:
+ *
+ * 1. `_id` absent -> not engaged (nothing to protect; ordinary payload).
+ * 2. `_id` is a valid v7 submission token -> engaged (replay-checked).
+ * 3. `_id` is anything else (`posts`, `AuditNotes`, `audit-notes`, a v4 UUID)
+ *    -> not engaged unless the request opted in, in which case it is engaged
+ *    and then rejected by format validation. A payload `_id` must never be
+ *    mistaken for a token, and a claimed token must never be silently ignored
+ *    just because it is malformed.
+ * 4. Opted in with no `_id` at all -> engaged with `submissionId: null`
+ *    (fail closed).
+ *
+ * Costs one map lookup plus, for token-shaped values, the 36-char scan; no body
+ * access at all.
+ */
+export function decideSubmissionGuard(
+  searchParams: URLSearchParams,
+  optedIn = false,
+): SubmissionGuardDecision {
+  const candidate = searchParams.get("_id");
+
+  if (!candidate) {
+    return optedIn
+      ? { engaged: true, submissionId: null }
+      : { engaged: false, reason: "no-candidate" };
+  }
+
+  if (optedIn || isValidSubmissionId(candidate)) {
+    return { engaged: true, submissionId: candidate };
+  }
+
+  return { engaged: false, reason: "ordinary-id" };
 }
 
 /**
