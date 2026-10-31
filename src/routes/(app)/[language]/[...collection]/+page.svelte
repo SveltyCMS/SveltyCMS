@@ -38,7 +38,11 @@ This page dynamically switches between List views and Field editors based on the
 	import { createEntry, updateEntry } from '@utils/api';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { nowISODateString } from '@utils/date';
-	import { buildAutosavePayload } from '@utils/entry-autosave';
+	import {
+		buildAutosavePayload,
+		findMissingRequiredFields,
+		isPristineEntry
+	} from '@utils/entry-autosave';
 	import { onMount, untrack } from 'svelte';
 	import { beforeNavigate, refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -401,37 +405,26 @@ This page dynamically switches between List views and Field editors based on the
 		}
 	});
 
-	// Auto-save draft function
-	async function autoSaveDraft(): Promise<boolean> {
+	// Auto-save draft function. Takes the already-gated payload: the required-field
+	// check and the "nothing to keep" check live in `buildAutosavePayload`, so no
+	// caller of this function can skip them.
+	async function autoSaveDraft(draftData: Record<string, unknown>): Promise<boolean> {
 		if (isSavingDraft) {
 			return false;
 		}
 
 		isSavingDraft = true;
 		try {
-			const entryData = collections.activeValue as Record<string, unknown>;
 			const collectionId = activeCollection?._id;
 
-			if (!(collectionId && entryData)) {
+			if (!collectionId) {
 				return false;
 			}
 
-			// Preserve the loaded status for existing entries. Forcing `draft` here
-			// silently unpublishes a live row; only a brand-new entry defaults to draft.
-			let loadedData: Record<string, unknown> | null = null;
-			try {
-				loadedData = initialCollectionValue
-					? (JSON.parse(initialCollectionValue) as Record<string, unknown>)
-					: null;
-			} catch {
-				loadedData = null;
-			}
-			const draftData = buildAutosavePayload(entryData, loadedData, nowISODateString());
-
-			const isNewEntry = !entryData._id;
+			const isNewEntry = !draftData._id;
 			const result = isNewEntry
 				? await createEntry(String(collectionId), draftData)
-				: await updateEntry(String(collectionId), String(entryData._id), draftData);
+				: await updateEntry(String(collectionId), String(draftData._id), draftData);
 
 			if (result.success) {
 				const saved = (result.data as Record<string, unknown> | undefined) ?? {};
@@ -495,13 +488,51 @@ This page dynamically switches between List views and Field editors based on the
 			const hasUnsavedChanges = currentValue !== initialCollectionValue;
 
 			if (hasUnsavedChanges && !isSavingDraft) {
+				// The payload builder is the single write gate: it applies the same
+				// required-field rules as the Save button and returns null when there is
+				// nothing worth keeping. Reload/Back on an untouched Create form lands
+				// here as `hasUnsavedChanges` (the editor normalizes the field skeleton on
+				// mount, so `{ title: null }` became `{ title: { en: '' } }`) — that path
+				// used to POST a row with every field empty.
+				let loadedData: Record<string, unknown> | null = null;
+				try {
+					loadedData = initialCollectionValue
+						? (JSON.parse(initialCollectionValue) as Record<string, unknown>)
+						: null;
+				} catch {
+					loadedData = null;
+				}
+				const fields = (collectionSchema ?? collections.active)?.fields ?? [];
+				const payload = buildAutosavePayload(
+					collections.activeValue as Record<string, unknown>,
+					loadedData,
+					nowISODateString(),
+					fields
+				);
+
+				if (!payload) {
+					// Untouched form → nothing to keep, let the navigation through. A form
+					// with unsaved but invalid content is not written either (Save would
+					// refuse it too) and says so instead of pretending it was saved.
+					if (!isPristineEntry(collections.activeValue as Record<string, unknown>)) {
+						const missing = findMissingRequiredFields(
+							collections.activeValue as Record<string, unknown>,
+							fields
+						);
+						toast.warning(`Not saved — still required: ${missing.join(', ')}`);
+					}
+					logger.debug('[Auto-save] No valid payload — navigation continues without a write');
+					return;
+				}
+
 				logger.debug('[Auto-save] Detected unsaved changes, auto-saving as draft...');
 
-				// Cancel navigation temporarily
+				// Cancel navigation only once the write is certain, so a skip above never
+				// cancels the user's Back/Reload.
 				cancel();
 
 				// Auto-save as draft
-				const saved = await autoSaveDraft();
+				const saved = await autoSaveDraft(payload);
 
 				if (saved) {
 					toast.success('Changes auto-saved');
