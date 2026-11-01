@@ -9,13 +9,42 @@
  * - Thread-safe, bounded memory replay cache with 60-second sliding TTL
  * - Automatic lazy pruning to protect heap boundaries under concurrent load
  *
+ * ### Token channel — explicit, never inferred
+ * A submission token is accepted from exactly two places and nowhere else:
+ *
+ * 1. the request header `X-Submission-Guard: <v7-uuid>`
+ * 2. the query parameter `_sub_token=<v7-uuid>`
+ *
+ * `_id` is NEVER a token channel: not from the URL, not from a form payload, not
+ * from a JSON body. `_id` is SveltyCMS's record id — the collection builder
+ * posts its collection id as `_id` and `saveCollection` reads it back with
+ * `formData.get("_id")`. The earlier rule ("use the URL `_id` as a token when
+ * the value happens to look like a UUIDv7") was still a heuristic: any route
+ * that ever puts a record id in `?_id` would be throttled, and whether a request
+ * was replay-protected depended on the shape of a client-chosen payload field.
+ * With the explicit channels above the question "is this a token?" is answered
+ * by which channel the client used, not by what the value looks like.
+ *
+ * ### Guarded vs. unguarded
+ * A request that carries a token is replay-checked (replayed token -> 429).
+ * A request that carries no token is simply NOT guarded: no error, no replay
+ * bookkeeping, no inspection of the payload. A token that IS declared but is
+ * empty, malformed, or contradicts the other channel fails closed with a 400 —
+ * a claimed token is never silently ignored.
+ *
+ * ### Replay key scope
+ * Entries are keyed `${tenantId}:${routeId}:${token}`, so two different forms
+ * that happen to generate the same client-side token cannot collide.
+ *
  * ### Features:
  * - zero external dependencies (pure Web Crypto + Bitwise checks)
  * - strict version/variant bitmask verification (rejects UUIDv1/v4 or non-standard tokens)
  * - atomic mark-and-test replay detection (O(1) Map operations)
  */
 
+import { dev } from "$app/env";
 import { generateUUID } from "@utils/native-utils";
+import { logger } from "@utils/logger";
 
 /** Replay cache entry duration in milliseconds (60s default). */
 export const SUBMISSION_ID_TTL_MS = 60_000;
@@ -92,25 +121,140 @@ export function isValidSubmissionId(id: unknown): id is string {
   return true;
 }
 
+/** Query parameter that carries the submission token: `_sub_token=<v7-uuid>`. */
+export const SUBMISSION_TOKEN_PARAM = "_sub_token";
+
+/** Request header that carries the submission token: `X-Submission-Guard: <v7-uuid>`. */
+export const SUBMISSION_GUARD_HEADER = "x-submission-guard";
+
 /**
- * Records a submission ID in the replay cache.
+ * Result of the guard decision.
  *
- * @param id The validated RFC 9562 v7 submission ID
+ * `engaged: false` means "this request carries no submission token" — the
+ * request continues as an ordinary form post and is not replay-tracked.
+ * `engaged: true` means the client declared a token on one of the two explicit
+ * channels and the request must then pass format validation
+ * (`submissionId` non-null and {@link isValidSubmissionId}) and the replay cache.
+ */
+export type SubmissionGuardDecision =
+  | { engaged: false; reason: "no-token" }
+  | { engaged: true; submissionId: string | null; reason: "token" | "conflict" };
+
+/**
+ * Decides whether the double-submit guard applies to this request.
+ *
+ * The decision is channel-based, never value-based:
+ *
+ * 1. Neither `X-Submission-Guard` nor `_sub_token` present -> not engaged. The
+ *    request is not guarded at all (no error, no cache entry). Nothing in the
+ *    URL or in the payload is inspected, so a `_id` record id cannot engage it.
+ * 2. Exactly one channel present -> engaged with its value, which is then
+ *    format-validated (empty or malformed -> 400, never "treated as payload").
+ * 3. Both channels present with different values -> engaged with no id, i.e. a
+ *    400: a request may not claim two different tokens.
+ *
+ * Costs one `URLSearchParams` lookup and, for token-carrying requests, the
+ * 36-char scan; no body access at all.
+ */
+export function decideSubmissionGuard(
+  searchParams: URLSearchParams,
+  headerValue?: string | null,
+): SubmissionGuardDecision {
+  const hasQueryToken = searchParams.has(SUBMISSION_TOKEN_PARAM);
+  const hasHeaderToken = headerValue !== null && headerValue !== undefined;
+
+  if (!hasQueryToken && !hasHeaderToken) {
+    return { engaged: false, reason: "no-token" };
+  }
+
+  const queryToken = hasQueryToken ? (searchParams.get(SUBMISSION_TOKEN_PARAM) ?? "").trim() : "";
+  const headerToken = hasHeaderToken ? String(headerValue).trim() : "";
+
+  if (queryToken && headerToken && queryToken !== headerToken) {
+    return { engaged: true, submissionId: null, reason: "conflict" };
+  }
+
+  return { engaged: true, submissionId: queryToken || headerToken || null, reason: "token" };
+}
+
+/**
+ * Builds the replay-cache key: `${tenantId}:${routeId}:${token}`.
+ *
+ * The token is client-chosen, so keying on it alone would let a token generated
+ * for one form collide with the same token on another form/tenant/route. Scoping
+ * by tenant and route keeps each form's replay window independent.
+ *
+ * @param tenantId Active tenant id, or null/undefined in single-tenant mode
+ * @param routeId Route key (the request pathname)
+ * @param token The validated RFC 9562 v7 submission token
+ */
+export function submissionReplayKey(
+  tenantId: string | null | undefined,
+  routeId: string,
+  token: string,
+): string {
+  return `${tenantId || "default"}:${routeId}:${token}`;
+}
+
+/** Routes already warned about for a `_id` payload without a token (dev only). */
+const warnedRoutes = new Set<string>();
+
+/** Hard ceiling on warned routes so a long-lived dev server cannot grow unbounded. */
+const MAX_WARNED_ROUTES = 500;
+
+/**
+ * Dev-time, once-per-route warning: a payload carrying `_id` was posted without
+ * a submission token.
+ *
+ * This exists because the guard itself must never read the body to find out
+ * (that is the whole point of the explicit-channel contract), so the only place
+ * that legitimately knows the payload has an `_id` is the action that already
+ * parsed it. Call it there, right after `await request.formData()`. Never
+ * throws, never blocks, and does nothing in production.
+ */
+export function warnRecordIdWithoutToken(routeId: string, tenantId?: string | null): void {
+  if (!dev) return;
+  if (warnedRoutes.size >= MAX_WARNED_ROUTES) return;
+
+  const routeKey = `${tenantId || "default"}:${routeId}`;
+  if (warnedRoutes.has(routeKey)) return;
+  warnedRoutes.add(routeKey);
+
+  logger.warn(
+    `[SubmissionGuard] ${routeId} received a payload field "_id" without a submission token. ` +
+      `"_id" is a record id and is never treated as a token: send X-Submission-Guard: <uuidv7> ` +
+      `or _sub_token=<uuidv7> (see generateSubmissionId) if this form needs replay protection.`,
+  );
+}
+
+/**
+ * Clears the once-per-route warning registry. Exposed for unit testing.
+ */
+export function clearSubmissionGuardWarnings(): void {
+  warnedRoutes.clear();
+}
+
+/**
+ * Records a submission in the replay cache.
+ *
+ * @param replayKey Key built with {@link submissionReplayKey}
+ *                  (`${tenantId}:${routeId}:${token}`) — never a bare token, so
+ *                  two forms cannot share an entry.
  * @param ttlMs Optional TTL override in milliseconds (defaults to 60,000ms)
  * @returns `true` if the submission was NOT previously seen (accepted),
  *          `false` if the ID was already recorded and has not yet expired (replay detected!).
  */
-export function markSubmissionSeen(id: string, ttlMs = SUBMISSION_ID_TTL_MS): boolean {
+export function markSubmissionSeen(replayKey: string, ttlMs = SUBMISSION_ID_TTL_MS): boolean {
   const now = Date.now();
 
-  const existingExpires = seenSubmissions.get(id);
+  const existingExpires = seenSubmissions.get(replayKey);
   if (existingExpires !== undefined) {
     if (now < existingExpires) {
       // Still active: Replay detected!
       return false;
     }
     // Expired entry: will be overwritten
-    seenSubmissions.delete(id);
+    seenSubmissions.delete(replayKey);
   }
 
   // Lazy-prune expired items if capacity pressure is reached
@@ -123,7 +267,7 @@ export function markSubmissionSeen(id: string, ttlMs = SUBMISSION_ID_TTL_MS): bo
     }
   }
 
-  seenSubmissions.set(id, now + ttlMs);
+  seenSubmissions.set(replayKey, now + ttlMs);
   return true;
 }
 

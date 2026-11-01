@@ -21,7 +21,11 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { generateSubmissionId, clearSubmissionReplayCache } from "@utils/security/submission-guard";
+import {
+  SUBMISSION_GUARD_HEADER,
+  clearSubmissionReplayCache,
+  generateSubmissionId,
+} from "@utils/security/submission-guard";
 
 const h = vi.hoisted(() => {
   const analyzeRequest = vi.fn(async (): Promise<{ action: string; reason?: string }> => ({
@@ -114,10 +118,12 @@ function okResolve() {
   return vi.fn(async () => new Response("resolved", { status: 200 }));
 }
 
+// The resolver may be a bare mock (okResolve) or a mock that inspects the event,
+// so the parameter stays open here - this is a test helper, not the hook contract.
 async function run(
   eventInit: EventInit = {},
-  resolve = okResolve(),
-): Promise<{ response: Response | null; error: any; resolve: ReturnType<typeof okResolve> }> {
+  resolve: any = okResolve(),
+): Promise<{ response: Response | null; error: any; resolve: any }> {
   try {
     const response = await handleSecurity({ event: makeEvent(eventInit), resolve } as any);
     return { response, error: null, resolve };
@@ -331,25 +337,121 @@ describe("handleSecurity — GraphQL limits", () => {
 });
 
 describe("handleSecurity — form replay guard", () => {
-  it("rejects a malformed submission id", async () => {
-    const { response, resolve } = await run({
-      url: "https://cms.test/login",
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: "_id=not-a-uuid",
-    });
+  // The wire contract, spelled out literally on purpose: renaming either channel
+  // must break this suite, not silently change what clients have to send.
+  const TOKEN_PARAM = "_sub_token";
+  const FORM = { "content-type": "application/x-www-form-urlencoded" };
 
-    expect(response?.status).toBe(400);
-    expect(resolve).not.toHaveBeenCalled();
+  it("ignores _id in the URL: two submits of one form are both served", async () => {
+    const id = generateSubmissionId();
+    const init: EventInit = {
+      url: `https://cms.test/login?_id=${id}`,
+      method: "POST",
+      headers: FORM,
+      body: "email=a%40b.com",
+    };
+
+    const first = await run(init);
+    expect(first.response?.status).toBe(200);
+    expect(first.resolve).toHaveBeenCalledTimes(1);
+
+    // `_id` is a record id everywhere in SveltyCMS. The guard must not read it as
+    // a token, so the second submit is not a replay either.
+    const second = await run(init);
+    expect(second.response?.status).toBe(200);
+    expect(second.resolve).toHaveBeenCalledTimes(1);
+    expect(h.incrementSecurityViolations).not.toHaveBeenCalled();
   });
 
-  it("accepts the first urlencoded submission and rejects the replay", async () => {
+  it("lets a payload _id through (collection builder saveCollection)", async () => {
+    // CB1: the builder posts its collection id as `_id`. That is payload, not a
+    // submission token, so the request must reach the action untouched - twice.
+    const init: EventInit = {
+      url: "https://cms.test/config/collectionbuilder/edit/posts?/saveCollection",
+      method: "POST",
+      headers: FORM,
+      body: "_id=posts&name=posts&originalName=posts",
+    };
+
+    for (const attempt of [1, 2]) {
+      const { response, resolve } = await run(init);
+      expect(response?.status, `save attempt ${attempt}`).toBe(200);
+      expect(resolve).toHaveBeenCalledTimes(1);
+    }
+    expect(h.incrementSecurityViolations).not.toHaveBeenCalled();
+  });
+
+  it("does not read the body on either token channel, and the action still sees its _id", async () => {
+    const formDataSpy = vi.spyOn(Request.prototype, "formData");
+    const cloneSpy = vi.spyOn(Request.prototype, "clone");
+    const formData = new FormData();
+    formData.set("_id", "posts");
+    formData.set("name", "AuditNotes");
+
+    // Body reads made BEFORE the action runs: the guard must contribute none.
+    const bodyReadsBeforeAction: number[][] = [];
+    let actionId: unknown = null;
+    const resolve = vi.fn(async (event: any) => {
+      bodyReadsBeforeAction.push([formDataSpy.mock.calls.length, cloneSpy.mock.calls.length]);
+      actionId = (await event.request.formData()).get("_id");
+      return new Response("resolved", { status: 200 });
+    });
+
+    const token = generateSubmissionId();
+    const init: EventInit = {
+      url: `https://cms.test/config/collectionbuilder/new?/saveCollection&${TOKEN_PARAM}=${token}`,
+      method: "POST",
+      body: formData,
+    };
+
+    try {
+      const { response } = await run(init, resolve);
+
+      expect(response?.status).toBe(200);
+      expect(resolve).toHaveBeenCalledTimes(1);
+      // Zero body parsing in the guard - not even a clone - so the multipart
+      // body reaches the action untouched.
+      expect(bodyReadsBeforeAction).toEqual([[0, 0]]);
+      expect(actionId).toBe("posts");
+
+      // The token was consumed, so the second POST is a replay: proof that the
+      // guard really did engage above (and not just skip the whole branch).
+      const replay = await run(init);
+      expect(replay.response?.status).toBe(429);
+      expect(replay.resolve).not.toHaveBeenCalled();
+    } finally {
+      formDataSpy.mockRestore();
+      cloneSpy.mockRestore();
+    }
+  });
+  it("engages on _sub_token and rejects the replay with Retry-After", async () => {
+    const id = generateSubmissionId();
+    const init: EventInit = {
+      url: `https://cms.test/login?${TOKEN_PARAM}=${id}`,
+      method: "POST",
+      headers: FORM,
+      body: "email=a%40b.com",
+    };
+
+    const first = await run(init);
+    expect(first.response?.status).toBe(200);
+    expect(first.resolve).toHaveBeenCalledTimes(1);
+
+    const replay = await run(init);
+    expect(replay.response?.status).toBe(429);
+    expect(replay.response?.headers.get("Retry-After")).toBe("60");
+    expect(await replay.response?.text()).toContain("Duplicate form submission");
+    expect(replay.resolve).not.toHaveBeenCalled();
+    expect(h.incrementSecurityViolations).toHaveBeenCalledTimes(1);
+  });
+
+  it("engages on the X-Submission-Guard header and rejects the replay", async () => {
     const id = generateSubmissionId();
     const init: EventInit = {
       url: "https://cms.test/login",
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: `_id=${id}&email=a%40b.com`,
+      headers: { ...FORM, [SUBMISSION_GUARD_HEADER]: id },
+      body: "email=a%40b.com",
     };
 
     const first = await run(init);
@@ -362,20 +464,56 @@ describe("handleSecurity — form replay guard", () => {
     expect(replay.resolve).not.toHaveBeenCalled();
   });
 
-  it("reads the submission id from multipart form data", async () => {
-    const id = generateSubmissionId();
-    const formData = new FormData();
-    formData.set("_id", id);
-    formData.set("email", "a@b.com");
+  it("rejects a declared but malformed token instead of treating it as payload", async () => {
+    const malformedParam = await run({
+      url: `https://cms.test/login?${TOKEN_PARAM}=not-a-uuid`,
+      method: "POST",
+      headers: FORM,
+      body: "email=a%40b.com",
+    });
+    expect(malformedParam.response?.status).toBe(400);
+    expect(malformedParam.resolve).not.toHaveBeenCalled();
 
-    const { response, resolve } = await run({
+    const emptyParam = await run({
+      url: `https://cms.test/login?${TOKEN_PARAM}=`,
+      method: "POST",
+      headers: FORM,
+      body: "email=a%40b.com",
+    });
+    expect(emptyParam.response?.status).toBe(400);
+    expect(emptyParam.resolve).not.toHaveBeenCalled();
+
+    const malformedHeader = await run({
       url: "https://cms.test/login",
       method: "POST",
-      body: formData,
+      headers: { ...FORM, [SUBMISSION_GUARD_HEADER]: "1" },
+      body: "email=a%40b.com",
     });
+    expect(malformedHeader.response?.status).toBe(400);
+    expect(malformedHeader.resolve).not.toHaveBeenCalled();
+  });
 
-    expect(response?.status).toBe(200);
-    expect(resolve).toHaveBeenCalledTimes(1);
+  it("does not collide when two routes use the same token", async () => {
+    const id = generateSubmissionId();
+    const login: EventInit = {
+      url: `https://cms.test/login?${TOKEN_PARAM}=${id}`,
+      method: "POST",
+      headers: FORM,
+      body: "email=a%40b.com",
+    };
+    const register: EventInit = {
+      url: `https://cms.test/register?${TOKEN_PARAM}=${id}`,
+      method: "POST",
+      headers: FORM,
+      body: "email=c%40d.com",
+    };
+
+    // Same client-generated token, different form: the replay cache is keyed per
+    // tenant+route, so neither submission is a replay of the other.
+    expect((await run(login)).response?.status).toBe(200);
+    expect((await run(register)).response?.status).toBe(200);
+    // The second submit of the SAME form is still a replay.
+    expect((await run(login)).response?.status).toBe(429);
   });
 });
 

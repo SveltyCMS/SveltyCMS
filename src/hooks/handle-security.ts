@@ -26,7 +26,13 @@ import { getClientIp, IS_TEST_MODE } from "@utils/hook-utils";
 import { isAiOrScannerBot, isHoneypotPath } from "@src/services/security/threat-scan";
 import { wafGuard } from "./handle-waf-guard";
 import { PROFILE_WRITE_ENABLED } from "@utils/write-profiler";
-import { isValidSubmissionId, markSubmissionSeen } from "@utils/security/submission-guard";
+import {
+  SUBMISSION_GUARD_HEADER,
+  decideSubmissionGuard,
+  isValidSubmissionId,
+  markSubmissionSeen,
+  submissionReplayKey,
+} from "@utils/security/submission-guard";
 import { fastHash, FastLRU } from "@utils/native-utils";
 
 // ESM-safe dynamic import for graphql
@@ -231,7 +237,27 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
     | undefined;
 
   try {
-    // 🛡️ Double-Submit & Form Replay Guard (Phase 1: Opt-in via _id field or parameter)
+    // 🛡️ Double-Submit & Form Replay Guard.
+    //
+    // Token channel: `X-Submission-Guard: <v7-uuid>` header or
+    // `_sub_token=<v7-uuid>` query parameter, and nothing else. Both are
+    // explicit: a request either declares a token or it does not, so the answer
+    // never depends on what a payload value looks like.
+    //
+    // `_id` is NOT a token channel - not in the URL, not in a form payload, not
+    // in a JSON body. `_id` is SveltyCMS's record id (the collection builder
+    // posts its collection id as `_id` and `saveCollection` reads it back with
+    // `formData.get("_id")`), so reading it as a token is what turned every
+    // collection save into 400 "Invalid form submission token format" (CB1)
+    // and what would throttle any route that puts a record id in `?_id`.
+    //
+    // A request without a token is simply not guarded: no error and no silent
+    // engagement. A token that IS declared must be a v7 uuid (else 400), and it
+    // is replay-checked per tenant+route+token (replay -> 429 with Retry-After).
+    //
+    // Cost: reading `url.searchParams` and one header, i.e. no `request.clone()`
+    // and no `formData()` parse - the body is never touched here. An ordinary
+    // write pays one `has()` lookup.
     if (request.method === "POST" && !url.pathname.startsWith("/api/")) {
       const contentType = request.headers.get("content-type") || "";
       const isFormSubmit =
@@ -239,37 +265,16 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
         contentType.includes("multipart/form-data");
 
       if (isFormSubmit) {
-        let submissionId: string | null = url.searchParams.get("_id");
+        const decision = decideSubmissionGuard(
+          url.searchParams,
+          request.headers.get(SUBMISSION_GUARD_HEADER),
+        );
 
-        if (!submissionId && contentType.includes("application/x-www-form-urlencoded")) {
-          const bodyText = await request
-            .clone()
-            .text()
-            .catch(() => "");
-          if (bodyText.includes("_id=")) {
-            try {
-              const params = new URLSearchParams(bodyText);
-              submissionId = params.get("_id");
-            } catch {}
-          }
-        } else if (!submissionId && contentType.includes("multipart/form-data")) {
-          try {
-            const formData = await request
-              .clone()
-              .formData()
-              .catch(() => null);
-            if (formData && formData.has("_id")) {
-              const raw = formData.get("_id");
-              if (typeof raw === "string") submissionId = raw;
-            }
-          } catch {}
-        }
-
-        if (submissionId) {
-          if (!isValidSubmissionId(submissionId)) {
+        if (decision.engaged) {
+          if (!decision.submissionId || !isValidSubmissionId(decision.submissionId)) {
             metricsService.incrementSecurityViolations(tenantId);
             logger.warn(
-              `[SubmissionGuard] Invalid submission ID format: ${submissionId} from ${clientIp}`,
+              `[SubmissionGuard] Invalid submission token: ${String(decision.submissionId)} from ${clientIp}`,
             );
             return new Response("Invalid form submission token format", {
               status: 400,
@@ -277,11 +282,11 @@ export const handleSecurity: Handle = async ({ event, resolve }) => {
             });
           }
 
-          if (!markSubmissionSeen(submissionId)) {
+          const replayKey = submissionReplayKey(tenantId, url.pathname, decision.submissionId);
+
+          if (!markSubmissionSeen(replayKey)) {
             metricsService.incrementSecurityViolations(tenantId);
-            logger.warn(
-              `[SubmissionGuard] Replay attempt blocked: ${submissionId} from ${clientIp}`,
-            );
+            logger.warn(`[SubmissionGuard] Replay attempt blocked: ${replayKey} from ${clientIp}`);
             return new Response("Duplicate form submission rejected", {
               status: 429,
               headers: {
