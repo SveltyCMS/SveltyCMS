@@ -280,6 +280,31 @@ export class MongoTransactionModule {
         };
       }
 
+      // 🛡️ Detect connection loss / network partition during transaction
+      const errName = error instanceof Error ? error.name : "";
+      const errCode = (error as { code?: string })?.code;
+      if (
+        errName === "MongoNetworkError" ||
+        errName === "MongoServerSelectionError" ||
+        errName === "MongoNetworkTimeoutError" ||
+        errCode === "ECONNRESET" ||
+        errCode === "ECONNREFUSED" ||
+        errCode === "ETIMEDOUT" ||
+        /connection lost|connection closed|topology was destroyed|server instance pool was destroyed/i.test(
+          message,
+        )
+      ) {
+        return {
+          success: false,
+          message: "Database connection lost during transaction",
+          error: createDatabaseError(
+            error,
+            "DATABASE_CONNECTION_LOST",
+            "Database connection lost during transaction",
+          ),
+        };
+      }
+
       return {
         success: false,
         message: error.message || "Transaction failed",

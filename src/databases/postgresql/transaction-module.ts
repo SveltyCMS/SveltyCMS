@@ -190,10 +190,7 @@ export class TransactionModule {
             SELECT set_config('app.tenant_id', ${tenantId}, true),
                    set_config('statement_timeout', ${String(Math.floor(timeoutMs))}, true)`;
         } else if (hasTenant) {
-          await this.core.setTenantContext(
-            tenantId,
-            txSql as ReturnType<typeof import("postgres")>,
-          );
+          await this.core.setTenantContext(tenantId, txSql as PostgresAdapterCore["sql"]);
         } else if (hasTimeout) {
           await (txSql as (strings: TemplateStringsArray, ...values: unknown[]) => unknown)`
             SELECT set_config('statement_timeout', ${String(Math.floor(timeoutMs))}, true)`;
@@ -304,6 +301,22 @@ export class TransactionModule {
             message: "Transaction rolled back",
           },
         } as DatabaseResult<T>;
+      }
+
+      // 🛡️ Postgres.js v4: detect connection boundary loss during a transaction
+      // (driver rejects with CONNECTION_CLOSED / "Connection closed" rather than leaking).
+      const errCode = (error as { code?: string })?.code;
+      if (
+        errCode === "CONNECTION_CLOSED" ||
+        errCode === "ECONNRESET" ||
+        errCode === "ECONNREFUSED" ||
+        /connection closed/i.test(message)
+      ) {
+        return this.core.handleError(
+          error,
+          "DATABASE_CONNECTION_LOST",
+          "Database connection lost during transaction",
+        );
       }
 
       return this.core.handleError(error, "TRANSACTION_FAILED");

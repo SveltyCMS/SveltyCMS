@@ -255,6 +255,24 @@ export class TransactionModule {
           },
         } as DatabaseResult<T>;
       }
+
+      // 🛡️ Detect connection loss / socket drop during transaction
+      const errCode = (error as { code?: string })?.code;
+      if (
+        errCode === "PROTOCOL_CONNECTION_LOST" ||
+        errCode === "ECONNRESET" ||
+        errCode === "ECONNREFUSED" ||
+        errCode === "ETIMEDOUT" ||
+        errCode === "ER_SERVER_SHUTDOWN" ||
+        /connection lost|connection closed|server shutdown/i.test(message)
+      ) {
+        return this.core.handleError(
+          error,
+          "DATABASE_CONNECTION_LOST",
+          "Database connection lost during transaction",
+        );
+      }
+
       return this.core.handleError(error, "TRANSACTION_FAILED");
     }
   }

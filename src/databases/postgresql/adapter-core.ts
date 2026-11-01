@@ -2040,6 +2040,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onclose,
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
+          // 🚀 Postgres.js v4: leave `infer: false` (default) so server-side planner determines
+          // parameter types from schema context without client-side guess overhead.
+          infer: false,
           max: Number(process.env.DATABASE_MAX_CONNECTIONS) || hw.dbPoolSize,
           connect_timeout: 10,
           prepare: effectivePrepare,
@@ -2077,6 +2080,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onclose,
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
+          infer: false,
           prepare: usePrepared,
           idle_timeout: pgIdleTimeout(c.idle_timeout),
           max_lifetime: Number(c.max_lifetime || 60 * 60),
