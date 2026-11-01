@@ -461,7 +461,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	<div
 		class="group/main relative flex h-10 items-center overflow-visible transition-all duration-200 {!isDisabled
 			? 'active:scale-95'
-			: ''} max-sm:rounded-full max-sm:!shadow-none sm:rounded-s-full sm:rounded-e-md sm:shadow-xl {isDisabled
+			: ''} max-sm:rounded-full max-sm:shadow-none! sm:rounded-s-full sm:rounded-e-md sm:shadow-xl {isDisabled
 			? 'max-sm:border max-sm:border-(--admin-border-default) max-sm:bg-(--admin-bg-card)'
 			: 'max-sm:border max-sm:border-transparent'} sm:border sm:border-white/20 {isDropdownOpen
 			? 'ring-2 ring-primary-500/50'
@@ -478,7 +478,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			class="flex h-10 items-center justify-center gap-1.5 border-e font-semibold transition-all duration-200 max-sm:rounded-s-full max-sm:rounded-e-none max-sm:px-3 max-sm:text-xs sm:min-w-30 sm:gap-2 sm:rounded-s-full sm:rounded-e-none sm:px-6 sm:font-bold {actionConfig[
 				listboxValue
 			].buttonClass} {isDisabled || disabledMap[listboxValue]
-				? 'pointer-events-none max-sm:!border-(--admin-border-default) max-sm:!bg-none max-sm:!bg-transparent max-sm:!text-surface-600 max-sm:!opacity-100 max-sm:!grayscale-0 sm:border-white/20 sm:text-white sm:opacity-50 sm:grayscale dark:max-sm:!text-surface-300'
+				? 'pointer-events-none max-sm:border-(--admin-border-default)! max-sm:bg-none! max-sm:bg-transparent! max-sm:text-surface-600! max-sm:opacity-100! max-sm:grayscale-0! sm:border-white/20 sm:text-white sm:opacity-50 sm:grayscale dark:max-sm:text-surface-400!'
 				: 'border-white/25 text-white active:scale-95'}"
 		>
 			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="18"></iconify-icon>
@@ -500,10 +500,10 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			aria-expanded={isDropdownOpen}
 			aria-label={usermultibutton_toggle_menu()}
 			title={usermultibutton_select_action()}
-			class="flex h-10 items-center justify-center transition-all duration-200 max-sm:w-8 max-sm:rounded-e-full max-sm:rounded-s-none max-sm:!shadow-none sm:w-10 sm:rounded-e-md sm:text-white sm:shadow-inner {!isDisabled
+			class="flex h-10 items-center justify-center transition-all duration-200 max-sm:w-8 max-sm:rounded-e-full max-sm:rounded-s-none max-sm:shadow-none! sm:w-10 sm:rounded-e-md sm:text-white sm:shadow-inner {!isDisabled
 				? actionConfig[listboxValue].buttonClass +
-					' max-sm:text-white sm:!bg-none sm:bg-surface-800 sm:hover:bg-surface-700 active:scale-95 cursor-pointer'
-				: 'pointer-events-none max-sm:!bg-transparent max-sm:!text-surface-600 max-sm:!opacity-100 dark:max-sm:!text-surface-300 sm:opacity-50'}"
+					' max-sm:text-white sm:bg-none! sm:bg-surface-800 sm:hover:bg-surface-700 active:scale-95 cursor-pointer'
+				: 'pointer-events-none max-sm:bg-transparent! max-sm:text-surface-600! max-sm:opacity-100! dark:max-sm:text-surface-400! sm:opacity-50'}"
 		>
 			<iconify-icon icon="mdi:chevron-down" width={20}></iconify-icon>
 		</button>

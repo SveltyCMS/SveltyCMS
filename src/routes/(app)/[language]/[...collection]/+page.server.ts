@@ -51,6 +51,7 @@ import { logger } from "@utils/logger";
 import { rethrow } from "@utils/error-handling";
 import { summarizeListQueryMetrics } from "@utils/list-query-metrics";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { loadDraftResume } from "@utils/entry-drafts.server";
 import type { PageServerLoad } from "./$types";
 
 const SYSTEM_PAGES = new Set(["config", "user", "dashboard", "imageEditor", "email-previews"]);
@@ -180,6 +181,25 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     const editEntryId = url.searchParams.get("edit");
 
     // =================================================================
+    // 3b. DRAFT RESUME (draft/live separation)
+    // =================================================================
+    // Autosave writes `content_drafts`, not the live row; opening the form again
+    // offers that draft as Restore/Discard. Read it through the SDK (never
+    // `fetch()` to our own /api) and only for a form that is actually opening:
+    // a list view pays nothing. `loadDraftResume` degrades to `null` when the
+    // drafts namespace or the permission is missing, so this can never 500.
+    const isCreateForm = url.searchParams.get("create") === "true";
+    const draftResume =
+      editEntryId || isCreateForm
+        ? await loadDraftResume(locals.cms, {
+            collectionId: String(currentCollection._id),
+            entryId: editEntryId || undefined,
+            user: typedUser,
+            tenantId: tenantId ? String(tenantId) : undefined,
+          })
+        : null;
+
+    // =================================================================
     // 4. LOAD COLLECTION DATA (via CollectionService + getOrSetSWR)
     // =================================================================
     // Service builds `collection:{id}:query:{hash}:…` keys and uses SWR.
@@ -240,6 +260,10 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
       entries,
       pagination,
       revisions,
+      // null = no draft to resume / drafts lane not mounted yet (see
+      // @utils/entry-drafts.server). The editor shows the banner only for a
+      // payload it can apply to the form it is about to open.
+      draftResume,
       statusFacets,
       listMetrics,
     };

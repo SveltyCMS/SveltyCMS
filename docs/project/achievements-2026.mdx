@@ -1960,15 +1960,15 @@ Eleven of the twelve findings in the external theme/UX review reproduced (one cl
 
 | Metric                         | 2026-11-01 build |
 | :----------------------------- | :--------------- |
-| Raw (`_app/immutable`, JS+CSS) | 7,841,913 B      |
-| Gzip                           | 2,370,426 B      |
-| Brotli (project methodology)   | 2,161,605 B      |
+| Raw (`_app/immutable`, JS+CSS) | 7,876,077 B      |
+| Gzip                           | 2,380,350 B      |
+| Brotli (project methodology)   | 2,172,098 B      |
 | JS chunks                      | 371              |
 | Root layout node `0.*.js`      | 18,565 B         |
 
 These figures were produced by `bun run build` on 2026-11-01 and re-measured from the emitted directory (raw = sum of `.js` + `.css`; gzip = zlib level 9; Brotli = `BROTLI_MODE_TEXT`, quality 6, matching `scripts/bundle-stats.ts`).
 
-**Scope of the waves, stated honestly:** the uncommitted lean-out work in this tree is **−182,221 B raw (−2.27 %), −39,545 B gzip and −33,869 B Brotli** against the pre-session 29 October build (8,024,134 B raw). Chunk count moved **352 → 371** because components were split out for lazy loading — that is the intended trade, not a regression. The 8 October baseline of 16,365,530 B is **not** a valid comparison point for the waves: most of that reduction landed before 29 October. No single-wave −52.2 % figure is claimed here.
+**Scope of the waves, stated honestly:** the committed lean-out + retest work is **−148,057 B raw (−1.84 %), −29,621 B gzip and −23,376 B Brotli** against the pre-session 29 October build (8,024,134 B raw). Chunk count moved **352 → 371** because components were split out for lazy loading — that is the intended trade, not a regression. The draft/resume editor half added ~34 KB after the first measurement; the 8 October baseline of 16,365,530 B is **not** a valid comparison point for the waves: most of that reduction landed before 29 October. No single-wave −52.2 % figure is claimed here.
 
 #### Verified leanness
 
@@ -2004,15 +2004,27 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 
 #### Follow-up hardening (same tree)
 
-- **Cross-node epoch propagation**: `bumpCollectionEpoch()` publishes the value on the existing Redis invalidation channel; peers apply it monotonically and reject L2 refills through the `gen` fence. Residual: an already-admitted local `responseCache` L1 list body is intentionally not epoch-checked and can serve until eviction/TTL.
+- **Cross-node epoch propagation + L1 fence**: `bumpCollectionEpoch()` publishes the value on the existing Redis invalidation channel and peers apply it monotonically. The `gen` fence now runs on L1 hits as well as L2 refills (`l1GenerationMatches`), so a peer's already-admitted `responseCache` list/GraphQL body is dropped and unindexed on the next read instead of being served until eviction/TTL; point-read bodies are never stamped and stay outside the fence. Tests: `tests/unit/core/response-cache-read-after-write.test.ts`, `tests/unit/databases/cache-service-epoch-propagation.test.ts`.
 - **Trash API parity**: `GET /api/trash` now uses the same `toTrashItem()` projection as SSR, and the MongoDB bulk soft-delete path passes `{ strict: false }` so the audit pair is not stripped from user-collection schemas.
 - **Localization**: `bun run check:copy` is at **0 offenses** (was 46); 302 German values were translated, leaving only product names/technical samples identical to English.
 - **CB1 E2E proof**: `tests/e2e/routes/collection-builder/kitchen-sink.spec.ts` now seeds `posts`, edits it, saves, reloads and asserts persistence. It is statically listed/partitioned; the full E2E shard is CI-only.
 - **Slop scanner**: 0 errors / 0 warnings / 0 infos; the three dead exports were removed.
+- **L1 epoch fence**: list/GraphQL `responseCache` L1 hits now check `generationMatches` before serving, so a peer's already-admitted body is rejected after a cross-node epoch bump. Point-read hits stay outside the fence; cost is one epoch map lookup per list hit.
+- **node:sqlite bootstrap**: the schema column reader/marker now supports `db.prepare` (node:sqlite) as well as `db.query` (bun:sqlite), and uses a single-quoted pragma literal. An existing SQLite DB now gains `content_drafts.collectionId` and its index instead of logging `no such column` on every build/boot.
+- **Build time**: the 15-minute figure was concurrent-agent load, not steady state. Re-measured full `bun run build` = **27–44 s** on this Windows host; `build:fast` (`BUILD_SOURCEMAP=false`) = **27–44 s**, emitting 22 MB instead of 96 MB (source maps are ~4.4× the output tree).
+- **Transitive logger**: `@graphql-hive/logger` cannot be removed safely — `graphql-yoga@6.0.1` (latest) imports it hard, and `@envelop/graphql-jit@12` requires it as a non-optional peer. It stays server-only; no client bundle impact.
+
+#### Competitive bet #1 — draft/live separation (backend + editor sink)
+
+- **Storage**: `content_drafts` gained `collectionId` (nullable for legacy rows) on SQLite, PostgreSQL, MariaDB and MongoDB, plus the `(tenantId, collectionId, authorId, updatedAt)` autosave index. The boot renderer derives the column from `system-schema-spec.ts` (ALTER on existing databases; no backfill), and the Mongo schema + the SQL physical-column allowlist carry the same field.
+- **Adapters**: `getLatestForContent`, `getLatestForCollection`, `upsertDraft` and `deleteForContent` exist on the relational module and the Mongo module, all tenant-scoped and author-scoped on reads. A draft for an unsaved entry takes the row's own UUID as `contentId` (never `""`) and is tagged `data.__draft = { kind: "new" }`; legacy rows with a null `collectionId` remain reachable by entry id. `upsertDraft` bumps `version` in place and prunes rows outside a 20-version window. Two Mongo bugs were fixed on the way: `update()` now applies the caller's field patch instead of wrapping it in `{ data }`, and `publishMany()` writes `status: "archived"` (the previous `"publish"` was not an enum member).
+- **SDK**: `cms.drafts` (`saveDraft`, `getDraft`, `discardDraft`, `discardDraftsForEntry`) runs the same schema resolution + ownership/access-rule gate as `collections.update()`. It keeps the new-entry marker on resume, strips it from entry drafts, and reports another author's draft id as 404.
+- **API**: `GET|POST|DELETE /api/collections/:collectionId/drafts` and `GET|DELETE /api/collections/:collectionId/:entryId/drafts` return the usual `{ success, data }` envelope; a missing draft is `data: null`, an unknown draft or collection is 404. Drafts are never part of the entry list, export or GraphQL lane. `drafts` is mapped in `ENDPOINT_PERMISSIONS` (read → `collections:read`, mutation → `collections:write`).
+- **Tests**: `tests/unit/databases/content-drafts-adapter.test.ts` (7, real in-memory SQLite), `tests/unit/databases/mongo-drafts-parity.test.ts` (2), `tests/unit/sdk/drafts-namespace-sqlite.test.ts` (7, real SQLite + SDK), `tests/unit/api/drafts-routes.test.ts` (14, routing/envelope/permission). `bun run test:parity --docker` passes on SQLite, PostgreSQL, MariaDB and MongoDB.
 
 #### Deliberately not claimed
 
-- **Draft/live separation is not shipped yet**: autosave still writes the live row, `content_drafts` has no SDK/API caller, and there is no draft-resume or publish-promotion flow. That remains the in-progress second half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).
+- **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).
 - Trash has **no** scheduled purge: restore is implemented, an automatic 30-day retention job is not.
 
 ## Related

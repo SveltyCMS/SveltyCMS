@@ -355,7 +355,7 @@ Known limitations of the list surface:
 
 ### Autosave interaction
 
-Leaving the editor with unsaved changes runs the navigation-guard autosave. Existing entries keep their loaded status (and schedule timestamp); only new entries are saved as `draft`. If the edited payload fails the publish gate, the autosave is rejected and navigation stays on the form. See [fields](./fields.mdx#autosave-navigation-guard).
+Leaving the editor with unsaved changes runs the navigation-guard autosave. It writes a draft (`content_drafts`), never the live row, so the list keeps showing the last committed state until the user saves. Opening the entry again offers that draft as **Restore draft** / **Discard**; a successful Save, Publish, Delete or Clone (or Cancel) removes it. If the edited payload fails the publish gate, the autosave is rejected and navigation stays on the form. See [fields](./fields.mdx#autosave-navigation-guard).
 
 ### Archive toggle
 

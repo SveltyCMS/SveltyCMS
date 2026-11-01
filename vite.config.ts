@@ -1571,6 +1571,10 @@ export default defineConfig(() => {
         project: "./project.inlang",
         outdir: "./src/paraglide",
         outputStructure: "locale-modules",
+        // Emit stable `.d.ts` declarations alongside the generated JS. Without
+        // them, editor TS servers infer exports from the 4.6 MB `_index.js` and
+        // can serve stale module surfaces after a message regeneration.
+        emitTsDeclarations: true,
       }),
     ],
     // 🚀 SK3: aliases moved from the deprecated `config.alias` to plain Vite
@@ -1623,7 +1627,13 @@ export default defineConfig(() => {
     build: {
       target: "esnext",
       minify: "esbuild" as const,
-      sourcemap: !process.env.CI,
+      // Source maps are the dominant local build OUTPUT cost: ~72 MB across
+      // ~1.1k `.map` files, with a single 1.6 MB chunk producing a 16 MB map
+      // (wall time measured within noise: ~29 s either way on the dev host).
+      // CI already builds without them (`CI` is set by the runner);
+      // `bun run build:fast` opts a local build out explicitly. The default
+      // `bun run build` keeps emitting maps for local debugging.
+      sourcemap: process.env.BUILD_SOURCEMAP === "false" ? false : !process.env.CI,
       chunkSizeWarningLimit: 1700,
       // Rolldown (Vite 8): disable plugin-timing spam; still measurable via --debug if needed.
       checks: { pluginTimings: false },

@@ -452,23 +452,35 @@ function stateSql(dialect: Dialect) {
 }
 
 /** Row-returning SQLite read (`executeSqlite` is fire-and-forget by design). */
-function sqliteSelect(db: unknown, statement: string): Record<string, unknown> | null {
+/**
+ * Read rows from a SQLite statement through either driver shape:
+ * `bun:sqlite` exposes `db.query(sql)`; `node:sqlite` exposes `db.prepare(sql)`.
+ * Supporting both is required because boot provisioning runs under both runtimes.
+ */
+function sqliteRows(db: unknown, statement: string): unknown[] | null {
   const client = db as {
     query?: (sql: string) => {
       all?: () => unknown[];
       get?: () => unknown;
     };
+    prepare?: (sql: string) => {
+      all?: () => unknown[];
+      get?: () => unknown;
+    };
   };
-  const stmt = client.query?.(statement);
+  const stmt = client.query?.(statement) ?? client.prepare?.(statement);
   if (!stmt) return null;
-  if (typeof stmt.all === "function") {
-    const rows = stmt.all();
-    return (rows[0] as Record<string, unknown>) ?? null;
-  }
+  if (typeof stmt.all === "function") return stmt.all() ?? [];
   if (typeof stmt.get === "function") {
-    return (stmt.get() as Record<string, unknown>) ?? null;
+    const row = stmt.get();
+    return row === undefined ? [] : [row];
   }
   return null;
+}
+
+function sqliteSelect(db: unknown, statement: string): Record<string, unknown> | null {
+  const rows = sqliteRows(db, statement);
+  return (rows?.[0] as Record<string, unknown> | undefined) ?? null;
 }
 
 /**
@@ -605,13 +617,17 @@ async function readLiveColumns(
 
     const client = connection as {
       query?: (sql: string) => { all?: () => unknown[] };
+      prepare?: (sql: string) => { all?: () => unknown[] };
     };
-    if (typeof client.query !== "function") return null;
+    if (typeof client.query !== "function" && typeof client.prepare !== "function") return null;
     const tables = SYSTEM_SCHEMA.filter((item): item is TableSpec => item.kind === "table");
     for (const table of tables) {
-      const rows =
-        client.query(`SELECT name FROM pragma_table_info(${sqliteIdent(table.name)})`).all?.() ??
-        [];
+      // `pragma_table_info("table")` is accepted by Bun's SQLite as a legacy
+      // double-quoted string, but node:sqlite rejects it. Use a real SQL string
+      // literal so boot provisioning works under both drivers.
+      const tableLiteral = `'${table.name.replace(/'/g, "''")}'`;
+      const rows = sqliteRows(connection, `SELECT name FROM pragma_table_info(${tableLiteral})`);
+      if (!rows) return null;
       for (const row of rows) {
         const record = row as { name?: string };
         add(table.name, record.name);

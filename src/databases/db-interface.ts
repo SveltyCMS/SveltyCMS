@@ -19,6 +19,7 @@
  * - performance telemetry
  */
 
+import type { SQL } from "drizzle-orm";
 import type {
   BaseEntity,
   ContentNode as ContentNodeType,
@@ -477,10 +478,43 @@ export interface NestedContentNode extends ContentNodeType {
 
 export interface ContentDraft<T = unknown> extends BaseEntity {
   authorId: DatabaseId;
+  /** Owning collection; `null` on legacy rows written before draft/live separation. */
+  collectionId?: DatabaseId | null;
   contentId: DatabaseId;
   data: T;
   status: "draft" | "review" | "archived";
   version: number;
+}
+
+/**
+ * Draft lookup scope. Autosave drafts are always per author, so every read
+ * narrows on `authorId` when one is supplied, in addition to the tenant filter.
+ */
+export interface DraftQueryOptions extends BaseQueryOptions {
+  /** Only drafts written by this author. */
+  authorId?: DatabaseId;
+  /**
+   * `"new"` restricts the read to an entry that has not been created yet. Those
+   * drafts carry their own row id as `contentId` and are tagged
+   * `data.__draft = { kind: "new" }`.
+   */
+  kind?: "new";
+}
+
+/**
+ * Input for `upsertDraft`.
+ *
+ * `contentId` is the live entry id for an existing entry. Omit it for a new
+ * unsaved entry: the adapter generates a UUID and uses it as BOTH the row `_id`
+ * and `contentId`, so the draft is resumable and never needs an empty string.
+ */
+export interface DraftUpsertInput {
+  authorId: DatabaseId;
+  collectionId?: DatabaseId | null;
+  contentId?: DatabaseId;
+  data: unknown;
+  status?: ContentDraft["status"];
+  tenantId?: DatabaseId | null;
 }
 
 export interface ContentRevision extends BaseEntity {
@@ -1121,10 +1155,37 @@ export interface IContentAdapter {
     publishMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ publishedCount: number }>>;
     getForContent(
       contentId: DatabaseId,
-      options?: PaginationOptions,
+      options?: PaginationOptions & DraftQueryOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentDraft>>>;
+    /** Newest draft for one entry (tenant + optional author scoped). `null` when none. */
+    getLatestForContent(
+      contentId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft | null>>;
+    /**
+     * Newest draft written by `authorId` in a collection. With `kind: "new"` it
+     * only considers drafts for entries that were never saved to the live table.
+     */
+    getLatestForCollection(
+      collectionId: DatabaseId,
+      authorId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft | null>>;
+    /**
+     * Update the newest draft for `(contentId, authorId)` with `version + 1`, or
+     * insert version 1. Versions beyond the retention window (~20) are pruned.
+     */
+    upsertDraft(
+      draft: DraftUpsertInput,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft>>;
+    /** Remove every draft for an entry, optionally narrowed to one author. */
+    deleteForContent(
+      contentId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<{ deletedCount: number }>>;
     restore(draftId: DatabaseId): Promise<DatabaseResult<void>>;
-    delete(draftId: DatabaseId): Promise<DatabaseResult<void>>;
+    delete(draftId: DatabaseId, options?: BaseQueryOptions): Promise<DatabaseResult<void>>;
     deleteMany(draftIds: DatabaseId[]): Promise<DatabaseResult<{ deletedCount: number }>>;
   };
   nodes: {
@@ -1486,6 +1547,8 @@ export interface ISqlAdapter extends BaseAdapter {
   getTable(collection: string): any;
   getColumn(table: any, name: string, forcePhysical?: boolean): any;
   getPhysicalSelection(table: any): any;
+  /** Dialect-specific extraction for a key stored in the JSON `data` blob (dotted paths resolve nested keys). */
+  getJsonField(field: string): SQL;
   prepareValues(
     table: any,
     data: any,

@@ -17,6 +17,7 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
+import type { ContentDraft } from "@src/databases/db-interface";
 import { StatusTypes } from "@src/content/types";
 import { prepareCollectionFields } from "@src/content/content-utils";
 import { collectionTableName, buildCollectionCacheTags } from "@src/databases/core/collection-name";
@@ -147,6 +148,18 @@ export async function handleCollectionsRoutes(
     // ── Collection order persistence ──
     if (collectionId === "reorder" && request.method === "POST") {
       return handleCollectionReorder(event, tenantId);
+    }
+
+    // ── Autosave drafts (draft/live separation) ──
+    // GET    /api/collections/:id/drafts[?entryId=]   → latest draft for the author
+    // POST   /api/collections/:id/drafts              → upsert { entryId?, data }
+    // DELETE /api/collections/:id/drafts/:draftId     → discard one draft
+    // GET    /api/collections/:id/:entryId/drafts     → latest draft for that entry
+    // DELETE /api/collections/:id/:entryId/drafts     → discard all drafts for that entry
+    // Drafts are author + tenant scoped and never surface through the entry list,
+    // export, or GraphQL lane: this subroute is the only way in or out.
+    if (collectionId && (entryId === "drafts" || subAction === "drafts")) {
+      return handleCollectionDrafts(event, cms, tenantId, user, collectionId, entryId, subAction);
     }
 
     // ── Revision history ──
@@ -332,6 +345,86 @@ async function handleDeleteRoutes(
   if (entryId)
     return handleCollectionDelete(event, cms, tenantId, user, url, collectionId, entryId);
   throw new AppError("Entry ID required for delete", 400);
+}
+
+async function handleCollectionDrafts(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  user: any,
+  collectionId: string,
+  entryId: string | undefined,
+  subAction: string | undefined,
+) {
+  // `/…/:collectionId/drafts[/:draftId]` vs `/…/:collectionId/:entryId/drafts`
+  const isDraftsRoot = entryId === "drafts";
+  const targetEntryId = isDraftsRoot ? undefined : entryId;
+  const draftId = isDraftsRoot ? subAction : undefined;
+
+  const { method } = event.request;
+
+  switch (method) {
+    case "GET": {
+      if (draftId) throw new AppError("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+      const requestedEntryId = targetEntryId || event.url.searchParams.get("entryId") || undefined;
+      return successResponse(
+        event,
+        await cms.drafts.getDraft(collectionId, requestedEntryId, { user, tenantId }),
+      );
+    }
+
+    case "POST": {
+      if (targetEntryId) {
+        throw new AppError(
+          "Drafts are written at /drafts with an entryId in the body",
+          405,
+          "METHOD_NOT_ALLOWED",
+        );
+      }
+      if (draftId) throw new AppError("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+      const raw =
+        (event.locals as { __parsedJsonBody?: unknown })?.__parsedJsonBody ||
+        (await event.request.json());
+      const body = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+      const bodyEntryId =
+        typeof body.entryId === "string" && body.entryId.length > 0 ? body.entryId : undefined;
+      if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) {
+        throw new AppError("Draft data must be an object", 400, "DRAFT_DATA_REQUIRED");
+      }
+      return successResponse(
+        event,
+        await cms.drafts.saveDraft(
+          collectionId,
+          {
+            entryId: bodyEntryId,
+            data: body.data as Record<string, unknown>,
+            ...(typeof body.status === "string"
+              ? { status: body.status as ContentDraft["status"] }
+              : {}),
+          },
+          { user, tenantId },
+        ),
+        201,
+      );
+    }
+
+    case "DELETE": {
+      if (isDraftsRoot) {
+        if (!draftId) throw new AppError("Draft id required for delete", 400, "DRAFT_ID_REQUIRED");
+        return successResponse(
+          event,
+          await cms.drafts.discardDraft(collectionId, draftId, { user, tenantId }),
+        );
+      }
+      return successResponse(
+        event,
+        await cms.drafts.discardDraftsForEntry(collectionId, targetEntryId!, { user, tenantId }),
+      );
+    }
+
+    default:
+      throw new AppError("Method not allowed", 405, "METHOD_NOT_ALLOWED");
+  }
 }
 
 // ─── Read Handlers ───────────────────────────────────────────────────────────

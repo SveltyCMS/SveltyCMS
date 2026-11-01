@@ -166,6 +166,8 @@ export const TenantModel = mongoose.models.Tenant || mongoose.model<Tenant>("Ten
 export interface ContentDraft extends BaseEntity {
   _id: DatabaseId;
   authorId: DatabaseId;
+  /** Owning collection; `null` on legacy rows written before draft/live separation. */
+  collectionId?: DatabaseId | null;
   contentId: DatabaseId;
   data: Record<string, unknown>;
   status: "draft" | "review" | "archived";
@@ -176,6 +178,7 @@ export const draftSchema = new Schema<ContentDraft>(
   {
     _id: { type: String, required: true, default: () => generateId() },
     contentId: { type: String, required: true },
+    collectionId: { type: String, default: null },
     data: { type: Schema.Types.Mixed, required: true },
     version: { type: Number, default: 1 },
     status: {
@@ -193,6 +196,7 @@ export const draftSchema = new Schema<ContentDraft>(
 );
 
 draftSchema.index({ contentId: 1, version: -1 });
+draftSchema.index({ tenantId: 1, collectionId: 1, authorId: 1, updatedAt: -1 });
 draftSchema.index({ authorId: 1, status: 1, updatedAt: -1 });
 draftSchema.index({ status: 1, updatedAt: -1 });
 draftSchema.index({ contentId: 1, status: 1, updatedAt: -1 });

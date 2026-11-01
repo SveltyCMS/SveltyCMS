@@ -435,6 +435,19 @@
 				if (result.success) {
 					toast.success('Entry cloned successfully.');
 					invalidateCollectionCache(currentCollection._id);
+					if (typeof document !== 'undefined') {
+						// The form's content is now committed as a new row; its draft is stale.
+						const clonedId = (result.data as Record<string, unknown> | undefined)?._id;
+						document.dispatchEvent(
+							new CustomEvent('entrySaved', {
+								bubbles: true,
+								detail: {
+									collectionId: currentCollection._id,
+									entryId: clonedId ? String(clonedId) : undefined
+								}
+							})
+						);
+					}
 					modeTransitionGuard.setMode('view');
 				} else {
 					toast.error(result.error || 'Failed to clone');

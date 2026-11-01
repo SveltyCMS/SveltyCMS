@@ -191,6 +191,10 @@ const isReadMethod = (m: string) => m === "GET" || m === "OPTIONS";
 const ENDPOINT_PERMISSIONS: Record<string, string | ((method: string) => string)> = {
   collections: (method: string) =>
     isReadMethod(method) ? "collections:read" : "collections:write",
+  // Explicit drafts mapping: `/api/collections/:id/drafts…` resolves through
+  // `collections`, and a future top-level `/api/drafts` namespace inherits the
+  // same fail-closed collection read/write capability instead of being unmapped.
+  drafts: (method: string) => (isReadMethod(method) ? "collections:read" : "collections:write"),
   "virtual-collections": (method: string) =>
     isReadMethod(method) ? "collection:read" : "collection:write",
   content: (method: string) => (isReadMethod(method) ? "collection:read" : "collection:write"),

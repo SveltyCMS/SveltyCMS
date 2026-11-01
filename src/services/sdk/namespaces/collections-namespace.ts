@@ -709,6 +709,28 @@ export class CollectionsNamespace {
     );
   }
 
+  /**
+   * Write-access gate for a collection entry WITHOUT writing it — the exact
+   * ownership/access-rule check `update()` runs, exposed for the drafts lane
+   * (autosave must not park a draft against an entry the caller cannot edit).
+   * Mirrors `update()`'s fail-closed behaviour for anonymous callers and
+   * resolves the schema first so an unknown collection is a 404.
+   */
+  public async assertEntryWriteAccess(
+    collectionId: string,
+    entryId: string,
+    options: LocalApiOptions = {},
+  ): Promise<void> {
+    const { user, tenantId, system } = options;
+    if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
+    if (!entryId) raise(400, "Entry id is required.", "ENTRY_ID_REQUIRED");
+    const schema = await this.schemaOf(collectionId, tenantId);
+    if (!system) {
+      const ownership = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
+      if (ownership) await ownership;
+    }
+  }
+
   /** Warm schemas skip the async getSchema microtask and the ensureWidgets async hop
    * when hot-flags are already stamped (common on every request after first access).
    */

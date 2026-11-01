@@ -282,9 +282,16 @@ Scheduling metadata:
 There is no timed autosave. On SvelteKit navigation away from `edit` / `create` with unsaved changes, the guard:
 
 1. cancels navigation,
-2. saves the current form state while **preserving the loaded status** (only a brand-new entry is saved as `draft`),
+2. writes the form state as a **draft** (`content_drafts`) through `POST /api/collections/:id/drafts` — the live entry is never touched, and a new entry keeps no `_id`,
 3. preserves an existing `_scheduled` timestamp and drops a schedule added only in the form,
 4. shows a toast, switches to view mode, and re-issues the navigation.
+
+The draft is author-scoped. Opening the entry again — or a new-entry form — reads it through `cms.drafts.getDraft` in `+page.server.ts` (the SDK, not a `fetch` to this app's own API) and offers **Restore draft** / **Discard** in a banner above the fields:
+
+- **Restore** fills the form and makes the draft snapshot the new baseline. It never creates an entry and never stamps a live `_id` onto a new-entry form.
+- **Discard** deletes the draft and leaves the current baseline as it was.
+
+A successful Save/Publish/Delete/Clone — or Cancel — discards the drafts behind the form: one request per form, and a draft the backend already cleared (404) counts as discarded.
 
 There is no `beforeunload` / tab-close guard and no localStorage draft restore in this editor.
 

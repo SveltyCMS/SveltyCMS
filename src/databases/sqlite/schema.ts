@@ -197,6 +197,7 @@ export const contentDrafts = sqliteTable(
   {
     _id: uuidPk(),
     contentId: text("contentId", { length: 36 }).notNull(),
+    collectionId: text("collectionId", { length: 36 }),
     data: text("data").notNull(),
     version: integer("version").notNull().default(1),
     status: text("status", { length: 50 }).notNull().default("draft"),
@@ -209,6 +210,13 @@ export const contentDrafts = sqliteTable(
     authorIdx: index("author_idx").on(table.authorId),
     statusIdx: index("status_idx").on(table.status),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // Autosave lookup: (tenantId, collectionId, authorId) + updatedAt DESC.
+    collectionAuthorIdx: index("content_drafts_tenant_collection_author_idx").on(
+      table.tenantId,
+      table.collectionId,
+      table.authorId,
+      table.updatedAt,
+    ),
   }),
 );
 

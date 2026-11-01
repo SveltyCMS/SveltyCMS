@@ -14,6 +14,7 @@
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { AuthNamespace, TokensNamespace } from "./namespaces/auth-namespace";
 import type { CollectionsNamespace } from "./namespaces/collections-namespace";
+import type { DraftsNamespace } from "./namespaces/drafts-namespace";
 import type { MediaNamespace } from "./namespaces/media-namespace";
 import type {
   WidgetsNamespace,
@@ -88,6 +89,14 @@ const COLLECTION_CRUD_METHODS = [
   { name: "delete", optionsIndex: 2 },
 ] as const;
 
+/** Options-bag positions on `DraftsNamespace` — the options object is the last argument. */
+const DRAFT_METHODS = [
+  { name: "saveDraft", optionsIndex: 2 },
+  { name: "getDraft", optionsIndex: 2 },
+  { name: "discardDraft", optionsIndex: 2 },
+  { name: "discardDraftsForEntry", optionsIndex: 2 },
+] as const;
+
 /**
  * Bind a default tenant/user onto the collection CRUD methods of a namespace.
  *
@@ -100,11 +109,12 @@ function bindTenantDefaults<T extends object>(
   namespace: T,
   defaultTenantId: string | null | undefined,
   defaultUser: unknown,
+  methods: readonly { name: string; optionsIndex: number }[] = COLLECTION_CRUD_METHODS,
 ): T {
   if (defaultTenantId == null && defaultUser == null) return namespace;
 
   const target = namespace as Record<string, unknown>;
-  for (const { name, optionsIndex } of COLLECTION_CRUD_METHODS) {
+  for (const { name, optionsIndex } of methods) {
     const original = target[name];
     if (typeof original !== "function") continue;
 
@@ -147,6 +157,7 @@ export class LocalCMS {
   public readonly auth!: AuthNamespace;
   public readonly tokens!: TokensNamespace;
   public readonly collections!: CollectionsNamespace;
+  public readonly drafts!: DraftsNamespace;
   public readonly media!: MediaNamespace;
   public readonly widgets!: WidgetsNamespace;
   public readonly system!: SystemNamespace;
@@ -235,13 +246,31 @@ export class LocalCMS {
       return (this.auth as any).tokens;
     });
 
-    defineLazyNamespace(this, "collections", async () => {
-      const { CollectionsNamespace } = await import("./namespaces/collections-namespace");
+    // Shared explicitly, not via `this.collections`: a lazy namespace is a Proxy
+    // with an async `then`, so `await this.collections` is a thenable that never
+    // settles (the drafts factory would hang on first access).
+    let collectionsInit: Promise<CollectionsNamespace> | null = null;
+    const resolveCollections = (): Promise<CollectionsNamespace> => {
+      collectionsInit ??= (async () => {
+        const { CollectionsNamespace } = await import("./namespaces/collections-namespace");
+        const namespace = instrumentNamespace(
+          "collections",
+          new CollectionsNamespace(this._dbAdapter, this._contentSystem),
+        );
+        return bindTenantDefaults(namespace, this._defaultTenantId, this._defaultUser);
+      })();
+      return collectionsInit;
+    };
+
+    defineLazyNamespace(this, "collections", resolveCollections);
+
+    defineLazyNamespace(this, "drafts", async () => {
+      const { DraftsNamespace } = await import("./namespaces/drafts-namespace");
       const namespace = instrumentNamespace(
-        "collections",
-        new CollectionsNamespace(this._dbAdapter, this._contentSystem),
+        "drafts",
+        new DraftsNamespace(this._dbAdapter, await resolveCollections()),
       );
-      return bindTenantDefaults(namespace, this._defaultTenantId, this._defaultUser);
+      return bindTenantDefaults(namespace, this._defaultTenantId, this._defaultUser, DRAFT_METHODS);
     });
 
     defineLazyNamespace(this, "media", async () => {
@@ -429,6 +458,7 @@ export const LOCALS_NAMESPACE_KEYS = [
   "importers",
   "backups",
   "contentSync",
+  "drafts",
 ] as const;
 
 export type LocalsNamespaceKey = (typeof LOCALS_NAMESPACE_KEYS)[number];

@@ -568,6 +568,7 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
     columns: [
       pkId(),
       { name: "contentId", type: varchar(36), notNull: true },
+      { name: "collectionId", type: varchar(36) },
       { name: "data", type: jsonCol(), notNull: true },
       { name: "version", type: intCol(), notNull: pgMaria, default: dInt(1) },
       { name: "status", type: varchar(50), notNull: pgMaria, default: dStr("draft") },
@@ -591,6 +592,21 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       {
         name: { postgresql: "content_drafts_tenant_idx", mariadb: "tenant_idx" },
         columns: { postgresql: ["tenantId"], mariadb: ["tenantId"] },
+      },
+      {
+        // Autosave lookup: WHERE tenantId = ? AND collectionId = ? AND authorId = ?
+        // ORDER BY updatedAt DESC is a single index probe with no sort.
+        name: {
+          sqlite: "content_drafts_tenant_collection_author_idx",
+          postgresql: "content_drafts_tenant_collection_author_idx",
+          mariadb: "tenant_collection_author_idx",
+        },
+        columns: {
+          sqlite: ["tenantId", "collectionId", "authorId", "updatedAt"],
+          postgresql: ["tenantId", "collectionId", "authorId", "updatedAt"],
+          mariadb: ["tenantId", "collectionId", "authorId", "updatedAt"],
+        },
+        descColumns: { postgresql: ["updatedAt"] },
       },
       {
         // Latest-draft lookup: WHERE contentId = ? ORDER BY version DESC LIMIT 1

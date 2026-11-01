@@ -142,6 +142,20 @@ A restore replays the snapshot through the normal update path, so today's schema
 
 History is bounded by `revisionLimit` (default `100`; the Collection Builder accepts `1–1000`, and the runtime honours any positive integer): once the version number reaches twice the limit, older snapshots are deleted in one bounded statement.
 
+### Draft autosave
+
+`content_drafts` holds author-scoped editor snapshots; it is **not** the published entry and never appears in list, export or GraphQL reads. A draft for an unsaved entry uses the row's own UUID as `contentId` and is tagged `data.__draft = { kind: "new" }`, so the editor never stamps a live `_id` onto the form. Save/Publish still writes the live row; draft promotion and draft-version rollback are not shipped.
+
+| Endpoint                                    | Method   | Purpose                                                         |
+| :------------------------------------------ | :------- | :-------------------------------------------------------------- |
+| `/api/collections/{colId}/drafts?entryId=`  | `GET`    | Latest draft for the current author (entry or new-entry)        |
+| `/api/collections/{colId}/{entryId}/drafts` | `GET`    | Latest draft for one entry and the current author               |
+| `/api/collections/{colId}/drafts`           | `POST`   | Upsert `{ entryId?, data, status? }`; returns `201` + the draft |
+| `/api/collections/{colId}/drafts/{draftId}` | `DELETE` | Discard one draft                                               |
+| `/api/collections/{colId}/{entryId}/drafts` | `DELETE` | Discard the current author's drafts for one entry               |
+
+Mutations require `collections:write`; reads require `collections:read`. Drafts are tenant- and author-scoped: another author's draft is invisible and answers `404`, never `403`. A missing draft is `200` with `data: null`. The SDK exposes the same surface as `cms.drafts` (`saveDraft`, `getDraft`, `discardDraft`, `discardDraftsForEntry`), and the editor uses it for the resume banner instead of fetching its own API.
+
 ### Filter validation
 
 List/filter requests validate keys against the schema before the query builder runs:

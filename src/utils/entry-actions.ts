@@ -372,6 +372,18 @@ export async function saveEntry(
           detail: { reason: "entry-saved", collectionId: collId },
         }),
       );
+      // Draft/live separation: the committed row supersedes the draft taken from
+      // this form. The editor listens for this event and discards it (one request;
+      // the backend may already have cleared it, and a 404 counts as discarded).
+      const savedId =
+        entryId ??
+        ((result.data as Record<string, unknown> | undefined)?._id as string | undefined);
+      document.dispatchEvent(
+        new CustomEvent("entrySaved", {
+          bubbles: true,
+          detail: { collectionId: collId, entryId: savedId ? String(savedId) : undefined },
+        }),
+      );
     }
     return true;
   }
@@ -438,6 +450,14 @@ function showDeleteConfirmation(
         toast.success({
           description: permanent ? entry_deleted_success() : "Entry moved to the Trash.",
         });
+        if (typeof document !== "undefined") {
+          document.dispatchEvent(
+            new CustomEvent("entryDeleted", {
+              bubbles: true,
+              detail: { collectionId, entryId },
+            }),
+          );
+        }
         setMode("view");
         setCollectionValue({});
         invalidateCollectionCache(collectionId);
@@ -485,6 +505,16 @@ export async function cloneCurrentEntry() {
         if (result.success) {
           toast.success({ description: entryMessages.entryCloned() });
           invalidateCollectionCache(collectionId);
+          if (typeof document !== "undefined") {
+            // The form's content is now committed as a new row; its draft is stale.
+            const clonedId = (result.data as Record<string, unknown> | undefined)?._id;
+            document.dispatchEvent(
+              new CustomEvent("entrySaved", {
+                bubbles: true,
+                detail: { collectionId, entryId: clonedId ? String(clonedId) : undefined },
+              }),
+            );
+          }
           setMode("view");
         } else {
           throw new Error(result.error || "Failed to create clone");

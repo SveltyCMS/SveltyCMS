@@ -7,6 +7,7 @@
  * - JSON parse + standardized ApiResponse shape
  * - **CSRF on all non-GET mutations** via clientJsonHeaders (cookie or explicit token)
  * - credentials: include for session cookies
+ * - Draft/live separation wrappers (`content_drafts`) alongside the entry CRUD lane
  */
 
 import type { ISODateString } from "@src/content/types";
@@ -205,6 +206,74 @@ export function getEntry(
     `/api/collections/${collectionId}/${encodeURIComponent(entryId)}?publicationFilter=all`,
     { method: "GET" },
   );
+}
+
+// --- Draft / live separation (`content_drafts`) ---
+
+/**
+ * One draft row as the API returns it (`/api/collections/:collectionId/drafts`).
+ *
+ * `data` is the editor snapshot the autosave sink wrote. For an entry that does
+ * not exist yet the row carries `data.__draft.kind = "new"` and `contentId` is
+ * the draft's own id — the live entry id is created only by Save.
+ */
+export interface DraftRecord {
+  _id: string;
+  contentId: string;
+  collectionId: string;
+  authorId: string;
+  data: Record<string, unknown>;
+  version: number;
+  status: "draft" | "review" | "archived";
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+}
+
+/** Body of `POST /api/collections/:collectionId/drafts` (upsert). */
+export interface DraftSavePayload {
+  /** Live entry the draft belongs to; omitted for a not-yet-created entry. */
+  entryId?: string;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Latest draft of the current author — for `entryId`, or the author's latest
+ * draft in the collection when no entry is named (new-entry form).
+ */
+export function getDraft(
+  collectionId: string,
+  entryId?: string,
+): Promise<ApiResponse<DraftRecord | null>> {
+  const query = entryId ? `?entryId=${encodeURIComponent(entryId)}` : "";
+  return fetchApi(`/api/collections/${collectionId}/drafts${query}`, { method: "GET" });
+}
+
+/** Upserts the current author's draft for an entry (or for a new entry). */
+export function saveDraft(
+  collectionId: string,
+  payload: DraftSavePayload,
+): Promise<ApiResponse<DraftRecord>> {
+  return fetchApi(`/api/collections/${collectionId}/drafts`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Discards exactly one draft row. */
+export function discardDraft(collectionId: string, draftId: string): Promise<ApiResponse<unknown>> {
+  return fetchApi(`/api/collections/${collectionId}/drafts/${encodeURIComponent(draftId)}`, {
+    method: "DELETE",
+  });
+}
+
+/** Discards every draft belonging to one entry. */
+export function discardDraftsForEntry(
+  collectionId: string,
+  entryId: string,
+): Promise<ApiResponse<unknown>> {
+  return fetchApi(`/api/collections/${collectionId}/${encodeURIComponent(entryId)}/drafts`, {
+    method: "DELETE",
+  });
 }
 
 export function batchUpdateEntries(

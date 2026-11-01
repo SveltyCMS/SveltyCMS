@@ -592,6 +592,7 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
   contentDrafts: [
     "_id",
     "contentId",
+    "collectionId",
     "data",
     "version",
     "status",

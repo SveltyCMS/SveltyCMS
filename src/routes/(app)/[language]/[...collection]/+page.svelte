@@ -35,10 +35,25 @@ This page dynamically switches between List views and Field editors based on the
 	import { logger } from '@utils/logger';
 	import { parseURLToMode } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { createEntry, updateEntry } from '@utils/api';
+	import {
+		discardDraft,
+		discardDraftsForEntry,
+		getDraft,
+		saveDraft as saveDraftRequest
+	} from '@utils/api';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { nowISODateString } from '@utils/date';
 	import { guardNavigationAutosave } from '@utils/entry-autosave';
+	import {
+		discardEntryDrafts,
+		draftDiscardKey,
+		hasRestorableChanges,
+		isNewEntryDraft,
+		readDraftResume,
+		saveEntryDraft,
+		type DraftResume
+	} from '@utils/entry-drafts';
+	import DraftResumeBanner from '@src/components/collection-display/draft-resume-banner.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { beforeNavigate, refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -54,6 +69,12 @@ This page dynamically switches between List views and Field editors based on the
 			pageSize: number;
 		};
 		revisions: any[];
+		/**
+		 * Author's latest draft for the form this load is opening, read through the
+		 * SDK. `null` when there is nothing to resume (or the drafts lane is not
+		 * mounted yet) — the editor then behaves exactly as before.
+		 */
+		draftResume?: DraftResume | null;
 		/** Streamed by the loader: resolves to {} on failure, never rejects. */
 		statusFacets?: Promise<Partial<Record<string, number>>>;
 		listMetrics?: Record<string, unknown> | null;
@@ -85,6 +106,25 @@ This page dynamically switches between List views and Field editors based on the
 	let initialCollectionValue = $state('');
 	let userClickedCancel = $state(false);
 	let isSavingDraft = $state(false);
+
+	// ── Draft/live separation ─────────────────────────────────────────────────
+	// Autosave writes a `content_drafts` row, never the live entry. The server
+	// loader reads the author's latest draft for the form being opened; row
+	// activation and Create read it client-side. `resumeDraft` is only an OFFER:
+	// applying it fills the form, it never creates (or stamps an id onto) an entry.
+	let resumeDraft = $state<DraftResume | null>(null);
+	let isDraftBusy = $state(false);
+	/** Draft row behind the current form (from a resume or an autosave). */
+	let trackedDraftId = $state<string | null>(null);
+	/** `contentId` of that draft — the address a new-entry draft re-upserts under. */
+	let trackedDraftContentId = $state<string | null>(null);
+	/** True while the tracked draft belongs to a form with no live entry. */
+	let trackedDraftIsNew = $state(false);
+	/** Last form the draft lookup ran for — one read per opened form. */
+	let draftLookupKey = '';
+	let consumedServerResume = false;
+	/** One discard per form: Save + Cancel must not delete the same draft twice. */
+	const discardedDraftKeys = new Set<string>();
 
 	// Track when we last received server data to avoid overwriting client-side language changes
 	let lastServerLanguage: string | undefined = $state(undefined);
@@ -409,71 +449,274 @@ This page dynamically switches between List views and Field editors based on the
 		}
 	});
 
+	// ── Draft helpers ─────────────────────────────────────────────────────────
+
+	/** Live entry id of the open form (`''` for a new entry). */
+	function currentEntryId(): string {
+		const value = collections.activeValue?._id;
+		return value ? String(value) : '';
+	}
+
+	/** Lookup key of one form — a new-entry form has no id, so it keys on `new`. */
+	function draftLookupKeyFor(collectionId: string, entryId: string): string {
+		return `${collectionId}:${entryId || 'new'}`;
+	}
+
+	/**
+	 * Offer the author's latest draft for one form. The server loader already read
+	 * it for the form this load opened; every other form (row activation, Create
+	 * from the list) reads it once, client-side.
+	 */
+	async function offerDraftResume(collectionId: string, entryId: string): Promise<void> {
+		const key = draftLookupKeyFor(collectionId, entryId);
+		if (key === draftLookupKey) return;
+		draftLookupKey = key;
+
+		// A different form is open: the previous offer and the draft address it
+		// tracked belong to that form, not this one.
+		resumeDraft = null;
+		trackedDraftId = null;
+		trackedDraftContentId = null;
+		trackedDraftIsNew = false;
+
+		const serverResume = (data?.draftResume as DraftResume | null | undefined) ?? null;
+		const serverMatches =
+			serverResume !== null &&
+			(serverResume.isNewEntry
+				? entryId === ''
+				: entryId !== '' && String(serverResume.draft.contentId) === entryId);
+		if (serverMatches && serverResume && !consumedServerResume) {
+			consumedServerResume = true;
+			resumeDraft = hasRestorableChanges(serverResume, initialCollectionValue)
+				? serverResume
+				: null;
+			return;
+		}
+
+		const found = await readDraftResume({
+			collectionId,
+			entryId: entryId || undefined,
+			read: getDraft
+		});
+		// A newer form superseded this read — its answer owns the banner.
+		if (key !== draftLookupKey) return;
+		resumeDraft = found && hasRestorableChanges(found, initialCollectionValue) ? found : null;
+	}
+
+	// Read the draft once per opened form. Reading only `activeValue._id` keeps the
+	// effect out of every keystroke (fine-grained runes).
+	$effect(() => {
+		const mode = collections.mode;
+		if (mode !== 'edit' && mode !== 'create') return;
+
+		const collectionId = activeCollection?._id ? String(activeCollection._id) : '';
+		if (!collectionId) return;
+
+		const activeId = collections.activeValue?._id ? String(collections.activeValue._id) : '';
+		const entryId = mode === 'edit' ? activeId || urlEditParam || '' : '';
+		if (mode === 'edit' && !entryId) return;
+		if (draftLookupKeyFor(collectionId, entryId) === draftLookupKey) return;
+
+		untrack(() => {
+			void offerDraftResume(collectionId, entryId);
+		});
+	});
+
+	/**
+	 * Apply the offered draft to the form and make it the new baseline.
+	 *
+	 * Never creates an entry: a new-entry draft carries no `_id` at all, and an
+	 * edit draft carries the live entry's id, so Save still writes the row the
+	 * form was opened for (M1).
+	 */
+	function restoreResumeDraft(): void {
+		const resume = resumeDraft;
+		if (!resume) return;
+
+		collections.setCollectionValue({ ...resume.data });
+		initialCollectionValue = JSON.stringify(collections.activeValue);
+		trackedDraftId = resume.draft._id;
+		trackedDraftContentId = resume.draft.contentId || null;
+		trackedDraftIsNew = resume.isNewEntry;
+		resumeDraft = null;
+
+		toast.success('Draft restored');
+		logger.debug('[Draft] Restored draft into the form', { draftId: resume.draft._id });
+	}
+
+	/** Discard the offered draft and keep the live/new baseline untouched. */
+	async function discardResumeDraft(): Promise<void> {
+		const resume = resumeDraft;
+		const collectionId = activeCollection?._id ? String(activeCollection._id) : '';
+		if (!resume || !collectionId) return;
+
+		const entryId = resume.isNewEntry ? null : resume.draft.contentId || currentEntryId() || null;
+		isDraftBusy = true;
+		try {
+			const outcome = await discardEntryDrafts({
+				collectionId,
+				entryId,
+				draftId: resume.draft._id,
+				discardOne: discardDraft,
+				discardAll: discardDraftsForEntry
+			});
+			if (outcome === 'failed') {
+				toast.error('Could not discard the draft. Please try again.');
+				return;
+			}
+
+			discardedDraftKeys.add(draftDiscardKey({ collectionId, entryId, draftId: resume.draft._id }));
+			resumeDraft = null;
+			toast.success('Draft discarded');
+			logger.debug('[Draft] Discarded draft', { draftId: resume.draft._id });
+		} finally {
+			isDraftBusy = false;
+		}
+	}
+
+	/**
+	 * Discard the drafts behind the form once the form is no longer pending:
+	 * Save/Publish/Delete/Clone committed it, or Cancel abandoned it.
+	 *
+	 * One request per form. The key collapses repeated events (Save also fires a
+	 * navigation), so a draft is never deleted twice. The backend may clear the
+	 * row on commit as well — a 404 answer counts as discarded, not as an error.
+	 */
+	async function discardFormDrafts(entryId: string | null, reason: string): Promise<void> {
+		const collectionId = activeCollection?._id ? String(activeCollection._id) : '';
+		if (!collectionId) return;
+
+		const resume = resumeDraft;
+		const draftId = trackedDraftId ?? resume?.draft._id ?? null;
+		const draftIsNew = trackedDraftIsNew || resume?.isNewEntry === true;
+		// A new-entry draft is addressed by its own id: the entry id reported by a
+		// fresh create/clone names the row that draft never belonged to.
+		const targetEntryId = draftIsNew
+			? null
+			: entryId || resume?.draft.contentId || currentEntryId() || null;
+		if (!targetEntryId && !draftId) return;
+
+		const key = draftDiscardKey({ collectionId, entryId: targetEntryId, draftId });
+		if (discardedDraftKeys.has(key)) return;
+		discardedDraftKeys.add(key);
+
+		trackedDraftId = null;
+		trackedDraftContentId = null;
+		trackedDraftIsNew = false;
+		resumeDraft = null;
+
+		const outcome = await discardEntryDrafts({
+			collectionId,
+			entryId: targetEntryId,
+			draftId,
+			discardOne: discardDraft,
+			discardAll: discardDraftsForEntry
+		});
+		if (outcome === 'failed') {
+			// Keep the draft retryable: a later commit event may delete it.
+			discardedDraftKeys.delete(key);
+			logger.warn(`[Draft] Could not discard drafts after ${reason}`);
+		}
+	}
+
 	// Auto-save draft function. Takes the already-gated payload: the required-field
 	// check and the "nothing to keep" check live in `buildAutosavePayload`, so no
 	// caller of this function can skip them.
+	//
+	// The sink is the drafts API. It never writes the live entry and never stamps an
+	// `_id` onto the form: the live row is Save's job, which is what keeps Reload on
+	// an untouched Create form from producing a ghost entry.
 	async function autoSaveDraft(draftData: Record<string, unknown>): Promise<boolean> {
 		if (isSavingDraft) {
 			return false;
 		}
 
+		const collectionId = activeCollection?._id ? String(activeCollection._id) : '';
+		if (!collectionId) {
+			return false;
+		}
+
 		isSavingDraft = true;
 		try {
-			const collectionId = activeCollection?._id;
-
-			if (!collectionId) {
+			const draft = await saveEntryDraft({
+				collectionId,
+				entryData: draftData,
+				// A resumed new-entry draft re-upserts under its own contentId; an entry
+				// form addresses the live row through `_id`.
+				draftEntryId: draftData._id ? null : trackedDraftContentId,
+				save: saveDraftRequest
+			});
+			if (!draft) {
+				logger.error('[Auto-save] Failed to save draft');
 				return false;
 			}
 
-			const isNewEntry = !draftData._id;
-			const result = isNewEntry
-				? await createEntry(String(collectionId), draftData)
-				: await updateEntry(String(collectionId), String(draftData._id), draftData);
-
-			if (result.success) {
-				const saved = (result.data as Record<string, unknown> | undefined) ?? {};
-				const savedId = (saved._id ?? (saved.data as Record<string, unknown> | undefined)?._id) as
-					| string
-					| undefined;
-				if (isNewEntry && savedId) {
-					collections.activeValue = { ...draftData, _id: savedId };
-				}
-
-				document.dispatchEvent(new CustomEvent('entrySaved', { bubbles: true }));
-				logger.debug('[Auto-save] Draft saved successfully');
-				return true;
-			}
-			logger.error('[Auto-save] Failed to save draft:', result.error || result.message);
-			return false;
-		} catch (error) {
-			logger.error('[Auto-save] Error saving draft:', error);
-			return false;
+			trackedDraftId = draft._id;
+			trackedDraftContentId = draft.contentId || null;
+			trackedDraftIsNew = isNewEntryDraft(draft);
+			logger.debug('[Auto-save] Draft saved', {
+				draftId: draft._id,
+				entryId: draftData._id ?? null
+			});
+			return true;
 		} finally {
 			isSavingDraft = false;
 		}
 	}
 
-	// Listen for cancel and save events
+	// Listen for cancel, save, and delete events
 	$effect(() => {
+		/**
+		 * Events are document-scoped; only the collection this editor shows may
+		 * spend a discard on them.
+		 */
+		const eventTargetsThisCollection = (detail?: { collectionId?: string }): boolean => {
+			const collectionId = activeCollection?._id ? String(activeCollection._id) : '';
+			if (!detail?.collectionId || !collectionId) return true;
+			return String(detail.collectionId) === collectionId;
+		};
+
 		const handleCancelClick = (_e: Event) => {
 			userClickedCancel = true;
 			logger.debug('[Auto-save] Cancel clicked - no draft will be saved');
+			// Cancel abandons the form's pending work, so its draft goes too.
+			void discardFormDrafts(currentEntryId() || null, 'cancel');
 		};
 
-		const handleEntrySaved = (_e: Event) => {
+		const handleEntrySaved = (e: Event) => {
 			// Update baseline to match current value, preventing unsaved changes detection
 			if (collections.activeValue) {
 				initialCollectionValue = JSON.stringify(collections.activeValue);
 				logger.debug('[Auto-save] Entry saved manually - baseline updated');
 			}
+			// The committed row supersedes the draft taken from this form.
+			const detail = (e as CustomEvent<{ collectionId?: string; entryId?: string } | undefined>)
+				.detail;
+			if (!eventTargetsThisCollection(detail)) return;
+			void discardFormDrafts(
+				detail?.entryId ? String(detail.entryId) : currentEntryId() || null,
+				'save'
+			);
+		};
+
+		const handleEntryDeleted = (e: Event) => {
+			const detail = (e as CustomEvent<{ collectionId?: string; entryId?: string } | undefined>)
+				.detail;
+			if (!eventTargetsThisCollection(detail)) return;
+			void discardFormDrafts(
+				detail?.entryId ? String(detail.entryId) : currentEntryId() || null,
+				'delete'
+			);
 		};
 
 		document.addEventListener('cancelEdit', handleCancelClick);
 		document.addEventListener('entrySaved', handleEntrySaved);
+		document.addEventListener('entryDeleted', handleEntryDeleted);
 
 		return () => {
 			document.removeEventListener('cancelEdit', handleCancelClick);
 			document.removeEventListener('entrySaved', handleEntrySaved);
+			document.removeEventListener('entryDeleted', handleEntryDeleted);
 		};
 	});
 
@@ -591,6 +834,17 @@ This page dynamically switches between List views and Field editors based on the
 			id="fields_container"
 			class="fields flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-visible"
 		>
+			{#if resumeDraft}
+				<div class="mb-3 shrink-0">
+					<DraftResumeBanner
+						updatedAt={resumeDraft.draft.updatedAt}
+						isNewEntry={resumeDraft.isNewEntry}
+						busy={isDraftBusy}
+						onRestore={restoreResumeDraft}
+						onDiscard={discardResumeDraft}
+					/>
+				</div>
+			{/if}
 			{#if effectiveMode === 'edit' && activeEntryId}
 				<div class="mb-3 shrink-0">
 					<WorkflowActions collectionId={activeCollection._id!} entryId={activeEntryId} />

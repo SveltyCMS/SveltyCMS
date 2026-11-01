@@ -12,7 +12,10 @@ import type {
   ContentNode,
   ContentDraft,
   ContentRevision,
+  DraftQueryOptions,
+  DraftUpsertInput,
   PaginationOptions,
+  BaseQueryOptions,
   DatabaseResult,
   PaginatedResult,
   QueryFilter,
@@ -25,6 +28,9 @@ import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
 import { logger } from "@utils/logger";
 import type { Model, QueryFilter as MongoQueryFilter } from "mongoose";
 import { contentStructureSchema, draftSchema, revisionSchema } from "./schema";
+
+/** Autosave history kept per (contentId, authorId); older versions are pruned. */
+export const DRAFT_RETENTION_LIMIT = 20;
 
 /**
  * Converts a flat array of content nodes into a nested tree.
@@ -108,7 +114,10 @@ export class MongoContentModule
     },
     update: async (draftId: DatabaseId, data: unknown) => {
       const { draftsRepo } = await this._ensureRepos();
-      return draftsRepo.update(draftId, { data } as any);
+      // Patch semantics, matching the SQL adapters: the caller passes the draft
+      // fields to change (`{ data }` is one of them), never a wrapper object.
+      // Wrapping here turned `{ version: 2 }` into a rewrite of the `data` blob.
+      return draftsRepo.update(draftId, data as never);
     },
     publish: async (draftId: DatabaseId) =>
       this.drafts.publishMany([draftId]).then((res) => ({ ...res, data: undefined })),
@@ -120,11 +129,10 @@ export class MongoContentModule
       }
       try {
         const { draftsRepo } = await this._ensureRepos();
+        // `status` is an enum of draft|review|archived — the old value ("publish")
+        // was not a member, so publishing a draft could never persist.
         const result = await draftsRepo.model.updateMany({ _id: { $in: draftIds } } as any, {
-          $set: {
-            status: "publish",
-            publishedAt: new Date().toISOString() as any,
-          },
+          $set: { status: "archived" },
         });
         return { success: true, data: { publishedCount: result.modifiedCount } };
       } catch (error) {
@@ -141,19 +149,25 @@ export class MongoContentModule
     },
     getForContent: async (
       contentId: DatabaseId,
-      options?: PaginationOptions,
+      options?: PaginationOptions & DraftQueryOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> => {
       try {
         const { draftsRepo } = await this._ensureRepos();
         const { page = 1, pageSize = 10 } = options || {};
-        const query = { contentId } as unknown as QueryFilter<ContentDraft>;
+        const query = {
+          contentId,
+          ...(options?.authorId ? { authorId: String(options.authorId) } : {}),
+        } as unknown as QueryFilter<ContentDraft>;
+        const queryOptions = { tenantId: options?.tenantId };
 
         const [itemsRes, totalRes] = await Promise.all([
           draftsRepo.findMany(query, {
+            ...queryOptions,
             offset: (page - 1) * pageSize,
             limit: pageSize,
+            sort: { version: -1 },
           } as any),
-          draftsRepo.count(query),
+          draftsRepo.count(query, queryOptions),
         ]);
 
         if (!itemsRes.success) {
@@ -186,14 +200,153 @@ export class MongoContentModule
         };
       }
     },
+    /** Newest draft for one entry, tenant + optional author scoped. */
+    getLatestForContent: async (
+      contentId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft | null>> => {
+      try {
+        const latest = await this._latestDraft(
+          {
+            contentId,
+            ...(options?.authorId ? { authorId: String(options.authorId) } : {}),
+          },
+          options,
+          { version: -1 },
+        );
+        return { success: true, data: latest };
+      } catch (error) {
+        return {
+          success: false,
+          message: "Failed to fetch the latest draft.",
+          error: createDatabaseError(
+            error,
+            "DRAFT_FETCH_ERROR",
+            "Failed to fetch the latest draft.",
+          ),
+        };
+      }
+    },
+    /** Newest draft written by one author in a collection (optionally new-entry only). */
+    getLatestForCollection: async (
+      collectionId: DatabaseId,
+      authorId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft | null>> => {
+      try {
+        const latest = await this._latestDraft(
+          { collectionId, authorId: String(authorId) },
+          options,
+          { updatedAt: -1 },
+        );
+        return { success: true, data: latest };
+      } catch (error) {
+        return {
+          success: false,
+          message: "Failed to fetch the latest collection draft.",
+          error: createDatabaseError(
+            error,
+            "DRAFT_FETCH_ERROR",
+            "Failed to fetch the latest collection draft.",
+          ),
+        };
+      }
+    },
+    /**
+     * Autosave sink: bump the newest draft for (contentId, authorId) or insert
+     * version 1, then prune versions beyond the retention window.
+     */
+    upsertDraft: async (
+      draft: DraftUpsertInput,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft>> => {
+      try {
+        const { draftsRepo } = await this._ensureRepos();
+        const authorId = String(draft.authorId);
+        const tenantId = draft.tenantId ?? options?.tenantId;
+        const tenantOptions = { ...options, tenantId };
+        const hasLiveEntry = draft.contentId !== undefined && draft.contentId !== null;
+        const contentId = hasLiveEntry ? String(draft.contentId) : generateId();
+        const collectionId = draft.collectionId != null ? String(draft.collectionId) : null;
+        const status = draft.status ?? "draft";
+
+        const existing = await this._latestDraft({ contentId, authorId }, tenantOptions, {
+          version: -1,
+        });
+
+        if (existing) {
+          const version = Number(existing.version ?? 0) + 1;
+          const updated = await draftsRepo.update(
+            existing._id,
+            { data: draft.data, version, status, collectionId } as never,
+            { tenantId },
+          );
+          if (!updated.success) return updated;
+          await this._pruneDraftVersions(contentId, authorId, version, tenantOptions);
+          return updated;
+        }
+
+        const inserted = await draftsRepo.insert(
+          {
+            ...(hasLiveEntry ? {} : { _id: contentId }),
+            contentId,
+            collectionId,
+            data: draft.data,
+            version: 1,
+            status,
+            authorId,
+          } as unknown as EntityCreate<ContentDraft>,
+          { tenantId },
+        );
+        return inserted;
+      } catch (error) {
+        return {
+          success: false,
+          message: "Failed to upsert the draft.",
+          error: createDatabaseError(error, "DRAFT_UPSERT_ERROR", "Failed to upsert the draft."),
+        };
+      }
+    },
+    /** Remove every draft for an entry, optionally narrowed to one author. */
+    deleteForContent: async (
+      contentId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<{ deletedCount: number }>> => {
+      try {
+        const { draftsRepo } = await this._ensureRepos();
+        const query = {
+          contentId,
+          ...(options?.authorId ? { authorId: String(options.authorId) } : {}),
+          ...(options?.kind === "new" ? { "data.__draft.kind": "new" } : {}),
+        } as unknown as QueryFilter<ContentDraft>;
+        const res = await draftsRepo.deleteMany(query, {
+          permanent: true,
+          tenantId: options?.tenantId,
+        });
+        if (!res.success) {
+          return { success: false, message: res.message, error: res.error };
+        }
+        return { success: true, data: { deletedCount: res.data?.deletedCount ?? 0 } };
+      } catch (error) {
+        return {
+          success: false,
+          message: "Failed to delete drafts for content.",
+          error: createDatabaseError(
+            error,
+            "DRAFT_DELETE_ERROR",
+            "Failed to delete drafts for content.",
+          ),
+        };
+      }
+    },
     restore: async (draftId: DatabaseId) => {
       const { draftsRepo } = await this._ensureRepos();
       const res = await draftsRepo.restore(draftId);
       return res.success ? { success: true as const, data: undefined } : res;
     },
-    delete: async (draftId: DatabaseId) => {
+    delete: async (draftId: DatabaseId, options?: BaseQueryOptions) => {
       const { draftsRepo } = await this._ensureRepos();
-      return draftsRepo.delete(draftId);
+      return draftsRepo.delete(draftId, { tenantId: options?.tenantId });
     },
     deleteMany: async (draftIds: DatabaseId[]) => {
       const { draftsRepo } = await this._ensureRepos();
@@ -213,6 +366,44 @@ export class MongoContentModule
       };
     },
   };
+
+  /** Newest draft matching `query`, tenant-scoped through the repo's safeQuery. */
+  private async _latestDraft(
+    query: Record<string, unknown>,
+    options: DraftQueryOptions | undefined,
+    sort: Record<string, 1 | -1>,
+  ): Promise<ContentDraft | null> {
+    const { draftsRepo } = await this._ensureRepos();
+    const scoped = {
+      ...query,
+      ...(options?.kind === "new" ? { "data.__draft.kind": "new" } : {}),
+    } as unknown as QueryFilter<ContentDraft>;
+    const res = await draftsRepo.findMany(scoped, {
+      tenantId: options?.tenantId,
+      limit: 1,
+      sort: sort as never,
+    });
+    if (!res.success) {
+      throw new Error(res.message ?? "Draft lookup failed");
+    }
+    return res.data?.[0] ?? null;
+  }
+
+  /** Keep the newest `DRAFT_RETENTION_LIMIT` versions for one author + entry. */
+  private async _pruneDraftVersions(
+    contentId: string,
+    authorId: string,
+    latestVersion: number,
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    const cutoff = latestVersion - DRAFT_RETENTION_LIMIT;
+    if (cutoff < 1) return;
+    const { draftsRepo } = await this._ensureRepos();
+    await draftsRepo.deleteMany(
+      { contentId, authorId, version: { $lt: cutoff } } as unknown as QueryFilter<ContentDraft>,
+      { permanent: true, tenantId: options?.tenantId },
+    );
+  }
 
   // ─── Node / Structure Operations ─────────────────────────────────────────────
   nodes = {

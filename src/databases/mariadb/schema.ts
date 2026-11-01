@@ -192,6 +192,7 @@ export const contentDrafts = mysqlTable(
   {
     _id: uuidPk(),
     contentId: varchar("contentId", { length: 36 }).notNull(),
+    collectionId: varchar("collectionId", { length: 36 }),
     data: json("data").notNull(),
     version: int("version").notNull().default(1),
     status: varchar("status", { length: 50 }).notNull().default("draft"),
@@ -204,6 +205,13 @@ export const contentDrafts = mysqlTable(
     authorIdx: index("author_idx").on(table.authorId),
     statusIdx: index("status_idx").on(table.status),
     tenantIdx: index("tenant_idx").on(table.tenantId),
+    // Autosave lookup: (tenantId, collectionId, authorId) + updatedAt DESC.
+    collectionAuthorIdx: index("tenant_collection_author_idx").on(
+      table.tenantId,
+      table.collectionId,
+      table.authorId,
+      table.updatedAt,
+    ),
     // Latest-draft lookup twin of the PG composite (index-order scan).
     latestIdx: index("latest_idx").on(table.contentId, table.version),
   }),

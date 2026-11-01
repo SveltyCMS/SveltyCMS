@@ -210,6 +210,7 @@ export const contentDrafts = pgTable(
       .primaryKey()
       .default(sql`gen_random_uuid()`),
     contentId: varchar("contentId", { length: 36 }).notNull(),
+    collectionId: varchar("collectionId", { length: 36 }),
     data: jsonb("data").notNull(),
     version: integer("version").notNull().default(1),
     status: varchar("status", { length: 50 }).notNull().default("draft"),
@@ -222,6 +223,13 @@ export const contentDrafts = pgTable(
     authorIdx: index("content_drafts_author_idx").on(table.authorId),
     statusIdx: index("content_drafts_status_idx").on(table.status),
     tenantIdx: index("content_drafts_tenant_idx").on(table.tenantId),
+    // Autosave lookup: (tenantId, collectionId, authorId) + updatedAt DESC.
+    collectionAuthorIdx: index("content_drafts_tenant_collection_author_idx").on(
+      table.tenantId,
+      table.collectionId,
+      table.authorId,
+      table.updatedAt,
+    ),
     // Latest-draft lookup: WHERE contentId = ? ORDER BY version DESC LIMIT 1
     // is a single index probe; the sort order is baked into the index.
     latestIdx: index("content_drafts_latest_idx").on(table.contentId, desc(table.version)),

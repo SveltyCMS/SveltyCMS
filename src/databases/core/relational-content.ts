@@ -5,7 +5,7 @@
  */
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import type {
   ContentDraft,
   ContentNode,
@@ -14,6 +14,8 @@ import type {
   DatabaseResult,
   PaginatedResult,
   PaginationOptions,
+  DraftQueryOptions,
+  DraftUpsertInput,
   EntityCreate,
   IContentAdapter,
   BaseQueryOptions,
@@ -27,6 +29,9 @@ import {
   generateId,
 } from "./relational-utils";
 import { assertTenantContext } from "@src/utils/security/safe-query";
+
+/** Autosave history kept per (contentId, authorId); older versions are pruned. */
+export const DRAFT_RETENTION_LIMIT = 20;
 
 export class RelationalContentModule implements IContentAdapter {
   protected readonly adapter: ISqlAdapter;
@@ -173,21 +178,25 @@ export class RelationalContentModule implements IContentAdapter {
 
     getForContent: async (
       contentId: DatabaseId,
-      options?: PaginationOptions,
+      options?: PaginationOptions & DraftQueryOptions,
       dbOptions?: BaseQueryOptions,
     ): Promise<DatabaseResult<PaginatedResult<ContentDraft>>> => {
       return this.adapter.wrap(
         async () => {
           const limit = options?.pageSize || 20;
           const offset = ((options?.page || 1) - 1) * limit;
+          const drafts = this.schema.contentDrafts;
+          const conditions: any[] = [eq(drafts.contentId, contentId as string)];
+          if (options?.authorId) conditions.push(eq(drafts.authorId, String(options.authorId)));
+          applyTenantFilter(conditions, drafts.tenantId, { ...dbOptions, ...options });
 
           const results = await this.getDb(dbOptions)
-            .select(this.adapter.getPhysicalSelection(this.schema.contentDrafts))
-            .from(this.schema.contentDrafts)
-            .where(eq(this.schema.contentDrafts.contentId, contentId as string))
+            .select(this.adapter.getPhysicalSelection(drafts))
+            .from(drafts)
+            .where(and(...conditions))
             .limit(limit)
             .offset(offset)
-            .orderBy(desc(this.schema.contentDrafts.version));
+            .orderBy(desc(drafts.version));
 
           return {
             items: convertArrayDatesToISO(results, {
@@ -206,12 +215,139 @@ export class RelationalContentModule implements IContentAdapter {
       );
     },
 
+    /** Newest draft for one entry, tenant + optional author scoped. */
+    getLatestForContent: async (
+      contentId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft | null>> => {
+      return this.adapter.wrap(
+        () => this.selectLatestDraft({ contentId: String(contentId) }, options),
+        "GET_LATEST_DRAFT_FAILED",
+        undefined,
+        { transaction: options?.transaction },
+      );
+    },
+
+    /** Newest draft written by one author in a collection (optionally new-entry only). */
+    getLatestForCollection: async (
+      collectionId: DatabaseId,
+      authorId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft | null>> => {
+      return this.adapter.wrap(
+        () =>
+          this.selectLatestDraft(
+            { collectionId: String(collectionId), authorId: String(authorId) },
+            options,
+          ),
+        "GET_LATEST_COLLECTION_DRAFT_FAILED",
+        undefined,
+        { transaction: options?.transaction },
+      );
+    },
+
+    /**
+     * Autosave sink: bump the newest draft for (contentId, authorId) or insert
+     * version 1, then prune versions beyond the retention window.
+     *
+     * A draft for a new unsaved entry has no `contentId` yet — the row's own id
+     * becomes `contentId`, so it stays addressable without a sentinel.
+     */
+    upsertDraft: async (
+      draft: DraftUpsertInput,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<ContentDraft>> => {
+      return this.adapter.wrap(
+        async () => {
+          const authorId = String(draft.authorId) as DatabaseId;
+          const tenantId = draft.tenantId ?? options?.tenantId;
+          const scope: DraftQueryOptions = { ...options, tenantId, authorId };
+          const hasLiveEntry = draft.contentId !== undefined && draft.contentId !== null;
+          const contentId = hasLiveEntry ? String(draft.contentId) : String(generateId());
+          const collectionId = draft.collectionId != null ? String(draft.collectionId) : null;
+          const status = draft.status ?? "draft";
+          const tenantOptions: BaseQueryOptions = { ...options, tenantId };
+
+          const existing = await this.selectLatestDraft({ contentId }, scope);
+
+          if (existing) {
+            const version = Number(existing.version ?? 0) + 1;
+            const updated = await this.crud.update<ContentDraft>(
+              "content_drafts",
+              existing._id,
+              { data: draft.data, version, status, collectionId } as never,
+              tenantOptions,
+            );
+            if (!updated.success) throw new Error(updated.message ?? "Draft update failed");
+            await this.pruneDraftVersions(contentId, authorId, version, tenantOptions);
+            return updated.data;
+          }
+
+          const inserted = await this.crud.insert<ContentDraft>(
+            "content_drafts",
+            {
+              // A new-entry draft owns its UUID: `_id === contentId` is what makes
+              // it resumable without inventing a placeholder entry id.
+              ...(hasLiveEntry ? {} : { _id: contentId }),
+              contentId,
+              collectionId,
+              data: draft.data,
+              version: 1,
+              status,
+              authorId,
+            } as never,
+            tenantOptions,
+          );
+          if (!inserted.success) throw new Error(inserted.message ?? "Draft insert failed");
+          return inserted.data;
+        },
+        "UPSERT_DRAFT_FAILED",
+        undefined,
+        { transaction: options?.transaction, isWrite: true },
+      );
+    },
+
+    /** Remove every draft for an entry, optionally narrowed to one author. */
+    deleteForContent: async (
+      contentId: DatabaseId,
+      options?: DraftQueryOptions,
+    ): Promise<DatabaseResult<{ deletedCount: number }>> => {
+      return this.adapter.wrap(
+        async () => {
+          const drafts = this.schema.contentDrafts;
+          const conditions: any[] = [eq(drafts.contentId, contentId as string)];
+          if (options?.authorId) conditions.push(eq(drafts.authorId, String(options.authorId)));
+          if (options?.kind === "new") {
+            conditions.push(eq(this.adapter.getJsonField("__draft.kind"), "new"));
+          }
+          applyTenantFilter(conditions, drafts.tenantId, options);
+          const db = this.getDb(options);
+
+          if (this.adapter.type === "sqlite" || this.adapter.type === "postgresql") {
+            const removed = await db
+              .delete(drafts)
+              .where(and(...conditions))
+              .returning({ _id: drafts._id });
+            return { deletedCount: removed.length };
+          }
+          const [result] = await db.delete(drafts).where(and(...conditions));
+          return { deletedCount: (result as any)?.affectedRows ?? 0 };
+        },
+        "DELETE_DRAFTS_FOR_CONTENT_FAILED",
+        undefined,
+        { isWrite: true },
+      );
+    },
+
     restore: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
       return this.crud.restore("content_drafts", draftId);
     },
 
-    delete: async (draftId: DatabaseId): Promise<DatabaseResult<void>> => {
-      return this.crud.delete("content_drafts", draftId);
+    delete: async (
+      draftId: DatabaseId,
+      options?: BaseQueryOptions,
+    ): Promise<DatabaseResult<void>> => {
+      return this.crud.delete("content_drafts", draftId, options);
     },
 
     deleteMany: async (
@@ -222,6 +358,66 @@ export class RelationalContentModule implements IContentAdapter {
       } as any);
     },
   };
+
+  /**
+   * Newest draft matching `where`, always tenant-scoped (fail-closed in
+   * multi-tenant mode) and author-scoped when one is supplied. Content lookups
+   * order by `version` (index order); collection lookups order by `updatedAt`
+   * (the autosave index order).
+   */
+  private async selectLatestDraft(
+    where: { contentId?: string; collectionId?: string; authorId?: string },
+    options?: DraftQueryOptions,
+  ): Promise<ContentDraft | null> {
+    const drafts = this.schema.contentDrafts;
+    const conditions: any[] = [];
+    if (where.contentId) conditions.push(eq(drafts.contentId, where.contentId));
+    if (where.collectionId) conditions.push(eq(drafts.collectionId, where.collectionId));
+    const authorId =
+      where.authorId ?? (options?.authorId != null ? String(options.authorId) : undefined);
+    if (authorId) conditions.push(eq(drafts.authorId, authorId));
+    if (options?.kind === "new") {
+      conditions.push(eq(this.adapter.getJsonField("__draft.kind"), "new"));
+    }
+    applyTenantFilter(conditions, drafts.tenantId, options);
+    if (conditions.length === 0) return null;
+
+    const rows = await this.getDb(options)
+      .select(this.adapter.getPhysicalSelection(drafts))
+      .from(drafts)
+      .where(and(...conditions))
+      .orderBy(
+        ...(where.contentId
+          ? [desc(drafts.version), desc(drafts.updatedAt)]
+          : [desc(drafts.updatedAt), desc(drafts.version)]),
+      )
+      .limit(1);
+
+    return rows[0]
+      ? (convertDatesToISO(rows[0], { table: "contentDrafts" }) as ContentDraft)
+      : null;
+  }
+
+  /** Keep the newest `DRAFT_RETENTION_LIMIT` versions for one author + entry. */
+  private async pruneDraftVersions(
+    contentId: string,
+    authorId: string,
+    latestVersion: number,
+    options?: BaseQueryOptions,
+  ): Promise<void> {
+    const cutoff = latestVersion - DRAFT_RETENTION_LIMIT;
+    if (cutoff < 1) return;
+    const drafts = this.schema.contentDrafts;
+    const conditions: any[] = [
+      eq(drafts.contentId, contentId),
+      eq(drafts.authorId, authorId),
+      lte(drafts.version, cutoff),
+    ];
+    applyTenantFilter(conditions, drafts.tenantId, options);
+    await this.getDb(options)
+      .delete(drafts)
+      .where(and(...conditions));
+  }
 
   // ============================================================
   // NODES

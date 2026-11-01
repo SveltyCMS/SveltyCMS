@@ -10,6 +10,7 @@
  * - size-gated content ETags (FNV-1a up to 1 KiB, native SHA-256 `"s256|…"` above)
  * - bounded list/GraphQL L1 + dedicated point-read L1 (FIFO, first set admits)
  * - tenant-scoped L1/L2 invalidation
+ * - collection-epoch fence on L2 refills and L1 hits (point reads exempt)
  * - surgical L1 drop (written doc + lists/GraphQL; sibling findById stays)
  * - pre-computed compression variants for TURBO-HIT serving
  */
@@ -37,8 +38,8 @@ export interface CachedResponseEntry {
    * point-reads). A list/GraphQL body can outlive its L1 slot — capacity-gated
    * admission rejects the key, or FIFO eviction drops it — while the shared L2
    * copy survives and is no longer reachable through `listIndex`/`graphqlIndex`.
-   * Comparing this against the live collection epoch on refill is what stops a
-   * superseded list from being resurrected by the next `get()`.
+   * Comparing this against the live collection epoch on every L1 hit and on L2
+   * refill is what stops a superseded list from being served or resurrected.
    */
   gen?: number;
 }
@@ -614,6 +615,32 @@ class ResponseCacheService {
   }
 
   /**
+   * L1 flavour of {@link generationMatches}. The scope is read from the index
+   * meta written with the entry, so a list/GraphQL hit costs one `l1Meta` lookup
+   * instead of re-parsing the key (no string slicing, no object allocation).
+   *
+   * Point reads carry no `gen` and return on the first property read, so the
+   * point-hit path is unchanged.
+   */
+  private l1GenerationMatches(
+    entry: CachedResponseEntry,
+    fullKey: string,
+    key: string,
+    tenantId?: string | null,
+  ): boolean {
+    if (entry.gen === undefined) return true;
+    const meta = this.l1Meta.get(fullKey);
+    // Not indexed (a pre-fence entry, or a key the index never classified): fall
+    // back to the key shape rather than silently skipping the fence. Never taken
+    // by a body that was stamped through `set()`.
+    if (!meta) return this.generationMatches(entry, key, tenantId);
+    if (meta.entryId) return true;
+    const scope = meta.graphql ? GRAPHQL_CACHE_SCOPE : (meta.collection ?? null);
+    if (scope === null) return true;
+    return entry.gen === cacheService.getCollectionEpoch(scope, tenantId);
+  }
+
+  /**
    * Drop a shared-L2 list body whose collection generation has moved on. The key
    * is absent from `listIndex`/`graphqlIndex` when admission rejected it or FIFO
    * eviction unindexed it, so `invalidateLocal` could not reach it — the read
@@ -905,9 +932,18 @@ class ResponseCacheService {
       if (typeof local.expiresAt === "number" && Date.now() > local.expiresAt) {
         this.removeEntry(store, fullKey);
         this.unindexKey(fullKey);
-      } else {
+      } else if (point || this.l1GenerationMatches(local, fullKey, key, tenantId)) {
         this.maybeAttachBuffer(local, point);
         return local;
+      } else {
+        // The body was stamped in a collection generation that has since moved
+        // on — typically a write on another node, whose propagation updates this
+        // process's epoch map but cannot drop this L1 slot. Drop + unindex it so
+        // it is never served again, then continue the lookup: the L2 path below
+        // re-checks the same fence (and deletes the shared copy), so nothing
+        // fresh means a true miss rather than a superseded hit.
+        this.removeEntry(store, fullKey);
+        this.unindexKey(fullKey);
       }
     }
 
@@ -1138,8 +1174,8 @@ class ResponseCacheService {
     // Callers bump the collection epoch first (handle-api-requests, post-write,
     // invalidateCollection) so an L2 body that is no longer indexed (admission
     // rejected / FIFO-evicted) is fenced at refill time by `generationMatches`.
-    // There is no peer-invalidation channel: another node keeps serving its own
-    // already-cached copy until TTL or its next read after hydrating the epoch.
+    // A peer node receives the bump on the invalidation channel and rejects its
+    // own already-admitted L1 bodies through the same fence (`l1GenerationMatches`).
     this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
     this.evictListSet(this.graphqlIndex, tenant, tenantId);
     // GraphQL keys are not scoped to one collection, so any write bumps the

@@ -398,6 +398,17 @@ bun run scripts/check/check-bundle-size.ts
 
 **Verified baseline (2026-11-01, `bun run build`)**: root layout node `0.*.js` = 18,565 B — under the 25 KB ceiling.
 
+### `bun run build:fast` — Local build without source maps
+
+A local `bun run build` emits source maps (`sourcemap: !process.env.CI` in `vite.config.ts`). They are the dominant **output** cost, not the wall-time cost: the full build writes ~72 MB of `.map` files across ~1,098 files (the 1.6 MB client chunk alone produces a 16 MB map), while a measured run takes ~29 s with or without them on the dev Windows host. `build:fast` sets `BUILD_SOURCEMAP=false`, which `vite.config.ts` honours; the emitted `.js` is the same build minus the `//# sourceMappingURL=` comments (chunk file names can differ because the comment participates in the content hash), so the bundle gate and a runnable `build/` are unaffected. The output drops from ~96 MB to ~22 MB. CI (`CI=true`) already builds without maps, so no release semantics change.
+
+```bash
+bun run build:fast
+bun run scripts/check/check-bundle-size.ts
+```
+
+Use it when a local step only needs a runnable `build/` (integration preview, E2E, bundle gate). Use `bun run build` when you need stack traces mapped back to the original sources.
+
 ### `scripts/check/check-flake-budget.ts` — Flake Budget Enforcement
 
 Enforces retried-test limits per E2E shard. `--max-flaky` governs a single retried pass; the percentage check only applies when more than one test retried and at least 20 tests executed, so one retry in a 25-test shard does not contradict `--max-flaky=2`.

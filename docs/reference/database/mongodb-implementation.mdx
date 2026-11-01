@@ -731,15 +731,19 @@ mediaSchema.index({
 });
 ```
 
-#### content_drafts (5 indexes)
+#### content_drafts (6 indexes)
 
 ```
-// File: src/databases/mongodb/models/draft.ts
+// File: src/databases/mongodb/schema.ts
 
 // Latest draft version for content
 // Query: Get latest draft of post
 // Before: 100ms (table scan), After: 3ms
 draftSchema.index({ contentId: 1, version: -1 });
+
+// Autosave lookup: an author's newest draft in a collection
+// Query: Resume the draft for this collection (optionally new-entry only)
+draftSchema.index({ tenantId: 1, collectionId: 1, authorId: 1, updatedAt: -1 });
 
 // Author's drafts by status
 // Query: My pending drafts, newest first

@@ -5,8 +5,9 @@
  * `bumpCollectionEpoch` persists the new value to L2, but a peer's
  * `getCollectionEpoch` only reads its process-local map plus `getSync` (L1) —
  * it never reloads the L2 key, so a peer kept serving list/GraphQL bodies
- * stamped with its stale epoch until TTL. The bump now publishes the epoch on
- * the existing invalidation channel and subscribers apply it locally.
+ * stamped with its stale epoch until TTL. The bump publishes the epoch on the
+ * existing invalidation channel and subscribers apply it locally, so the `gen`
+ * fence rejects both L2 refills and already-admitted L1 bodies on the peer.
  *
  * Runs entirely on the deterministic in-memory FakeRedis: the `redis` package
  * is not required, and no network connection is opened. The pub/sub client used
@@ -147,8 +148,9 @@ describe("CacheService collection-epoch propagation", () => {
     await singletonCache.set(`res:${key}`, stale, 60, tenant);
     expect(responseCache.get(key, tenant)?.body).toBe('{"items":["stale"]}');
     // Drop the response-cache L1 slot (capacity-gated admission / FIFO eviction)
-    // while the shared `res:<key>` copy survives — the state the epoch fence
-    // exists for. A local L1 hit is intentionally not epoch-checked.
+    // while the shared `res:<key>` copy survives — the state the L2 fence exists
+    // for. (`get()` fences an admitted L1 slot too; the deterministic L1 case is
+    // pinned in `tests/unit/core/response-cache-read-after-write.test.ts`.)
     responseCache.trimLocal();
 
     // Peer write: A bumps, the singleton must observe the new epoch…
