@@ -145,6 +145,10 @@ test.describe("Layout stability", () => {
 test.describe("Server-rendered collection table", () => {
   // No JavaScript: whatever is asserted here came from the SSR response.
   test.use({ javaScriptEnabled: false });
+  // That switch blocks every /_app module load, so the browser reports each one
+  // as a failed request with errorText `csp`. The block IS the setup of this
+  // describe, not a defect: nothing is expected to execute here.
+  test.use({ expectedFailedRequests: [/-> csp$/] });
 
   test.beforeEach(async ({ page }) => {
     // Refresh the session through the API (no page JavaScript): the project's

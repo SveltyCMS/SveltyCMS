@@ -27,6 +27,14 @@ const ACTION_TIMEOUT = 30_000;
 test.describe.configure({ mode: "serial", timeout: 180_000 });
 
 test.describe("Media gallery — bulk delete partial failure", () => {
+  test.use({
+    // The test fails exactly one delete by fulfilling the page action with a 500;
+    // reporting that failure to the user is the contract under test, so both the
+    // 5xx and the browser's own log for it are expected.
+    expectedConsoleErrors: [/status of 500/],
+    expectedServerErrors: [/deleteMedia.*HTTP 500/],
+  });
+
   test("keeps failed assets selected and reports the partial outcome", async ({ page }) => {
     const prefix = `e2e-partial-${Date.now().toString(36)}`;
     const items = ["a", "b"].map((suffix) => ({
