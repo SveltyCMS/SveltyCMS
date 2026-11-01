@@ -793,6 +793,36 @@ export class CacheService {
     });
   }
 
+  /**
+   * Persist an SWR entry to L2 **with its tag index**.
+   *
+   * Queuing through the write batcher is what makes the L2 copy invalidatable:
+   * `clearByTags()` resolves victims via `tag:<tenant>:<tag>` → member keys.
+   * Writing the value with a bare `l2.set` (what this replaced) left the L2 copy
+   * invisible to every tag clear, so a mutation dropped L1 only, the next read
+   * rehydrated the stale list from L2 and served it for the whole SWR window —
+   * "the row is missing from the list until the cache expires".
+   */
+  private writeSwrEntryToL2(
+    fullKey: string,
+    entry: unknown,
+    tags: string[],
+    tenantId: string | null | undefined,
+    ttlSeconds: number,
+  ): void {
+    if (!this.isL2Ready()) return;
+    const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
+    void this.batcher
+      .bufferWrite(this.l2, {
+        key: fullKey,
+        val: JSON.stringify(entry),
+        ttl: ttlSeconds,
+        tags,
+        tagPrefix,
+      })
+      .catch((err: unknown) => logger.error(`L2 SWR Set Failure: ${fullKey}`, err));
+  }
+
   async getOrSetSWR<T>(
     key: string,
     fetchFn: () => Promise<T>,
@@ -803,6 +833,10 @@ export class CacheService {
     tags: string[] = [],
   ): Promise<T> {
     const fullKey = this.generateKey(key, tenantId);
+    // One unit for both the L2 value TTL and its tag-set TTL: if the tag set
+    // expired before the value, the tail of the stale window would be
+    // un-invalidatable again.
+    const l2TtlSeconds = Math.max(1, Math.ceil(staleTtl / 1000));
     let cachedEntry = this.l1.get(fullKey);
 
     // L2 Read-through for SWR
@@ -838,11 +872,7 @@ export class CacheService {
             if (fresh !== undefined && fresh !== null) {
               const entry = { value: fresh, storedAt: Date.now() };
               this.l1.set(fullKey, entry, { ttl: staleTtl * 2 });
-              if (this.isL2Ready()) {
-                await this.l2.set(fullKey, JSON.stringify(entry), {
-                  EX: Math.max(1, Math.ceil(staleTtl / 1000)),
-                });
-              }
+              this.writeSwrEntryToL2(fullKey, entry, tags, tenantId, l2TtlSeconds);
             }
           } catch {}
         });
@@ -857,11 +887,7 @@ export class CacheService {
         this.l1.set(fullKey, entry, { ttl: staleTtl * 2 });
         this.addToPrefixMap(fullKey);
         if (tags.length > 0) this.registerTagsForKey(fullKey, tags, tenantId);
-        if (this.isL2Ready()) {
-          await this.l2.set(fullKey, JSON.stringify(entry), {
-            EX: Math.max(1, Math.ceil(staleTtl / 1000)),
-          });
-        }
+        this.writeSwrEntryToL2(fullKey, entry, tags, tenantId, l2TtlSeconds);
       } else {
         this.recordMiss(key, tenantId);
       }
@@ -984,6 +1010,14 @@ export class CacheService {
 
   async clearByTags(tags: string[], tenantId: string | null = "*") {
     if (!tags || tags.length === 0) return;
+    // Drain the 15 ms write batch BEFORE the tag index is read. SWR entries now
+    // reach L2 through the batcher, so a write buffered just before this clear
+    // would otherwise land afterwards — re-creating the entry with fresh tag
+    // membership and a fresh TTL, i.e. exactly the stale list this clear exists
+    // to prevent. `flush()` is chained, so it also awaits an in-flight flush.
+    if (this.isL2Ready()) {
+      await this.batcher.flush(this.l2);
+    }
     // Negative entries carry the same tags as their positive counterparts, so a
     // `doc:<collection>:<id>` write clear also un-negatives that entry.
     this.negative.invalidateByTags(tags);
