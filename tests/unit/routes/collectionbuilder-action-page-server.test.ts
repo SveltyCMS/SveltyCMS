@@ -231,16 +231,19 @@ function parseSavedCollection(name: string): SavedCollection | null {
 
   const idMatch = /^\s*_id:\s*"([^"]*)",?$/m.exec(source);
   const nameMatch = /^\s*name:\s*"([^"]*)",?$/m.exec(source);
-  const fieldsMatch = /^\s*fields:\s*(\{.*\}),?$/m.exec(source);
+  // CB2: the builder stores the widget list as an ordered ARRAY. Legacy files (and
+  // anything written before the fix) hold an index-keyed map, so both shapes are read;
+  // an array keeps its order, a map falls back to index order as it always did.
+  const fieldsMatch = /^\s*fields:\s*(\{.*\}|\[.*\]),?$/m.exec(source);
   if (!nameMatch || !fieldsMatch) {
     throw new Error(`Generated collection file is not parseable for ${name}:\n${source}`);
   }
 
-  const fieldMap = JSON.parse(fieldsMatch[1]) as Record<string, SavedField>;
+  const parsedFields = JSON.parse(fieldsMatch[1]) as Record<string, SavedField> | SavedField[];
   return {
     _id: idMatch?.[1] ?? nameMatch[1],
     name: nameMatch[1],
-    fields: Object.values(fieldMap),
+    fields: Array.isArray(parsedFields) ? parsedFields : Object.values(parsedFields),
   };
 }
 
