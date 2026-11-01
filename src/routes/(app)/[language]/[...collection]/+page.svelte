@@ -38,11 +38,7 @@ This page dynamically switches between List views and Field editors based on the
 	import { createEntry, updateEntry } from '@utils/api';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { nowISODateString } from '@utils/date';
-	import {
-		buildAutosavePayload,
-		findMissingRequiredFields,
-		isPristineEntry
-	} from '@utils/entry-autosave';
+	import { guardNavigationAutosave } from '@utils/entry-autosave';
 	import { onMount, untrack } from 'svelte';
 	import { beforeNavigate, refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -483,69 +479,39 @@ This page dynamically switches between List views and Field editors based on the
 		}
 
 		// Only check if we're in edit/create mode and have unsaved changes
-		if (['edit', 'create'].includes(collections.mode) && collections.activeValue) {
-			const currentValue = JSON.stringify(collections.activeValue);
-			const hasUnsavedChanges = currentValue !== initialCollectionValue;
+		if (!['edit', 'create'].includes(collections.mode) || !collections.activeValue) {
+			return;
+		}
 
-			if (hasUnsavedChanges && !isSavingDraft) {
-				// The payload builder is the single write gate: it applies the same
-				// required-field rules as the Save button and returns null when there is
-				// nothing worth keeping. Reload/Back on an untouched Create form lands
-				// here as `hasUnsavedChanges` (the editor normalizes the field skeleton on
-				// mount, so `{ title: null }` became `{ title: { en: '' } }`) — that path
-				// used to POST a row with every field empty.
-				let loadedData: Record<string, unknown> | null = null;
-				try {
-					loadedData = initialCollectionValue
-						? (JSON.parse(initialCollectionValue) as Record<string, unknown>)
-						: null;
-				} catch {
-					loadedData = null;
-				}
-				const fields = (collectionSchema ?? collections.active)?.fields ?? [];
-				const payload = buildAutosavePayload(
-					collections.activeValue as Record<string, unknown>,
-					loadedData,
-					nowISODateString(),
-					fields
-				);
-
-				if (!payload) {
-					// Untouched form → nothing to keep, let the navigation through. A form
-					// with unsaved but invalid content is not written either (Save would
-					// refuse it too) and says so instead of pretending it was saved.
-					if (!isPristineEntry(collections.activeValue as Record<string, unknown>)) {
-						const missing = findMissingRequiredFields(
-							collections.activeValue as Record<string, unknown>,
-							fields
-						);
-						toast.warning(`Not saved — still required: ${missing.join(', ')}`);
-					}
-					logger.debug('[Auto-save] No valid payload — navigation continues without a write');
-					return;
-				}
-
-				logger.debug('[Auto-save] Detected unsaved changes, auto-saving as draft...');
-
-				// Cancel navigation only once the write is certain, so a skip above never
-				// cancels the user's Back/Reload.
-				cancel();
-
-				// Auto-save as draft
-				const saved = await autoSaveDraft(payload);
-
-				if (saved) {
-					toast.success('Changes auto-saved');
-					// Update initial value to prevent re-saving on the resumed navigation
-					initialCollectionValue = JSON.stringify(collections.activeValue);
-					collections.setMode('view');
-					if (to?.url) {
-						await goto(to.url.href);
-					}
-				} else {
-					toast.error('Failed to auto-save. Please save manually.');
-				}
+		// The guard body lives in `@utils/entry-autosave` so the leave-path
+		// itself (cancel vs. skip vs. write) is unit-testable. It owns the
+		// required-field gate: a form the gate rejects is never written, and it
+		// keeps the user on the form (`cancel()`) instead of letting the router
+		// navigate away and drop the edits they already typed.
+		const outcome = await guardNavigationAutosave({
+			entryData: collections.activeValue as Record<string, unknown>,
+			initialSnapshot: initialCollectionValue,
+			fields: (collectionSchema ?? collections.active)?.fields,
+			now: nowISODateString(),
+			isSaving: isSavingDraft,
+			cancel,
+			saveDraft: autoSaveDraft,
+			notify: (level, message) => {
+				if (level === 'warning') toast.warning(message);
+				else if (level === 'success') toast.success(message);
+				else toast.error(message);
 			}
+		});
+
+		if (outcome.action === 'saved') {
+			// Update initial value to prevent re-saving on the resumed navigation
+			initialCollectionValue = JSON.stringify(collections.activeValue);
+			collections.setMode('view');
+			if (to?.url) {
+				await goto(to.url.href);
+			}
+		} else {
+			logger.debug('[Auto-save] No draft written for this navigation', outcome);
 		}
 	});
 </script>

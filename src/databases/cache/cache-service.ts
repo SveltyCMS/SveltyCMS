@@ -1010,6 +1010,14 @@ export class CacheService {
 
   async clearByTags(tags: string[], tenantId: string | null = "*") {
     if (!tags || tags.length === 0) return;
+    // Drain the 15 ms write batch BEFORE the tag index is read. SWR entries now
+    // reach L2 through the batcher, so a write buffered just before this clear
+    // would otherwise land afterwards — re-creating the entry with fresh tag
+    // membership and a fresh TTL, i.e. exactly the stale list this clear exists
+    // to prevent. `flush()` is chained, so it also awaits an in-flight flush.
+    if (this.isL2Ready()) {
+      await this.batcher.flush(this.l2);
+    }
     // Negative entries carry the same tags as their positive counterparts, so a
     // `doc:<collection>:<id>` write clear also un-negatives that entry.
     this.negative.invalidateByTags(tags);

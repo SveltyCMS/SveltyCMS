@@ -11,6 +11,8 @@ import { describe, it, expect } from "vitest";
 import {
   buildAutosavePayload,
   findMissingRequiredFields,
+  guardNavigationAutosave,
+  isEmptyEntryValue,
   isPristineEntry,
 } from "../../../src/utils/entry-autosave";
 
@@ -159,5 +161,143 @@ describe("entry-autosave - field predicates", () => {
   it("treats arrays of empty values as empty", () => {
     expect(isPristineEntry({ tags: [], meta: {} })).toBe(true);
     expect(isPristineEntry({ tags: ["x"] })).toBe(false);
+  });
+
+  it("counts a Date-valued field as filled", () => {
+    // `Object.values(new Date())` is `[]`, so a filled date field used to look
+    // empty and blocked the write of an otherwise complete entry.
+    expect(isEmptyEntryValue(new Date("2026-10-19T12:00:00.000Z"))).toBe(false);
+    expect(isEmptyEntryValue(new Date(Number.NaN))).toBe(true);
+    const fields = [
+      { label: "Published on", db_fieldName: "publishedOn", required: true },
+    ] as never;
+    expect(
+      findMissingRequiredFields({ publishedOn: new Date("2026-10-19T00:00:00.000Z") }, fields),
+    ).toEqual([]);
+    expect(
+      buildAutosavePayload({ title: "x", publishedOn: new Date(NOW) }, null, NOW, fields),
+    ).not.toBeNull();
+  });
+});
+
+/**
+ * Stand-in for SvelteKit's router: `cancel()` aborts the pending navigation,
+ * so the navigation only "happens" when the guard did not cancel it. This is
+ * what makes the assertion "dirty + invalid stays on the form" testable without
+ * mounting the route component.
+ */
+function routerStub() {
+  const state = { cancelled: 0, navigations: 0 };
+  return {
+    state,
+    cancel: () => {
+      state.cancelled += 1;
+    },
+    /** What the router does once `beforeNavigate` settles. */
+    settle: () => {
+      if (state.cancelled === 0) state.navigations += 1;
+      return state;
+    },
+  };
+}
+
+function guardHarness(entryData: Record<string, unknown>, initialSnapshot: string | null) {
+  const router = routerStub();
+  const saves: Record<string, unknown>[] = [];
+  const warnings: string[] = [];
+  return {
+    router,
+    saves,
+    warnings,
+    run: () =>
+      guardNavigationAutosave({
+        entryData,
+        initialSnapshot,
+        fields: POSTS_FIELDS,
+        now: NOW,
+        cancel: router.cancel,
+        saveDraft: async (payload) => {
+          saves.push(payload);
+          return true;
+        },
+        notify: (level, message) => {
+          if (level === "warning") warnings.push(message);
+        },
+      }),
+  };
+}
+
+describe("entry-autosave - beforeNavigate path", () => {
+  it("lets a pristine form navigate without a POST", async () => {
+    // Reload/Back on an untouched Create form: the editor normalized the
+    // skeleton on mount, so the store differs from the page snapshot, but there
+    // is nothing to keep. The navigation must go through, silently.
+    const form = untouchedCreateForm();
+    const harness = guardHarness(form, JSON.stringify({ title: null, content: null }));
+
+    const outcome = await harness.run();
+
+    expect(outcome).toEqual({ action: "navigate", reason: "pristine" });
+    expect(harness.router.state.cancelled).toBe(0);
+    expect(harness.router.settle().navigations).toBe(1);
+    expect(harness.saves).toHaveLength(0);
+    expect(harness.warnings).toHaveLength(0);
+  });
+
+  it("cancels the navigation and keeps the edits when a required field is empty", async () => {
+    // Legacy row (or a field the user just cleared) + other edits: the gate
+    // refuses the payload, so the guard must NOT let the router navigate — the
+    // typed changes only exist in the store.
+    const form = {
+      _id: "entry-1",
+      title: { en: "" },
+      content: { en: "Body the user just typed" },
+      status: "publish",
+    };
+    const harness = guardHarness(
+      form,
+      JSON.stringify({ _id: "entry-1", title: { en: "Live" }, content: { en: "" } }),
+    );
+
+    const outcome = await harness.run();
+
+    expect(outcome.action).toBe("blocked");
+    expect(outcome).toMatchObject({ missing: ["Title"] });
+    expect(harness.router.state.cancelled).toBe(1);
+    // No navigation, no write.
+    expect(harness.router.settle().navigations).toBe(0);
+    expect(harness.saves).toHaveLength(0);
+    // The typed content is still in the store, and the toast names the gap.
+    expect(form.title).toEqual({ en: "" });
+    expect(form.content).toEqual({ en: "Body the user just typed" });
+    expect(harness.warnings[0]).toContain("Title");
+  });
+
+  it("still saves a valid dirty form and leaves the navigation to the caller", async () => {
+    const form = {
+      _id: "entry-1",
+      title: { en: "Edited" },
+      content: { en: "Body" },
+      status: "publish",
+    };
+    const harness = guardHarness(
+      form,
+      JSON.stringify({ _id: "entry-1", title: { en: "Live" }, content: { en: "Body" } }),
+    );
+
+    expect(await harness.run()).toEqual({ action: "saved" });
+    expect(harness.router.state.cancelled).toBe(1);
+    expect(harness.saves).toHaveLength(1);
+    expect(harness.saves[0].status).toBe("publish");
+  });
+
+  it("writes nothing for a form that matches its snapshot", async () => {
+    const form = { _id: "entry-1", title: { en: "Live" }, status: "publish" };
+    const harness = guardHarness(form, JSON.stringify(form));
+
+    expect(await harness.run()).toEqual({ action: "skipped", reason: "clean" });
+    expect(harness.router.state.cancelled).toBe(0);
+    expect(harness.router.settle().navigations).toBe(1);
+    expect(harness.saves).toHaveLength(0);
   });
 });

@@ -142,6 +142,71 @@ describe("CacheService SWR + L2 invalidation", () => {
     ).toEqual({ draft: 0, publish: 2 });
   });
 
+  it("does not let a buffered SWR write survive a clear issued afterwards", async () => {
+    // The race M2's fix introduced: SWR values now reach L2 through the 15 ms
+    // write batcher, so a write buffered *just before* a write-path clear can
+    // land *after* it and re-create the entry with tag membership and a fresh
+    // TTL. `clearByTags` therefore drains the batcher before it reads the tag
+    // index — otherwise the stale list came back for another full SWR window.
+    const l2 = new FakeRedis();
+    const module = await import("@src/databases/cache/cache-service?bun-unmock=" + Date.now());
+    const cache = new module.CacheService() as AnyService & {
+      generateKey: (key: string, tenantId: string | null) => string;
+    };
+    services.push(cache);
+    await cache.connectL2ForTest(l2);
+    const fullKey = cache.generateKey(LIST_KEY, "default");
+
+    let fetches = 0;
+    const rowsBefore = { entries: [{ _id: "old-1", title: "Old" }], totalItems: 1 };
+    await cache.getOrSetSWR(
+      LIST_KEY,
+      async () => {
+        fetches += 1;
+        return rowsBefore;
+      },
+      TTL_FRESH_MS,
+      TTL_STALE_MS,
+      "default",
+      "collection",
+      LIST_TAGS,
+    );
+    // Deliberately NOT flushed: the value still sits in the batcher's buffer.
+    expect(await l2.get(fullKey)).toBeNull();
+
+    // A create/update lands during that window and clears the list tags.
+    await cache.clearByTags(WRITE_CLEARED_TAGS, "default");
+
+    // Whatever the batcher still held would flush here (background timer or
+    // shutdown). Nothing may come back from it.
+    await cache.flushL2WritesForTest();
+    expect(await l2.get(fullKey)).toBeNull();
+    expect(await l2.sMembers("tag:default:collection:Posts")).toEqual([]);
+
+    // And the read path refetches instead of serving the resurrected copy.
+    const rowsAfter = {
+      entries: [
+        { _id: "new-1", title: "New" },
+        { _id: "old-1", title: "Old" },
+      ],
+      totalItems: 2,
+    };
+    const afterWrite = await cache.getOrSetSWR(
+      LIST_KEY,
+      async () => {
+        fetches += 1;
+        return rowsAfter;
+      },
+      TTL_FRESH_MS,
+      TTL_STALE_MS,
+      "default",
+      "collection",
+      LIST_TAGS,
+    );
+    expect(afterWrite).toEqual(rowsAfter);
+    expect(fetches).toBe(2);
+  });
+
   it("keeps a write's surgical scope: other collections stay cached", async () => {
     const cache = await service();
     const authorsKey =

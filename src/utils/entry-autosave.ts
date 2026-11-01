@@ -56,6 +56,9 @@ export function isEmptyEntryValue(value: unknown): boolean {
   if (value === null || value === undefined) return true;
   if (typeof value === "string") return value.trim() === "";
   if (typeof value === "boolean" || typeof value === "number") return false;
+  // A `Date` has no enumerable own properties, so `Object.values()` sees `[]`
+  // and the record branch below would report a filled date field as empty.
+  if (value instanceof Date) return Number.isNaN(value.getTime());
   if (Array.isArray(value)) return value.every((item) => isEmptyEntryValue(item));
   if (typeof value === "object") {
     return Object.values(value as Record<string, unknown>).every((item) => isEmptyEntryValue(item));
@@ -145,4 +148,105 @@ export function buildAutosavePayload(
   delete payload._scheduledBy;
 
   return payload;
+}
+
+/**
+ * Message shown when the guard refuses to leave a form it could not save.
+ * Naming the fields is the difference between "why am I still here?" and a
+ * fixable instruction.
+ */
+export function describeMissingRequiredFields(missing: readonly string[]): string {
+  return missing.length > 0
+    ? `Not saved — navigation cancelled. Still required: ${missing.join(", ")}.`
+    : "Not saved — navigation cancelled. Save the entry before leaving it.";
+}
+
+/** Everything the navigation guard needs from the entry form. */
+export interface NavigationAutosaveDeps {
+  /** Live form state (`collections.activeValue`); mutated nowhere in here. */
+  entryData: Record<string, unknown> | null;
+  /** The page's initial snapshot, serialized (`initialCollectionValue`). */
+  initialSnapshot: string | null;
+  fields: readonly FieldDefinition[] | null | undefined;
+  now: string;
+  /** True while another draft write is in flight. */
+  isSaving?: boolean;
+  /** Abort the pending navigation — SvelteKit's `beforeNavigate` → `cancel`. */
+  cancel: () => void;
+  /** Persist the payload; resolves `true` once the draft row landed. */
+  saveDraft: (payload: Record<string, unknown>) => Promise<boolean>;
+  notify?: (level: "warning" | "success" | "error", message: string) => void;
+}
+
+export type NavigationAutosaveOutcome =
+  | { action: "skipped"; reason: "no-entry" | "clean" | "saving" }
+  /** Untouched form: SvelteKit is not cancelled, the navigation proceeds. */
+  | { action: "navigate"; reason: "pristine" }
+  /** Navigation cancelled, the form and its edits stay put. */
+  | { action: "blocked"; missing: string[] }
+  | { action: "saved" }
+  | { action: "save-failed" };
+
+/**
+ * The body of the entry form's `beforeNavigate` guard.
+ *
+ * Lives here (rather than inline in `+page.svelte`) so the leave-path itself is
+ * testable: which of cancel / skip / write happens is the whole bug surface of
+ * M1, and the payload builder alone cannot prove it.
+ *
+ * Contract:
+ * - clean form → skipped, navigation proceeds, no write
+ * - untouched Create form (no required field filled, nothing authored) →
+ *   navigate, navigation proceeds, no write — the M1 ghost draft
+ * - every other form the required-field gate rejects → `cancel()` and a warning
+ *   naming what is missing. Autosave refuses such a payload (Save would too),
+ *   but a plain skip would let the router navigate and silently discard edits
+ *   the user just typed — losing data is worse than keeping them on the form.
+ * - valid dirty form → `cancel()`, write the draft, caller resumes navigation
+ */
+export async function guardNavigationAutosave(
+  deps: NavigationAutosaveDeps,
+): Promise<NavigationAutosaveOutcome> {
+  const notify = deps.notify ?? (() => {});
+  const entryData = deps.entryData;
+  if (!entryData) return { action: "skipped", reason: "no-entry" };
+
+  // The editor normalizes the field skeleton on mount (a translated `null`
+  // becomes `{ en: "" }`), so the serialized form can differ from the page's
+  // initial snapshot without the user having touched anything.
+  const hasUnsavedChanges = JSON.stringify(entryData) !== deps.initialSnapshot;
+  if (!hasUnsavedChanges) return { action: "skipped", reason: "clean" };
+  if (deps.isSaving) return { action: "skipped", reason: "saving" };
+
+  let loadedData: Record<string, unknown> | null = null;
+  try {
+    loadedData = deps.initialSnapshot
+      ? (JSON.parse(deps.initialSnapshot) as Record<string, unknown>)
+      : null;
+  } catch {
+    loadedData = null;
+  }
+
+  const payload = buildAutosavePayload(entryData, loadedData, deps.now, deps.fields ?? []);
+  if (!payload) {
+    // Only a form with no authored content may be left silently.
+    if (isPristineEntry(entryData)) return { action: "navigate", reason: "pristine" };
+
+    const missing = findMissingRequiredFields(entryData, deps.fields);
+    deps.cancel();
+    notify("warning", describeMissingRequiredFields(missing));
+    return { action: "blocked", missing };
+  }
+
+  // Cancel only once the write is certain, so a skip above never cancels the
+  // user's Back/Reload.
+  deps.cancel();
+
+  const saved = await deps.saveDraft(payload);
+  if (!saved) {
+    notify("error", "Failed to auto-save. Please save manually.");
+    return { action: "save-failed" };
+  }
+  notify("success", "Changes auto-saved");
+  return { action: "saved" };
 }
