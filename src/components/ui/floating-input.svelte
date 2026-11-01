@@ -103,7 +103,23 @@ full ARIA validation linkage, and transparent background support for overlays.
 	}: Props = $props();
 
 	let inputElement = $state<HTMLInputElement | null>(null);
-	const generatedId = $derived(label ? label.toLowerCase().replace(/\s+/g, '-') : 'defaultInputId');
+	/**
+	 * Id derived from the label. The label is display copy, not data: it used to be
+	 * lower-cased into the id verbatim, so `label="Search..."` produced the id
+	 * `search...` — and every `#<id>` selector (the root layout's focus restore, any
+	 * `querySelector(`#${id}`)`, CSS tooling) throws
+	 * `SyntaxError: '#search...' is not a valid selector` on it. Collapsing the
+	 * punctuation, and prefixing a leading digit with a letter, keeps the id a valid
+	 * CSS identifier so `#<id>` always parses.
+	 */
+	const labelId = $derived(
+		(label || '')
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-+|-+$/g, '')
+			.replace(/^([0-9])/, 'f$1') || 'default-input'
+	);
+	const generatedId = $derived(label ? labelId : 'defaultInputId');
 	const currentId = $derived(id || generatedId);
 	const errorId = $derived(errorMessage ? `error-${currentId}` : undefined);
 	const effectiveType = $derived(

@@ -625,7 +625,12 @@
 				inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 			} else {
 				// Fallback: search by name attribute if ID matches db_fieldName
-				const inputByName = document.querySelector(`[name="${fieldName}"]`) as HTMLElement | null;
+				// Field names come from the collection schema: escape before they are
+				// interpolated into an attribute selector (a name with `"` or `]`
+				// would otherwise break out of the value).
+				const inputByName = document.querySelector(
+					`[name="${CSS.escape(fieldName)}"]`
+				) as HTMLElement | null;
 				if (inputByName) {
 					inputByName.focus();
 					inputByName.scrollIntoView({ behavior: 'smooth', block: 'center' });

@@ -152,7 +152,7 @@
 	function handleTouchMove(e: TouchEvent) {
 		if (!swipingId) return;
 		const delta = e.touches[0].clientX - swipeX;
-		const el = document.querySelector(`[data-toast-id="${swipingId}"]`) as HTMLElement;
+		const el = document.querySelector(`[data-toast-id="${CSS.escape(swipingId)}"]`) as HTMLElement;
 		if (el) {
 			el.style.transform = `translateX(${delta}px)`;
 			el.style.opacity = String(Math.max(0, 1 - Math.abs(delta) / 150));
@@ -162,7 +162,7 @@
 	function handleTouchEnd(e: TouchEvent, id: string) {
 		if (swipingId !== id) return;
 		const delta = (e.changedTouches[0]?.clientX ?? swipeX) - swipeX;
-		const el = document.querySelector(`[data-toast-id="${id}"]`) as HTMLElement;
+		const el = document.querySelector(`[data-toast-id="${CSS.escape(id)}"]`) as HTMLElement;
 		if (el) {
 			el.style.transform = '';
 			el.style.opacity = '';
