@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:38e29927-e223-4576-9021-bb1952c27abd",
+  "serialNumber": "urn:uuid:c67ae058-4a2e-46f1-978c-2bdd118df6bd",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-10-29T09:53:07.844Z",
+    "timestamp": "2026-10-31T23:04:43.612Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -1693,6 +1693,19 @@
         {
           "alg": "SHA-512",
           "content": "sha512-OJhVSGJa/Ak52WncgqIPHr9TyVJ1DuoublcmtNo9H8apoVn4Dr1DJNxUxawCCc01QmMSg8qoY8GrTV8SVIu1lg=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@isaacs/nonrecursive-glob-match",
+      "version": "1.0.3",
+      "purl": "pkg:npm/@isaacs/nonrecursive-glob-match@1.0.3",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-SI7kyKHq4XXDRozw+r9GlRZkia1ZkFrpLW98r2IC2Bpr8YkFGE3fvjzmxCG0x78A++69HmDNrDvSMYBZmHGpKA=="
         }
       ]
     },
@@ -6717,13 +6730,13 @@
     {
       "type": "library",
       "name": "minimatch",
-      "version": "10.2.6",
-      "purl": "pkg:npm/minimatch@10.2.6",
+      "version": "11.0.3",
+      "purl": "pkg:npm/minimatch@11.0.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A=="
+          "content": "sha512-iny/40PEGkNJQ5/Pv6z3nm6FbRAby32GeZRjCUJk2WnNDbgPSTcdI+DDvLqsgBdD4cD5sMtMheqPPnehCCa8Nw=="
         }
       ]
     },
