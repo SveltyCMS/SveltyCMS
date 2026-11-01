@@ -21,10 +21,7 @@ import { contentSystem } from "@src/content/index.server";
 import { contentStore } from "@stores/content-registry.svelte";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
-import {
-  recordCollectionAccess,
-  recordEntryAccess,
-} from "@src/services/intelligence/behavioral-learner";
+import { recordEntryAccess } from "@src/services/intelligence/behavioral-learner";
 import type { Locale } from "@src/paraglide/runtime";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { loadSettingsCache } from "@src/services/core/settings-service";
@@ -160,26 +157,29 @@ export const load: LayoutServerLoad = async ({ cookies, locals, url }) => {
         .catch(() => {});
     }
 
-    // Get the redirect URL for the first collection
-    firstCollectionRedirectUrl =
-      (await contentSystem.getFirstCollectionRedirectUrl(
-        contentLanguage as string,
-        locals.tenantId,
-      )) || "";
+    // Get the redirect URL for the first collection only on root / entry routes where a fallback redirect is needed
+    if (
+      url.pathname === "/" ||
+      url.pathname === `/${contentLanguage}` ||
+      url.pathname === "/login"
+    ) {
+      firstCollectionRedirectUrl =
+        (await contentSystem.getFirstCollectionRedirectUrl(
+          contentLanguage as string,
+          locals.tenantId,
+        )) || "";
+    }
   } catch (error) {
     logger.error("[Layout]ContentSystem error (preview mode?):", error);
     // Continue with empty navigation - don't block page load
   }
 
-  // 🧠 Behavioral learning: track access patterns (fire-and-forget)
+  // 🧠 Behavioral learning: track access patterns (fire-and-forget for entry detail)
   try {
     const pathParts = url.pathname.split("/").filter(Boolean);
-    if (pathParts.length >= 2) {
+    if (pathParts.length >= 3) {
       const collectionId = pathParts[1];
-      recordCollectionAccess(locals.tenantId || "global", collectionId);
-      if (pathParts.length >= 3) {
-        recordEntryAccess(locals.tenantId || "global", collectionId, pathParts[2]);
-      }
+      recordEntryAccess(locals.tenantId || "global", collectionId, pathParts[2]);
     }
   } catch {
     /* non-critical */

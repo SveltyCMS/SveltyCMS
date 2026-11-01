@@ -49,6 +49,8 @@ import { resolveMediaPublicPath } from "@utils/media/media-utils";
 import type { Actions, PageServerLoad } from "./$types";
 import { matchesJsonPathFilter } from "@utils/json-path-filter";
 import { toGalleryListItem } from "./gallery-list-item";
+import { syncQueryHash } from "@src/services/sdk/namespaces/collections/read-pipeline";
+import { CacheCategory } from "@src/databases/cache/types";
 
 /**
  * One server page of gallery rows. The grid/table reveal more via `?page=`;
@@ -72,25 +74,6 @@ function parseGalleryPage(raw: string | null): number {
   const parsed = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(parsed) || parsed < 1) return 1;
   return Math.min(parsed, MAX_GALLERY_PAGE);
-}
-
-/**
- * 🚀 Fast serializer: converts _id/parent ObjectIds to strings.
- * Uses JSON.stringify with a replacer — far faster than the previous
- * iterative DFS walker (eliminated ~50ms per large folder tree).
- */
-function serializeIds<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (_key, value) => {
-      if (_key === "_id" || _key === "parent") {
-        return value?.toString?.() ?? null;
-      }
-      if (Buffer.isBuffer(value)) {
-        return value.toString("hex");
-      }
-      return value;
-    }),
-  );
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -268,16 +251,30 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     logger.debug(`Fetched ${processedMedia.length} media items for folder ${folderId || "root"}`);
     logger.debug(`Fetched ${virtualFolders.length} total virtual folders`);
 
-    // 🚀 Check which media items are referenced by published content
-    // One index rebuild + O(1) lookups — never N parallel full collection scans.
+    // 🚀 Check which media items are referenced by published content via short-lived SWR cache
+    // Uses syncQueryHash over all IDs so changes anywhere in the 100-item page update correctly.
     let publishedMediaIds: string[] = [];
     try {
-      const { MediaService } = await import("@src/utils/media/media-service.server");
-      const mediaService = new MediaService(dbAdapter);
-      publishedMediaIds = await mediaService.getPublishedReferencedIds(
-        processedMedia.map((item) => String(item._id)),
-        (locals.tenantId as DatabaseId | null) ?? null,
-      );
+      const tenantKey = locals.tenantId || "global";
+      const mediaIdList = processedMedia.map((item) => String(item._id));
+      if (mediaIdList.length > 0) {
+        const { MediaService } = await import("@src/utils/media/media-service.server");
+        const mediaService = new MediaService(dbAdapter);
+        const refCacheKey = `mediagallery:pubrefs:${tenantKey}:${syncQueryHash(mediaIdList.join(","))}`;
+        const cachedRefs = await cacheService.getOrSetSWR<string[]>(
+          refCacheKey,
+          () =>
+            mediaService.getPublishedReferencedIds(
+              mediaIdList,
+              (locals.tenantId as DatabaseId | null) ?? null,
+            ),
+          60_000, // 1 min fresh
+          300_000, // 5 min stale
+          locals.tenantId,
+          CacheCategory.MEDIA,
+        );
+        publishedMediaIds = cachedRefs ?? [];
+      }
       logger.debug(`Found ${publishedMediaIds.length} media items referenced by published content`);
     } catch (refErr) {
       logger.warn(
@@ -285,15 +282,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       );
     }
 
-    // Force JSON-safe payload — Buffers/ObjectIds in avatar or media metadata
-    // previously crashed SvelteKit serialization after a successful load (500 UI).
-    // One stringify for the whole tree (not once per folder).
-    //
-    // NOTE: do not return `user` here. Page data merges over layout data, and this
-    // load used to return a slim `{ role, _id, avatar }` object that shadowed the
-    // layout's full `safeUser` — which is why the sidebar footer lost the username
-    // on /mediagallery only. Nothing in this route reads `data.user`.
-    return serializeIds({
+    // Safe payload: processedMedia is already converted to slim GalleryListItem by toGalleryListItem,
+    // and virtualFolders are already fully validated SystemVirtualFolder objects.
+    return {
       media: processedMedia,
       systemVirtualFolders: virtualFolders as SystemVirtualFolder[],
       currentFolder: currentFolder as SystemVirtualFolder | null,
@@ -308,7 +299,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         hasNextPage: mediaResultPage.hasNextPage,
         hasPreviousPage: mediaResultPage.hasPreviousPage,
       },
-    });
+    };
   } catch (err) {
     if (isRedirect(err) || isHttpError(err)) {
       throw err;

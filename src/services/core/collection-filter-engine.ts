@@ -504,10 +504,11 @@ export function applyFiltersToQueryBuilder<T>(
   }
 
   // 5. Search: global and/or single-field text
-  const searchableFields = resolveSearchableFields(collection, user);
   const global = globalSearch.trim();
+  let searchableFields: string[] = [];
 
   if (global) {
+    searchableFields = resolveSearchableFields(collection, user);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     next = next.search(global, searchableFields as any);
   } else if (compiled.textSearch.length === 1) {

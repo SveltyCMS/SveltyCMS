@@ -220,7 +220,10 @@ export class CollectionService {
     };
 
     if (bypassCache) {
-      return finish(await this.loadCollectionData(listParams, collectionId), "bypass");
+      return finish(
+        await this.loadCollectionData(listParams, collectionId, compiledForKey),
+        "bypass",
+      );
     }
 
     // A4: heat-aware SWR — hot lists serve stale longer (background revalidation),
@@ -233,7 +236,7 @@ export class CollectionService {
     // Negative Bloom is intentional NO-OP for empty lists (valid empty pages).
     const cached = await cacheService.getOrSetSWR<CollectionDataResult>(
       cacheKey,
-      () => this.loadCollectionData(listParams, collectionId),
+      () => this.loadCollectionData(listParams, collectionId, compiledForKey),
       COLLECTION_QUERY_TTL_MS,
       staleTtlMs,
       tenantId,
@@ -247,7 +250,7 @@ export class CollectionService {
     }
 
     logger.warn(`Cache returned null for collection query, loading uncached: ${cacheKey}`);
-    return finish(await this.loadCollectionData(listParams, collectionId), "miss");
+    return finish(await this.loadCollectionData(listParams, collectionId, compiledForKey), "miss");
   }
 
   /**
@@ -260,7 +263,13 @@ export class CollectionService {
   public async getStatusFacets(input: {
     collection: Schema;
     tenantId?: string | null;
+    totalItems?: number;
   }): Promise<StatusFacetCounts> {
+    // 🚀 Short-circuit: when totalItems is known to be 0, return zero counts with 0 DB queries
+    if (input.totalItems === 0) {
+      return { publish: 0, draft: 0, unpublish: 0, schedule: 0, archive: 0 };
+    }
+
     const collectionId = String(input.collection._id ?? input.collection.name ?? "unknown");
     const tenantKey = input.tenantId ? String(input.tenantId) : "global";
     const cacheKey = `collection:${collectionId}:facets:${tenantKey}`;
@@ -314,6 +323,7 @@ export class CollectionService {
   private async loadCollectionData(
     params: CollectionDataParams,
     collectionId: string,
+    precompiled?: ReturnType<typeof compileSecureFilters>,
   ): Promise<CollectionDataResult> {
     const {
       collection,
@@ -350,10 +360,10 @@ export class CollectionService {
     }
 
     // Platform filter engine: schema + FLAC → portable QueryBuilder IR
-    // When loading a single entry for edit mode (editEntryId), ignore list-level filters/search/page offset
+    // Reuse pre-compiled filters from getCollectionData to avoid redundant double compilation
     const compiled = editEntryId
       ? compileSecureFilters({}, collection, user)
-      : compileSecureFilters(filter, collection, user);
+      : (precompiled ?? compileSecureFilters(filter, collection, user));
     logger.debug(`[CollectionService] Querying table: ${collectionTable}`, {
       equality: compiled.equality,
       ranges: compiled.ranges,
@@ -406,13 +416,17 @@ export class CollectionService {
 
     // Re-runnable closures so a missing physical table can be healed + retried.
     const runEntries = () => query.execute();
-    const runCount = () =>
-      simpleCountEligible
-        ? dbAdapter.crud.count(collectionTable, countFilter as any, {
+    const runCount = (): Promise<{ success: boolean; data?: number }> => {
+      // 🚀 Skip count query on single entry loads (editEntryId): total is always 1 or 0
+      if (editEntryId) {
+        return Promise.resolve({ success: true, data: 1 });
+      }
+      return simpleCountEligible
+        ? (dbAdapter.crud.count(collectionTable, countFilter as any, {
             tenantId: tenantId as any,
             mode: "exact",
             skipMeta: true,
-          })
+          }) as Promise<{ success: boolean; data?: number }>)
         : (() => {
             let countQuery = dbAdapter.queryBuilder(collectionTable);
             countQuery = applyFiltersToQueryBuilder(countQuery, compiled, {
@@ -423,6 +437,7 @@ export class CollectionService {
             }).qb;
             return countQuery.count();
           })();
+    };
 
     let [entriesResult, countResult] = await Promise.all([runEntries(), runCount()]);
 

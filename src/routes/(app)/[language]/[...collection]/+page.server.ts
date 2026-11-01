@@ -206,7 +206,11 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
     // {#await} it unconditionally. No rethrow here on purpose — rethrowing an
     // HttpError would reject the stream and take the whole page down.
     const statusFacets: Promise<StatusFacetCounts> = collectionService
-      .getStatusFacets({ collection: currentCollection, tenantId })
+      .getStatusFacets({
+        collection: currentCollection,
+        tenantId,
+        totalItems: pagination?.totalItems,
+      })
       .catch((err: unknown): StatusFacetCounts => {
         logger.debug("Status facets unavailable — chips render without counts", {
           error: err instanceof Error ? err.message : "unknown error",

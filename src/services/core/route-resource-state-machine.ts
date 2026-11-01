@@ -307,7 +307,6 @@ export class RouteResourceStateMachine {
     if (!userId) return false;
 
     const parsed = parseCollectionRoute(path);
-    if (!parsed) return false;
 
     try {
       const { getDb } = await loadDbModule();
@@ -318,37 +317,55 @@ export class RouteResourceStateMachine {
       const cms = new LocalCMS(adapter);
       const opts = { tenantId: tenantId as DatabaseId, user };
 
-      if (parsed.entryId) {
-        const result = await cms.collections.findById(parsed.collectionId, parsed.entryId, opts);
-        if (!result?.success || result.data == null) return false;
-        const item = Array.isArray(result.data) ? result.data[0] : result.data;
-        // Same shared trim as the warm read lane's MISS rebuild and the
-        // dispatcher fallback — a prewarmed TURBO-HIT must serve the same
-        // point-read bytes as a cold MISS, otherwise the payload for one URL
-        // depends on who filled the cache last.
+      if (parsed) {
+        if (parsed.entryId) {
+          const result = await cms.collections.findById(parsed.collectionId, parsed.entryId, opts);
+          if (!result?.success || result.data == null) return false;
+          const item = Array.isArray(result.data) ? result.data[0] : result.data;
+          stashTurboEnvelope(
+            `/api/collections/${parsed.collectionId}/${parsed.entryId}`,
+            "",
+            trimPointReadEnvelope({ success: true, data: item }),
+            tenantId,
+            userId,
+          );
+          return true;
+        }
+
+        const list = await cms.collections.find(parsed.collectionId, {
+          ...opts,
+          limit: 20,
+        });
+        if (!list?.success) return false;
         stashTurboEnvelope(
-          `/api/collections/${parsed.collectionId}/${parsed.entryId}`,
-          "",
-          trimPointReadEnvelope({ success: true, data: item }),
+          `/api/collections/${parsed.collectionId}`,
+          "?limit=20",
+          { success: true, data: list.data ?? [] },
           tenantId,
           userId,
         );
         return true;
       }
 
-      const list = await cms.collections.find(parsed.collectionId, {
-        ...opts,
-        limit: 20,
-      });
-      if (!list?.success) return false;
-      stashTurboEnvelope(
-        `/api/collections/${parsed.collectionId}`,
-        "?limit=20",
-        { success: true, data: list.data ?? [] },
-        tenantId,
-        userId,
-      );
-      return true;
+      // 🚀 Speculatively pre-warm predicted non-collection routes (/mediagallery, /dashboard)
+      const cleanPath = path.split("?")[0] || "";
+      if (cleanPath.endsWith("/mediagallery") || cleanPath === "/mediagallery") {
+        const folders = await adapter.system?.virtualFolder?.getAll?.({
+          tenantId: tenantId as DatabaseId,
+        });
+        if (folders?.success && Array.isArray(folders.data)) {
+          stashTurboEnvelope(
+            "/api/media/folders",
+            "",
+            { success: true, data: folders.data },
+            tenantId,
+            userId,
+          );
+          return true;
+        }
+      }
+
+      return false;
     } catch (err) {
       logger.debug("[RouteStateMachine] LocalCMS turbo fill skipped:", err);
       return false;

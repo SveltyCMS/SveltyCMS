@@ -16,6 +16,7 @@
  */
 
 import { contentSystem } from "@src/content/index.server";
+import { contentStore } from "@stores/content-registry.svelte";
 import { auth } from "@src/databases/db";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { DEFAULT_THEME } from "@src/databases/theme-manager";
@@ -109,7 +110,9 @@ export const load: LayoutServerLoad = async ({ locals, depends, url, request }) 
       });
     }
 
-    await contentSystem.initialize(tenantId);
+    if (contentStore.initState !== "initialized") {
+      await contentSystem.initialize(tenantId);
+    }
 
     // The content structure is owned by the root layout (`contentNodes`, the
     // sanitized flat client list from contentStore) — this layout must not
