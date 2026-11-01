@@ -190,4 +190,23 @@ describe("forgotPW — reset link exposure (B1)", () => {
     expect(result.resetLink).toBeUndefined();
     expect(result.success).toBe(true);
   });
+
+  it("answers with the same shape for a known and an unknown address (no user leak)", async () => {
+    // Production default: flag unset. An attacker compares the two answers, so the key
+    // set AND the values must be identical - not just "no token here".
+    delete process.env[FLAG];
+    (auth.checkUser as any)
+      .mockResolvedValueOnce({ _id: "user-1", email: EMAIL })
+      .mockResolvedValueOnce(null);
+
+    const known: any = await forgotPW({ email: EMAIL });
+    const unknown: any = await forgotPW({ email: "nobody@test.de" });
+
+    expect(Object.keys(known).sort()).toEqual(Object.keys(unknown).sort());
+    expect(known).toEqual(unknown);
+    expect(known.resetLink).toBeUndefined();
+    expect(unknown.resetLink).toBeUndefined();
+    // And no token was minted for either address.
+    expect(auth.createToken).not.toHaveBeenCalled();
+  });
 });
