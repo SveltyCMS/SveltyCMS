@@ -1,43 +1,59 @@
 /**
  * @file tests/unit/routes/dashboard-widget-endpoints.test.ts
- * @description Dashboard widgets fetch a `dashboard` action by name; an action the
- * handler does not implement answers 404 (`Dashboard action '<x>' not implemented`)
- * and the widget renders empty. The "Last 5 Content" widget pointed at
- * `/api/dashboard/last5` while the handler implements `last5-content`.
+ * @description Dashboard widgets fetch a `dashboard` action by NAME; an action the
+ * handler does not implement answers 404 (`Dashboard action '<x>' not
+ * implemented`) and the widget renders empty. The "Last 5 Content" widget pointed
+ * at `/api/dashboard/last5` while the handler implements `last5-content`.
+ *
+ * Exercised through the handler itself (request in, JSON/404 out) rather than by
+ * grepping the handler and widget sources for matching strings.
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { handleDashboardRoutes } from "../../../src/routes/api/[...path]/handlers/dashboard";
+import type { LocalCMS } from "@src/services/sdk";
+import type { DatabaseId } from "@src/content/types";
 
-const ROOT = process.cwd();
-const HANDLER = join(ROOT, "src/routes/api/[...path]/handlers/dashboard.ts");
-const WIDGET = join(ROOT, "src/routes/(app)/dashboard/widgets/last5-content/index.svelte");
+const TENANT = "t1" as DatabaseId;
 
-/** Action names the dashboard handler answers without falling through to 404. */
-function implementedDashboardActions(): Set<string> {
-  const source = readFileSync(HANDLER, "utf8");
-  const actions = new Set<string>();
-  for (const match of source.matchAll(/case\s+"([a-z0-9-]+)":/g)) actions.add(match[1]);
-  return actions;
+function fakeEvent(action: string) {
+  const url = new URL(`http://localhost/api/dashboard/${action}`);
+  return { url, request: new Request(url), locals: {} } as never;
 }
 
-/** Dashboard action the widget polls, or null when it polls nothing. */
-function widgetDashboardAction(): string | null {
-  const source = readFileSync(WIDGET, "utf8");
-  const match = source.match(/endpoint="\/api\/dashboard\/([a-z0-9-]+)[^"]*"/);
-  return match ? match[1] : null;
+/** CMS stub: the widget's action is the only thing that reads it. */
+function cmsWithSearch(items: unknown[]) {
+  return {
+    collections: {
+      search: vi.fn(async () => ({ items, total: items.length, page: 1, pageSize: 5 })),
+    },
+  } as unknown as LocalCMS;
 }
 
 describe("last5-content dashboard widget", () => {
-  it("polls a dashboard action the handler actually implements", () => {
-    const action = widgetDashboardAction();
-    expect(action).toBeTruthy();
-    expect(implementedDashboardActions()).toContain(action);
+  it("answers the action the widget polls", async () => {
+    const cms = cmsWithSearch([{ _id: "c1", title: "Hello", updatedAt: "2026-01-01" }]);
+
+    const res = await handleDashboardRoutes(fakeEvent("last5-content"), cms, TENANT, [
+      "dashboard",
+      "last5-content",
+    ]);
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Array<Record<string, unknown>>;
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({ id: "c1", title: "Hello" });
+    expect(cms.collections.search).toHaveBeenCalledTimes(1);
   });
 
-  it("does not poll the unimplemented bare `last5` action", () => {
-    expect(widgetDashboardAction()).not.toBe("last5");
-    expect(implementedDashboardActions()).not.toContain("last5");
+  it("answers 404 for the unimplemented bare `last5` action", async () => {
+    const cms = cmsWithSearch([]);
+
+    await expect(
+      handleDashboardRoutes(fakeEvent("last5"), cms, TENANT, ["dashboard", "last5"]),
+    ).rejects.toMatchObject({ status: 404 });
+    // The widget would render empty either way — the difference is that this is a
+    // named 404 instead of a silent empty list.
+    expect(cms.collections.search).not.toHaveBeenCalled();
   });
 });

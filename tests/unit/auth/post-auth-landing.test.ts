@@ -2,20 +2,26 @@
  * @file tests/unit/auth/post-auth-landing.test.ts
  * @description Post-auth landing resolution: an invited user whose token carries a
  * non-builder role must not be sent to `/config/collectionbuilder`, whose load
- * throws `error(403)` for roles without the collection-builder permission.
+ * throws `error(403)` for roles without the collection-builder permission — and a
+ * caller who IS builder-capable must not be sent to a page their role cannot
+ * open either.
+ *
+ * The capability input is what actually drifted between the auth paths (2FA,
+ * passkey and sign-up passed role + isAdmin only), so the server-side composition
+ * `resolveUserPostAuthLanding` is asserted against real role permission sets
+ * instead of against the source text of its call sites.
  */
 
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import {
   COLLECTION_BUILDER_PATH,
   DEFAULT_AUTH_LANDING_PATH,
   canOpenCollectionBuilder,
   resolvePostAuthLandingPath,
 } from "@utils/auth/post-auth-landing";
-
-const ROOT = process.cwd();
+import { resolveUserPostAuthLanding } from "@utils/auth/post-auth-landing.server";
+import { DEFAULT_ROLE_GRANTS } from "@src/databases/auth/permission-catalog";
+import type { Role } from "@src/databases/auth/types";
 
 describe("resolvePostAuthLandingPath", () => {
   it("lands an invited user with the default role on the dashboard", () => {
@@ -74,23 +80,75 @@ describe("canOpenCollectionBuilder", () => {
   });
 });
 
-describe("post-auth redirect wiring", () => {
-  const sources = ["src/routes/login/auth.remote.ts", "src/routes/login/+page.server.ts"].map(
-    (rel) => ({ rel, text: readFileSync(join(ROOT, rel), "utf8") }),
-  );
+/** Role row shaped like a stored role (id + permission list). */
+function role(id: string, permissions: readonly string[]): Role {
+  return { _id: id, name: id, permissions: [...permissions] } as unknown as Role;
+}
 
-  it("no auth path sends the caller to the builder unconditionally", () => {
-    // `redirectPath: "/config/collectionbuilder"` / `redirect(303, "/config/...")`
-    // is exactly what put an invited non-builder on a 403 page.
-    for (const { rel, text } of sources) {
-      expect(text, rel).not.toMatch(/redirectPath:\s*"\/config\/collectionbuilder"/);
-      expect(text, rel).not.toMatch(/redirect\(\s*\d{3}\s*,\s*"\/config\/collectionbuilder"\s*\)/);
-    }
+describe("resolveUserPostAuthLanding — one capability input for every auth path", () => {
+  it("gives a custom role granted config:collectionbuilder the builder, not the dashboard", () => {
+    // 2FA / passkey / sign-up used to pass only role + isAdmin here, so this
+    // caller was mis-routed to the dashboard although the builder page opens
+    // for their role.
+    const path = resolveUserPostAuthLanding(
+      { role: "auditor" },
+      { roles: [role("auditor", ["collections:read", "config:collectionbuilder"])] },
+    );
+
+    expect(path).toBe(COLLECTION_BUILDER_PATH);
   });
 
-  it("routes the landing decision through resolvePostAuthLandingPath", () => {
-    for (const { rel, text } of sources) {
-      expect(text, rel).toContain("resolvePostAuthLandingPath");
-    }
+  it("uses the same deep landing for that caller as the builder page allows", () => {
+    const path = resolveUserPostAuthLanding(
+      { role: "auditor" },
+      {
+        roles: [role("auditor", ["config:collectionbuilder"])],
+        firstCollectionPath: "/collection/posts",
+      },
+    );
+
+    expect(path).toBe("/collection/posts");
+  });
+
+  it("keeps a plain custom role on the dashboard", () => {
+    const path = resolveUserPostAuthLanding(
+      { role: "auditor" },
+      { roles: [role("auditor", ["collections:read"])] },
+    );
+
+    expect(path).toBe(DEFAULT_AUTH_LANDING_PATH);
+  });
+
+  it("matches the seeded roles: editor → dashboard, developer → builder", () => {
+    expect(
+      resolveUserPostAuthLanding(
+        { role: "editor" },
+        { roles: [role("editor", DEFAULT_ROLE_GRANTS.editor)] },
+      ),
+    ).toBe(DEFAULT_AUTH_LANDING_PATH);
+
+    expect(
+      resolveUserPostAuthLanding(
+        { role: "developer" },
+        { roles: [role("developer", DEFAULT_ROLE_GRANTS.developer)] },
+      ),
+    ).toBe(COLLECTION_BUILDER_PATH);
+  });
+
+  it("honours the hook's admin flag and the user's own admin mark", () => {
+    expect(resolveUserPostAuthLanding({ role: "editor" }, { isAdmin: true })).toBe(
+      COLLECTION_BUILDER_PATH,
+    );
+    expect(resolveUserPostAuthLanding({ role: "editor", isAdmin: true })).toBe(
+      COLLECTION_BUILDER_PATH,
+    );
+    expect(resolveUserPostAuthLanding({ role: "admin" })).toBe(COLLECTION_BUILDER_PATH);
+  });
+
+  it("falls back to the dashboard for an unknown or missing user", () => {
+    expect(resolveUserPostAuthLanding(undefined)).toBe(DEFAULT_AUTH_LANDING_PATH);
+    expect(resolveUserPostAuthLanding({ role: "no-such-role" }, { roles: [] })).toBe(
+      DEFAULT_AUTH_LANDING_PATH,
+    );
   });
 });

@@ -13,6 +13,7 @@
 import { error, json } from "@sveltejs/kit";
 import { dbAdapter } from "@src/databases/db";
 import { isAdmin } from "@src/databases/auth/constants";
+import { rolesGrantDashboardAccess } from "@src/databases/auth/dashboard-access";
 import type { DashboardWidgetConfig } from "@src/content/types";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
@@ -61,14 +62,9 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
   // Check if user has permission to access dashboard.
   // Guard tenantRoles: locals.roles can be undefined (e.g. roles not yet loaded), and calling
   // .some() on undefined would 500 the whole dashboard instead of doing a clean permission check.
-  const hasDashboardPermission =
-    isAdminUser ||
-    tenantRoles.some((role) =>
-      role.permissions?.some((p) => {
-        const [resource, action] = p.split(":");
-        return resource === "dashboard" && action === "read";
-      }),
-    );
+  // Either catalog id opens the page (`dashboard:read` or the `system:dashboard`
+  // grant every seeded non-admin role carries) — see databases/auth/dashboard-access.ts.
+  const hasDashboardPermission = isAdminUser || rolesGrantDashboardAccess(tenantRoles);
 
   if (!hasDashboardPermission) {
     logger.warn(

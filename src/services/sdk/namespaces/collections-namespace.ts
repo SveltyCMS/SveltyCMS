@@ -56,7 +56,7 @@ import {
 } from "@src/databases/core/page-utils";
 import { parseIdLookup } from "@src/databases/core/query-primitives";
 import { nowISODateString } from "@src/utils/date";
-import { clampPageSize } from "@utils/api-params";
+import { clampPageSize, unsupportedFilterOperators } from "@utils/api-params";
 import { redactReadEnvelope, redactRecord } from "@utils/field-access";
 import { blockedGuardedNames, stripGuardedFilter, stripGuardedSort } from "@utils/guarded-query";
 import {
@@ -371,11 +371,14 @@ function revisionSnapshot(row: Record<string, unknown>): Record<string, unknown>
 }
 
 /**
- * Reject filter keys that the schema cannot address.
+ * Reject filter keys and operators the schema/query layer cannot address.
  *
  * A misspelled key used to reach the query builder: a silently empty list, or an
  * engine-specific error / unindexed scan for a deep path. Naming every invalid
- * key turns that into an actionable 400.
+ * key turns that into an actionable 400. The same goes for an operator subkey no
+ * engine implements (`{"views":{"between":"1,5"}}`): `addFilterConds` treats a
+ * non-`$` subkey as "the value is this whole object" and binds it, which the SQL
+ * driver rejects at run time — a 500 instead of a 400.
  */
 function assertFilterableFields(schema: Schema, filter: unknown): void {
   if (!filter || typeof filter !== "object" || Array.isArray(filter)) return;
@@ -390,6 +393,19 @@ function assertFilterableFields(schema: Schema, filter: unknown): void {
       `Unknown filter field${rejected.length > 1 ? "s" : ""}: ${rejected.join(", ")}`,
       "FILTER_UNKNOWN_FIELD",
       { fields: rejected },
+    );
+  }
+  const unsupported = unsupportedFilterOperators(filter);
+  if (unsupported.length > 0) {
+    const named = unsupported.map((entry) => `${entry.field}.${entry.operator}`);
+    raise(
+      400,
+      `Unknown filter operator${named.length > 1 ? "s" : ""}: ${named.join(", ")}`,
+      "FILTER_UNKNOWN_FIELD",
+      {
+        operators: named,
+        fields: [...new Set(unsupported.map((entry) => entry.field))],
+      },
     );
   }
 }

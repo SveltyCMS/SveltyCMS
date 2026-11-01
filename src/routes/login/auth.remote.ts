@@ -52,7 +52,7 @@ import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import { command, query, getRequestEvent } from "$app/server";
 import { isSecureCookieContext, sessionTtlMs } from "@src/databases/auth/constants";
 import { dateToISODateString } from "@src/utils/date";
-import { resolvePostAuthLandingPath } from "@utils/auth/post-auth-landing";
+import { resolveUserPostAuthLanding } from "@utils/auth/post-auth-landing.server";
 import { pluginRegistry } from "@src/plugins";
 import {
   buildDeviceFingerprint,
@@ -307,9 +307,9 @@ export const verify2FA = command(
       success: true,
       // A plain user must not land on the admin-only collection builder (its load
       // throws 403 for roles without the builder permission).
-      redirectPath: resolvePostAuthLandingPath({
-        role: user.role,
-        isAdmin: isAdmin(user),
+      redirectPath: resolveUserPostAuthLanding(user, {
+        roles: event.locals.roles,
+        isAdmin: event.locals.isAdmin === true,
       }),
     };
   },
@@ -656,9 +656,9 @@ async function signInInternal(event: RequestEvent, input: any) {
   // (`/login?redirect=https://evil.example`).
   const { safeRedirect } = await import("@src/utils/security/safe-redirect");
   const landingFor = (firstCollectionPath: string | null) =>
-    resolvePostAuthLandingPath({
-      role: (user as any).role,
-      isAdmin: event.locals.isAdmin === true || isAdmin(user),
+    resolveUserPostAuthLanding(user, {
+      roles: event.locals.roles,
+      isAdmin: event.locals.isAdmin === true,
       firstCollectionPath,
     });
   let redirectPath = safeRedirect(input.redirect as string, "");
@@ -793,7 +793,10 @@ async function signUpInternal(event: RequestEvent, input: any) {
   // instead of a 403 page right after the account was created.
   return {
     success: true,
-    redirectPath: resolvePostAuthLandingPath({ role, isAdmin: role === "admin" }),
+    redirectPath: resolveUserPostAuthLanding(ur.data?.user ?? { role, isAdmin: role === "admin" }, {
+      roles: event.locals.roles,
+      isAdmin: event.locals.isAdmin === true,
+    }),
   };
 }
 
@@ -1121,9 +1124,9 @@ export const verifyPasskeyAuth = command(
 
       return {
         success: true,
-        redirectPath: resolvePostAuthLandingPath({
-          role: user.role,
-          isAdmin: isAdmin(user),
+        redirectPath: resolveUserPostAuthLanding(user, {
+          roles: event.locals.roles,
+          isAdmin: event.locals.isAdmin === true,
         }),
       };
     } catch (err: any) {

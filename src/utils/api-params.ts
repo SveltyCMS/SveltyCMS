@@ -50,6 +50,103 @@ export interface CollectionQueryParams {
 const FILTER_BRACKET_PREFIX = "filter[";
 
 /**
+ * URL operator names → the `$`-prefixed operators the query layer implements.
+ *
+ * `addSingleCondition` (databases/core/drizzle-sql-helpers.ts) and
+ * `MONGO_OP_MAP` (databases/mongodb/adapter-core.ts) only treat `$`-prefixed
+ * subkeys as operators; a bare one (`{ status: { eq: "published" } }`) is bound
+ * whole as the compared value, which is a driver bind error (500) on SQL and a
+ * never-matching equality on Mongo. So the parser — the one place that knows the
+ * operator NAME the client used — translates it here, and every consumer
+ * (list/stream/export) receives the shape the query layer understands.
+ *
+ * `contains` is the playground's substring match: SQL answers it with a LIKE
+ * comparison, Mongo with an escaped case-insensitive regex.
+ */
+const FILTER_OPERATOR_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  eq: "$eq",
+  ne: "$ne",
+  gt: "$gt",
+  gte: "$gte",
+  lt: "$lt",
+  lte: "$lte",
+  in: "$in",
+  nin: "$nin",
+  contains: "$contains",
+});
+
+/** Operators whose value is a comma-separated list (`$in=a,b`). */
+const LIST_FILTER_OPERATORS = new Set(["$in", "$nin"]);
+
+/**
+ * Every operator a field filter may carry: the URL names above (in their `$`
+ * form), the engine-level spellings they translate to (`$regex` + `$options`,
+ * Mongo's `$exists`) and the relation operators `compileRelationFilters`
+ * compiles before any query reaches an adapter. Anything else — most commonly a
+ * hand-written `{"status":{"eq":"x"}}` JSON filter or a typo — is rejected with
+ * `400 FILTER_UNKNOWN_FIELD` instead of being bound as an object.
+ */
+const SUPPORTED_FILTER_OPERATORS: ReadonlySet<string> = new Set([
+  ...Object.values(FILTER_OPERATOR_ALIASES),
+  "$regex",
+  "$options",
+  "$exists",
+  "some",
+  "none",
+  "every",
+  "$some",
+  "$none",
+  "$every",
+]);
+
+/** A filter subkey that is not an operator the query layer implements. */
+export interface UnsupportedFilterOperator {
+  field: string;
+  operator: string;
+}
+
+/**
+ * Operator subkeys in `filter` that no engine implements.
+ * Read-only: does not mutate the filter, allocates only for violations.
+ */
+export function unsupportedFilterOperators(filter: unknown): UnsupportedFilterOperator[] {
+  if (!filter || typeof filter !== "object" || Array.isArray(filter)) return [];
+  let rejected: UnsupportedFilterOperator[] | null = null;
+  for (const field in filter as Record<string, unknown>) {
+    const value = (filter as Record<string, unknown>)[field];
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    for (const operator in value as Record<string, unknown>) {
+      if (SUPPORTED_FILTER_OPERATORS.has(operator)) continue;
+      (rejected ??= []).push({ field, operator });
+    }
+  }
+  return rejected ?? [];
+}
+
+/**
+ * Rewrite bare operator names (`eq`, `contains`, …) into their `$` form on a
+ * freshly parsed filter object, so the `filter={…}` JSON syntax produces the
+ * same shape as the bracket syntax. Unknown subkeys are kept verbatim: they are
+ * what `unsupportedFilterOperators` reports.
+ */
+function normalizeFilterOperatorNames(parsed: Record<string, unknown>): Record<string, unknown> {
+  for (const field in parsed) {
+    const value = parsed[field];
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+    const operators = value as Record<string, unknown>;
+    for (const operator in operators) {
+      const canonical = FILTER_OPERATOR_ALIASES[operator];
+      if (!canonical || canonical === operator) continue;
+      operators[canonical] = LIST_FILTER_OPERATORS.has(canonical)
+        ? parseCommaSeparatedList(String(operators[operator] ?? ""))
+        : operators[operator];
+      delete operators[operator];
+    }
+  }
+  return parsed;
+}
+
+/**
  * Split `filter[field]` / `filter[field][operator]` into its parts.
  * Returns an empty field for malformed keys (`filter[]`, `filter][x`).
  */
@@ -132,27 +229,33 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
     } else if (key === "includeCount") {
       includeCount = value === "true";
     } else if (key.startsWith(FILTER_BRACKET_PREFIX)) {
-      // `filter[field]=v` (equality-shaped, decoded by the adapter) and
-      // `filter[field][operator]=v` (contains / eq / ne / gt / lt / in …).
-      // The old `slice(7, -1)` left the operator glued to the field name
-      // (`title][contains`), so every operator-aware filter the playground sent
-      // was rejected by the field whitelist and the query ran unfiltered.
-      const [field, operator] = splitFilterBracketKey(key);
+      // `filter[field]=v` (plain equality) and `filter[field][operator]=v`
+      // (contains / eq / ne / gt / lt / in …). The operator is emitted in the
+      // `$`-prefixed form the query layer implements — see FILTER_OPERATOR_ALIASES.
+      // An operator the table does not know is passed through unchanged so the
+      // SDK rejects it (`400 FILTER_UNKNOWN_FIELD`) instead of binding an object.
+      const [field, rawOperator] = splitFilterBracketKey(key);
       if (!field) continue;
-      if (!operator) {
+      if (!rawOperator) {
         filter[field] = value;
         continue;
       }
+      const operator = FILTER_OPERATOR_ALIASES[rawOperator] ?? rawOperator;
       const current = filter[field];
       const operators =
         current && typeof current === "object" && !Array.isArray(current)
           ? { ...(current as Record<string, unknown>) }
           : {};
-      operators[operator] = operator === "in" ? parseCommaSeparatedList(value) : value;
+      operators[operator] = LIST_FILTER_OPERATORS.has(operator)
+        ? parseCommaSeparatedList(value)
+        : value;
       filter[field] = operators;
     } else if (key === "filter") {
       try {
-        Object.assign(filter, JSON.parse(value));
+        const parsed = JSON.parse(value);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          Object.assign(filter, normalizeFilterOperatorNames(parsed as Record<string, unknown>));
+        }
       } catch {
         /* ignore malformed json */
       }

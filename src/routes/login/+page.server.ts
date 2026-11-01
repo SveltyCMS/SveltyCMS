@@ -25,9 +25,8 @@ import {
   googleAuth,
 } from "@src/databases/auth/google-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
-import { isAdmin, readSessionCookie } from "@src/databases/auth/constants";
-import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
-import { resolvePostAuthLandingPath } from "@utils/auth/post-auth-landing";
+import { readSessionCookie } from "@src/databases/auth/constants";
+import { resolveUserPostAuthLanding } from "@utils/auth/post-auth-landing.server";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import type { PageServerLoad } from "./$types";
@@ -262,14 +261,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
       // collection-builder permission would get a 403 from the builder page.
       const returnTo = safeRedirect(
         url.searchParams.get("redirect"),
-        resolvePostAuthLandingPath({
-          role: locals.user.role,
-          isAdmin: locals.isAdmin === true || isAdmin(locals.user),
-          canBuildCollections: hasCollectionBuilderPermission(
-            locals.user,
-            locals.roles ?? [],
-            locals.isAdmin === true,
-          ),
+        resolveUserPostAuthLanding(locals.user, {
+          roles: locals.roles,
+          isAdmin: locals.isAdmin === true,
         }),
       );
       throw redirect(302, returnTo);
@@ -434,9 +428,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
           throw redirect(
             303,
-            resolvePostAuthLandingPath({
-              role: existingUser.role,
-              isAdmin: isAdmin(existingUser),
+            resolveUserPostAuthLanding(existingUser, {
+              roles: locals.roles,
+              isAdmin: locals.isAdmin === true,
             }),
           );
         }

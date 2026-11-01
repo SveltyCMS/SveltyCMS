@@ -47,7 +47,7 @@ describe("buildCollectionRestPath", () => {
 });
 
 describe("buildFilterSearchParams", () => {
-  it("always states the operator so `eq` is not decoded as a contains match", () => {
+  it("always states the operator, so a row says exactly which comparison it means", () => {
     const params = buildFilterSearchParams([row("status", "eq", "published")]);
     expect([...params.keys()]).toEqual(["filter[status][eq]"]);
     expect(params.get("filter[status][eq]")).toBe("published");
@@ -84,7 +84,7 @@ describe("buildCollectionRestUrl", () => {
 
     const built = parseBuiltUrl(url);
     expect(built.pathname).toBe("/api/collections/posts");
-    expect(built.params.filter).toEqual({ status: { eq: "published" } });
+    expect(built.params.filter).toEqual({ status: { $eq: "published" } });
     expect(built.params.sortField).toBe("createdAt");
     expect(built.params.sortDirection).toBe("desc");
     expect(built.params.limit).toBe(20);
@@ -106,11 +106,14 @@ describe("buildCollectionRestUrl", () => {
       }),
     );
 
+    // Operator names travel as the `$` form the query layer implements — see
+    // tests/unit/api/playground-filter-pipeline.test.ts for the proof that these
+    // reach the adapter and the driver as real comparisons.
     expect(built.params.filter).toEqual({
-      status: { eq: "published", ne: "archived" },
-      title: { contains: "hello world" },
-      views: { gt: "10", lt: "1000" },
-      tags: { in: ["news", "docs"] },
+      status: { $eq: "published", $ne: "archived" },
+      title: { $contains: "hello world" },
+      views: { $gt: "10", $lt: "1000" },
+      tags: { $in: ["news", "docs"] },
     });
   });
 
@@ -145,7 +148,7 @@ describe("buildCollectionRestUrl", () => {
         filters: [row("title", "contains", "a&b=c[d]")],
       }),
     );
-    expect(built.params.filter).toEqual({ title: { contains: "a&b=c[d]" } });
+    expect(built.params.filter).toEqual({ title: { $contains: "a&b=c[d]" } });
   });
 
   it("is a pure builder: deterministic and does not mutate the filter rows", () => {

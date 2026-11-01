@@ -12,9 +12,11 @@
  *   a *point* read of an entry literally named `entries` (handlers/collections.ts
  *   `segments[2]`), so the request never became a filtered list query.
  * - Filters: `filter[field][operator]=value`, folded back into the query by
- *   `parseCollectionQueryParams` (utils/api-params.ts). The operator is always
- *   explicit: a bare `filter[field]=value` is decoded as a `contains` match, so
- *   an `eq` row must say `eq`.
+ *   `parseCollectionQueryParams` (utils/api-params.ts), which translates the
+ *   operator name into the `$`-prefixed form the query layer implements
+ *   (`eq` → `$eq`, `contains` → `$contains`). The operator is always explicit:
+ *   a bare `filter[field]=value` means plain equality, which is the wrong
+ *   semantics for a substring or range row.
  * - Sort: `sort=-field` / `sort=+field` (a bare field inherits the parser's
  *   default `desc`, which silently inverted ascending sorts).
  * - Paging: `limit` / `offset` (the parser knows `offset`, not `skip`).
