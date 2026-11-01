@@ -37,8 +37,12 @@ function persistAndReload(posted: Widget[]): Widget[] {
   const formEncoded = serializeCollectionFieldsPayload(posted);
   const actionFields = normalizeCollectionFieldsPayload(JSON.parse(formEncoded));
   expect(actionFields).not.toBeNull();
-  // The action hands the list to the AST generator, which writes JSON into the
-  // collection file (`fields: ...`) and the loader reads it back.
+  // The action hands the list to the AST generator, which prints it into the
+  // collection file as a JSON array literal (`fields: [...]`), and the loader
+  // reads that literal back. Here the hand-off is modelled with JSON.stringify so
+  // this stays a pure unit test of the order contract — the REAL generator run
+  // (imports, 🗑️ marker cleanup, widgets.* substitution, array shape) is covered
+  // in tests/unit/routes/collectionbuilder-action-page-server.test.ts.
   const fileText = JSON.stringify(actionFields);
   const reloaded = normalizeCollectionFieldsPayload(JSON.parse(fileText));
   return reloaded as Widget[];
@@ -99,6 +103,22 @@ describe("collection builder widget order", () => {
     expect(field).not.toHaveProperty("_dragId");
     expect(field).not.toHaveProperty("__fieldIndex");
     expect(field).toHaveProperty("db_fieldName", "alpha");
+  });
+
+  it("drops non-object entries instead of char-indexing them into a field", () => {
+    // `Object.entries("alpha")` would turn a stray string entry into
+    // `{"0":"a","1":"l",…}` — a persisted "field" with character keys.
+    const encoded = serializeCollectionFieldsPayload([
+      "alpha",
+      42,
+      null,
+      ["nested"],
+      { db_fieldName: "beta", widget: { Name: "Input", key: "Input" } },
+    ] as unknown[]);
+
+    const parsed = JSON.parse(encoded) as Widget[];
+    expect(parsed).toEqual([{ db_fieldName: "beta", widget: { Name: "Input", key: "Input" } }]);
+    expect(encoded).not.toContain('"0":"a"');
   });
 
   it("rejects payload shapes the builder cannot persist", () => {

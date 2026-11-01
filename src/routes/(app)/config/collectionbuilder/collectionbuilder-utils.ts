@@ -92,17 +92,25 @@ export function normalizeCollectionFieldsPayload(parsed: unknown): OrderedWidget
 
 /**
  * Serialise the widget list for the `saveCollection` action — order preserved,
- * transient drag/inspector bookkeeping stripped.
+ * transient drag/inspector bookkeeping stripped, non-object entries dropped.
+ *
+ * The payload is client-supplied, so a stray string / number / null / nested
+ * array entry reaches this function in practice. `Object.entries("abc")` yields
+ * character entries, which would persist a field that is really
+ * `{"0":"a","1":"b","2":"c"}` — so anything that is not a plain object is dropped
+ * instead of being re-keyed.
  */
-export function serializeCollectionFieldsPayload(fields: readonly object[]): string {
+export function serializeCollectionFieldsPayload(fields: readonly unknown[]): string {
   return JSON.stringify(
-    fields.map((field) =>
-      Object.fromEntries(
-        Object.entries(field as Record<string, unknown>).filter(
-          ([key]) => !TRANSIENT_WIDGET_KEYS.has(key),
+    fields
+      .filter((field) => !!field && typeof field === "object" && !Array.isArray(field))
+      .map((field) =>
+        Object.fromEntries(
+          Object.entries(field as Record<string, unknown>).filter(
+            ([key]) => !TRANSIENT_WIDGET_KEYS.has(key),
+          ),
         ),
       ),
-    ),
   );
 }
 

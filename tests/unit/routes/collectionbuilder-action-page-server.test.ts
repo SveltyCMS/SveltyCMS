@@ -20,6 +20,11 @@ const state = vi.hoisted(() => ({
   refreshCalls: [] as Array<[string | null | undefined]>,
   getCollectionCalls: [] as Array<[string, string | null | undefined]>,
   getCollectionImpl: null as null | ((identifier: string, tenantId?: string | null) => unknown),
+  // Widget registry the route's `goThrough()` resolves factory calls against.
+  // Empty by default: without a `GuiSchema` the generator leaves each field as
+  // plain JSON, which is what the persistence assertions parse. A test that
+  // wants the `widgets.X(...)` substitution registers a GuiSchema-bearing entry.
+  widgetFunctions: {} as Record<string, { GuiSchema?: Record<string, unknown> }>,
 }));
 
 vi.mock("node:fs", () => {
@@ -95,7 +100,11 @@ vi.mock("@utils/tenant.server", () => ({
 }));
 
 vi.mock("@src/stores/widget-store.svelte.ts", () => ({
-  widgets: { widgetFunctions: {} },
+  widgets: {
+    get widgetFunctions() {
+      return state.widgetFunctions;
+    },
+  },
 }));
 
 import {
@@ -221,9 +230,31 @@ const TITLE_FIELDS: FieldPayload[] = [
 ];
 
 /**
+ * The `fields` literal exactly as it sits in the generated collection file.
+ *
+ * The generator prints the field list as one expression after `fields:` — an
+ * ARRAY literal for the builder (`fields: [widgets.Input({…}), …]`) or, before
+ * the CB2 fix, an index-keyed map (`fields: {"0": {…}}`). Extracting the literal
+ * instead of a shape-specific regex keeps the assertion about the persisted
+ * shape, not about how the line is formatted.
+ */
+function persistedFieldsLiteral(source: string): string {
+  const match = /^[\t ]*fields:[\t ]*(.+)$/m.exec(source);
+  if (!match) {
+    throw new Error(`Generated collection file has no fields property:\n${source}`);
+  }
+  return match[1].replace(/,[\t ]*$/, "").trim();
+}
+
+/**
  * Re-reads a collection from the in-memory store by parsing the file the route
  * generated. This makes the persistence test a genuine round-trip: the shape
  * asserted on the second load comes only from what was written to disk.
+ *
+ * STRICT: the persisted list must be an ARRAY literal. The base commit wrote an
+ * index-keyed map, which is order-lossy by construction — reading it back as an
+ * array (`Object.values`) would silently paper over exactly the regression this
+ * file exists to catch.
  */
 function parseSavedCollection(name: string): SavedCollection | null {
   const source = state.files.get(`${state.collectionsPath}/${name}.ts`);
@@ -231,19 +262,20 @@ function parseSavedCollection(name: string): SavedCollection | null {
 
   const idMatch = /^\s*_id:\s*"([^"]*)",?$/m.exec(source);
   const nameMatch = /^\s*name:\s*"([^"]*)",?$/m.exec(source);
-  // CB2: the builder stores the widget list as an ordered ARRAY. Legacy files (and
-  // anything written before the fix) hold an index-keyed map, so both shapes are read;
-  // an array keeps its order, a map falls back to index order as it always did.
-  const fieldsMatch = /^\s*fields:\s*(\{.*\}|\[.*\]),?$/m.exec(source);
-  if (!nameMatch || !fieldsMatch) {
+  if (!nameMatch) {
     throw new Error(`Generated collection file is not parseable for ${name}:\n${source}`);
   }
 
-  const parsedFields = JSON.parse(fieldsMatch[1]) as Record<string, SavedField> | SavedField[];
+  const literal = persistedFieldsLiteral(source);
+  const parsedFields = JSON.parse(literal) as unknown;
+  if (!Array.isArray(parsedFields)) {
+    throw new Error(`Persisted fields must be an array literal for ${name}, got: ${literal}`);
+  }
+
   return {
     _id: idMatch?.[1] ?? nameMatch[1],
     name: nameMatch[1],
-    fields: Array.isArray(parsedFields) ? parsedFields : Object.values(parsedFields),
+    fields: parsedFields as SavedField[],
   };
 }
 
@@ -262,6 +294,7 @@ describe("collectionbuilder [action]/[...contentPath] +page.server", () => {
     state.getCollectionCalls.length = 0;
     state.getCollectionImpl = () => null;
     vi.mocked(hasCollectionBuilderPermission).mockReturnValue(true);
+    state.widgetFunctions = {};
   });
 
   it("returns a null collection for `new` and a serialised, function-free one for `edit` (load-contract)", async () => {
@@ -372,6 +405,24 @@ describe("collectionbuilder [action]/[...contentPath] +page.server", () => {
     expect(written).toContain('name: "Persisted"');
     expect(state.files.size).toBe(1);
 
+    // CB2 (shape pin): the widget list must be persisted as an ORDERED ARRAY.
+    // The base commit re-keyed it into an index-keyed map and wrote
+    // `fields: {"0": {…}}`; such a map cannot express a display order that
+    // differs from the index order, so both the array literal and its readability
+    // as a JSON array are asserted here — and the map shape is refused.
+    const literal = persistedFieldsLiteral(written as string);
+    expect(
+      (written as string).includes("fields: {"),
+      `generated file kept the map shape:\n${written}`,
+    ).toBe(false);
+    expect(
+      literal.startsWith("["),
+      `persisted fields must be an array literal, got: ${literal}`,
+    ).toBe(true);
+    const parsedFields = JSON.parse(literal) as unknown;
+    expect(Array.isArray(parsedFields)).toBe(true);
+    expect((parsedFields as SavedField[])[0]?.db_fieldName).toBe("title");
+
     // Re-read through the same virtual store the write populated.
     state.getCollectionImpl = (identifier: string) =>
       parseSavedCollection(identifier.replace(/^\//, ""));
@@ -385,6 +436,53 @@ describe("collectionbuilder [action]/[...contentPath] +page.server", () => {
       { db_fieldName: "title", label: "Title", widget: { Name: "Input", key: "Input" } },
     ]);
     expect(state.getCollectionCalls).toEqual([["Persisted", null]]);
+  });
+
+  it("emits `widgets.*` factory calls in array order once the registry provides a GuiSchema (AST substitution)", async () => {
+    // `goThrough()` substitutes only a widget it finds in the registry AND that
+    // declares a GuiSchema; without one the field stays plain JSON, which is what
+    // the persistence assertions above read. This exercises the substitution path
+    // against the ordered-array shape, through the real AST generator.
+    state.widgetFunctions.Input = {
+      GuiSchema: {
+        label: { widget: "Input", required: true },
+        db_fieldName: { widget: "Input", required: false },
+      },
+    };
+
+    const ordered: FieldPayload[] = [
+      { db_fieldName: "second", label: "Second", widget: { Name: "Input", key: "Input" } },
+      { db_fieldName: "first", label: "First", widget: { Name: "Input", key: "Input" } },
+    ];
+
+    const saved = (await actions.saveCollection(
+      makeSaveEvent(makeCollectionForm("Widgeted", ordered)),
+    )) as unknown as ActionOutcome;
+    expect(saved).toEqual({ contentVersion: "v1", changedIds: [] });
+
+    const written = state.files.get(`${state.collectionsPath}/Widgeted.ts`);
+    expect(written).toBeDefined();
+    const source = written as string;
+
+    // The generator wraps each widget call in the 🗑️ marker and strips the JSON
+    // quoting around it. A surviving marker means the call is still string data.
+    expect(source).not.toContain("🗑️");
+
+    const literal = persistedFieldsLiteral(source);
+    expect(
+      literal.startsWith("[widgets.Input("),
+      `fields literal lost the factory call: ${literal}`,
+    ).toBe(true);
+    // Order survives the substitution: posted order is what lands in the file.
+    const secondAt = literal.indexOf('"db_fieldName":"second"');
+    const firstAt = literal.indexOf('"db_fieldName":"first"');
+    expect(secondAt).toBeGreaterThan(-1);
+    expect(firstAt).toBeGreaterThan(-1);
+    expect(secondAt).toBeLessThan(firstAt);
+    // The call must be bound by the generated import, not by a dangling identifier.
+    expect(source).toContain("@widgets/widget-manager.svelte");
+    // And the list is still an array, never the index-keyed map.
+    expect(source.includes("fields: {")).toBe(false);
   });
 
   it("keeps both collections when two saves run in parallel (concurrency)", async () => {
