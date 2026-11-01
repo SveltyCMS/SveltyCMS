@@ -652,9 +652,10 @@
 			return;
 		}
 
-		const originalElement = mainContainerEl?.querySelector(
-			`[data-widget-id="${dragState.item?.id}"]`
-		) as HTMLElement;
+		const dragId = dragState.item?.id;
+		const originalElement = (
+			dragId ? mainContainerEl?.querySelector(`[data-widget-id="${CSS.escape(dragId)}"]`) : null
+		) as HTMLElement | null | undefined;
 		if (originalElement) {
 			originalElement.style.opacity = '';
 			originalElement.style.zIndex = '';
@@ -712,7 +713,9 @@
 			systemPreferences.updateWidgets(updatedWidgets);
 
 			setTimeout(() => {
-				const el = document.querySelector(`[data-widget-id="${item.id}"]`) as HTMLElement;
+				const el = document.querySelector(
+					`[data-widget-id="${CSS.escape(item.id)}"]`
+				) as HTMLElement | null;
 				el?.focus();
 			}, 50);
 		}

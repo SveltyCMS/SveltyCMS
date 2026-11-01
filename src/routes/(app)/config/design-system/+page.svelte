@@ -468,7 +468,9 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 
 		setActiveTab(next.id);
 		requestAnimationFrame(() => {
-			document.querySelector<HTMLElement>(`[data-testid="appearance-tab-${next.id}"]`)?.focus();
+			document
+				.querySelector<HTMLElement>(`[data-testid="appearance-tab-${CSS.escape(next.id)}"]`)
+				?.focus();
 		});
 	}
 

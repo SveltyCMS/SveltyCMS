@@ -75,6 +75,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	} from '@src/stores/theme-store.svelte';
 	import { hydration } from '@src/stores/hydration.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
+	import { captureFocusTarget, restoreFocus, type FocusSnapshot } from '@utils/focus-restore';
 	import { logger } from '@utils/logger';
 
 	// Props
@@ -114,8 +115,11 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	let lastInteractionTime = $state(Date.now());
 	let sessionInterval: ReturnType<typeof setInterval> | undefined;
 
-	// Focus coordinates tracking for state restoration
-	let lastFocusedSelector = $state<string | null>(null);
+	// Focus coordinates tracking for state restoration. Stored as a snapshot
+	// (id / data-testid / name + tag), NEVER as a CSS selector: element ids are
+	// derived from labels and schema field names ("search...", digit-leading,
+	// punctuation) and `querySelector('#search...')` throws inside these timers.
+	let lastFocusedTarget = $state<FocusSnapshot | null>(null);
 
 	function resetSessionTimer() {
 		if (sessionPhase === 'expired') return;
@@ -125,10 +129,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 			sessionPhase = 'normal';
 			// Focus restoration after extending session
 			setTimeout(() => {
-				if (lastFocusedSelector) {
-					const target = document.querySelector(lastFocusedSelector) as HTMLElement;
-					target?.focus();
-				}
+				restoreFocus(document, lastFocusedTarget);
 			}, 100);
 		}
 	}
@@ -137,18 +138,8 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	function handleUserActivity(e: Event) {
 		resetSessionTimer();
 
-		// Track the selector of the active element to restore it on mount/navigation boundaries
-		const target = e.target as HTMLElement;
-		if (target) {
-			if (target.id) {
-				lastFocusedSelector = `#${target.id}`;
-			} else if (target.getAttribute('data-testid')) {
-				lastFocusedSelector = `[data-testid="${target.getAttribute('data-testid')}"]`;
-			} else if (target.getAttribute('name')) {
-				const name = target.getAttribute('name');
-				lastFocusedSelector = `${target.tagName.toLowerCase()}[name="${name}"]`;
-			}
-		}
+		// Remember WHERE focus was as data, never as a selector string.
+		lastFocusedTarget = captureFocusTarget(e.target);
 	}
 
 	// Navigation-aware toast handling
@@ -158,12 +149,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 
 		// State-Bound Focus Restoration
 		setTimeout(() => {
-			if (lastFocusedSelector) {
-				const target = document.querySelector(lastFocusedSelector) as HTMLElement;
-				if (target) {
-					target.focus();
-				}
-			}
+			restoreFocus(document, lastFocusedTarget);
 		}, 150);
 	});
 
