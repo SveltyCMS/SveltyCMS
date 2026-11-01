@@ -243,19 +243,37 @@ export function updateEntryStatus(
   });
 }
 
-export function deleteEntry(collectionId: string, entryId: string): Promise<ApiResponse<unknown>> {
-  return fetchApi(`/api/collections/${collectionId}/${entryId}`, {
+/**
+ * Deletes one entry.
+ * `permanent: false` (default) soft-deletes it into the Trash; `permanent: true` is final.
+ */
+export function deleteEntry(
+  collectionId: string,
+  entryId: string,
+  options: { permanent?: boolean } = {},
+): Promise<ApiResponse<unknown>> {
+  const query = options.permanent ? "?permanent=true" : "";
+  return fetchApi(`/api/collections/${collectionId}/${entryId}${query}`, {
     method: "DELETE",
   });
 }
 
+/**
+ * Deletes a selection with ONE request.
+ * `permanent: false` (default) moves every row to the Trash; `permanent: true` is final.
+ */
 export function batchDeleteEntries(
   collectionId: string,
   entryIds: string[],
+  options: { permanent?: boolean } = {},
 ): Promise<ApiResponse<unknown>> {
   return fetchApi(`/api/collections/${collectionId}/batch`, {
     method: "POST",
-    body: JSON.stringify({ action: "delete", entryIds }),
+    body: JSON.stringify({
+      action: "delete",
+      entryIds,
+      permanent: options.permanent === true,
+    }),
   });
 }
 

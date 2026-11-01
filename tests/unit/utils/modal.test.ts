@@ -85,8 +85,8 @@ describe("Modal Utilities", () => {
       expect(modalState.trigger).toHaveBeenCalledWith(
         ConfirmDialog,
         {
-          htmlTitle: "Delete 5 item",
-          body: 'Are you sure you want to delete <span class="text-tertiary-500 dark:text-primary-500 font-bold">5 item(s)</span>?',
+          htmlTitle: "Delete 5 items",
+          body: 'Are you sure you want to delete <span class="text-tertiary-500 dark:text-primary-500 font-bold">5 items</span>?',
           buttonTextConfirm: "Delete",
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-error-500/10 !border-error-500/20",
@@ -104,8 +104,8 @@ describe("Modal Utilities", () => {
       expect(modalState.trigger).toHaveBeenCalledWith(
         ConfirmDialog,
         {
-          htmlTitle: "Archive  item",
-          body: 'Are you sure you want to archive <span class="text-tertiary-500 dark:text-primary-500 font-bold">1 item(s)</span>?',
+          htmlTitle: "Archive item",
+          body: 'Are you sure you want to archive <span class="text-tertiary-500 dark:text-primary-500 font-bold">1 item</span>?',
           buttonTextConfirm: "Archive",
           buttonTextCancel: "Cancel",
           modalClasses: "!bg-warning-500/10 !border-warning-500/20",
@@ -116,6 +116,38 @@ describe("Modal Utilities", () => {
         },
         expect.any(Function),
       );
+    });
+
+    it("says it moves rows to the Trash when the delete is restorable", () => {
+      // The list Delete soft-deletes: a dialog promising "Delete 2 entries" would be
+      // wrong twice over (nothing is deleted, and the rows come back from the Trash).
+      showDeleteConfirm({ count: 2, onConfirm: vi.fn(), restorable: true });
+
+      expect(modalState.trigger).toHaveBeenCalledWith(
+        ConfirmDialog,
+        expect.objectContaining({
+          htmlTitle: "Move 2 items to the Trash",
+          body: 'Are you sure you want to move <span class="text-tertiary-500 dark:text-primary-500 font-bold">2 items</span> to the Trash?',
+          buttonTextConfirm: "Move to Trash",
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it("drops the 'irreversible' warning for a restorable delete", () => {
+      showDeleteConfirm({ count: 1, onConfirm: vi.fn(), isAdmin: true, restorable: true });
+
+      const props = (modalState.trigger as any).mock.calls.at(-1)[1];
+      expect(props.htmlTitle).toBe("Move item to the Trash");
+      expect(props.body).not.toContain("irreversible");
+    });
+
+    it("keeps the 'irreversible' warning for a permanent delete", () => {
+      showDeleteConfirm({ count: 1, onConfirm: vi.fn(), isAdmin: true });
+
+      const props = (modalState.trigger as any).mock.calls.at(-1)[1];
+      expect(props.htmlTitle).toBe("Delete item");
+      expect(props.body).toContain("irreversible");
     });
   });
 

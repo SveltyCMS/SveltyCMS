@@ -7,6 +7,11 @@
  * - Promise-based API: all utility methods return Promise<boolean> or typed result
  * - Orphaned promise prevention: trigger() and clear() fire existing response(false) before replacement
  * - close() always fires response (was gated on value !== undefined, dropping falsy signals)
+ * - Re-entrancy: trigger()/close()/clear() detach the active modal BEFORE firing its
+ *   response. Firing the response while the modal was still `active` let a handler that
+ *   opens another dialog cancel itself again, forever — `RangeError: Maximum call stack
+ *   size exceeded` (Delete in the entry editor, BUG M3).
+ * - Follow-up dialogs are opened on the next tick, never from onCancel/onConfirm.
  *
  * Features:
  * - Unified Svelte 5 state management ($state).
@@ -102,29 +107,37 @@ class ModalManager {
   /**
    * Triggers a generic component-based modal.
    * Resolves/cancels any currently open modal to prevent orphaned promises.
+   *
+   * ⚠️ The slot is replaced BEFORE the previous response fires. Firing it while it was
+   * still `this.active` meant a response handler that opens another modal (a confirm
+   * chained from `onCancel`) cancelled itself again, recursively, until the stack blew
+   * (BUG M3). Callers that need a follow-up dialog must open it on the next tick — never
+   * from inside `onCancel`/`onConfirm` of the dialog that is closing.
    */
   trigger(component: Component<any>, props: Record<string, any> = {}, response?: (r: any) => void) {
-    if (this.active?.response) {
-      this.active.response(false); // Gracefully cancel the previous modal
-    }
+    const previous = this.active;
     this.active = { component, props, response };
+    if (previous?.response) {
+      previous.response(false); // Gracefully cancel the previous modal
+    }
   }
 
   /**
    * Closes the active modal and fires its response handler.
+   *
+   * The modal is detached first so a handler that opens the next dialog does not
+   * re-enter (and re-fire) the response it is currently running (BUG M3).
    */
   close(value?: any) {
-    if (this.active?.response) {
-      this.active.response(value);
-    }
+    const current = this.active;
     this.active = null;
+    current?.response?.(value);
   }
 
   clear() {
-    if (this.active?.response) {
-      this.active.response(false);
-    }
+    const current = this.active;
     this.active = null;
+    current?.response?.(false);
   }
 
   // --- Utility Helpers ---
@@ -172,23 +185,52 @@ class ModalManager {
     onConfirm: () => void | Promise<void>;
     isAdmin?: boolean;
     isArchive?: boolean;
+    /**
+     * The delete only moves the rows to the Trash (soft delete) — restorable.
+     * Such a dialog must not say "Delete 2 entries": the entries stay in the database
+     * and come back from Config → Trash. Title, body and confirm button say
+     * "move … to the Trash" when set.
+     */
+    restorable?: boolean;
+    /** Optional second line, e.g. "restorable from Config → Trash". Escaped. */
+    description?: string;
   }): Promise<boolean> {
-    const { itemType, itemName, onConfirm, isAdmin = false, isArchive = false } = options;
+    const {
+      itemType,
+      itemName,
+      onConfirm,
+      isAdmin = false,
+      isArchive = false,
+      restorable = false,
+      description,
+    } = options;
 
     const isBatch = Array.isArray(itemName);
     const count = isBatch ? itemName.length : 1;
     const action = isArchive ? "Archive" : "Delete";
     const theme = isArchive ? DEFAULT_THEMES.archive : DEFAULT_THEMES.delete;
 
+    // Singular/plural of the counted noun. The old title template rendered
+    // "Archive 2 item" (no plural) and "Archive  item" (double space) — BUG M5.
+    const noun = count === 1 ? itemType : `${itemType}s`;
+    const subject = count > 1 ? `${count} ${noun}` : noun;
+
     // 🛡️ XSS Protection: Escape user-provided item names before injecting into HTML
     const safeTarget = isBatch
-      ? `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${escapeHtml(itemType)}(s)</span>`
+      ? `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${escapeHtml(noun)}</span>`
       : `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${escapeHtml(String(itemName))}</span>`;
 
-    const body = `Are you sure you want to ${action.toLowerCase()} ${safeTarget}?`;
+    const note = description
+      ? `<br /><span class="text-sm text-surface-600 dark:text-surface-50">${escapeHtml(description)}</span>`
+      : "";
 
+    const verb = restorable ? "move" : action.toLowerCase();
+    const destination = restorable ? " to the Trash" : "";
+    const body = `Are you sure you want to ${verb} ${safeTarget}${destination}?${note}`;
+
+    // "This action is irreversible" is only true for a real DELETE.
     const adminWarning =
-      isAdmin && !isArchive
+      isAdmin && !isArchive && !restorable
         ? `<div class="alert preset-filled-warning-500 mt-4">
           <iconify-icon icon="mdi:alert" width="24"></iconify-icon>
           <div class="alert-message"><strong>Important:</strong> This action is irreversible.</div>
@@ -196,9 +238,9 @@ class ModalManager {
         : "";
 
     return this.showConfirm({
-      title: `${action} ${count > 1 ? count : ""} ${itemType}`,
+      title: restorable ? `Move ${subject} to the Trash` : `${action} ${subject}`,
       body: body + adminWarning,
-      confirmText: action,
+      confirmText: restorable ? "Move to Trash" : action,
       theme,
       onConfirm,
     });
@@ -319,6 +361,8 @@ export const showDeleteConfirm = (options: any) => {
     onConfirm: options.onConfirm,
     isArchive: options.isArchive,
     isAdmin: options.isAdmin,
+    restorable: options.restorable,
+    description: options.description,
   });
 };
 
