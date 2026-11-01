@@ -229,6 +229,8 @@ function getStorage(): Storage | null {
 function createSetupStore() {
   const storage = getStorage();
   let isLoaded = false;
+  /** Guards setupPersistence() so repeated arming cannot stack effect writers. */
+  let persistenceArmed = false;
 
   const wizard = $state({
     dbConfig: { ...initialDbConfig },
@@ -334,25 +336,42 @@ function createSetupStore() {
   }
 
   // Function to setup persistence effect - will be called from component
+  //
+  // `$effect()` can only be created while an effect root is active. This function is
+  // armed from the wizard's `onMount` continuation (after `await applyScaffoldHints()`
+  // in src/routes/setup/+page.svelte), i.e. with neither an effect nor a reaction
+  // active, so the former bare `$effect` threw `effect_orphan`
+  // (https://svelte.dev/e/effect_orphan) on every visit: the writer never installed
+  // and the exception escaped as an uncaught pageerror.
+  // `$effect.root()` owns the effect independently of the caller's context (same
+  // pattern as src/stores/ui-store.svelte.ts). The store is a module singleton that
+  // lives as long as the app, so there is no component teardown to wire here.
   function setupPersistence() {
-    $effect(() => {
-      if (!isLoaded) {
-        return;
-      }
-      if (!storage) {
-        return;
-      }
-      try {
-        storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
-        storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
-        storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
-        storage.setItem(KEYS.email, JSON.stringify(wizard.emailSettings));
-        storage.setItem(KEYS.step, String(wizard.currentStep));
-        storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
-        storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
-      } catch (e) {
-        logger.error("Failed to persist setup state:", e);
-      }
+    if (persistenceArmed) {
+      return; // idempotent — re-entering the wizard must not stack writers
+    }
+    persistenceArmed = true;
+
+    $effect.root(() => {
+      $effect(() => {
+        if (!isLoaded) {
+          return;
+        }
+        if (!storage) {
+          return;
+        }
+        try {
+          storage.setItem(KEYS.db, JSON.stringify(wizard.dbConfig));
+          storage.setItem(KEYS.admin, JSON.stringify(wizard.adminUser));
+          storage.setItem(KEYS.system, JSON.stringify(wizard.systemSettings));
+          storage.setItem(KEYS.email, JSON.stringify(wizard.emailSettings));
+          storage.setItem(KEYS.step, String(wizard.currentStep));
+          storage.setItem(KEYS.highestStep, String(wizard.highestStepReached));
+          storage.setItem(KEYS.dbTest, String(wizard.dbTestPassed));
+        } catch (e) {
+          logger.error("Failed to persist setup state:", e);
+        }
+      });
     });
   }
 
