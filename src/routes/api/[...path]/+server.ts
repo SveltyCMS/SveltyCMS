@@ -34,6 +34,10 @@ import {
   AUTHENTICATED_ENDPOINT_PERMISSION,
   resolvePermissionId,
 } from "@src/databases/auth/permission-catalog";
+import {
+  DASHBOARD_READ_PERMISSION,
+  SYSTEM_DASHBOARD_PERMISSION,
+} from "@src/databases/auth/dashboard-access";
 import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
 import { pluginRouteRegistry } from "@src/plugins/plugin-route-registry";
 import {
@@ -435,18 +439,28 @@ export function _checkEndpointPermission(
   // stray permMask reaches this helper.
   if (!user) return false;
 
+  // The dashboard surface is granted by EITHER catalog id: the widget permission
+  // the endpoint map names (`dashboard:read`) or the access grant every seeded
+  // non-admin role carries (`system:dashboard`). Without the second id the
+  // dashboard page loads for a seeded editor but every widget endpoint 403s —
+  // see databases/auth/dashboard-access.ts.
+  const dashboardAccess = requiredPermission === DASHBOARD_READ_PERMISSION;
+
   // 🚀 64-bit bitmask fast-path: single CPU register instruction when permMask present.
   // A ZERO mask is not authoritative: it is also what a session minted while the
   // role rows were unreadable carries. Fall through to the role check — the same
   // source the mask was derived from — which still denies a user with no grants.
   if (permMask !== undefined && permMask !== 0n) {
-    const reqBit = getPermissionBit(requiredPermission);
+    const reqBit = dashboardAccess
+      ? getPermissionBit(DASHBOARD_READ_PERMISSION) | getPermissionBit(SYSTEM_DASHBOARD_PERMISSION)
+      : getPermissionBit(requiredPermission);
     if (reqBit !== 0n) {
       return hasPermissionBitmask(permMask, reqBit);
     }
   }
 
-  return hasPermissionWithRoles(user, requiredPermission, roles);
+  if (hasPermissionWithRoles(user, requiredPermission, roles)) return true;
+  return dashboardAccess && hasPermissionWithRoles(user, SYSTEM_DASHBOARD_PERMISSION, roles);
 }
 
 // ✨ CACHED SDK: Reusable instance to prevent object churn

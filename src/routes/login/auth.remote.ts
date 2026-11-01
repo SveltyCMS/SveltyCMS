@@ -52,6 +52,7 @@ import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import { command, query, getRequestEvent } from "$app/server";
 import { isSecureCookieContext, sessionTtlMs } from "@src/databases/auth/constants";
 import { dateToISODateString } from "@src/utils/date";
+import { resolveUserPostAuthLanding } from "@utils/auth/post-auth-landing.server";
 import { pluginRegistry } from "@src/plugins";
 import {
   buildDeviceFingerprint,
@@ -304,7 +305,12 @@ export const verify2FA = command(
 
     return {
       success: true,
-      redirectPath: "/config/collectionbuilder",
+      // A plain user must not land on the admin-only collection builder (its load
+      // throws 403 for roles without the builder permission).
+      redirectPath: resolveUserPostAuthLanding(user, {
+        roles: event.locals.roles,
+        isAdmin: event.locals.isAdmin === true,
+      }),
     };
   },
 );
@@ -649,7 +655,13 @@ async function signInInternal(event: RequestEvent, input: any) {
   // attacker could otherwise send the victim off-site after a real login
   // (`/login?redirect=https://evil.example`).
   const { safeRedirect } = await import("@src/utils/security/safe-redirect");
-  let redirectPath = safeRedirect(input.redirect as string, "/config/collectionbuilder");
+  const landingFor = (firstCollectionPath: string | null) =>
+    resolveUserPostAuthLanding(user, {
+      roles: event.locals.roles,
+      isAdmin: event.locals.isAdmin === true,
+      firstCollectionPath,
+    });
+  let redirectPath = safeRedirect(input.redirect as string, "");
   if (!input.redirect) {
     try {
       const { getCachedFirstCollectionPath } =
@@ -658,12 +670,14 @@ async function signInInternal(event: RequestEvent, input: any) {
       const userTenantId = (event.locals.tenantId || (user as any).tenantId || null) as
         | string
         | null;
-      const path = await getCachedFirstCollectionPath(userLanguage as any, userTenantId);
-      if (path) redirectPath = path;
+      redirectPath = landingFor(
+        await getCachedFirstCollectionPath(userLanguage as any, userTenantId),
+      );
     } catch {
-      // Fall back to builder
+      // Fall back to the role-appropriate landing page
     }
   }
+  if (!redirectPath) redirectPath = landingFor(null);
 
   return { success: true, redirectPath };
 }
@@ -774,7 +788,16 @@ async function signUpInternal(event: RequestEvent, input: any) {
       logger.debug("Registration token consumption failed silently during signup");
     });
 
-  return { success: true, redirectPath: "/config/collectionbuilder" };
+  // The invited user inherits the invite token's role; only builder-capable roles
+  // may open /config/collectionbuilder — everyone else lands on the dashboard
+  // instead of a 403 page right after the account was created.
+  return {
+    success: true,
+    redirectPath: resolveUserPostAuthLanding(ur.data?.user ?? { role, isAdmin: role === "admin" }, {
+      roles: event.locals.roles,
+      isAdmin: event.locals.isAdmin === true,
+    }),
+  };
 }
 
 /**
@@ -1122,7 +1145,10 @@ export const verifyPasskeyAuth = command(
 
       return {
         success: true,
-        redirectPath: "/config/collectionbuilder",
+        redirectPath: resolveUserPostAuthLanding(user, {
+          roles: event.locals.roles,
+          isAdmin: event.locals.isAdmin === true,
+        }),
       };
     } catch (err: any) {
       logger.error("Passkey authentication failed:", err.message);
