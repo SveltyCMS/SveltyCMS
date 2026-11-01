@@ -89,6 +89,17 @@ describe("englishPlural (labels without a translated plural form)", () => {
     expect(englishPlural("categories", 3)).toBe("categories");
   });
 
+  it("keeps Latin/Greek -a plurals uninflected (media, criteria, data)", () => {
+    // "medias" / "mediae" were both wrong: `media` is already the plural.
+    expect(englishPlural("media", 2)).toBe("media");
+    expect(englishPlural("Media", 25)).toBe("Media");
+    expect(englishPlural("criteria", 3)).toBe("criteria");
+    expect(englishPlural("data", 2)).toBe("data");
+    // A singular -a noun is not in that family and still takes the -s.
+    expect(englishPlural("pizza", 2)).toBe("pizzas");
+    expect(englishPlural("encyclopedia", 2)).toBe("encyclopedias");
+  });
+
   it("is tolerant of empty input", () => {
     expect(englishPlural("", 3)).toBe("");
   });

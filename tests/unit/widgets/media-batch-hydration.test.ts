@@ -3,9 +3,15 @@
  * @description MEDIA N+1 regression guard (audit 2026-10-31, m5).
  *
  * The media widget's display pillar renders one cell per list row. Before this
- * fix each cell fetched its own document, so a 25-row entry list issued 25
- * `GET /api/media/:id` requests (measured below as the "legacy" control). The
- * shared coalescer must turn the same work into ONE request.
+ * fix every cell fetched its own document, so a 25-row entry list issued 25
+ * `GET /api/media/:id` requests. The shared coalescer must turn the same work
+ * into ONE `GET /api/media/batch-get` request and ZERO per-id requests.
+ *
+ * What regresses here is the request SHAPE, so every case counts calls by URL
+ * through `media-request-log`. A stub that ignores its URL cannot tell the two
+ * shapes apart, and a hand-written `fetch()` loop proves nothing about the
+ * widget — the mounted-component control lives in
+ * `tests/unit/components/dom/media-display-interaction.test.ts`.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +21,7 @@ import {
   mediaBatchStats,
   resetMediaCache,
 } from "@src/widgets/core/media-upload/media-cache";
+import { classifyMediaUrl, createMediaRequestLog } from "./media-request-log";
 
 const ROWS = 25;
 
@@ -41,6 +48,17 @@ function batchResponse(url: string) {
   });
 }
 
+/** Stub `fetch` that answers the batch contract and logs every URL asked for. */
+function stubLoggedFetch() {
+  const { log, record } = createMediaRequestLog();
+  const fetchMock = vi.fn(async (url: RequestInfo | URL) => {
+    record(url);
+    return batchResponse(String(url));
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return { fetchMock, log };
+}
+
 describe("media widget hydration (m5: one request per list page)", () => {
   beforeEach(() => {
     resetMediaCache();
@@ -50,31 +68,24 @@ describe("media widget hydration (m5: one request per list page)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("CONTROL: the pre-fix per-row fetch shape costs one request per row", async () => {
-    const fetchMock = vi.fn(async (url: RequestInfo | URL) => {
-      const id = String(url).split("/").pop();
-      return okJson({ success: true, data: { _id: id, filename: `${id}.jpg` } });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    // Exactly what display.svelte did before the fix: per-cell `/api/media/:id`.
-    for (const id of rows()) {
-      const response = await fetch(`/api/media/${encodeURIComponent(id)}`);
-      await response.json();
-    }
-
-    expect(fetchMock).toHaveBeenCalledTimes(ROWS);
+  it("CONTROL: the request log separates the pre-fix per-row shape from the batch shape", () => {
+    // The counter must be able to FAIL on the shape it forbids, otherwise the
+    // assertions below are vacuous.
+    expect(classifyMediaUrl(`/api/media/${encodeURIComponent("media-7")}`)).toBe("per-id");
+    expect(classifyMediaUrl("/api/media/batch-get?ids=media-0%2Cmedia-1")).toBe("batch");
+    expect(classifyMediaUrl("/api/collections/entries")).toBe("other");
   });
 
-  it("issues ONE batch request for a 25-row list", async () => {
-    const fetchMock = vi.fn(async (url: RequestInfo | URL) => batchResponse(String(url)));
-    vi.stubGlobal("fetch", fetchMock);
+  it("issues ONE batch request for a 25-row list and no per-id request", async () => {
+    const { fetchMock, log } = stubLoggedFetch();
 
     // One effect per row, all in the same task — the coalescer must merge them.
     const perRow = rows().map((id) => loadMediaDocs([id]));
     const resolved = await Promise.all(perRow);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(log.batch).toBe(1);
+    expect(log.perId).toBe(0);
     expect(mediaBatchStats.requests).toBe(1);
 
     const url = String(fetchMock.mock.calls[0]?.[0]);
@@ -88,34 +99,40 @@ describe("media widget hydration (m5: one request per list page)", () => {
   });
 
   it("serves repeat renders from the cache without another request", async () => {
-    const fetchMock = vi.fn(async (url: RequestInfo | URL) => batchResponse(String(url)));
-    vi.stubGlobal("fetch", fetchMock);
+    const { fetchMock, log } = stubLoggedFetch();
 
     await loadMediaDocs(rows());
     const again = await loadMediaDocs(rows());
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(log.perId).toBe(0);
     expect(again.size).toBe(ROWS);
   });
 
   it(`splits above ${MEDIA_BATCH_LIMIT} distinct ids into capped requests`, async () => {
-    const fetchMock = vi.fn(async (url: RequestInfo | URL) => batchResponse(String(url)));
-    vi.stubGlobal("fetch", fetchMock);
+    const { fetchMock, log } = stubLoggedFetch();
 
     const ids = rows(MEDIA_BATCH_LIMIT + 40);
     const resolved = await loadMediaDocs(ids);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(log.batch).toBe(2);
+    expect(log.perId).toBe(0);
     expect(resolved.size).toBe(MEDIA_BATCH_LIMIT + 40);
   });
 
   it("resolves missing documents as null instead of throwing", async () => {
-    const fetchMock = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+    const { log, record } = createMediaRequestLog();
+    const fetchMock = vi.fn(async (url: RequestInfo | URL) => {
+      record(url);
+      return { ok: false, status: 500, json: async () => ({}) };
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const resolved = await loadMediaDocs(rows(3));
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(log.perId).toBe(0);
     expect(resolved.size).toBe(0);
   });
 });

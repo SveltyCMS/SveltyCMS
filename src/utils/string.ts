@@ -37,6 +37,30 @@ export function pluralize(
 }
 
 /**
+ * Nouns whose plural is the same word: Latin/Greek plurals that already end in
+ * -a/-ia. `englishPlural` used to return "medias" for `media`, which is already
+ * plural and uninflected.
+ *
+ * A blanket `-a$` / `-ia$` rule is wrong in English: `pizza`, `idea` and
+ * `encyclopedia` end the same way and are singular, so they must still take an
+ * -s. Hence an explicit list instead of an ending.
+ */
+const UNINFLECTED_PLURALS = new Set([
+  "media",
+  "data",
+  "criteria",
+  "phenomena",
+  "bacteria",
+  "curricula",
+  "memoranda",
+  "addenda",
+  "errata",
+  "strata",
+  "referenda",
+  "spectra",
+]);
+
+/**
  * Derives the English plural of a UI noun label ("entry" → "entries").
  *
  * Confirmation dialogs and toasts build strings like "Delete 2 entries" from a
@@ -51,8 +75,10 @@ export function pluralize(
 export function englishPlural(noun: string, count: number): string {
   const word = String(noun ?? "").trim();
   if (!word || count === 1) return word;
-  // Already plural ("entries", "media") — leave it alone.
+  // Already plural ("entries") — leave it alone.
   if (/s$/i.test(word) && !/ss$/i.test(word)) return word;
+  // Latin/Greek plurals ("media", "criteria"): "-ae"/"-s" would be wrong.
+  if (UNINFLECTED_PLURALS.has(word.toLowerCase())) return word;
   if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
   if (/(s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
   return `${word}s`;
