@@ -27,6 +27,7 @@ import {
   invalidateCollectionCache,
   updateEntry,
 } from "./api";
+import { describeBulkWriteOutcome } from "./bulk-write-outcome";
 import { entryMessages } from "./entry-actions-messages";
 import { logger } from "./logger";
 
@@ -86,8 +87,20 @@ export async function setEntriesStatus(
     ...payload,
   });
   if (result.success) {
-    // Use centralized messaging
-    const count = entryIds.length;
+    // The toast reports what the server confirms, not that the request returned
+    // 2xx (M4): a bulk write that matched zero rows used to say "published" while
+    // every row kept its DRAFT status and the counts never moved.
+    const outcome = describeBulkWriteOutcome(entryIds, result);
+    if (outcome?.level === "none") {
+      onSuccess();
+      toast.error({
+        description: `Nothing was updated — ${outcome.requested} ${
+          outcome.requested === 1 ? "entry was" : "entries were"
+        } not found.`,
+      });
+      return;
+    }
+    const count = outcome?.affected ?? entryIds.length;
     let message: string;
 
     switch (status) {
@@ -107,6 +120,13 @@ export async function setEntriesStatus(
         message = entryMessages.entriesUpdated(count, status);
     }
 
+    if (outcome?.level === "partial") {
+      toast.warning({
+        description: `${message} (${outcome.affected} of ${outcome.requested}; ${outcome.missing} not found)`,
+      });
+      onSuccess();
+      return;
+    }
     toast.success({ description: message });
     onSuccess();
   } else {

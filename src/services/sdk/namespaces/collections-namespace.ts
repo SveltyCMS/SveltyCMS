@@ -72,7 +72,6 @@ import {
   getNestedFilterPaths,
   rejectedFilterKeys,
 } from "@utils/collection-query-filters";
-import { evaluateCondition } from "@src/widgets/desugar-field";
 
 import {
   getDbModuleLazy,
@@ -113,6 +112,13 @@ import {
   type PrepFieldSchema,
 } from "./collections/write-pipeline";
 import { compileRelationFilters } from "./collections/relation-filter";
+import {
+  assertBulkWriteValid,
+  isPublishTransition,
+  missingRequiredForPublish,
+  type BulkEntryUpdate,
+  type BulkRejection,
+} from "./collections/bulk-validation";
 import type { FieldEncryptionContext } from "@utils/security/field-encryption";
 import {
   invalidateCache,
@@ -423,44 +429,9 @@ function sameShallowPayload(updates: Array<{ data: Record<string, unknown> }>): 
  * lanes raised before (message and code unchanged).
  */
 function assertRequiredFieldsForPublish(hot: SchemaHotFlags, payload: unknown): void {
-  const required = hot._requiredFields;
-  const condRequired = hot._conditionallyRequiredFields;
-  if (
-    (!hot._hasRequiredFields || !required || required.length === 0) &&
-    (!hot._hasConditionallyRequiredFields || !condRequired || condRequired.length === 0)
-  ) {
-    return;
-  }
-  const record = (payload ?? {}) as Record<string, unknown>;
-  const missingFields: string[] = [];
-
-  const isMissing = (val: unknown): boolean =>
-    val === undefined ||
-    val === null ||
-    val === "" ||
-    (Array.isArray(val) && val.length === 0) ||
-    (typeof val === "object" && Object.keys(val as object).length === 0);
-
-  if (required) {
-    for (let i = 0; i < required.length; i++) {
-      const rf = required[i];
-      if (rf.showIf && !evaluateCondition(rf.showIf, record)) continue;
-      if (isMissing(record[rf.key])) {
-        missingFields.push(rf.name);
-      }
-    }
-  }
-
-  if (condRequired) {
-    for (let i = 0; i < condRequired.length; i++) {
-      const crf = condRequired[i];
-      if (crf.showIf && !evaluateCondition(crf.showIf, record)) continue;
-      if (!evaluateCondition(crf.requiredIf, record)) continue;
-      if (isMissing(record[crf.key])) {
-        missingFields.push(crf.name);
-      }
-    }
-  }
+  // The plan reader is shared with the bulk lane (`bulk-validation.ts`), so a
+  // single publish and a bulk publish can never disagree about what is missing.
+  const missingFields = missingRequiredForPublish(hot, payload);
 
   if (missingFields.length > 0) {
     throw new AppError(
@@ -1701,6 +1672,28 @@ export class CollectionsNamespace {
       }
     }
 
+    // 🛡️ PER-ENTRY VALIDATION (M4): the bulk lane used to write straight through,
+    // so publishing an entry whose required fields are empty succeeded silently
+    // while the list kept showing DRAFT. Every entry now runs the preparation
+    // `update()` runs (sanitize, constraints, widget validators, schema hooks,
+    // field permissions) plus the publish gate decided against the STORED row.
+    // The batch is rejected before the first row is written and the message
+    // names every offending entry.
+    //
+    // Cost: at most one extra `findByIds` for the whole batch (publish only) —
+    // a 20-entry publish stays one lookup + one UPDATE, never 20 statements.
+    const rejections: BulkRejection[] = [];
+    if (updates.length > 0) {
+      await this.collectBulkRejections(
+        schema,
+        hot,
+        updates,
+        { user, system, tenantId, options },
+        rejections,
+      );
+    }
+    assertBulkWriteValid(rejections, updates.length);
+
     const now = nowISODateString();
     const encCtx = hot._hasEncryptedFields ? fieldEncryptionContext(schema, tenantId) : undefined;
     // Resolved once — the previous per-row `(schema.fields ?? []).some(...)` walk
@@ -1762,6 +1755,98 @@ export class CollectionsNamespace {
     }
 
     return result;
+  }
+
+  /**
+   * Per-entry gates for `bulkUpdate`, mirroring `update()`: payload preparation
+   * (sanitize, constraints, widget validators, schema hooks, field permissions)
+   * and — for a publish — the required/requiredIf gate evaluated against the
+   * stored row merged with the patch. Rejections are collected, never thrown
+   * from here, so the caller can name every bad entry in one message.
+   *
+   * Two `update()` steps stay out on purpose, both for the same reason (they can
+   * cost one call per row, which would turn a 20-entry publish into 20 round
+   * trips — the N+1 this lane must not acquire):
+   * - the widget `modifyRequest` pipeline (a widget may call out per row); a bulk
+   *   patch carries no widget-populated field to transform in practice
+   * - the per-row workflow publication lookup (`assertPublishAllowed`)
+   */
+  private async collectBulkRejections(
+    schema: Schema,
+    hot: SchemaHotFlags,
+    updates: readonly BulkEntryUpdate[],
+    ctx: {
+      user: any;
+      system?: boolean;
+      tenantId: DatabaseId | null | undefined;
+      options: LocalApiOptions;
+    },
+    out: BulkRejection[],
+  ): Promise<void> {
+    const { user, system, tenantId, options } = ctx;
+    const publishing = updates.some((u) => isPublishTransition(u.data));
+
+    // One lookup carries every target of the batch; only a publish needs the
+    // stored row (the required-field gate is evaluated on the merged document).
+    let existing: Map<string, Record<string, unknown>> | undefined;
+    if (publishing && (hot._hasRequiredFields || hot._hasConditionallyRequiredFields)) {
+      existing = await this.loadBulkGateRows(schema, tenantId, updates);
+    }
+
+    for (let i = 0; i < updates.length; i++) {
+      const row = updates[i];
+      const payload = (row.data ?? {}) as Record<string, unknown>;
+      try {
+        const prepared = prepareWritePayload(payload, schema, hot, {
+          user,
+          system,
+          operation: "update",
+          tenantId,
+          entryId: row.id,
+          skipValidation: options.skipValidation,
+        });
+        if (isThenable(prepared)) await prepared;
+      } catch (err) {
+        out.push({
+          id: row.id,
+          message: err instanceof Error ? err.message : String(err),
+        });
+        continue;
+      }
+
+      if (!publishing) continue;
+      const stored = existing?.get(row.id);
+      const merged = stored ? { ...stored, ...payload } : payload;
+      const missing = missingRequiredForPublish(hot, merged);
+      if (missing.length > 0) {
+        out.push({
+          id: row.id,
+          message: missing.map((f) => `Field '${f}' is required when publishing`).join("; "),
+        });
+      }
+    }
+  }
+
+  /** Stored rows for the publish gate, keyed by id — one query for the batch. */
+  private async loadBulkGateRows(
+    schema: Schema,
+    tenantId: DatabaseId | null | undefined,
+    updates: readonly BulkEntryUpdate[],
+  ): Promise<Map<string, Record<string, unknown>>> {
+    const rows = new Map<string, Record<string, unknown>>();
+    const found = await this._dbAdapter.crud.findByIds(
+      this.getCollectionName(schema._id as string),
+      updates.map((u) => u.id as DatabaseId),
+      { tenantId: tenantId as DatabaseId, limit: updates.length },
+    );
+    if (found?.success && Array.isArray(found.data)) {
+      for (const row of found.data as Array<{ _id?: unknown }>) {
+        if (row && row._id !== undefined) {
+          rows.set(String(row._id), row as Record<string, unknown>);
+        }
+      }
+    }
+    return rows;
   }
 
   async bulkDelete(
