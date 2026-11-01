@@ -903,7 +903,7 @@
 	</div>
 {/snippet}
 
-<AdminCard data-testid="user-admin-area" class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3">
+<AdminCard data-testid="user-admin-area" class="my-2 flex min-h-0 w-full flex-1 flex-col sm:my-3">
 	<!-- Header: Tabs + Invite button. The rule belongs to the whole row (it used to end
 	     with the tablist, leaving a visible gap under Invite User). It is painted as an
 	     inset shadow so the tabs' 2px active underline covers it (`TAB_ROW`). -->
@@ -1139,16 +1139,19 @@
 										</button>
 									{/if}
 								{:else if showUserList && header.key === 'avatar'}
-									<Avatar
-										src={currentUser && isUser(row) && row._id === currentUser._id
-											? normalizeAvatarUrl(currentUser.avatar ?? '/Default_User.svg')
-											: isUser(row) && header.key === 'avatar'
-												? normalizeAvatarUrl(row.avatar)
-												: '/Default_User.svg'}
-										initials="Usr"
-										size="size-10"
-										class="rounded-full border border-surface-500/30"
-									/>
+									<!-- Centred under its header like every other column -->
+									<div class="flex justify-center">
+										<Avatar
+											src={currentUser && isUser(row) && row._id === currentUser._id
+												? normalizeAvatarUrl(currentUser.avatar ?? '/Default_User.svg')
+												: isUser(row) && header.key === 'avatar'
+													? normalizeAvatarUrl(row.avatar)
+													: '/Default_User.svg'}
+											initials="Usr"
+											size="size-9"
+											class="rounded-full shadow-sm ring-2 ring-(--admin-border-default)"
+										/>
+									</div>
 								{:else if header.key === 'role'}
 									<Role
 										value={isUser(row) && header.key === 'role'
