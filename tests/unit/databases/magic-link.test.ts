@@ -10,7 +10,7 @@
  * cache-service.test.ts).
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@src/databases/db", () => ({
   auth: {
@@ -94,5 +94,53 @@ describe("magic-link service", () => {
     const result = await sendMagicLinkForEmail(event, "unknown@test.com");
     expect(result.sent).toBe(true);
     expect(auth.createToken).not.toHaveBeenCalled();
+  });
+
+  describe("dev link exposure (opt-in only)", () => {
+    const originalEnv = { ...process.env };
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalEnv.NODE_ENV;
+      if (originalEnv.ALLOW_MAGIC_LINK_IN_RESPONSE === undefined) {
+        delete process.env.ALLOW_MAGIC_LINK_IN_RESPONSE;
+      } else {
+        process.env.ALLOW_MAGIC_LINK_IN_RESPONSE = originalEnv.ALLOW_MAGIC_LINK_IN_RESPONSE;
+      }
+    });
+
+    async function sendToExistingUser() {
+      const { auth } = await import("@src/databases/db");
+      (auth.checkUser as any).mockResolvedValue({ _id: "u1", email: "user@test.com" });
+      const { sendMagicLinkForEmail } = await import("@src/databases/auth/magic-link");
+      const event = { request: { url: "http://localhost:5173/login" } } as any;
+      return sendMagicLinkForEmail(event, "user@test.com");
+    }
+
+    it("omits devLink by default — the sign-in URL never rides in the result", async () => {
+      delete process.env.ALLOW_MAGIC_LINK_IN_RESPONSE;
+      process.env.NODE_ENV = "test";
+
+      const result = await sendToExistingUser();
+      expect(result.sent).toBe(true);
+      expect(result).not.toHaveProperty("devLink");
+      expect(JSON.stringify(result)).not.toContain("magic_token=");
+    });
+
+    it("returns devLink only with ALLOW_MAGIC_LINK_IN_RESPONSE=true", async () => {
+      process.env.NODE_ENV = "test";
+      process.env.ALLOW_MAGIC_LINK_IN_RESPONSE = "true";
+
+      const result = await sendToExistingUser();
+      expect(result).toHaveProperty("devLink");
+      expect(String(result.devLink)).toContain("magic_token=");
+    });
+
+    it("never returns devLink in production, even with the flag set", async () => {
+      process.env.NODE_ENV = "production";
+      process.env.ALLOW_MAGIC_LINK_IN_RESPONSE = "true";
+
+      const result = await sendToExistingUser();
+      expect(result).not.toHaveProperty("devLink");
+    });
   });
 });

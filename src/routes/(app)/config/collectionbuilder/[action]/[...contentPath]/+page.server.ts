@@ -55,7 +55,11 @@ import {
   type VisitResult,
 } from "typescript";
 import type { PageServerLoad } from "./$types";
-import { validateMinimumCollectionFields } from "../../collectionbuilder-utils";
+import {
+  normalizeCollectionFieldsPayload,
+  type OrderedWidgetList,
+  validateMinimumCollectionFields,
+} from "../../collectionbuilder-utils";
 
 // Type definitions for widget field structure
 interface WidgetConfig {
@@ -297,19 +301,22 @@ export const actions: Actions = {
         }
       }
 
-      // Widgets Fields — parsed next; a field-less or half-formed payload is
-      // rejected by the minimum-viable guard below (stubs provision no columns
-      // and load as drafts — see docs/reference/architecture/compilation-pipeline.mdx).
-      let fields: FieldsData = {} as FieldsData;
+      // Widgets Fields — a field-less or half-formed payload is rejected by the
+      // minimum-viable guard below (stubs provision no columns and load as
+      // drafts — see docs/reference/architecture/compilation-pipeline.mdx).
+      //
+      // The list stays an ORDERED ARRAY end to end: the builder's display order
+      // is the array order, and re-keying it into an index-keyed map is
+      // order-lossy (JSON.stringify emits integer-like keys ascending, so a
+      // reordered list is silently rewritten). See normalizeCollectionFieldsPayload.
+      let fields: OrderedWidgetList = [];
       if (fieldsData) {
         try {
-          const parsed = JSON.parse(fieldsData);
-          // Accept array (store shape) or object map
-          fields = (
-            Array.isArray(parsed)
-              ? Object.fromEntries(parsed.map((f: any, i: number) => [String(i), f]))
-              : parsed
-          ) as FieldsData;
+          const parsed = normalizeCollectionFieldsPayload(JSON.parse(fieldsData));
+          if (!parsed) {
+            return fail(400, { error: "Invalid fields JSON" });
+          }
+          fields = parsed;
         } catch {
           return fail(400, { error: "Invalid fields JSON" });
         }
@@ -330,7 +337,7 @@ export const actions: Actions = {
         status: collectionStatus as any,
         slug: collectionSlug,
         description: String(collectionDescription || ""),
-        fields: Object.values(fields) as any[],
+        fields: fields as any[],
       };
 
       const migrationPlan = exemptDeclaredFieldRenames(
@@ -454,10 +461,12 @@ export const actions: Actions = {
 };
 
 // Recursively goes through a collection's fields
-async function goThrough(object: FieldsData, fields: string): Promise<string> {
+// Accepts the ordered builder list (array) as well as a legacy field map —
+// `for..in` walks array indices in order, so the widget order is preserved.
+async function goThrough(object: OrderedWidgetList | FieldsData, fields: string): Promise<string> {
   const imports = new Set<string>();
 
-  async function processField(field: FieldWithWidget | FieldsData, fields?: string): Promise<void> {
+  async function processField(field: Record<string, unknown>, fields?: string): Promise<void> {
     if (!(field instanceof Object)) {
       return;
     }
@@ -532,7 +541,7 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
       field[key] = widgetCall as unknown as FieldWithWidget;
 
       // Add permissions if present
-      const parsedFields = JSON.parse(fields || "{}") as FieldsData;
+      const parsedFields = JSON.parse(fields || "{}") as Record<string, any>;
       if (parsedFields[key]?.permissions) {
         const subWidget = widgetCall.split("}");
         const permissions = removeFalseValues(parsedFields[key].permissions);
@@ -544,7 +553,7 @@ async function goThrough(object: FieldsData, fields: string): Promise<string> {
   }
 
   try {
-    await processField(object, fields);
+    await processField(object as Record<string, unknown>, fields);
     return Array.from(imports).join("\n");
   } catch (err) {
     const message = `Error in goThrough function: ${err instanceof Error ? err.message : String(err)}`;
@@ -582,7 +591,7 @@ interface CollectionData {
   collectionSlug: string;
   collectionStatus: string;
   contentName: string;
-  fields: FieldsData;
+  fields: OrderedWidgetList | FieldsData;
   imports: string;
   tenantId?: string | null | null;
   entriesPerPage?: number;
