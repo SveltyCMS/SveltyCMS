@@ -116,8 +116,9 @@ test.describe("Extended Authentication UI Flows", () => {
     });
     expect(seeded.ok(), `seed user failed: ${seeded.status()}`).toBeTruthy();
 
-    // Forgot password → no SMTP in the harness returns the reset link, and the
-    // client opens the reset form with its token/email already filled in.
+    // Forgot password → the harness sets ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE=true (playwright
+    // webServer env / CI e2e job env), so the no-SMTP server returns the reset link and the client
+    // opens the reset form with its token/email already filled in.
     await page.click('button[data-testid="signin-forgot-password"]');
     const forgotForm = page.locator("form").first();
     await forgotForm.locator('input[type="email"]').fill(email);
