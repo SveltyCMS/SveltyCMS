@@ -38,7 +38,7 @@ This page dynamically switches between List views and Field editors based on the
 	import { createEntry, updateEntry } from '@utils/api';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { nowISODateString } from '@utils/date';
-	import { buildAutosavePayload } from '@utils/entry-autosave';
+	import { guardNavigationAutosave } from '@utils/entry-autosave';
 	import { onMount, untrack } from 'svelte';
 	import { beforeNavigate, refreshAll, goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -409,37 +409,26 @@ This page dynamically switches between List views and Field editors based on the
 		}
 	});
 
-	// Auto-save draft function
-	async function autoSaveDraft(): Promise<boolean> {
+	// Auto-save draft function. Takes the already-gated payload: the required-field
+	// check and the "nothing to keep" check live in `buildAutosavePayload`, so no
+	// caller of this function can skip them.
+	async function autoSaveDraft(draftData: Record<string, unknown>): Promise<boolean> {
 		if (isSavingDraft) {
 			return false;
 		}
 
 		isSavingDraft = true;
 		try {
-			const entryData = collections.activeValue as Record<string, unknown>;
 			const collectionId = activeCollection?._id;
 
-			if (!(collectionId && entryData)) {
+			if (!collectionId) {
 				return false;
 			}
 
-			// Preserve the loaded status for existing entries. Forcing `draft` here
-			// silently unpublishes a live row; only a brand-new entry defaults to draft.
-			let loadedData: Record<string, unknown> | null = null;
-			try {
-				loadedData = initialCollectionValue
-					? (JSON.parse(initialCollectionValue) as Record<string, unknown>)
-					: null;
-			} catch {
-				loadedData = null;
-			}
-			const draftData = buildAutosavePayload(entryData, loadedData, nowISODateString());
-
-			const isNewEntry = !entryData._id;
+			const isNewEntry = !draftData._id;
 			const result = isNewEntry
 				? await createEntry(String(collectionId), draftData)
-				: await updateEntry(String(collectionId), String(entryData._id), draftData);
+				: await updateEntry(String(collectionId), String(draftData._id), draftData);
 
 			if (result.success) {
 				const saved = (result.data as Record<string, unknown> | undefined) ?? {};
@@ -498,31 +487,39 @@ This page dynamically switches between List views and Field editors based on the
 		}
 
 		// Only check if we're in edit/create mode and have unsaved changes
-		if (['edit', 'create'].includes(collections.mode) && collections.activeValue) {
-			const currentValue = JSON.stringify(collections.activeValue);
-			const hasUnsavedChanges = currentValue !== initialCollectionValue;
+		if (!['edit', 'create'].includes(collections.mode) || !collections.activeValue) {
+			return;
+		}
 
-			if (hasUnsavedChanges && !isSavingDraft) {
-				logger.debug('[Auto-save] Detected unsaved changes, auto-saving as draft...');
-
-				// Cancel navigation temporarily
-				cancel();
-
-				// Auto-save as draft
-				const saved = await autoSaveDraft();
-
-				if (saved) {
-					toast.success('Changes auto-saved');
-					// Update initial value to prevent re-saving on the resumed navigation
-					initialCollectionValue = JSON.stringify(collections.activeValue);
-					collections.setMode('view');
-					if (to?.url) {
-						await goto(to.url.href);
-					}
-				} else {
-					toast.error('Failed to auto-save. Please save manually.');
-				}
+		// The guard body lives in `@utils/entry-autosave` so the leave-path
+		// itself (cancel vs. skip vs. write) is unit-testable. It owns the
+		// required-field gate: a form the gate rejects is never written, and it
+		// keeps the user on the form (`cancel()`) instead of letting the router
+		// navigate away and drop the edits they already typed.
+		const outcome = await guardNavigationAutosave({
+			entryData: collections.activeValue as Record<string, unknown>,
+			initialSnapshot: initialCollectionValue,
+			fields: (collectionSchema ?? collections.active)?.fields,
+			now: nowISODateString(),
+			isSaving: isSavingDraft,
+			cancel,
+			saveDraft: autoSaveDraft,
+			notify: (level, message) => {
+				if (level === 'warning') toast.warning(message);
+				else if (level === 'success') toast.success(message);
+				else toast.error(message);
 			}
+		});
+
+		if (outcome.action === 'saved') {
+			// Update initial value to prevent re-saving on the resumed navigation
+			initialCollectionValue = JSON.stringify(collections.activeValue);
+			collections.setMode('view');
+			if (to?.url) {
+				await goto(to.url.href);
+			}
+		} else {
+			logger.debug('[Auto-save] No draft written for this navigation', outcome);
 		}
 	});
 </script>
