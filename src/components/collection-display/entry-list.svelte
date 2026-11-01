@@ -1677,7 +1677,7 @@ bulk actions, and predictive preloading.
 												const originalEntry = tableData.find(
 													(item: CollectionEntry) => item._id === entry._id
 												);
-												if (originalEntry) openEntryForEdit(originalEntry);
+												if (originalEntry) void openEntryForEdit(originalEntry);
 											}}
 											onkeydown={(e) => {
 												// Keyboard parity for the card view (WCAG 2.1.1): Enter opens the entry,
@@ -1689,7 +1689,7 @@ bulk actions, and predictive preloading.
 													const originalEntry = tableData.find(
 														(item: CollectionEntry) => item._id === entry._id
 													);
-													if (originalEntry) openEntryForEdit(originalEntry);
+													if (originalEntry) void openEntryForEdit(originalEntry);
 												} else if (e.key === ' ') {
 													e.preventDefault();
 													smartTable.toggleSelect(rowId);
