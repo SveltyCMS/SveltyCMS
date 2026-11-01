@@ -37,10 +37,33 @@ import { logger } from "./logger";
  * instead of permanent deletion"): on → the row is soft-deleted (`isDeleted`) and lands
  * in Config → Trash, off → a real DELETE. It must never be read as "set status=archive":
  * that is a content status (see setEntriesStatus), not a delete.
+ *
+ * `true` here means IRREVERSIBLE: `crud.deleteMany`/`crud.delete` issue a real DELETE, and
+ * /api/trash/restore has nothing left to restore. Two paths reach it without the user
+ * having asked for "permanent":
+ *
+ * 1. `USE_ARCHIVE_ON_DELETE` off OR undefined → every Delete becomes permanent, including
+ *    a non-admin's Delete in the entry editor. The base implementation always soft-deleted
+ *    from the editor (and only the list offered a permanent variant), so an install that
+ *    never sets the switch now destroys rows from the editor on the first click.
+ * 2. The Archived view: a row that is already `status: "archive"` is deleted permanently
+ *    by design (entry-list.svelte passes `showDeleted` through as `permanentRequest`),
+ *    because the Trash only ever holds `isDeleted` rows and would not list it.
  */
 function resolvePermanentDelete(explicitPermanent: boolean): boolean {
   return explicitPermanent || !publicEnv.USE_ARCHIVE_ON_DELETE;
 }
+
+/**
+ * Error code the bulk endpoint answers with when the schema sets `disableBulkDelete`
+ * (src/services/sdk/namespaces/collections-namespace.ts:1782, twin at
+ * src/routes/api/[...path]/handlers/collections.ts:805).
+ *
+ * The switch forbids the BATCH endpoint, not deletion — its own message says "use
+ * individual delete instead". Treating it as a hard failure is what killed list Delete
+ * entirely on those schemas.
+ */
+const BULK_DELETE_DISABLED = "BULK_DELETE_DISABLED";
 
 // Sets the status for one or more entries
 export async function setEntriesStatus(
@@ -125,9 +148,103 @@ export async function bulkEditEntries(
   }
 }
 
-// Moves one or more entries to the Trash (default) or deletes them permanently.
-// Exactly ONE request for the whole selection — no per-row fallback, which used to hide
-// individual failures behind a success toast.
+/**
+ * What one selection delete really achieved.
+ *
+ * `deleted` counts rows the API confirmed. It is the ONLY number a toast may quote —
+ * the selection size is a request, not an outcome.
+ */
+interface DeleteOutcome {
+  deleted: number;
+  failed: number;
+  /** First real error from the API, for the toast. */
+  error?: string;
+}
+
+/**
+ * Per-row DELETE for schemas that refuse the batch endpoint (`disableBulkDelete`).
+ *
+ * Sequential on purpose: a burst of N parallel DELETEs on a large selection is exactly
+ * the traffic the per-client request limiter turns into 429 — and a limited row would be
+ * reported as "still there" although nothing is wrong with it.
+ */
+async function deleteRowsIndividually(
+  collectionId: string,
+  entryIds: string[],
+  permanent: boolean,
+): Promise<DeleteOutcome> {
+  let deleted = 0;
+  let error: string | undefined;
+
+  for (const entryId of entryIds) {
+    try {
+      const result = await deleteEntry(collectionId, entryId, { permanent });
+      if (result.success) {
+        deleted++;
+      } else if (!error) {
+        error = result.error || result.message || "Delete failed";
+      }
+    } catch (e) {
+      error = error || (e as Error).message;
+    }
+  }
+
+  return { deleted, failed: entryIds.length - deleted, error };
+}
+
+/**
+ * Deletes one selection, reporting rows that really changed.
+ *
+ * Request counts for a selection of n rows:
+ * - n === 1              → 1 request (`DELETE …/:id`). No schema disables the single
+ *                          route, so a one-row delete never touches the bulk guard.
+ * - n > 1, bulk allowed  → 1 request (`POST …/batch`) — the normal case, no N+1.
+ * - n > 1, bulk disabled → 1 refused batch + n per-row DELETEs = n + 1 requests.
+ *
+ * The per-row path is not a general fallback: it runs only for BULK_DELETE_DISABLED,
+ * where the server refuses the WHOLE selection before touching a row (nothing partial
+ * to reconcile). Any other failure — 403 on permissions, 5xx, network — stays an error
+ * instead of firing n more requests at an endpoint that just said no.
+ */
+async function deleteSelection(
+  collectionId: string,
+  entryIds: string[],
+  permanent: boolean,
+): Promise<DeleteOutcome> {
+  if (entryIds.length === 1) {
+    return deleteRowsIndividually(collectionId, entryIds, permanent);
+  }
+
+  let result: Awaited<ReturnType<typeof batchDeleteEntries>>;
+  try {
+    result = await batchDeleteEntries(collectionId, entryIds, { permanent });
+  } catch (e) {
+    return { deleted: 0, failed: entryIds.length, error: (e as Error).message };
+  }
+
+  if (result.success) {
+    return { deleted: entryIds.length, failed: 0 };
+  }
+
+  if (result.code === BULK_DELETE_DISABLED) {
+    return deleteRowsIndividually(collectionId, entryIds, permanent);
+  }
+
+  return {
+    deleted: 0,
+    failed: entryIds.length,
+    error: result.error || result.message || "Delete failed",
+  };
+}
+
+/**
+ * Moves one or more entries to the Trash (default) or deletes them permanently.
+ *
+ * Callers pass a selection size; the toast quotes `DeleteOutcome.deleted`, so a refused
+ * or partially failed selection can no longer end in a green "3 entries moved to the
+ * Trash" while nothing (or one row) changed. `onSuccess` still runs when at least one row
+ * changed, because the list has to drop the rows that ARE gone.
+ */
 export async function deleteEntries(
   entryIds: string[],
   isPermanentDelete: boolean,
@@ -142,27 +259,25 @@ export async function deleteEntries(
   }
 
   const permanent = resolvePermanentDelete(isPermanentDelete);
+  const failure = entryMessages.deleteFailed(permanent ? StatusTypes.delete : "trash");
+  const describe = (count: number) =>
+    permanent ? entryMessages.entriesDeleted(count) : entryMessages.entriesTrashed(count);
 
-  try {
-    const result = await batchDeleteEntries(collId, entryIds, { permanent });
-    if (!result.success) {
-      toast.error({
-        description:
-          result.error || entryMessages.deleteFailed(permanent ? StatusTypes.delete : "trash"),
-      });
-      return;
-    }
-    toast.success({
-      description: permanent
-        ? entryMessages.entriesDeleted(entryIds.length)
-        : entryMessages.entriesTrashed(entryIds.length),
-    });
-    onSuccess();
-  } catch (e) {
-    toast.error(
-      `${entryMessages.deleteFailed(permanent ? StatusTypes.delete : "trash")}: ${(e as Error).message}`,
-    );
+  const outcome = await deleteSelection(collId, entryIds, permanent);
+
+  if (outcome.deleted === 0) {
+    toast.error({ description: outcome.error || failure });
+    return;
   }
+
+  if (outcome.failed > 0) {
+    toast.error({
+      description: `${describe(outcome.deleted)} — ${outcome.failed} of ${entryIds.length} not deleted: ${outcome.error ?? failure}`,
+    });
+  } else {
+    toast.success({ description: describe(outcome.deleted) });
+  }
+  onSuccess();
 }
 
 // Clones one or more entries

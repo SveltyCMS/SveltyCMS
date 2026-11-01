@@ -37,7 +37,11 @@ export async function confirmModal(page: Page, timeout = ACTION_TIMEOUT) {
   const confirmInDialog = appDialog
     .first()
     .getByTestId("modal-confirm")
-    .or(appDialog.first().getByRole("button", { name: /^(confirm|delete|yes|ok|restore)$/i }));
+    .or(
+      appDialog
+        .first()
+        .getByRole("button", { name: /^(confirm|delete|yes|ok|restore|move to trash)$/i }),
+    );
 
   await expect(confirmInDialog.first()).toBeVisible({ timeout });
   await confirmInDialog.first().click({ timeout });

@@ -5,7 +5,9 @@
  * M3: Delete in the entry editor opens exactly ONE confirmation and issues no request
  *     until the user confirms; cancelling issues none and opens no second dialog.
  * M5: Delete in the list moves the rows to the Trash (soft delete) with a single batch
- *     request — never `status: "archive"`, never one request per row.
+ *     request — never `status: "archive"`, never one request per row. Schemas that set
+ *     `disableBulkDelete` (batch endpoint → 403 BULK_DELETE_DISABLED) fall back to the
+ *     per-row route for that selection instead of deleting nothing.
  *
  * The real modal state machine is used on purpose: the recursion bug lived in the
  * interaction between `showConfirm` and `modalState.close/trigger`.
@@ -205,8 +207,87 @@ describe("list Delete (M5)", () => {
 
     await deleteEntries(["e1", "e2"], false, onSuccess);
 
+    // A forbidden/failed batch is NOT an invitation to fire n more requests.
+    expect(batchDeleteEntries).toHaveBeenCalledTimes(1);
     expect(deleteEntry).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(expect.objectContaining({ description: "Denied" }));
     expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it("sends a single-row selection through the single-entry route (1 request)", async () => {
+    vi.mocked(deleteEntry).mockResolvedValue({ success: true } as any);
+    const onSuccess = vi.fn();
+
+    await deleteEntries(["e1"], false, onSuccess);
+
+    expect(deleteEntry).toHaveBeenCalledTimes(1);
+    expect(deleteEntry).toHaveBeenCalledWith("posts_coll", "e1", { permanent: false });
+    expect(batchDeleteEntries).not.toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalled();
+  });
+
+  // BUG M3/M5 regression: schemas with `disableBulkDelete` answer the batch endpoint with
+  // 403 BULK_DELETE_DISABLED. The switch forbids the BATCH route, not deletion, so the
+  // selection has to fall back to the per-row route the same schema still allows.
+  it("falls back to per-row deletes when the schema disables bulk delete", async () => {
+    vi.mocked(batchDeleteEntries).mockResolvedValue({
+      success: false,
+      code: "BULK_DELETE_DISABLED",
+      error: 'Bulk delete is disabled for collection "posts". Use individual delete instead.',
+    } as any);
+    vi.mocked(deleteEntry).mockResolvedValue({ success: true } as any);
+    const onSuccess = vi.fn();
+
+    await deleteEntries(["e1", "e2"], false, onSuccess);
+
+    // 1 refused batch + one DELETE per row: both rows really reach the Trash.
+    expect(batchDeleteEntries).toHaveBeenCalledTimes(1);
+    expect(deleteEntry).toHaveBeenCalledTimes(2);
+    expect(deleteEntry).toHaveBeenNthCalledWith(1, "posts_coll", "e1", { permanent: false });
+    expect(deleteEntry).toHaveBeenNthCalledWith(2, "posts_coll", "e2", { permanent: false });
+    expect(toast.success).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "2 entries moved to the Trash" }),
+    );
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(onSuccess).toHaveBeenCalled();
+  });
+
+  it("shows no success toast when the per-row fallback deletes nothing", async () => {
+    vi.mocked(batchDeleteEntries).mockResolvedValue({
+      success: false,
+      code: "BULK_DELETE_DISABLED",
+    } as any);
+    vi.mocked(deleteEntry).mockResolvedValue({ success: false, error: "Denied" } as any);
+    const onSuccess = vi.fn();
+
+    await deleteEntries(["e1", "e2"], false, onSuccess);
+
+    expect(deleteEntry).toHaveBeenCalledTimes(2);
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(expect.objectContaining({ description: "Denied" }));
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
+  it("names only the rows that changed when the fallback partly fails", async () => {
+    vi.mocked(batchDeleteEntries).mockResolvedValue({
+      success: false,
+      code: "BULK_DELETE_DISABLED",
+    } as any);
+    vi.mocked(deleteEntry)
+      .mockResolvedValueOnce({ success: true } as any)
+      .mockResolvedValueOnce({ success: false, error: "Denied" } as any);
+    const onSuccess = vi.fn();
+
+    await deleteEntries(["e1", "e2"], false, onSuccess);
+
+    // 1 of 2, not "2 entries moved to the Trash".
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "1 entry moved to the Trash — 1 of 2 not deleted: Denied",
+      }),
+    );
+    // The rows that DID go must leave the list.
+    expect(onSuccess).toHaveBeenCalled();
   });
 });

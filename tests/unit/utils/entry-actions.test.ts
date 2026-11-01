@@ -231,13 +231,17 @@ describe("entry-actions", () => {
       expect(onSuccess).toHaveBeenCalled();
     });
 
-    it("deletes permanently when archive-on-delete is off", async () => {
+    it("deletes permanently through the single-entry route when archive-on-delete is off", async () => {
       publicEnv.USE_ARCHIVE_ON_DELETE = false;
-      vi.mocked(batchDeleteEntries).mockResolvedValue({ success: true } as any);
+      vi.mocked(deleteEntry).mockResolvedValue({ success: true } as any);
 
       await deleteEntries(["e1"], false, vi.fn());
 
-      expect(batchDeleteEntries).toHaveBeenCalledWith("posts_coll", ["e1"], { permanent: true });
+      // One row = one request on the route no schema disables (`disableBulkDelete`
+      // only guards …/batch), and `permanent: true` because the switch is off.
+      expect(deleteEntry).toHaveBeenCalledTimes(1);
+      expect(deleteEntry).toHaveBeenCalledWith("posts_coll", "e1", { permanent: true });
+      expect(batchDeleteEntries).not.toHaveBeenCalled();
     });
 
     it("reports a failed batch delete without falling back to one request per row", async () => {

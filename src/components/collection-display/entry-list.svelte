@@ -1045,9 +1045,18 @@ bulk actions, and predictive preloading.
 	// Delete = move to the Trash (soft delete), which is the only restorable-delete path the
 	// app implements (Config → Trash + /api/trash/restore). It used to send
 	// `status: "archive"`, so nothing ever reached the Trash and the dialog offered to
-	// "Archive" while the button said Delete (BUG M5). The Archived view holds entries that
-	// are already archived, so deleting there is final.
-	// One dialog, one batch request for the whole selection — no request per row.
+	// "Archive" while the button said Delete (BUG M5).
+	//
+	// IRREVERSIBLE PATHS — read before changing `permanent`:
+	// - The Archived view passes `showDeleted` through (entry-list-multi-button.svelte:482
+	//   `deleteAction(showDeleted)`), so Delete there is `permanent = true`: a real DELETE.
+	//   That is intentional (the Trash lists `isDeleted` rows, an archived row is not one)
+	//   and it is why the dialog says "Delete" in that view only.
+	// - With `USE_ARCHIVE_ON_DELETE` off or undefined, EVERY delete is permanent — the
+	//   list's Delete button destroys rows even though its label says Delete/Trash nowhere.
+	// - Otherwise one dialog + `deleteEntries` (entry-actions.ts) handle the request count:
+	//   1 request for the selection, per-row DELETEs only if the schema sets
+	//   `disableBulkDelete`.
 	const onDelete = (permanentRequest = false) => {
 		const selectedIds = getSelectedIds();
 		if (!selectedIds.length) {
@@ -1061,6 +1070,8 @@ bulk actions, and predictive preloading.
 			isArchive: false,
 			itemType: 'entry',
 			count: selectedIds.length,
+			// Soft delete → the dialog must say so instead of "Delete 2 entries".
+			restorable: !permanent,
 			description: permanent
 				? 'This cannot be undone.'
 				: 'The entries move to the Trash and can be restored from Config → Trash.',
