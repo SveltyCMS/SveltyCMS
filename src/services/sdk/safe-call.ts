@@ -10,12 +10,20 @@ import type { DatabaseResult, DatabaseError } from "@src/databases/db-interface"
 import { AppError, getErrorMessage } from "@utils/error-handling";
 
 export async function safeCall<T>(
-  fn: () => Promise<T>,
+  fn: () => Promise<DatabaseResult<T> | T>,
   context?: string,
 ): Promise<DatabaseResult<T>> {
   try {
     const data = await fn();
-    return { success: true, data };
+    if (
+      data &&
+      typeof data === "object" &&
+      "success" in data &&
+      typeof (data as { success?: unknown }).success === "boolean"
+    ) {
+      return data as DatabaseResult<T>;
+    }
+    return { success: true, data: data as T };
   } catch (err: unknown) {
     if (err instanceof AppError) {
       return {

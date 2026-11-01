@@ -184,10 +184,11 @@ export async function saveResized(
   baseName: string,
   ext: string,
   baseDir: string,
+  preDecodedMeta?: { width?: number; height?: number; hasAlpha?: boolean },
 ): Promise<Record<string, ResizedImage>> {
   const sharp = await getSharp();
   const baseInstance = sharp(buffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" });
-  const meta = await baseInstance.metadata();
+  const meta = preDecodedMeta ?? (await baseInstance.metadata());
 
   const formatConfig = getPublicSettingSync("MEDIA_OUTPUT_FORMAT_QUALITY") as
     | { format?: string; quality?: number }

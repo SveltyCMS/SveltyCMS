@@ -485,14 +485,16 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
 
   // ====================== ON-DEMAND TRANSFORM (opt-in) ======================
   // Runs after the traversal guard, tenant gate and signature check above.
+  let resolvedMimeType: string | undefined;
   if (pathTenant && (requestUrl.searchParams.has("w") || requestUrl.searchParams.has("h"))) {
+    resolvedMimeType = await resolveMimeTypeFromPath(resolvedPath);
     const transformed = await serveTransformVariant({
       searchParams: requestUrl.searchParams,
       request,
       filePath,
       resolvedPath,
       size: stats.size,
-      mimeType: await resolveMimeTypeFromPath(resolvedPath),
+      mimeType: resolvedMimeType,
       pathTenant,
       ifNoneMatch,
       ifModifiedSince,
@@ -512,7 +514,7 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
     resolvedPath,
     size: stats.size,
     mtime: stats.mtime,
-    mimeType: await resolveMimeTypeFromPath(resolvedPath),
+    mimeType: resolvedMimeType ?? (await resolveMimeTypeFromPath(resolvedPath)),
     etag,
     request,
   });

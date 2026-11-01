@@ -13,46 +13,43 @@ import {
   buildRawTenantClause,
   getTableBooleanColumns,
 } from "../core/relational-utils";
-import { hasTenantBypass } from "../system-tenant-scope";
-import { getMaterializedFieldColumns } from "../core/drizzle-sql-helpers";
+import {
+  buildPointWireSqlTemplates,
+  collectSafeMaterializedColumns,
+  resolvePointWireQuery,
+  validateWireListInput,
+  type PointWireSqlTemplates,
+} from "../sql/wire-stream-shared";
 import type { BaseQueryOptions, DatabaseId } from "../db-interface";
 import type { RawPointWireStreamResult, RawListWireStreamResult } from "../core/sql-adapter-core";
+import { logger } from "@src/utils/logger";
 
 export interface SqliteWireExecutor {
-  getColumn(table: any, colName: string): any;
+  getColumn(table: unknown, colName: string): unknown;
   prepareAndExecute(sqlText: string, mode: "get" | "all" | "run", ...params: unknown[]): unknown;
 }
 
-interface PointWireSql {
-  selectPrefix: string;
+interface ListWireSql {
   base: string;
   tenant: string;
   tenantNull: string;
   basePub: string | null;
   tenantPub: string | null;
   tenantPubNull: string | null;
-  declined?: boolean;
-}
-
-interface ListWireSql {
-  base: string;
-  tenant: string;
-  basePub: string | null;
-  tenantPub: string | null;
 }
 
 export class SqliteWireStreamEngine {
-  private _pointSqlCache = new WeakMap<object, PointWireSql>();
+  private _pointSqlCache = new WeakMap<object, PointWireSqlTemplates>();
   private _listSqlCache = new WeakMap<object, Map<string, ListWireSql>>();
 
   /**
    * Direct-to-Wire point stream optimization for SQLite:
    * Generates `{ success: true, data: { ... } }` directly inside SQLite C engine
-   * via json_object and json_patch, completely bypassing V8 JS object hydration and JSON.stringify.
+   * via json_object and json_set, completely bypassing V8 JS object hydration and JSON.stringify.
    */
   async findPointWireStream(
     executor: SqliteWireExecutor,
-    table: any,
+    table: object,
     tableName: string,
     id: DatabaseId,
     options: BaseQueryOptions,
@@ -60,18 +57,21 @@ export class SqliteWireStreamEngine {
     try {
       let cachedWireSql = this._pointSqlCache.get(table);
       if (cachedWireSql === undefined) {
-        const hasDataCol = !!executor.getColumn(table, "data");
-        if (!hasDataCol) {
-          this._pointSqlCache.set(table, { declined: true } as PointWireSql);
+        if (!executor.getColumn(table, "data")) {
+          this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
           return { kind: "declined" };
         }
 
-        const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-        const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "NULL";
-        // 🔒 Soft-delete clamp for the public wire plane (see findPointWireStream).
-        const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
+        const matCols = collectSafeMaterializedColumns(table);
+        if (!matCols) {
+          this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
+          return { kind: "declined" };
+        }
 
-        const quoted = `"${tableName}"`;
+        const updatedAtSelect = executor.getColumn(table, "updatedAt") ? '"updatedAt"' : "NULL";
+        const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
+        const safeTable = assertSafeSqlIdentifier(tableName, "table");
+        const quoted = `"${safeTable}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
 
@@ -79,14 +79,9 @@ export class SqliteWireStreamEngine {
         if (hasStatusCol) overrides.push(`'$."status"', "status"`);
         if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
         const boolCols = getTableBooleanColumns(tableName);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) {
-            this._pointSqlCache.set(table, { declined: true } as PointWireSql);
-            return { kind: "declined" };
-          }
-          const name = assertSafeSqlIdentifier(rawName, "column");
+        for (const name of matCols) {
           const col = `"${name}"`;
-          const value = boolCols?.has(rawName)
+          const value = boolCols?.has(name)
             ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
             : col;
           overrides.push(`'$."${name}"', ${value}`);
@@ -94,49 +89,26 @@ export class SqliteWireStreamEngine {
 
         const dataExpr = `json_set(COALESCE("data", '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         const selectPrefix = `SELECT json_object('success', json('true'), 'data', ${dataExpr}) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
+        const delSuffix = hasDeletedCol ? ` AND "isDeleted" = 0` : "";
 
-        const del = hasDeletedCol ? ` AND "isDeleted" = 0` : "";
-        cachedWireSql = {
+        cachedWireSql = buildPointWireSqlTemplates({
           selectPrefix,
-          base: `${selectPrefix} WHERE "_id" = ?${del} LIMIT 1`,
-          tenant: `${selectPrefix} WHERE "_id" = ? AND "tenantId" = ?${del} LIMIT 1`,
-          tenantNull: `${selectPrefix} WHERE "_id" = ? AND "tenantId" IS NULL${del} LIMIT 1`,
-          basePub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published')${del} LIMIT 1`
-            : null,
-          tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" = ?${del} LIMIT 1`
-            : null,
-          tenantPubNull: hasStatusCol
-            ? `${selectPrefix} WHERE "_id" = ? AND "status" IN ('publish', 'published') AND "tenantId" IS NULL${del} LIMIT 1`
-            : null,
-        };
+          idExpr: `"_id" = ?`,
+          tenantExpr: `"tenantId" = ?`,
+          tenantColQuoted: `"tenantId"`,
+          statusColQuoted: `"status"`,
+          hasStatusCol,
+          delSuffix,
+        });
         this._pointSqlCache.set(table, cachedWireSql);
       } else if (cachedWireSql.declined) {
         return { kind: "declined" };
       }
 
-      const wantPublished = options?.requirePublished === true;
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
+      const resolved = resolvePointWireQuery(cachedWireSql, id, options);
+      if (!resolved) return { kind: "declined" };
 
-      const bypass = hasTenantBypass(options);
-      const rawTenant = bypass ? undefined : options?.tenantId;
-      const tenantId = rawTenant === undefined || rawTenant === "global" ? undefined : rawTenant;
-
-      let sqlText: string;
-      let params: unknown[];
-      if (tenantId !== undefined && tenantId !== null) {
-        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
-        params = [String(id), String(tenantId)];
-      } else if (tenantId === null) {
-        sqlText = wantPublished ? cachedWireSql.tenantPubNull! : cachedWireSql.tenantNull;
-        params = [String(id)];
-      } else {
-        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
-        params = [String(id)];
-      }
-
-      const rawRow = executor.prepareAndExecute(sqlText, "get", ...params) as
+      const rawRow = executor.prepareAndExecute(resolved.sqlText, "get", ...resolved.params) as
         | { wire_body: string; updated_at: number | string }
         | undefined;
 
@@ -149,8 +121,11 @@ export class SqliteWireStreamEngine {
             : JSON.stringify(rawRow.wire_body),
         etag: `"${String(id)}-${String(rawRow.updated_at ?? "")}"`,
       };
-    } catch (err: any) {
-      logger.debug("[SQLite rawFindPointWireStream] falling back:", err?.message);
+    } catch (err: unknown) {
+      logger.debug(
+        "[SQLite rawFindPointWireStream] falling back:",
+        err instanceof Error ? err.message : String(err),
+      );
       return { kind: "declined" };
     }
   }
@@ -163,7 +138,7 @@ export class SqliteWireStreamEngine {
    */
   async findListWireStream(
     executor: SqliteWireExecutor,
-    table: any,
+    table: object,
     tableName: string,
     options: BaseQueryOptions & {
       limit?: number;
@@ -175,37 +150,9 @@ export class SqliteWireStreamEngine {
     },
   ): Promise<RawListWireStreamResult> {
     try {
-      const hasDataCol = !!executor.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" };
-
-      const requestedFields = options.fields;
-      const isProjected = Array.isArray(requestedFields) && requestedFields.length > 0;
-      if (isProjected) {
-        for (const f of requestedFields) {
-          if (!/^[A-Za-z0-9_]+$/.test(f)) return { kind: "declined" };
-          if (f === "data") return { kind: "declined" };
-          const colName = f === "id" ? "_id" : f;
-          if (!executor.getColumn(table, colName)) {
-            return { kind: "declined" };
-          }
-        }
-      }
-
-      const sortField = options.sortField;
-      const sortDirection = options.sortDirection === "asc" ? "ASC" : "DESC";
-      let sortCol = '"_id"';
-      if (sortField) {
-        if (!/^[A-Za-z0-9_]+$/.test(sortField)) return { kind: "declined" };
-        if (!executor.getColumn(table, sortField)) return { kind: "declined" };
-        sortCol = `"${assertSafeSqlIdentifier(sortField, "column")}"`;
-      }
-      const sortKey = `${sortCol}:${sortDirection}`;
-      const cacheKey = isProjected ? `${sortKey}:f:${requestedFields.join(",")}` : sortKey;
-
-      const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol ? '"updatedAt"' : "0";
-      const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
+      const v = validateWireListInput(executor, table, options, '"');
+      if (!v) return { kind: "declined" };
+      const { isProjected, dedupedProjectedCols, orderClause, cacheKey, limit, offset } = v;
 
       let tableCache = this._listSqlCache.get(table);
       if (!tableCache) {
@@ -215,39 +162,33 @@ export class SqliteWireStreamEngine {
 
       let cachedWireSql = tableCache.get(cacheKey);
       if (!cachedWireSql) {
-        const quoted = `"${tableName}"`;
+        const safeTable = assertSafeSqlIdentifier(tableName, "table");
+        const quoted = `"${safeTable}"`;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
+        const updatedAtSelect = executor.getColumn(table, "updatedAt") ? '"updatedAt"' : "0";
+        const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
         const boolCols = getTableBooleanColumns(tableName);
 
         let dataExpr: string;
         if (isProjected) {
-          const pairs: string[] = [];
-          const seen = new Set<string>();
-          for (const rawName of requestedFields) {
-            const colName = rawName === "id" ? "_id" : rawName;
-            if (seen.has(colName)) continue;
-            seen.add(colName);
-            const safeCol = assertSafeSqlIdentifier(colName, "column");
+          const pairs = dedupedProjectedCols.map((safeCol) => {
             const col = `"${safeCol}"`;
-            const value = boolCols?.has(colName)
+            const value = boolCols?.has(safeCol)
               ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
               : col;
-            pairs.push(`'${safeCol}', ${value}`);
-          }
-          if (!seen.has("_id") && executor.getColumn(table, "_id")) {
-            pairs.unshift(`'_id', "_id"`);
-          }
+            return `'${safeCol}', ${value}`;
+          });
           dataExpr = `json_object(${pairs.join(", ")})`;
         } else {
+          const matCols = collectSafeMaterializedColumns(table);
+          if (!matCols) return { kind: "declined" };
           const overrides: string[] = [`'$."_id"', "_id"`];
           if (hasStatusCol) overrides.push(`'$."status"', "status"`);
           if (hasSlugCol) overrides.push(`'$."slug"', "slug"`);
-          for (const rawName of getMaterializedFieldColumns(table)) {
-            if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-            const name = assertSafeSqlIdentifier(rawName, "column");
+          for (const name of matCols) {
             const col = `"${name}"`;
-            const value = boolCols?.has(rawName)
+            const value = boolCols?.has(name)
               ? `json(CASE WHEN ${col} = 1 THEN 'true' WHEN ${col} = 0 THEN 'false' ELSE json_quote(${col}) END)`
               : col;
             overrides.push(`'$."${name}"', ${value}`);
@@ -256,12 +197,10 @@ export class SqliteWireStreamEngine {
         }
 
         const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${quoted}`;
-        const orderClause = `ORDER BY ${sortCol} ${sortDirection} LIMIT ? OFFSET ?`;
-
         const wrap = (wherePart: string) => `
           SELECT coalesce(json_group_array(json(doc)), '[]') AS wire_body,
                  coalesce(max(updated_at), 0) AS max_updated_at
-          FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause});
+          FROM (${subSelect} ${wherePart ? `WHERE ${wherePart}` : ""} ${orderClause} LIMIT ? OFFSET ?);
         `;
 
         const delOnly = hasDeletedCol ? `"isDeleted" = 0` : "";
@@ -270,25 +209,30 @@ export class SqliteWireStreamEngine {
         cachedWireSql = {
           base: wrap(andDel("")),
           tenant: wrap(andDel(`"tenantId" = ?`)),
+          tenantNull: wrap(andDel(`"tenantId" IS NULL`)),
           basePub: hasStatusCol ? wrap(andDel(`"status" IN ('publish', 'published')`)) : null,
           tenantPub: hasStatusCol
             ? wrap(andDel(`"status" IN ('publish', 'published') AND "tenantId" = ?`))
+            : null,
+          tenantPubNull: hasStatusCol
+            ? wrap(andDel(`"status" IN ('publish', 'published') AND "tenantId" IS NULL`))
             : null,
         };
         tableCache.set(cacheKey, cachedWireSql);
       }
 
-      const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;
-      const offset = typeof options.offset === "number" && options.offset >= 0 ? options.offset : 0;
-      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
       const wantPublished = options?.requirePublished === true;
       if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
 
       let sqlText: string;
       let params: unknown[];
-      if (useTenantCache) {
+      if (tenantSql === ` AND "tenantId" = ?`) {
         sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
         params = [...tenantParams, limit, offset];
+      } else if (tenantSql === ` AND "tenantId" IS NULL`) {
+        sqlText = wantPublished ? cachedWireSql.tenantPubNull! : cachedWireSql.tenantNull;
+        params = [limit, offset];
       } else if (!tenantSql) {
         sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
         params = [limit, offset];
@@ -307,8 +251,11 @@ export class SqliteWireStreamEngine {
         wireBody,
         etag,
       };
-    } catch (err: any) {
-      logger.debug("[SQLite rawFindListWireStream] falling back:", err?.message);
+    } catch (err: unknown) {
+      logger.debug(
+        "[SQLite rawFindListWireStream] falling back:",
+        err instanceof Error ? err.message : String(err),
+      );
       return { kind: "declined" };
     }
   }

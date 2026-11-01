@@ -68,7 +68,12 @@ import {
 } from "@src/services/cache/response-cache";
 import { contentStore } from "@src/stores/content-registry.svelte";
 import type { DatabaseId, Schema } from "@src/content/types";
-import { parseCollectionQueryParams, MAX_PAGE_SIZE } from "@utils/api-params";
+import {
+  parseCollectionQueryParams,
+  DEFAULT_EMPTY_COLLECTION_QUERY_PARAMS,
+  MAX_PAGE_SIZE,
+  type CollectionQueryParams,
+} from "@utils/api-params";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { versionTokenString } from "@utils/optimistic-lock";
 import { resolvePublicationFilter } from "@utils/security/publication-policy";
@@ -453,8 +458,8 @@ export function isWirePlaneAdmissible(
     : splitPathSegments(event.url.pathname).length === 4;
   const isList = !isPoint;
 
-  // Fast path for simple point reads with no query parameters
-  if (isPoint && (!event.url.search || event.url.search === "")) {
+  // Fast path for simple point or list reads with no query parameters (skips URLSearchParams allocation)
+  if (!event.url.search || event.url.search === "") {
     if (collectionMeta.hasAfterReadHooks) return false;
     const cookieHeader = event.request.headers.get("cookie");
     if (cookieHeader !== null) {
@@ -558,10 +563,9 @@ export function isWirePlaneAdmissible(
     }
   }
 
-  // 6. Filter parameter evaluation:
-  // Complex filter / where queries divert to Domain Plane.
-  // Exception: Simple publication status filters (e.g. `filter={"status":"published"}`)
-  // are already enforced in-engine by the wire query's requirePublished clause.
+  // 6. Single-pass filter and unknown parameter evaluation:
+  // Complex filter / where queries divert to Domain Plane, and any parameter
+  // the compiled wire projection cannot honour fails closed.
   for (const key of search.keys()) {
     if (key.startsWith("filter[") || key.startsWith("filter.") || key === "where") {
       return false;
@@ -584,6 +588,9 @@ export function isWirePlaneAdmissible(
       } catch {
         return false;
       }
+    }
+    if (!WIRE_KNOWN_PARAMS.has(key)) {
+      return false;
     }
   }
 
@@ -618,13 +625,6 @@ export function isWirePlaneAdmissible(
     if (search.has("page") && search.get("page") !== "1") {
       return false;
     }
-  }
-
-  // 8. Fail closed on any parameter the compiled wire projection cannot honour.
-  for (const key of search.keys()) {
-    if (WIRE_KNOWN_PARAMS.has(key)) continue;
-    if (key.startsWith("filter[") || key.startsWith("filter.")) continue;
-    return false;
   }
 
   return true;
@@ -763,7 +763,11 @@ async function executeWarmCollectionRead(
   const tenantP = applyAdapterTenantContext(dbAdapter, locals.tenantId ?? null);
   if (tenantP) await tenantP;
 
-  const listParams = !entryId ? parseCollectionQueryParams(url.searchParams) : null;
+  const listParams: CollectionQueryParams | null = !entryId
+    ? rawSearch.length > 1
+      ? parseCollectionQueryParams(url.searchParams)
+      : (DEFAULT_EMPTY_COLLECTION_QUERY_PARAMS as CollectionQueryParams)
+    : null;
   if (listParams && (listParams.stream || listParams.limit >= MAX_PAGE_SIZE)) {
     return null;
   }
@@ -979,29 +983,26 @@ async function rebuildWarmCollectionRead(
         marks?.set("build", 0);
         const cacheT0 = marks ? performance.now() : 0;
         const tags = collectionResponseCacheTags(collectionId, null).tags;
-        const buffer = Buffer.from(apiBody);
+        const bodyBytes = Buffer.byteLength(apiBody, "utf8");
         let compressedVariants: Record<string, Uint8Array> | undefined;
         const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
-        if (acceptEncoding) {
-          const bodyBytes = buffer.byteLength;
-          if (bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
-            const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
-              contentLength: bodyBytes,
-            });
-            if (algo) {
-              const variant =
-                bodyBytes <= SYNC_MAX_SIZE
-                  ? compressSync(apiBody, algo, bodyBytes)
-                  : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
-              if (variant) compressedVariants = { [algo]: variant };
-            }
+        if (acceptEncoding && bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
+          const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
+            contentLength: bodyBytes,
+          });
+          if (algo) {
+            const variant =
+              bodyBytes <= SYNC_MAX_SIZE
+                ? compressSync(apiBody, algo, bodyBytes)
+                : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
+            if (variant) compressedVariants = { [algo]: variant };
           }
         }
         responseCache.set(
           pathKey,
           compressedVariants
-            ? { body: apiBody, etag, buffer, compressed: compressedVariants }
-            : { body: apiBody, etag, buffer },
+            ? { body: apiBody, etag, byteLength: bodyBytes, compressed: compressedVariants }
+            : { body: apiBody, etag, byteLength: bodyBytes },
           300_000,
           cacheTenant,
           {
@@ -1010,7 +1011,9 @@ async function rebuildWarmCollectionRead(
           },
         );
         marks?.set("cachewrite", performance.now() - cacheT0);
-        return { body: apiBody, etag, buffer, miss: true, compressed: compressedVariants };
+        return compressedVariants
+          ? { body: apiBody, etag, miss: true, compressed: compressedVariants }
+          : { body: apiBody, etag, miss: true };
       }
     }
   }

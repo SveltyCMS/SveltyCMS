@@ -25,6 +25,7 @@
  */
 
 import { generateTags } from "@src/services/intelligence/content-insights";
+import { nowISODateString } from "./date";
 import { logger } from "./logger";
 
 /**
@@ -62,7 +63,7 @@ export async function autoTagOnSave(
       tags: merged,
       _autoTagged: true,
       _autoTagSource: suggestions[0]?.source ?? "keyword",
-      _autoTagDate: new Date().toISOString(),
+      _autoTagDate: nowISODateString(),
     };
   } catch (err) {
     // 🛡️ Log internal error for debugging — don't block the save

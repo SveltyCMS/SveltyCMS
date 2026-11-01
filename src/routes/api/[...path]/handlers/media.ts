@@ -4,6 +4,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 import { clampPageSize } from "@utils/api-params";
 import { generateUUID } from "@utils/native-utils";
 import crypto from "node:crypto";
@@ -1112,7 +1113,7 @@ export async function handleMediaShareDownload(
     downloadCount: link.downloadCount || 0,
     fileId: id as DatabaseId,
     createdBy: "system" as DatabaseId,
-    createdAt: (link.createdAt || new Date().toISOString()) as any,
+    createdAt: (link.createdAt || nowISODateString()) as any,
     passwordHash: link.passwordHash,
     logs: [],
   };
@@ -1359,14 +1360,14 @@ export async function handleMediaAnalytics(
   // Use DB-side count for accurate total; cap in-memory sample to avoid heap pressure.
   // TODO: push full breakdown (byType/byFolder/byUser/byMonth) to DB adapter
   // aggregate pipelines for sub-millisecond analytics at 100K+ asset scale.
-  const countRes = await cms.db.crud.count("media", {}, { tenantId });
+  const [countRes, listRes] = await Promise.all([
+    cms.db.crud.count("media", {}, { tenantId }),
+    (cms.media as any).list({
+      tenantId,
+      limit: 2000,
+    }),
+  ]);
   const totalFiles = countRes.success ? (countRes.data ?? 0) : 0;
-
-  const ANALYTICS_SAMPLE_LIMIT = 2000;
-  const listRes = await (cms.media as any).list({
-    tenantId,
-    limit: ANALYTICS_SAMPLE_LIMIT,
-  });
   const files = (listRes.success ? listRes.data : []) as any[];
 
   const breakdown = analyze(files);

@@ -13,28 +13,23 @@ import {
   buildRawTenantClause,
   getTableBooleanColumns,
 } from "../core/relational-utils";
-import { hasTenantBypass } from "../system-tenant-scope";
-import { getMaterializedFieldColumns } from "../core/drizzle-sql-helpers";
+import {
+  buildPointWireSqlTemplates,
+  collectSafeMaterializedColumns,
+  resolvePointWireQuery,
+  validateWireListInput,
+  type PointWireSqlTemplates,
+} from "../sql/wire-stream-shared";
 import type { BaseQueryOptions, DatabaseId } from "../db-interface";
 import type { RawPointWireStreamResult, RawListWireStreamResult } from "../core/sql-adapter-core";
 import { versionTokenString } from "@utils/optimistic-lock";
 import { logger } from "@src/utils/logger";
 
 export interface MariadbWireExecutor {
-  getColumn(table: any, colName: string): any;
-  getRawExec(options: BaseQueryOptions): (sqlText: string, params?: any[]) => Promise<any[]>;
-}
-
-interface PointWireSql {
-  selectPrefix: string;
-  base: string;
-  tenant: string;
-  tenantNull: string;
-  basePub: string | null;
-  tenantPub: string | null;
-  tenantPubNull: string | null;
-  idColName: string;
-  declined?: boolean;
+  getColumn(table: unknown, colName: string): unknown;
+  getRawExec(
+    options: BaseQueryOptions,
+  ): (sqlText: string, params?: unknown[]) => Promise<unknown[]>;
 }
 
 interface ListWireSql {
@@ -45,12 +40,11 @@ interface ListWireSql {
   dataExpr: string;
   updatedAtSelect: string;
   safeTable: string;
-  sortCol: string;
-  sortDirection: string;
+  orderClause: string;
 }
 
 export class MariadbWireStreamEngine {
-  private _pointSqlCache = new WeakMap<object, PointWireSql>();
+  private _pointSqlCache = new WeakMap<object, PointWireSqlTemplates>();
   private _listSqlCache = new WeakMap<object, Map<string, ListWireSql>>();
 
   /**
@@ -60,7 +54,7 @@ export class MariadbWireStreamEngine {
    */
   async findPointWireStream(
     executor: MariadbWireExecutor,
-    table: any,
+    table: object,
     tableName: string,
     id: DatabaseId,
     options: BaseQueryOptions,
@@ -68,25 +62,30 @@ export class MariadbWireStreamEngine {
     try {
       let cachedWireSql = this._pointSqlCache.get(table);
       if (cachedWireSql === undefined) {
-        const hasDataCol = !!executor.getColumn(table, "data");
-        if (!hasDataCol) {
-          this._pointSqlCache.set(table, { declined: true } as PointWireSql);
+        if (!executor.getColumn(table, "data")) {
+          this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
           return { kind: "declined" };
         }
 
-        const idCol = executor.getColumn(table, "_id") || executor.getColumn(table, "id");
+        const idCol = (executor.getColumn(table, "_id") || executor.getColumn(table, "id")) as
+          | { name?: string }
+          | undefined;
         if (!idCol) {
-          this._pointSqlCache.set(table, { declined: true } as PointWireSql);
+          this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
           return { kind: "declined" };
         }
         const idColName = idCol.name || "_id";
 
-        const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-        const updatedAtSelect = hasUpdatedAtCol
+        const matCols = collectSafeMaterializedColumns(table);
+        if (!matCols) {
+          this._pointSqlCache.set(table, { declined: true } as PointWireSqlTemplates);
+          return { kind: "declined" };
+        }
+
+        const updatedAtSelect = executor.getColumn(table, "updatedAt")
           ? "CONCAT(DATE_FORMAT(`updatedAt`, '%Y-%m-%dT%H:%i:%s.'), LPAD(FLOOR(MICROSECOND(`updatedAt`) / 1000), 3, '0'), 'Z')"
           : "NULL";
         const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
-
         const safeTable = `\`${assertSafeSqlIdentifier(tableName, "table")}\``;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
@@ -95,63 +94,38 @@ export class MariadbWireStreamEngine {
         if (hasStatusCol) overrides.push(`'$."status"', \`status\``);
         if (hasSlugCol) overrides.push(`'$."slug"', \`slug\``);
         const boolCols = getTableBooleanColumns(tableName);
-        for (const rawName of getMaterializedFieldColumns(table)) {
-          if (!/^[A-Za-z0-9_]+$/.test(rawName)) {
-            this._pointSqlCache.set(table, { declined: true } as PointWireSql);
-            return { kind: "declined" };
-          }
-          const name = assertSafeSqlIdentifier(rawName, "column");
+        for (const name of matCols) {
           const col = `\`${name}\``;
-          overrides.push(`'$."${name}"', ${boolCols?.has(rawName) ? `(${col} = 1)` : col}`);
+          overrides.push(`'$."${name}"', ${boolCols?.has(name) ? `(${col} = 1)` : col}`);
         }
 
         const dataExpr = `JSON_SET(COALESCE(\`data\`, '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         const selectPrefix = `SELECT CAST(JSON_OBJECT('success', true, 'data', ${dataExpr}) AS CHAR) AS wire_body, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
+        const delSuffix = hasDeletedCol ? " AND `isDeleted` = 0" : "";
 
-        const del = hasDeletedCol ? " AND `isDeleted` = 0" : "";
-        cachedWireSql = {
+        cachedWireSql = buildPointWireSqlTemplates({
           selectPrefix,
-          base: `${selectPrefix} WHERE \`${idColName}\` = ?${del} LIMIT 1`,
-          tenant: `${selectPrefix} WHERE \`${idColName}\` = ? AND \`tenantId\` = ?${del} LIMIT 1`,
-          tenantNull: `${selectPrefix} WHERE \`${idColName}\` = ? AND \`tenantId\` IS NULL${del} LIMIT 1`,
-          basePub: hasStatusCol
-            ? `${selectPrefix} WHERE \`${idColName}\` = ? AND \`status\` IN ('publish', 'published')${del} LIMIT 1`
-            : null,
-          tenantPub: hasStatusCol
-            ? `${selectPrefix} WHERE \`${idColName}\` = ? AND \`status\` IN ('publish', 'published') AND \`tenantId\` = ?${del} LIMIT 1`
-            : null,
-          tenantPubNull: hasStatusCol
-            ? `${selectPrefix} WHERE \`${idColName}\` = ? AND \`status\` IN ('publish', 'published') AND \`tenantId\` IS NULL${del} LIMIT 1`
-            : null,
+          idExpr: `\`${idColName}\` = ?`,
+          tenantExpr: "`tenantId` = ?",
+          tenantColQuoted: "`tenantId`",
+          statusColQuoted: "`status`",
+          hasStatusCol,
+          delSuffix,
           idColName,
-        };
+        });
         this._pointSqlCache.set(table, cachedWireSql);
       } else if (cachedWireSql.declined) {
         return { kind: "declined" };
       }
 
-      const wantPublished = options?.requirePublished === true;
-      if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
-
-      const bypass = hasTenantBypass(options);
-      const rawTenant = bypass ? undefined : options?.tenantId;
-      const tenantId = rawTenant === undefined || rawTenant === "global" ? undefined : rawTenant;
-
-      let sqlText: string;
-      let params: unknown[];
-      if (tenantId !== undefined && tenantId !== null) {
-        sqlText = wantPublished ? cachedWireSql.tenantPub! : cachedWireSql.tenant;
-        params = [String(id), String(tenantId)];
-      } else if (tenantId === null) {
-        sqlText = wantPublished ? cachedWireSql.tenantPubNull! : cachedWireSql.tenantNull;
-        params = [String(id)];
-      } else {
-        sqlText = wantPublished ? cachedWireSql.basePub! : cachedWireSql.base;
-        params = [String(id)];
-      }
+      const resolved = resolvePointWireQuery(cachedWireSql, id, options);
+      if (!resolved) return { kind: "declined" };
 
       const rawExec = executor.getRawExec(options);
-      const rows = (await rawExec(sqlText, params)) as any[];
+      const rows = (await rawExec(resolved.sqlText, resolved.params)) as Array<{
+        wire_body?: unknown;
+        updated_at?: unknown;
+      }>;
       if (!Array.isArray(rows) || rows.length === 0) return { kind: "missing" };
       const first = rows[0];
       const wireBody =
@@ -176,7 +150,7 @@ export class MariadbWireStreamEngine {
    */
   async findListWireStream(
     executor: MariadbWireExecutor,
-    table: any,
+    table: object,
     tableName: string,
     options: BaseQueryOptions & {
       limit?: number;
@@ -188,40 +162,11 @@ export class MariadbWireStreamEngine {
     },
   ): Promise<RawListWireStreamResult> {
     try {
-      const hasDataCol = !!executor.getColumn(table, "data");
-      if (!hasDataCol) return { kind: "declined" };
+      const v = validateWireListInput(executor, table, options, "`");
+      if (!v) return { kind: "declined" };
+      const { isProjected, dedupedProjectedCols, orderClause, cacheKey, limit, offset } = v;
 
-      const requestedFields = options.fields;
-      const isProjected = Array.isArray(requestedFields) && requestedFields.length > 0;
-      if (isProjected) {
-        for (const f of requestedFields) {
-          if (!/^[A-Za-z0-9_]+$/.test(f)) return { kind: "declined" };
-          if (f === "data") return { kind: "declined" };
-          const colName = f === "id" ? "_id" : f;
-          if (!executor.getColumn(table, colName)) {
-            return { kind: "declined" };
-          }
-        }
-      }
-
-      const sortField = options.sortField;
-      const sortDirection = options.sortDirection === "asc" ? "ASC" : "DESC";
-      let sortCol = "`_id`";
-      if (sortField) {
-        if (!/^[A-Za-z0-9_]+$/.test(sortField)) return { kind: "declined" };
-        if (!executor.getColumn(table, sortField)) return { kind: "declined" };
-        sortCol = `\`${assertSafeSqlIdentifier(sortField, "column")}\``;
-      }
-      const sortKey = `${sortCol}:${sortDirection}`;
-      const cacheKey = isProjected ? `${sortKey}:f:${requestedFields.join(",")}` : sortKey;
-
-      const hasUpdatedAtCol = !!executor.getColumn(table, "updatedAt");
-      const updatedAtSelect = hasUpdatedAtCol
-        ? "COALESCE(UNIX_TIMESTAMP(`updatedAt`) * 1000, 0)"
-        : "0";
       const hasDeletedCol = !!executor.getColumn(table, "isDeleted");
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
-
       let tableCache = this._listSqlCache.get(table);
       if (!tableCache) {
         tableCache = new Map();
@@ -233,41 +178,33 @@ export class MariadbWireStreamEngine {
         const safeTable = `\`${assertSafeSqlIdentifier(tableName, "table")}\``;
         const hasSlugCol = !!executor.getColumn(table, "slug");
         const hasStatusCol = !!executor.getColumn(table, "status");
+        const updatedAtSelect = executor.getColumn(table, "updatedAt")
+          ? "COALESCE(UNIX_TIMESTAMP(`updatedAt`) * 1000, 0)"
+          : "0";
         const boolCols = getTableBooleanColumns(tableName);
 
         let dataExpr: string;
         if (isProjected) {
-          const pairs: string[] = [];
-          const seen = new Set<string>();
-          for (const rawName of requestedFields) {
-            const colName = rawName === "id" ? "_id" : rawName;
-            if (seen.has(colName)) continue;
-            seen.add(colName);
-            const safeCol = assertSafeSqlIdentifier(colName, "column");
+          const pairs = dedupedProjectedCols.map((safeCol) => {
             const col = `\`${safeCol}\``;
-            const value = boolCols?.has(colName) ? `(${col} = 1)` : col;
-            pairs.push(`'${safeCol}', ${value}`);
-          }
-          if (!seen.has("_id") && executor.getColumn(table, "_id")) {
-            pairs.unshift(`'_id', \`_id\``);
-          }
+            const value = boolCols?.has(safeCol) ? `(${col} = 1)` : col;
+            return `'${safeCol}', ${value}`;
+          });
           dataExpr = `JSON_OBJECT(${pairs.join(", ")})`;
         } else {
+          const matCols = collectSafeMaterializedColumns(table);
+          if (!matCols) return { kind: "declined" };
           const overrides: string[] = [`'$."_id"', \`_id\``];
           if (hasStatusCol) overrides.push(`'$."status"', \`status\``);
           if (hasSlugCol) overrides.push(`'$."slug"', \`slug\``);
-          for (const rawName of getMaterializedFieldColumns(table)) {
-            if (!/^[A-Za-z0-9_]+$/.test(rawName)) return { kind: "declined" };
-            const name = assertSafeSqlIdentifier(rawName, "column");
+          for (const name of matCols) {
             const col = `\`${name}\``;
-            overrides.push(`'$."${name}"', ${boolCols?.has(rawName) ? `(${col} = 1)` : col}`);
+            overrides.push(`'$."${name}"', ${boolCols?.has(name) ? `(${col} = 1)` : col}`);
           }
           dataExpr = `JSON_SET(COALESCE(\`data\`, '{}')${overrides.map((o) => `, ${o}`).join("")})`;
         }
 
         const subSelect = `SELECT ${dataExpr} AS doc, ${updatedAtSelect} AS updated_at FROM ${safeTable}`;
-        const orderClause = `ORDER BY ${sortCol} ${sortDirection}`;
-
         const wrap = (wherePart: string) => `
           SELECT COALESCE(JSON_ARRAYAGG(sub.doc), '[]') AS wire_body,
                  COALESCE(MAX(sub.updated_at), 0) AS max_updated_at
@@ -287,14 +224,12 @@ export class MariadbWireStreamEngine {
           dataExpr,
           updatedAtSelect,
           safeTable,
-          sortCol,
-          sortDirection,
+          orderClause,
         };
         tableCache.set(cacheKey, cachedWireSql);
       }
 
-      const limit = typeof options.limit === "number" && options.limit > 0 ? options.limit : 50;
-      const offset = typeof options.offset === "number" && options.offset >= 0 ? options.offset : 0;
+      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
       const useTenantCache = tenantSql === " AND `tenantId` = ?";
       const wantPublished = options?.requirePublished === true;
       if (wantPublished && !cachedWireSql.basePub) return { kind: "declined" };
@@ -320,13 +255,16 @@ export class MariadbWireStreamEngine {
         sqlText = `
           SELECT COALESCE(JSON_ARRAYAGG(sub.doc), '[]') AS wire_body,
                  COALESCE(MAX(sub.updated_at), 0) AS max_updated_at
-          FROM (SELECT ${cachedWireSql.dataExpr} AS doc, ${cachedWireSql.updatedAtSelect} AS updated_at FROM ${cachedWireSql.safeTable} ${combinedWhere ? `WHERE ${combinedWhere}` : ""} ORDER BY ${cachedWireSql.sortCol} ${cachedWireSql.sortDirection} LIMIT ? OFFSET ?) sub
+          FROM (SELECT ${cachedWireSql.dataExpr} AS doc, ${cachedWireSql.updatedAtSelect} AS updated_at FROM ${cachedWireSql.safeTable} ${combinedWhere ? `WHERE ${combinedWhere}` : ""} ${cachedWireSql.orderClause} LIMIT ? OFFSET ?) sub
         `;
         params = [...tenantParams, limit, offset];
       }
 
       const rawExec = executor.getRawExec(options);
-      const rows = (await rawExec(sqlText, params)) as any[];
+      const rows = (await rawExec(sqlText, params)) as Array<{
+        wire_body?: unknown;
+        max_updated_at?: unknown;
+      }>;
       if (!Array.isArray(rows) || rows.length === 0) {
         return { kind: "found", wireBody: "[]", etag: `"list-0-${limit}-${offset}"` };
       }

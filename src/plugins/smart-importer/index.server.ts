@@ -133,6 +133,14 @@ export const hooks: PluginLifecycleHooks = {
       logger.info(
         `[SmartImporter] Enforced Airgap Safety on [${data.title || data._externalId}]. State: DRAFT.`,
       );
+      if (data._importerAutoTag) {
+        const { autoTagOnSave } = await import("@utils/auto-tag");
+        const existingTags = Array.isArray(data.tags)
+          ? data.tags.filter((t: unknown): t is string => typeof t === "string")
+          : [];
+        const enriched = await autoTagOnSave(data, existingTags);
+        Object.assign(data, enriched);
+      }
     }
     return data;
   },

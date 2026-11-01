@@ -173,6 +173,27 @@ function parseCommaSeparatedList(value: string): string[] {
 }
 
 /**
+ * Pre-allocated frozen default parameters for empty query strings (`!url.search`).
+ * Avoids constructing a `URLSearchParams` instance and iterating keys on plain list reads.
+ */
+export const DEFAULT_EMPTY_COLLECTION_QUERY_PARAMS: Readonly<CollectionQueryParams> = Object.freeze(
+  {
+    limit: 50,
+    offset: 0,
+    cursor: undefined,
+    sortField: undefined,
+    sortDirection: "desc",
+    publicationFilter: undefined,
+    filter: Object.freeze({}) as Record<string, unknown>,
+    bypassCache: false,
+    populate: undefined,
+    fields: undefined,
+    stream: false,
+    includeCount: false,
+  },
+);
+
+/**
  * Single-pass parser for standard collection query parameters.
  * Replaces multiple redundant searchParams.get calls with one unified parse loop.
  */

@@ -13,6 +13,7 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
+import { nowISODateString } from "@src/utils/date";
 import { AppError, raise } from "@utils/error-handling";
 import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
 import {
@@ -460,6 +461,32 @@ function numberOr(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+/** Build a historical version snapshot from the currently active media record. */
+function buildVersionSnapshot(
+  existing: EnrichableRecord,
+  version: number,
+  userId: string,
+  action: "edit" | "replace" | "restore",
+  fallbackTimestamp: string,
+): MediaVersionEntry {
+  return {
+    version,
+    url: existing.url || "",
+    path: existing.path || "",
+    hash: textOr(existing.hash),
+    size: numberOr(existing.size),
+    filename: textOr(existing.filename),
+    mimeType: textOr(existing.mimeType),
+    createdAt: firstText(existing.updatedAt, existing.createdAt, fallbackTimestamp),
+    createdBy: firstText(existing.updatedBy, existing.createdBy, userId),
+    action,
+    thumbnails: (existing.thumbnails as Record<string, unknown>) || {},
+    imageVariants: Array.isArray(existing.metadata?.imageVariants)
+      ? (existing.metadata.imageVariants as ImageVariant[])
+      : [],
+  };
+}
+
 /**
  * Reduce a client-supplied media PATCH body to the fields the UI actually owns.
  *
@@ -544,15 +571,37 @@ export class MediaService {
    * loop at the outermost call.
    */
   private static inFlightDeletes = new Set<string>();
+  private static contentListenerRegistered = false;
 
-  /** In-memory reverse-index for O(1) media-reference lookups. */
-  private referenceIndex = new MediaReferenceIndex();
+  /**
+   * Shared per-tenant in-memory reverse-index for O(1) media-reference lookups.
+   * Kept static so per-request `new MediaService(db)` calls reuse the warm index
+   * instead of re-scanning all collections and leaking `eventBus` listeners.
+   */
+  private static tenantIndexState = new Map<
+    string,
+    {
+      referenceIndex: MediaReferenceIndex;
+      entryStatusMap: Map<string, string>;
+      entryNameMap: Map<string, string>;
+      rebuildInflight: Promise<void> | null;
+    }
+  >();
 
-  /** Tracks entry statuses populated during index rebuild for publish filtering. */
-  private entryStatusMap = new Map<string, string>();
-
-  /** Maps entryId to a human-readable name for reference summaries. */
-  private entryNameMap = new Map<string, string>();
+  private getTenantState(tenantId?: DatabaseId | null) {
+    const key = tenantId ? String(tenantId) : "global";
+    let state = MediaService.tenantIndexState.get(key);
+    if (!state) {
+      state = {
+        referenceIndex: new MediaReferenceIndex(),
+        entryStatusMap: new Map<string, string>(),
+        entryNameMap: new Map<string, string>(),
+        rebuildInflight: null,
+      };
+      MediaService.tenantIndexState.set(key, state);
+    }
+    return state;
+  }
 
   constructor(db: IDBAdapter) {
     this.db = db;
@@ -593,12 +642,13 @@ export class MediaService {
       });
     }
 
-    // 🔁 Auto-invalidate reference index on any content mutation
-    eventBus.on(SystemEvents.CONTENT_UPDATE, () => {
-      this.referenceIndex.clear();
-      this.entryStatusMap.clear();
-      this.entryNameMap.clear();
-    });
+    // 🔁 Auto-invalidate reference index on any content mutation (register once per process)
+    if (!MediaService.contentListenerRegistered) {
+      MediaService.contentListenerRegistered = true;
+      eventBus.on(SystemEvents.CONTENT_UPDATE, () => {
+        MediaService.tenantIndexState.clear();
+      });
+    }
   }
 
   /**
@@ -875,7 +925,14 @@ export class MediaService {
       const dotIdx = filename.lastIndexOf(".");
       const baseName = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
       const ext = dotIdx > 0 ? filename.slice(dotIdx + 1).toLowerCase() : "jpg";
-      thumbnails = await saveResizedImages(buffer, hash, baseName, ext, tenantId || "global");
+      thumbnails = await saveResizedImages(
+        buffer,
+        hash,
+        baseName,
+        ext,
+        tenantId || "global",
+        imgMeta,
+      );
     } catch (e) {
       logger.warn("[Media] Derivative generation skipped", e);
     }
@@ -1799,7 +1856,7 @@ export class MediaService {
     const newHash = await hashFileContent(outputBuffer);
     const relPath = buildOriginalRelPath(newHash, outputFilename, tenantId);
     await saveFile(outputBuffer, relPath);
-    const now = new Date().toISOString();
+    const now = nowISODateString();
 
     // Rebuild the derivative set for the edited bytes. Without this the record
     // kept the pre-edit ladder/thumbnail URLs after `thumbnails: {}` was written,
@@ -1889,30 +1946,13 @@ export class MediaService {
             : {}),
           versions: [
             ...versions,
-            {
-              version: versions.length + 1,
-              url: (existing as unknown as EnrichableRecord).url || "",
-              path: (existing as unknown as EnrichableRecord).path,
-              hash: textOr((existing as unknown as EnrichableRecord).hash),
-              size: numberOr((existing as unknown as EnrichableRecord).size),
-              filename: textOr((existing as unknown as EnrichableRecord).filename),
-              mimeType: textOr((existing as unknown as EnrichableRecord).mimeType),
-              createdAt: firstText(
-                (existing as unknown as EnrichableRecord).updatedAt,
-                (existing as unknown as EnrichableRecord).createdAt,
-                now,
-              ),
-              createdBy: firstText(
-                (existing as unknown as EnrichableRecord).updatedBy,
-                (existing as unknown as EnrichableRecord).createdBy,
-                userId,
-              ),
-              action: "edit",
-              thumbnails: (existing as unknown as EnrichableRecord).thumbnails || {},
-              imageVariants: Array.isArray(existing.metadata?.imageVariants)
-                ? (existing.metadata.imageVariants as ImageVariant[])
-                : [],
-            },
+            buildVersionSnapshot(
+              existing as unknown as EnrichableRecord,
+              versions.length + 1,
+              userId,
+              "edit",
+              now,
+            ),
           ],
         },
       },
@@ -1962,17 +2002,16 @@ export class MediaService {
    * Uses the in-memory reverse-index for O(1) lookups after an initial
    * O(n) rebuild on first access or after cache invalidation.
    */
-  /** Coalesce concurrent rebuilds so a gallery page cannot stampede collection scans. */
-  private rebuildInflight: Promise<void> | null = null;
-
-  private async ensureReferenceIndex(tenantId?: DatabaseId | null): Promise<void> {
-    if (this.referenceIndex.isBuilt()) return;
-    if (!this.rebuildInflight) {
-      this.rebuildInflight = this.rebuildReferenceIndex(tenantId).finally(() => {
-        this.rebuildInflight = null;
+  private async ensureReferenceIndex(tenantId?: DatabaseId | null) {
+    const state = this.getTenantState(tenantId);
+    if (state.referenceIndex.isBuilt()) return state;
+    if (!state.rebuildInflight) {
+      state.rebuildInflight = this.rebuildReferenceIndex(tenantId, state).finally(() => {
+        state.rebuildInflight = null;
       });
     }
-    await this.rebuildInflight;
+    await state.rebuildInflight;
+    return state;
   }
 
   public async getMediaReferences(
@@ -1982,8 +2021,8 @@ export class MediaService {
     try {
       // Rebuild once per cache lifetime — empty refs for an unknown mediaId
       // must NOT re-scan all collections (caused OOM on DELETE nonexistent).
-      await this.ensureReferenceIndex(tenantId);
-      return this.enrichReferences(this.referenceIndex.getReferences(mediaId));
+      const state = await this.ensureReferenceIndex(tenantId);
+      return this.enrichReferences(state.referenceIndex.getReferences(mediaId), state.entryNameMap);
     } catch (err) {
       logger.error(`[MediaService] Error scanning usage references:`, err);
       return [];
@@ -1999,10 +2038,10 @@ export class MediaService {
   ): Promise<string[]> {
     if (mediaIds.length === 0) return [];
     try {
-      await this.ensureReferenceIndex(tenantId);
-      return this.referenceIndex.collectPublishedIds(
+      const state = await this.ensureReferenceIndex(tenantId);
+      return state.referenceIndex.collectPublishedIds(
         mediaIds,
-        (entryId) => this.entryStatusMap.get(entryId) === "publish",
+        (entryId) => state.entryStatusMap.get(entryId) === "publish",
       );
     } catch (err) {
       logger.error(`[MediaService] Error collecting published media ids:`, err);
@@ -2039,11 +2078,12 @@ export class MediaService {
     tenantId?: DatabaseId | null,
   ): Promise<MediaReference[]> {
     try {
-      await this.ensureReferenceIndex(tenantId);
+      const state = await this.ensureReferenceIndex(tenantId);
       // Filter to published-only references by checking the status map
-      const allRefs = this.referenceIndex.getReferences(mediaId);
+      const allRefs = state.referenceIndex.getReferences(mediaId);
       return this.enrichReferences(
-        allRefs.filter((ref) => this.entryStatusMap.get(ref.entryId) === "publish"),
+        allRefs.filter((ref) => state.entryStatusMap.get(ref.entryId) === "publish"),
+        state.entryNameMap,
       );
     } catch (err) {
       logger.error(`[MediaService] Error scanning published references:`, err);
@@ -2052,49 +2092,16 @@ export class MediaService {
   }
 
   /**
-   * 🛡️ Recursively checks whether `val` references the given mediaId or path.
-   * Uses a WeakSet to detect circular references so malicious or malformed
-   * payloads cannot cause infinite recursion.
+   * Rebuilds the in-memory reference index by scanning all collection entries in parallel.
    */
-  private isMediaReferencedInValue(
-    val: unknown,
-    mediaId: string,
-    path: string,
-    seen: WeakSet<object> = new WeakSet(),
-  ): boolean {
-    if (val === mediaId || (path && val === path)) {
-      return true;
-    }
-    if (Array.isArray(val)) {
-      return val.some((item) => this.isMediaReferencedInValue(item, mediaId, path, seen));
-    }
-    if (val && typeof val === "object") {
-      const obj = val as Record<string, unknown>;
-      // 🛡️ Circular reference guard — stop recursion when we encounter a seen object
-      if (seen.has(val)) return false;
-      seen.add(val);
-
-      if (
-        obj._id === mediaId ||
-        obj.id === mediaId ||
-        (path && (obj.path === path || obj.url === path))
-      ) {
-        return true;
-      }
-      return Object.values(obj).some((item: unknown) =>
-        this.isMediaReferencedInValue(item, mediaId, path, seen),
-      );
-    }
-    if (typeof val === "string") {
-      return val.includes(mediaId) || !!(path && val.includes(path));
-    }
-    return false;
-  }
-
-  /**
-   * Rebuilds the in-memory reference index by scanning all collection entries.
-   */
-  private async rebuildReferenceIndex(tenantId?: DatabaseId | null): Promise<void> {
+  private async rebuildReferenceIndex(
+    tenantId: DatabaseId | null | undefined,
+    state: {
+      referenceIndex: MediaReferenceIndex;
+      entryStatusMap: Map<string, string>;
+      entryNameMap: Map<string, string>;
+    },
+  ): Promise<void> {
     const { scanCompiledCollections } = await loadEngineServerModule();
     const schemas = await scanCompiledCollections();
     const allEntries: Array<{
@@ -2105,55 +2112,59 @@ export class MediaService {
       status?: string;
     }> = [];
 
-    for (const schema of schemas) {
-      // 🐛 FIX (BUG-01): canonical physical name — manual `collection_${id}`
-      // breaks for hyphenated ids; collectionTableName normalizes (idempotent).
-      const collectionName = collectionTableName(schema._id as string);
-      const collectionLabel = schema.name || schema._id || "";
-      try {
-        const res = await this.db.crud.findMany(collectionName, {}, { tenantId: tenantId });
-        if (res.success && Array.isArray(res.data)) {
-          for (const entry of res.data) {
-            const entryAny = entry as unknown as Record<string, unknown>;
-            const entryId = entryAny._id?.toString() ?? "";
-            allEntries.push({
-              collectionId: schema._id ?? "",
-              collectionName: collectionLabel,
-              entryId,
-              data: entryAny,
-              status: entryAny.status as string | undefined,
-            });
-            const entryName =
-              entryAny.name || entryAny.title || entryAny.slug || entryAny._id || entryId;
-            this.entryNameMap.set(entryId, String(entryName));
-            if (entryAny.status) {
-              this.entryStatusMap.set(entryId, entryAny.status as string);
+    await Promise.all(
+      schemas.map(async (schema) => {
+        // 🐛 FIX (BUG-01): canonical physical name — manual `collection_${id}`
+        // breaks for hyphenated ids; collectionTableName normalizes (idempotent).
+        const collectionName = collectionTableName(schema._id as string);
+        const collectionLabel = schema.name || schema._id || "";
+        try {
+          const res = await this.db.crud.findMany(collectionName, {}, { tenantId: tenantId });
+          if (res.success && Array.isArray(res.data)) {
+            for (const entry of res.data) {
+              const entryAny = entry as unknown as Record<string, unknown>;
+              const entryId = entryAny._id?.toString() ?? "";
+              allEntries.push({
+                collectionId: schema._id ?? "",
+                collectionName: collectionLabel,
+                entryId,
+                data: entryAny,
+                status: entryAny.status as string | undefined,
+              });
+              const entryName =
+                entryAny.name || entryAny.title || entryAny.slug || entryAny._id || entryId;
+              state.entryNameMap.set(entryId, String(entryName));
+              if (entryAny.status) {
+                state.entryStatusMap.set(entryId, entryAny.status as string);
+              }
             }
           }
+        } catch (err) {
+          logger.error(`[MediaService] Error scanning ${collectionName} for references:`, err);
         }
-      } catch (err) {
-        logger.error(`[MediaService] Error scanning ${collectionName} for references:`, err);
-      }
-    }
-    this.referenceIndex.rebuild(allEntries);
+      }),
+    );
+
+    state.referenceIndex.rebuild(allEntries);
     // Even with zero entries, mark built so empty lookups stay O(1)
-    this.referenceIndex.markBuilt();
+    state.referenceIndex.markBuilt();
   }
 
   /** Enrich index references with legacy fields for backward compatibility. */
-  private enrichReferences(refs: MediaReference[]): MediaReference[] {
+  private enrichReferences(
+    refs: MediaReference[],
+    entryNameMap: Map<string, string>,
+  ): MediaReference[] {
     for (const ref of refs) {
       ref.fieldName = ref.fieldPath.split(".")[0] || ref.fieldPath;
-      ref.entryName = this.entryNameMap.get(ref.entryId) || ref.entryId;
+      ref.entryName = entryNameMap.get(ref.entryId) || ref.entryId;
     }
     return refs;
   }
 
   /** Manually clear the reference-index cache. */
   public invalidateReferenceCache(): void {
-    this.referenceIndex.clear();
-    this.entryStatusMap.clear();
-    this.entryNameMap.clear();
+    MediaService.tenantIndexState.clear();
   }
 
   /**
@@ -2292,23 +2303,14 @@ export class MediaService {
       // 3. Create version record from the OLD properties
       const existingR = existing as unknown as EnrichableRecord;
       const versions = (existingR.metadata?.versions as MediaVersionEntry[] | undefined) || [];
-      const newVersionNum = versions.length + 1;
-      const oldVersionEntry: MediaVersionEntry = {
-        version: newVersionNum,
-        url: existingR.url || "",
-        path: existingR.path || "",
-        hash: textOr(existingR.hash),
-        size: numberOr(existingR.size),
-        filename: textOr(existingR.filename),
-        mimeType: textOr(existingR.mimeType),
-        createdAt: firstText(existingR.updatedAt, existingR.createdAt, new Date().toISOString()),
-        createdBy: firstText(existingR.updatedBy, existingR.createdBy, userId),
-        action: "replace",
-        thumbnails: (existingR.thumbnails as Record<string, unknown>) || {},
-        imageVariants: Array.isArray(existingR.metadata?.imageVariants)
-          ? (existingR.metadata.imageVariants as ImageVariant[])
-          : [],
-      };
+      const now = nowISODateString();
+      const oldVersionEntry = buildVersionSnapshot(
+        existingR,
+        versions.length + 1,
+        userId,
+        "replace",
+        now,
+      );
 
       // Push old version to the history array
       const updatedVersions = [...versions, oldVersionEntry];
@@ -2337,7 +2339,7 @@ export class MediaService {
         thumbnails: versionThumbnails,
         metadata: updatedMetadata,
         updatedBy: userId,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
       };
 
       await this.updateMedia(mediaId, updateData, tenantId, { internal: true });
@@ -2410,23 +2412,14 @@ export class MediaService {
       }
 
       // 2. Create a version entry from the CURRENT active state
-      const currentVersionNum = versions.length + 1;
-      const currentVersionEntry: MediaVersionEntry = {
-        version: currentVersionNum,
-        url: existingR.url || "",
-        path: existingR.path || "",
-        hash: textOr(existingR.hash),
-        size: numberOr(existingR.size),
-        filename: textOr(existingR.filename),
-        mimeType: textOr(existingR.mimeType),
-        createdAt: firstText(existingR.updatedAt, existingR.createdAt, new Date().toISOString()),
-        createdBy: firstText(existingR.updatedBy, existingR.createdBy, userId),
-        action: "restore",
-        thumbnails: (existingR.thumbnails as Record<string, unknown>) || {},
-        imageVariants: Array.isArray(existingR.metadata?.imageVariants)
-          ? (existingR.metadata.imageVariants as ImageVariant[])
-          : [],
-      };
+      const now = nowISODateString();
+      const currentVersionEntry = buildVersionSnapshot(
+        existingR,
+        versions.length + 1,
+        userId,
+        "restore",
+        now,
+      );
 
       // 3. Update the active record to point back to the restored version
       const updatedVersions = [...versions, currentVersionEntry];
@@ -2467,7 +2460,7 @@ export class MediaService {
         thumbnails: restoredThumbnails,
         metadata: updatedMetadata,
         updatedBy: userId,
-        updatedAt: new Date().toISOString(),
+        updatedAt: now,
       };
 
       await this.updateMedia(mediaId, updateData, tenantId, { internal: true });

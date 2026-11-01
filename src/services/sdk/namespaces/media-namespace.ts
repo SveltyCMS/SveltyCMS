@@ -1,6 +1,11 @@
 /**
- * @file src/services/local-cms/media-namespace.ts
+ * @file src/services/sdk/namespaces/media-namespace.ts
  * @description Media namespace for LocalCMS SDK.
+ *
+ * Features:
+ * - Tenant-isolated media queries and mutations
+ * - Request-level FastLRU deduplication
+ * - Standardized SDK error envelopes via safeCall
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
@@ -18,6 +23,7 @@ import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { FastLRU } from "@utils/native-utils";
 import type { DatabaseId, IDBAdapter, DatabaseResult } from "@src/databases/db-interface";
 import type { MediaItem } from "@utils/media/media-models";
+import { safeCall } from "../safe-call";
 
 function isFileLike(value: unknown): value is File {
   return (
@@ -288,7 +294,7 @@ export class MediaNamespace {
       skipResizing = false,
     } = options;
 
-    try {
+    return safeCall(async () => {
       if (!userId) throw new AppError("User ID is required for upload", 400);
       if (!isFileLike(file)) throw new AppError("A valid File object is required", 400);
 
@@ -305,18 +311,12 @@ export class MediaNamespace {
 
       this.invalidateCache(tenantId);
       return result;
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   async remote(url: string, options: RemoteOptions): Promise<DatabaseResult<MediaItem>> {
     const { userId, access = "private", tenantId } = options;
-    try {
+    return safeCall(async () => {
       if (!url) throw new AppError("URL is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
 
@@ -329,13 +329,7 @@ export class MediaNamespace {
 
       this.invalidateCache(tenantId);
       return result;
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   async update(
@@ -343,20 +337,13 @@ export class MediaNamespace {
     data: any,
     options: TenantOptions = {},
   ): Promise<DatabaseResult<void>> {
-    try {
+    return safeCall(async () => {
       if (!mediaId) throw new AppError("Media ID is required", 400);
 
       await this.mediaService.updateMedia(mediaId, data, options.tenantId as DatabaseId);
 
       this.invalidateCache(options.tenantId, mediaId);
-      return { success: true, data: undefined };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   /**
@@ -369,34 +356,20 @@ export class MediaNamespace {
     patch: Record<string, unknown>,
     options: TenantOptions = {},
   ): Promise<DatabaseResult<void>> {
-    try {
+    return safeCall(async () => {
       await this.mediaService.patchMetadata(mediaId, patch, options.tenantId as DatabaseId);
       this.invalidateCache(options.tenantId, mediaId);
-      return { success: true, data: undefined };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   async delete(fileId: string, options: TenantOptions = {}): Promise<DatabaseResult<void>> {
-    try {
+    return safeCall(async () => {
       if (!fileId) throw new AppError("File ID is required", 400);
 
       await this.mediaService.deleteMedia(fileId, options.tenantId as DatabaseId);
 
       this.invalidateCache(options.tenantId, fileId);
-      return { success: true, data: undefined };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   /**
@@ -408,7 +381,7 @@ export class MediaNamespace {
     targetFolderId?: string | null,
     options: TenantOptions = {},
   ): Promise<DatabaseResult<{ movedCount: number }>> {
-    try {
+    return safeCall(async () => {
       // Dedup in one pass — `filter` + `Set` + spread built two throwaway arrays.
       const ids: string[] = [];
       const seen = new Set<string>();
@@ -433,13 +406,7 @@ export class MediaNamespace {
       if (result.success) this.invalidateCache(tenantId);
 
       return result;
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   async manipulate(
@@ -448,7 +415,7 @@ export class MediaNamespace {
     options: ManipulateOptions,
   ): Promise<DatabaseResult<MediaItem>> {
     const { userId, tenantId } = options;
-    try {
+    return safeCall(async () => {
       if (!id) throw new AppError("Media ID is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
 
@@ -458,14 +425,8 @@ export class MediaNamespace {
         userId,
         tenantId as DatabaseId,
       );
-      return { success: true, data: result };
-    } catch (err: unknown) {
-      return {
-        success: false,
-        message: err instanceof Error ? err.message : String(err),
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+      return result;
+    });
   }
 
   async batchProcess(
@@ -473,43 +434,29 @@ export class MediaNamespace {
     options: BatchProcessOptions,
   ): Promise<DatabaseResult<MediaItem[]>> {
     const { userId, tenantId, ...config } = options;
-    try {
-      const result = await this.mediaService.batchProcessImages(
+    return safeCall(async () => {
+      return await this.mediaService.batchProcessImages(
         ids,
         config,
         userId,
         tenantId as DatabaseId,
       );
-      return { success: true, data: result };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   async references(mediaId: string, options: TenantOptions = {}): Promise<DatabaseResult<any[]>> {
-    try {
+    return safeCall(async () => {
       if (!mediaId) throw new AppError("Media ID is required", 400);
       const refs = await this.mediaService.getMediaReferences(
         mediaId,
         options.tenantId as DatabaseId,
       );
-      const mapped = refs.map((r) => ({
+      return refs.map((r) => ({
         ...r,
         entryName: r.entryName ?? r.entryId,
         fieldName: r.fieldName ?? r.fieldPath,
       }));
-      return { success: true, data: mapped };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   /**
@@ -529,7 +476,7 @@ export class MediaNamespace {
     }[]
   > {
     if (!mediaId) throw new AppError("Media ID is required", 400);
-    const refs = await this.mediaService.getMediaReferences(
+    const refs = await this.mediaService.getPublishedReferences(
       mediaId,
       options.tenantId as DatabaseId,
     );
@@ -546,7 +493,7 @@ export class MediaNamespace {
     options: { userId: string; tenantId?: DatabaseId | null },
   ): Promise<DatabaseResult<MediaItem>> {
     const { userId, tenantId } = options;
-    try {
+    return safeCall(async () => {
       if (!mediaId) throw new AppError("Media ID is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
       if (!isFileLike(file)) throw new AppError("Valid file is required", 400);
@@ -559,13 +506,7 @@ export class MediaNamespace {
       );
       this.invalidateCache(tenantId, mediaId);
       return result;
-    } catch (err: unknown) {
-      return {
-        success: false,
-        message: err instanceof Error ? err.message : String(err),
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   async restoreVersion(
@@ -574,7 +515,7 @@ export class MediaNamespace {
     options: { userId: string; tenantId?: DatabaseId | null },
   ): Promise<DatabaseResult<MediaItem>> {
     const { userId, tenantId } = options;
-    try {
+    return safeCall(async () => {
       if (!mediaId) throw new AppError("Media ID is required", 400);
       if (!versionNumber) throw new AppError("Version number is required", 400);
       if (!userId) throw new AppError("User ID is required", 400);
@@ -587,13 +528,7 @@ export class MediaNamespace {
       );
       this.invalidateCache(tenantId, mediaId);
       return result;
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+    });
   }
 
   /**
@@ -602,17 +537,11 @@ export class MediaNamespace {
    * background job is stuck.
    */
   async cleanup(options: MediaCleanupOptions = {}): Promise<DatabaseResult<MediaCleanupResult>> {
-    try {
+    return safeCall(async () => {
       const data = await cleanupMediaVersions(this._dbAdapter, options);
       if (!options.dryRun) this.invalidateCache(options.tenantId);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+      return data;
+    });
   }
 
   /**
@@ -622,16 +551,10 @@ export class MediaNamespace {
   async syncStatus(
     options: MediaStatusSyncOptions = {},
   ): Promise<DatabaseResult<MediaStatusSyncResult>> {
-    try {
+    return safeCall(async () => {
       const data = await syncMediaProcessingStatus(this._dbAdapter, options);
       if (options.persist !== false || options.requeue) this.invalidateCache(options.tenantId);
-      return { success: true, data };
-    } catch (err: any) {
-      return {
-        success: false,
-        message: err.message,
-        error: err as import("@src/databases/db-interface").DatabaseError,
-      };
-    }
+      return data;
+    });
   }
 }

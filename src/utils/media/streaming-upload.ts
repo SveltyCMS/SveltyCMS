@@ -456,34 +456,8 @@ function startsWith(haystack: Uint8Array, needle: Uint8Array): boolean {
 function indexOf(haystack: Uint8Array, needle: Uint8Array): number {
   if (needle.length === 0) return 0;
   if (needle.length > haystack.length) return -1;
-
-  // Boyer-Moore-Horspool for typical multipart boundary scanning.
-  // Even a naive scan is fine for the small needle sizes we deal with,
-  // but BMH gives a nice constant factor for repeated boundary searches.
-  const skip = new Int32Array(256).fill(needle.length);
-  for (let i = 0; i < needle.length - 1; i++) {
-    skip[needle[i] & 0xff] = needle.length - 1 - i;
-  }
-
-  let pos = 0;
-  const last = needle.length - 1;
-  while (pos <= haystack.length - needle.length) {
-    const ch = haystack[pos + last] & 0xff;
-    if (needle[last] === ch) {
-      // Candidate — verify full match
-      let match = true;
-      for (let j = 0; j < last; j++) {
-        if (haystack[pos + j] !== needle[j]) {
-          match = false;
-          break;
-        }
-      }
-      if (match) return pos;
-    }
-    pos += skip[ch];
-  }
-
-  return -1;
+  // Zero-copy Buffer view uses native SIMD memmem in V8/Bun without allocating a skip table.
+  return Buffer.from(haystack.buffer, haystack.byteOffset, haystack.byteLength).indexOf(needle);
 }
 
 // ---------------------------------------------------------------------------
