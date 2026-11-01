@@ -2022,6 +2022,12 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **API**: `GET|POST|DELETE /api/collections/:collectionId/drafts` and `GET|DELETE /api/collections/:collectionId/:entryId/drafts` return the usual `{ success, data }` envelope; a missing draft is `data: null`, an unknown draft or collection is 404. Drafts are never part of the entry list, export or GraphQL lane. `drafts` is mapped in `ENDPOINT_PERMISSIONS` (read → `collections:read`, mutation → `collections:write`).
 - **Tests**: `tests/unit/databases/content-drafts-adapter.test.ts` (7, real in-memory SQLite), `tests/unit/databases/mongo-drafts-parity.test.ts` (2), `tests/unit/sdk/drafts-namespace-sqlite.test.ts` (7, real SQLite + SDK), `tests/unit/api/drafts-routes.test.ts` (14, routing/envelope/permission). `bun run test:parity --docker` passes on SQLite, PostgreSQL, MariaDB and MongoDB.
 
+#### Protected-branch E2E parity and bulk-download root fix
+
+- **`next` and `main` run the same browser gate**: `.githooks/pre-push` now runs the **full** E2E suite for both protected branches (feature branches keep the changed-path mapping + smoke). The targeted subset had let a media bulk-download 500 pass on `next` while the same commit failed on `main`; the two branches differ only in the release bump, so a green `next` now proves the same browser behaviour.
+- **Bulk download root disagreement fixed**: `src/utils/media/sharing.ts` resolved archives against `process.env.MEDIA_FOLDER || "uploads"` while uploads land under the configured folder (`resolveConfiguredMediaFolder()` → `mediaFolder`), so every row looked like a traversal and the endpoint returned 500. The archive now uses the canonical resolver, normalizes legacy `/files/` prefixes, and keeps the `sep`-based traversal guard. Regression tests: `tests/unit/media/sharing.test.ts` (4 new: configured-root archive, `/files/` prefix, traversal block, blocked-count message).
+- **SSE disconnects are warnings**: `content-sse.svelte.ts` and `global-settings.svelte.ts` log recoverable stream interruptions at `warn` level; an `error` entry tripped the E2E console guard and overstated a transient network event.
+
 #### Deliberately not claimed
 
 - **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).

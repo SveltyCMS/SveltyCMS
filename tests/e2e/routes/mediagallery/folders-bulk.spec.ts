@@ -254,12 +254,15 @@ test.describe("Media bulk actions", () => {
 
     await page.getByTestId("media-bulk-download").click();
     const res = await downloadApi;
-    expect([200, 400, 404, 500, 501]).toContain(res.status());
-    if (res.ok()) {
-      await expect(page.getByText(/archive download started|download/i).first()).toBeVisible({
-        timeout: 10_000,
-      });
-    }
+    // The harness stores media locally, so the archive must build. The previous
+    // permissive assertion accepted 500 — exactly how the "No valid files to
+    // archive" media-root mismatch stayed green on `next` while `main` failed.
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"]).toContain("application/gzip");
+    expect(res.headers()["content-disposition"]).toContain(".tar.gz");
+    await expect(page.getByText(/archive download started|download/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("Delete key bulk-deletes selection with confirm", async ({ page }) => {

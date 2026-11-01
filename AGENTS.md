@@ -120,7 +120,7 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`); local parity: `bun run test:parity` (add `--docker` to boot missing engines, `--require-all` to fail on skips) |
 | 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"`; flake gate: `bun run flake:budget`                                                                       |
 
-**Pre-push E2E is a contract set, not the whole suite** — `.githooks/pre-push` runs `tests/e2e/smoke.spec.ts` (auth → CRUD → persistence) and, depending on the changed paths, adds the contracts CI would otherwise catch first:
+**Protected branches run the full E2E suite** — a push to `next` or `main` runs every spec, because the two branches differ only in the release bump. A targeted subset once let a media bulk-download 500 through on `next` that the `main` gate caught, so targeted runs are now feature-branch only. Feature branches run `tests/e2e/smoke.spec.ts` (auth → CRUD → persistence) plus, depending on the changed paths, the contracts CI would otherwise catch first:
 
 | Changed paths                                                          | Added specs                                                                    |
 | :--------------------------------------------------------------------- | :----------------------------------------------------------------------------- |

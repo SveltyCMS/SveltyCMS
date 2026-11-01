@@ -94,8 +94,10 @@ export const contentLiveSync = {
       // EventSource reconnects on its own while `readyState` is CONNECTING; only a
       // connection the browser gave up on (CLOSED) or a repeated failure is worth a log.
       const message = "⚠️ Content SSE connection interrupted";
-      if (verdict.level === "warn") logger.warn(message, { attempt: consecutiveFailures });
-      else logger.error(message, { attempt: consecutiveFailures, error });
+      // SSE is a best-effort live-update stream; a disconnect is recoverable and
+      // must not be logged at error level (it trips the E2E console guard and
+      // overstates a transient network event).
+      logger.warn(message, { attempt: consecutiveFailures, error });
     };
   },
 

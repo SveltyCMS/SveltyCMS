@@ -3,8 +3,12 @@
  * @description Unit tests for secure media share link generation and validation.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { scryptSync } from "node:crypto";
+import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import {
   createLink,
   validateLink,
@@ -13,6 +17,8 @@ import {
   stats,
   filterLinks,
   newToken,
+  createBulkArchive,
+  cleanupArchive,
 } from "../../../src/utils/media/sharing";
 import {
   hashSharePassword,
@@ -198,5 +204,84 @@ describe("sharing — password hashing (scrypt + pepper)", () => {
     if (env) delete env.JWT_SECRET_KEY;
     expect(() => hashSharePassword("x")).toThrow(/JWT_SECRET_KEY/);
     if (hadKey) env.JWT_SECRET_KEY = TEST_JWT_SECRET;
+  });
+});
+
+describe("sharing — bulk archive root resolution", () => {
+  let mediaRoot: string;
+  const previousFolder = process.env.MEDIA_FOLDER;
+
+  beforeEach(async () => {
+    mediaRoot = await mkdtemp(join(tmpdir(), "svelty-share-"));
+    // `resolveConfiguredMediaFolder()` prefers the env folder under TEST_MODE,
+    // so this also exercises the canonical-resolver path the API uses.
+    process.env.MEDIA_FOLDER = mediaRoot;
+  });
+
+  afterEach(async () => {
+    if (previousFolder === undefined) delete process.env.MEDIA_FOLDER;
+    else process.env.MEDIA_FOLDER = previousFolder;
+    await rm(mediaRoot, { recursive: true, force: true });
+  });
+
+  function storedMedia(relPath: string, filename: string, bytes: Buffer) {
+    return {
+      _id: "media_1",
+      filename,
+      path: relPath,
+      size: bytes.length,
+      hash: "abc123",
+      mimeType: "image/jpeg",
+      type: "image",
+    } as any;
+  }
+
+  it("archives files stored under the configured media folder", async () => {
+    const relPath = "tenant1/abc123/original/photo-abc123.jpg";
+    const bytes = Buffer.from("hello-bulk-archive");
+    await mkdir(join(mediaRoot, "tenant1/abc123/original"), { recursive: true });
+    await writeFile(join(mediaRoot, relPath), bytes);
+
+    const archive = await createBulkArchive([storedMedia(relPath, "photo.jpg", bytes)], tmpdir());
+    try {
+      expect(archive.size).toBeGreaterThan(0);
+      const tar = gunzipSync(await readFile(archive.path));
+      const text = tar.toString("latin1");
+      expect(text).toContain("photo.jpg");
+      expect(text).toContain(bytes.toString("latin1"));
+    } finally {
+      await cleanupArchive(archive.path);
+    }
+  });
+
+  it("accepts legacy `/files/` URL prefixes", async () => {
+    const relPath = "tenant1/abc123/original/doc-abc123.txt";
+    const bytes = Buffer.from("legacy-prefix");
+    await mkdir(join(mediaRoot, "tenant1/abc123/original"), { recursive: true });
+    await writeFile(join(mediaRoot, relPath), bytes);
+
+    const archive = await createBulkArchive(
+      [storedMedia(`/files/${relPath}`, "doc.txt", bytes)],
+      tmpdir(),
+    );
+    try {
+      expect(archive.size).toBeGreaterThan(0);
+    } finally {
+      await cleanupArchive(archive.path);
+    }
+  });
+
+  it("blocks traversal outside the media folder", async () => {
+    const bytes = Buffer.from("nope");
+    await expect(
+      createBulkArchive([storedMedia("../../etc/passwd", "passwd", bytes)], tmpdir()),
+    ).rejects.toThrow(/No valid files to archive/);
+  });
+
+  it("reports the blocked count when every entry is rejected", async () => {
+    const bytes = Buffer.from("nope");
+    await expect(
+      createBulkArchive([storedMedia("../escape.jpg", "escape.jpg", bytes)], tmpdir()),
+    ).rejects.toThrow(/\(1 blocked\)/);
   });
 });

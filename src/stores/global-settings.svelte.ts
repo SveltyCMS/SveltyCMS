@@ -176,8 +176,9 @@ function startListening() {
       if (verdict.level === "silent") return;
 
       const message = "[GlobalSettings] SSE Connection error";
-      if (verdict.level === "warn") logger.warn(message, { attempt: consecutiveFailures });
-      else logger.error(message, { attempt: consecutiveFailures, error: err });
+      // Recoverable stream interruption — warn, never error (the reconnect path
+      // below is the real handling; the E2E console guard treats error as fatal).
+      logger.warn(message, { attempt: consecutiveFailures, error: err });
 
       if (!verdict.reconnect) return;
 

@@ -17,12 +17,13 @@ import type { DatabaseId, ISODateString } from "@src/content/types";
 import { nowISODateString } from "@src/utils/date";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, stat, unlink } from "node:fs/promises";
-import { join, resolve, normalize } from "node:path";
+import { isAbsolute, join, resolve, normalize, sep } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { createGzip } from "node:zlib";
 import { logger } from "@utils/logger";
 import { raise } from "@utils/error-handling";
 import type { StoredMedia } from "./media-models";
+import { resolveConfiguredMediaFolder } from "./storage-adapters";
 import { constantTimeBufferEqual } from "@utils/security/constant-time";
 
 function hashToken(raw: string): string {
@@ -202,16 +203,34 @@ export function filterLinks(links: ShareLink[]): {
 
 // ─── Bulk download (TAR.GZ archive) ───────────────────────────────────────────
 
-/** Resolve the canonical media storage root (defense-in-depth). */
+/**
+ * Resolve the canonical media storage root.
+ *
+ * Must agree with the storage adapters (`resolveConfiguredMediaFolder`) — a
+ * separate `process.env.MEDIA_FOLDER || "uploads"` fallback resolved under
+ * `uploads/` while every uploaded row lives under the configured folder
+ * (`mediaFolder`), so the archive saw zero valid files and returned 500.
+ */
 function _resolveMediaRoot(): string {
-  return resolve(process.cwd(), process.env.MEDIA_FOLDER || "uploads");
+  const configured = (resolveConfiguredMediaFolder() || "mediaFolder").trim();
+  if (isAbsolute(configured)) return resolve(configured);
+  const relative = configured.replace(/^\.\//, "").replace(/^\/+|\/+$/g, "");
+  return resolve(process.cwd(), relative);
 }
 
 /** 🔒 Validate a stored path doesn't escape the media root. */
 function _safeResolve(storedPath: string): string | null {
-  const resolved = normalize(resolve(_resolveMediaRoot(), storedPath));
-  const root = resolve(_resolveMediaRoot()) + "/";
-  return resolved.startsWith(root) ? resolved : null;
+  // Rows store storage-relative paths (`{tenant}/{hash}/original/…`), but legacy
+  // records may carry a `/files/` URL prefix. Normalise before resolving.
+  const relative = storedPath.replace(/^\/files\//, "").replace(/^\/+/, "");
+  if (!relative) return null;
+
+  const root = _resolveMediaRoot();
+  const resolved = normalize(resolve(root, relative));
+  // Use the platform separator: `resolve()` emits backslashes on Windows, so a
+  // hard-coded `/` made every valid file look like a traversal and the bulk
+  // archive returned 500 ("No valid files to archive").
+  return resolved.startsWith(root + sep) ? resolved : null;
 }
 
 /** Largest file size representable in the 11-octal-digit TAR size field (~8 GiB). */
