@@ -782,10 +782,16 @@ async function signUpInternal(event: RequestEvent, input: any) {
  * never be the default: the setup wizard makes SMTP optional, so on any such install an anonymous
  * visitor could reset the administrator password and sign in with it (audit 2026-10-31, B1).
  * Opt in explicitly with ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE=true outside production.
+ *
+ * Read at CALL time, not at module scope: a value captured on import is frozen for the lifetime of
+ * the process, and a server bundle built in development can be started as a production process —
+ * the flag alone would then be the only thing standing between an anonymous visitor and an
+ * administrator password reset. Passing the env object in as an argument also keeps the bundler from
+ * inlining `process.env.NODE_ENV` into the server build.
  */
-const RESET_LINK_IN_RESPONSE =
-  process.env.NODE_ENV !== "production" &&
-  process.env.ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE === "true";
+function resetLinkExposureAllowed(env: Record<string, string | undefined> = process.env): boolean {
+  return env.ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE === "true" && env.NODE_ENV !== "production";
+}
 
 async function forgotPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
@@ -814,8 +820,8 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
   }
 
   // Without an email provider a reset request is only a no-op message: no token is minted and no
-  // link leaves the server, unless a developer opted in locally (see RESET_LINK_IN_RESPONSE).
-  const exposeResetLink = !smtpConfigured && RESET_LINK_IN_RESPONSE;
+  // link leaves the server, unless a developer opted in locally (see resetLinkExposureAllowed).
+  const exposeResetLink = !smtpConfigured && resetLinkExposureAllowed();
   let resetLink: string | undefined;
 
   try {

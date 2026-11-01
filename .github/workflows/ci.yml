@@ -742,6 +742,10 @@ jobs:
       # L1/L2 buckets still run and still enforce whatever ceiling is configured.
       RATE_LIMIT_MAX_REQUESTS: "1000000"
       RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000"
+      # The login E2E drives the in-page reset form, which sign-in.svelte only renders while the
+      # server may return the reset link (off by default since the B1 fix). Test-only opt-in —
+      # this process never runs as production (no NODE_ENV here).
+      ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true"
       NODE_OPTIONS: "--max-old-space-size=4096"
     steps:
       - uses: actions/checkout@v7
@@ -1000,6 +1004,9 @@ jobs:
           PORT: 4173
           ORIGIN: http://127.0.0.1:4173
           SKIP_E2E_DEPS: "true"
+          # The login E2E drives the in-page reset form, which sign-in.svelte only renders while
+          # the server may return the reset link (off by default since the B1 fix). Test-only.
+          ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true"
           # Tests must never be throttled (configuration, not a code bypass).
           RATE_LIMIT_MAX_REQUESTS: "1000000"
           RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000"
@@ -1156,6 +1163,8 @@ jobs:
           PORT: 4173
           ORIGIN: http://127.0.0.1:4173
           SKIP_E2E_DEPS: "true"
+          # Same login E2E contract as the shards above: the probe repeats the newest specs.
+          ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true"
           RATE_LIMIT_MAX_REQUESTS: "1000000"
           RATE_LIMIT_COMMERCE_MAX_REQUESTS: "1000000"
           NODE_OPTIONS: "--max-old-space-size=4096"

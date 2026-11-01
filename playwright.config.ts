@@ -107,6 +107,10 @@ export default defineConfig({
         env: {
           PLAYWRIGHT_TEST: "1",
           TEST_MODE: "true",
+          // The in-page "enter a new password" form only exists while the server is allowed to
+          // return the reset link, which the B1 fix defaults to OFF. E2E drives that real form, so
+          // the harness opts in the same way a developer does locally — test-only, never production.
+          ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true",
           DB_TYPE: process.env.DB_TYPE || "sqlite",
           DB_HOST: process.env.DB_HOST || "127.0.0.1",
           DB_NAME: process.env.DB_NAME || "e2e_auth_test",
