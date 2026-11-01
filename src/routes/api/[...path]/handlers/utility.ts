@@ -392,6 +392,12 @@ async function handleTrashRoutes(
               ...item,
               collectionId: schema._id,
               collectionName: schema.name || schema._id,
+              // SQL engines implement soft delete as `isDeleted = true` + `updatedAt`
+              // and never write the `deletedAt`/`deletedBy` pair, so the trash table
+              // rendered "System" and an empty date for those rows. Fall back to the
+              // soft-delete stamp that IS there.
+              deletedAt: item.deletedAt ?? item.updatedAt ?? null,
+              deletedBy: item.deletedBy ?? item.updatedBy ?? null,
             }))
           : [];
       });

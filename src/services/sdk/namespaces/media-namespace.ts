@@ -201,6 +201,61 @@ export class MediaNamespace {
     return result;
   }
 
+  /**
+   * Hydrate many media documents by id in ONE query.
+   *
+   * The Media widget's display pillar renders one cell per list row; going
+   * through `findById` per cell cost one request (and one point read) per row.
+   * Documents already in the per-request cache are served from there, the rest
+   * come from a single `findMany` — enriched exactly like `findById` so callers
+   * cannot tell the two apart.
+   */
+  async findManyByIds(
+    fileIds: readonly string[],
+    options: FindByIdOptions = {},
+  ): Promise<DatabaseResult<MediaItem[]>> {
+    const { tenantId, prefix } = options;
+    if (isMultiTenantEnabled() && !tenantId) {
+      throw new AppError("Tenant ID required", 400, "TENANT_MISSING");
+    }
+
+    const ids = [...new Set(fileIds.filter((id): id is string => Boolean(id)))];
+    const items: MediaItem[] = [];
+    const missing: string[] = [];
+
+    for (const id of ids) {
+      const cached = MediaNamespace._requestCache.get(`${tenantId ?? "global"}:media:${id}`);
+      const cachedItem = cached?.success ? (cached.data as MediaItem | null) : null;
+      if (cachedItem) items.push(cachedItem);
+      else missing.push(id);
+    }
+
+    if (missing.length === 0) return { success: true, data: items };
+
+    const result = await this._dbAdapter.crud.findMany<MediaItem>(
+      "media",
+      { _id: { $in: missing as any } },
+      { tenantId: tenantId as DatabaseId },
+    );
+
+    if (!result.success || !Array.isArray(result.data))
+      return result as DatabaseResult<MediaItem[]>;
+
+    for (const item of result.data) {
+      const enriched = this.mediaService.enrichMediaWithUrl(
+        item as any,
+        prefix,
+      ) as unknown as MediaItem;
+      items.push(enriched);
+      MediaNamespace._requestCache.set(`${tenantId ?? "global"}:media:${enriched._id}`, {
+        success: true,
+        data: enriched,
+      });
+    }
+
+    return { success: true, data: items };
+  }
+
   async exists(url: string, tenantId?: DatabaseId | null): Promise<boolean> {
     if (!url) return false;
     // 🚀 AGNOSTIC FIX: Handle both 'url' (Mongo) and 'path' (SQL) field names

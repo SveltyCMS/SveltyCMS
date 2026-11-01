@@ -10,21 +10,22 @@ Renders selected media files as thumbnails for display purposes.
 - `compact: boolean` - Use the dense 28px table-cell variant (defaults to true).
 
 ### Features
-- **Envelope-safe fetch**: `/api/media/:id` answers `{ success, data }`; the
-  document is unwrapped before reading `filename`/`thumbnails`/`size`.
+- **Batched hydration**: media documents are fetched through the shared
+  `loadMediaDocs()` coalescer — one `GET /api/media/batch-get?ids=…` for a whole
+  table page instead of one `GET /api/media/:id` per row. The envelope
+  (`{ success, data }`) is unwrapped before reading `filename`/`thumbnails`/`size`.
 - **Thumbnail Display**: Shows small thumbnails with a file-name tooltip.
 - **Multi-select summary**: Collapses to the first three thumbnails plus a `+N` chip.
 - **Fallback Handling**: Displays an en dash when no media is selected and a
   file-type icon when the asset has no previewable thumbnail.
-- **Caching**: One shared per-page cache, so a table with many rows does not
-  re-fetch the same media document per cell.
+- **Caching**: One shared per-page cache, so a table with many rows never
+  re-fetches the same media document per cell.
 -->
 
 <script lang="ts">
-	import { logger } from '@utils/logger';
 	import { mediaDisplayUrl } from '@utils/media/media-utils';
 	import type { MediaFile } from './types';
-	import { mediaCache } from './media-cache';
+	import { loadMediaDocs, mediaCache } from './media-cache';
 
 	interface Props {
 		value?: unknown;
@@ -92,29 +93,21 @@ Renders selected media files as thumbnails for display purposes.
 		if (pending.length === 0) return;
 
 		const fetchAll = async () => {
+			// Route through the coalescer: a table with N rows asks for N ids in the
+			// same task and gets ONE `/api/media/batch-get` request instead of N
+			// `/api/media/:id` calls.
+			const docs = await loadMediaDocs(pending);
+			if (token !== requestToken) return;
+
 			const fetched: MediaFile[] = [];
 			for (const id of pending) {
-				try {
-					const response = await fetch(`/api/media/${encodeURIComponent(id)}`);
-					if (!response.ok) continue;
-
-					const payload = (await response.json()) as
-						| Record<string, unknown>
-						| { data?: Record<string, unknown> };
-					// Unwrap the API envelope — reading `filename` off `{ success, data }`
-					// left every field undefined and rendered a broken image.
-					const found = (payload?.data ?? payload) as Record<string, unknown> | null;
-					if (!found || typeof found !== 'object') continue;
-
-					const file = toMediaFile(found, id);
-					mediaCache.set(id, file);
-					fetched.push(file);
-				} catch (e) {
-					logger.error(`Failed to fetch media ${id}`, e);
-				}
+				const found = docs.get(id);
+				if (!found) continue;
+				const file = toMediaFile(found, id);
+				mediaCache.set(id, file);
+				fetched.push(file);
 			}
 
-			if (token !== requestToken) return;
 			files = [...resolved, ...fetched];
 		};
 

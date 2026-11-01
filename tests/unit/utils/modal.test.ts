@@ -196,7 +196,7 @@ describe("Modal Utilities", () => {
         ConfirmDialog,
         expect.objectContaining({
           htmlTitle: "Clone Items",
-          body: expect.stringContaining("3 item(s)"),
+          body: expect.stringContaining("3 items"),
           buttonTextConfirm: "Clone",
         }),
         expect.any(Function),
