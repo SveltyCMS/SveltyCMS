@@ -46,6 +46,21 @@ export interface CollectionQueryParams {
   includeCount: boolean;
 }
 
+/** `filter[` prefix of the bracket filter syntax (`filter[title][contains]`). */
+const FILTER_BRACKET_PREFIX = "filter[";
+
+/**
+ * Split `filter[field]` / `filter[field][operator]` into its parts.
+ * Returns an empty field for malformed keys (`filter[]`, `filter][x`).
+ */
+function splitFilterBracketKey(key: string): [string, string | undefined] {
+  const inner = key.slice(FILTER_BRACKET_PREFIX.length, -1);
+  const separator = inner.indexOf("][");
+  if (separator === -1) return [inner.trim(), undefined];
+  const operator = inner.slice(separator + 2).trim();
+  return [inner.slice(0, separator).trim(), operator || undefined];
+}
+
 function parseCommaSeparatedList(value: string): string[] {
   if (!value.includes(",")) {
     const trimmed = value.trim();
@@ -116,8 +131,25 @@ export function parseCollectionQueryParams(searchParams: URLSearchParams): Colle
       stream = value === "true";
     } else if (key === "includeCount") {
       includeCount = value === "true";
-    } else if (key.startsWith("filter[")) {
-      filter[key.slice(7, -1)] = value;
+    } else if (key.startsWith(FILTER_BRACKET_PREFIX)) {
+      // `filter[field]=v` (equality-shaped, decoded by the adapter) and
+      // `filter[field][operator]=v` (contains / eq / ne / gt / lt / in …).
+      // The old `slice(7, -1)` left the operator glued to the field name
+      // (`title][contains`), so every operator-aware filter the playground sent
+      // was rejected by the field whitelist and the query ran unfiltered.
+      const [field, operator] = splitFilterBracketKey(key);
+      if (!field) continue;
+      if (!operator) {
+        filter[field] = value;
+        continue;
+      }
+      const current = filter[field];
+      const operators =
+        current && typeof current === "object" && !Array.isArray(current)
+          ? { ...(current as Record<string, unknown>) }
+          : {};
+      operators[operator] = operator === "in" ? parseCommaSeparatedList(value) : value;
+      filter[field] = operators;
     } else if (key === "filter") {
       try {
         Object.assign(filter, JSON.parse(value));

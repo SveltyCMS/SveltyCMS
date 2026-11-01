@@ -43,6 +43,10 @@
 		api_vqb_value_placeholder
 	} from '@src/paraglide/messages';
 	import { generateUUID } from '@utils/native-utils';
+	import {
+		buildCollectionRestUrl,
+		type PlaygroundFilterRow
+	} from '@utils/api-playground/rest-query-url';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -52,11 +56,8 @@
 		collections: Array<{ id: string; name: string; icon?: string }>;
 	}
 
-	interface FilterRow {
+	interface FilterRow extends PlaygroundFilterRow {
 		id: string;
-		field: string;
-		operator: 'eq' | 'ne' | 'contains' | 'gt' | 'lt' | 'in';
-		value: string;
 	}
 
 	let { collections }: Props = $props();
@@ -81,27 +82,19 @@
 	let executeStatus = $state<number | null>(null);
 	let executeDuration = $state<number | null>(null);
 
-	// Generated REST query URL
-	const generatedRestUrl = $derived.by(() => {
-		const params = new URLSearchParams();
-		for (const f of filters) {
-			if (f.field.trim() && f.value.trim()) {
-				if (f.operator === 'eq') {
-					params.set(`filter[${f.field}]`, f.value);
-				} else {
-					params.set(`filter[${f.field}][${f.operator}]`, f.value);
-				}
-			}
-		}
-		if (sortField) {
-			params.set('sort', `${sortOrder === 'desc' ? '-' : ''}${sortField}`);
-		}
-		if (limit) params.set('limit', String(limit));
-		if (skip > 0) params.set('skip', String(skip));
-
-		const query = params.toString();
-		return `/api/collections/${selectedCollection}/entries${query ? `?${query}` : ''}`;
-	});
+	// Generated REST query URL — one request target per "Run" click, built by a
+	// pure helper so the filter/sort/paging contract is unit-tested against the
+	// route that consumes it (`/api/collections/{name}`, never `.../entries`).
+	const generatedRestUrl = $derived(
+		buildCollectionRestUrl({
+			collectionId: selectedCollection,
+			filters,
+			sortField,
+			sortOrder,
+			limit,
+			offset: skip
+		})
+	);
 
 	// Generated GraphQL query
 	const generatedGraphql = $derived.by(() => {

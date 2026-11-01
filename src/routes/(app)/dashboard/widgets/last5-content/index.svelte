@@ -86,7 +86,7 @@
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/dashboard/last5"
+	endpoint="/api/dashboard/last5-content"
 	pollInterval={30000}
 	{icon}
 	{widgetId}

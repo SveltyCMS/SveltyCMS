@@ -25,7 +25,9 @@ import {
   googleAuth,
 } from "@src/databases/auth/google-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { isAdmin, readSessionCookie } from "@src/databases/auth/constants";
+import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
+import { resolvePostAuthLandingPath } from "@utils/auth/post-auth-landing";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import type { PageServerLoad } from "./$types";
@@ -256,7 +258,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     // If already authenticated, redirect to the intended destination or default
     if (locals.user) {
-      const returnTo = safeRedirect(url.searchParams.get("redirect"), "/config/collectionbuilder");
+      // Same landing rule as the login commands: a role without the
+      // collection-builder permission would get a 403 from the builder page.
+      const returnTo = safeRedirect(
+        url.searchParams.get("redirect"),
+        resolvePostAuthLandingPath({
+          role: locals.user.role,
+          isAdmin: locals.isAdmin === true || isAdmin(locals.user),
+          canBuildCollections: hasCollectionBuilderPermission(
+            locals.user,
+            locals.roles ?? [],
+            locals.isAdmin === true,
+          ),
+        }),
+      );
       throw redirect(302, returnTo);
     }
 
@@ -417,7 +432,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
               logger.debug("Google user attribute update failed silently");
             });
 
-          throw redirect(303, "/config/collectionbuilder");
+          throw redirect(
+            303,
+            resolvePostAuthLandingPath({
+              role: existingUser.role,
+              isAdmin: isAdmin(existingUser),
+            }),
+          );
         }
       } catch (err: any) {
         if (isRedirect(err)) throw err;
