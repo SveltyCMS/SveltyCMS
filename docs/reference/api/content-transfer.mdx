@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:package-variant-closed"
 author: "SveltyCMS Team"
 created: "2026-07-10"
-updated: "2026-07-10"
+updated: "2026-11-01"
 tags:
   - "api"
   - "content"
@@ -40,7 +40,7 @@ The Content Transfer API provides a plan-first, streaming workflow for exporting
 | **Import Job Status** | `/api/content-import/jobs/:jobId`     | `GET`  | `content:read`   |
 
 > [!NOTE]
-> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `content-export`/`content-import` entries map `POST` to their own id, everything else to `content:read`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `content-export`/`content-import` entries map `POST` to their own id, everything else to `content:read`). Admin UI tiles resolve through their own map (`src/routes/(app)/config/config-tile-permissions.ts`), which points at real `PERMISSION_CATALOG` ids (`system:admin` for admin-only pages) — the two contracts are separate.
 
 ---
 

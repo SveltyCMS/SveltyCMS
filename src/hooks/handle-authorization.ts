@@ -34,6 +34,8 @@ import { testWorkerContext } from "@utils/test-worker-context";
 import { rememberTurboSessionSurface, setTurboAuthContext } from "./handle-turbo-get";
 import { seedRoleTiers } from "@utils/rate-limit/role-tiers";
 import { invalidateRoleBitsetsGlobally } from "@src/databases/auth/permission-bitmask";
+import { FastLRU } from "@utils/native-utils";
+import { lazyModule } from "@utils/lazy-module";
 
 const IS_BUN_TEST =
   typeof globalThis !== "undefined" && !!(globalThis as any).process?.env?.BUN_TEST;
@@ -42,21 +44,31 @@ const IS_TEST_MODE =
   ((globalThis as any).process?.env?.TEST_MODE === "true" ||
     (globalThis as any).process?.env?.VITE_TEST_MODE === "true");
 
-let multiTenantCached: boolean | null = null;
-const userCountCache = new Map<string, { count: number; timestamp: number }>();
-const rolesCache = new Map<string, { data: Role[]; timestamp: number }>();
-
 // Bounded capacity — per-tenant keys must never grow without bound in
-// multi-tenant deployments (plain Maps would leak memory over time).
+// multi-tenant deployments (FastLRU evicts least-recently-used at capacity).
 const MAX_CACHE_ENTRIES = 1000;
 
-/** Insert into a bounded Map, evicting the oldest key at capacity. */
-function setBoundedCache<K, V>(map: Map<K, V>, key: K, value: V): void {
-  if (map.size >= MAX_CACHE_ENTRIES) {
-    const oldestKey = map.keys().next().value;
-    if (oldestKey !== undefined) map.delete(oldestKey);
+let multiTenantCached: boolean | null = null;
+const userCountCache = new FastLRU<string, { count: number; timestamp: number }>({
+  max: MAX_CACHE_ENTRIES,
+});
+const rolesCache = new FastLRU<string, { data: Role[]; timestamp: number }>({
+  max: MAX_CACHE_ENTRIES,
+});
+
+const roleLookupCache = new WeakMap<Role[], Map<string, Role>>();
+
+function getRoleLookupMap(roles: Role[]): Map<string, Role> {
+  let map = roleLookupCache.get(roles);
+  if (map) return map;
+  map = new Map<string, Role>();
+  for (let i = 0; i < roles.length; i++) {
+    const r = roles[i];
+    if (r._id != null) map.set(String(r._id).toLowerCase(), r);
+    if (r.name) map.set(r.name.toLowerCase(), r);
   }
-  map.set(key, value);
+  roleLookupCache.set(roles, map);
+  return map;
 }
 
 /**
@@ -64,11 +76,9 @@ function setBoundedCache<K, V>(map: Map<K, V>, key: K, value: V): void {
  * user.role may hold a role id ("role_admin") or a role name ("admin").
  */
 function findMatchingRole(roles: Role[], targetRole: unknown): Role | undefined {
-  if (!targetRole) return undefined;
+  if (!targetRole || roles.length === 0) return undefined;
   const targetStr = String(targetRole).toLowerCase();
-  return roles.find(
-    (r: Role) => String(r._id).toLowerCase() === targetStr || r.name?.toLowerCase() === targetStr,
-  );
+  return getRoleLookupMap(roles).get(targetStr);
 }
 
 /**
@@ -138,12 +148,7 @@ export function checkMfaRequirement(
 const inflightUserCounts = new Map<string, Promise<number>>();
 const inflightRoles = new Map<string, Promise<Role[]>>();
 
-let cachedDefaultRoles: typeof import("@src/databases/auth/default-roles") | null = null;
-
-async function getDefaultRoles() {
-  if (!cachedDefaultRoles) cachedDefaultRoles = await import("@src/databases/auth/default-roles");
-  return cachedDefaultRoles;
-}
+const getDefaultRoles = lazyModule(() => import("@src/databases/auth/default-roles"));
 
 function getCachedMultiTenant() {
   if (multiTenantCached === null) multiTenantCached = isMultiTenantEnabled();
@@ -176,7 +181,7 @@ async function getCachedUserCount(
         timestamp: number;
       }>(`userCount:${key}`, tenantId ?? undefined);
       if (cachedDist && now - cachedDist.timestamp < USER_COUNT_CACHE_TTL_MS) {
-        setBoundedCache(userCountCache, key, cachedDist);
+        userCountCache.set(key, cachedDist);
         return cachedDist.count;
       }
 
@@ -189,7 +194,7 @@ async function getCachedUserCount(
       const count = await auth.getUserCount(filter, bypassOpts);
       if (count < 0) return count;
       const cacheData = { count, timestamp: now };
-      setBoundedCache(userCountCache, key, cacheData);
+      userCountCache.set(key, cacheData);
       await cacheService.set(
         `userCount:${key}`,
         cacheData,
@@ -250,7 +255,7 @@ async function getCachedRoles(tenantId?: DatabaseId | null): Promise<Role[]> {
       if (!data?.length) return [];
       seedRoleTiers(data);
       const cacheData = { data, timestamp: now };
-      setBoundedCache(rolesCache, key, cacheData);
+      rolesCache.set(key, cacheData);
       await cacheService.set(
         `roles:${key}`,
         cacheData,

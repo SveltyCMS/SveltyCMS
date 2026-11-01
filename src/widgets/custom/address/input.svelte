@@ -33,7 +33,6 @@ Part of the Three Pillars Architecture for the widget system.
 		widget_address_lng,
 		widget_address_street_placeholder
 	} from '@src/paraglide/messages';
-	import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
@@ -192,8 +191,9 @@ Part of the Three Pillars Architecture for the widget system.
 
 	// --- 1. GOOGLE MAPS IMPLEMENTATION ---
 	async function initGoogleMap() {
-		setOptions({ key: googleMapsApiKey, v: 'weekly', libraries: ['places'] });
 		try {
+			const { importLibrary, setOptions } = await import('@googlemaps/js-api-loader');
+			setOptions({ key: googleMapsApiKey, v: 'weekly', libraries: ['places'] });
 			const { Map } = (await importLibrary('maps')) as google.maps.MapsLibrary;
 			const { Marker } = (await importLibrary('marker')) as google.maps.MarkerLibrary;
 			const { Autocomplete } = (await importLibrary('places')) as google.maps.PlacesLibrary;

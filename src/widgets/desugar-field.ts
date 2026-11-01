@@ -232,8 +232,7 @@ function evaluateSingleRule(rule: ConditionRule, data: Record<string, unknown>):
         return targetValue.some((item) => String(item) === String(actualValue));
       }
       if (typeof targetValue === "string") {
-        const set = targetValue.split(",").map((s) => s.trim().toLowerCase());
-        return set.includes(String(actualValue ?? "").toLowerCase());
+        return getRuleTargetSet(rule, targetValue).has(String(actualValue ?? "").toLowerCase());
       }
       return false;
     }
@@ -243,8 +242,7 @@ function evaluateSingleRule(rule: ConditionRule, data: Record<string, unknown>):
         return !targetValue.some((item) => String(item) === String(actualValue));
       }
       if (typeof targetValue === "string") {
-        const set = targetValue.split(",").map((s) => s.trim().toLowerCase());
-        return !set.includes(String(actualValue ?? "").toLowerCase());
+        return !getRuleTargetSet(rule, targetValue).has(String(actualValue ?? "").toLowerCase());
       }
       return true;
     }
@@ -252,6 +250,20 @@ function evaluateSingleRule(rule: ConditionRule, data: Record<string, unknown>):
     default:
       return true;
   }
+}
+
+const ruleTargetSetCache = new WeakMap<ConditionRule, { raw: string; set: Set<string> }>();
+
+function getRuleTargetSet(rule: ConditionRule, targetValue: string): Set<string> {
+  const cached = ruleTargetSetCache.get(rule);
+  if (cached && cached.raw === targetValue) return cached.set;
+  const set = new Set<string>();
+  const parts = targetValue.split(",");
+  for (let i = 0; i < parts.length; i++) {
+    set.add(parts[i].trim().toLowerCase());
+  }
+  ruleTargetSetCache.set(rule, { raw: targetValue, set });
+  return set;
 }
 
 /**
@@ -368,6 +380,16 @@ function deepMergeMetadata(
 }
 
 const sugarTypeRegistry = new Map<string, SugarTypeBuilder>();
+const sugarKeysSetCache = new WeakMap<SugarTypeBuilder, Set<string>>();
+
+function getSugarKeysSet(builder: SugarTypeBuilder): Set<string> {
+  let set = sugarKeysSetCache.get(builder);
+  if (!set) {
+    set = new Set(builder.sugarKeys);
+    sugarKeysSetCache.set(builder, set);
+  }
+  return set;
+}
 
 /** Register a sugar type builder. Plugins can call this to add their own. */
 export function registerSugarType(builder: SugarTypeBuilder): void {
@@ -489,6 +511,7 @@ export function desugarFieldType(authoredField: BaseField): Record<string, unkno
   const built = builder.build(authoredField);
 
   // Strip sugarKeys from the authored field — they get folded into the built shape
+  const sugarKeySet = getSugarKeysSet(builder);
   const stripped: Record<string, unknown> = {};
   for (const key of Object.keys(authoredField)) {
     if (key === "type") {
@@ -496,7 +519,7 @@ export function desugarFieldType(authoredField: BaseField): Record<string, unkno
       // field has its own type (usually 'object').
       continue;
     }
-    if (builder.sugarKeys.includes(key)) {
+    if (sugarKeySet.has(key)) {
       // Sugar-only keys — already handled by the builder
       continue;
     }

@@ -6,7 +6,7 @@ order: 101
 icon: "mdi:format-pilcrow-arrow-right"
 author: "admin"
 created: "2025-01-15"
-updated: "2025-01-15"
+updated: "2026-11-01"
 tags:
   - widget
   - core
@@ -270,6 +270,24 @@ const safeHTML = DOMPurify.sanitize(richTextContent, {
   ALLOWED_ATTR: ["href", "src", "alt", "title"],
 });
 ```
+
+---
+
+## Value ↔ Editor Sync
+
+TipTap serializes its default left alignment as `style="text-align: left;"`, while content written through REST or an import is often a plain `<p>…</p>`. Comparing the two HTML strings verbatim made the value/editor effect bounce until Svelte threw `effect_update_depth_exceeded`.
+
+`src/widgets/core/rich-text/normalize-html.ts` is a comparison-only normalizer (it never rewrites what is stored):
+
+| Rule               | Behaviour                                                                                                    |
+| :----------------- | :----------------------------------------------------------------------------------------------------------- |
+| Empty documents    | `<p></p>`, `<p><br></p>` and styled empty paragraphs normalize to `''`                                       |
+| Default alignment  | drops **only** `text-align: left` / `text-align: start` from a `style` attribute                             |
+| Real alignment     | `center`, `right` and `justify` are preserved, so they still differ from plain HTML and still trigger a sync |
+| Other declarations | color, font, padding and every other declaration are kept in source order                                    |
+| Empty result       | a `style` attribute left with no declarations is removed                                                     |
+
+`isSameHtml()` wraps the comparison for the two sites in the widget. The module is regex-based (no DOM parser), so the same comparison runs on the server and in the browser.
 
 ---
 
@@ -670,6 +688,10 @@ interface RichTextData {
 ---
 
 ## Changelog
+
+### Unreleased (2026-11-01)
+
+- ✅ **Sync-loop fix**: value/editor comparison goes through `normalize-html.ts` (`isSameHtml()`), which ignores TipTap's default `text-align: left|start` while keeping real alignment and every other declaration. Content that is stored as a plain `<p>` no longer bounces against the editor's serialized HTML.
 
 ### Version 1.0.0 (2025-01-15)
 

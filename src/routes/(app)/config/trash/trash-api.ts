@@ -4,16 +4,10 @@
  */
 
 import { fetchApi, type ApiResponse } from "@utils/api";
+import type { TrashItem } from "@utils/trash-item";
 
-export interface TrashItem {
-  _id: string;
-  title?: string;
-  name?: string;
-  collectionId: string;
-  collectionName?: string;
-  deletedAt?: string;
-  deletedBy?: string;
-}
+// One row shape for the SSR load, the API projection and the browser client.
+export type { TrashItem } from "@utils/trash-item";
 
 export function unwrapTrashList(result: ApiResponse<unknown>): TrashItem[] {
   if (!result.success) return [];

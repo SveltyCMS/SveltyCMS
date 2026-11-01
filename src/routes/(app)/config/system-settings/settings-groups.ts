@@ -104,6 +104,9 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        // Placeholder = documented default (docs/reference/security/secrets-inventory.mdx).
+        // The field fallback uses it, so a fresh install shows 600 s instead of `min` 1 s.
+        placeholder: "600",
         unit: "seconds",
       },
       {
@@ -114,6 +117,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        placeholder: "600",
         unit: "seconds",
       },
       {
@@ -124,6 +128,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        placeholder: "300",
         unit: "seconds",
       },
       {
@@ -134,6 +139,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        placeholder: "180",
         unit: "seconds",
       },
       {
@@ -144,6 +150,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        placeholder: "300",
         unit: "seconds",
       },
       {
@@ -154,6 +161,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        placeholder: "86400",
         unit: "seconds",
       },
       {
@@ -164,6 +172,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        placeholder: "60",
         unit: "seconds",
       },
       {
@@ -174,6 +183,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "private",
         min: 1,
         max: 86_400,
+        placeholder: "300",
         unit: "seconds",
       },
     ],

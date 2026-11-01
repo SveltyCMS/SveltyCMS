@@ -32,6 +32,15 @@ export interface CachedResponseEntry {
    * HIT path. Point-reads of the written id are still dropped (not marked stale).
    */
   stale?: boolean;
+  /**
+   * Collection generation captured when the body was written (never set on
+   * point-reads). A list/GraphQL body can outlive its L1 slot — capacity-gated
+   * admission rejects the key, or FIFO eviction drops it — while the shared L2
+   * copy survives and is no longer reachable through `listIndex`/`graphqlIndex`.
+   * Comparing this against the live collection epoch on refill is what stops a
+   * superseded list from being resurrected by the next `get()`.
+   */
+  gen?: number;
 }
 
 /** 31-bit zero-allocation positive Smi hash for point admission tracking. */
@@ -419,9 +428,16 @@ export function collectionResponseCacheTags(
 }
 
 export interface InvalidateLocalOpts {
-  /** When set, drop only these document turbo keys; lists/GraphQL are marked stale. */
+  /** When set, drop only these document turbo keys; lists/GraphQL are always evicted. */
   entryIds?: Iterable<string>;
 }
+
+/**
+ * Synthetic epoch scope for GraphQL bodies. A GraphQL document can span any
+ * number of collections, so every write invalidates all of them; the epoch is
+ * the only way to fence a GraphQL L2 body that is no longer in `graphqlIndex`.
+ */
+const GRAPHQL_CACHE_SCOPE = "__graphql__";
 
 class ResponseCacheService {
   private localL1 = new Map<string, CachedResponseEntry>();
@@ -456,6 +472,12 @@ class ResponseCacheService {
   /** Secondary index: `${tenant}\0${collection}` → Set of entry keys (`${tenant}\0${collection}\0${id}`). Enables O(1) collection purges. */
   private collectionEntriesIndex = new Map<string, Set<string>>();
   private graphqlIndex = new Map<string, Set<string>>();
+  /**
+   * Tenants that have written a GraphQL body to shared L2. `invalidateLocal`
+   * only bumps the synthetic GraphQL epoch when it can actually fence such a
+   * body, so write-only workloads (no GraphQL readers) pay no extra cache write.
+   */
+  private graphqlL2Tenants = new Set<string>();
   /**
    * Exact byte usage per tier (entries ↔ L1 stores). Every insert/delete path
    * goes through `putEntry` / `removeEntry`, so the counters cannot drift:
@@ -567,6 +589,38 @@ class ResponseCacheService {
 
   private buildKey(key: string, tenantId?: string | null): string {
     return `${tenantId || "default"}:res:${key}`;
+  }
+
+  /** Epoch scope a classified key belongs to, or null when it is not fenced. */
+  private generationScope(slot: TurboKeyClass | null): string | null {
+    if (!slot || slot.entryId) return null;
+    return slot.graphql ? GRAPHQL_CACHE_SCOPE : (slot.collection ?? null);
+  }
+
+  /**
+   * True when a body refilled from shared L2 still belongs to the live
+   * collection generation. Entries written before this fence existed carry no
+   * `gen` and are accepted — they expire within the API TTL.
+   */
+  private generationMatches(
+    entry: CachedResponseEntry,
+    key: string,
+    tenantId?: string | null,
+  ): boolean {
+    if (entry.gen === undefined) return true;
+    const scope = this.generationScope(classifyTurboKey(key));
+    if (scope === null) return true;
+    return entry.gen === cacheService.getCollectionEpoch(scope, tenantId);
+  }
+
+  /**
+   * Drop a shared-L2 list body whose collection generation has moved on. The key
+   * is absent from `listIndex`/`graphqlIndex` when admission rejected it or FIFO
+   * eviction unindexed it, so `invalidateLocal` could not reach it — the read
+   * epoch check is the only thing that can delete it.
+   */
+  private dropSupersededL2(key: string, tenantId?: string | null): void {
+    void cacheService.delete(`res:${key}`, tenantId).catch(() => {});
   }
 
   private indexKey(fullKey: string, userKey: string, tenantId?: string | null): void {
@@ -710,14 +764,27 @@ class ResponseCacheService {
     }
   }
 
-  /** Keep list/GraphQL bodies; the next GET serves them (no GET-path find). */
-  private markIndexSetStale(index: Map<string, Set<string>>, key: string): void {
+  /**
+   * Evict a list/GraphQL index set from L1 AND its shared-L2 copies. `get()`
+   * refills L1 from `cacheService.getSync("res:<key>")`, so dropping L1 alone
+   * resurrected the superseded list on the very next read. `cacheService.delete`
+   * removes its own L1 synchronously; the remote L2 delete runs detached.
+   */
+  private evictListSet(
+    index: Map<string, Set<string>>,
+    key: string,
+    tenantId: string | null | undefined,
+  ): void {
     const set = index.get(key);
     if (!set) return;
+    const marker = ":res:";
     for (const fullKey of set) {
-      const entry = this.localL1.get(fullKey);
-      if (entry) entry.stale = true;
+      const at = fullKey.indexOf(marker);
+      if (at < 0) continue;
+      const userKey = fullKey.slice(at + marker.length);
+      void cacheService.delete(`res:${userKey}`, tenantId).catch(() => {});
     }
+    this.dropIndexSet(index, key);
   }
 
   /**
@@ -848,7 +915,7 @@ class ResponseCacheService {
     if (point) return null;
 
     const entry = cacheService.getSync<CachedResponseEntry>(`res:${key}`, tenantId);
-    if (entry && !this.isExpired(entry)) {
+    if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
       if (!entry.buffer && textEncoder && entry.body) {
         entry.buffer = textEncoder.encode(entry.body);
       }
@@ -857,6 +924,8 @@ class ResponseCacheService {
       this.indexKey(fullKey, key, tenantId);
       return entry;
     }
+    // A superseded body must not stay in L2 where a later read could refill it.
+    if (entry) this.dropSupersededL2(key, tenantId);
     return null;
   }
 
@@ -871,7 +940,7 @@ class ResponseCacheService {
     if (syncRes) return syncRes;
 
     const entry = await cacheService.get<CachedResponseEntry>(`res:${key}`, tenantId);
-    if (entry && !this.isExpired(entry)) {
+    if (entry && !this.isExpired(entry) && this.generationMatches(entry, key, tenantId)) {
       if (!entry.buffer && textEncoder && entry.body) {
         entry.buffer = textEncoder.encode(entry.body);
       }
@@ -883,6 +952,7 @@ class ResponseCacheService {
       this.indexKey(fullKey, key, tenantId);
       return entry;
     }
+    if (entry) this.dropSupersededL2(key, tenantId);
     return null;
   }
 
@@ -897,11 +967,18 @@ class ResponseCacheService {
     opts?: { skipSharedL1?: boolean; tags?: string[]; preserveStale?: boolean; point?: boolean },
   ): void {
     const fullKey = this.buildKey(key, tenantId);
+    const slot = classifyTurboKey(key);
     // Callers that already know the tier (the read lane's list branch) can skip
     // the `classifyTurboKey` pathname scan; unknown callers keep inference.
-    const inferredPointRead = opts?.point ?? classifyTurboKey(key)?.entryId != null;
+    const inferredPointRead = opts?.point ?? slot?.entryId != null;
     const store = inferredPointRead ? this.pointL1 : this.localL1;
     entry.expiresAt = Date.now() + ttlMs;
+    // Stamp the generation the body was produced in. Point-reads never reach L2,
+    // so only list/GraphQL bodies need the fence.
+    if (!inferredPointRead) {
+      const scope = this.generationScope(slot);
+      if (scope) entry.gen = cacheService.getCollectionEpoch(scope, tenantId);
+    }
     // An update to an ALREADY-LIVE entry (the variant stash, `response-compression-stash.ts`)
     // must not clear a concurrent write's staleness mark — that would serve a
     // superseded body as fresh. Insert paths (option absent) keep the reset contract.
@@ -932,6 +1009,7 @@ class ResponseCacheService {
     if (key.includes("graphql") || key.includes("/api/graphql")) {
       tags.push("res:graphql");
     }
+    if (slot?.graphql) this.graphqlL2Tenants.add(tenantId || "default");
     const compressedToPersist = entry.compressed ? { ...entry.compressed } : undefined;
     void cacheService.set(
       `res:${key}`,
@@ -939,6 +1017,7 @@ class ResponseCacheService {
         body: entry.body,
         etag: entry.etag,
         expiresAt: entry.expiresAt,
+        ...(entry.gen !== undefined ? { gen: entry.gen } : {}),
         ...(compressedToPersist ? { compressed: compressedToPersist } : {}),
       },
       ttlSec,
@@ -1041,7 +1120,7 @@ class ResponseCacheService {
   /**
    * Synchronous in-memory purge of cached response tuples for a collection.
    * With `entryIds`, only those document turbo keys are dropped; list + GraphQL
-   * bodies are marked stale (served immediately, no GET-path find() refill).
+   * bodies of the collection are always evicted (read-after-write consistency).
    * Sibling findById turbo hits stay warm (soak / mixed-write path).
    */
   public invalidateLocal(
@@ -1050,8 +1129,25 @@ class ResponseCacheService {
     opts?: InvalidateLocalOpts,
   ): void {
     const tenant = tenantId || "default";
-    this.markIndexSetStale(this.listIndex, `${tenant}\0${collectionName}`);
-    this.markIndexSetStale(this.graphqlIndex, tenant);
+    // Lists/GraphQL are EVICTED, never served stale: every read path (read lane,
+    // turbo GET, api-requests) serves any L1 body it finds, so a stale mark kept
+    // superseded lists alive for the full TTL (retest M2: created rows missing,
+    // trashed rows still listed, bulk-published rows still DRAFT for minutes).
+    //
+    // Local-process only: this drops L1 + the local L2 copies of indexed keys.
+    // Callers bump the collection epoch first (handle-api-requests, post-write,
+    // invalidateCollection) so an L2 body that is no longer indexed (admission
+    // rejected / FIFO-evicted) is fenced at refill time by `generationMatches`.
+    // There is no peer-invalidation channel: another node keeps serving its own
+    // already-cached copy until TTL or its next read after hydrating the epoch.
+    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
+    this.evictListSet(this.graphqlIndex, tenant, tenantId);
+    // GraphQL keys are not scoped to one collection, so any write bumps the
+    // synthetic scope — same coverage as the whole-index eviction above, but
+    // also reaching GraphQL bodies that are L2-only.
+    if (this.graphqlL2Tenants.has(tenant)) {
+      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
+    }
     if (opts?.entryIds) {
       for (const id of opts.entryIds) {
         this.dropIndexSet(this.entryIndex, `${tenant}\0${collectionName}\0${id}`);

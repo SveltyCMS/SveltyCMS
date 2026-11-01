@@ -126,7 +126,6 @@ const SSR_NO_EXTERNAL = [
   "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-awesome-color-picker",
-  "json-render-svelte",
   "drizzle-orm",
 ];
 
@@ -144,7 +143,6 @@ const OPTIMIZE_DEPS_INCLUDE = [
   "@thisux/sveltednd",
   "svelte-canvas",
   "svelte-awesome-color-picker",
-  "json-render-svelte",
   "valibot",
 ];
 
@@ -1641,6 +1639,8 @@ export default defineConfig(() => {
         treeshake: {
           moduleSideEffects: "no-external" as const,
           propertyReadSideEffects: false as const,
+          annotations: true,
+          unknownGlobalSideEffects: false,
         },
         output: {
           // Force the plugin catalog (registration loop) into a shared shell chunk

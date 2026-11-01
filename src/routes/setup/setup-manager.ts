@@ -7,6 +7,7 @@ import { logger } from "@utils/logger";
 class SetupManager {
   private static instance: SetupManager;
   private _isSeeding = false;
+  private _hasStarted = false;
   private _seedingError: string | null = null;
   private _seedingProgress = 0;
 
@@ -21,6 +22,11 @@ class SetupManager {
 
   get isSeeding() {
     return this._isSeeding;
+  }
+
+  /** True once any deferred provisioning task has been queued in this process. */
+  get hasStarted() {
+    return this._hasStarted;
   }
 
   set isSeeding(value: boolean) {
@@ -54,6 +60,7 @@ class SetupManager {
   // Starts a seeding task in the background and tracks its completion.
   // This is considered CRITICAL and will be waited for by completeSetup.
   public startSeeding(task: () => Promise<unknown>): void {
+    this._hasStarted = true;
     this.isSeeding = true;
     const promise = (async () => {
       try {

@@ -57,6 +57,7 @@
 	// Removed static createEditor import for lazy-loading
 
 	import type { MediaFile } from '../media-upload/types';
+	import { isSameHtml } from './normalize-html';
 	import type { FieldType } from './';
 	import type { RichTextData } from './types';
 
@@ -96,22 +97,6 @@
 	let editor: Editor | null = $state(null);
 	let element: HTMLDivElement = $state()!;
 	let createEditor: any = $state(null);
-
-	/**
-	 * Treat tiptap's empty-doc serialization as "".
-	 * Empty-doc output varies by extension config: `<p></p>`, `<p><br></p>`,
-	 * or with attributes such as `<p style="text-align: left;"></p>` (TextAlign
-	 * adds a default style). Matching ONLY the bare `<p></p>` form made the
-	 * value↔editor sync loop forever: setContent('') re-serialized to the styled
-	 * empty paragraph, norm !== content stayed true, and the cycle ran until
-	 * effect_update_depth_exceeded.
-	 */
-	function normalizeHtml(html: string): string {
-		if (!html) return '';
-		const trimmed = html.trim();
-		if (/^<p[^>]*>\s*(<br>)?\s*<\/p>$/.test(trimmed)) return '';
-		return html;
-	}
 
 	let editorStateVersion = $state(0);
 	let showSlashMenu = $state(false);
@@ -536,8 +521,8 @@
 				const currentValue = field.translated
 					? (value as Record<string, RichTextData>)?.[lang]
 					: (value as RichTextData);
-				const currentHtml = normalizeHtml(currentValue?.content || '');
-				if (currentHtml === normalizeHtml(newContent.content)) {
+				// Trailing no-op alignment markup must not read as a content change.
+				if (isSameHtml(currentValue?.content || '', newContent.content)) {
 					return;
 				}
 
@@ -584,8 +569,7 @@
 			content = (value as RichTextData)?.content || '';
 		}
 		const html = editor ? editor.getHTML() : '';
-		const norm = normalizeHtml(html);
-		const doSet = editor && norm !== content;
+		const doSet = editor && !isSameHtml(html, content);
 		if (doSet) {
 			editor.commands.setContent(content, { emitUpdate: false });
 		}

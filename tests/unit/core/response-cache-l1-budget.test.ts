@@ -141,8 +141,12 @@ describe("ResponseCache L1 byte budget", () => {
     expect(pointAfter.pointEntries).toBe(0);
     expect(pointAfter.pointBytes).toBe(pointBefore - ENTRY_BYTES);
     expect(pointAfter.pointBytes).toBe(pointAfter.recountPointBytes);
+    // The write also evicts the collection's list bodies (retest M2).
+    expect(pointAfter.listBytes).toBe(pointAfter.recountListBytes);
+    expect(responseCache.get(LIST_KEY, "global")).toBeNull();
 
     // 3. Key invalidation.
+    responseCache.set(LIST_KEY, entry("e2"), 300_000, "global", { skipSharedL1: true });
     const listBefore = responseCache.getL1ByteStats().listBytes;
     void responseCache.invalidate(LIST_KEY, "global");
     const listAfterKeyInvalidate = responseCache.getL1ByteStats();

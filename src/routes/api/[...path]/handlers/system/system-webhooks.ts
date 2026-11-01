@@ -94,8 +94,39 @@ export async function handleWebhookRoutes(
   }
 
   const isDirect = segments[0] === "webhooks" || segments[0] === "system-webhooks";
-  const webhookId = isDirect ? segments[1] : segments[2];
-  const subAction = isDirect ? segments[2] : segments[3];
+  const baseIndex = isDirect ? 1 : 2;
+  const webhookId = segments[baseIndex];
+  const subAction = segments[baseIndex + 1];
+
+  // 📋 DELIVERY LOGS: `logs` is a sub-collection of the webhook namespace, not a
+  // webhook id. It must be handled BEFORE the id lookup below — that lookup used
+  // to throw `Webhook logs not found` (404) for a normal, often empty list.
+  if (webhookId === "logs") {
+    const logId = segments[baseIndex + 1];
+    const logAction = segments[baseIndex + 2];
+
+    if (request.method === "GET" && !logId) {
+      const limitParam = Number.parseInt(event.url.searchParams.get("limit") ?? "", 10);
+      return successResponse(
+        event,
+        await webhookService.getTenantLogs(tenantId as string, {
+          limit: Number.isFinite(limitParam) ? limitParam : undefined,
+          status: event.url.searchParams.get("status") ?? undefined,
+        }),
+      );
+    }
+
+    if (request.method === "POST" && logId && logAction === "retry") {
+      try {
+        await webhookService.retryDelivery(logId, tenantId as string);
+      } catch (err) {
+        throw new AppError(err instanceof Error ? err.message : "Retry failed", 404);
+      }
+      return successResponse(event, { success: true });
+    }
+
+    throw new AppError(`Method ${request.method} not allowed for webhook logs`, 405);
+  }
 
   if (!webhookId) {
     if (request.method === "GET")

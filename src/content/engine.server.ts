@@ -30,14 +30,18 @@ import {
   resolveCollectionOrder,
 } from "@utils/collection-order.server";
 import { eventBus, SystemEvents } from "@utils/event-bus";
+import { lazyModule } from "@utils/lazy-module";
 import { generateSchemaHash, isSafeCollectionPath, loadSchema } from "./loader.server";
-import { getCollectionsPath } from "@utils/tenant.server";
+import { getCollectionsPath, getCompiledCollectionsPath } from "@utils/tenant.server";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
-let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
-function loadDbModule(): Promise<typeof import("@src/databases/db")> {
-  return (dbModulePromise ??= import("@src/databases/db"));
-}
+const loadDbModule = lazyModule(() => import("@src/databases/db"));
+const loadSchemaStoreModule = lazyModule(
+  () => import("@src/services/sdk/namespaces/collections/schema-store"),
+);
+const loadBenchmarkRuntimeModule = lazyModule(() => import("@utils/benchmark-runtime"));
+const loadBenchmarkSandboxModule = lazyModule(() => import("@utils/benchmark-sandbox"));
+const loadCompileModule = lazyModule(() => import("@src/utils/compilation/compile"));
 
 // ─── Cache helpers ───────────────────────────────────────────────────────────
 
@@ -75,8 +79,7 @@ export async function invalidateSchemaCache(tenantId: string | null = null): Pro
   // every schema change served staleness until LRU decay. Clear the actual
   // per-tenant schema store so the next read re-resolves from the content store.
   try {
-    const { clearSchemaCache } =
-      await import("@src/services/sdk/namespaces/collections/schema-store");
+    const { clearSchemaCache } = await loadSchemaStoreModule();
     clearSchemaCache();
   } catch {
     // schema-store not loadable in this context (e.g. tests) — non-fatal.
@@ -258,7 +261,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
     let skipBenchmarks = false;
     let isBenchmarkArtifact = (_name: string) => false;
     try {
-      const benchmarkRuntime = await import("@utils/benchmark-runtime");
+      const benchmarkRuntime = await loadBenchmarkRuntimeModule();
       skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
       isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
     } catch {} // module unavailable (stripped/embedded build) — scan everything
@@ -429,7 +432,6 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
  */
 export async function refreshCollectionsCache(tenantId?: string | null, db?: IDBAdapter) {
   markFileDirty();
-  const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
   const targetDir = getCompiledCollectionsPath(tenantId);
   const fileSchemas = await scanCompiledCollections(targetDir);
   let dbSchemas: Schema[] = [];
@@ -558,7 +560,7 @@ async function bootstrapCollectionFilesFromDb(
   let isLocalBenchmarkSandbox = () => false;
   let assertLiveDataWriteAllowed = (_filePath: string) => {};
   try {
-    const sb = await import("@utils/benchmark-sandbox");
+    const sb = await loadBenchmarkSandboxModule();
     isLocalBenchmarkSandbox = sb.isLocalBenchmarkSandbox;
     assertLiveDataWriteAllowed = sb.assertLiveDataWriteAllowed;
   } catch {}
@@ -579,7 +581,7 @@ async function bootstrapCollectionFilesFromDb(
   let skipBenchmarks = false;
   let isBenchmarkArtifact = (_name: string) => false;
   try {
-    const benchmarkRuntime = await import("@utils/benchmark-runtime");
+    const benchmarkRuntime = await loadBenchmarkRuntimeModule();
     skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
     isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
   } catch {} // module unavailable (stripped build) — bootstrap everything
@@ -635,8 +637,7 @@ export const schema: Schema = ${JSON.stringify(buildRegeneratedSchemaDefinition(
 
   // Trigger compilation
   try {
-    const { compile } = await import("@src/utils/compilation/compile");
-    const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
+    const { compile } = await loadCompileModule();
     await compile({
       userCollections: baseDir,
       compiledCollections: getCompiledCollectionsPath(tenantId),
@@ -675,7 +676,6 @@ export const contentService = {
       return;
     }
 
-    const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
     const targetDir = getCompiledCollectionsPath(tenantId);
     const schemas = await scanCompiledCollections(targetDir);
 
@@ -732,8 +732,7 @@ export const contentService = {
 
     // 🚀 Pre-warm SDK schema LRU + adapter table registry so first write hits in-memory cache
     try {
-      const { prewarmCollectionSchemas } =
-        await import("@src/services/sdk/namespaces/collections/schema-store");
+      const { prewarmCollectionSchemas } = await loadSchemaStoreModule();
       prewarmCollectionSchemas(schemas, dbAdapter, tenantId);
     } catch {}
 
@@ -766,8 +765,7 @@ export const contentService = {
     })) as any;
     contentStore.sync(nodes);
     // 🚀 Pre-warm SDK schema LRU + adapter table registry so first write hits in-memory cache
-    const { prewarmCollectionSchemas } =
-      await import("@src/services/sdk/namespaces/collections/schema-store");
+    const { prewarmCollectionSchemas } = await loadSchemaStoreModule();
     prewarmCollectionSchemas(schemas, dbAdapter, tenantId);
   },
 
@@ -962,8 +960,7 @@ export const contentService = {
       (op) => op.nodeType === "collection" && op.collectionDef,
     );
     if (collectionNodes.length > 0) {
-      const { prewarmCollectionSchemas } =
-        await import("@src/services/sdk/namespaces/collections/schema-store");
+      const { prewarmCollectionSchemas } = await loadSchemaStoreModule();
       prewarmCollectionSchemas(
         collectionNodes.map((op) => op.collectionDef as Schema),
         dbAdapter,

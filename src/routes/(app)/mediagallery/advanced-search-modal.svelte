@@ -52,6 +52,9 @@ Structure optimized for LLM integration and AI-powered search.
 		mediagallery_id_placeholder,
 		mediagallery_json_path_filter,
 		mediagallery_json_path_format,
+		mediagallery_json_path_helper_part1,
+		mediagallery_json_path_helper_part2,
+		mediagallery_json_path_helper_part3,
 		mediagallery_json_path_placeholder,
 		mediagallery_large_5mb,
 		mediagallery_location_placeholder,
@@ -489,8 +492,10 @@ Structure optimized for LLM integration and AI-powered search.
 							data-testid="media-json-path-filter"
 						/>
 						<p class="mt-1 text-xs text-(--admin-text-muted)">
-							Matches any stored metadata field — <code>metadata.exif.camera = Canon</code>, chained
-							with <code>;</code>. Leave empty to ignore.
+							{mediagallery_json_path_helper_part1()}{' '}
+							<code dir="ltr">metadata.exif.camera = Canon</code>.{' '}
+							{mediagallery_json_path_helper_part2()}{' '}
+							<code>;</code>{mediagallery_json_path_helper_part3()}
 						</p>
 					</div>
 

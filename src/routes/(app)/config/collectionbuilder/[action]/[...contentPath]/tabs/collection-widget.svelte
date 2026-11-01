@@ -7,6 +7,7 @@
 	import type { FieldInstance } from '@src/content/types';
 	import type { Role } from '@src/databases/auth/types';
 	import { generateUUID } from '@utils/native-utils';
+	import { fetchApi } from '@utils/api';
 	import { collections, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { getWidgetFunction, widgets } from '@src/stores/widget-store.svelte.ts';
@@ -409,15 +410,32 @@
 		remoteLoading = true;
 		remoteError = null;
 		try {
-			const { marketplace } = await import('@src/services/intelligence/marketplace-client');
-			const res = await marketplace.list({ type: 'widget', limit: 24 });
-			const list = (res.plugins || []) as any[];
+			// Same-origin proxy. The marketplace API rejects browser CORS preflights,
+			// so a direct `marketplace-client` fetch could never succeed here; the
+			// server keeps its 30-minute catalog cache and local fallback instead.
+			const params = new URLSearchParams({ type: 'widget', limit: '24' });
+			const res = await fetchApi<{
+				items?: Array<{
+					description?: string;
+					id?: string;
+					name?: string;
+					version?: string;
+				}>;
+				remoteAvailable?: boolean;
+			}>(`/api/marketplace?${params.toString()}`);
+			if (!res.success) {
+				throw new Error(res.message || 'Marketplace request failed');
+			}
+			const list = Array.isArray(res.data?.items) ? res.data.items : [];
 			remoteMarketplace = list.map((p) => ({
-				id: String(p.id || p.slug || p.name),
-				name: p.name || p.slug || 'Widget',
+				id: String(p.id || p.name),
+				name: p.name || 'Widget',
 				description: p.description || '',
 				version: p.version
 			}));
+			if (list.length === 0 && res.data?.remoteAvailable === false) {
+				remoteError = 'Marketplace offline — browse the site for more widgets';
+			}
 		} catch (err) {
 			remoteError = 'Marketplace offline — browse the site for more widgets';
 			logger.warn('[CollectionWidget] marketplace list failed', err);

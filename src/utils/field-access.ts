@@ -15,6 +15,7 @@ import { AppError } from "@utils/error-handling";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { fieldDeclaresGuard } from "@utils/field-guard";
+import { deepClone } from "@utils/native-utils";
 import { isAdmin } from "@src/databases/auth/constants";
 
 /**
@@ -193,7 +194,7 @@ export async function enforceFieldAccess(
   // 🚀 Performance: System/Admin bypass early
   if (userRole === "admin" || userId === "system") return data;
 
-  const sanitized: Record<string, unknown> = structuredClone(data) as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = deepClone(data);
 
   const dataKeys = Object.keys(sanitized);
   const writeViolations: string[] = [];

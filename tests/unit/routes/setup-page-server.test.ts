@@ -44,6 +44,7 @@ function makeLoadEvent(): SetupLoadEvent {
   return {
     locals: { theme: "dark", darkMode: true },
     cookies: {},
+    url: new URL("https://cms.example.test/setup"),
   } as unknown as SetupLoadEvent;
 }
 
@@ -67,6 +68,7 @@ describe("/setup +page.server load", () => {
     const data = (await load(makeLoadEvent())) as {
       theme: string;
       darkMode: boolean;
+      origin: string;
       availableLanguages: string[];
       settings: { PKG_VERSION: string };
     };
@@ -74,6 +76,8 @@ describe("/setup +page.server load", () => {
     expect(data).toMatchObject({
       theme: "dark",
       darkMode: true,
+      // The wizard seeds its production URL from this value.
+      origin: "https://cms.example.test",
       settings: { PKG_VERSION: expect.any(String) },
     });
     expect(Array.isArray(data.availableLanguages)).toBe(true);

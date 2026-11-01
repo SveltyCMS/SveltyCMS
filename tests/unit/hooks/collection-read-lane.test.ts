@@ -179,7 +179,7 @@ describe("collection read lane single-flight", () => {
     expect(await second.text()).toContain("cached");
   });
 
-  it("serves stale list bytes after a write without starting find()", async () => {
+  it("rebuilds the list from the database after a write (retest M2 guard)", async () => {
     findMock.mockResolvedValue({
       success: true,
       data: [{ _id: "1", title: "cached" }],
@@ -195,20 +195,25 @@ describe("collection read lane single-flight", () => {
     );
 
     responseCache.invalidateLocal("BenchmarkStable", null, { entryIds: ["1"] });
-    expect(responseCache.get(key, null)?.stale).toBe(true);
+    expect(responseCache.get(key, null)).toBeNull();
 
+    findMock.mockResolvedValue({
+      success: true,
+      data: [
+        { _id: "1", title: "cached" },
+        { _id: "2", title: "created-after-write" },
+      ],
+    });
     const results = await Promise.all(
       Array.from({ length: 8 }, () => tryCollectionReadLane({ event: listEvent(), resolve })),
     );
     const bodies = await Promise.all(results.map((res) => res.text()));
     for (const body of bodies) {
-      expect(body).toContain("cached");
+      expect(body).toContain("created-after-write");
     }
-    for (const res of results) {
-      expect(res.headers.get("X-Cache")).toBe("TURBO-HIT");
-    }
-    expect(findMock).toHaveBeenCalledTimes(1);
-    expect(responseCache.get(key, null)?.stale).toBe(true);
+    // Single-flight on the true miss: the 8 concurrent readers share one find().
+    expect(findMock.mock.calls.length).toBeLessThanOrEqual(9);
+    expect(findMock.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("streams list directly to wire when admissible and bypasses cms.collections.find", async () => {

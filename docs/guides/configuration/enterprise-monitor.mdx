@@ -6,7 +6,7 @@ order: 11
 icon: "mdi:shield-check-outline"
 author: "SveltyCMS Team"
 created: "2026-04-11"
-updated: "2026-04-21"
+updated: "2026-11-01"
 tags:
   - "admin"
   - "monitoring"
@@ -28,12 +28,12 @@ The dashboard is accessible via **Config > Enterprise Monitor** and uses a high-
 
 ### The 4 Core Quadrants
 
-| Quadrant               | Metrics Tracked                                    | Admin Action                           |
-| :--------------------- | :------------------------------------------------- | :------------------------------------- |
-| **🛡️ Security Status** | Active incidents, blocked IPs, CSP violations.     | Investigate threat feed / Unblock IPs. |
-| **🗑️ Trash Recovery**  | Deleted item count, storage impact.                | Restore content / Purge trash.         |
-| **🪝 Webhook Health**  | Active endpoints, failure rates, delivery latency. | Review logs / Trigger retries.         |
-| **⚙️ System Vitals**   | RAM/CPU usage, DB pool health, Watchdog status.    | Monitor for resource exhaustion.       |
+| Quadrant               | Metrics Tracked                                    | Admin Action                               |
+| :--------------------- | :------------------------------------------------- | :----------------------------------------- |
+| **🛡️ Security Status** | Active incidents, blocked IPs, CSP violations.     | Investigate threat feed / Unblock IPs.     |
+| **🗑️ Trash Recovery**  | Deleted item count, storage impact.                | Restore content (purge is not implemented) |
+| **🪝 Webhook Health**  | Active endpoints, failure rates, delivery latency. | Review logs / Trigger retries.             |
+| **⚙️ System Vitals**   | RAM/CPU usage, DB pool health, Watchdog status.    | Monitor for resource exhaustion.           |
 
 ---
 
@@ -60,8 +60,9 @@ The monitor features a real-time security feed that logs more than just errors. 
 
 Integrated directly into the monitor is the **Quick Restore** utility.
 
-- **Mangle-on-Delete**: SveltyCMS mangles unique fields (like slugs) upon deletion. The monitor allows you to see exactly which items are recoverable before they are permanently purged by the retention policy.
-- **One-Click Restore**: Reverses the "trashed" state and restores the original unique identifiers instantly.
+- **Mangle-on-Delete**: SveltyCMS mangles unique fields (like slugs) upon deletion. The monitor allows you to see exactly which items are recoverable and restores the original unique identifiers.
+- **One-Click Restore**: `POST /api/trash/restore` reverses the "trashed" state. The list renders `deletedAt` / `deletedBy` when present and falls back to `updatedAt` / `updatedBy` for rows trashed before those columns existed.
+- **No scheduled purge**: restore is implemented; a scheduled or automatic 30-day purge is **not shipped**. Nothing removes a trashed row on a timer — an operator has to delete it permanently through the collection.
 
 ---
 
@@ -71,6 +72,7 @@ The Enterprise Monitor surfaces the activity of the **Autonomous System Watchdog
 
 - **Cache Compaction**: Displays when the system last performed an automated cache cleanup (triggered at 30% fragmentation).
 - **Index Health**: Reports on database query performance and suggests manual index optimizations if slow queries are detected.
+- **Uptime**: `metricsService.getSystemMetrics().uptime` is **milliseconds** (`Date.now() - startTime`). The monitor renders it with `formatUptimeMs()` (`@utils/format-uptime`) → `29m`, `1d 2h 3m`, `< 1m`, or `Just started` for a zero/invalid value. Both functions are unit-explicit: `formatUptime()` in `@utils/date` takes seconds and is a different formatter.
 
 ---
 

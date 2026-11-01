@@ -7,7 +7,7 @@ published: true
 order: 3
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-07-07"
+updated: "2026-11-01"
 tags:
   - "user"
   - "registration"
@@ -51,7 +51,7 @@ All users (except the first user created during setup or new tenant owners) requ
 
 1. Administrator creates invitation token with your email
 2. You receive an email with a link like: `https://yoursite.com/login?invite_token=YOUR_TOKEN`
-3. Click the link to open the signup form
+3. Click the link — the login page sees a valid `invite_token` and opens the **Sign Up** form directly (the sign-in/sign-up chooser is still reachable if you navigate to `/login` yourself)
 4. Email field is pre-filled and locked (based on invitation)
 5. Token is automatically applied from the URL
 6. Complete the remaining fields and submit
@@ -163,7 +163,7 @@ Each invitation token includes:
 
 **Step-by-Step Process**:
 
-1. Click the **"Email Token"** button in the Admin Area
+1. Click the **"Invite User"** button in the Admin Area. The dialog has its own title and body (it is a create flow, not the shared "Edit Token" copy).
 2. Fill in the invitation form:
    - **Email**: Recipient's email address
    - **Username**: Suggested username (user can change during signup)

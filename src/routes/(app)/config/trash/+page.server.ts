@@ -4,8 +4,8 @@
  *
  * Responsibilities:
  * - Admin-only gate
- * - Load soft-deleted entries across all tenant collections (same read path as
- *   the `/api/trash` handler, without an HTTP hop)
+ * - Load soft-deleted entries across all tenant collections (same read path and
+ *   projection as the `/api/trash` handler, without an HTTP hop)
  */
 
 import { error } from "@sveltejs/kit";
@@ -16,24 +16,14 @@ import type { DatabaseId } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { rethrow } from "@utils/error-handling";
+import { toTrashItem } from "@utils/trash-item";
 import type { PageServerLoad } from "./$types";
-import type { TrashItem } from "./trash-api";
+
+// SvelteKit rejects non-`_` extra exports from a route module; the unit suite
+// imports this alias to pin the shared fallback chain.
+export { toTrashItem as _toTrashItem } from "@utils/trash-item";
 
 const TRASH_LIMIT = 50;
-
-/** Coerce one soft-deleted row into the row shape the page renders. */
-function toTrashItem(raw: unknown, collectionId: string, collectionName: string): TrashItem {
-  const row = (raw ?? {}) as Record<string, unknown>;
-  return {
-    _id: String(row._id ?? row.id ?? ""),
-    title: typeof row.title === "string" ? row.title : undefined,
-    name: typeof row.name === "string" ? row.name : undefined,
-    collectionId,
-    collectionName,
-    deletedAt: typeof row.deletedAt === "string" ? row.deletedAt : undefined,
-    deletedBy: typeof row.deletedBy === "string" ? row.deletedBy : undefined,
-  };
-}
 
 export const load: PageServerLoad = async ({ locals }) => {
   try {

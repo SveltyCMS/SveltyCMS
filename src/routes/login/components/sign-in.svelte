@@ -43,7 +43,6 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		form_resetpassword,
 		form_signin,
 		signin_forgottenpassword,
-		signin_forgottontoast,
 		signin_savenewpassword,
 		twofa_code_placeholder,
 		twofa_error_invalid_code,
@@ -99,6 +98,9 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	let P_WFORGOT = $state(false);
 	let P_WRESET = $state(false);
 	let P_WMAGIC = $state(false);
+	// Explanation shown inside the forgotten-password form when the server could
+	// not start a reset (no email provider and no local reset link, retest N1).
+	let forgotNotice = $state('');
 	let isPasskeyLoading = $state(false);
 
 	// let not const — const prevents $state reassignment so the
@@ -417,10 +419,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 
 	async function handleForgotSubmit(event: Event) {
 		event.preventDefault();
+		forgotNotice = '';
 		if (forgotForm.data.email) {
 			forgotForm.data.email = forgotForm.data.email.toLowerCase();
 		}
 		if (!forgotForm.validate()) {
+			toast.error({
+				title: 'Check your email',
+				description: forgotForm.errors.email?.[0] || form_required()
+			});
 			wiggle(forgotFormElement);
 			return;
 		}
@@ -431,25 +438,43 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 			const result: any = await remoteForgotPW({ email: forgotForm.data.email });
 			isSubmitting = false;
 
-			if (result.smtpConfigured === false && result.resetLink) {
-				// No SMTP configured — pre-fill the reset form so user can reset immediately.
-				// The reset link is also printed in the server terminal for sharing.
-				const url = new URL(result.resetLink as string);
+			if (result?.success === false) {
+				// Rate limit / unavailable auth service — surface the reason instead of
+				// pretending the request was accepted.
+				forgotNotice = result.message || 'Password reset is currently unavailable.';
+				toast.error({ title: 'Reset unavailable', description: forgotNotice });
+				wiggle(forgotFormElement);
+				return;
+			}
+
+			const resetLink = typeof result?.resetLink === 'string' ? result.resetLink : '';
+			if (resetLink) {
+				// Development/opt-in only (B1): the server exposed an in-page link, so the
+				// reset form legitimately has a token to submit.
+				const url = new URL(resetLink);
 				resetForm.data.token = url.searchParams.get('token') || '';
 				resetForm.data.email = url.searchParams.get('email') || '';
 				P_WRESET = true;
 				toast.info({
-					description: 'SMTP not configured. Enter a new password below to reset.',
+					description:
+						result.message || 'SMTP not configured. Enter a new password below to reset.',
 					duration: 10000
 				});
-			} else {
-				P_WRESET = true;
-				toast.success({ description: signin_forgottontoast() });
+				return;
 			}
+
+			// No reset link means no token exists (no email provider and no local opt-in).
+			// Rendering the reset form here produced a dead "Save New Password" button with
+			// no request and no feedback (retest N1). Keep the forgot form and show why.
+			forgotNotice =
+				result?.message ||
+				'Password reset by email is unavailable. Ask an administrator to set a new password for you.';
+			toast.info({ description: forgotNotice, duration: 10000 });
 		} catch (error: any) {
 			isSubmitting = false;
 			const errorMessage = error?.message || 'Password reset failed';
-			toast.error({ title: 'Reset Failed', description: errorMessage });
+			forgotNotice = errorMessage;
+			toast.error({ title: 'Reset failed', description: errorMessage });
 			wiggle(forgotFormElement);
 		}
 	}
@@ -466,6 +491,15 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 	async function handleResetSubmit(event: Event) {
 		event.preventDefault();
 		if (!resetForm.validate()) {
+			// `token`/`email` are hidden fields, so their inline errors were invisible and
+			// the only feedback was a wiggle (retest N1).
+			const description =
+				resetForm.errors.password?.[0] ||
+				resetForm.errors.confirmPassword?.[0] ||
+				resetForm.errors.token?.[0] ||
+				resetForm.errors.email?.[0] ||
+				'Please check your password and try again.';
+			toast.error({ title: 'Password not saved', description });
 			wiggle(resetFormElement);
 			return;
 		}
@@ -629,6 +663,7 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 		event.stopPropagation();
 		P_WFORGOT = true;
 		P_WRESET = false;
+		forgotNotice = '';
 	}
 
 	// Ink colour for the legacy FloatingInput colour props: always black on white SignIn
@@ -988,6 +1023,16 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 							errorMessage={forgotForm.errors.email?.[0] || ''}
 						/>
 
+						{#if forgotNotice}
+							<p
+								class="rounded border border-warning-500/30 bg-warning-500/10 p-2 text-start text-xs text-warning-500"
+								role="status"
+								data-testid="forgot-password-notice"
+							>
+								{forgotNotice}
+							</p>
+						{/if}
+
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-start">
 							<Button
 								variant="surface"
@@ -1096,6 +1141,16 @@ Note: First-user registration is now handled by /setup route (enforced by handle
 						<!-- Hidden fields — token and email come from URL params -->
 						<input type="hidden" name="email" value={resetForm.data.email} />
 						<input type="hidden" name="token" value={resetForm.data.token} />
+
+						{#if resetForm.errors.token || resetForm.errors.email}
+							<p
+								class="rounded border border-error-500/30 bg-error-500/10 p-2 text-start text-xs text-error-500"
+								role="alert"
+								data-testid="reset-password-link-error"
+							>
+								This reset link is invalid or has expired. Request a new one from “Forgot password”.
+							</p>
+						{/if}
 
 						<!-- New password -->
 						<FloatingInput

@@ -20,12 +20,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Hoisted mocks
 // ---------------------------------------------------------------------------
 
-const { mockFindMany, mockUpsert, mockDelete, mockPreferencesGet } = vi.hoisted(() => ({
-  mockFindMany: vi.fn(),
-  mockUpsert: vi.fn(),
-  mockDelete: vi.fn(),
-  mockPreferencesGet: vi.fn(),
-}));
+const { mockFindMany, mockUpsert, mockDelete, mockPreferencesGet, mockGetByCategory } = vi.hoisted(
+  () => ({
+    mockFindMany: vi.fn(),
+    mockUpsert: vi.fn(),
+    mockDelete: vi.fn(),
+    mockPreferencesGet: vi.fn(),
+    mockGetByCategory: vi.fn(),
+  }),
+);
 
 const { mockMkdir, mockWriteFile } = vi.hoisted(() => ({
   mockMkdir: vi.fn(async () => undefined),
@@ -104,6 +107,7 @@ vi.mock("@src/databases/db", () => ({
     system: {
       preferences: {
         get: mockPreferencesGet,
+        getByCategory: mockGetByCategory,
         set: vi.fn().mockResolvedValue({ success: true }),
         getMany: vi.fn().mockResolvedValue({ success: true, data: {} }),
         setMany: vi.fn().mockResolvedValue({ success: true }),
@@ -219,6 +223,7 @@ describe("ConfigService", () => {
     mockInitialize.mockResolvedValue(undefined);
     mockGetCollections.mockResolvedValue([]);
     mockPreferencesGet.mockResolvedValue({ success: true, data: { value: "test" } });
+    mockGetByCategory.mockResolvedValue({ success: true, data: {} });
 
     // findMany defaults — used for collections, system_settings, webhooks, automations
     mockFindMany.mockImplementation(async (collection: string) => {
@@ -296,6 +301,76 @@ describe("ConfigService", () => {
       expect(status.status).toBe("changes_detected");
       expect(status.changes.deleted).toHaveLength(1);
       expect(status.changes.deleted[0].name).toBe("stale");
+    });
+
+    // ── Settings projection (F12) ─────────────────────────────────────────
+
+    /** Raw `system_settings` row: DB bookkeeping the sync must NOT hash. */
+    function systemSettingRow(key: string, value: unknown) {
+      return {
+        _id: `row-${key}`,
+        key,
+        value,
+        category: "public",
+        visibility: "public",
+        scope: "system",
+        tenantId: "tenant-1",
+        createdAt: "2026-11-01T00:00:00.000Z",
+        updatedAt: "2026-11-01T00:00:00.000Z",
+      };
+    }
+
+    it("reports in_sync for seeded public settings — row metadata is not drift", async () => {
+      mockGetByCategory.mockResolvedValue({
+        success: true,
+        data: { SITE_NAME: "SveltyCMS", CACHE_TTL_SCHEMA: 600, SEASONS: true },
+      });
+      mockFindMany.mockImplementation(async (collection: string) => {
+        if (collection === "system_settings") {
+          return {
+            success: true,
+            data: [
+              systemSettingRow("SITE_NAME", "SveltyCMS"),
+              // SQLite stores primitives as text — the raw row is "600", not 600.
+              systemSettingRow("CACHE_TTL_SCHEMA", "600"),
+              systemSettingRow("SEASONS", "true"),
+            ],
+          };
+        }
+        return { success: true, data: [] };
+      });
+
+      const status = await service.getStatus("tenant-1");
+
+      expect(status.status).toBe("in_sync");
+      expect(status.changes.new).toHaveLength(0);
+      expect(status.changes.updated).toHaveLength(0);
+      expect(status.changes.deleted).toHaveLength(0);
+    });
+
+    it("still reports a real setting value change as updated", async () => {
+      mockGetByCategory.mockResolvedValue({
+        success: true,
+        data: { SITE_NAME: "SveltyCMS", CACHE_TTL_SCHEMA: 600 },
+      });
+      mockFindMany.mockImplementation(async (collection: string) => {
+        if (collection === "system_settings") {
+          return {
+            success: true,
+            data: [
+              systemSettingRow("SITE_NAME", "SveltyCMS"),
+              systemSettingRow("CACHE_TTL_SCHEMA", "900"),
+            ],
+          };
+        }
+        return { success: true, data: [] };
+      });
+
+      const status = await service.getStatus("tenant-1");
+
+      expect(status.status).toBe("changes_detected");
+      expect(status.changes.updated).toHaveLength(1);
+      expect(status.changes.updated[0].uuid).toBe("setting:CACHE_TTL_SCHEMA");
     });
   });
 

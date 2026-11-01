@@ -1172,10 +1172,21 @@ export class MongoCrudMethods<T extends BaseEntity> {
             deleteOptions,
           );
         } catch {
-          await this.model.updateOne(query, { $set: updateData }, deleteOptions);
+          // `strict: false` keeps the undeclared soft-delete audit pair — the
+          // user-collection schema only declares the system fields, so strict
+          // mode silently dropped `deletedAt`/`deletedBy` on this path.
+          await this.model.updateOne(
+            query,
+            { $set: updateData },
+            { ...deleteOptions, strict: false },
+          );
         }
       } else {
-        await this.model.updateOne(query, { $set: updateData }, deleteOptions);
+        await this.model.updateOne(
+          query,
+          { $set: updateData },
+          { ...deleteOptions, strict: false },
+        );
       }
       return { success: true, data: undefined };
     } catch (error) {
@@ -1244,7 +1255,12 @@ export class MongoCrudMethods<T extends BaseEntity> {
             updatedAt: now,
           },
         },
-        deleteOptions,
+        // 🐛 PARITY: user-collection schemas are strict, so the undeclared
+        // soft-delete audit pair was silently stripped by Mongoose casting —
+        // `deletedAt`/`deletedBy` never reached the document and the trash
+        // fell back to `updatedAt`/"System". The native-driver single delete
+        // already bypassed casting, which is why only bulk deletes lost it.
+        { ...deleteOptions, strict: false },
       );
       // Fix: deleteMany soft-delete correctly returns modifiedCount as deletedCount for interface consistency
       return {

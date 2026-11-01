@@ -466,6 +466,33 @@ function namesOf(field: WhereRecord): string[] {
   return names;
 }
 
+interface CompiledCacheHintEntry {
+  hint: CacheHint;
+  names: string[];
+}
+
+const CACHE_HINT_PLAN_CACHE = new WeakMap<readonly unknown[], CompiledCacheHintEntry[]>();
+
+function getCacheHintPlan(fields: readonly unknown[]): CompiledCacheHintEntry[] {
+  let plan = CACHE_HINT_PLAN_CACHE.get(fields);
+  if (plan) return plan;
+
+  plan = [];
+  for (const field of fields) {
+    const record = asRecord(field);
+    if (!record) continue;
+    const hint = hintOf(record);
+    if (!hint) continue;
+    plan.push({ hint, names: namesOf(record) });
+  }
+  try {
+    CACHE_HINT_PLAN_CACHE.set(fields, plan);
+  } catch {
+    // Non-extensible fallback
+  }
+  return plan;
+}
+
 /**
  * Build the `Cache-Control` header for a response, from the `cacheHint`s of the
  * requested fields. Tightest `maxAge` wins; any private hint makes the whole
@@ -476,6 +503,9 @@ export function cacheControlFor(
   requestedFields?: readonly string[] | undefined,
 ): string | null {
   if (!Array.isArray(fields) || fields.length === 0) return null;
+  const plan = getCacheHintPlan(fields);
+  if (plan.length === 0) return null;
+
   const wanted =
     requestedFields && requestedFields.length > 0
       ? new Set(requestedFields.map((name) => name.toLowerCase()))
@@ -484,15 +514,9 @@ export function cacheControlFor(
   let maxAge: number | null = null;
   let isPrivate = false;
   let found = false;
-  for (const field of fields) {
-    const record = asRecord(field);
-    if (!record) continue;
-    const hint = hintOf(record);
-    if (!hint) continue;
-    if (wanted) {
-      const names = namesOf(record);
-      if (names.length > 0 && !names.some((name) => wanted.has(name))) continue;
-    }
+  for (let i = 0; i < plan.length; i++) {
+    const { hint, names } = plan[i];
+    if (wanted && names.length > 0 && !names.some((name) => wanted.has(name))) continue;
     found = true;
     maxAge = maxAge === null ? hint.maxAge : Math.min(maxAge, hint.maxAge);
     if (hint.scope === "private") isPrivate = true;

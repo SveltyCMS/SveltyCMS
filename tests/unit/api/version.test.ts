@@ -8,13 +8,20 @@
  *   multi-digit segments, unequal segment counts, prerelease/dev precedence
  * - `checkForUpdates()` against a stubbed `fetch`: update available, up to date,
  *   GitHub HTTP failure, network failure, empty list, malformed payload
+ * - transient failures reuse the last successful check (F17: a 403 rate limit
+ *   must not repaint a known-current installation as "check failed")
  * - `readLocalVersion()` against the real package.json
  */
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { checkForUpdates, compareVersions, readLocalVersion } from "@services/core/version-service";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  checkForUpdates,
+  compareVersions,
+  readLocalVersion,
+  resetVersionCheckCache,
+} from "@services/core/version-service";
 
 /** The version this repo actually ships — the service must report exactly this. */
 const PACKAGE_VERSION = (
@@ -116,6 +123,11 @@ describe("compareVersions — SemVer ordering", () => {
 });
 
 describe("checkForUpdates — GitHub responses", () => {
+  beforeEach(() => {
+    // The last-known-good cache is process-wide; each case starts cold.
+    resetVersionCheckCache();
+  });
+
   it("reports an available update with the documented payload and request", async () => {
     const fetchMock = stubFetch(
       releasesResponse([{ tag_name: `v${NEXT_PATCH}`, prerelease: false }]),
@@ -227,6 +239,48 @@ describe("checkForUpdates — GitHub responses", () => {
 
     expect(result.error).toBe("Unexpected GitHub releases payload");
     expect(result.updateAvailable).toBe(false);
+  });
+});
+
+describe("checkForUpdates — transient failures keep the last known-good result", () => {
+  beforeEach(() => {
+    resetVersionCheckCache();
+  });
+
+  it("serves the last successful check when GitHub answers 403", async () => {
+    stubFetch(releasesResponse([{ tag_name: `v${PACKAGE_VERSION}` }]));
+    const initial = await checkForUpdates();
+    expect(initial.error).toBeUndefined();
+
+    stubFetch(new Response(null, { status: 403, statusText: "Forbidden" }));
+    const retried = await checkForUpdates();
+
+    // A rate limit is not a version downgrade: same payload, no error field.
+    expect(retried).toEqual(initial);
+    expect(retried.error).toBeUndefined();
+    expect(retried.updateAvailable).toBe(false);
+  });
+
+  it("serves the last successful check when the network times out", async () => {
+    stubFetch(releasesResponse([{ tag_name: `v${NEXT_PATCH}` }]));
+    const initial = await checkForUpdates();
+    expect(initial.updateAvailable).toBe(true);
+
+    stubFetch(new Error("The operation was aborted due to timeout"));
+    const retried = await checkForUpdates();
+
+    expect(retried).toEqual(initial);
+    expect(retried.latestVersion).toBe(NEXT_PATCH);
+    expect(retried.error).toBeUndefined();
+  });
+
+  it("still reports the typed error before any successful check", async () => {
+    stubFetch(new Response(null, { status: 403, statusText: "Forbidden" }));
+
+    const result = await checkForUpdates();
+
+    expect(result.error).toContain("403");
+    expect(result.latestVersion).toBeNull();
   });
 });
 

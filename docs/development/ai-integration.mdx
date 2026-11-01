@@ -6,7 +6,7 @@ order: 50
 icon: "mdi:robot"
 author: "SveltyCMS Team"
 created: "2026-05-12"
-updated: "2026-09-22"
+updated: "2026-11-01"
 tags:
   - "ai"
   - "mcp"
@@ -44,7 +44,7 @@ Based on publicly available documentation as of June 2026, SveltyCMS offers MCP 
 | **Project file tree**          | ✅ `get_file_tree`, `list_directory`               | ❌                                     | ❌                        | ❌             |
 | **Content CRUD via MCP**       | ✅ WebMCP (7 tools, draft-gated)                   | ✅ `@payloadcms/plugin-mcp` (granular) | ✅ Collection/single-type | ❌             |
 | **Content quality scoring**    | ✅ `score_content` (AI Co-Pilot)                   | ❌                                     | ❌                        | ❌             |
-| **Generative UI layouts**      | ✅ Agentic Dashboard via `json-render-svelte`      | ❌                                     | ❌                        | ❌             |
+| **Generative UI layouts**      | ✅ Agentic Dashboard, native Svelte 5 + Valibot    | ❌                                     | ❌                        | ❌             |
 | **Enterprise awareness**       | ✅ Trash recovery, DLQ, Yjs presence               | ❌                                     | ❌                        | ❌             |
 | **Bulk AI translation**        | ✅ `/api/ai/translate-collection`                  | ❌                                     | ❌                        | ❌             |
 | **Agentic automation tasks**   | ✅ `agentic_task` operation in Automation Builder  | ❌                                     | ❌                        | ❌             |
@@ -115,8 +115,11 @@ The **WebMCP plugin** (`src/plugins/webmcp/`) enables browser-based AI agents to
 
 ## 4. AI-Native Generative Layouts
 
-SveltyCMS pushes beyond Chat-based AI into interactive generative layouts powered by [`json-render-svelte`](https://github.com/dummdidumm/json-render/tree/skills/json-render-svelte).
-When a user prompts the MCP Server or the local AI service to build a complex collection form or a custom dashboard view, the LLM outputs a structured JSON spec. This spec is then fed directly into our `<Renderer>` component, instantly generating a fully functional, state-bound Svelte 5 interface utilizing your exact widgets and plugins without touching the codebase.
+SveltyCMS renders AI-produced layouts without a third-party renderer. The catalog and its Valibot contract live in `src/services/json-render/catalog.ts` (`UIElement`, `Spec`, `ComponentRenderProps`, `SpecSchema`, `validateSpec()`), and `src/routes/(app)/dashboard/generativedashboard.svelte` walks the tree with a recursive Svelte 5 snippet inside a `<svelte:boundary>` per element and a hard depth cap of 16.
+
+When a user prompts the MCP Server or the local AI service to build a dashboard view, the LLM returns a structured JSON spec. `validateSpec()` rejects anything that does not match `SpecSchema`; the renderer then maps each `type` through `sveltyRegistry`, so the layout uses your registered widgets and plugins without touching the codebase. See [Generative Layout Display](../reference/components/generative-collection-display.mdx) for the contract and the fallback rules.
+
+> **History:** the earlier implementation wrapped the upstream `json-render-svelte` package (and `zod`). Both are gone from the package manifest and no emitted client JS chunk references the renderer; the native renderer above is the only implementation, and the CI bundle gate fails if the package marker returns.
 
 ### Where Generative UI is Integrated:
 
@@ -128,11 +131,11 @@ When a user prompts the MCP Server or the local AI service to build a complex co
 
 ## Core Generative Components
 
-SveltyCMS provides a suite of AI-native components registered in the `sveltyRegistry`:
+SveltyCMS provides a small native component catalog in `sveltyRegistry` (`src/services/json-render/catalog.ts`):
 
 1.  **Layouts**: `VerticalLayout` and `HorizontalLayout` for structural composition.
-2.  **Typography**: `Text` widget for content rendering and AI snapshots.
-3.  **Controls**: Smart control wrappers that bind AI-generated specs to the local component state.
+2.  **Typography**: `Text` (also aliased as `Control`) for content rendering and AI snapshots.
+3.  **Widgets**: `registerForJsonRender()` adds a widget's display component to the registry through the Vite chunk loader; unknown types render as `Text`.
 
 ---
 
@@ -401,17 +404,14 @@ const tags = await generateTags(
 
 ### Adaptive UI Reordering
 
-The sidebar, dashboard widgets, and navigation items automatically reorder based on actual usage frequency — zero configuration. Powered by `getAdaptiveUISortOrder()` and `reorderByUsage()`.
+The sidebar, dashboard widgets, and navigation items automatically reorder based on actual usage frequency — zero configuration. `getAdaptiveUISortOrder()` in `src/services/intelligence/content-insights.ts` returns the collection ids ordered by recorded usage.
 
 ```typescript
-import { reorderByUsage } from "@src/utils/adaptive-ui";
+import { getAdaptiveUISortOrder } from "@src/services/intelligence/content-insights";
 
-const items = [
-  { id: "posts", label: "Posts", path: "/en/posts" },
-  { id: "pages", label: "Pages", path: "/en/pages" },
-];
-const reordered = reorderByUsage(items, tenantId);
-// Posts (47x/week) appears before Pages (12x/week)
+// Collection ids ordered by recorded usage in this tenant, hottest first.
+const orderedIds = getAdaptiveUISortOrder(tenantId);
+// → ["posts", "pages"]
 ```
 
 ### Smart Scheduling

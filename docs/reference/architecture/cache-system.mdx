@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:database-clock"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-10-18"
+updated: "2026-11-01"
 tags:
   - "cache"
   - "redis"
@@ -34,7 +34,9 @@ On HTTP mutations (`handle-api-requests.ts`), the L1 Map walk is **synchronous**
 - **Zero-Allocation Read-Pipeline Keys**: `buildFindCacheKey` and `normalizeRelationshipFilter` use dedicated `hasExtraQueryKeys` and `isSingleKeyObject` short-circuiting checks with lazy filter cloning, so the single-key fast path never clones the filter or the key input (self-assessed — not instrumented; the analogous zero-work fast paths are pinned by reference-identity assertions in `tests/unit/**`).
 - **Pre-Encoded Streaming Chunks**: In `streamingJsonResponse`, static protocol markers (`{"success":true,"data":[`, `,`, `],"error":"Stream interrupted"}`) are pre-encoded singletons, eliminating thousands of per-item `encoder.encode(",")` allocations during dataset streaming.
 - **Conditional HTTP 304 Not Modified**: Requests carrying matching `If-None-Match` headers short-circuit in `handleTurboGet` with **HTTP 304** responses without body allocation or JSON reconstruction.
-- **List / GraphQL serve-stale**: a write no longer deletes list/`res:graphql` turbo bodies. `invalidateLocal` marks them stale and drops only the written `doc:` keys (sibling findById stays). The next list GET / GraphQL query serves the previous bytes immediately (HIT latency). GET does not `find()`-refill. Fresh bytes come from a true miss, `?refresh=true`, or TTL.
+- **List / GraphQL evict-on-write**: a write **evicts** list and `res:graphql` turbo bodies — it never serves them stale. `invalidateLocal` calls `evictListSet` for the collection's list index and the tenant's GraphQL index, which drops the L1 entries **and** deletes their shared-L2 copies (`cacheService.delete("res:<key>", tenant)`); the response-cache `get()` refills L1 from `cacheService.getSync("res:<key>")`, so dropping L1 alone would resurrect the superseded body on the next read. A read after a write is therefore a true miss, and fresh bytes come from that miss, `?refresh=true`, or TTL — never from a stale mark. Point-reads follow the write shape: a single-entry write drops only that entry's `findById` turbo keys (siblings stay warm), a bulk write drops the collection's point-reads.
+- **Collection-generation fence (`gen` / epoch)**: every list/GraphQL entry is stamped with the collection epoch it was produced in (`cacheService.getCollectionEpoch`), and callers bump the epoch (`bumpCollectionEpoch`) before evicting. On refill from L2, `generationMatches` rejects a body whose epoch has moved and deletes it (`dropSupersededL2`). The fence is what covers the body `invalidateLocal` cannot reach because its L1 slot was never admitted or was FIFO-evicted and therefore unindexed. Entries written before the fence existed carry no `gen` and are accepted; they expire within the API TTL.
+- **Cross-node epoch propagation**: `bumpCollectionEpoch()` still updates the local map and L1/L2, then publishes the new epoch on the existing Redis invalidation channel. Peers apply the value to their local `collectionEpochs` (monotonic, own-node messages ignored), so an L2 refill on another node is rejected by the `gen` fence. **Residual:** an already-admitted `responseCache` L1 list body on a peer is not epoch-checked and can still be served until eviction/TTL; L1 hits stay allocation-free by design.
 - **Point-read L1 (first set admits)**: `/:entryId` turbo keys live in a dedicated 2,000-slot FIFO, separate from list/GraphQL L1. First `set()` admits (`if (body) HIT else rebuild`). A random id scan cannot FIFO-evict lists. Tests: `tests/unit/hooks/collection-read-lane.test.ts`, `tests/unit/core/request-classifier-and-response-cache.test.ts`.
 
 **Layout L0:** `ContentStore.getClientNodes(tenantId)` memoizes JSON-sanitized navigation nodes per tenant and invalidates on `updateVersion()` / `clear()`. Root `+layout.server.ts` uses that cache instead of cloning the structure on every load. Schema lookups use `limit: 1`; `CollectionsNamespace` and `count` use a synchronous L1 `getSync` fast-path. In-memory sessions are a bounded `Map` (`MAX_SESSIONS = 10000`).
@@ -384,7 +386,7 @@ List badges and pagination totals call `dbAdapter.crud.count` frequently. A thin
 
 | Item                | Value                                                                          |
 | ------------------- | ------------------------------------------------------------------------------ |
-| **Module**          | `src/databases/core/count-cache.ts` → `createCountCachedCrud`                  |
+| **Module**          | `src/databases/core/cache-module.ts` → `createCountCachedCrud`                 |
 | **Key**             | `count:{collection}:{mode}:{includeDeleted}:{filterHash}` (`hashQueryPayload`) |
 | **TTL**             | **30 seconds**                                                                 |
 | **Category / tags** | `CONTENT` · `count` · `count:{collection}` · `collection:{collection}`         |

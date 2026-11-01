@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:cog"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-05-25"
+updated: "2026-11-01"
 tags:
   - "api"
   - "setup"
@@ -30,7 +30,7 @@ The Setup API manages the critical initialization phase of SveltyCMS. It handles
 | **Reinitialize**    | `/api/setup/reinitialize` | `POST` | Administrator session |
 
 > [!NOTE]
-> `POST /api/setup/reinitialize` is **not a grantable permission** — it is recovery-only and requires an authenticated administrator session (`SETUP_REINIT_FORBIDDEN`, `src/routes/api/[...path]/handlers/setup.ts`). Permission ids elsewhere in the API are authorized fail-closed against `ENDPOINT_PERMISSIONS`; admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+> `POST /api/setup/reinitialize` is **not a grantable permission** — it is recovery-only and requires an authenticated administrator session (`SETUP_REINIT_FORBIDDEN`, `src/routes/api/[...path]/handlers/setup.ts`). Permission ids elsewhere in the API are authorized fail-closed against `ENDPOINT_PERMISSIONS`; admin UI tiles resolve through their own map (`src/routes/(app)/config/config-tile-permissions.ts`) against real `PERMISSION_CATALOG` ids — the two contracts are separate.
 
 > **Security Gating**: All endpoints except `status` are protected by `isSetupComplete()`. After setup finishes, `/api/setup/test-db`, `/api/setup/seed-db` and `/api/setup/complete` all return `403 SETUP_ALREADY_COMPLETE`; `/api/setup/reinitialize` returns `403 SETUP_REINIT_FORBIDDEN` unless the caller is a real administrator session. This is enforced at two levels: the `handleSetupRoutes` handler entry check, and the `handle-system-state.ts` middleware. See [Server Hooks](../architecture/server-hooks.mdx).
 

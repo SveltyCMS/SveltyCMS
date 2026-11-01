@@ -474,6 +474,9 @@ export const DEFAULT_ROLE_GRANTS = {
     "media:delete",
     "user:manage",
     "ai:use",
+    // Design System tile (`config:appearance`): every authenticated user can use
+    // the personal appearance overrides; the page hides its admin-only tabs.
+    "config:themeManagement",
   ],
   guest: [
     "collections:read",

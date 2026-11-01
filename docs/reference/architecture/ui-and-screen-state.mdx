@@ -6,7 +6,7 @@ order: 35
 icon: "mdi:monitor-screenshot"
 author: "SveltyCMS Team"
 created: "2025-12-26"
-updated: "2026-07-31"
+updated: "2026-11-01"
 tags:
   - "architecture"
   - "state-management"
@@ -292,38 +292,48 @@ addToGlobalSearchIndex({
 
 ## ⌨️ Hotkey Reference
 
-All admin hotkeys are registered via `src/utils/hotkeys.ts` using `registerHotkey()`. The `Mod` key normalizes to `Ctrl` on Windows/Linux and `⌘ Meta` on macOS.
+Most admin hotkeys are registered via `src/utils/hotkeys.ts` using `registerHotkey()`. The `Mod` key normalizes to `Ctrl` on Windows/Linux and `⌘ Meta` on macOS.
 
-### Global Hotkeys (Root Layout)
-
-| Shortcut | Action                  | Registered In           |
-| :------- | :---------------------- | :---------------------- |
-| `?`      | Open Accessibility Help | `+layout.svelte` (root) |
-| `Alt+T`  | Toggle Dark Mode        | `+layout.svelte` (root) |
-
-### Admin Hotkeys (App Layout)
+### Global Hotkeys (App Layout)
 
 | Shortcut | Action                                 | Registered In          |
 | :------- | :------------------------------------- | :--------------------- |
 | `Mod+K`  | Toggle Global Search (Command Palette) | `(app)/+layout.svelte` |
 | `Alt+G`  | Same toggle (Gin/Coffee-style, all OS) | `(app)/+layout.svelte` |
-| `Mod+S`  | Global Save                            | `(app)/+layout.svelte` |
 | `Escape` | Close Global Search + restore focus    | `(app)/+layout.svelte` |
 
-> **Note:** `Alt+S` was removed (2026-07). `Mod+K` and `Alt+G` open the same unified palette — see [Global Search](#global-search-command-palette).
+> **Note:** the app layout registers only these three. A global `Mod+S` binding no longer exists, and the `?` / `Alt+T` rows that older revisions of this page listed have no registration in the tree. `Alt+S` was removed in 2026-07. `Mod+K` and `Alt+G` open the same unified palette — see [Global Search](#global-search-command-palette).
+
+### Editor Save Shortcut (`Mod+S`)
+
+Saving an entry is **editor-level**, not global. `src/utils/save-shortcut.ts` holds the decision logic and `attachSaveShortcut()` installs one `window` keydown listener; `src/components/header-edit.svelte` attaches it once per editor (deliberately **not** in `RightSidebar`, which renders for both the desktop aside and the mobile drawer and would register two listeners).
+
+| Rule              | Behaviour                                                                                                                          |
+| :---------------- | :--------------------------------------------------------------------------------------------------------------------------------- |
+| Combination       | `Ctrl+S` / `Cmd+S` only — `Alt` and `Shift` are excluded, so `Ctrl+Shift+S` (Save page as) stays with the browser                  |
+| Suppressed events | auto-repeat, IME composition, and events already `defaultPrevented`                                                                |
+| Guards            | editor mode `edit` or `create`; no open modal (`modalState.isOpen`); no save in flight; `canWrite !== false`                       |
+| Browser default   | `preventDefault()` runs on every claimed press — including one declined mid-save — so the browser's "Save page" dialog never opens |
+| In-flight latch   | a held key cannot produce a second request; the latch clears when the save promise settles                                         |
+
+Because the listener sits on `window`, it works while focus is inside a field without `enableInInputs`.
 
 ### Context-Specific Hotkeys
 
-| Shortcut      | Action                | Context                       |
-| :------------ | :-------------------- | :---------------------------- |
-| `Delete`      | Delete selected items | Entry lists, media gallery    |
-| `Mod+Z`       | Undo                  | Image editor                  |
-| `Mod+Shift+Z` | Redo                  | Image editor                  |
-| `Mod+D`       | Duplicate field       | Collection Builder (BuzzForm) |
-| `Mod+Enter`   | Advance / Confirm     | Steppers, modals              |
-| `Mod+F`       | Focus search input    | Media Gallery                 |
-| `Mod+A`       | Select all            | Entry lists                   |
-| `Mod+O`       | Open Media Library    | Upload widget                 |
+Verified registrations in the current tree:
+
+| Shortcut                              | Action                                                | Context                               |
+| :------------------------------------ | :---------------------------------------------------- | :------------------------------------ |
+| `Mod+S`                               | Save entry                                            | Entry editor (`header-edit.svelte`)   |
+| `Mod+S`                               | Save collection structure                             | `/config/collectionbuilder`           |
+| `Mod+S` / `Mod+1` / `Mod+2` / `Mod+3` | Save collection / switch Define, Widgets, Permissions | Collection builder editor             |
+| `Mod+K`                               | Focus Quick-Add field (switches to Widgets)           | Collection builder editor             |
+| `Alt+X`                               | Export entries                                        | Entry lists                           |
+| `Mod+S`                               | Save focal point                                      | Media aspect-preview modal            |
+| `Mod+Z` / `Mod+Shift+Z` / `Mod+Y`     | Undo / Redo                                           | Image editor                          |
+| `=` / `+` / `-` / `Mod+0` / `Mod+1`   | Zoom in / out, fit, actual pixels                     | Image editor                          |
+| `\` / `[` / `]`                       | Toggle compare / nudge compare slider                 | Image editor                          |
+| `Escape`                              | Close the active modal or preview                     | Image editor, aspect preview, dialogs |
 
 ### Adding New Hotkeys
 
@@ -332,12 +342,17 @@ import { registerHotkey } from "@src/utils/hotkeys";
 import { onMount } from "svelte";
 
 onMount(() => {
-  registerHotkey("mod+s", () => handleSave(), "Save changes");
+  // Third argument: description. Fourth: `preventDefault` (default true).
+  // Pass options only when the key must fire while an input has focus.
+  registerHotkey("alt+e", () => openExportPanel(), {
+    description: "Open the export panel",
+    enableInInputs: false,
+  });
 });
 ```
 
 > [!NOTE]
-> Hotkeys automatically skip events from `INPUT`, `TEXTAREA`, `SELECT`, and `contenteditable` elements. Cleanup is automatic via `onDestroy`.
+> Hotkeys skip events from `INPUT`, `TEXTAREA`, `SELECT`, and `contenteditable` elements unless `enableInInputs: true` is set (the app layout does this for `Mod+K` and `Alt+G`). Cleanup is automatic via `onDestroy`.
 
 ---
 

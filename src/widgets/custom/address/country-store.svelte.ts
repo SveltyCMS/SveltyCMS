@@ -1,10 +1,10 @@
 /**
  * @file src/widgets/custom/address/country-store.svelte.ts
- * @description Singleton store for efficient country data management.
+ * @description Singleton store for zero-bundle localized country name management.
  *
  * Features:
- * - Lazy loading of full country dataset
- * - Efficient looking up of country names
+ * - Native `Intl.DisplayNames` region localization across all browser/runtime locales
+ * - Zero-bundle fallback to `countries-core.json` (eliminating 220 KB `countries.json`)
  * - Shared state across all Address widget instances
  */
 
@@ -19,74 +19,70 @@ interface Country {
 
 class CountryStore {
   // private state using runes
-  private _countries = $state<Country[]>(countriesCore);
-  private readonly _loadedLanguages = new Set(["en", "de"]);
-  private _loadingPromise: Promise<void> | null = null;
+  private readonly _countries = $state<Country[]>(countriesCore);
+  private readonly _displayNamesCache = new Map<string, Intl.DisplayNames | null>();
 
   /**
    * Get the list of available countries.
-   * This is reactive and will update when new languages are loaded.
    */
   get countries() {
     return this._countries;
   }
 
   /**
-   * Ensure that the specified language is available in the country data.
-   * If not, it triggers a lazy load of the full dataset.
+   * Resolve a cached `Intl.DisplayNames` instance for region codes in `lang`.
    */
-  async ensureLanguageLoaded(lang: string): Promise<void> {
-    // Normalization
-    const targetLang = lang.toLowerCase();
-
-    // Already have core languages or already loaded
-    if (["en", "de"].includes(targetLang) || this._loadedLanguages.has(targetLang)) {
-      return;
+  private _getRegionDisplayNames(lang: string): Intl.DisplayNames | null {
+    const normalized = (lang || "en").toLowerCase();
+    if (this._displayNamesCache.has(normalized)) {
+      return this._displayNamesCache.get(normalized) ?? null;
     }
-
-    // Prevent duplicate in-flight requests
-    if (this._loadingPromise) {
-      return this._loadingPromise;
+    try {
+      if (typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function") {
+        const dn = new Intl.DisplayNames([normalized], { type: "region" });
+        this._displayNamesCache.set(normalized, dn);
+        return dn;
+      }
+    } catch {
+      // Invalid locale tag — fall back to core table below
     }
-
-    // Load full countries file
-    this._loadingPromise = import("./countries.json")
-      .then((module) => {
-        // Update the countries state with the full dataset
-        this._countries = module.default;
-
-        // Mark all available languages in the full dataset as loaded
-        // We assume the first entry represents the schema for all
-        if (module.default.length > 0) {
-          Object.keys(module.default[0]).forEach((key) => {
-            if (key !== "alpha2" && key !== "id") {
-              this._loadedLanguages.add(key);
-            }
-          });
-        }
-      })
-      .finally(() => {
-        this._loadingPromise = null;
-      });
-
-    return this._loadingPromise;
+    this._displayNamesCache.set(normalized, null);
+    return null;
   }
 
   /**
    * Get a localized country name.
-   * Falls back gracefully to English or the code if translation is missing.
+   * Uses native `Intl.DisplayNames` for non-EN/DE locales and falls back gracefully
+   * to `countries-core.json` or the ISO alpha-2 code.
    */
   getCountryName(alpha2: string, lang: string): string {
     if (!alpha2) {
       return "";
     }
 
-    const country = this._countries.find((c) => c.alpha2 === alpha2);
+    const lowerCode = alpha2.toLowerCase();
+    const targetLang = (lang || "en").toLowerCase();
+
+    if (targetLang !== "en" && targetLang !== "de") {
+      const dn = this._getRegionDisplayNames(targetLang);
+      if (dn) {
+        try {
+          const localized = dn.of(alpha2.toUpperCase());
+          if (localized && localized.toLowerCase() !== lowerCode) {
+            return localized;
+          }
+        } catch {
+          // Fall through to core lookup
+        }
+      }
+    }
+
+    const country = this._countries.find((c) => c.alpha2 === lowerCode);
     if (!country) {
       return alpha2;
     }
 
-    const val = country[lang] ?? country.en ?? country.de;
+    const val = country[targetLang] ?? country.en ?? country.de;
     return typeof val === "string" ? val : alpha2;
   }
 }

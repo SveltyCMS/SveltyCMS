@@ -30,6 +30,8 @@ import {
 import { describeBulkWriteOutcome } from "./bulk-write-outcome";
 import { entryMessages } from "./entry-actions-messages";
 import { logger } from "./logger";
+import { deepClone } from "./native-utils";
+import { navigationManager } from "./navigation";
 
 /**
  * Delete intent → transport flag.
@@ -439,6 +441,9 @@ function showDeleteConfirmation(
         setMode("view");
         setCollectionValue({});
         invalidateCollectionCache(collectionId);
+        if (typeof window !== "undefined") {
+          void navigationManager.toList({ invalidate: true });
+        }
       } catch (e) {
         toast.error({
           description: delete_entry_error({ error: (e as Error).message }),
@@ -463,7 +468,7 @@ export async function cloneCurrentEntry() {
     count: 1,
     onConfirm: async () => {
       try {
-        const clonedPayload = structuredClone(entry);
+        const clonedPayload = deepClone(entry);
 
         // Remove unique identifiers and timestamps
         clonedPayload._id = undefined;

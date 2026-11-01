@@ -100,15 +100,30 @@ export function getFirstCollectionNode(
   nodes: ContentNode[],
   order?: Record<string, number> | null,
 ): ContentNode | null {
-  return (
-    [...nodes].filter(isUserFacingCollectionNode).sort(compareCollectionNodes(order))[0] ?? null
-  );
+  if (nodes.length === 0) return null;
+  const cmp = compareCollectionNodes(order);
+  let best: ContentNode | null = null;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (!isUserFacingCollectionNode(node)) continue;
+    if (best === null || cmp(node, best) < 0) {
+      best = node;
+    }
+  }
+  return best;
 }
 
 export function getFirstCollectionSchema(schemas: Schema[]): Schema | null {
-  return (
-    [...schemas].filter(isUserFacingCollectionSchema).sort(compareCollectionSchemas)[0] ?? null
-  );
+  if (schemas.length === 0) return null;
+  let best: Schema | null = null;
+  for (let i = 0; i < schemas.length; i++) {
+    const schema = schemas[i];
+    if (!isUserFacingCollectionSchema(schema)) continue;
+    if (best === null || compareCollectionSchemas(schema, best) < 0) {
+      best = schema;
+    }
+  }
+  return best;
 }
 
 export function getCollectionRedirectPathFromNode(

@@ -23,8 +23,13 @@ This layout provides the administrative shell, including sidebars and header con
 	import LeftSidebar from '@src/components/left-sidebar.svelte';
 	import PageFooter from '@src/components/page-footer.svelte';
 	import RightSidebar from '@src/components/right-sidebar.svelte';
-	import CommandPalette from '@src/components/command-palette.svelte';
-	import TokenPicker from '@src/components/token-picker.svelte';
+	import PluginWorkspaceOverlay from '@components/system/plugin-workspace-overlay.svelte';
+	import { activeInput } from '@src/stores/active-input-store.svelte';
+	import { memoizeLazyLoader } from '@utils/lazy-module';
+	const loadCommandPalette = memoizeLazyLoader(
+		() => import('@src/components/command-palette.svelte')
+	);
+	const loadTokenPicker = memoizeLazyLoader(() => import('@src/components/token-picker.svelte'));
 	// Type Imports
 	import type { User } from '@src/databases/auth/types';
 	import { isAdmin } from '@src/databases/auth/constants';
@@ -54,7 +59,6 @@ This layout provides the administrative shell, including sidebars and header con
 	import Slot from '@components/system/slot.svelte';
 	import AdminZone from '@components/system/admin-zone.svelte';
 	import { setAdminZoneCapabilityChecker } from '@src/plugins/admin-zone-registry.svelte.ts';
-	import PluginWorkspaceOverlay from '@components/system/plugin-workspace-overlay.svelte';
 	import { pluginWorkspace } from '@src/stores/plugin-workspace.svelte';
 	import { setThemeContext } from '@src/components/ui/theme-context.svelte';
 	// Utils
@@ -317,6 +321,9 @@ This layout provides the administrative shell, including sidebars and header con
 		clearTimeout(layoutSaveTimer);
 		layoutSaveTimer = setTimeout(async () => {
 			if (!data.user) return;
+			// Never persist temporary viewport-driven collapse (e.g. mobile inspection or phone visit)
+			// to permanent desktop layout preferences.
+			if (screen.isMobile) return;
 
 			const prefs = uiStateToLayoutPrefs(ui.state);
 			const isAdminUser = isAdmin(data.user);
@@ -476,14 +483,6 @@ This layout provides the administrative shell, including sidebars and header con
 			enableInInputs: true
 		});
 
-		registerHotkey(
-			'mod+s',
-			() => {
-				window.dispatchEvent(new CustomEvent('global-save-request'));
-			},
-			'Save (global)'
-		);
-
 		registerHotkey('escape', () => ui.closeGlobalSearch(), 'Close Overlays/Command Palette', false);
 	});
 
@@ -600,11 +599,17 @@ This layout provides the administrative shell, including sidebars and header con
 		"
 	>
 		{#if ui.isCommandBarVisible}
-			<CommandPalette />
+			{#await loadCommandPalette() then { default: CommandPalette }}
+				<CommandPalette />
+			{/await}
 		{/if}
 
 		<!-- One global picker: every tokenTarget / fields.svelte trigger writes to activeInput. -->
-		<TokenPicker />
+		{#if activeInput.current}
+			{#await loadTokenPicker() then { default: TokenPicker }}
+				<TokenPicker />
+			{/await}
+		{/if}
 
 		<div class="relative z-0 h-full overflow-hidden">
 			<div class="flex h-lvh flex-col overflow-hidden">

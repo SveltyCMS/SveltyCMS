@@ -14,6 +14,7 @@
 		builder_help_identity,
 		builder_help_name,
 		builder_help_org_tags,
+		builder_help_revisions,
 		builder_help_suggested_tags,
 		builder_help_visual,
 		builder_tip_def_dbname,
@@ -22,6 +23,7 @@
 		builder_tip_def_icon,
 		builder_tip_def_identity,
 		builder_tip_def_name,
+		builder_tip_def_revisions,
 		builder_tip_def_step,
 		builder_tip_def_suggested_tags,
 		builder_tip_def_tags,
@@ -48,14 +50,24 @@
 		collection_form_identity,
 		collection_form_intro,
 		collection_form_org_tags,
+		collection_form_revisions,
+		collection_form_revisions_help,
+		collection_form_revisions_limit,
+		collection_form_revisions_limit_help,
 		collection_form_visual,
 		collectionname_description,
 		collectionname_labelicon
 	} from '@src/paraglide/messages';
 
 	import { collections, setCollection } from '@src/stores/collection-store.svelte';
+	import {
+		DEFAULT_REVISION_LIMIT,
+		MAX_REVISION_LIMIT,
+		MIN_REVISION_LIMIT
+	} from '@src/content/revision-defaults';
 	import IconifyIconsPicker from '@src/components/iconify-icons-picker.svelte';
 	import Input from '@src/components/ui/input.svelte';
+	import Toggle from '@src/components/ui/toggle.svelte';
 	import Button from '@src/components/ui/button.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
@@ -69,6 +81,12 @@
 
 	let name = $state(data?.name ?? '');
 	let description = $state(data?.description ?? '');
+	// New drafts are seeded revision-enabled by the editor route; an existing
+	// collection without the flag stays off until an editor turns it on.
+	let revisionEnabled = $state(data?.revision === true);
+	let revisionLimit = $state<number | undefined>(
+		typeof data?.revisionLimit === 'number' ? data.revisionLimit : DEFAULT_REVISION_LIMIT
+	);
 	// One-time mount seed: the sync effect below owns every later `syncKey` change.
 	let lastSyncedKey = $state<string | null>(untrack(() => syncKey));
 
@@ -126,6 +144,11 @@
 			const fromStore = untrack(() => collections.active);
 			name = fromData?.name ?? '';
 			description = fromData?.description ?? '';
+			revisionEnabled = fromData?.revision === true;
+			revisionLimit =
+				typeof fromData?.revisionLimit === 'number'
+					? fromData.revisionLimit
+					: DEFAULT_REVISION_LIMIT;
 			const iconValue =
 				(fromData?.icon != null && String(fromData.icon).trim()) ||
 				(fromStore?.icon != null && String(fromStore.icon).trim()) ||
@@ -166,12 +189,34 @@
 		}
 	}
 
+	/** Keep the author-typed limit inside the range the server will enforce. */
+	function normalizeRevisionLimit(value: unknown): number {
+		if (
+			value === null ||
+			value === undefined ||
+			(typeof value === 'string' && value.trim() === '')
+		) {
+			return DEFAULT_REVISION_LIMIT;
+		}
+		const numeric = Number(value);
+		if (!Number.isFinite(numeric)) return DEFAULT_REVISION_LIMIT;
+		return Math.min(MAX_REVISION_LIMIT, Math.max(MIN_REVISION_LIMIT, Math.trunc(numeric)));
+	}
+
+	function handleRevisionLimitBlur() {
+		revisionLimit = normalizeRevisionLimit(revisionLimit);
+	}
+
+	const effectiveRevisionLimit = $derived(normalizeRevisionLimit(revisionLimit));
+
 	// Sync all fields into the collection store (include slug for save action)
 	$effect(() => {
 		const currentName = name;
 		const currentDbName = dbNameValue;
 		const currentDescription = description;
 		const currentIcon = selectedIcon || 'bi:collection';
+		const currentRevision = revisionEnabled;
+		const currentRevisionLimit = effectiveRevisionLimit;
 		const currentSlug = currentDbName
 			? currentName
 					.toLowerCase()
@@ -192,7 +237,9 @@
 				base._id === currentDbName &&
 				base.description === currentDescription &&
 				base.icon === currentIcon &&
-				base.slug === currentSlug
+				base.slug === currentSlug &&
+				base.revision === currentRevision &&
+				base.revisionLimit === currentRevisionLimit
 			)
 				return;
 
@@ -202,7 +249,9 @@
 				name: currentName,
 				description: currentDescription,
 				icon: currentIcon,
-				slug: currentSlug || base.slug
+				slug: currentSlug || base.slug,
+				revision: currentRevision,
+				revisionLimit: currentRevisionLimit
 			});
 		});
 	});
@@ -344,6 +393,53 @@
 						class="w-full min-h-32 resize-none rounded border border-(--admin-border-default) bg-(--admin-bg-input) p-3 text-sm text-(--admin-text-body) placeholder:text-(--admin-text-muted) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500"
 					></textarea>
 				</div>
+			</div>
+		</AdminCard>
+
+		<!-- Bottom: Revisions -->
+		<AdminCard class="p-6 md:col-span-2">
+			<div class="mb-4 flex items-center justify-between">
+				<h3 class="flex items-center gap-2 text-base font-semibold text-(--admin-text-body)">
+					<iconify-icon icon="mdi:history" width="18" class="text-tertiary-500"></iconify-icon>
+					{collection_form_revisions()}
+				</h3>
+				<SystemTooltip title={builder_tip_def_revisions()}>
+					<HelpIcon ariaLabel={builder_help_revisions()} />
+				</SystemTooltip>
+			</div>
+
+			<div class="space-y-4">
+				<Toggle
+					bind:value={revisionEnabled}
+					label={collection_form_revisions()}
+					description={collection_form_revisions_help()}
+					data-testid="collection-revision-toggle"
+				/>
+
+				{#if revisionEnabled}
+					<div class="max-w-xs space-y-2">
+						<label
+							for="collection-revision-limit"
+							class="text-sm font-medium leading-none text-(--admin-text-muted)"
+						>
+							{collection_form_revisions_limit()}
+						</label>
+						<Input
+							id="collection-revision-limit"
+							type="number"
+							min={MIN_REVISION_LIMIT}
+							max={MAX_REVISION_LIMIT}
+							step={1}
+							bind:value={revisionLimit}
+							onblur={handleRevisionLimitBlur}
+							aria-label={collection_form_revisions_limit()}
+							data-testid="collection-revision-limit"
+						/>
+						<p class="text-[11px] text-(--admin-text-muted)">
+							{collection_form_revisions_limit_help()}
+						</p>
+					</div>
+				{/if}
 			</div>
 		</AdminCard>
 

@@ -173,12 +173,21 @@ export function parseNumberRange(value: string | null | undefined): { min: strin
   return { min: min.trim(), max: max.trim() };
 }
 
+const filterDefsWithSysCache = new WeakMap<object, SmartFilterDefinition[]>();
+const filterDefsNoSysCache = new WeakMap<object, SmartFilterDefinition[]>();
+
 export function buildFilterDefinitions(
   collection: Schema | null | undefined,
   options: BuildFilterDefinitionsOptions = {},
 ): SmartFilterDefinition[] {
   const includeSystemFields = options.includeSystemFields !== false;
   if (!collection?.fields?.length && !includeSystemFields) return [];
+
+  if (collection && typeof collection === "object") {
+    const cache = includeSystemFields ? filterDefsWithSysCache : filterDefsNoSysCache;
+    const cached = cache.get(collection);
+    if (cached) return cached;
+  }
 
   const defs: SmartFilterDefinition[] = [];
   const seen = new Set<string>();
@@ -210,6 +219,11 @@ export function buildFilterDefinitions(
         safeForFiltering: true,
       });
     }
+  }
+
+  if (collection && typeof collection === "object") {
+    const cache = includeSystemFields ? filterDefsWithSysCache : filterDefsNoSysCache;
+    cache.set(collection, defs);
   }
 
   return defs;

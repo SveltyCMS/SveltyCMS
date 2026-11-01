@@ -16,13 +16,29 @@ import { logger } from "@utils/logger";
 import { sanitizeHtml, stripHtml } from "@src/utils/sanitize-html";
 import { nowISODateString } from "@utils/date";
 
-/** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
-let cacheServiceModulePromise:
-  | Promise<typeof import("@src/databases/cache/cache-service")>
-  | undefined;
-function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
-  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
+/**
+ * Server-only navigation cache hook.
+ *
+ * `content-utils` is imported by the browser-safe `content/index.ts` (the root
+ * layout uses it), so it must never import the database/cache stack itself —
+ * SvelteKit's `server_only_import` guard rejects the whole dynamic-import chain.
+ * The server entry (`content/index.server.ts`) registers the real cache here at
+ * boot; the client simply has no provider and skips L2.
+ */
+export interface NavigationCacheProvider {
+  get(key: string, tenantId: string | null): Promise<NavigationNode[] | null>;
+  set(key: string, value: NavigationNode[], tenantId: string | null): Promise<void>;
 }
+
+let navigationCacheProvider: NavigationCacheProvider | null = null;
+
+export function setNavigationCacheProvider(provider: NavigationCacheProvider | null): void {
+  navigationCacheProvider = provider;
+}
+
+// In-memory L1 navigation tree cache keyed by `${tenantId || "global"}:${version}`
+let _lastNavCacheVersion = -1;
+const _navL1Cache = new Map<string, NavigationNode[]>();
 
 // --- PURE UTILITIES ---
 
@@ -151,22 +167,33 @@ export const contentNavigation = {
    * Returns a lightweight navigation structure for client serialization.
    */
   async getNavigationStructure(tenantId: string | null = null): Promise<NavigationNode[]> {
-    const version = contentStore.contentVersion;
-    const cacheKey = `navigation:tree:${tenantId || "global"}:${version}`;
-
-    if (typeof window === "undefined" && import.meta.env.SSR) {
-      try {
-        const { cacheService } = await loadCacheServiceModule();
-        const cached = await cacheService.get<NavigationNode[]>(cacheKey, tenantId);
-        if (cached) return cached;
-      } catch {
-        logger.trace("[NavigationCache] Read failed or skipped");
-      }
-    }
-
     if (contentStore.initState === "initializing") {
       logger.warn("[ContentNavigation] getNavigationStructure called during initialization");
       return [];
+    }
+
+    const version = contentStore.contentVersion;
+    if (version !== _lastNavCacheVersion) {
+      _navL1Cache.clear();
+      _lastNavCacheVersion = version;
+    }
+
+    const tid = tenantId || "global";
+    const l1Hit = _navL1Cache.get(tid);
+    if (l1Hit) return l1Hit;
+
+    const cacheKey = `navigation:tree:${tid}:${version}`;
+
+    if (typeof window === "undefined" && import.meta.env.SSR && navigationCacheProvider) {
+      try {
+        const cached = await navigationCacheProvider.get(cacheKey, tenantId);
+        if (cached) {
+          _navL1Cache.set(tid, cached);
+          return cached;
+        }
+      } catch {
+        logger.trace("[NavigationCache] Read failed or skipped");
+      }
     }
 
     const allNodes = contentStore.getAllNodes();
@@ -200,16 +227,11 @@ export const contentNavigation = {
       }
     }
 
-    if (typeof window === "undefined" && import.meta.env.SSR) {
+    _navL1Cache.set(tid, result);
+
+    if (typeof window === "undefined" && import.meta.env.SSR && navigationCacheProvider) {
       try {
-        const { cacheService } = await loadCacheServiceModule();
-        const { CacheCategory } = await import("@src/databases/cache/types");
-        const tid = tenantId || "global";
-        await cacheService.set(cacheKey, result, 300, tenantId, CacheCategory.CONTENT, [
-          "navigation",
-          "navigation:tree",
-          `navigation:tree:${tid}`,
-        ]);
+        await navigationCacheProvider.set(cacheKey, result, tenantId);
       } catch {
         logger.trace("[NavigationCache] Write failed or skipped");
       }
@@ -427,6 +449,8 @@ export function validateNumberFieldPlans(
   return errors;
 }
 
+const numberFieldPlanCache = new WeakMap<object, NumberFieldPlan[]>();
+
 export function validateNumericFields(
   data: Record<string, unknown>,
   schema: {
@@ -439,12 +463,20 @@ export function validateNumericFields(
   },
 ): string[] {
   if (!schema.fields) return [];
-  const plans: NumberFieldPlan[] = [];
-  for (const field of schema.fields) {
-    if (field.type !== "number") continue;
-    plans.push({ db_fieldName: field.db_fieldName, min: field.min, max: field.max });
+  let plans = numberFieldPlanCache.get(schema);
+  if (!plans) {
+    plans = [];
+    for (const field of schema.fields) {
+      if (field.type !== "number") continue;
+      plans.push({ db_fieldName: field.db_fieldName, min: field.min, max: field.max });
+    }
+    try {
+      numberFieldPlanCache.set(schema, plans);
+    } catch {
+      // Non-extensible object fallback
+    }
   }
-  return validateNumberFieldPlans(data, plans);
+  return plans.length > 0 ? validateNumberFieldPlans(data, plans) : [];
 }
 
 // ─────────────────────────────────────────────────────────────

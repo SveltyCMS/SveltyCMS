@@ -484,14 +484,43 @@ export async function handleDashboardRoutes(
           isAdmin: true,
         });
 
-        const mapped = (searchResult.items || []).map((item: any) => ({
-          id: item._id || item.id,
-          title: item.title || item.name || item.slug || "Untitled",
-          collection: item._collection?.name || item._collection?.id || "unknown",
-          createdAt: item.createdAt || item.updatedAt,
-          createdBy: item.createdBy || item.author || item.updatedBy || "system",
-          status: item.status || "published",
-        }));
+        const items = searchResult.items || [];
+        const authorIds = Array.from(
+          new Set(
+            items
+              .map((item: any) => item.createdBy || item.author || item.updatedBy)
+              .filter((id: unknown) => typeof id === "string" && id && id !== "system"),
+          ),
+        );
+
+        const authorMap = new Map<string, string>();
+        if (authorIds.length > 0) {
+          await Promise.all(
+            authorIds.map(async (userId) => {
+              try {
+                const userRes = await cms.auth.getUserById(userId, { tenantId });
+                if (userRes?.success && userRes.data) {
+                  const u = userRes.data;
+                  const display = u.username || u.email || String(userId);
+                  authorMap.set(userId, display);
+                }
+              } catch {}
+            }),
+          );
+        }
+
+        const mapped = items.map((item: any) => {
+          const rawAuthor = item.createdBy || item.author || item.updatedBy || "system";
+          const displayAuthor = authorMap.get(String(rawAuthor)) || String(rawAuthor);
+          return {
+            id: item._id || item.id,
+            title: item.title || item.name || item.slug || "Untitled",
+            collection: item._collection?.name || item._collection?.id || "unknown",
+            createdAt: item.createdAt || item.updatedAt,
+            createdBy: displayAuthor,
+            status: item.status || "published",
+          };
+        });
 
         return rawResponse(event, mapped);
       }

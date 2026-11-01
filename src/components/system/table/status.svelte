@@ -27,9 +27,9 @@ Values form StatusTypes
 		button_delete,
 		entrylist_multibutton_clone,
 		entrylist_multibutton_draft,
-		entrylist_multibutton_publish,
 		entrylist_multibutton_schedule,
-		entrylist_multibutton_unpublish
+		status_state_published,
+		status_state_unpublished
 	} from '@src/paraglide/messages';
 
 	const badgeConfig = $derived.by(() => {
@@ -38,13 +38,13 @@ Values form StatusTypes
 				return {
 					variant: 'primary' as const,
 					icon: 'bi:hand-thumbs-up-fill',
-					label: entrylist_multibutton_publish()
+					label: status_state_published()
 				};
 			case StatusTypes.unpublish:
 				return {
 					variant: 'warning' as const,
 					icon: 'bi:pause-circle',
-					label: entrylist_multibutton_unpublish()
+					label: status_state_unpublished()
 				};
 			case StatusTypes.schedule:
 				return {

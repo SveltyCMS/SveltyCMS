@@ -6,7 +6,7 @@ order: 15
 icon: "🔧"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-10-24"
+updated: "2026-11-01"
 tags:
   - "testing"
   - "scripts"
@@ -375,13 +375,28 @@ bun run scripts/check/check-test-db-safety.ts
 
 ### `scripts/check/check-bundle-size.ts` — CI Bundle Gate
 
-Fails if TipTap/prosemirror leaks into the critical entry chunk or if entry/layout chunks exceed size thresholds.
+The gate scans every emitted client chunk under `.svelte-kit/output/client/_app/immutable` (the `build/` layouts are not inspected) and fails the build on four kinds of violation:
+
+| Gate                    | Value                | Applies to                                                                                                                                                                     |
+| :---------------------- | :------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MAX_ENTRY_KB`          | `80`                 | entry chunks (`entry.*.js`)                                                                                                                                                    |
+| `MAX_ROOT_LAYOUT_KB`    | `25`                 | the root layout, matched as `0.<hash>.js` in `nodes/`                                                                                                                          |
+| `MAX_LAYOUT_KB`         | `150`                | layout chunks plus the `(app)` admin shell node (identified by the `floating-nav` / `command-palette` / `left-sidebar` markers, because SvelteKit compiles it to `nodes/N.js`) |
+| `BANNED_CLIENT_MARKERS` | `json-render-svelte` | every client chunk — the pattern was replaced by native Svelte 5 + Valibot and must never return to the browser bundle                                                         |
+
+Two additional checks run across **all** chunks, not just the size-gated ones:
+
+- **Static `node:` imports** (`from "node:fs"` / `import "node:path"`): the browser cannot fetch a `node:` URL, so the whole route chunk dies silently. Dynamic `import("node:fs")` behind a server guard and `require()` stay legal.
+- **TipTap/prosemirror markers** in an entry or layout chunk fail the gate (rich text must arrive through a dynamic import in the rich-text widget). `@better-svelte-email`, `ollama` and `node:events` only warn.
 
 ```bash
+bun run build
 bun run scripts/check/check-bundle-size.ts
 ```
 
 **Used by**: CI build job.
+
+**Verified baseline (2026-11-01, `bun run build`)**: root layout node `0.*.js` = 18,565 B — under the 25 KB ceiling.
 
 ### `scripts/check/check-flake-budget.ts` — Flake Budget Enforcement
 

@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-23"
+updated: "2026-11-01"
 tags:
   - "achievements"
   - "log"
@@ -1953,6 +1953,67 @@ Eleven of the twelve findings in the external theme/UX review reproduced (one cl
   - Migrated the hand-rolled strips onto it: `/user` management, `/config/extensions` (badges), `/config/sync` (per-tab tooltips), `/config/design-system`. `/config/access-management` lost the intro paragraph above the tabs (it moved to the shell `description`), gained a full-bleed strip, and `/config/api`, `/user`, upload-media, media details and entry fields inherit the same rule through the primitives. The array `Tabs` gained `bordered={false}` for rows that own the rule.
   - `EntryListMultiButton`: the chevron segment is now a black `bg-black` square (`rounded-none!`, `text-white!`) separated by a solid-white `border-s`, and the group's start radius follows `--admin-radius-button` — previously the inline radius token beat `rounded-none`, so both halves rendered as one pill and the divider was invisible.
 - **Verification**: Added `tests/unit/components/dom/user-modal-edit-interaction.test.ts` (7 real DOM interaction tests for `ModalEditForm` and `ModalEditToken`), expanded `tests/unit/user/user-remote-helpers.test.ts` (13 unit tests), and added `TokenPicker` insertion + translation-status coverage in `tests/unit/components/dom/entry-fields-conditions-interaction.test.ts` and `tests/unit/components/dom/entry-fields-create-skeleton.test.ts`. Added idempotent-delete coverage in `tests/unit/content/upsert-content-nodes.test.ts` and physical-key coverage in `tests/unit/utils/hotkeys-plus.test.ts`. `tests/unit/components/dom/system-settings-interaction.test.ts` (12 tests) now asserts the tooltip opens from the `?` icon and stays closed when only the label is hovered. Config search is covered by `tests/unit/routes/config-search.test.ts` (6 filter-contract tests), `tests/unit/components/dom/config-search-interaction.test.ts` (real DOM: filter → count → empty state → clear), and an E2E case in `tests/e2e/routes/config/route-breadth.spec.ts`. Automation onboarding is covered by `tests/unit/routes/automation-step-guard.test.ts` (6 step-gate cases), `tests/unit/components/dom/automation-onboarding-interaction.test.ts` (real DOM: explainer open → name hint → event hint → manual trigger → step 2 empty state), and the extended golden journey in `tests/e2e/routes/config/automations.spec.ts`. Redirect guidance is covered by `tests/unit/components/dom/redirects-form-help-interaction.test.ts` (explainer visible, one `?` trigger per field, label hover stays inert, field description opens from the icon). Regex resolution is covered in `tests/unit/hooks/redirects.test.ts` (pattern fallback, exact path wins, invalid pattern skipped, cache invalidation) and `tests/unit/config/redirects-utils.test.ts` (match order + bounds). Smart Importer guidance is covered by `tests/unit/components/dom/migration-wizard-onboarding-interaction.test.ts` (explainer open, CSV detection, round transparent remove button, `?` triggers), generic CSV detection and record splitting by `tests/unit/plugins/csv-detect.test.ts` (11 cases), CSV import below a preamble with multi-line quoted cells plus content-type filtering by `tests/unit/plugins/smart-importer.test.ts` (and an E2E case in `tests/e2e/routes/config/data-management.spec.ts`), and the plugin error envelope by `tests/unit/plugins/migration-form-actions.test.ts` (7 cases incl. 413). Tooltip arrow geometry is pinned by `tests/unit/utils/use-floating-arrow.test.ts` (4 cases: edge facing the reference, top/bottom centring, short-body corner regression, sub-arrow-size bodies). Sidebar identity is pinned by `tests/unit/components/dom/left-sidebar-username.test.ts` (layout snapshot wins over a page-shadowed slim `user`). API playground help is pinned by `tests/unit/components/dom/api-playground-help-interaction.test.ts` (eight builder triggers are tab stops; focusing one opens the tooltip and sets `aria-describedby`). Tab chrome is pinned by `tests/unit/components/dom/tab-chrome.test.ts` (4 tests: the inset rule, `bordered={false}`, square accent triggers, additive layout classes) and `tests/unit/components/tab-chrome-contract.test.ts` (14 tests: every hand-rolled strip imports the shared tokens and no page re-declares the accent pair or `-mb-px`); the split button by `tests/unit/components/dom/entry-list-multi-button-chrome.test.ts`.
+
+### 3.65 November 2026 — Lean-out waves and the 2026-11-01 retest fixes (2026-11-01)
+
+#### Client bundle: measured, not extrapolated
+
+| Metric                         | 2026-11-01 build |
+| :----------------------------- | :--------------- |
+| Raw (`_app/immutable`, JS+CSS) | 7,841,913 B      |
+| Gzip                           | 2,370,426 B      |
+| Brotli (project methodology)   | 2,161,605 B      |
+| JS chunks                      | 371              |
+| Root layout node `0.*.js`      | 18,565 B         |
+
+These figures were produced by `bun run build` on 2026-11-01 and re-measured from the emitted directory (raw = sum of `.js` + `.css`; gzip = zlib level 9; Brotli = `BROTLI_MODE_TEXT`, quality 6, matching `scripts/bundle-stats.ts`).
+
+**Scope of the waves, stated honestly:** the uncommitted lean-out work in this tree is **−182,221 B raw (−2.27 %), −39,545 B gzip and −33,869 B Brotli** against the pre-session 29 October build (8,024,134 B raw). Chunk count moved **352 → 371** because components were split out for lazy loading — that is the intended trade, not a regression. The 8 October baseline of 16,365,530 B is **not** a valid comparison point for the waves: most of that reduction landed before 29 October. No single-wave −52.2 % figure is claimed here.
+
+#### Verified leanness
+
+- **`countries.json` deleted** (`src/widgets/custom/address/countries.json`, 7,529 lines): the Address widget now resolves names from the 14 KB `countries-core.json` plus a cached `Intl.DisplayNames` per non-EN/DE locale. No lazy chunk, no per-locale table.
+- **`json-render-svelte` gone**: removed from `package.json` and `bun.lock`, and absent from every emitted client `.js` chunk. `scripts/check/check-bundle-size.ts` now fails if the marker returns (`BANNED_CLIENT_MARKERS`). The generative surface is the native Valibot catalog + recursive snippet renderer (depth ≤16, `<svelte:boundary>` per element).
+- **Root layout at 18,565 B**, under the `MAX_ROOT_LAYOUT_KB = 25` gate — the WebMCP client stays lazy.
+- **Lazy dialogs and players**: `bulk-field-edit-modal`, `advanced-filter-modal` and `revision-diff-modal` load through `memoizeLazyLoader()`; `hls-video-player.svelte` and `transcode-modal.svelte` load through `{#await import(...)}` inside the media details modal.
+- **Media work is parallel and bounded**: batch processing runs `min(4, ids.length)` workers with ordered result slots, and reference/version existence probes issue their checks with `Promise.all` instead of a serial loop.
+- **WeakMap schema plans and per-object caches**: `tableSelectionCache` and `_isDateColCache` (Drizzle helpers), `jsonDataPatches` (atomic partial `data` updates) and the bound-function cache in `proxy-utils.ts` hold metadata against the schema/object identity, so they cannot leak per tenant or per request.
+- **One lazy-module primitive**: `src/utils/lazy-module.ts` (`lazyModule`, `memoizeLazyLoader`) replaced hand-rolled `let promise | undefined` caches across the settings, SDK, benchmark and setup paths. A rejected load clears the memo, so a transient import failure retries instead of poisoning the process.
+
+> Micro-benchmarks measured during the waves (e.g. the ×305 local figures) are **not** published here: they were not recorded through the benchmark matrix and are not reproducible from the repository.
+
+#### Retest fixes shipped in the same tree
+
+- **Monitor uptime**: `metricsService.getSystemMetrics().uptime` is milliseconds; the page renders it with `formatUptimeMs()` (`29m`, `1d 2h 3m`, `< 1m`, `Just started`). The old magnitude guess (`> 10_000_000` ⇒ seconds) rendered a 29-minute process as "20d".
+- **Trash**: SQL soft delete now writes `deletedAt` + `deletedBy` (Mongo already did), so relational rows no longer show "Deleted by: System". The SSR page **and `GET /api/trash`** share one projection (`src/utils/trash-item.ts`): title (plain / locale map / JSON `data`) → `name` → first display string → `_id`, and `deletedAt`/`deletedBy` → `updatedAt`/`updatedBy` for legacy rows. A missing actor renders `—`; only a literal `system` actor renders "System".
+- **Rich-text sync loop**: `normalize-html.ts` removes only the default `text-align: left|start` declaration and keeps every other declaration, so a plain `<p>` no longer bounces against TipTap's serialized HTML (`effect_update_depth_exceeded`).
+- **Forgot password**: the reset form renders only when the server returns a `resetLink`, which requires no SMTP **and** `ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE=true` outside production. Otherwise the server's message is shown — the B1 account-takeover guard is unchanged.
+- **Config tiles**: `src/routes/(app)/config/config-tile-permissions.ts` maps every tile to a real `PERMISSION_CATALOG` id. Editor keeps Design System (`config:themeManagement`); admin-only tiles gate on `system:admin`. The unregistered `manage:*` / `access:*` spellings are gone, so an Editor no longer sees an empty grid.
+- **Invite flow**: the invite dialog carries its own title/body instead of the shared "Edit Token" copy, and an invite link opens Sign Up directly (`/login?invite_token=…`); the chooser is still reachable by navigating to `/login`.
+- **Media alt text**: clicking the empty "Add alt text…" label focuses the input after `tick()` (focus previously stayed on `<body>`), and selects the existing value when there is one.
+- **Setup**: the wizard offers SQLite / PostgreSQL / MariaDB / MongoDB / MongoDB Atlas (no separate MySQL type); **Test Connection** is a read-only probe (`createIfMissing: false`, `skipModuleInit: true`, `readOnlyProbe: true`) and the explicit Next materializes the DB, writes `config/private.ts` and seeds; the production URL pre-fills from the request origin; the review copy matches the actual redirect (auto sign-in, then the first collection or `/login`); the consent banner is suppressed on `/setup`.
+- **Runtime endpoints**: `GET /api/webhooks/logs` returns `{ success: true, data: [] }` for an empty tenant and `POST /api/webhooks/logs/:id/retry` re-dispatches a delivery; `/email-previews` uses `COEP: credentialless` with `CORP: cross-origin` for `/SveltyCMS.png`; config drift hashes the same `{ key, value }` projection on both sides (`decodePreferenceValue()` normalizes SQLite's text values); the documented cache TTL placeholders are 600/600/300/180/300/86400/60/300 s; the version badge keeps the last good result for 6 h on transient GitHub failures; the Design System palette reads the catalog through `/api/marketplace`.
+- **RTL**: `dir="auto"` on collection table cells, media titles/filenames, alt text and captions, so a user-typed value resolves its own direction instead of inheriting the interface direction.
+
+#### Competitive bet #1 — revisions on by default (first half)
+
+- **New collections and setup presets default to `revision: true`** with `revisionLimit: 100` (Builder bounds 1–1000). Existing collection files are never rewritten implicitly: a collection without the flag stays opt-in until its Builder form is saved, and an explicit `revision: false` is preserved. Configuration/transactional preset tables (`tax_rates`, `shipping_zones`, `carts`, `orders`) explicitly opt out.
+- The Collection Builder **Define** tab now has a Revisions card (toggle + limit input), and the save/generator round-trips both flags — previously editing an existing blueprint silently dropped them.
+- The runtime `revisionLimit` now honours any positive integer instead of silently replacing values below 5 with 100.
+- Tests: `tests/unit/routes/collectionbuilder-action-page-server.test.ts` (creation default, explicit opt-out, existing non-flip, toggle persistence/clamp), `tests/unit/setup/preset-collections.test.ts` (every preset, schema + generated source) and `tests/unit/sdk/revision-history-sqlite.test.ts` (real SQLite update → `content_revisions`, restore snapshots the pre-restore version).
+
+#### Follow-up hardening (same tree)
+
+- **Cross-node epoch propagation**: `bumpCollectionEpoch()` publishes the value on the existing Redis invalidation channel; peers apply it monotonically and reject L2 refills through the `gen` fence. Residual: an already-admitted local `responseCache` L1 list body is intentionally not epoch-checked and can serve until eviction/TTL.
+- **Trash API parity**: `GET /api/trash` now uses the same `toTrashItem()` projection as SSR, and the MongoDB bulk soft-delete path passes `{ strict: false }` so the audit pair is not stripped from user-collection schemas.
+- **Localization**: `bun run check:copy` is at **0 offenses** (was 46); 302 German values were translated, leaving only product names/technical samples identical to English.
+- **CB1 E2E proof**: `tests/e2e/routes/collection-builder/kitchen-sink.spec.ts` now seeds `posts`, edits it, saves, reloads and asserts persistence. It is statically listed/partitioned; the full E2E shard is CI-only.
+- **Slop scanner**: 0 errors / 0 warnings / 0 infos; the three dead exports were removed.
+
+#### Deliberately not claimed
+
+- **Draft/live separation is not shipped yet**: autosave still writes the live row, `content_drafts` has no SDK/API caller, and there is no draft-resume or publish-promotion flow. That remains the in-progress second half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).
+- Trash has **no** scheduled purge: restore is implemented, an automatic 30-day retention job is not.
 
 ## Related
 

@@ -1,13 +1,22 @@
+<!--
+@file src/services/json-render/components/text.svelte
+@component
+@description Text and fallback Control renderer for AI-generated dashboard specs.
+### Features
+- Supports both `element.props` and JSON-Forms-style `element.label` / `element.options`
+-->
 <script lang="ts">
-	import type { ComponentRenderProps } from 'json-render-svelte';
+	import type { ComponentRenderProps } from '../catalog';
 
 	let props: ComponentRenderProps = $props();
 	let element = $derived(props.element);
 
-	const elementProps = $derived((element?.props as Record<string, unknown>) || {});
-	const content = $derived(elementProps.content as string);
-	const label = $derived(elementProps.label as string);
-	const value = $derived(elementProps.value as string);
+	const elementProps = $derived(
+		(element?.props ?? element?.options ?? {}) as Record<string, unknown>
+	);
+	const content = $derived((elementProps.content as string) || '');
+	const label = $derived((elementProps.label as string) || element?.label || '');
+	const value = $derived((elementProps.value as string) || '');
 	const displayValue = $derived(content || value || '');
 </script>
 

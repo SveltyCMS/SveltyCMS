@@ -148,7 +148,7 @@ with interactive focal point adjustment that persists to the server.
 						<h3 id="aspect-preview-title" class="text-lg font-semibold text-(--admin-text-body)">
 							Aspect Ratio Preview
 						</h3>
-						<p class="text-xs text-(--admin-text-muted)">
+						<p class="text-xs text-(--admin-text-muted)" dir="auto">
 							{media?.filename ?? 'Image'} — drag or use arrow keys to adjust focal point
 						</p>
 					</div>

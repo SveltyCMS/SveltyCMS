@@ -127,7 +127,11 @@
 			return;
 		}
 
-		const config = structuredClone(PROFILES[profile]);
+		const config = {
+			ALLOWED_TAGS: PROFILES[profile].ALLOWED_TAGS,
+			ALLOWED_ATTR: PROFILES[profile].ALLOWED_ATTR,
+			ALLOW_DATA_ATTR: PROFILES[profile].ALLOW_DATA_ATTR
+		};
 
 		// URL validation hook (client-side only — hooks require DOM)
 		if (addHook) {

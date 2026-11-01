@@ -39,16 +39,6 @@ export const MEDIA_BATCH_LIMIT = 100;
 /** Telemetry/test hook: how many HTTP requests the coalescer issued. */
 export const mediaBatchStats = { requests: 0 };
 
-/** Seed the raw cache (for callers that already hold the document). */
-export function cacheMediaDoc(id: string, doc: MediaDoc): void {
-  docCache.set(id, doc);
-}
-
-/** Read a cached raw document, if any. */
-export function getCachedMediaDoc(id: string): MediaDoc | undefined {
-  return docCache.get(id);
-}
-
 /** Clear every layer — used by tests and after a media mutation. */
 export function resetMediaCache(): void {
   mediaCache.clear();

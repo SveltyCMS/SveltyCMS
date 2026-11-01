@@ -12,23 +12,16 @@
 import { privateConfigSchema } from "../../databases/private-config-schema";
 import { publicConfigSchema } from "../../databases/public-config-schema";
 import { getConfigStamp } from "@src/databases/config-state";
+import { lazyModule } from "@utils/lazy-module";
 import { logger } from "@utils/logger";
 import type { IDBAdapter } from "@src/databases/db-interface";
 import type { InferOutput } from "valibot";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
-let cacheServiceModulePromise:
-  | Promise<typeof import("@src/databases/cache/cache-service")>
-  | undefined;
-function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
-  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
-}
+const loadCacheServiceModule = lazyModule(() => import("@src/databases/cache/cache-service"));
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
-let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
-function loadDbModule(): Promise<typeof import("@src/databases/db")> {
-  return (dbModulePromise ??= import("@src/databases/db"));
-}
+const loadDbModule = lazyModule(() => import("@src/databases/db"));
 
 export type PrivateEnv = InferOutput<typeof privateConfigSchema>;
 export type PublicEnv = InferOutput<typeof publicConfigSchema> & {
@@ -291,7 +284,7 @@ export class SettingsService {
       this.caches.delete(tenantId);
       logger.debug(`Settings cache manually invalidated for tenant ${tenantId}`);
       if (typeof window === "undefined" && import.meta.env.SSR) {
-        import("@src/databases/cache/cache-service").then(({ cacheService }) => {
+        loadCacheServiceModule().then(({ cacheService }) => {
           cacheService.delete(`settings:cache:${tenantId}`, tenantId).catch(() => {
             logger.debug("Settings cache delete failed during invalidation");
           });
@@ -301,7 +294,7 @@ export class SettingsService {
       this.caches.clear();
       logger.debug("All settings caches manually invalidated");
       if (typeof window === "undefined" && import.meta.env.SSR) {
-        import("@src/databases/cache/cache-service").then(({ cacheService }) => {
+        loadCacheServiceModule().then(({ cacheService }) => {
           cacheService.clearByPattern("settings:cache:*").catch(() => {
             logger.debug("Settings cache clearByPattern failed during invalidation");
           });

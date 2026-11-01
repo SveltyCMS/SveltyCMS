@@ -19,6 +19,11 @@ import path from "node:path";
 import { contentSystem } from "@src/content/index.server";
 import { syncContentState } from "@src/content/sync-content-state.server";
 import type { Schema } from "@src/content/types";
+import {
+  DEFAULT_REVISION_LIMIT,
+  MAX_REVISION_LIMIT,
+  MIN_REVISION_LIMIT,
+} from "@src/content/revision-defaults";
 // Auth
 import { hasCollectionBuilderPermission } from "@src/databases/auth/permissions";
 import { validatePhysicalTableName } from "@src/databases/core/collection-name";
@@ -76,6 +81,38 @@ const WIDGET_NAME_RE = /^[A-Za-z][A-Za-z0-9_]*$/;
 function isPathInside(root: string, candidate: string): boolean {
   const rel = path.relative(path.resolve(root), path.resolve(candidate));
   return rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+}
+
+/**
+ * Behavioural schema flags the field canvas does not own. The editor posts them
+ * back from the loaded schema (`...collections.active`), so the save action must
+ * read them or editing an existing collection silently resets revisions and
+ * live preview (CB1: saving a seeded `posts`/`categories` blueprint).
+ */
+function parseOptionalBoolean(value: FormDataEntryValue | null): boolean | undefined {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return undefined;
+}
+
+function parseOptionalPositiveInt(value: FormDataEntryValue | null): number | undefined {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/** Bound the author-controlled limit to what the Define tab advertises (1–1000). */
+function clampRevisionLimit(value: number | undefined): number {
+  if (value === undefined) return DEFAULT_REVISION_LIMIT;
+  return Math.min(MAX_REVISION_LIMIT, Math.max(MIN_REVISION_LIMIT, Math.trunc(value)));
+}
+
+/** `livePreview` is a boolean or a URL pattern such as `/{slug}?lang={lang}`. */
+function parseLivePreview(value: FormDataEntryValue | null): boolean | string | undefined {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (typeof value === "string" && value.trim() !== "") return value;
+  return undefined;
 }
 
 function publicBuilderUser(user: { _id?: { toString(): string } | string }, isAdmin: boolean) {
@@ -280,6 +317,12 @@ export const actions: Actions = {
       const collectionDescription = formData.get("description");
       const collectionStatus = formData.get("status") as string;
       const confirmDeletions = formData.get("confirmDeletions") === "true";
+      const tenantId = locals.tenantId ?? null;
+
+      // Files own collection existence (C1). A collection whose source file is
+      // absent is being created, so the revision default below applies to it.
+      const collectionPath = getCollectionFilePath(contentName, tenantId);
+      const isNewCollection = !fs.existsSync(collectionPath);
 
       // Permissions & Settings tab data
       const entriesPerPage = parseInt((formData.get("entriesPerPage") as string) || "20", 10);
@@ -287,6 +330,16 @@ export const actions: Actions = {
       const defaultSortDir = (formData.get("defaultSortDir") as string) || "desc";
       const apiVisible = formData.get("apiVisible") !== "false";
       const formEnabled = formData.get("formEnabled") === "true";
+      // Flags carried over from the loaded schema (see the parse helpers above).
+      // New collections default to revision history; an existing collection only
+      // changes when the builder posts the toggle (explicit `false` is preserved).
+      const revisionInput = parseOptionalBoolean(formData.get("revision"));
+      const revision = revisionInput ?? (isNewCollection ? true : undefined);
+      const revisionLimit =
+        revision === true
+          ? clampRevisionLimit(parseOptionalPositiveInt(formData.get("revisionLimit")))
+          : undefined;
+      const livePreview = parseLivePreview(formData.get("livePreview"));
 
       const federationEnrichmentsRaw = formData.get("federationEnrichments") as string | null;
       let federationEnrichments: Schema["federationEnrichments"];
@@ -353,8 +406,6 @@ export const actions: Actions = {
 
       const imports = await goThrough(fields, fieldsData);
 
-      const tenantId = locals.tenantId ?? null;
-
       // Generate collection file using AST transformation
       const content = await generateCollectionFileWithAST({
         collectionId,
@@ -371,11 +422,13 @@ export const actions: Actions = {
         defaultSortDir,
         apiVisible,
         formEnabled,
+        revision,
+        revisionLimit,
+        livePreview,
         federationEnrichments,
       });
 
       // Use tenant-aware path resolution
-      const collectionPath = getCollectionFilePath(contentName, tenantId);
       const oldCollectionPath = originalName ? getCollectionFilePath(originalName, tenantId) : null;
       const collectionsRoot = getCollectionsPath(tenantId);
       if (!isPathInside(collectionsRoot, collectionPath)) {
@@ -517,8 +570,15 @@ async function goThrough(object: OrderedWidgetList | FieldsData, fields: string)
         }
 
         for (const IMPORT of widgetImport) {
+          if (!IMPORT || typeof IMPORT !== "string") continue;
           const importValue = fieldWithWidget[importKey];
-          const replacement = (typeof importValue === "string" ? importValue : "")
+          const replacement = (
+            typeof importValue === "string"
+              ? importValue
+              : importValue != null
+                ? String(importValue)
+                : ""
+          )
             .replace(/🗑️/g, "")
             .trim();
           imports.add(IMPORT.replace(`{${importKey}}`, replacement));
@@ -603,6 +663,9 @@ interface CollectionData {
   defaultSortDir?: string;
   apiVisible?: boolean;
   formEnabled?: boolean;
+  revision?: boolean;
+  revisionLimit?: number;
+  livePreview?: boolean | string;
   federationEnrichments?: Schema["federationEnrichments"];
 }
 
@@ -631,6 +694,21 @@ async function generateCollectionFileWithAST(data: CollectionData): Promise<stri
   }
   if (data.formEnabled === true) {
     optionalProps.push(`\tformEnabled: true,`);
+  }
+  // Behavioural flags (revisions / live preview) survive an edit of an existing
+  // collection — the builder posts them, so the generated file must re-emit them.
+  // `revisionLimit` only means something while revisions are on; emitting a limit
+  // for a collection that opted out would add a stray flag on every save.
+  if (data.revision === true) {
+    optionalProps.push(`\trevision: true,`);
+    if (typeof data.revisionLimit === "number" && data.revisionLimit > 0) {
+      optionalProps.push(`\trevisionLimit: ${data.revisionLimit},`);
+    }
+  }
+  if (data.livePreview === true) {
+    optionalProps.push(`\tlivePreview: true,`);
+  } else if (typeof data.livePreview === "string" && data.livePreview.length > 0) {
+    optionalProps.push(`\tlivePreview: ${JSON.stringify(data.livePreview)},`);
   }
   if (data.federationEnrichments?.length) {
     optionalProps.push(

@@ -6,7 +6,7 @@ order: 25
 icon: "mdi:robot-mop"
 author: "SveltyCMS Team"
 created: "2026-04-11"
-updated: "2026-09-22"
+updated: "2026-11-01"
 tags:
   - "maintenance"
   - "watchdog"
@@ -16,7 +16,7 @@ tags:
 
 # Autonomous Maintenance
 
-This page is the background watchdog: cache compaction, index checks, and trash purge. Emails and webhooks that you configure are [Automations](../content/automations.mdx).
+This page is the background watchdog: cache compaction, index checks, and the soft-delete lifecycle. Emails and webhooks that you configure are [Automations](../content/automations.mdx).
 
 SveltyCMS 2026 introduces **Autonomous Maintenance**, a background self-healing layer that proactively optimizes the system without human intervention. This is orchestrated by the **System Watchdog**.
 
@@ -53,22 +53,26 @@ The Watchdog analyzes query performance bubbled up through the `DatabaseResilien
 
 ---
 
-## 🗑️ Automated Trash Purge
+## 🗑️ Trash Lifecycle
 
-While SveltyCMS uses "Soft Deletes" by default, the maintenance layer manages the archival lifecycle.
+SveltyCMS uses "Soft Deletes": a delete sets `isDeleted` and keeps the row.
 
-- **Retention Policy**: By default, items in the **Trash** are kept for **30 days**.
-- **Autonomous Purge**: During the nightly maintenance window, the Watchdog permanently removes items that have exceeded the retention threshold, reclaiming database storage.
+- **What a soft delete writes**: `isDeleted: true`, `updatedAt`, and — on both the SQL and Mongo paths — `deletedAt` plus `deletedBy` (the acting user). SQL writes the audit pair only when the physical column exists, so older system tables keep working.
+- **Trash list**: `/config/trash` and `GET /api/trash` list soft-deleted rows per collection. The title falls back through `title` (plain, locale map, or the JSON `data` blob) → `name` → the first display string → `_id`, so a row without a `title` field is still identifiable. Timestamps fall back to `updatedAt` / `updatedBy` for rows trashed before `deletedAt` / `deletedBy` existed.
+- **Restore**: `POST /api/trash/restore` (with `{ collectionId, entryId }`) reverses the soft delete and restores the mangled unique fields.
+
+> [!IMPORTANT]
+> **No automatic purge is shipped.** Nothing deletes trashed rows on a timer, and there is no user-facing "empty trash" API — an operator removes a row permanently through the collection. (The E2E harness has a `purge-trash` action on the fail-closed `/api/testing` backdoor; it is not a product feature.) There is therefore no 30-day retention job to configure. Earlier revisions of this page described one that does not exist.
 
 ---
 
 ## 📊 Monitoring
 
-Admins can track autonomous activity in the **Enterprise Monitor** under the **System Vitals** quadrant.
+Admins can track maintenance activity in the **Enterprise Monitor** (`/config/monitor`), which shows the security incident feed, service health, webhook status, the audit trail, and system vitals.
 
-- **Last Run**: Timestamp of the most recent maintenance cycle.
-- **Heals Performed**: Count of automated service recoveries.
-- **Purge Stats**: Number of items cleared from trash/cache.
+- **Uptime**: `metricsService.getSystemMetrics().uptime` is milliseconds and is rendered by `formatUptimeMs()` (`29m`, `1d 2h 3m`, `< 1m`, `Just started`). There is no magnitude heuristic.
+- **Service health**: per-service status, message, last check, initialisation duration, and failure count from the system state machine.
+- **Cache metrics**: hit rate, operations, and per-category breakdown.
 
 ---
 

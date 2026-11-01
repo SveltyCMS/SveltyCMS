@@ -16,6 +16,94 @@ const STORE_KEY = "__SVELTY_CONTENT_STORE_INSTANCE__";
 
 export type ContentState = "uninitialized" | "initializing" | "initialized" | "error";
 
+interface NormalizedSchemaKeys {
+  rawKey: string;
+  rawName: string;
+  rawPath: string;
+  rawSlug: string;
+  id: string;
+  idNorm: string;
+  name: string;
+  nameNorm: string;
+  path: string;
+  pathStripped: string;
+  pathNorm: string;
+  slug: string;
+  slugNorm: string;
+}
+
+const schemaNormalizedKeysCache = new WeakMap<Schema, NormalizedSchemaKeys>();
+
+function getNormalizedSchemaKeys(schema: Schema): NormalizedSchemaKeys {
+  const rawKey = getSchemaKey(schema);
+  const rawName = String(schema.name || "");
+  const rawPath = String(schema.path || "");
+  const rawSlug = String((schema as { slug?: string }).slug || "");
+
+  const cached = schemaNormalizedKeysCache.get(schema);
+  if (
+    cached &&
+    cached.rawKey === rawKey &&
+    cached.rawName === rawName &&
+    cached.rawPath === rawPath &&
+    cached.rawSlug === rawSlug
+  ) {
+    return cached;
+  }
+
+  const id = rawKey.replace(/^\/+/, "").toLowerCase();
+  const idNorm = id.replace(/[-_]/g, "");
+  const name = rawName.toLowerCase();
+  const nameNorm = name.replace(/[-_]/g, "");
+  const path = rawPath.replace(/^\/+/, "").toLowerCase();
+  const pathStripped = path.replace(/^collection\//, "");
+  const pathNorm = pathStripped.replace(/[-_]/g, "");
+  const slug = rawSlug.toLowerCase();
+  const slugNorm = slug.replace(/[-_]/g, "");
+
+  const next: NormalizedSchemaKeys = {
+    rawKey,
+    rawName,
+    rawPath,
+    rawSlug,
+    id,
+    idNorm,
+    name,
+    nameNorm,
+    path,
+    pathStripped,
+    pathNorm,
+    slug,
+    slugNorm,
+  };
+  schemaNormalizedKeysCache.set(schema, next);
+  return next;
+}
+
+function matchesSchemaKeys(
+  k: NormalizedSchemaKeys,
+  cleanId: string,
+  stripped: string,
+  normalized: string,
+): boolean {
+  return (
+    k.id === cleanId ||
+    k.id === stripped ||
+    k.idNorm === normalized ||
+    k.name === cleanId ||
+    k.name === stripped ||
+    k.nameNorm === normalized ||
+    k.path === cleanId ||
+    k.path === stripped ||
+    k.pathStripped === cleanId ||
+    k.pathStripped === stripped ||
+    k.pathNorm === normalized ||
+    k.slug === cleanId ||
+    k.slug === stripped ||
+    k.slugNorm === normalized
+  );
+}
+
 class ContentStore {
   private _collections = new Map<string, Schema[]>();
   private _nodes = new Map<string, ContentNode[]>();
@@ -31,6 +119,8 @@ class ContentStore {
   private _collectionsCache = new Map<string, Schema[]>();
   /** Fast O(1) schema lookup cache per tenant and query key, cleared on updateVersion. */
   private _collectionLookupCache = new Map<string, Schema | null>();
+  /** Fast O(1) parentId → children index per tenant, cleared on updateVersion. */
+  private _childrenCache = new Map<string, Map<string | null, ContentNode[]>>();
   /** Memoized first-collection per tenant, invalidated on contentVersion bump. */
   private _firstCollectionMemo = new Map<string, { version: number; schema: Schema | null }>();
   /** Tenants that completed content initialization, including empty tenants. */
@@ -161,29 +251,12 @@ class ContentStore {
     }
 
     // Slow fallback + self-heal index (legacy / partial indexes)
-    schema = Array.from(this._schemas.values()).find((s) => {
-      const sId = ((s._id as string) || s.name || "").replace(/^\/+/, "").toLowerCase();
-      const sPath = (s.path || "").replace(/^\/+/, "").toLowerCase();
-      const sPathStripped = sPath.replace(/^collection\//, "");
-      const sName = String(s.name || "").toLowerCase();
-      const sSlug = String((s as { slug?: string }).slug || "").toLowerCase();
-      return (
-        sId === cleanId ||
-        sId === stripped ||
-        sId.replace(/[-_]/g, "") === normalized ||
-        sPath === cleanId ||
-        sPath === stripped ||
-        sPathStripped === cleanId ||
-        sPathStripped === stripped ||
-        sPathStripped.replace(/[-_]/g, "") === normalized ||
-        sName === cleanId ||
-        sName === stripped ||
-        sName.replace(/[-_]/g, "") === normalized ||
-        sSlug === cleanId ||
-        sSlug === stripped ||
-        sSlug.replace(/[-_]/g, "") === normalized
-      );
-    });
+    for (const s of this._schemas.values()) {
+      if (matchesSchemaKeys(getNormalizedSchemaKeys(s), cleanId, stripped, normalized)) {
+        schema = s;
+        break;
+      }
+    }
     if (schema?._id) {
       this._indexSchemaAliases(schema);
     }
@@ -253,8 +326,24 @@ class ContentStore {
   }
 
   getChildren(parentId: string | null = null, tenantId?: string | null): ContentNode[] {
-    const nodes = this.getNodesForTenant(tenantId);
-    return nodes.filter((n) => n.parentId === parentId);
+    const tid = this._tenantKey(tenantId);
+    let tenantMap = this._childrenCache.get(tid);
+    if (!tenantMap) {
+      tenantMap = new Map<string | null, ContentNode[]>();
+      const nodes = this.getNodesForTenant(tid);
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        const key = node.parentId ?? null;
+        let bucket = tenantMap.get(key);
+        if (!bucket) {
+          bucket = [];
+          tenantMap.set(key, bucket);
+        }
+        bucket.push(node);
+      }
+      this._childrenCache.set(tid, tenantMap);
+    }
+    return tenantMap.get(parentId ?? null) ?? [];
   }
 
   getNodeByPath(path: string): ContentNode | undefined {
@@ -325,34 +414,25 @@ class ContentStore {
     const cleanId = id.replace(/^\/+/, "").toLowerCase();
     const stripped = cleanId.replace(/^collection\//, "");
     const normalized = stripped.replace(/[-_]/g, "");
-    return collections.find((schema) => {
-      const schemaId = getSchemaKey(schema);
-      const name = String(schema.name || "").toLowerCase();
-      const path = (schema.path || "").replace(/^\/+/, "").toLowerCase();
-      const pathStripped = path.replace(/^collection\//, "");
-      const slug = String((schema as { slug?: string }).slug || "").toLowerCase();
-      return (
-        schemaId === cleanId ||
-        schemaId === stripped ||
-        schemaId.replace(/[-_]/g, "") === normalized ||
-        name === cleanId ||
-        name === stripped ||
-        name.replace(/[-_]/g, "") === normalized ||
-        path === cleanId ||
-        path === stripped ||
-        pathStripped === cleanId ||
-        pathStripped === stripped ||
-        pathStripped.replace(/[-_]/g, "") === normalized ||
-        slug === cleanId ||
-        slug === stripped ||
-        slug.replace(/[-_]/g, "") === normalized
-      );
-    });
+    for (let i = 0; i < collections.length; i++) {
+      const schema = collections[i];
+      if (matchesSchemaKeys(getNormalizedSchemaKeys(schema), cleanId, stripped, normalized)) {
+        return schema;
+      }
+    }
+    return undefined;
+  }
+
+  private _buildBulkIndexCaches() {
+    const nodeIndexByTenant = new Map<string, Map<string, number>>();
+    const colIndexByTenant = new Map<string, Map<string, number>>();
+    return { nodeIndexByTenant, colIndexByTenant };
   }
 
   sync(nodes: ContentNode[]) {
-    for (const node of nodes) {
-      this._upsertInternal(node);
+    const idx = nodes.length > 4 ? this._buildBulkIndexCaches() : undefined;
+    for (let i = 0; i < nodes.length; i++) {
+      this._upsertInternal(nodes[i], idx);
     }
     this.updateVersion();
   }
@@ -362,8 +442,9 @@ class ContentStore {
    * Use instead of calling upsert() in a loop to avoid reactive churn.
    */
   batchUpsert(nodes: ContentNode[]) {
-    for (const node of nodes) {
-      this._upsertInternal(node);
+    const idx = nodes.length > 4 ? this._buildBulkIndexCaches() : undefined;
+    for (let i = 0; i < nodes.length; i++) {
+      this._upsertInternal(nodes[i], idx);
     }
     this.updateVersion();
   }
@@ -371,7 +452,13 @@ class ContentStore {
   /**
    * Internal upsert without version bump — for use by sync/batchUpsert.
    */
-  private _upsertInternal(node: ContentNode) {
+  private _upsertInternal(
+    node: ContentNode,
+    bulkIndex?: {
+      nodeIndexByTenant: Map<string, Map<string, number>>;
+      colIndexByTenant: Map<string, Map<string, number>>;
+    },
+  ) {
     if (!node._id) return;
     const nodeId = node._id as string;
     const tid = node.tenantId || "global";
@@ -387,14 +474,35 @@ class ContentStore {
     if (node.path) this._pathIndex.set(node.path, nodeId);
 
     // 2. Update tenant-specific nodes array
-    let tNodes = this._nodes.get(tid) || [];
-    const nodeIndex = tNodes.findIndex((n) => n._id === node._id);
+    let tNodes = this._nodes.get(tid);
+    if (!tNodes) {
+      tNodes = [];
+      this._nodes.set(tid, tNodes);
+    }
+    let nodeIndex = -1;
+    if (bulkIndex) {
+      let tenantNodeIdx = bulkIndex.nodeIndexByTenant.get(tid);
+      if (!tenantNodeIdx) {
+        tenantNodeIdx = new Map<string, number>();
+        for (let i = 0; i < tNodes.length; i++) {
+          if (tNodes[i]._id) tenantNodeIdx.set(tNodes[i]._id as string, i);
+        }
+        bulkIndex.nodeIndexByTenant.set(tid, tenantNodeIdx);
+      }
+      const existingIdx = tenantNodeIdx.get(nodeId);
+      if (existingIdx !== undefined) {
+        nodeIndex = existingIdx;
+      } else {
+        tenantNodeIdx.set(nodeId, tNodes.length);
+      }
+    } else {
+      nodeIndex = tNodes.findIndex((n) => n._id === node._id);
+    }
     if (nodeIndex !== -1) {
       tNodes[nodeIndex] = node;
     } else {
       tNodes.push(node);
     }
-    this._nodes.set(tid, tNodes);
 
     // 3. Update collections/schemas if it's a collection
     if (node.nodeType === "collection") {
@@ -414,14 +522,35 @@ class ContentStore {
           this._indexSchemaAliases(schema);
         }
 
-        let tCollections = this._collections.get(tid) || [];
-        const colIndex = tCollections.findIndex((c) => c._id === schemaId);
+        let tCollections = this._collections.get(tid);
+        if (!tCollections) {
+          tCollections = [];
+          this._collections.set(tid, tCollections);
+        }
+        let colIndex = -1;
+        if (bulkIndex) {
+          let tenantColIdx = bulkIndex.colIndexByTenant.get(tid);
+          if (!tenantColIdx) {
+            tenantColIdx = new Map<string, number>();
+            for (let i = 0; i < tCollections.length; i++) {
+              if (tCollections[i]._id) tenantColIdx.set(tCollections[i]._id as string, i);
+            }
+            bulkIndex.colIndexByTenant.set(tid, tenantColIdx);
+          }
+          const existingColIdx = tenantColIdx.get(schemaId);
+          if (existingColIdx !== undefined) {
+            colIndex = existingColIdx;
+          } else {
+            tenantColIdx.set(schemaId, tCollections.length);
+          }
+        } else {
+          colIndex = tCollections.findIndex((c) => c._id === schemaId);
+        }
         if (colIndex !== -1) {
           tCollections[colIndex] = schema;
         } else {
           tCollections.push(schema);
         }
-        this._collections.set(tid, tCollections);
       }
     }
 
@@ -505,6 +634,7 @@ class ContentStore {
     this._clientNodesCache.clear();
     this._collectionsCache.clear();
     this._collectionLookupCache.clear();
+    this._childrenCache.clear();
     this._firstCollectionMemo.clear();
     this.contentVersion++;
   }

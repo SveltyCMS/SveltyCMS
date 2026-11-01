@@ -43,28 +43,20 @@ import {
   BASE_HEADERS,
   MEDIA_RESOURCE_HEADERS,
 } from "../utils/security/constants";
-import { applyAllSecurityHeaders } from "./handle-security-headers";
+import { applyAllSecurityHeaders, applyStaticAssetHeaders } from "./handle-security-headers";
 import { getTurboAuthContext } from "./handle-turbo-get";
 import { resolveRequestTenant } from "./request-tenant";
 import { logger } from "@src/utils/logger";
 import { getHeapStatistics } from "node:v8";
 import { getHardwareProfile, hardwareDiagnostics } from "@utils/hardware-profile";
+import { lazyModule } from "@utils/lazy-module";
 
 /** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
-let settingsServiceModulePromise:
-  | Promise<typeof import("@src/services/core/settings-service")>
-  | undefined;
-function loadSettingsServiceModule(): Promise<
-  typeof import("@src/services/core/settings-service")
-> {
-  return (settingsServiceModulePromise ??= import("@src/services/core/settings-service"));
-}
+const getSettingsService = lazyModule(() => import("@src/services/core/settings-service"));
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
-let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
-function loadDbModule(): Promise<typeof import("@src/databases/db")> {
-  return (dbModulePromise ??= import("@src/databases/db"));
-}
+const loadDbModule = lazyModule(() => import("@src/databases/db"));
+
 // Hook is initialized lazily
 let cachedDbAdapter: DatabaseAdapter | null = null;
 let healthHeaders: Record<string, string> | null = null;
@@ -95,16 +87,6 @@ async function ensureCachedDbAdapter(): Promise<DatabaseAdapter | null> {
     });
   }
   return dbAdapterInitPromise;
-}
-
-// 🚀 MODULE-LEVEL CACHE: settings-service is imported on EVERY CORS preflight.
-// Cache the module so only the first preflight pays the dynamic import cost.
-let settingsServiceModule: typeof import("@src/services/core/settings-service") | null = null;
-async function getSettingsService() {
-  if (!settingsServiceModule) {
-    settingsServiceModule = await loadSettingsServiceModule();
-  }
-  return settingsServiceModule;
 }
 
 // --- HELPERS ---
@@ -185,6 +167,33 @@ function buildHealthResponse(db: DatabaseAdapter | null, searchParams: URLSearch
   });
 }
 
+let cachedCorsOriginsRaw: unknown = undefined;
+let cachedCorsAllowlistSet: Set<string> = new Set();
+
+function getCorsAllowlistSet(allowedOriginsRaw: unknown): Set<string> {
+  if (allowedOriginsRaw === cachedCorsOriginsRaw) {
+    return cachedCorsAllowlistSet;
+  }
+  const allowedOrigins = Array.isArray(allowedOriginsRaw)
+    ? allowedOriginsRaw
+    : typeof allowedOriginsRaw === "string"
+      ? allowedOriginsRaw.split(",").map((s: string) => s.trim())
+      : [];
+
+  // Fail-closed allowlist: never emit `*` and never reflect an unmatched Origin
+  // (AGENTS.md CORS contract + cors-utils.ts). A configured wildcard is ignored.
+  const nextSet = new Set<string>();
+  for (let i = 0; i < allowedOrigins.length; i++) {
+    const o = allowedOrigins[i];
+    if (typeof o === "string" && o.length > 0 && o !== "*") {
+      nextSet.add(o);
+    }
+  }
+  cachedCorsOriginsRaw = allowedOriginsRaw;
+  cachedCorsAllowlistSet = nextSet;
+  return nextSet;
+}
+
 /**
  * Inline CORS header generator that reads origins from the database
  * (private settings). This differs from the canonical getCorsHeaders in
@@ -205,19 +214,8 @@ async function getCorsHeadersInline(
   if (!origin) return {};
   if (!corsEnabled) return null;
 
-  const allowedOriginsRaw = getPrivateSettingSync("CORS_ALLOWED_ORIGINS") as any;
-  const allowedOrigins = Array.isArray(allowedOriginsRaw)
-    ? allowedOriginsRaw
-    : typeof allowedOriginsRaw === "string"
-      ? allowedOriginsRaw.split(",").map((s: string) => s.trim())
-      : [];
-
-  // Fail-closed allowlist: never emit `*` and never reflect an unmatched Origin
-  // (AGENTS.md CORS contract + cors-utils.ts). A configured wildcard is ignored.
-  const allowlisted = (Array.isArray(allowedOrigins) ? allowedOrigins : []).filter(
-    (o: string) => typeof o === "string" && o.length > 0 && o !== "*",
-  );
-  if (!allowlisted.includes(origin)) return null;
+  const allowedOriginsRaw = getPrivateSettingSync("CORS_ALLOWED_ORIGINS") as unknown;
+  if (!getCorsAllowlistSet(allowedOriginsRaw).has(origin)) return null;
 
   const headers: Record<string, string> = {
     "Access-Control-Allow-Origin": origin,
@@ -683,6 +681,9 @@ export const handleTurboPipeline: Handle = async ({ event, resolve }) => {
         applyAllSecurityHeaders(headers, isHttps, origin, pathname);
       } else {
         headers.set("Cache-Control", "public, max-age=31536000, immutable");
+        // Static assets normally carry no isolation headers; the email logo is
+        // the exception (it is embedded from a sandboxed email-preview iframe).
+        applyStaticAssetHeaders(headers, pathname);
       }
       headers.set("X-Request-ID", requestId.toString());
     });

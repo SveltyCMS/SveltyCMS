@@ -4,7 +4,7 @@
  *
  * SECURITY ARCHITECTURE (Layer 2 of 3):
  * This provides fine-grained permission checking for UI elements using the
- * high-performance Uint32Array bitset RBAC engine.
+ * high-performance 64-bit permission bitset RBAC engine.
  */
 
 // Auth
@@ -17,31 +17,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import type { PageServerLoad } from "./$types";
-
-/**
- * Direct mapping of config tile context IDs to canonical system permission IDs.
- * Evaluated with zero runtime allocation via Uint32Array bitsets.
- */
-const CONFIG_TILE_PERMISSIONS: Record<string, string> = {
-  "config:settings": "manage:system",
-  "config:appearance": "manage:theme",
-  "config:users": "manage:user",
-  "config:roles": "manage:user",
-  "config:collectionbuilder": "config:collectionbuilder",
-  "config:collectionManagement": "manage:collection",
-  "config:graphql": "access:api",
-  "config:media": "media:write",
-  "config:webhooks": "manage:system",
-  "config:redirects": "manage:system",
-  "config:trash": "manage:system",
-  "config:dashboard": "access:admin",
-  "config:imageeditor": "media:write",
-  "config:widgetManagement": "manage:system",
-  "config:themeManagement": "manage:theme",
-  "config:accessManagement": "manage:user",
-  "config:emailPreviews": "manage:system",
-  "config:adminArea": "access:admin",
-};
+import { CONFIG_TILE_PERMISSIONS } from "./config-tile-permissions";
 
 // Pre-computed admin permission map (all true, zero runtime allocation)
 const ADMIN_CONFIG_PERMISSIONS: Record<

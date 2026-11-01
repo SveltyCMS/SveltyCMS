@@ -6,7 +6,7 @@ order: 304
 icon: "mdi:home-map-marker"
 author: "admin"
 created: "2025-01-15"
-updated: "2026-05-20"
+updated: "2026-11-01"
 tags:
   - widget
   - custom
@@ -243,6 +243,12 @@ Different countries render address lines in varying order. SveltyCMS recommends 
 
 ## Changelog
 
+### Unreleased (2026-11-01)
+
+- ✅ **Zero-bundle country names**: deleted `countries.json` (7,529 lines, ~220 KB) and the ">160 KB lazy load" path. The country list now comes from the 14 KB `countries-core.json` (ISO code + `en`/`de` names), and any other locale is localized at runtime through a cached `Intl.DisplayNames` instance per language.
+- ✅ **Graceful fallback**: when `Intl.DisplayNames` is unavailable or rejects a locale tag, `getCountryName()` falls back to `countries-core.json` (`{lang}` → `en` → `de`) and finally to the ISO alpha-2 code.
+- ✅ **No extra request**: there is no chunk to fetch and no lazy-load state to handle; the list renders from the bundled core table.
+
 ### Version 1.3.0 (2026-05-20)
 
 - ✅ **Dual-Mode Mapping**: Implemented MapLibre GL JS + OpenFreeMap + Photon (Komoot) fallback when no Google Maps API key is configured.
@@ -256,7 +262,7 @@ Different countries render address lines in varying order. SveltyCMS recommends 
 
 ### Version 1.1.0 (2025-01-25)
 
-- ✅ **Performance**: Implemented hybrid loading strategy for localized country names (Core 14KB vs Full 160KB lazy loaded).
+- ✅ **Performance**: added client-side country lookup over a bundled table (superseded in 1.4.0 by `Intl.DisplayNames` + `countries-core.json`).
 - ✅ **Search**: Added client-side country selector search.
 
 ### Version 1.0.0 (2025-01-15)

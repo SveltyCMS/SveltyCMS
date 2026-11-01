@@ -41,8 +41,12 @@ try {
 }
 
 // 🚀 Bun/Node Fallback for non-Vite environments (e.g. CLI, tests)
-const isBrowser = typeof window !== "undefined";
-if (!isBrowser && Object.keys(pluginModulesRaw).length === 0) {
+// Guarded by compile-time `import.meta.env.SSR` so Vite 8 / Rolldown completely
+// dead-code-eliminates the CommonJS `node:fs` / `node:path` scanner from client bundles.
+if (
+  (import.meta.env?.SSR ?? typeof window === "undefined") &&
+  Object.keys(pluginModulesRaw).length === 0
+) {
   try {
     const g = globalThis as any;
     const nodeRequire =

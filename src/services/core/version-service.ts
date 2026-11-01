@@ -37,6 +37,35 @@ const USER_AGENT = "SveltyCMS-Version-Check";
 const FETCH_TIMEOUT_MS = 5000;
 /** Used when package.json cannot be read or carries no usable version. */
 const FALLBACK_VERSION = "0.0.0";
+/**
+ * How long a successful check stands in for a transient GitHub/network failure.
+ *
+ * The admin badge polls hourly; GitHub answers 403 (unauthenticated rate limit)
+ * or times out often enough that a failed poll would repaint a known-current
+ * installation as "Could not check for updates" for a whole session. Six hours
+ * covers several failed polls while still surfacing a real outage eventually.
+ */
+const SUCCESS_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+interface CachedUpdateCheck {
+  at: number;
+  result: UpdateCheckResult;
+}
+
+/** Last successful (error-free) check, process-wide. */
+let lastSuccessfulCheck: CachedUpdateCheck | null = null;
+
+/** Clears the last-known-good result. Only unit tests need this seam. */
+export function resetVersionCheckCache(): void {
+  lastSuccessfulCheck = null;
+}
+
+/** Last successful result while it is still within the fallback window. */
+function lastKnownGoodResult(): UpdateCheckResult | null {
+  if (!lastSuccessfulCheck) return null;
+  if (Date.now() - lastSuccessfulCheck.at > SUCCESS_CACHE_TTL_MS) return null;
+  return lastSuccessfulCheck.result;
+}
 
 /** Minimal shape of the GitHub releases payload; anything else is a typed failure. */
 const GitHubReleaseSchema = object({
@@ -164,6 +193,12 @@ function comparePrerelease(a: string[], b: string[]): -1 | 0 | 1 {
  * Never throws: a GitHub/network failure is reported through `error` together
  * with `updateAvailable: false`, so callers can render a status without
  * try/catch handling.
+ *
+ * Transient failures (non-2xx GitHub responses, timeouts, network errors) fall
+ * back to the last successful result while it is still fresh enough — a 403
+ * rate limit must not downgrade a known-current installation to a warning.
+ * Payload problems (unexpected shape, no releases) stay errors: those are not
+ * expected to recover on their own.
  */
 export async function checkForUpdates(): Promise<UpdateCheckResult> {
   const currentVersion = readLocalVersion();
@@ -181,13 +216,7 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
     if (!response.ok) {
       const reason = `GitHub API returned ${response.status}`;
       logger.warn(`[VersionService] ${reason} (${response.statusText})`);
-      return {
-        currentVersion,
-        latestVersion: null,
-        updateAvailable: false,
-        checkedAt,
-        error: reason,
-      };
+      return transientFailure(reason, currentVersion);
     }
 
     const parsed = safeParse(array(GitHubReleaseSchema), await response.json());
@@ -218,21 +247,37 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
     }
 
     const latestVersion = latestRelease.tag_name.trim().replace(/^[vV]/, "");
-    return {
+    const result: UpdateCheckResult = {
       currentVersion,
       latestVersion,
       updateAvailable: compareVersions(latestVersion, currentVersion) > 0,
       checkedAt,
     };
+    lastSuccessfulCheck = { at: Date.now(), result };
+    return result;
   } catch (err) {
     const message = errorMessage(err);
     logger.warn(`[VersionService] Update check failed: ${message}`);
-    return {
-      currentVersion,
-      latestVersion: null,
-      updateAvailable: false,
-      checkedAt,
-      error: message,
-    };
+    return transientFailure(message, currentVersion);
   }
+}
+
+/**
+ * A failure that is expected to heal: serve the last known-good result when one
+ * is still within the fallback window, otherwise report the typed error.
+ */
+function transientFailure(reason: string, currentVersion: string): UpdateCheckResult {
+  const cached = lastKnownGoodResult();
+  if (cached) {
+    logger.debug(`[VersionService] Serving last successful check (${reason})`);
+    return cached;
+  }
+
+  return {
+    currentVersion,
+    latestVersion: null,
+    updateAvailable: false,
+    checkedAt: nowISODateString(),
+    error: reason,
+  };
 }

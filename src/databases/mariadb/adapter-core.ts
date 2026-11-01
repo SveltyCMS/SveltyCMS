@@ -502,7 +502,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
   async connect(
     poolOptions: import("../db-interface").ConnectionPoolOptions,
   ): Promise<DatabaseResult<void>>;
-  public async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
+  public async connect(connection: any, options?: any): Promise<DatabaseResult<void>> {
     try {
       let finalConnection = connection;
 
@@ -622,7 +622,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
           err.errno === 1049 ||
           err.message.includes("Unknown database");
 
-        if (isMissingDb) {
+        if (
+          isMissingDb &&
+          !(options as { skipSchemaBootstrap?: boolean } | undefined)?.skipSchemaBootstrap
+        ) {
           const dbName = this.activeDatabaseName;
           if (dbName && dbName !== "unknown") {
             logger.info(`[mariadb] Database "${dbName}" not found. Attempting auto-creation...`);
@@ -802,6 +805,10 @@ export abstract class AdapterCore extends SqlAdapterCore {
       data: json("data").notNull().default({}),
       status: varchar("status", { length: 50 }).notNull().default("draft"),
       isDeleted: boolean("isDeleted").notNull().default(false),
+      // Soft-delete audit pair (parity with Mongo): written by crud.delete/deleteMany
+      // so the trash can show who deleted an entry and when.
+      deletedAt: datetime("deletedAt", { fsp: 3 }),
+      deletedBy: varchar("deletedBy", { length: 36 }),
       createdAt: datetime("createdAt", { fsp: 3 })
         .notNull()
         .default(sql`CURRENT_TIMESTAMP`),
@@ -818,6 +825,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
           colName === "tenantId" ||
           colName === "status" ||
           colName === "isDeleted" ||
+          colName === "deletedAt" ||
+          colName === "deletedBy" ||
           colName === "createdAt" ||
           colName === "updatedAt" ||
           colName === "data"
@@ -2306,7 +2315,7 @@ export abstract class AdapterCore extends SqlAdapterCore {
         // Millisecond precision: `updatedAt` is the optimistic-lock version. With
         // DATETIME(0) an update inside the same second left the version (and the
         // wire ETag) unchanged, so a stale `If-Match` still matched.
-        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`createdAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`updatedAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`data\` LONGTEXT);`;
+        const ddl = `CREATE TABLE IF NOT EXISTS \`${physicalName}\` (\`_id\` VARCHAR(36) PRIMARY KEY, \`tenantId\` VARCHAR(36), \`status\` VARCHAR(255) DEFAULT 'draft', \`isDeleted\` TINYINT(1) DEFAULT 0, \`deletedAt\` DATETIME(3), \`deletedBy\` VARCHAR(36), \`createdAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`updatedAt\` DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3), \`data\` LONGTEXT);`;
 
         if (ddl) {
           if (process.env.BENCHMARK_DEBUG === "true") {
@@ -2317,6 +2326,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
 
         const columns = [
           { name: "isDeleted", type: "TINYINT(1) DEFAULT 0" },
+          { name: "deletedAt", type: "DATETIME(3)" },
+          { name: "deletedBy", type: "VARCHAR(36)" },
           { name: "status", type: "VARCHAR(255) DEFAULT 'draft'" },
           { name: "tenantId", type: "VARCHAR(36)" },
           { name: "createdAt", type: "DATETIME(3) DEFAULT CURRENT_TIMESTAMP(3)" },
@@ -2359,6 +2370,8 @@ export abstract class AdapterCore extends SqlAdapterCore {
                   "tenantId",
                   "status",
                   "isDeleted",
+                  "deletedAt",
+                  "deletedBy",
                   "createdAt",
                   "updatedAt",
                   "collection",
@@ -2398,6 +2411,9 @@ export abstract class AdapterCore extends SqlAdapterCore {
             if (!exists) {
               const alterSql = `ALTER TABLE \`${physicalName}\` ADD COLUMN \`${colName}\` ${col.type}`;
               await this.raw.execute(alterSql);
+              // The soft-delete audit pair is written by delete(), never by the
+              // entry payload, so there is nothing to backfill from `data`.
+              if (colName === "deletedAt" || colName === "deletedBy") continue;
               // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
               // the `data` blob — copy them into the new column so filters and
               // sorts match old rows too (idempotent: only NULL columns are

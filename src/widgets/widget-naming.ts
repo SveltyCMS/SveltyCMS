@@ -42,16 +42,24 @@ export interface WidgetNamingResult {
   warnings: string[];
 }
 
+const widgetFolderCache = new Map<string, string>();
+
 /**
  * Factory `Name` → folder segment (kebab-case).
  * `RichText` → `rich-text`, `MediaUpload` → `media-upload`, `SEO` → `seo`
  */
 export function widgetNameToFolder(widgetName: string): string {
   if (!widgetName) return "";
-  return widgetName
+  let cached = widgetFolderCache.get(widgetName);
+  if (cached !== undefined) return cached;
+  cached = widgetName
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
     .toLowerCase();
+  if (widgetFolderCache.size < 512) {
+    widgetFolderCache.set(widgetName, cached);
+  }
+  return cached;
 }
 
 /**

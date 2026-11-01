@@ -6,7 +6,7 @@ order: 20
 icon: "mdi:hammer-wrench"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-08-04"
+updated: "2026-11-01"
 tags:
   - "api"
   - "utility"
@@ -85,12 +85,12 @@ Returns live cache metrics including hit rates, size, and eviction counts.
 
 ## 3. Recovery (The Trash)
 
-SveltyCMS implements a "Soft Delete" pattern. Deleted entries are moved to the Trash before being permanently purged.
+SveltyCMS implements a "Soft Delete" pattern: a delete sets `isDeleted` and keeps the row, so it can be restored from the Trash.
 
-- **List Trash**: `GET /api/trash` — Returns a paginated list of items currently in the trash for the current tenant. Accepts `?limit=` query param (default 50, max 200).
-- **Restore**: `POST /api/trash/restore` — Returns an item to its original collection and restores its original status.
+- **List Trash**: `GET /api/trash` — Returns a paginated list of items currently in the trash for the current tenant. Accepts `?limit=` query param (default 50, max 200). Each row reports `deletedAt` / `deletedBy`, falling back to `updatedAt` / `updatedBy` for rows trashed before those columns existed; the title falls back through `title` → `name` → `data` JSON → first display string → `_id`. A literal `system` actor renders as “System”; a row with no audit actor renders as `—` rather than implying a system delete. The SSR page and this endpoint share `src/utils/trash-item.ts`, so a client refresh cannot diverge from the server-rendered projection.
+- **Restore**: `POST /api/trash/restore` — Returns an item to its original collection and restores its original status and mangled unique fields.
   - **Payload**: `{ "collectionId": "...", "entryId": "..." }`
-- **Empty Trash**: Not currently implemented via the API.
+- **Empty Trash / scheduled purge**: Not implemented. There is no user-facing API to empty the trash and no retention job that deletes trashed rows on a timer; permanent removal happens through the collection itself. (`purge-trash` exists only on the test-only `/api/testing` backdoor.)
 
 ---
 
@@ -269,7 +269,7 @@ All utility namespaces are gated via the dispatcher's centralized `ENDPOINT_PERM
 - Individual handlers perform defense-in-depth authorization checks.
 
 > [!NOTE]
-> Permission ids here are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+> Permission ids here are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles resolve through their own map (`src/routes/(app)/config/config-tile-permissions.ts`), which points at real `PERMISSION_CATALOG` ids (`system:admin` for admin-only pages) — the two contracts are separate.
 
 ---
 

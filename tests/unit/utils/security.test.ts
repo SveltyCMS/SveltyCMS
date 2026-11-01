@@ -12,7 +12,8 @@
  * encryption is covered by static-aes-key/settings-crypto/totp-encryption tests.
  */
 
-import { createChecksum, hashPassword, verifyPassword } from "@src/utils/security";
+import { hashPassword, verifyPassword } from "@src/utils/security/crypto";
+import { createChecksum } from "@src/utils/security/checksum";
 import { timingSafeStringEqual } from "@src/utils/native-utils";
 import { describe, it, expect } from "vitest";
 

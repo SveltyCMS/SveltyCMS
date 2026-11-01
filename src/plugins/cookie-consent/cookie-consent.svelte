@@ -36,14 +36,26 @@
 		marketing: consentStore.marketing
 	});
 
-	// Trigger banner appearance after a short delay if no response yet
+	// The setup wizard keeps its step list (start) and Next button (footer, end) visible:
+	// lift the banner above the wizard footer and dock it to the content column.
+	const onSetup = $derived(page.url.pathname.startsWith('/setup'));
+
+	// Trigger banner appearance after a short delay if no response yet.
+	// The setup wizard is deliberately excluded: its API surface sits behind the
+	// system-state gate (POST /api/plugins/cookie-consent/consent ⇒ 503 while the
+	// site is not provisioned), and there is nothing to consent to before the
+	// site exists. After setup the banner appears on every other route, so GDPR
+	// audit logging is unaffected.
 	$effect(() => {
-		if (!consentStore.responded) {
-			const timer = setTimeout(() => {
-				showBanner = true;
-			}, 600);
-			return () => clearTimeout(timer);
+		if (onSetup || consentStore.responded) {
+			showBanner = false;
+			return;
 		}
+
+		const timer = setTimeout(() => {
+			showBanner = true;
+		}, 600);
+		return () => clearTimeout(timer);
 	});
 
 	// Update local state if the store changes (e.g., from another component)
@@ -69,10 +81,6 @@
 		});
 		showBanner = false;
 	}
-
-	// The setup wizard keeps its step list (start) and Next button (footer, end) visible:
-	// lift the banner above the wizard footer and dock it to the content column.
-	const onSetup = $derived(page.url.pathname.startsWith('/setup'));
 
 	// Allows re-opening the banner from an external component (like a footer link)
 	export function openConsentBanner() {

@@ -127,7 +127,9 @@
 				<iconify-icon icon="mdi:video-processing" width="22"></iconify-icon>
 				{mediagallery_transcode_hub()}
 			</h2>
-			<p class="mt-0.5 truncate font-mono text-[11px] text-(--admin-text-muted)">{file.filename}</p>
+			<p dir="auto" class="mt-0.5 truncate font-mono text-[11px] text-(--admin-text-muted)">
+				{file.filename}
+			</p>
 		</div>
 		{#if transcodeState?.status}
 			<Badge

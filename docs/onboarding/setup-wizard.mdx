@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:wizard-hat"
 author: "SveltyCMS Team"
 created: "2026-08-20"
-updated: "2026-10-13"
+updated: "2026-11-01"
 tags:
   - "installer"
   - "database"
@@ -20,14 +20,14 @@ You are on `/setup`. Install commands are [Getting started](../getting-started.m
 
 ## 1. Database
 
-Pick an engine and test the connection before Next.
+Pick an engine and test the connection before Next. **Test** is a read-only probe — it writes no database file, tables, seed data, or `config/private.ts`; the explicit Next does that. The one exception is the confirmation the wizard shows when the target already holds tables: choosing **Overwrite** is destructive by design.
 
-| Engine          | When it fits                              | What you enter                                       |
-| :-------------- | :---------------------------------------- | :--------------------------------------------------- |
-| SQLite          | Local development and a single small site | Nothing. The wizard creates `./db/sveltycms.db`.     |
-| PostgreSQL      | More than one app instance                | Host, port `5432`, database, user, password          |
-| MariaDB / MySQL | A typical VPS                             | Host, port `3306`, database, user, password          |
-| MongoDB         | A document database or Atlas              | A `mongodb://` or `mongodb+srv://` connection string |
+| Engine     | When it fits                              | What you enter                                       |
+| :--------- | :---------------------------------------- | :--------------------------------------------------- |
+| SQLite     | Local development and a single small site | Nothing. The wizard creates `./db/sveltycms.db`.     |
+| PostgreSQL | More than one app instance                | Host, port `5432`, database, user, password          |
+| MariaDB    | A typical VPS                             | Host, port `3306`, database, user, password          |
+| MongoDB    | A document database or Atlas              | A `mongodb://` or `mongodb+srv://` connection string |
 
 If the database already has tables, the wizard asks before it replaces them.
 
@@ -48,9 +48,11 @@ Pick one blueprint from the carousel. **Website Starter** is the recommended def
 
 **Country and prices** appears only when you pick the **E-commerce** blueprint. It starts on Germany: euro, German shop text, 19% and 7%. Change the country and the currency, shop language, and tax fields update. Choose “Choose later”, or clear the standard rate, and no tax row is created. Germany, Austria, and Switzerland suggest German shop text. Every other country suggests English. The suggested rates were checked on 5 October 2026. They are a starting point, not a tax ruling. Every other blueprint hides this block, because country and tax data only matter for a shop.
 
+The cookie-consent banner does not render on `/setup`; it appears on the other routes once setup has completed.
+
 ## 4. System
 
-Set the site name, the production URL (`https://…`), and the timezone, then set the admin and content languages. English and German ship compiled. Extra language codes are written when setup completes.
+Set the site name, the production URL (`https://…`), and the timezone, then set the admin and content languages. The production URL starts pre-filled with the origin you opened the wizard on. English and German ship compiled. Extra language codes are written when setup completes.
 
 Media storage (Local, Amazon S3, Cloudflare R2, or Cloudinary) sits below the language sections. Pick a cloud type and a reminder appears beside the Cloudflare CDN heading that its credentials are configured later in System Settings.
 

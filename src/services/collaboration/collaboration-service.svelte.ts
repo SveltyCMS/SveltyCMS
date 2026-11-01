@@ -8,8 +8,13 @@ import { browser } from "$app/env";
 import { page } from "$app/state";
 import { collections } from "@src/stores/collection-store.svelte";
 import { logger } from "@utils/logger";
-import { Doc as YDoc } from "yjs";
+import type { Doc as YDoc } from "yjs";
 import { untrack } from "svelte";
+
+let yjsModulePromise: Promise<typeof import("yjs")> | undefined;
+function loadYjsModule(): Promise<typeof import("yjs")> {
+  return (yjsModulePromise ??= import("yjs"));
+}
 
 export interface CollaborativeUser {
   clientId: number;
@@ -71,7 +76,8 @@ class CollaborationService {
     logger.info(`[Collaboration] Initializing for ${collectionId}/${entryId}`);
 
     try {
-      this.ydoc = new YDoc();
+      const { Doc } = await loadYjsModule();
+      this.ydoc = new Doc();
 
       // Lazy load provider only when needed
       if (!this.SseProvider) {

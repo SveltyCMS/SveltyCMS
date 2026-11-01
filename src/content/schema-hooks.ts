@@ -193,15 +193,79 @@ function hookFieldKey(field: HookFieldRef): string {
   return String(field.db_fieldName || field.name || field.label || "");
 }
 
+interface CompiledFieldHooksPlan {
+  hasPrePersistHooks: boolean;
+  hasAfterHooks: boolean;
+  resolveInput: Array<{ field: HookFieldRef; key: string; fn: DataHook }>;
+  validate: Array<{ field: HookFieldRef; key: string; fn: ValidateHook }>;
+  beforeOperation: Array<{ field: HookFieldRef; key: string; fn: DataHook }>;
+  afterOperation: Array<{
+    field: HookFieldRef;
+    key: string;
+    fn: NonNullable<FieldHooks["afterOperation"]>;
+  }>;
+}
+
+const EMPTY_FIELD_HOOKS_PLAN: CompiledFieldHooksPlan = Object.freeze({
+  hasPrePersistHooks: false,
+  hasAfterHooks: false,
+  resolveInput: [],
+  validate: [],
+  beforeOperation: [],
+  afterOperation: [],
+});
+
+const fieldHooksPlanCache = new WeakMap<readonly unknown[], CompiledFieldHooksPlan>();
+
+function getFieldHooksPlan(fields: readonly unknown[]): CompiledFieldHooksPlan {
+  let plan = fieldHooksPlanCache.get(fields);
+  if (plan) return plan;
+
+  let resolveInput: CompiledFieldHooksPlan["resolveInput"] | null = null;
+  let validate: CompiledFieldHooksPlan["validate"] | null = null;
+  let beforeOperation: CompiledFieldHooksPlan["beforeOperation"] | null = null;
+  let afterOperation: CompiledFieldHooksPlan["afterOperation"] | null = null;
+
+  for (let i = 0; i < fields.length; i++) {
+    const field = asHookField(fields[i]);
+    const h = field?.hooks;
+    if (!field || !h) continue;
+    const key = hookFieldKey(field);
+    if (h.resolveInput) (resolveInput ??= []).push({ field, key, fn: h.resolveInput });
+    if (h.validate) (validate ??= []).push({ field, key, fn: h.validate });
+    if (h.beforeOperation) (beforeOperation ??= []).push({ field, key, fn: h.beforeOperation });
+    if (h.afterOperation) (afterOperation ??= []).push({ field, key, fn: h.afterOperation });
+  }
+
+  plan =
+    resolveInput || validate || beforeOperation || afterOperation
+      ? {
+          hasPrePersistHooks: Boolean(resolveInput || validate || beforeOperation),
+          hasAfterHooks: Boolean(afterOperation),
+          resolveInput: resolveInput ?? EMPTY_FIELD_HOOKS_PLAN.resolveInput,
+          validate: validate ?? EMPTY_FIELD_HOOKS_PLAN.validate,
+          beforeOperation: beforeOperation ?? EMPTY_FIELD_HOOKS_PLAN.beforeOperation,
+          afterOperation: afterOperation ?? EMPTY_FIELD_HOOKS_PLAN.afterOperation,
+        }
+      : EMPTY_FIELD_HOOKS_PLAN;
+  try {
+    fieldHooksPlanCache.set(fields, plan);
+  } catch {
+    // Non-extensible array fallback
+  }
+  return plan;
+}
+
 function withDocument(
   ctx: ValidationContext,
   current: Record<string, unknown>,
   field?: HookFieldRef,
+  fieldKey?: string,
 ): ValidationContext {
   const next: ValidationContext = { ...ctx, document: { ...current } };
   if (field) {
     next.field = field;
-    next.fieldKey = hookFieldKey(field);
+    next.fieldKey = fieldKey ?? hookFieldKey(field);
   }
   return next;
 }
@@ -246,19 +310,45 @@ export async function applySchemaHookPipeline(
   validate?: (data: Record<string, unknown>) => string[] | void,
   options?: SchemaHookPipelineOptions,
 ): Promise<Record<string, unknown>> {
+  const fields = options?.fields;
+  const fieldPlan = fields && fields.length > 0 ? getFieldHooksPlan(fields) : null;
+
+  const hasListHooks = Boolean(
+    hooks &&
+    (hooks.resolveInput ||
+      hooks.beforeValidate ||
+      hooks.validate ||
+      hooks.beforeOperation ||
+      hooks.afterValidate),
+  );
+  const hasFieldHooks = Boolean(fieldPlan?.hasPrePersistHooks);
+
+  // Zero-allocation fast path when neither list nor field hooks exist
+  if (!hasListHooks && !hasFieldHooks) {
+    if (validate) {
+      const callbackErrors = validate(data);
+      if (Array.isArray(callbackErrors) && callbackErrors.length > 0) {
+        const createError = options?.createError;
+        throw createError ? createError(callbackErrors) : new Error(callbackErrors.join("; "));
+      }
+    }
+    return data;
+  }
+
   let current = data;
   const ctx: ValidationContext = {
     ...context,
     document: { ...current },
   };
-  const fields = options?.fields;
 
-  if (fields && fields.length > 0) {
-    for (let i = 0; i < fields.length; i++) {
-      const field = asHookField(fields[i]);
-      const resolve = field?.hooks?.resolveInput;
-      if (!field || !resolve) continue;
-      current = await applyDataHook(resolve, current, withDocument(ctx, current, field));
+  if (fieldPlan && fieldPlan.resolveInput.length > 0) {
+    for (let i = 0; i < fieldPlan.resolveInput.length; i++) {
+      const entry = fieldPlan.resolveInput[i];
+      current = await applyDataHook(
+        entry.fn,
+        current,
+        withDocument(ctx, current, entry.field, entry.key),
+      );
     }
   }
 
@@ -266,21 +356,21 @@ export async function applySchemaHookPipeline(
     current = await applyDataHook(hooks.resolveInput, current, withDocument(ctx, current));
   }
 
-  current = await applyBeforeValidate(hooks, current, withDocument(ctx, current));
+  if (hooks?.beforeValidate) {
+    current = await applyBeforeValidate(hooks, current, withDocument(ctx, current));
+  }
 
   const errors: string[] = [];
   const addValidationError = (message: string) => {
     if (message) errors.push(message);
   };
 
-  if (fields && fields.length > 0) {
-    for (let i = 0; i < fields.length; i++) {
-      const field = asHookField(fields[i]);
-      const validateField = field?.hooks?.validate;
-      if (!field || !validateField) continue;
-      const result = await validateField(
+  if (fieldPlan && fieldPlan.validate.length > 0) {
+    for (let i = 0; i < fieldPlan.validate.length; i++) {
+      const entry = fieldPlan.validate[i];
+      const result = await entry.fn(
         current,
-        withDocument(ctx, current, field),
+        withDocument(ctx, current, entry.field, entry.key),
         addValidationError,
       );
       pushValidationResult(errors, result);
@@ -304,12 +394,14 @@ export async function applySchemaHookPipeline(
     throw createError ? createError(errors) : new Error(errors.join("; "));
   }
 
-  if (fields && fields.length > 0) {
-    for (let i = 0; i < fields.length; i++) {
-      const field = asHookField(fields[i]);
-      const before = field?.hooks?.beforeOperation;
-      if (!field || !before) continue;
-      current = await applyDataHook(before, current, withDocument(ctx, current, field));
+  if (fieldPlan && fieldPlan.beforeOperation.length > 0) {
+    for (let i = 0; i < fieldPlan.beforeOperation.length; i++) {
+      const entry = fieldPlan.beforeOperation[i];
+      current = await applyDataHook(
+        entry.fn,
+        current,
+        withDocument(ctx, current, entry.field, entry.key),
+      );
     }
   }
 
@@ -317,7 +409,9 @@ export async function applySchemaHookPipeline(
     current = await applyDataHook(hooks.beforeOperation, current, withDocument(ctx, current));
   }
 
-  current = await applyAfterValidate(hooks, current, withDocument(ctx, current));
+  if (hooks?.afterValidate) {
+    current = await applyAfterValidate(hooks, current, withDocument(ctx, current));
+  }
 
   return current;
 }
@@ -332,17 +426,20 @@ export async function runAfterOperation(
   data: Record<string, unknown>,
   context: Omit<ValidationContext, "document"> | ValidationContext,
 ): Promise<void> {
+  const fieldPlan = fields && fields.length > 0 ? getFieldHooksPlan(fields) : null;
+  if (!fieldPlan?.hasAfterHooks && !hooks?.afterOperation) {
+    return;
+  }
+
   const source = context as ValidationContext;
   const ctx: ValidationContext = {
     ...source,
     document: source.document ?? { ...data },
   };
-  if (fields && fields.length > 0) {
-    for (let i = 0; i < fields.length; i++) {
-      const field = asHookField(fields[i]);
-      const after = field?.hooks?.afterOperation;
-      if (!field || !after) continue;
-      await after(data, withDocument(ctx, data, field));
+  if (fieldPlan && fieldPlan.afterOperation.length > 0) {
+    for (let i = 0; i < fieldPlan.afterOperation.length; i++) {
+      const entry = fieldPlan.afterOperation[i];
+      await entry.fn(data, withDocument(ctx, data, entry.field, entry.key));
     }
   }
   if (hooks?.afterOperation) {

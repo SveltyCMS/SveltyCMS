@@ -6,11 +6,16 @@
 
 /// <reference types="vite/client" />
 
+import { lazyModule } from "@utils/lazy-module";
+
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
-let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
-function loadDbModule(): Promise<typeof import("@src/databases/db")> {
-  return (dbModulePromise ??= import("@src/databases/db"));
-}
+const loadDbModule = lazyModule(() => import("@src/databases/db"));
+const loadEngineModule = lazyModule(() => import("./engine.server"));
+const loadApiSpecModule = lazyModule(() => import("@src/services/system/api-spec-service"));
+const loadPrewarmModule = lazyModule(() => import("./prewarm"));
+const loadCollectionOrderModule = lazyModule(() => import("@utils/collection-order.server"));
+const loadNavigationCacheService = lazyModule(() => import("@src/databases/cache/cache-service"));
+const loadNavigationCacheTypes = lazyModule(() => import("@src/databases/cache/types"));
 const isTest = !!(
   (typeof process !== "undefined" &&
     (process.env.NODE_ENV === "test" || !!process.env.VITEST || !!process.env.BUN_TEST)) ||
@@ -35,8 +40,31 @@ if (!isTest && (import.meta.env?.SSR === false || typeof window !== "undefined")
 import { logger } from "@utils/logger";
 import { contentStore } from "@stores/content-registry.svelte";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
-import type { ContentNodeOperation } from "./types";
+import type { ContentNodeOperation, NavigationNode } from "./types";
 import { contentSystemBase } from "./index";
+import { setNavigationCacheProvider } from "./content-utils";
+
+// The browser-safe `content-utils` module cannot import the cache/database stack
+// (SvelteKit's server-only guard rejects that chain from the root layout). Register
+// the real L2 navigation cache here, where it is server-only by construction.
+setNavigationCacheProvider({
+  async get(key, tenantId) {
+    const { cacheService } = await loadNavigationCacheService();
+    return (await cacheService.get<NavigationNode[]>(key, tenantId)) ?? null;
+  },
+  async set(key, value, tenantId) {
+    const [{ cacheService }, { CacheCategory }] = await Promise.all([
+      loadNavigationCacheService(),
+      loadNavigationCacheTypes(),
+    ]);
+    const tid = tenantId || "global";
+    await cacheService.set(key, value, 300, tenantId, CacheCategory.CONTENT, [
+      "navigation",
+      "navigation:tree",
+      `navigation:tree:${tid}`,
+    ]);
+  },
+});
 
 export * from "./types";
 export {
@@ -66,7 +94,7 @@ let watcherStarted = false;
 
 async function getServerContentService() {
   if (!contentService) {
-    const mod = await import("./engine.server");
+    const mod = await loadEngineModule();
     contentService = mod.contentService;
   }
   return contentService;
@@ -74,7 +102,7 @@ async function getServerContentService() {
 
 async function getServerApiSpecService() {
   if (!apiSpecService) {
-    const mod = await import("@src/services/system/api-spec-service");
+    const mod = await loadApiSpecModule();
     apiSpecService = (mod as any).apiSpecService || mod;
   }
   return apiSpecService;
@@ -143,7 +171,7 @@ export async function ensureContentInitialized(
         // writes data, never throws into the init path.
         {
           const prewarmTask = (async () => {
-            const { prewarmWritePath } = await import("./prewarm");
+            const { prewarmWritePath } = await loadPrewarmModule();
             return prewarmWritePath(db, tenantId);
           })();
           void prewarmTask.catch((err) => {
@@ -159,7 +187,7 @@ export async function ensureContentInitialized(
         ) {
           watcherStarted = true;
           try {
-            const { startContentWatcher } = await import("./engine.server");
+            const { startContentWatcher } = await loadEngineModule();
             startContentWatcher();
           } catch (e) {
             logger.warn("Content watcher failed to start", { error: e });
@@ -219,7 +247,7 @@ export const contentSystem = {
     _incremental = false,
     adapter?: DatabaseAdapter,
   ) {
-    const { refreshContent } = await import("./engine.server");
+    const { refreshContent } = await loadEngineModule();
     // 🛡️ Benchmark servers: schema mode (see refreshContent) so DB-created
     // benchmark collections bootstrap config files instead of being pruned.
     const mode =
@@ -272,7 +300,7 @@ export const contentSystem = {
     contentStore.batchUpsert(updated);
 
     const { buildOrganizationalManifestFromNodes, setOrganizationalManifest } =
-      await import("@utils/collection-order.server");
+      await loadCollectionOrderModule();
     const { order, structureNodes } = buildOrganizationalManifestFromNodes(updated);
     await setOrganizationalManifest(order, structureNodes, tenantId ?? null);
 

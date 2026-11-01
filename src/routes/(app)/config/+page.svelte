@@ -21,6 +21,7 @@
 	import { page } from '$app/state';
 	import {
 		applayout_systemconfiguration,
+		config_no_access_body,
 		config_page_subtitle,
 		config_search_clear,
 		config_search_empty,
@@ -526,6 +527,23 @@
 					<Button variant="tertiary" size="sm" type="button" onclick={() => (configSearch = '')}>
 						{config_search_clear()}
 					</Button>
+				</div>
+			{/if}
+
+			{#if !isSearching && visibleConfigItems.length === 0}
+				<div
+					class="col-span-full flex flex-col items-center justify-center gap-2 py-10 text-center"
+					data-testid="config-no-access"
+				>
+					<iconify-icon
+						icon="mdi:lock-outline"
+						width="36"
+						class="text-(--admin-text-muted)"
+						aria-hidden="true"
+					></iconify-icon>
+					<p class="text-sm text-(--admin-text-muted)">
+						{config_no_access_body()}
+					</p>
 				</div>
 			{/if}
 

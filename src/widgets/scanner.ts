@@ -62,8 +62,9 @@ try {
  * This is executed only when Vite's glob import fails to find modules.
  */
 function initBunFallback() {
-  const isBrowser = typeof window !== "undefined";
-  if (isBrowser) return;
+  // Compile-time constant in Vite 8 client builds (`import.meta.env.SSR === false`),
+  // allowing Rolldown to strip the entire Node/Bun fs fallback from browser chunks.
+  if (!(import.meta.env?.SSR ?? typeof window === "undefined")) return;
 
   // The standalone background bundle has no Vite glob transform and does not
   // execute widget factories. Its only scanner consumer is telemetry metadata;
@@ -151,17 +152,35 @@ export function getCustomWidgetNames(): string[] {
   return names;
 }
 
+/** O(1) index of available widget factory folders across all 3 tiers. Built once. */
+let loaderFolderIndex: Set<string> | null = null;
+
+function getLoaderFolderIndex(): Set<string> {
+  if (loaderFolderIndex) return loaderFolderIndex;
+  const index = new Set<string>();
+  for (const loaders of [coreModuleLoaders, customModuleLoaders, marketplaceModuleLoaders]) {
+    for (const path in loaders) {
+      const folder = folderFromWidgetPath(path);
+      if (folder) index.add(folder);
+    }
+  }
+  for (const modMap of [coreModules, customModules, marketplaceModules]) {
+    for (const path in modMap) {
+      const folder = folderFromWidgetPath(path);
+      if (folder) index.add(folder);
+    }
+  }
+  if (index.size > 0) {
+    loaderFolderIndex = index;
+  }
+  return index;
+}
+
 /** True when a factory chunk exists for this widget Name. Does not import it. */
 export function hasWidgetLoader(widgetName: string): boolean {
   const folder = widgetNameToFolder(widgetName);
   if (!folder) return false;
-  const needle = `/${folder}/index.ts`;
-  for (const loaders of [coreModuleLoaders, customModuleLoaders, marketplaceModuleLoaders]) {
-    for (const path of Object.keys(loaders)) {
-      if (path.replace(/\\/g, "/").endsWith(needle)) return true;
-    }
-  }
-  return false;
+  return getLoaderFolderIndex().has(folder);
 }
 
 /**

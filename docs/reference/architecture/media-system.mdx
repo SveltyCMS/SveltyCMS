@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-10-19"
+updated: "2026-11-01"
 tags:
   - "architecture"
   - "media"
@@ -460,7 +460,7 @@ The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third
 
 `media-details-modal.svelte` is the asset control center with four tabs:
 
-1. **Info** — Inline editable name, alt text, caption, and tags (`PATCH /api/media/{id}`).
+1. **Info** — Inline editable name, alt text, caption, and tags (`PATCH /api/media/{id}`). Clicking the empty "Add alt text…" / "Add caption…" label swaps in an input and moves focus to it after the next tick; when the existing value is non-empty it is selected, so typing replaces it. Every editable value carries `dir="auto"` so an Arabic or Hebrew title/alt/caption resolves its own direction.
 2. **Versions** — Upload new version, restore historical copies, compare two versions with field-level diffs.
 3. **References** — Live scan of collection entries referencing the asset (`GET /api/media/references/{id}`).
 4. **Share** — Generate expiring, password-protected public links and revoke active tokens.

@@ -117,6 +117,8 @@ export interface DatabaseTestResult {
   message?: string;
   success: boolean;
   userFriendly?: string;
+  /** Probe target does not exist / is empty yet — setup will create it on Next. */
+  willCreate?: boolean;
 }
 
 export interface SetupCompleteResponse {
@@ -130,6 +132,23 @@ export interface SeedDatabaseResponse {
   error?: string;
   code?: string;
   success: boolean;
+}
+
+/**
+ * Legacy wizard default for the production URL. Treated as "not configured" so
+ * a request origin can replace it without ever clobbering a user-entered value.
+ */
+const LEGACY_DEFAULT_HOST_PROD = "https://localhost:5173";
+
+/** Normalize a request origin to a scheme://host[:port] value (no path/trailing slash). */
+function normalizeSetupOrigin(origin: string | null | undefined): string | null {
+  if (!origin) return null;
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.origin : null;
+  } catch {
+    return null;
+  }
 }
 
 // --- Initial State Constants ---
@@ -150,7 +169,8 @@ const initialAdminUser: AdminUser = {
 };
 const initialSystemSettings: SystemSettings = {
   siteName: "SveltyCMS",
-  hostProd: "https://localhost:5173",
+  // Replaced from the request origin on wizard entry (see seedHostProdFromOrigin).
+  hostProd: LEGACY_DEFAULT_HOST_PROD,
   defaultSystemLanguage: "en",
   systemLanguages: ["en", "de"], // Will be populated from DB after seeding (reads from settings.json)
   defaultContentLanguage: "en",
@@ -482,10 +502,9 @@ function createSetupStore() {
         wizard.showDbDetails = false;
         wizard.validationErrors = {};
 
-        // ✨ TRIGGER BACKGROUND SEEDING & CONFIG WRITING
-        // This allows the user to continue to Step 1 while the database initializes
-        seedDatabase();
-
+        // The probe is read-only by contract: creating the DB file/tables,
+        // writing config/private.ts and seeding system data is deferred to the
+        // explicit Next step (see `seedDatabase()` in +page.svelte).
         return true;
       }
       wizard.errorMessage = (data as any)?.error || "Database connection failed.";
@@ -768,6 +787,22 @@ function createSetupStore() {
     }
   }
 
+  /**
+   * Seed the wizard's production URL from the request origin.
+   *
+   * SSRs/requests behind the dev server must not ship a hard-coded
+   * `https://localhost:5173` as the production URL. Only an empty or legacy
+   * default value is replaced so a user-entered URL is never clobbered.
+   */
+  function seedHostProdFromOrigin(origin: string | null | undefined): string {
+    const current = wizard.systemSettings.hostProd?.trim() || "";
+    const resolved = normalizeSetupOrigin(origin);
+    if (resolved && (current === "" || current === LEGACY_DEFAULT_HOST_PROD)) {
+      wizard.systemSettings.hostProd = resolved;
+    }
+    return wizard.systemSettings.hostProd;
+  }
+
   // --- CLEAR METHOD ---
   function clear() {
     const initialState = {
@@ -885,6 +920,7 @@ function createSetupStore() {
     // API methods (Enterprise Service Store)
     testDatabaseConnection,
     seedDatabase,
+    seedHostProdFromOrigin,
     completeSetup,
     testRedisConnection,
     clearDbTestError,

@@ -26,6 +26,43 @@ function fieldNamed(schema: { fields?: unknown }, name: string): NamedField | un
 }
 
 describe("preset-collections.server", () => {
+  it("enables revision history on editable preset content and pins the default limit", () => {
+    // Structural/transactional tables opt out; every other preset collection is
+    // authored content, so a fresh install must record history without manual setup.
+    const structural = new Set(["tax_rates", "shipping_zones", "carts", "orders"]);
+
+    for (const preset of PRESETS) {
+      for (const collection of preset.collections ?? []) {
+        const where = `${preset.id}/${collection.name}`;
+        const schema = collectionPresetToSchema(collection);
+        const revisionEnabled = !structural.has(collection.name);
+
+        expect(schema.revision, where).toBe(revisionEnabled);
+        if (revisionEnabled) {
+          expect(schema.revisionLimit, where).toBe(100);
+        } else {
+          expect(schema.revisionLimit, where).toBeUndefined();
+        }
+
+        const content = generateCollectionFileContent(collection);
+        if (revisionEnabled) {
+          expect(content, where).toContain("revision: true,");
+          expect(content, where).toContain("revisionLimit: 100,");
+        } else {
+          expect(content, where).not.toContain("revision: true,");
+          expect(content, where).not.toContain("revisionLimit:");
+        }
+      }
+    }
+
+    // The blog blueprint is the reference case: posts, categories, and authors
+    // all carry a history flag and a limit.
+    const blog = PRESETS.find((preset) => preset.id === "blog");
+    for (const collection of blog?.collections ?? []) {
+      expect(collectionPresetToSchema(collection).revision).toBe(true);
+    }
+  });
+
   it("resolves blog preset from presets.ts with lowercase ids", async () => {
     const schemas = await getWizardPresetSchemas("blog");
     expect(schemas.length).toBe(3);

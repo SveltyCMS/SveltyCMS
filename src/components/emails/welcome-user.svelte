@@ -43,10 +43,10 @@
 		languageTag = locale.systemLanguage
 	}: Props = $props();
 
-	// Use production host logo if available, otherwise fall back to GitHub
-	const logoSrc = publicEnv?.HOST_PROD
-		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
+	// Production host logo when configured; otherwise the same-origin static asset.
+	// A cross-origin GitHub fallback is blocked by COEP inside the sandboxed
+	// email-preview iframe, so the preview could never show the real logo.
+	const logoSrc = publicEnv?.HOST_PROD ? `${publicEnv.HOST_PROD}/SveltyCMS.png` : '/SveltyCMS.png';
 </script>
 
 <Html lang={languageTag}>

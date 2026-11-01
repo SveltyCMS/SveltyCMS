@@ -42,7 +42,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		scoreEntry
 	} from '@utils/command-palette';
 	import { page } from '$app/state';
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import {
 		// STATIC_CATALOG keys (title/description)
@@ -331,6 +331,14 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 		} else {
 			statusMessage = '';
 		}
+	});
+
+	$effect(() => {
+		// A new query is a new result list: the best match (row 0) is selected,
+		// never the row index left over from the previous query (retest m3).
+		void parsed.query;
+		void parsed.filter;
+		untrack(() => (selectedIndex = 0));
 	});
 
 	$effect(() => {

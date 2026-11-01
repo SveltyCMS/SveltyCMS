@@ -214,6 +214,42 @@ function includesScore(haystack: string, needle: string): number {
   return 0;
 }
 
+interface NormalizedPaletteEntry {
+  title: string;
+  desc: string;
+  path: string;
+  keywords: string[];
+  matchTerms: string[];
+  blob: string;
+}
+
+const normalizedEntryCache = new WeakMap<CommandPaletteEntry, NormalizedPaletteEntry>();
+
+function getNormalizedEntry(entry: CommandPaletteEntry): NormalizedPaletteEntry {
+  let cached = normalizedEntryCache.get(entry);
+  if (!cached) {
+    const title = entry.title.toLowerCase();
+    const desc = entry.description.toLowerCase();
+    const path = (entry.path ?? "").toLowerCase();
+    const keywords = entry.keywords.map((k) => k.toLowerCase());
+    // Prefer precomputed multi-locale bag; always fall back to EN keywords + path + display
+    const matchTerms = (
+      entry.matchTerms?.length
+        ? entry.matchTerms
+        : buildMatchTerms({
+            titleVariants: [entry.title],
+            descriptionVariants: [entry.description],
+            keywords: entry.keywords,
+            path: entry.path,
+          })
+    ).map((t) => t.toLowerCase());
+    const blob = `${title} ${desc} ${keywords.join(" ")} ${path} ${matchTerms.join(" ")}`;
+    cached = { title, desc, path, keywords, matchTerms, blob };
+    normalizedEntryCache.set(entry, cached);
+  }
+  return cached;
+}
+
 /**
  * Score an entry against a normalized query (0 = no match, higher = better).
  */
@@ -236,21 +272,7 @@ export function scoreEntry(
     if (filter === "user" && entry.category !== "user") return 0;
   }
 
-  const title = entry.title.toLowerCase();
-  const desc = entry.description.toLowerCase();
-  const path = (entry.path ?? "").toLowerCase();
-  const keywords = entry.keywords.map((k) => k.toLowerCase());
-  // Prefer precomputed multi-locale bag; always fall back to EN keywords + path + display
-  const matchTerms = (
-    entry.matchTerms?.length
-      ? entry.matchTerms
-      : buildMatchTerms({
-          titleVariants: [entry.title],
-          descriptionVariants: [entry.description],
-          keywords: entry.keywords,
-          path: entry.path,
-        })
-  ).map((t) => t.toLowerCase());
+  const { title, desc, path, keywords, matchTerms, blob } = getNormalizedEntry(entry);
 
   if (filter === "path") {
     // Note: `!query` here is implied — path.includes("") is always true, so the
@@ -269,8 +291,11 @@ export function scoreEntry(
     if (titleHit) score += titleHit * 1.5;
 
     // EN technical keywords — always active for DE/HI users typing English
-    const keywordHits = keywords.map((k) => includesScore(k, query));
-    const bestKeyword = keywordHits.length ? Math.max(...keywordHits) : 0;
+    let bestKeyword = 0;
+    for (let i = 0; i < keywords.length; i++) {
+      const kh = includesScore(keywords[i], query);
+      if (kh > bestKeyword) bestKeyword = kh;
+    }
     if (bestKeyword) score += bestKeyword * 1.25;
 
     const descHit = includesScore(desc, query);
@@ -289,7 +314,6 @@ export function scoreEntry(
     // Multi-word: all tokens must appear somewhere in the full match blob
     const tokens = query.split(/\s+/).filter(Boolean);
     if (tokens.length > 1) {
-      const blob = `${title} ${desc} ${keywords.join(" ")} ${path} ${matchTerms.join(" ")}`;
       const allPresent = tokens.every((t) => blob.includes(t));
       if (!allPresent) score *= 0.15;
       else score += 20;

@@ -245,18 +245,27 @@
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { formatDateTime } from '@utils/format-date';
-	import UserManagement from './components/user-management.svelte';
-	import ModalTwoFactorAuth from './components/modal-two-factor-auth.svelte';
-	import ModalPasskeyManagement from './components/modal-passkey-management.svelte';
+	import { memoizeLazyLoader } from '@utils/lazy-module';
 	import { setCollection } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { globalSearch } from '@utils/global-search-index.svelte';
 	import { modalState, showConfirm } from '@utils/modal.svelte';
-	import ModalEditAvatar from './components/modal-edit-avatar.svelte';
-	import ModalEditForm from './components/modal-edit-form.svelte';
-	import ModalPrivacyData from './components/modal-privacy-data.svelte';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { getActiveSessions, revokeSession, reauthForSessionManagement } from './user.remote';
+	const loadUserManagement = memoizeLazyLoader(() => import('./components/user-management.svelte'));
+	const loadModalTwoFactorAuth = memoizeLazyLoader(
+		() => import('./components/modal-two-factor-auth.svelte')
+	);
+	const loadModalPasskeyManagement = memoizeLazyLoader(
+		() => import('./components/modal-passkey-management.svelte')
+	);
+	const loadModalEditAvatar = memoizeLazyLoader(
+		() => import('./components/modal-edit-avatar.svelte')
+	);
+	const loadModalEditForm = memoizeLazyLoader(() => import('./components/modal-edit-form.svelte'));
+	const loadModalPrivacyData = memoizeLazyLoader(
+		() => import('./components/modal-privacy-data.svelte')
+	);
 
 	const { data } = $props();
 	const serverUser = $derived(data.user);
@@ -842,13 +851,15 @@
 		}
 	});
 
-	function open2FAModal(): void {
+	async function open2FAModal(): Promise<void> {
+		const { default: ModalTwoFactorAuth } = await loadModalTwoFactorAuth();
 		modalState.trigger(ModalTwoFactorAuth, { user, size: 'fullscreen' }, async (r: any) => {
 			if (r) await refreshAll();
 		});
 	}
 
-	function openPasskeyModal(): void {
+	async function openPasskeyModal(): Promise<void> {
+		const { default: ModalPasskeyManagement } = await loadModalPasskeyManagement();
 		modalState.trigger(ModalPasskeyManagement, {
 			user,
 			onSuccess: async () => {
@@ -924,14 +935,16 @@
 		if (data.initialSessions == null) loadSessions().catch(() => {});
 	});
 
-	function modalUserForm(): void {
+	async function modalUserForm(): Promise<void> {
+		const { default: ModalEditForm } = await loadModalEditForm();
 		modalState.trigger(ModalEditForm, {
 			title: usermodaluser_edittitle(),
 			body: usermodaluser_settingbody() || userpage_edit_user_body()
 		});
 	}
 
-	function modalEditAvatar(): void {
+	async function modalEditAvatar(): Promise<void> {
+		const { default: ModalEditAvatar } = await loadModalEditAvatar();
 		modalState.trigger(
 			ModalEditAvatar,
 			{
@@ -950,7 +963,8 @@
 		);
 	}
 
-	function modalPrivacyData(): void {
+	async function modalPrivacyData(): Promise<void> {
+		const { default: ModalPrivacyData } = await loadModalPrivacyData();
 		modalState.trigger(ModalPrivacyData as any, { user });
 	}
 
@@ -2116,13 +2130,15 @@
 					>
 						{userpage_management_intro()}
 					</p>
-					<UserManagement
-						currentUser={user as any}
-						isMultiTenant={!!isMultiTenant}
-						roles={(data.roles ?? []) as any}
-						initialUsers={data.initialUsers?.users ?? null}
-						initialTotal={data.initialUsers?.totalItems ?? null}
-					/>
+					{#await loadUserManagement() then { default: UserManagement }}
+						<UserManagement
+							currentUser={user as any}
+							isMultiTenant={!!isMultiTenant}
+							roles={(data.roles ?? []) as any}
+							initialUsers={data.initialUsers?.users ?? null}
+							initialTotal={data.initialUsers?.totalItems ?? null}
+						/>
+					{/await}
 				</div>
 			{/if}
 		</div>

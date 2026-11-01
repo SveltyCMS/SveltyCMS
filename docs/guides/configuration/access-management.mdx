@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:shield-account"
 author: "SveltyCMS Team"
 created: "2026-02-03"
-updated: "2026-10-19"
+updated: "2026-11-01"
 tags:
   - "security"
   - "roles"
@@ -70,6 +70,18 @@ Control access to core system features:
 
 > [!TIP]
 > Changes to permissions take effect immediately for new requests, but users may need to refresh their session (logout/login) for UI elements to update fully.
+
+#### 3. Config Hub Tiles
+
+Every tile on `/config` resolves through `src/routes/(app)/config/config-tile-permissions.ts`, which maps the tile's context id to a **real** `PERMISSION_CATALOG` id. The loader, the tile grid and the contract test share that one map, so a tile can never promise a page whose guard returns 403.
+
+| Class of tile      | Maps to                        | Example                                                                                                       |
+| :----------------- | :----------------------------- | :------------------------------------------------------------------------------------------------------------ |
+| Editor-accessible  | the page's own catalogue grant | Design System (`config:themeManagement`) — the appearance page is open to every authenticated user            |
+| Collection builder | `config:collectionbuilder`     | The builder tile and `collectionManagement` both point at the guard that route actually enforces              |
+| Admin-only         | `system:admin`                 | Access Management, Email Previews, Extensions, Automations, Queue, System Monitor, Webhooks, Redirects, Trash |
+
+An Editor therefore sees Design System and the builder, and an empty result for an admin-only tile is intentional rather than a missing grant. The earlier `manage:*` / `access:*` spellings were never registered and failed closed for every non-admin; do not reintroduce them.
 
 ---
 

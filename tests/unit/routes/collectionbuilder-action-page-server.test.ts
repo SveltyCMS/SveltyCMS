@@ -215,9 +215,14 @@ function makeCollectionForm(name: string, fields: FieldPayload[]): FormData {
   return form;
 }
 
-function makeSaveEvent(form: FormData, locals: LocalsFixture = makeLocals()): SaveCollectionEvent {
+function makeSaveEvent(
+  form: FormData,
+  locals: LocalsFixture = makeLocals(),
+  path = "/config/collectionbuilder/new",
+): SaveCollectionEvent {
   return {
-    request: new Request("http://localhost/config/collectionbuilder/new", {
+    url: new URL(`http://localhost${path}`),
+    request: new Request(`http://localhost${path}`, {
       method: "POST",
       body: form,
     }),
@@ -227,6 +232,14 @@ function makeSaveEvent(form: FormData, locals: LocalsFixture = makeLocals()): Sa
 
 const TITLE_FIELDS: FieldPayload[] = [
   { db_fieldName: "title", label: "Title", widget: { Name: "Input", key: "Input" } },
+];
+
+/** The fields of the seeded blog blueprint (`PRESET_COLLECTIONS.blog[0]`). */
+const POSTS_FIELDS: FieldPayload[] = [
+  { db_fieldName: "title", label: "Title", widget: { Name: "Input", key: "Input" } },
+  { db_fieldName: "slug", label: "Slug", widget: { Name: "Slug", key: "Slug" } },
+  { db_fieldName: "content", label: "Content", widget: { Name: "RichText", key: "RichText" } },
+  { db_fieldName: "excerpt", label: "Excerpt", widget: { Name: "Input", key: "Input" } },
 ];
 
 /**
@@ -483,6 +496,139 @@ describe("collectionbuilder [action]/[...contentPath] +page.server", () => {
     expect(source).toContain("@widgets/widget-manager.svelte");
     // And the list is still an array, never the index-keyed map.
     expect(source.includes("fields: {")).toBe(false);
+  });
+
+  it("saves an existing blueprint collection and preserves its behavioural flags (CB1)", async () => {
+    // The seeded `posts` blueprint as the registry hands it to the editor. The
+    // CB1 retest failure was an edit of exactly this shape returning 500
+    // (`s.replace` on a null) — and, once it stopped throwing, the regenerated
+    // file dropped every flag the field canvas does not own.
+    const stored = {
+      _id: "posts",
+      name: "posts",
+      icon: "mdi:post-outline",
+      status: "publish",
+      slug: "/posts",
+      description: "Blog posts with SEO support and rich text editing",
+      revision: true,
+      revisionLimit: 100,
+      livePreview: "/posts/{slug}",
+      fields: POSTS_FIELDS,
+    };
+    state.getCollectionImpl = () => stored;
+
+    // Load → edit → save, like the editor: the form is populated from the
+    // serialised collection, including the flags the canvas renders elsewhere.
+    const loaded = (await load(makeLoadEvent("edit", "posts"))) as unknown as LoadResult;
+    const collection = requireCollection(loaded);
+    expect(collection.revision).toBe(true);
+    expect(collection.revisionLimit).toBe(100);
+    expect(collection.livePreview).toBe("/posts/{slug}");
+
+    const form = makeCollectionForm("posts", POSTS_FIELDS);
+    form.set("_id", String(collection._id));
+    form.set("originalName", "posts");
+    form.set("revision", String(collection.revision));
+    form.set("revisionLimit", String(collection.revisionLimit));
+    form.set("livePreview", String(collection.livePreview));
+
+    const saved = (await actions.saveCollection(
+      makeSaveEvent(form, makeLocals(), "/config/collectionbuilder/edit/posts"),
+    )) as unknown as ActionOutcome;
+
+    expect(saved).toEqual({ contentVersion: "v1", changedIds: [] });
+    const written = state.files.get(`${state.collectionsPath}/posts.ts`);
+    expect(written).toBeDefined();
+    const source = written as string;
+
+    expect(source).toContain('_id: "posts"');
+    expect(source).toContain("revision: true,");
+    expect(source).toContain("revisionLimit: 100,");
+    expect(source).toContain('livePreview: "/posts/{slug}",');
+
+    // The field list still round-trips as the ordered array (CB2 shape).
+    const literal = persistedFieldsLiteral(source);
+    expect(literal.startsWith("[")).toBe(true);
+    expect((JSON.parse(literal) as SavedField[]).map((field) => field.db_fieldName)).toEqual([
+      "title",
+      "slug",
+      "content",
+      "excerpt",
+    ]);
+  });
+
+  it("enables revisions for a new collection by default and preserves an explicit opt-out", async () => {
+    // Creation path default (competitive bet #1): a collection whose source file
+    // does not exist yet saves with history enabled and the documented limit.
+    const created = await actions.saveCollection(
+      makeSaveEvent(makeCollectionForm("WithRevisions", TITLE_FIELDS)),
+    );
+    expect(created).toEqual({ contentVersion: "v1", changedIds: [] });
+
+    const createdSource = state.files.get(`${state.collectionsPath}/WithRevisions.ts`);
+    expect(createdSource).toBeDefined();
+    expect(createdSource).toContain("revision: true,");
+    expect(createdSource).toContain("revisionLimit: 100,");
+
+    // An explicit `false` is an author decision and must never be overwritten by
+    // the creation default (nor get a meaningless limit).
+    const optedOutForm = makeCollectionForm("NoRevisions", TITLE_FIELDS);
+    optedOutForm.set("revision", "false");
+    optedOutForm.set("revisionLimit", "250");
+    const optedOut = await actions.saveCollection(makeSaveEvent(optedOutForm));
+    expect(optedOut).toEqual({ contentVersion: "v1", changedIds: [] });
+
+    const optedOutSource = state.files.get(`${state.collectionsPath}/NoRevisions.ts`);
+    expect(optedOutSource).toBeDefined();
+    expect(optedOutSource).not.toContain("revision: true,");
+    expect(optedOutSource).not.toContain("revisionLimit:");
+  });
+
+  it("does not turn revisions on for an existing collection that never enabled them", async () => {
+    // Editing an existing file must not silently opt it into history. Only a
+    // posted toggle (or the creation default for an absent file) changes the flag.
+    const existingPath = `${state.collectionsPath}/Legacy.ts`;
+    state.files.set(
+      existingPath,
+      'export default { _id: "Legacy", name: "Legacy", fields: [] };\n',
+    );
+
+    const form = makeCollectionForm("Legacy", TITLE_FIELDS);
+    form.set("originalName", "Legacy");
+    const saved = (await actions.saveCollection(
+      makeSaveEvent(form, makeLocals(), "/config/collectionbuilder/edit/Legacy"),
+    )) as unknown as ActionOutcome;
+
+    expect(saved).toEqual({ contentVersion: "v1", changedIds: [] });
+    const source = state.files.get(existingPath);
+    expect(source).toBeDefined();
+    expect(source).not.toContain("revision: true,");
+    expect(source).not.toContain("revisionLimit:");
+  });
+
+  it("persists the Define tab's revision toggle and a custom limit (and clamps it)", async () => {
+    // The toggle/limit live on the Define tab and reach the action through the
+    // bound collection store, so the save path must round-trip both values.
+    const form = makeCollectionForm("TogglePersist", TITLE_FIELDS);
+    form.set("revision", "true");
+    form.set("revisionLimit", "250");
+    await actions.saveCollection(makeSaveEvent(form));
+
+    const source = state.files.get(`${state.collectionsPath}/TogglePersist.ts`);
+    expect(source).toBeDefined();
+    expect(source).toContain("revision: true,");
+    expect(source).toContain("revisionLimit: 250,");
+
+    // A client can post any positive number; the server clamps to the advertised
+    // 1–1000 range instead of persisting an unbounded history budget.
+    const tooLarge = makeCollectionForm("ToggleClamped", TITLE_FIELDS);
+    tooLarge.set("revision", "true");
+    tooLarge.set("revisionLimit", "99999");
+    await actions.saveCollection(makeSaveEvent(tooLarge));
+
+    const clamped = state.files.get(`${state.collectionsPath}/ToggleClamped.ts`);
+    expect(clamped).toBeDefined();
+    expect(clamped).toContain("revisionLimit: 1000,");
   });
 
   it("keeps both collections when two saves run in parallel (concurrency)", async () => {

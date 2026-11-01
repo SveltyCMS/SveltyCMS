@@ -29,6 +29,7 @@
 		mediagallery_grid_size,
 		mediagallery_grid_view,
 		mediagallery_loading_table,
+		mediagallery_list_pagination_sr,
 		mediagallery_new_folder,
 		mediagallery_search_assets,
 		mediagallery_search_modf,
@@ -54,7 +55,6 @@
 	import type { PageData } from './$types';
 	import MediaGrid from './media-grid.svelte';
 	import AdminCard from '@components/admin-card.svelte';
-	import BatchProcessor from './batch-processor.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
 	import { mediaUrl } from '@utils/media/media-utils';
@@ -1471,7 +1471,10 @@
 			data-total={mediaPagination.total}
 			data-has-more={mediaPagination.hasNextPage}
 		>
-			Media list: {files.length} of {mediaPagination.total} assets loaded
+			{mediagallery_list_pagination_sr({
+				loaded: files.length,
+				total: mediaPagination.total
+			})}
 		</p>
 
 		<!-- Content — data-view is the canonical E2E signal for grid/table mode -->
@@ -1531,7 +1534,9 @@
 	<Slot name="media_gallery" />
 
 	{#if showBatchProcessor && assetStats.selected > 0}
-		<BatchProcessor selectedIds={selectedFiles} onClose={() => (showBatchProcessor = false)} />
+		{#await import('./batch-processor.svelte') then mod}
+			<mod.default selectedIds={selectedFiles} onClose={() => (showBatchProcessor = false)} />
+		{/await}
 	{/if}
 
 	{#if isMediaDragActive}

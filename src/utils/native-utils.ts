@@ -150,6 +150,7 @@ export function deepClone<T>(value: T): T {
 
 function cloneInternal(value: unknown, depth: number): unknown {
   if (value === null || typeof value !== "object") return value;
+  if (value instanceof Date) return new Date(value.getTime());
   if (depth > 500) return JSON.parse(JSON.stringify(value));
   if (Array.isArray(value)) {
     const arr = Array.from({ length: value.length });

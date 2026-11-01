@@ -11,12 +11,16 @@
  * - Permissions-Policy lockdown values
  * - Strict-Transport-Security (HSTS) only when isHttps
  * - Cross-origin isolation (COOP/COEP/CORP) on API routes
+ * - Email-preview COEP relaxation (sandboxed template iframe) and the logo asset CORP
  * - CSP variants: page (preserves SvelteKit), /api/, /api/graphql
  * - CORS: Vary: Origin on API routes
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { applyAllSecurityHeaders } from "@src/hooks/handle-security-headers";
+import {
+  applyAllSecurityHeaders,
+  applyStaticAssetHeaders,
+} from "@src/hooks/handle-security-headers";
 
 // HSTS is gated on `isHttps && !dev` — pin dev:false so the production HTTPS
 // path is exercised deterministically (matches adversarial.test.ts pattern).
@@ -106,6 +110,36 @@ describe("applyAllSecurityHeaders", () => {
       // COOP/COEP come from BASE_HEADERS (applied to all routes); CORP is API-only.
       expect(h.get("Cross-Origin-Resource-Policy")).toBeNull();
       expect(h.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+    });
+  });
+
+  describe("Email previews (F7)", () => {
+    it("relaxes COEP to credentialless only on /email-previews", () => {
+      expect(headersFor("/email-previews").get("Cross-Origin-Embedder-Policy")).toBe(
+        "credentialless",
+      );
+      expect(headersFor("/email-previews").get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+    });
+
+    it("keeps require-corp on every other page route", () => {
+      expect(headersFor("/dashboard").get("Cross-Origin-Embedder-Policy")).toBe("require-corp");
+      expect(headersFor("/config").get("Cross-Origin-Embedder-Policy")).toBe("require-corp");
+      // A lookalike path must not inherit the preview relaxation.
+      expect(headersFor("/email-previews-archive").get("Cross-Origin-Embedder-Policy")).toBe(
+        "require-corp",
+      );
+    });
+
+    it("marks the same-origin preview logo cross-origin for opaque iframe documents", () => {
+      const headers = new Headers();
+      applyStaticAssetHeaders(headers, "/SveltyCMS.png");
+      expect(headers.get("Cross-Origin-Resource-Policy")).toBe("cross-origin");
+    });
+
+    it("leaves other static assets without an isolation override", () => {
+      const headers = new Headers();
+      applyStaticAssetHeaders(headers, "/SveltyCMS_Logo.svg");
+      expect(headers.get("Cross-Origin-Resource-Policy")).toBeNull();
     });
   });
 

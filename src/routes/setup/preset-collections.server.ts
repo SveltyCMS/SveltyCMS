@@ -14,6 +14,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { Schema } from "@src/content/types";
+import { DEFAULT_REVISION_LIMIT } from "@src/content/revision-defaults";
 import type { CollectionPreset, FieldTemplate } from "./presets";
 import { PRESETS } from "./presets";
 import { logger } from "@utils/logger";
@@ -184,8 +185,14 @@ function fieldToSchemaField(field: FieldTemplate): Record<string, unknown> {
 
 /**
  * Converts a CollectionPreset template into a database Schema object.
+ *
+ * Presets model authored content, so revision history defaults to **on**; a
+ * preset opts out explicitly (`revision: false`) for structural/transactional
+ * tables. The limit is pinned so the seeded schema and the generated `.ts` file
+ * agree with what the editor shows on the Define tab.
  */
 export function collectionPresetToSchema(collection: CollectionPreset, order?: number): Schema {
+  const revision = collection.revision ?? true;
   const schema: Schema = {
     _id: collection.name,
     name: collection.label,
@@ -194,8 +201,12 @@ export function collectionPresetToSchema(collection: CollectionPreset, order?: n
     description: collection.description,
     order: collection.order ?? order,
     fields: collection.fields.map((field) => fieldToSchemaField(field)),
+    revision,
   } as Schema;
 
+  if (revision) {
+    schema.revisionLimit = collection.revisionLimit ?? DEFAULT_REVISION_LIMIT;
+  }
   if (collection.livePreview !== undefined) {
     (schema as Schema).livePreview = collection.livePreview;
   }
@@ -254,6 +265,12 @@ export function generateCollectionFileContent(
   order?: number,
 ): string {
   const fieldEntries = collection.fields.map((field) => emitFieldSource(field, 4)).join("\n");
+  const revision = collection.revision ?? true;
+  // Mirror `collectionPresetToSchema`: the file and the seeded node must carry
+  // the same history flags, or the first save from the builder would flip them.
+  const revisionProps = revision
+    ? `\n  revision: true,\n  revisionLimit: ${collection.revisionLimit ?? DEFAULT_REVISION_LIMIT},`
+    : "";
 
   return `/**
  * @file config/collections/${collection.name}.ts
@@ -267,7 +284,7 @@ export default {
   label: "${collection.label}",
   description: "${collection.description}",
   icon: "${collection.icon}",
-  order: ${collection.order ?? order ?? 999},${collection.livePreview !== undefined ? `\n  livePreview: ${typeof collection.livePreview === "string" ? `"${collection.livePreview}"` : collection.livePreview},` : ""}${collection.plugins?.length ? `\n  plugins: ${JSON.stringify(collection.plugins)},` : ""}
+  order: ${collection.order ?? order ?? 999},${revisionProps}${collection.livePreview !== undefined ? `\n  livePreview: ${typeof collection.livePreview === "string" ? `"${collection.livePreview}"` : collection.livePreview},` : ""}${collection.plugins?.length ? `\n  plugins: ${JSON.stringify(collection.plugins)},` : ""}
   fields: [
 ${fieldEntries}
   ],

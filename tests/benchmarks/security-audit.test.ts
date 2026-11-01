@@ -43,7 +43,7 @@ async function runSecurityAudit() {
     const { securityResponseService } = await import("@src/services/security/response-service");
     const { auditLogService, AuditEventType } =
       await import("@src/services/security/audit-service");
-    const { hashPassword } = await import("@src/utils/security");
+    const { hashPassword } = await import("@src/utils/security/crypto");
     const { _checkEndpointPermission } = await import("@src/routes/api/[...path]/+server");
     const { inspectRequest } = await import("@src/services/security/threat-scan");
     const { hasPermissionWithRoles } = await import("@src/databases/auth/permissions");

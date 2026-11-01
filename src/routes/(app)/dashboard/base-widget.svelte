@@ -32,7 +32,9 @@ New Features:
 		widget_base_resize_title,
 		widget_base_retry,
 		widget_base_size_aria,
-		widget_base_snap_to
+		widget_base_snap_to,
+		widget_license_freemium,
+		widget_license_paid
 	} from '@src/paraglide/messages';
 
 	interface ChildSnippetProps {
@@ -434,11 +436,11 @@ New Features:
 				<span class="truncate">{label}</span>
 				{#if license === 'freemium'}
 					<Badge variant="warning" size="sm" class="text-[9px] px-1.5 py-0 leading-tight"
-						>Freemium</Badge
+						>{widget_license_freemium()}</Badge
 					>
 				{:else if license === 'paid'}
 					<Badge variant="primary" size="sm" class="text-[9px] px-1.5 py-0 leading-tight"
-						>Paid</Badge
+						>{widget_license_paid()}</Badge
 					>
 				{/if}
 			</h2>

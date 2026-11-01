@@ -284,6 +284,7 @@ Features:
 						Manage Tags
 					</p>
 					<p
+						dir="auto"
 						class="truncate text-sm font-semibold text-surface-900 md:text-base dark:text-surface-50"
 						title={activeFile.filename}
 					>

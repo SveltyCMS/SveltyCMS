@@ -80,12 +80,22 @@ export function buildDatabaseConnectionString(config: DatabaseConfig): string {
 
 export async function getSetupDatabaseAdapter(
   config: DatabaseConfig,
-  options: { createIfMissing?: boolean; skipModuleInit?: boolean } = {},
+  options: {
+    createIfMissing?: boolean;
+    skipModuleInit?: boolean;
+    /** Connectivity probe: skip connect-time schema bootstrap (CREATE TABLE …). */
+    readOnlyProbe?: boolean;
+  } = {},
 ): Promise<{
   dbAdapter: IDBAdapter;
   connectionString: string;
 }> {
   const correlationId = generateUUID();
+
+  // Relational adapters run `bootstrapSystemSchema()` on connect (CREATE TABLE
+  // IF NOT EXISTS …). A probe must not provision anything — the wizard's explicit
+  // Next/Complete step owns that write — so pass the opt-out through.
+  const connectOptions = options.readOnlyProbe ? { skipSchemaBootstrap: true } : undefined;
 
   logger.info(`🔌 Connecting to ${config.type}...`);
   const connectionString = buildDatabaseConnectionString(config);
@@ -163,7 +173,7 @@ export async function getSetupDatabaseAdapter(
           dbAdapter.connect = async () => ({ success: true, data: undefined });
           dbAdapter.auth.setupAuthModels = async () => {};
         } else {
-          const connectResult = await dbAdapter.connect(connectionString);
+          const connectResult = await dbAdapter.connect(connectionString, connectOptions);
           if (!connectResult.success) {
             throw new Error(`Database connection failed: ${connectResult.error?.message}`);
           }
@@ -179,7 +189,7 @@ export async function getSetupDatabaseAdapter(
           dbAdapter.connect = async () => ({ success: true, data: undefined });
           dbAdapter.auth = { setupAuthModels: async () => {} } as any;
         } else {
-          const connectResult = await dbAdapter.connect(connectionString);
+          const connectResult = await dbAdapter.connect(connectionString, connectOptions);
           if (!connectResult.success) {
             throw new Error(`Database connection failed: ${connectResult.error?.message}`);
           }

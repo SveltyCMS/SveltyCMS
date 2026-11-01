@@ -16,7 +16,9 @@ vi.mock("@src/databases/cache/cache-service", () => ({
 }));
 
 import { load } from "../../../src/routes/(app)/config/+page.server";
+import { CONFIG_TILE_PERMISSIONS } from "../../../src/routes/(app)/config/config-tile-permissions";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { DEFAULT_ROLE_GRANTS, isCatalogPermissionId } from "@src/databases/auth/permission-catalog";
 
 type ConfigPageData = {
   user: { _id: string; email?: string; role?: string };
@@ -118,5 +120,73 @@ describe("config +page.server", () => {
       status: 403,
       body: { message: "User role is missing for user norole@example.com" },
     });
+  });
+
+  it("maps every tile to a real catalog permission and keeps admin-only routes admin-gated", () => {
+    for (const [contextId, permissionId] of Object.entries(CONFIG_TILE_PERMISSIONS)) {
+      expect(isCatalogPermissionId(permissionId), `${contextId} -> ${permissionId}`).toBe(true);
+    }
+
+    // Routes whose loader rejects every non-admin must not be suggested to one.
+    for (const adminOnlyTile of [
+      "config:accessManagement",
+      "config:automations",
+      "config:extensions",
+      "config:queue",
+      "config:redirects",
+      "config:systemMonitor",
+      "config:trash",
+      "config:webhooks",
+    ]) {
+      expect(CONFIG_TILE_PERMISSIONS[adminOnlyTile], adminOnlyTile).toBe("system:admin");
+    }
+  });
+
+  it("shows an Editor the Design System and Dashboard tiles only (retest m6)", async () => {
+    const data = (await load(
+      makeEvent({
+        user: {
+          _id: "u-editor-default",
+          email: "editor@example.com",
+          role: "editor",
+          permissions: [],
+        },
+        isAdmin: false,
+        roles: [
+          {
+            _id: "editor",
+            name: "Editor",
+            permissions: [...DEFAULT_ROLE_GRANTS.editor],
+            isAdmin: false,
+          },
+        ],
+        tenantId: "t1",
+      }),
+    )) as unknown as ConfigPageData;
+
+    expect(data.permissions["config:appearance"].hasPermission).toBe(true);
+    expect(data.permissions["system:dashboard"].hasPermission).toBe(true);
+
+    // No admin-only system settings leak into the Editor's grid.
+    for (const adminOnlyTile of [
+      "config:settings",
+      "config:accessManagement",
+      "config:automations",
+      "config:extensions",
+      "config:systemMonitor",
+      "config:webhooks",
+    ]) {
+      expect(data.permissions[adminOnlyTile].hasPermission, adminOnlyTile).toBe(false);
+    }
+
+    const visible = new Set(
+      Object.entries(data.permissions)
+        .filter(([, entry]) => entry.hasPermission)
+        .map(([contextId]) => contextId),
+    );
+    expect(visible.has("config:appearance")).toBe(true);
+    expect(visible.has("system:dashboard")).toBe(true);
+    // A usable grid, never the empty state that started the retest.
+    expect(visible.size).toBeGreaterThanOrEqual(2);
   });
 });

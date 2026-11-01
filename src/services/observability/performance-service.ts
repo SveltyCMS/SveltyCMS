@@ -32,8 +32,7 @@ export class PerformanceService {
   private cachedDbAdapter: any = null;
 
   private async getDbAdapter() {
-    const isBrowser = typeof window !== "undefined";
-    if (isBrowser) return null;
+    if (!(import.meta.env?.SSR ?? typeof window === "undefined")) return null;
     if (this.cachedDbAdapter) return this.cachedDbAdapter;
     try {
       const { dbAdapter } = await loadDbModule();

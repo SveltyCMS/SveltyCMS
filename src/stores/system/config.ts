@@ -3,6 +3,7 @@
  * @description Configuration and initial state for the system state machine.
  */
 
+import { deepClone } from "@utils/native-utils";
 import type {
   AnomalyThresholds,
   ServiceName,
@@ -67,42 +68,42 @@ export const initialState: SystemStateStore = {
     database: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     auth: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     cache: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     media: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     contentSystem: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     themeManager: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     widgets: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     search: {
       status: "initializing",
       message: "Not initialized",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
     cacheWarming: {
       // 🔴 FIX 9 (readiness gate): default to "skipped" so tests / non-db-init boots
@@ -110,7 +111,7 @@ export const initialState: SystemStateStore = {
       // starts. Only the real db-init boot flips it to "initializing" → "healthy".
       status: "skipped",
       message: "Not warmed (no boot warm-up)",
-      metrics: structuredClone(initialServiceMetrics),
+      metrics: deepClone(initialServiceMetrics),
     },
   },
   performanceMetrics: {

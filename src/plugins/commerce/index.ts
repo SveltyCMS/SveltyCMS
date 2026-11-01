@@ -53,33 +53,36 @@ export const commercePlugin = definePlugin({
         "Please transfer the order total using the order number as the reference.",
     },
   },
-  migrations: [
-    {
-      id: "001_commerce_addresses",
-      pluginId: "commerce",
-      version: 1,
-      description: "Customer address book collection (tenant-scoped)",
-      up: async (dbAdapter: IDBAdapter) => {
-        await dbAdapter.collection.createModel({
-          _id: "commerce_addresses",
-          name: "commerce_addresses",
-          fields: [
-            { label: "Customer", name: "customer", type: "text", required: true },
-            { label: "Label", name: "label", type: "text" },
-            { label: "Line 1", name: "line1", type: "text", required: true },
-            { label: "Line 2", name: "line2", type: "text" },
-            { label: "City", name: "city", type: "text", required: true },
-            { label: "Postal", name: "postal", type: "text", required: true },
-            { label: "Country", name: "country", type: "text", required: true },
-            { label: "Default shipping", name: "isDefaultShipping", type: "boolean" },
-            { label: "Default billing", name: "isDefaultBilling", type: "boolean" },
-            { label: "Tenant ID", name: "tenantId", type: "text" },
-          ],
-          status: "publish",
-        });
-      },
-    },
-  ],
+  migrations:
+    import.meta.env?.SSR !== false
+      ? [
+          {
+            id: "001_commerce_addresses",
+            pluginId: "commerce",
+            version: 1,
+            description: "Customer address book collection (tenant-scoped)",
+            up: async (dbAdapter: IDBAdapter) => {
+              await dbAdapter.collection.createModel({
+                _id: "commerce_addresses",
+                name: "commerce_addresses",
+                fields: [
+                  { label: "Customer", name: "customer", type: "text", required: true },
+                  { label: "Label", name: "label", type: "text" },
+                  { label: "Line 1", name: "line1", type: "text", required: true },
+                  { label: "Line 2", name: "line2", type: "text" },
+                  { label: "City", name: "city", type: "text", required: true },
+                  { label: "Postal", name: "postal", type: "text", required: true },
+                  { label: "Country", name: "country", type: "text", required: true },
+                  { label: "Default shipping", name: "isDefaultShipping", type: "boolean" },
+                  { label: "Default billing", name: "isDefaultBilling", type: "boolean" },
+                  { label: "Tenant ID", name: "tenantId", type: "text" },
+                ],
+                status: "publish",
+              });
+            },
+          },
+        ]
+      : [],
   parts: [
     {
       type: "capability",

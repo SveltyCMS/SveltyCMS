@@ -30,7 +30,7 @@ refreshed by one mechanism: the hourly interval below.
 	import Badge from '@components/ui/badge.svelte';
 	import { publicEnv } from '@src/stores/global-settings.svelte';
 	import { logger } from '@utils/logger';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/env';
 	import SystemTooltip from './system/system-tooltip.svelte';
 
@@ -241,17 +241,35 @@ refreshed by one mechanism: the hourly interval below.
 		};
 	}
 
+	/** Set by destroy/mount cleanup so late work never touches destroyed state. */
+	let disposed = false;
+
+	// `onDestroy` runs even when the component is destroyed before its `onMount`
+	// callback (the login chooser branch is torn down immediately for an invite).
+	onDestroy(() => {
+		disposed = true;
+	});
+
 	async function checkVersion(): Promise<void> {
+		if (disposed) return;
+		// Read the location directly instead of the route `$derived`s: this callback is
+		// async and may run for a component whose branch has already been destroyed.
 		// /setup and /login have no session, so the authenticated check can only answer
 		// 401 and the badge is presentational there (the transparent pill never repaints).
-		// Don't poll an endpoint that cannot succeed — it only produced 401 noise.
-		if (isSetupRoute || isLoginRoute) return;
+		if (
+			typeof window !== 'undefined' &&
+			(window.location.pathname.startsWith('/setup') ||
+				window.location.pathname.startsWith('/login'))
+		) {
+			return;
+		}
 
 		try {
 			const response = await fetch(CHECK_ENDPOINT, {
 				headers: { Accept: 'application/json' },
 				signal: AbortSignal.timeout(FETCH_TIMEOUT_MS)
 			});
+			if (disposed) return;
 
 			if (!response.ok) {
 				// 401/403 is an authorization answer, not a failure: the update check is
@@ -273,8 +291,12 @@ refreshed by one mechanism: the hourly interval below.
 			}
 
 			const body: VersionApiResponse = await response.json();
+			if (disposed) return;
 			state = toState(body?.data ?? null);
 		} catch (err) {
+			// A request that settles after unmount must not write state or read the
+			// deriveds below — Svelte reports that read as `derived_inert`.
+			if (disposed) return;
 			const message = err instanceof Error ? err.message || err.name : 'Unknown error';
 			logger.debug(`[VersionCheck] Update check failed: ${message}`);
 			state = {
@@ -285,7 +307,7 @@ refreshed by one mechanism: the hourly interval below.
 				remoteVersion: null
 			};
 		} finally {
-			if (!isLoading) onStatusChange?.(versionStatus);
+			if (!disposed && !isLoading) onStatusChange?.(versionStatus);
 		}
 	}
 
@@ -293,7 +315,10 @@ refreshed by one mechanism: the hourly interval below.
 		void checkVersion();
 
 		const interval = setInterval(() => void checkVersion(), CHECK_INTERVAL_MS);
-		return () => clearInterval(interval);
+		return () => {
+			disposed = true;
+			clearInterval(interval);
+		};
 	});
 </script>
 

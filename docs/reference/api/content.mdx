@@ -6,7 +6,7 @@ order: 12
 icon: "mdi:file-tree"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-07-15"
+updated: "2026-11-01"
 tags:
   - "api"
   - "content"
@@ -34,7 +34,7 @@ The Content API manages the structural and cross-collection aspects of SveltyCMS
 | **GraphQL API**   | `/api/graphql`           | `POST` | `collection:write`  |
 
 > [!NOTE]
-> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `graphql` entry maps `GET` ⇒ `collection:read`, everything else ⇒ `collection:write`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `graphql` entry maps `GET` ⇒ `collection:read`, everything else ⇒ `collection:write`). Admin UI tiles resolve through their own map (`src/routes/(app)/config/config-tile-permissions.ts`), which points at real `PERMISSION_CATALOG` ids (`system:admin` for admin-only pages) — the two contracts are separate.
 
 ---
 

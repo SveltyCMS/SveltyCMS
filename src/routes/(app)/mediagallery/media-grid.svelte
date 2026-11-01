@@ -421,6 +421,7 @@
 								: 'opacity-0'}"
 						>
 							<p
+								dir="auto"
 								class="truncate text-[11px] font-medium leading-tight text-white"
 								title={file.filename}
 							>

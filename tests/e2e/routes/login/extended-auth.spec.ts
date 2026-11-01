@@ -67,9 +67,16 @@ test.describe("Extended Authentication UI Flows", () => {
       waitUntil: "domcontentloaded",
     });
 
-    await page.getByRole("button", { name: /Go to Sign Up/i }).click();
     const signupForm = page.locator("#signup-form");
-    await expect(signupForm).toBeVisible({ timeout: 15_000 });
+    const goToSignUp = page.getByRole("button", { name: /Go to Sign Up/i });
+    // An invalid invite token opens the Sign Up form so the error is readable
+    // (retest m7); the chooser click remains as a fallback for older builds.
+    await expect(async () => {
+      if (!(await signupForm.isVisible().catch(() => false))) {
+        await goToSignUp.click({ timeout: 2_000 }).catch(() => {});
+      }
+      await expect(signupForm).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
 
     await page.locator("#usernamesignUp").fill(`recover_${stamp}`);
     await page.locator("#emailsignUp").fill(seeded.email);

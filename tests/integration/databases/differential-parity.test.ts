@@ -67,6 +67,10 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
   const stamp = Date.now().toString(36);
   const COLLECTION = `parity_${ENGINE}_${stamp}`;
   const TENANT = `parity-${ENGINE}` as any as DatabaseId;
+  // Acted-on-by id for the soft-delete audit pair. A plain string (not a UUID)
+  // is what the SDK passes (`user._id`), and both SQL and Mongo store it as-is.
+  const ACTOR = `actor-${stamp}` as any as DatabaseId;
+  const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
   beforeAll(async () => {
     try {
@@ -298,7 +302,7 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
     );
 
     // Soft delete (no `permanent: true`) — sets isDeleted = true, leaves status alone.
-    const del = await db.crud.delete(COLLECTION, id, { tenantId: TENANT } as any);
+    const del = await db.crud.delete(COLLECTION, id, { tenantId: TENANT, userId: ACTOR } as any);
     expect(del.success).toBe(true);
 
     // Point reads must hide the row …
@@ -319,8 +323,46 @@ describeParity(`Differential parity — ${ENGINE}`, () => {
     // … and `includeDeleted` is the documented opt-in.
     const withDeleted = unwrapResult(
       await db.crud.findById(COLLECTION, id, { tenantId: TENANT, includeDeleted: true } as any),
+    ) as { _id?: unknown; deletedAt?: unknown; deletedBy?: unknown } | null;
+    expect(withDeleted?._id).toBe(id);
+    // The soft-delete audit pair is a real column/field on every adapter; a
+    // missing one is what made the trash claim "System" for relational rows.
+    expect(withDeleted?.deletedBy).toBe(ACTOR);
+    expect(withDeleted?.deletedAt).toEqual(expect.stringMatching(ISO_TIMESTAMP));
+  });
+
+  it("deleteMany writes the soft-delete audit pair on every adapter", async () => {
+    if (!db) return;
+    const tag = `soft_bulk_${generateUUID().slice(0, 8)}`;
+    const ids = [generateUUID(), generateUUID()] as any as DatabaseId[];
+    for (const [index, id] of ids.entries()) {
+      const inserted = await db.crud.insert(
+        COLLECTION,
+        { _id: id, title: `${tag}_${index}`, views: index, tenantId: TENANT } as any,
+        { tenantId: TENANT } as any,
+      );
+      expect(inserted.success).toBe(true);
+    }
+
+    const del = await db.crud.deleteMany(
+      COLLECTION,
+      { _id: { $in: ids } } as any,
+      { tenantId: TENANT, userId: ACTOR } as any,
     );
-    expect((withDeleted as { _id?: unknown } | null)?._id).toBe(id);
+    expect(del.success).toBe(true);
+
+    const rows = unwrapResult(
+      await db.crud.findMany(
+        COLLECTION,
+        { isDeleted: true, title: { $in: [`${tag}_0`, `${tag}_1`] } } as any,
+        { tenantId: TENANT, includeDeleted: true } as any,
+      ),
+    ) as Array<{ _id?: unknown; deletedAt?: unknown; deletedBy?: unknown }>;
+    expect(rows.map((row) => row._id).sort()).toEqual([...ids].sort());
+    for (const row of rows) {
+      expect(row.deletedBy).toBe(ACTOR);
+      expect(row.deletedAt).toEqual(expect.stringMatching(ISO_TIMESTAMP));
+    }
   });
 
   it("soft-deleted rows are hidden by findMany/findByIds/count/exists/findPage", async () => {

@@ -68,18 +68,38 @@
 	function getStatusColor(status: string) {
 		switch (status?.toLowerCase()) {
 			case 'published':
+			case 'publish':
 				return 'bg-success-500';
 			case 'draft':
 				return 'bg-warning-500';
 			case 'archived':
+			case 'archive':
 				return 'bg-gray-500';
 			default:
 				return 'bg-zinc-400';
 		}
 	}
 
-	function getStatusLabel(status: string) {
-		return status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
+	function getStatusLabel(status: string): string {
+		if (!status) return 'Unknown';
+		return status.charAt(0).toUpperCase() + status.slice(1);
+	}
+
+	function resolveTitle(title: unknown, currentLang: string): string {
+		if (!title) return 'Untitled';
+		if (typeof title === 'string') return title;
+		if (typeof title === 'object') {
+			const record = title as Record<string, unknown>;
+			if (typeof record[currentLang] === 'string' && record[currentLang]) {
+				return record[currentLang] as string;
+			}
+			if (typeof record.en === 'string' && record.en) {
+				return record.en;
+			}
+			const firstVal = Object.values(record).find((v) => typeof v === 'string' && v);
+			if (firstVal) return String(firstVal);
+		}
+		return 'Untitled';
 	}
 </script>
 
@@ -96,7 +116,7 @@
 >
 	{#snippet children({ data: items }: { data: FetchedData })}
 		{#if items && Array.isArray(items) && items.length > 0}
-			{const limit = size.h === 1 ? 1 : 5}
+			{@const limit = size.h === 1 ? 1 : 5}
 			<div
 				class="flex flex-col h-full overflow-hidden"
 				role="region"
@@ -129,7 +149,7 @@
 									<div
 										class="font-medium text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors"
 									>
-										{item.title}
+										{resolveTitle(item.title, contentLanguage.value)}
 									</div>
 									<div
 										class="text-xs text-(--admin-text-muted) dark:text-(--admin-text-muted) mt-0.5 flex items-center gap-1.5"

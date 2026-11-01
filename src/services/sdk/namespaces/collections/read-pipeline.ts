@@ -27,6 +27,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { getRequestCache, setRequestCache } from "./request-cache";
 import { serializeQueryShape } from "@utils/fast-json";
+import { FastLRU } from "@utils/native-utils";
 import { AppError } from "@utils/error-handling";
 import {
   decryptDocumentFieldsSync,
@@ -187,26 +188,7 @@ const PROJECTION_TOKEN_CACHE_MAX = 500;
  * per-call JSON.stringify re-walk that serializeQueryShape would otherwise do
  * on every hash.
  */
-const projectionTokenCache = new Map<string, string>();
-
-function getCachedProjectionToken(key: string): string | undefined {
-  const token = projectionTokenCache.get(key);
-  if (token !== undefined) {
-    // LRU refresh: delete + re-set so the entry counts as most-recently-used.
-    projectionTokenCache.delete(key);
-    projectionTokenCache.set(key, token);
-  }
-  return token;
-}
-
-function setCachedProjectionToken(key: string, token: string): string {
-  if (projectionTokenCache.size >= PROJECTION_TOKEN_CACHE_MAX) {
-    const oldest: string | undefined = projectionTokenCache.keys().next().value;
-    if (oldest !== undefined) projectionTokenCache.delete(oldest);
-  }
-  projectionTokenCache.set(key, token);
-  return token;
-}
+const projectionTokenCache = new FastLRU<string, string>({ max: PROJECTION_TOKEN_CACHE_MAX });
 
 /**
  * Collision-free single-pass key for a string array.
@@ -240,14 +222,17 @@ function serializeShapeComponent(fields: unknown): string {
   if (Array.isArray(fields)) {
     if (fields.length === 0) return "[]"; // constant — matches JSON.stringify([])
     const key = encodeFieldKey(fields);
-    const cached = getCachedProjectionToken(key);
+    const cached = projectionTokenCache.get(key);
     if (cached !== undefined) return cached;
-    return setCachedProjectionToken(key, JSON.stringify(fields));
+    const serialized = JSON.stringify(fields);
+    projectionTokenCache.set(key, serialized);
+    return serialized;
   }
   if (typeof fields === "object") {
     // Nested/object shapes: serializeQueryShape-compatible short form.
     const serialized = JSON.stringify(fields);
-    return setCachedProjectionToken(`o:${serialized}`, serialized);
+    projectionTokenCache.set(`o:${serialized}`, serialized);
+    return serialized;
   }
   return String(fields);
 }

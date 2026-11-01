@@ -36,7 +36,7 @@ const DRIVER_PACKAGES = {
 
 type DatabaseType = keyof typeof DRIVER_PACKAGES;
 
-export const load: PageServerLoad = async ({ locals, cookies }) => {
+export const load: PageServerLoad = async ({ locals, cookies, url }) => {
   if ((await getSetupState()) === SetupState.COMPLETE) {
     throw redirect(302, "/login");
   }
@@ -49,6 +49,9 @@ export const load: PageServerLoad = async ({ locals, cookies }) => {
   return {
     theme: locals.theme,
     darkMode: locals.darkMode,
+    // Seed the wizard's production URL from the request origin instead of a
+    // hard-coded localhost default (the browser and server share this origin).
+    origin: url.origin,
     availableLanguages,
     settings: {
       PKG_VERSION: pkgVersion,

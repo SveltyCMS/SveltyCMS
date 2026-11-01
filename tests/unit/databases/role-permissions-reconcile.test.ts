@@ -121,6 +121,21 @@ describe("reconcileBuiltinRolePermissions", () => {
     expect(auth.updateRole).not.toHaveBeenCalled();
   });
 
+  it("upgrades an editor seeded with the previous default to the Design System grant (retest m6)", async () => {
+    const currentEditor = defaultRoles.find((entry) => String(entry._id) === "editor");
+    const previousEditor = (currentEditor?.permissions ?? []).filter(
+      (permission) => permission !== "config:themeManagement",
+    );
+    const auth = createAuth([role("editor", "Editor", [...previousEditor])]);
+
+    const result = await reconcileBuiltinRolePermissions(auth as never);
+
+    expect(result.updated).toEqual(["editor"]);
+    const call = auth.updateRole.mock.calls.find(([roleId]) => String(roleId) === "editor");
+    const permissions = ((call?.[1] ?? {}) as { permissions?: string[] }).permissions ?? [];
+    expect(permissions).toContain("config:themeManagement");
+  });
+
   it("is a no-op when the adapter has no role API", async () => {
     await expect(reconcileBuiltinRolePermissions(null)).resolves.toEqual({ updated: [] });
     await expect(reconcileBuiltinRolePermissions({} as never)).resolves.toEqual({ updated: [] });

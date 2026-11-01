@@ -119,8 +119,20 @@
 		return /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(str);
 	}
 
+	function currentUserLabel(): string | null {
+		if (!user) return null;
+		if (user.username && !isUUID(user.username)) return user.username;
+		if (user.firstName || user.lastName) {
+			return [user.firstName, user.lastName].filter(Boolean).join(' ');
+		}
+		if (user.email) return user.email.split('@')[0];
+		return null;
+	}
+
 	function getDisplayName(value: string | undefined | null): string {
 		if (!value) {
+			// A new entry is created by the signed-in user, not "system" (retest m4).
+			if (currentMode === 'create') return currentUserLabel() ?? 'system';
 			return 'system';
 		}
 
@@ -306,7 +318,11 @@
 								Status
 							</p>
 							<p class="mt-0.5 truncate text-xs font-medium text-(--admin-text-body)">
-								{hasChanges ? 'Unsaved changes' : 'All changes saved'}
+								{currentMode === 'create'
+									? 'Not saved yet'
+									: hasChanges
+										? 'Unsaved changes'
+										: 'All changes saved'}
 							</p>
 						</div>
 						<Badge variant={collections.isPublish ? 'success' : 'warning'} size="sm">

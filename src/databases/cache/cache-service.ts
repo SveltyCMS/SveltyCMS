@@ -362,8 +362,36 @@ export class CacheService {
     try {
       await this.subscriber.subscribe(this.INVALIDATION_CHANNEL, (message: string) => {
         try {
-          const { pattern, tags, tenantId, nodeId } = JSON.parse(message);
+          const { pattern, tags, tenantId, nodeId, collectionEpoch } = JSON.parse(message);
           if (nodeId === this.nodeId) return;
+          // Epoch propagation (M2 residual): `bumpCollectionEpoch` persists the
+          // new value to L2, but a peer only hydrates it through `getSync` (L1),
+          // so it would keep serving list/GraphQL bodies stamped with its old
+          // local epoch until TTL. Apply the published value to the local map
+          // (monotonic — never regress on an out-of-order message).
+          if (collectionEpoch && typeof collectionEpoch === "object") {
+            const {
+              collection,
+              tenantId: epochTenantId,
+              value,
+            } = collectionEpoch as {
+              collection?: unknown;
+              tenantId?: unknown;
+              value?: unknown;
+            };
+            if (
+              typeof collection === "string" &&
+              collection.length > 0 &&
+              typeof value === "number" &&
+              Number.isFinite(value)
+            ) {
+              const key = `${this.normalizeTenantId(
+                typeof epochTenantId === "string" ? epochTenantId : null,
+              )}:${collection}`;
+              const current = this.collectionEpochs.get(key) ?? 0;
+              if (value > current) this.collectionEpochs.set(key, value);
+            }
+          }
           if (tags && tags.length > 0) this.clearLocalL1ByTags(tags, tenantId);
           if (pattern) this.clearLocalL1ByPattern(pattern, tenantId);
         } catch (err) {
@@ -372,6 +400,39 @@ export class CacheService {
       });
     } catch (err) {
       logger.error("[CacheSync] Failed to subscribe to invalidation channel:", err);
+    }
+  }
+
+  /**
+   * Publish a collection epoch bump to peer nodes on the invalidation channel.
+   *
+   * Kept separate from `publishInvalidation` on purpose: the epoch message must
+   * not carry a `pattern`/`tags` payload, or peers would treat it as a CDN/L1
+   * purge (`publishInvalidation(null, …)` purges everything on the CDN).
+   * Fire-and-forget: a failed publish only leaves the peer on the L2-hydrated
+   * value, never blocks the write path.
+   */
+  public async publishCollectionEpoch(
+    collection: string,
+    tenantId: string | null | undefined,
+    value: number,
+  ): Promise<void> {
+    if (!this.isL2Ready()) return;
+    try {
+      const message = JSON.stringify({
+        pattern: null,
+        tenantId: this.normalizeTenantId(tenantId),
+        nodeId: this.nodeId,
+        timestamp: Date.now(),
+        collectionEpoch: {
+          collection,
+          tenantId: this.normalizeTenantId(tenantId),
+          value,
+        },
+      });
+      await this.l2.publish(this.INVALIDATION_CHANNEL, message);
+    } catch (err) {
+      logger.error("[CacheSync] Failed to publish collection epoch:", err);
     }
   }
 
@@ -575,6 +636,11 @@ export class CacheService {
       tenantId,
       CacheCategory.COLLECTION,
     );
+    // ...and push it to peers now: their local map is process memory, so a pure
+    // L2 persist is invisible to `getCollectionEpoch` until they reload the key
+    // (which `getSync` never does). This is what fences a peer's list/GraphQL
+    // body at refill time instead of leaving it stale until TTL.
+    void this.publishCollectionEpoch(collection, tenantId, next);
     return next;
   }
 

@@ -17,6 +17,12 @@
 		collection_permissions_edit,
 		collection_permissions_edit_desc,
 		collection_permissions_edit_title,
+		collection_permissions_form_intro_part1,
+		collection_permissions_form_intro_part2,
+		collection_permissions_form_intro_part3,
+		collection_permissions_form_title,
+		collection_permissions_form_toggle,
+		collection_permissions_form_toggle_desc,
 		collection_permissions_heading,
 		collection_permissions_help_aria,
 		collection_permissions_how,
@@ -187,19 +193,22 @@
 	<Card class="p-5">
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 			<div class="max-w-prose">
-				<h3 class="text-base font-semibold text-(--admin-text-body)">Public form endpoint</h3>
+				<h3 class="text-base font-semibold text-(--admin-text-body)">
+					{collection_permissions_form_title()}
+				</h3>
 				<p class="mt-1 text-sm text-(--admin-text-muted)">
-					Allow unauthenticated <code class="rounded bg-surface-500/10 px-1 py-0.5"
+					{collection_permissions_form_intro_part1()}{' '}
+					<code class="rounded bg-surface-500/10 px-1 py-0.5" dir="ltr"
 						>POST /api/forms/&lt;collection&gt;</code
-					>. Submissions are stored as drafts with
-					<code class="rounded bg-surface-500/10 px-1 py-0.5">_formStatus: "pending"</code> so they can
-					be reviewed before publication.
+					>{collection_permissions_form_intro_part2()}{' '}
+					<code class="rounded bg-surface-500/10 px-1 py-0.5" dir="ltr">_formStatus: "pending"</code
+					>{collection_permissions_form_intro_part3()}
 				</p>
 			</div>
 			<Checkbox
 				checked={formEnabled}
-				label="Enable public form submissions"
-				description="Only declared schema fields are accepted"
+				label={collection_permissions_form_toggle()}
+				description={collection_permissions_form_toggle_desc()}
 				variant="toggle-card"
 				onchange={setFormEnabled}
 				class="sm:max-w-xs"

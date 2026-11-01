@@ -2326,6 +2326,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       data: jsonb("data").notNull().default({}),
       status: varchar("status", { length: 50 }).notNull().default("draft"),
       isDeleted: boolean("isDeleted").notNull().default(false),
+      // Soft-delete audit pair (parity with Mongo): written by crud.delete/deleteMany
+      // so the trash can show who deleted an entry and when.
+      deletedAt: timestamp("deletedAt", { withTimezone: true }),
+      deletedBy: varchar("deletedBy", { length: 36 }),
       createdAt: timestamp("createdAt", { withTimezone: true })
         .notNull()
         .default(drizzleSql`CURRENT_TIMESTAMP`),
@@ -2342,6 +2346,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           colName === "tenantId" ||
           colName === "status" ||
           colName === "isDeleted" ||
+          colName === "deletedAt" ||
+          colName === "deletedBy" ||
           colName === "createdAt" ||
           colName === "updatedAt" ||
           colName === "data"
@@ -2616,7 +2622,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           logger.debug(`[DB Provision] BENCHMARK=${process.env.BENCHMARK || "standalone"}`);
         }
 
-        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" VARCHAR(36) PRIMARY KEY, "tenantId" VARCHAR(36), "status" VARCHAR(255) DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT FALSE, "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "data" JSONB);`;
+        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" VARCHAR(36) PRIMARY KEY, "tenantId" VARCHAR(36), "status" VARCHAR(255) DEFAULT 'draft', "isDeleted" BOOLEAN DEFAULT FALSE, "deletedAt" TIMESTAMP WITH TIME ZONE, "deletedBy" VARCHAR(36), "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "data" JSONB);`;
 
         if (process.env.BENCHMARK_DEBUG === "true") {
           logger.debug(`[DB Provision] [POSTGRESQL] Executing DDL for ${physicalName}`);
@@ -2625,6 +2631,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
         const columns = [
           { name: "isDeleted", type: "BOOLEAN DEFAULT FALSE" },
+          { name: "deletedAt", type: "TIMESTAMP WITH TIME ZONE" },
+          { name: "deletedBy", type: "VARCHAR(36)" },
           { name: "status", type: "VARCHAR(255) DEFAULT 'draft'" },
           { name: "tenantId", type: "VARCHAR(36)" },
           {
@@ -2673,6 +2681,8 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
                   "tenantId",
                   "status",
                   "isDeleted",
+                  "deletedAt",
+                  "deletedBy",
                   "createdAt",
                   "updatedAt",
                   "collection",
@@ -2730,6 +2740,10 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
             );
             existingCols.add(colName);
             addedColumns.add(colName);
+
+            // The soft-delete audit pair is written by delete(), never by the
+            // entry payload, so there is nothing to backfill from `data`.
+            if (colName === "deletedAt" || colName === "deletedBy") continue;
 
             // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
             // the `data` blob — copy them into the new column so filters and

@@ -322,16 +322,31 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
 
     expect(responseCache.get(pointA, tenant)).toBeNull();
     expect(responseCache.get(pointB, tenant)?.body).toBe('{"id":"b"}');
-    const listAfter = responseCache.get(keyList, tenant);
-    expect(listAfter?.body).toBe('{"items":[]}');
-    expect(listAfter?.stale).toBe(true);
-    const gqlAfter = responseCache.get(keyGql, tenant);
-    expect(gqlAfter?.body).toBe('{"data":[]}');
-    expect(gqlAfter?.stale).toBe(true);
+    // Retest M2 regression guard: a write must EVICT list + GraphQL bodies —
+    // serving a "stale" list kept created/trashed/published rows wrong for minutes.
+    expect(responseCache.get(keyList, tenant)).toBeNull();
+    expect(responseCache.get(keyGql, tenant)).toBeNull();
 
     responseCache.set(keyList, { body: '{"items":[1]}', etag: '"l2"' }, 60_000, tenant);
     expect(responseCache.get(keyList, tenant)?.stale).toBe(false);
     expect(responseCache.get(keyList, tenant)?.body).toBe('{"items":[1]}');
+  });
+
+  test("full collection invalidateLocal evicts list bodies of that collection only", () => {
+    const tenant = "full-col-lists";
+    const postsList = buildUserResponseCacheKey("/api/collections/posts", "?limit=100", "u");
+    const authorsList = buildUserResponseCacheKey("/api/collections/authors", "", "u");
+    responseCache.set(postsList, { body: '{"data":[1]}', etag: '"p"' }, 60_000, tenant);
+    responseCache.set(authorsList, { body: '{"data":[2]}', etag: '"a"' }, 60_000, tenant);
+
+    responseCache.invalidateLocal("posts", tenant);
+
+    expect(responseCache.get(postsList, tenant)).toBeNull();
+    expect(responseCache.get(authorsList, tenant)?.body).toBe('{"data":[2]}');
+    // Tenant isolation: another tenant's posts list is untouched.
+    responseCache.set(postsList, { body: '{"data":[3]}', etag: '"o"' }, 60_000, "other-t");
+    responseCache.invalidateLocal("posts", tenant);
+    expect(responseCache.get(postsList, "other-t")?.body).toBe('{"data":[3]}');
   });
 
   test("full collection invalidateLocal drops all collection entry slots and leaves sibling collection entries", () => {

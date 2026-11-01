@@ -12,15 +12,11 @@
  * - **Self-pruning**: Old entries expire automatically.
  */
 
+import { lazyModule } from "@utils/lazy-module";
 import { logger } from "@utils/logger";
 
 /** Cached lazy handle to the cache service — one module-registry lookup instead of one per call. */
-let cacheServiceModulePromise:
-  | Promise<typeof import("@src/databases/cache/cache-service")>
-  | undefined;
-function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/cache-service")> {
-  return (cacheServiceModulePromise ??= import("@src/databases/cache/cache-service"));
-}
+const loadCacheServiceModule = lazyModule(() => import("@src/databases/cache/cache-service"));
 
 // ─── Types ────────────────────────────────────────────────────────────────
 

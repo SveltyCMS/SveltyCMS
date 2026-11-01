@@ -19,7 +19,7 @@
 
 import { logger } from "@utils/logger";
 import { nowISODateString } from "@utils/date";
-import type { PluginLifecycleHooks, PluginMigration } from "../types";
+import type { PluginLifecycleHooks } from "../types";
 import { generateUUID } from "@utils/native-utils";
 import type {
   SNCEnvelope,
@@ -40,84 +40,7 @@ function loadEgressGuardModule(): Promise<typeof import("@src/utils/egress-guard
 // Migrations
 // ============================================================================
 
-export const migrations: PluginMigration[] = [
-  {
-    id: "create_importer_ledger",
-    pluginId: "smart-importer",
-    version: 1,
-    description: "Creates the plugin_importer_ledger collection",
-    up: async (dbAdapter) => {
-      try {
-        await dbAdapter.collection.createModel({
-          _id: "plugin_importer_ledger",
-          name: "plugin_importer_ledger",
-          slug: "plugin_importer_ledger",
-          fields: [
-            {
-              label: "Transaction Token",
-              name: "transactionToken",
-              type: "text",
-              required: true,
-            },
-            { label: "Source Platform", name: "sourcePlatform", type: "text" },
-            {
-              label: "Target Collection",
-              name: "targetCollection",
-              type: "text",
-            },
-            { label: "Timestamp", name: "timestamp", type: "text" },
-            {
-              label: "Imported Count",
-              name: "importedCount",
-              type: "number",
-              defaultValue: 0,
-            },
-            {
-              label: "Mirrored Asset Paths",
-              name: "mirroredAssetPaths",
-              type: "text",
-            },
-          ],
-          status: "publish",
-        } as any);
-        logger.info("[SmartImporter] Provisioned plugin_importer_ledger collection.");
-      } catch (err) {
-        logger.error("[SmartImporter] Failed to provision ledger collection:", err);
-      }
-    },
-  },
-  {
-    id: "create_importer_dlq",
-    pluginId: "smart-importer",
-    version: 2,
-    description: "Creates the plugin_importer_dlq (Dead-Letter Queue) collection",
-    up: async (dbAdapter) => {
-      try {
-        await dbAdapter.collection.createModel({
-          _id: "plugin_importer_dlq",
-          name: "plugin_importer_dlq",
-          slug: "plugin_importer_dlq",
-          fields: [
-            {
-              label: "Transaction Token",
-              name: "transactionToken",
-              type: "text",
-              required: true,
-            },
-            { label: "External ID", name: "externalId", type: "text" },
-            { label: "Raw Entry", name: "rawEntry", type: "text" },
-            { label: "Error Trace", name: "errorTrace", type: "text" },
-            { label: "Timestamp", name: "timestamp", type: "text" },
-          ],
-          status: "publish",
-        } as any);
-        logger.info("[SmartImporter] Provisioned plugin_importer_dlq collection.");
-      } catch (err) {
-        logger.error("[SmartImporter] Failed to provision DLQ collection:", err);
-      }
-    },
-  },
-];
+export { migrations } from "./migrations/001_ledger_and_dlq";
 
 // ============================================================================
 // Lifecycle Hooks

@@ -131,7 +131,7 @@ If-Match: "0192…-abc|2026-10-21T16:49:39.333Z"
 
 ### Entry revisions
 
-Collections with `revision: true` snapshot the pre-write content on every update:
+Collections with `revision: true` snapshot the pre-write content on every update. New collections and setup presets default to `revision: true`; an existing collection without the flag stays opt-in (its file is not rewritten), and an explicit `revision: false` disables history:
 
 | Endpoint                                                   | Method | Purpose                                                    |
 | :--------------------------------------------------------- | :----- | :--------------------------------------------------------- |
@@ -140,7 +140,7 @@ Collections with `revision: true` snapshot the pre-write content on every update
 
 A restore replays the snapshot through the normal update path, so today's schema validation applies, the pre-restore state is itself recorded as a new revision (the restore is undoable), and `If-Match` prevents clobbering a concurrent edit. Identity, timestamps and `status` are never taken from the snapshot — a restore cannot silently publish or unpublish. The collection status does not change; publishing stays an explicit act. Unknown versions return `404`; a collection without revisions returns `400 REVISIONS_DISABLED`.
 
-History is bounded by `revisionLimit` (default `100`, minimum `5`): once the version number reaches twice the limit, older snapshots are deleted in one bounded statement.
+History is bounded by `revisionLimit` (default `100`; the Collection Builder accepts `1–1000`, and the runtime honours any positive integer): once the version number reaches twice the limit, older snapshots are deleted in one bounded statement.
 
 ### Filter validation
 

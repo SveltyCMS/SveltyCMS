@@ -75,9 +75,7 @@
 		languageTag = 'en'
 	}: Props = $props();
 
-	const logoSrc = publicEnv?.HOST_PROD
-		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
+	const logoSrc = publicEnv?.HOST_PROD ? `${publicEnv.HOST_PROD}/SveltyCMS.png` : '/SveltyCMS.png';
 </script>
 
 <Html lang={languageTag}>

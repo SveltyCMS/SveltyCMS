@@ -72,7 +72,7 @@ class WidgetState {
   }
 
   // Recursive field analyzer
-  private analyzeFields(fields: FieldDefinition[], required: string[], optional: string[]) {
+  private analyzeFields(fields: FieldDefinition[], required: Set<string>, optional: Set<string>) {
     for (const field of fields) {
       const widgetType = this.extractWidgetType(field);
       if (widgetType) {
@@ -81,9 +81,9 @@ class WidgetState {
             ? (field as any).required
             : true;
         if (isRequired) {
-          if (!required.includes(widgetType)) required.push(widgetType);
-        } else if (!optional.includes(widgetType)) {
-          optional.push(widgetType);
+          required.add(widgetType);
+        } else {
+          optional.add(widgetType);
         }
       }
       if (
@@ -100,16 +100,19 @@ class WidgetState {
   // --- Public Analysis Methods ---
 
   analyzeCollection(schema: Schema): CollectionWidgetDependency {
-    const requiredWidgets: string[] = [];
-    const optionalWidgets: string[] = [];
-    this.analyzeFields(schema.fields || [], requiredWidgets, optionalWidgets);
+    const requiredSet = new Set<string>();
+    const optionalSet = new Set<string>();
+    this.analyzeFields(schema.fields || [], requiredSet, optionalSet);
+    const requiredWidgets = Array.from(requiredSet);
+    const optionalWidgets = Array.from(optionalSet);
+    const activeSet = new Set(this.activeWidgets);
 
     return {
       collectionId: schema._id as string,
       collectionName: schema.name || "Unknown",
       requiredWidgets,
       optionalWidgets,
-      missingWidgets: requiredWidgets.filter((w) => !this.activeWidgets.includes(w)),
+      missingWidgets: requiredWidgets.filter((w) => !activeSet.has(w)),
     };
   }
 

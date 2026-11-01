@@ -665,7 +665,16 @@ export class MongoSystemModule extends DatabaseModule<MongoAdapterCore> implemen
               systemScope: options?.systemScope,
             } as any,
           ),
-        list: (o: any) => jobRepo.findMany(o?.filter || {}, o),
+        list: (o: any) => {
+          // Filter parity with the SQL adapters: the interface puts `status` /
+          // `taskType` at the option root, while the repository reads a query.
+          // Passing the options through untouched silently dropped both filters
+          // (webhook logs listed every background task, any status).
+          const filter: Record<string, unknown> = o?.filter ? { ...o.filter } : {};
+          if (o?.status) filter.status = o.status;
+          if (o?.taskType) filter.taskType = o.taskType;
+          return jobRepo.findMany(filter as any, o);
+        },
         count: (f: any) => jobRepo.count(f),
         update: (id: DatabaseId, d: any, o?: any) => jobRepo.update(id, d, o),
         delete: (id: DatabaseId) => jobRepo.delete(id),

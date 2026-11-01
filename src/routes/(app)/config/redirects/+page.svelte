@@ -38,6 +38,7 @@
 		redirects_from_aria,
 		redirects_from_help,
 		redirects_from_path,
+		redirects_from_placeholder,
 		redirects_help_example,
 		redirects_help_intro,
 		redirects_help_permanent,
@@ -59,6 +60,7 @@
 		redirects_to_aria,
 		redirects_to_help,
 		redirects_to_path,
+		redirects_to_placeholder,
 		redirects_type,
 		redirects_type_help,
 		common_active
@@ -414,7 +416,7 @@
 				<Input
 					label={redirects_from_path()}
 					labelSnippet={fromLabel}
-					placeholder="/old-blog"
+					placeholder={redirects_from_placeholder()}
 					bind:value={formFrom}
 					required
 					error={formErrors.from}
@@ -424,7 +426,7 @@
 				<Input
 					label={redirects_to_path()}
 					labelSnippet={toLabel}
-					placeholder="/new-blog or https://example.com/new"
+					placeholder={redirects_to_placeholder()}
 					bind:value={formTo}
 					required
 					error={formErrors.to}

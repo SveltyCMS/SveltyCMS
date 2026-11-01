@@ -99,7 +99,11 @@ export class MariaDBAdapter extends AdapterCore implements IDBAdapter {
     options?: unknown,
   ): Promise<DatabaseResult<void>> {
     const result = await super.connect(connectionOrOptions as any, options);
-    if (result.success && this.pool) {
+    // Setup connection probes open the pool without touching the schema; the
+    // wizard provisions system tables on its explicit Next/Complete step.
+    const skipSchemaBootstrap = (options as { skipSchemaBootstrap?: boolean } | undefined)
+      ?.skipSchemaBootstrap;
+    if (result.success && this.pool && !skipSchemaBootstrap) {
       const { bootstrapSystemSchema } = await import("../core/system-schema-bootstrap");
       const pool = this.pool; // narrowed non-null for the lock closure
       // 🛡️ HARDENING: Advisory lock so only one instance runs boot provisioning

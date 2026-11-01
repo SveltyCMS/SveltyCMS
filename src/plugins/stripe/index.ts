@@ -70,59 +70,64 @@ export const stripePlugin = definePlugin({
       },
     ],
   },
-  migrations: [
-    {
-      id: "001_create_payments",
-      pluginId: "stripe",
-      version: 1,
-      description: "Ensure plugin_stripe_payments collection exists via abstract schema adapter",
-      up: async (dbAdapter) => {
-        await dbAdapter.collection.createModel({
-          _id: "plugin_stripe_payments",
-          name: "plugin_stripe_payments",
-          fields: [
-            {
-              label: "Stripe Intent ID",
-              name: "stripeIntentId",
-              type: "text",
-              required: true,
+  migrations:
+    import.meta.env?.SSR !== false
+      ? [
+          {
+            id: "001_create_payments",
+            pluginId: "stripe",
+            version: 1,
+            description:
+              "Ensure plugin_stripe_payments collection exists via abstract schema adapter",
+            up: async (dbAdapter) => {
+              await dbAdapter.collection.createModel({
+                _id: "plugin_stripe_payments",
+                name: "plugin_stripe_payments",
+                fields: [
+                  {
+                    label: "Stripe Intent ID",
+                    name: "stripeIntentId",
+                    type: "text",
+                    required: true,
+                  },
+                  { label: "Status", name: "status", type: "text" },
+                  { label: "Amount", name: "amount", type: "number" },
+                  { label: "Currency", name: "currency", type: "text" },
+                  { label: "Metadata", name: "metadata", type: "json" },
+                  { label: "Tenant ID", name: "tenantId", type: "text" },
+                ],
+                status: "publish",
+              } as any);
             },
-            { label: "Status", name: "status", type: "text" },
-            { label: "Amount", name: "amount", type: "number" },
-            { label: "Currency", name: "currency", type: "text" },
-            { label: "Metadata", name: "metadata", type: "json" },
-            { label: "Tenant ID", name: "tenantId", type: "text" },
-          ],
-          status: "publish",
-        } as any);
-      },
-    },
-    {
-      id: "002_create_customers",
-      pluginId: "stripe",
-      version: 2,
-      description: "Ensure plugin_stripe_customers collection exists via abstract schema adapter",
-      up: async (dbAdapter) => {
-        await dbAdapter.collection.createModel({
-          _id: "plugin_stripe_customers",
-          name: "plugin_stripe_customers",
-          fields: [
-            {
-              label: "Stripe Customer ID",
-              name: "stripeCustomerId",
-              type: "text",
-              required: true,
+          },
+          {
+            id: "002_create_customers",
+            pluginId: "stripe",
+            version: 2,
+            description:
+              "Ensure plugin_stripe_customers collection exists via abstract schema adapter",
+            up: async (dbAdapter) => {
+              await dbAdapter.collection.createModel({
+                _id: "plugin_stripe_customers",
+                name: "plugin_stripe_customers",
+                fields: [
+                  {
+                    label: "Stripe Customer ID",
+                    name: "stripeCustomerId",
+                    type: "text",
+                    required: true,
+                  },
+                  { label: "Email", name: "email", type: "text" },
+                  { label: "Name", name: "name", type: "text" },
+                  { label: "Metadata", name: "metadata", type: "json" },
+                  { label: "Tenant ID", name: "tenantId", type: "text" },
+                ],
+                status: "publish",
+              } as any);
             },
-            { label: "Email", name: "email", type: "text" },
-            { label: "Name", name: "name", type: "text" },
-            { label: "Metadata", name: "metadata", type: "json" },
-            { label: "Tenant ID", name: "tenantId", type: "text" },
-          ],
-          status: "publish",
-        } as any);
-      },
-    },
-  ],
+          },
+        ]
+      : [],
   hooks: {
     beforeSave: async (context, _collection, data) => {
       if (import.meta.env.SSR) {

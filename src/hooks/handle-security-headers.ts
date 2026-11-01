@@ -56,6 +56,35 @@ const PRECOMPILED_PAGE_STATIC_HEADERS: readonly [string, string][] = [
   ["X-AEO-Enabled", "true"],
 ];
 
+/**
+ * The email preview page renders arbitrary transactional-email HTML inside a
+ * sandboxed `srcdoc` iframe (opaque origin). Under `require-corp` every embedded
+ * image/font without a CORP header is blocked — including the CMS logo — so the
+ * preview could not show what recipients receive. `credentialless` keeps the
+ * page cross-origin isolated from credentialed reads while letting those no-cors
+ * asset requests through, the same policy the media routes already use. Scoped
+ * to this route: COEP stays `require-corp` everywhere else.
+ */
+function isEmailPreviewRoute(pathname: string): boolean {
+  return pathname === "/email-previews" || pathname.startsWith("/email-previews/");
+}
+
+/**
+ * Static assets that must stay readable from a sandboxed (opaque-origin)
+ * document even when the embedding page enforces `COEP: require-corp`.
+ * Currently only the logo the email templates embed — never the whole tree.
+ */
+const CROSS_ORIGIN_STATIC_ASSETS: ReadonlySet<string> = new Set(["/SveltyCMS.png"]);
+
+/**
+ * Isolation header for static assets served by the pipeline's static fast path
+ * (which skips `applyAllSecurityHeaders`). No-op unless the asset is allowlisted.
+ */
+export function applyStaticAssetHeaders(headers: Headers, pathname: string): void {
+  if (!CROSS_ORIGIN_STATIC_ASSETS.has(pathname)) return;
+  headers.set("Cross-Origin-Resource-Policy", "cross-origin");
+}
+
 const GRAPHQL_PLAYGROUND_CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com",
@@ -111,6 +140,12 @@ export function applyAllSecurityHeaders(
   for (let i = 0; i < staticPairs.length; i++) {
     const pair = staticPairs[i];
     headers.set(pair[0], pair[1]);
+  }
+
+  // Email previews embed arbitrary template assets in a sandboxed iframe — see
+  // `isEmailPreviewRoute()`. Applied after the static table so it wins.
+  if (isPageRoute && isEmailPreviewRoute(pathname)) {
+    headers.set("Cross-Origin-Embedder-Policy", "credentialless");
   }
 
   if (isHttps) {

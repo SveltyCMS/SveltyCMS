@@ -115,14 +115,46 @@ async function verifyDiskSpace() {
   return null;
 }
 
+/**
+ * Error matcher for a target database/schema that simply does not exist yet.
+ *
+ * Kept deliberately narrower than `classifyDatabaseError`'s DB_NOT_FOUND bucket:
+ * PostgreSQL/MySQL authenticate before resolving the database name, so this
+ * message means "credentials are fine, the target is missing" — not an auth
+ * failure. SQLite has no auth at all (the file check happens before connect).
+ */
+function isMissingDatabaseError(err: any, type: string): boolean {
+  const message = String(err?.message ?? err ?? "");
+  const lower = message.toLowerCase();
+  return (
+    err?.code === "3D000" ||
+    err?.code === "ER_BAD_DB_ERROR" ||
+    /unknown database/i.test(lower) ||
+    /database .+ does not exist/i.test(lower) ||
+    /database .+ not found/i.test(lower) ||
+    (type === "sqlite" && lower.includes("does not exist"))
+  );
+}
+
+/**
+ * Probe a database connection **without mutating it**.
+ *
+ * Validates connectivity/authentication and inspects whether the target is empty.
+ * It never creates the database file/schema, never seeds system data and never
+ * writes `config/private.ts` — those writes run on the wizard's explicit
+ * Next/Complete step. A target that does not exist yet is reported as
+ * `willCreate: true` instead of being materialized here.
+ *
+ * @param _createIfMissing Legacy flag retained for the remote/action contract —
+ *   probes never create the database, so it is intentionally ignored.
+ * @param allowOverwrite Explicit, user-confirmed overwrite of a conflicting DB.
+ * @param ownsDatabase The wizard already tested & seeded this DB, so skip the
+ *   "not empty" guard on re-tests (only a *foreign* non-empty DB should trip it).
+ */
 export async function testDatabaseConnection(
   configData: DbConfig,
-  createIfMissing = false,
+  _createIfMissing = false,
   allowOverwrite = false,
-  // The setup wizard already owns this DB: a successful test runs ensureAuth()/
-  // ensureSystem()/… (creating the system tables) and auto-seeds, so the DB is
-  // non-empty on the next test. Only a *foreign* non-empty DB should trip the
-  // guard, so callers pass `ownsDatabase` once they've successfully tested it.
   ownsDatabase = false,
 ) {
   if (configData.port === "" || configData.port === null) (configData as any).port = undefined;
@@ -138,13 +170,26 @@ export async function testDatabaseConnection(
   if (diskCheck) return diskCheck;
 
   const start = performance.now();
+  const missingMessage = `Database "${dbConfig.name}" does not exist yet. It will be created when you continue setup.`;
   try {
-    const { getSetupDatabaseAdapter } = await import("./utils");
+    const utils = await import("./utils");
     if (allowOverwrite) await dropDatabase(dbConfig);
 
-    const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
-      createIfMissing: createIfMissing || allowOverwrite || dbConfig.type === "sqlite",
-      skipModuleInit: true, // Don't create system tables before isEmpty() check
+    // SQLite: connecting creates the file, so check the target on disk first.
+    // A missing file is a valid configuration — just not materialized yet.
+    if (dbConfig.type === "sqlite" && !existsSync(utils.buildDatabaseConnectionString(dbConfig))) {
+      return {
+        success: true,
+        message: missingMessage,
+        willCreate: true,
+        latencyMs: Math.round(performance.now() - start),
+      };
+    }
+
+    const { dbAdapter } = await utils.getSetupDatabaseAdapter(dbConfig, {
+      createIfMissing: false, // a probe must never create the target
+      skipModuleInit: true, // never ensure system tables during a probe
+      readOnlyProbe: true, // skip connect-time schema bootstrap (PG/MariaDB)
     });
 
     const health = await dbAdapter.getConnectionHealth();
@@ -172,48 +217,28 @@ export async function testDatabaseConnection(
       }
     }
 
-    // Database is empty (or user chose overwrite) — safe to initialize modules
-    if (dbAdapter.ensureAuth) await dbAdapter.ensureAuth();
-    if (dbAdapter.ensureSystem) await dbAdapter.ensureSystem();
-    if (dbAdapter.ensureCollections) await dbAdapter.ensureCollections();
-    if (dbAdapter.ensureContent) await dbAdapter.ensureContent();
-    if (dbAdapter.auth?.setupAuthModels) await dbAdapter.auth.setupAuthModels();
-
+    // The probe stops here: modules/tables/private-config are provisioned by
+    // `seedDatabase()` on the explicit Next step (or `completeSetup()`).
+    const willCreate = isEmptyRes.success && isEmptyRes.data === true;
     await dbAdapter.disconnect();
     return {
       success: true,
-      message: "Database connected successfully!",
+      message: willCreate
+        ? "Database connected. System tables and data will be initialized when you continue setup."
+        : "Database connected successfully!",
+      willCreate,
       latencyMs: Math.round(performance.now() - start),
     };
   } catch (err: any) {
-    const errMsg = err.message;
-    if (
-      (errMsg.includes("does not exist") ||
-        errMsg.includes("Unknown database") ||
-        err.code === "ER_BAD_DB_ERROR" ||
-        err.code === "3D000") &&
-      createIfMissing
-    ) {
-      try {
-        await createDatabase(dbConfig);
-        await new Promise((r) => setTimeout(r, 500));
-        const retry = await (
-          await import("./utils")
-        ).getSetupDatabaseAdapter(dbConfig, { createIfMissing: true });
-        if ((await retry.dbAdapter.getConnectionHealth()).success) {
-          await retry.dbAdapter.disconnect();
-          return {
-            success: true,
-            message: "Database created and connected!",
-            latencyMs: Math.round(performance.now() - start),
-          };
-        }
-      } catch (ce: any) {
-        return {
-          success: false,
-          error: ce.message,
-        };
-      }
+    // A missing target is not an error: credentials were accepted and setup will
+    // create it at the explicit provisioning step.
+    if (isMissingDatabaseError(err, dbConfig.type)) {
+      return {
+        success: true,
+        message: missingMessage,
+        willCreate: true,
+        latencyMs: Math.round(performance.now() - start),
+      };
     }
     const { classifyDatabaseError, SetupDatabaseError } = await import("./error-classifier");
     return new SetupDatabaseError(
@@ -245,9 +270,20 @@ export async function seedDatabase(configData: DbConfig, systemData: SystemSetti
     const { initSystemFast } = await import("./seed");
     const { getSetupDatabaseAdapter } = await import("./utils");
     const { setupManager } = await import("./setup-manager");
-    const { dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
-      createIfMissing: true,
-    });
+
+    let dbAdapter: Awaited<ReturnType<typeof getSetupDatabaseAdapter>>["dbAdapter"];
+    try {
+      ({ dbAdapter } = await getSetupDatabaseAdapter(dbConfig, {
+        createIfMissing: true,
+      }));
+    } catch (err: any) {
+      // Explicit provisioning step: PostgreSQL does not create a missing database
+      // on connect (MariaDB does, SQLite/Mongo create lazily). The connection
+      // probe deliberately never does this, so create + retry once here.
+      if (!isMissingDatabaseError(err, dbConfig.type)) throw err;
+      await createDatabase(dbConfig);
+      ({ dbAdapter } = await getSetupDatabaseAdapter(dbConfig, { createIfMissing: true }));
+    }
     // Step 0 seedDatabase() runs WITHOUT preset collections — only system data
     // (settings, roles, themes). The user hasn't chosen their blueprint yet.
     // Preset collections are seeded later in completeSetup() at step 2.
@@ -291,6 +327,21 @@ export async function completeSetup(
   // which incorrectly blocks this function from creating the admin user in step 2.
   // Instead, the true defense against Admin Takeover is the adminCount > 0 check below.
   const { setupManager } = await import("./setup-manager");
+
+  // The connection probe is read-only; provisioning runs on the wizard's explicit
+  // Next step. A resuming/API-driven flow can reach Complete without that click,
+  // so make sure the deferred seed (private config + system tables/settings/roles/
+  // themes) actually ran before the writes below depend on it.
+  if (!setupManager.hasStarted) {
+    const seeded = await seedDatabase(database, system);
+    if (!seeded.success) {
+      return {
+        success: false,
+        error: "error" in seeded ? seeded.error : "Database initialization failed",
+      };
+    }
+  }
+
   if ((globalThis as any).process?.env?.TEST_MODE === "true" || database.type === "sqlite") {
     await setupManager.waitAll();
   } else {
@@ -879,6 +930,8 @@ async function dropDatabase(db: any) {
 async function createDatabase(db: any) {
   // Same per-engine allowlist as dropDatabase — db.name must never reach raw DDL
   // unvalidated (SQLite's name is a filename, not a SQL identifier).
+  // Only the explicit provisioning step (seedDatabase) calls this; connection
+  // probes report a missing target instead of creating it.
   if (db.type === "sqlite") {
     const { buildDatabaseConnectionString } = await import("./utils");
     mkdirSync(dirname(buildDatabaseConnectionString(db)), { recursive: true });

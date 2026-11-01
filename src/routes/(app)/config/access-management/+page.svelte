@@ -48,6 +48,7 @@
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte.ts';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
+	import { deepClone } from '@utils/native-utils';
 	import { rethrow } from '@utils/error-handling';
 	import { page } from '$app/state';
 	import { beforeNavigate, goto } from '$app/navigation';
@@ -63,9 +64,9 @@
 	// `setRoleData`, and the last-saved snapshot Reset restores. The snapshot is
 	// deliberately separate from `page.data.roles` — page data is captured once at
 	// load, so a Reset after a successful save must not fall back to it (audit F03).
-	// `structuredClone`/`$state.snapshot` keep the lists from aliasing each other.
-	let savedRoles = structuredClone(page.data.roles ?? []);
-	let rolesData = $state(untrack(() => structuredClone(page.data.roles ?? []))); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
+	// `deepClone`/`$state.snapshot` keep the lists from aliasing each other.
+	let savedRoles = deepClone(page.data.roles ?? []);
+	let rolesData = $state(untrack(() => deepClone(page.data.roles ?? []))); // Renamed from `roles` to `rolesData` for clarity with internal `roles` in sub-components
 
 	// Bumped whenever the draft is replaced from the snapshot (Reset) or promoted
 	// to it (save). The Roles view derives its rows from `rolesData`, but its
@@ -134,7 +135,7 @@
 	};
 
 	const resetChanges = async () => {
-		rolesData = structuredClone(savedRoles);
+		rolesData = deepClone(savedRoles);
 		hasModifiedChanges = false;
 		modifiedCount = 0;
 		draftEpoch += 1;

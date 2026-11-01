@@ -43,6 +43,7 @@
 	import {
 		common_media_files,
 		Fields_preview,
+		mediagallery_assets_loaded_count,
 		mediagallery_drag_to_folder_breadcrumb,
 		mediagallery_name,
 		mediagallery_size,
@@ -381,7 +382,7 @@
 					</div>
 
 					<div class="min-w-0 flex-1 overflow-hidden pe-1" role="cell">
-						<div class="truncate text-sm font-medium leading-snug" title={file.filename}>
+						<div class="truncate text-sm font-medium leading-snug" dir="auto" title={file.filename}>
 							{file.filename}
 						</div>
 						<div
@@ -602,7 +603,9 @@
 							</div>
 						</td>
 						<td class="media-table-name {SMART_TABLE_TD} min-w-0 overflow-hidden text-start!">
-							<div class="truncate text-sm font-medium" title={file.filename}>{file.filename}</div>
+							<div class="truncate text-sm font-medium" dir="auto" title={file.filename}>
+								{file.filename}
+							</div>
 							<div
 								class="media-table-path hidden font-mono text-[10px] text-(--admin-text-muted) sm:block dark:text-(--admin-text-muted)"
 								title={(file as MediaImage).path}
@@ -668,7 +671,7 @@
 			</Button>
 			{#if serverTotal > serverLoaded}
 				<p class="text-xs text-(--admin-text-muted)">
-					{serverLoaded} of {serverTotal} assets loaded
+					{mediagallery_assets_loaded_count({ loaded: serverLoaded, total: serverTotal })}
 				</p>
 			{/if}
 		</div>

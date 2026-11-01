@@ -17,7 +17,8 @@ const CLIENT_DIR = join(ROOT, ".svelte-kit", "output", "client", "_app", "immuta
 
 // ── Thresholds ──────────────────────────────────────────────────────────
 const MAX_ENTRY_KB = 80; // entry chunk must stay under 80 KB
-const MAX_LAYOUT_KB = 180; // admin shell node (sidebars + chrome) stays under 180 KB
+const MAX_ROOT_LAYOUT_KB = 25; // root layout (nodes/0) must stay under 25 KB (lazy WebMCP)
+const MAX_LAYOUT_KB = 150; // admin shell node (sidebars + chrome) stays under 150 KB
 
 // Marker unique to the (app) admin shell layout node — SvelteKit compiles it
 // to `nodes/N.js`, not a `layout*.js` file, so the old name filter missed it.
@@ -25,6 +26,12 @@ const ADMIN_SHELL_MARKERS = ["floating-nav", "command-palette", "left-sidebar"];
 
 // ── Heuristics ──────────────────────────────────────────────────────────
 const TIPTAP_MARKERS = ["@tiptap/core", "@tiptap/starter-kit", "prosemirror-", "ProseMirror"];
+const BANNED_CLIENT_MARKERS = [
+  {
+    pattern: "json-render-svelte",
+    reason: "json-render-svelte (and zod) was replaced by native Svelte 5 + Valibot",
+  },
+];
 const LARGE_LIB_MARKERS = [
   { pattern: "@better-svelte-email", label: "email preview" },
   { pattern: "ollama", label: "ollama (AI)" },
@@ -105,15 +112,26 @@ function checkFile(path: string, size: number): Issue | null {
     };
   }
 
+  for (const banned of BANNED_CLIENT_MARKERS) {
+    if (content.includes(banned.pattern)) {
+      return {
+        file: rel,
+        size: Math.round(size / 1024),
+        reason: `contains "${banned.pattern}" — ${banned.reason}`,
+      };
+    }
+  }
+
   // Only check entry chunks + layout files (loaded on every page).
   // SvelteKit compiles the (app) shell to nodes/N.js, so also match that.
   const isEntry = name.startsWith("entry");
-  const isLayout = name.includes("layout") || isAdminShellNode(path, content);
+  const isRootLayout = /^0\.[A-Za-z0-9_-]+\.js$/.test(name);
+  const isLayout = isRootLayout || name.includes("layout") || isAdminShellNode(path, content);
   if (!isEntry && !isLayout) return null;
 
   // Check size threshold
   const kb = Math.round(size / 1024);
-  const max = isEntry ? MAX_ENTRY_KB : MAX_LAYOUT_KB;
+  const max = isEntry ? MAX_ENTRY_KB : isRootLayout ? MAX_ROOT_LAYOUT_KB : MAX_LAYOUT_KB;
   if (kb > max) {
     return { file: rel, size: kb, reason: `exceeds ${max} KB threshold` };
   }

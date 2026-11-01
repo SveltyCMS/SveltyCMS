@@ -131,7 +131,10 @@ export function formatDateTime(
     explicitLocale,
   );
 
-  const cacheKey = `${locale}:dt:${JSON.stringify(options)}`;
+  const cacheKey =
+    options === DEFAULT_DATETIME_OPTIONS
+      ? `${locale}:dt:default`
+      : `${locale}:dt:${JSON.stringify(options)}`;
   let formatter = dateTimeFormatCache.get(cacheKey);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(locale, options);
@@ -202,7 +205,10 @@ export function formatTime(
     explicitLocale,
   );
 
-  const cacheKey = `${locale}:t:${JSON.stringify(options)}`;
+  const cacheKey =
+    options === DEFAULT_TIME_OPTIONS
+      ? `${locale}:t:default`
+      : `${locale}:t:${JSON.stringify(options)}`;
   let formatter = dateTimeFormatCache.get(cacheKey);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(locale, options);

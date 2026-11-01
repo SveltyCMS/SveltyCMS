@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-10-23"
+updated: "2026-11-01"
 tags:
   - "roadmap"
   - "backlog"
@@ -26,7 +26,7 @@ tags:
 
 | Priority | Initiative                       | Key Deliverables                                                                                                   |
 | :------- | :------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **P0**   | **System Language P0 remainder** | Finish remaining hardcoded English strings in admin chrome (`bun run check:copy`)                                  |
+| **P0**   | **System Language P0 remainder** | ✅ Complete (2026-11-01): `bun run check:copy` is at 0 offenses; keep new copy localized as a regression guard.    |
 | **P1**   | **Quality Gate Type-Checking**   | Wire `svelte-check --threshold error` into `bun run check` to eliminate silent type drift                          |
 | **P2**   | **Commerce Engine Add-Ons**      | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing |
 | **P2**   | **Enterprise Cluster & Cloud**   | Distributed session clustering, Redis pub/sub worker bridge, and Svelty Managed Cloud recipes                      |
@@ -86,10 +86,22 @@ tags:
   - [ ] Access predicate → WHERE fragment merged before count + page (field stripping stays a separate layer).
   - [ ] Draft version row + publish promotion/rollback (reuse `content_drafts`).
   - [ ] `enforceAccess` by default for every CRUD call, with a logged `system: true` escape for system callers.
+- **IN PROGRESS — Revisions on by default + draft/live separation (competitive bet #1)**:
+  - [x] **Revisions default-on for new collections and setup presets (2026-11-01)**: `revision: true` + `revisionLimit: 100` at creation; explicit `revision: false` preserved; existing unrevisioned files are not rewritten. Collection Builder Define tab has a Revisions toggle/limit, and the save/generator round-trips both flags. Runtime honours any positive limit.
+  - [x] Snapshot + restore + `revisionLimit` pruning, optimistic locking, and the `content_drafts` table (existing building blocks).
+  - [ ] Draft/live separation: autosave writes `content_drafts` instead of the live row; resume/discard UI; promote on publish; API/SDK draft methods.
+    - Storage: add `collectionId` + `(tenantId, collectionId, authorId, updatedAt)` index; keep `contentId` (use the draft row's own UUID for a new entry, never `""`), and mark `data.__draft.kind = "new"`.
+    - Adapters: `getLatestForContent`, `getLatestForCollection`, `upsertDraft`, and tenant filters across relational + Mongo; fix Mongo `update` merge semantics and the invalid `publishMany` enum while there.
+    - API/SDK: a `drafts` namespace plus `/api/collections/:id/drafts` routes with fail-closed permissions; never expose drafts through the public list/GraphQL lane.
+    - Editor: autosave writes the draft, resume shows Restore/Discard, Cancel discards, and a successful Save/Publish discards server-side. **Ship the sink and resume together**; never auto-create an entry on resume (preserve the M1 invariant).
+  - [ ] Migration/opt-in path for collections that already exist without the flag (deliberately not auto-flipped).
+  - **Not shipped:** a draft row that is promoted on publish, a draft-resume flow, and a migration for existing collections. Do not describe these as available.
 - **CMS Tables & List Platform (Smart Table)**:
   - Team & Cloud Saved Views: enterprise tenant-shared view presets with RBAC visibility controls.
   - Observability integration: pipe `list-query-metrics` into continuous benchmark trend reporting.
   - [x] Publish formal operational documentation for Bloom filter thresholds and 404 negative cache eviction (see [cache system](../reference/architecture/cache-system.mdx)).
+
+> **Draft items.** An unchecked box (`[ ]`) or a bullet with no shipped marker is a draft: planned or in progress, **not** shipped behaviour. Completed work moves to the [Achievements Log](./achievements-2026.mdx). Proposals that only exist on paper (including the PDF workstream notes) stay drafts until they are recorded here with a scope and acceptance criteria — they are not commitments.
 
 ---
 

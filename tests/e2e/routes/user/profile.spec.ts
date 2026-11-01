@@ -339,8 +339,8 @@ test.describe.serial("User Profile Management", () => {
 
     await page.getByRole("button", { name: /Email User Registration token/i }).click();
 
-    // Scoped to the token dialog
-    const tokenDialog = page.getByRole("dialog", { name: /Edit Token Data/i });
+    // Scoped to the invitation dialog (retest m7: it no longer reuses the edit-token title)
+    const tokenDialog = page.getByRole("dialog", { name: /Invite User/i });
     await expect(tokenDialog).toBeVisible({ timeout: 10_000 });
 
     // Unique email per run — a fixed address collides on reruns/retries

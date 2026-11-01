@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:sync-circle"
 author: "SveltyCMS Team"
 created: "2026-07-10"
-updated: "2026-07-10"
+updated: "2026-11-01"
 tags:
   - "api"
   - "configuration"
@@ -156,12 +156,14 @@ Returns a drift summary comparing the active database configuration against the 
 ```
 
 | Field               | Description                                                |
-| :------------------ | :--------------------------------------------------------- |
+| :------------------ | ---------------------------------------------------------- |
 | `inSync`            | `true` if filesystem and database are fully aligned        |
 | `changes.new`       | Resources present on filesystem but not in the database    |
 | `changes.updated`   | Resources with different checksums between FS and DB       |
 | `changes.deleted`   | Resources in database but not on filesystem                |
 | `unmetRequirements` | Settings required by new resources that are missing values |
+
+> **Settings are hashed as `{ key, value }` only.** Both sides of the comparison use `settingConfigEntity()` in `src/services/core/config-service.ts`; the row's `_id`, category, tenant and audit timestamps are adapter bookkeeping and are excluded, and the value is decoded through `decodePreferenceValue()` (`@utils/preference-value`) so SQLite's stored `"600"` and the typed `600` hash identically. Hashing the raw row made every setting report "updated" immediately after setup; a genuine value change still produces a different hash.
 
 ---
 

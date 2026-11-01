@@ -25,6 +25,7 @@
 		SMART_TABLE_THEAD
 	} from '@components/ui/smart-table';
 	import {
+		button_close,
 		button_refresh,
 		queue_actions,
 		queue_attempts,
@@ -34,11 +35,23 @@
 		queue_created,
 		queue_delete_aria,
 		queue_delete_title,
+		queue_details_aria,
+		queue_details_title,
 		queue_empty,
 		queue_failed,
 		queue_filter,
+		queue_help_intro_part1,
+		queue_help_intro_part2,
+		queue_help_publish_scheduled,
+		queue_help_row_details,
+		queue_help_session_cleanup,
+		queue_help_work_tasks,
+		queue_how_it_works_title,
 		queue_job_id,
+		queue_last_error,
+		queue_last_update,
 		queue_next_run,
+		queue_payload,
 		queue_pending,
 		queue_recent,
 		queue_refresh_aria,
@@ -46,6 +59,7 @@
 		queue_running,
 		queue_status,
 		queue_task_type,
+		queue_tenant,
 		queue_title,
 		queue_total,
 		queue_view_all_aria,
@@ -231,32 +245,30 @@
 			data-testid="queue-how-it-works"
 		>
 			<summary class="cursor-pointer text-sm font-semibold text-surface-900 dark:text-surface-100">
-				How the queue works
+				{queue_how_it_works_title()}
 			</summary>
 			<div class="mt-3 space-y-2 text-xs text-surface-600 dark:text-surface-400">
 				<p>
-					Every background task is one row in the <code class="font-mono">svelty_jobs</code> table. A
-					poller claims pending rows within 10 seconds, runs the handler and writes the outcome back —
-					that is all “completed” means. A tick with nothing to do still records a row (usually 0–5 ms),
-					which is why short rows usually mean “nothing to do”, not “work done”.
+					{queue_help_intro_part1()}{' '}
+					<code class="font-mono" dir="ltr">svelty_jobs</code>{' '}{queue_help_intro_part2()}
 				</p>
 				<ul class="list-disc space-y-1 ps-5">
 					<li>
-						<strong>publish-scheduled</strong> — every minute: publishes entries whose scheduled time
-						has passed.
+						<code class="font-mono" dir="ltr">publish-scheduled</code
+						>{' '}{queue_help_publish_scheduled()}
 					</li>
 					<li>
-						<strong>session-cleanup</strong> — every five minutes: removes expired sessions/tokens and
-						sweeps the in-memory session store.
+						<code class="font-mono" dir="ltr">session-cleanup</code
+						>{' '}{queue_help_session_cleanup()}
 					</li>
 					<li>
-						<strong>process-media · webhook-delivery · import-data · bulk-translate</strong> — created
-						by real work (uploads, webhooks, imports, translations), not by a timer.
+						<code class="font-mono" dir="ltr"
+							>process-media · webhook-delivery · import-data · bulk-translate</code
+						>{' '}{queue_help_work_tasks()}
 					</li>
 				</ul>
 				<p>
-					Click any row for the payload, attempts, timings and last error. Failed jobs retry with
-					exponential backoff (3 attempts by default); completed history is pruned after 7 days.
+					{queue_help_row_details()}
 				</p>
 			</div>
 		</details>
@@ -497,11 +509,11 @@
 										<div class="flex items-center justify-center gap-1">
 											<Button
 												variant="ghost"
-												title="Job details"
+												title={queue_details_title()}
 												onclick={() => openDetails(job)}
 												size="sm"
 												data-testid="queue-job-details"
-												aria-label={`Job details for ${job.taskType} ${job._id}`}
+												aria-label={queue_details_aria({ task: job.taskType, id: job._id })}
 											>
 												<iconify-icon icon="mdi:eye-outline"></iconify-icon>
 											</Button>
@@ -558,7 +570,7 @@
 	<!-- Row details: what the task type does, the raw payload and the last error. -->
 	<Modal
 		bind:open={detailsOpen}
-		title="Job details"
+		title={queue_details_title()}
 		size="lg"
 		data-testid="queue-job-details-modal"
 	>
@@ -582,32 +594,36 @@
 				</p>
 
 				<dl class="grid grid-cols-1 gap-x-4 gap-y-1.5 text-sm sm:grid-cols-[9rem_1fr]">
-					<dt class="text-surface-500">Job ID</dt>
+					<dt class="text-surface-500">{queue_job_id()}</dt>
 					<dd class="font-mono text-xs break-all">{selectedJob._id}</dd>
-					<dt class="text-surface-500">Attempts</dt>
+					<dt class="text-surface-500">{queue_attempts()}</dt>
 					<dd>{selectedJob.attempts} / {selectedJob.maxAttempts}</dd>
-					<dt class="text-surface-500">Created</dt>
+					<dt class="text-surface-500">{queue_created()}</dt>
 					<dd title={isoTitle(selectedJob.createdAt)}>{formatDate(selectedJob.createdAt)}</dd>
-					<dt class="text-surface-500">Last update</dt>
+					<dt class="text-surface-500">{queue_last_update()}</dt>
 					<dd title={isoTitle(selectedJob.updatedAt)}>{formatDate(selectedJob.updatedAt)}</dd>
-					<dt class="text-surface-500">Next run</dt>
+					<dt class="text-surface-500">{queue_next_run()}</dt>
 					<dd title={isoTitle(selectedJob.nextRunAt)}>{formatDate(selectedJob.nextRunAt)}</dd>
 					{#if selectedJob.tenantId}
-						<dt class="text-surface-500">Tenant</dt>
+						<dt class="text-surface-500">{queue_tenant()}</dt>
 						<dd class="font-mono text-xs">{selectedJob.tenantId}</dd>
 					{/if}
 				</dl>
 
 				{#if selectedJob.lastError}
 					<div class="space-y-1">
-						<h4 class="text-xs font-semibold uppercase tracking-wide text-error-500">Last error</h4>
+						<h4 class="text-xs font-semibold uppercase tracking-wide text-error-500">
+							{queue_last_error()}
+						</h4>
 						<pre
 							class="overflow-x-auto whitespace-pre-wrap rounded-lg border border-error-500/30 bg-error-500/10 p-3 font-mono text-xs text-error-500">{selectedJob.lastError}</pre>
 					</div>
 				{/if}
 
 				<div class="space-y-1">
-					<h4 class="text-xs font-semibold uppercase tracking-wide text-surface-500">Payload</h4>
+					<h4 class="text-xs font-semibold uppercase tracking-wide text-surface-500">
+						{queue_payload()}
+					</h4>
 					<pre
 						class="max-h-64 overflow-auto rounded-lg border border-surface-500/30 bg-surface-900 p-3 font-mono text-xs text-surface-100">{JSON.stringify(
 							selectedJob.payload ?? {},
@@ -620,7 +636,7 @@
 
 		{#snippet footer()}
 			<div class="flex justify-end">
-				<Button variant="secondary" onclick={() => (detailsOpen = false)}>Close</Button>
+				<Button variant="secondary" onclick={() => (detailsOpen = false)}>{button_close()}</Button>
 			</div>
 		{/snippet}
 	</Modal>

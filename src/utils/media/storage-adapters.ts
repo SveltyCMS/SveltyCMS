@@ -11,6 +11,7 @@ import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error } from "@sveltejs/kit";
 import { isAppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
+import { FastLRU } from "@utils/native-utils";
 import { safeFetch, validateEgressUrl } from "../egress-guard";
 import type { StorageType } from "./media-models";
 
@@ -587,22 +588,20 @@ export function getCloudPath(relativePath: string, prefix?: string): string {
 
 // ─── URL cache (deterministic path → URL mapping, process-local) ────────────
 
-const urlCache = new Map<string, { url: string; expires: number }>();
 const URL_CACHE_TTL = 300_000; // 5 minutes
+const urlCache = new FastLRU<string, string>({
+  max: 10_000,
+  ttl: URL_CACHE_TTL,
+});
 
 /** Resolve a public URL for a stored file via the active adapter (cached). */
 export function getUrl(relativePath: string, prefix?: string): string {
   const key = `${prefix ?? ""}|${relativePath}`;
   const cached = urlCache.get(key);
-  if (cached && Date.now() < cached.expires) {
-    return cached.url;
+  if (cached !== undefined) {
+    return cached;
   }
   const url = getStorageAdapter().getUrl(relativePath, prefix);
-  urlCache.set(key, { url, expires: Date.now() + URL_CACHE_TTL });
-  // Prevent unbounded growth — evict oldest when over 10k entries
-  if (urlCache.size > 10_000) {
-    const oldest = urlCache.entries().next().value;
-    if (oldest) urlCache.delete(oldest[0]);
-  }
+  urlCache.set(key, url);
   return url;
 }

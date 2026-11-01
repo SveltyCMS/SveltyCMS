@@ -13,31 +13,22 @@ import { dbAdapter } from "@src/databases/db";
 import type { Role } from "@src/databases/auth/types";
 import type { Widget, Theme } from "@src/databases/db-interface";
 import { createChecksum } from "@utils/security/checksum";
+import { decodePreferenceValue } from "@utils/preference-value";
 import { assertLiveDataWriteAllowed, resolveConfigSyncRoot } from "@utils/benchmark-sandbox";
 import { getSchemaPath } from "@src/content/first-collection";
+import { lazyModule } from "@utils/lazy-module";
 import { logger } from "@utils/logger";
 
 /** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
-let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
-function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
-  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
-}
+const loadHandleTurboGetModule = lazyModule(() => import("@src/hooks/handle-turbo-get"));
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
-let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
-function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
-  return (contentModulePromise ??= import("@src/content/index.server"));
-}
+const loadContentModule = lazyModule(() => import("@src/content/index.server"));
 
 /** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
-let eventBusModulePromise:
-  | Promise<typeof import("@src/services/background/automation/event-bus")>
-  | undefined;
-function loadEventBusModule(): Promise<
-  typeof import("@src/services/background/automation/event-bus")
-> {
-  return (eventBusModulePromise ??= import("@src/services/background/automation/event-bus"));
-}
+const loadEventBusModule = lazyModule(
+  () => import("@src/services/background/automation/event-bus"),
+);
 
 // ---------------------------------------------------------------------------
 // Resource Type Registry
@@ -77,6 +68,20 @@ const SECRET_KEY_PATTERNS = [
 function isSecretKey(key: string): boolean {
   const upper = key.toUpperCase();
   return SECRET_KEY_PATTERNS.some((pattern) => upper.includes(pattern));
+}
+
+/**
+ * Canonical setting projection used on BOTH sides of the sync comparison.
+ *
+ * Settings are configuration by key/value only: the DB row's `_id`, category,
+ * tenant and audit timestamps are adapter bookkeeping, not configuration, and
+ * hashing them made every setting report as "updated" right after setup. The
+ * value is decoded through the preference codec so the raw row (`"600"` on
+ * SQLite) and the typed adapter value (`600`) hash identically — a genuine
+ * value change still produces a different hash.
+ */
+function settingConfigEntity(key: string, value: unknown): Record<string, unknown> {
+  return { key, value: decodePreferenceValue(value) };
 }
 
 // ---------------------------------------------------------------------------
@@ -781,7 +786,7 @@ export class ConfigService {
         for (const [key, value] of Object.entries(result.data)) {
           // Defense-in-depth: skip anything that looks secret
           if (isSecretKey(key)) continue;
-          const entity: Record<string, unknown> = { key, value };
+          const entity = settingConfigEntity(key, value);
           const hash = await createChecksum(entity);
           state.set(`setting:${key}`, {
             uuid: `setting:${key}`,
@@ -1020,13 +1025,14 @@ export class ConfigService {
           if (String(setting.visibility ?? "") === "private") continue;
           if (isSecretKey(key)) continue;
           if (!key) continue;
-          const hash = await createChecksum(setting);
+          const entity = settingConfigEntity(key, setting.value);
+          const hash = await createChecksum(entity);
           state.set(`setting:${key}`, {
             uuid: `setting:${key}`,
             type: "setting",
             name: key,
             hash,
-            entity: setting,
+            entity,
           });
         }
       }

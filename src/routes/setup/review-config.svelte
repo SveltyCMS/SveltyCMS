@@ -98,7 +98,7 @@ This component presents a summary of all configuration steps before finalizing t
 	<div class="mb-4">
 		<p class="text-sm text-tertiary-500 dark:text-primary-500 sm:text-base">
 			{setup_review_intro?.() ||
-				"Please review your configuration before completing the setup. Once finished, you'll be redirected to the login page."}
+				"Please review your configuration before completing the setup. Once finished, you'll be signed in automatically and taken to your new site."}
 		</p>
 	</div>
 

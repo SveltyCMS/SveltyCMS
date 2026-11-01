@@ -21,9 +21,8 @@
 	import Tabs from '@components/ui/tabs.svelte';
 	import Image from '@components/ui/image.svelte';
 	import Modal from '@components/ui/modal.svelte';
-	import HlsVideoPlayer from '@components/media/hls-video-player.svelte';
-	import TranscodeModal from '@components/media/transcode-modal.svelte';
 	import { fade } from 'svelte/transition';
+	import { tick } from 'svelte';
 	import { formatBytes } from '@utils/file';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { mediaDisplayUrl, mediaUrl } from '@utils/media/media-utils';
@@ -113,6 +112,7 @@
 	let isEditingAlt = $state(false);
 	let editAlt = $state('');
 	let altSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+	let altInputEl = $state<HTMLInputElement | null>(null);
 
 	let isEditingCaption = $state(false);
 	let editCaption = $state('');
@@ -252,9 +252,14 @@
 		isEditingName = true;
 	}
 
-	function startEditAlt() {
+	async function startEditAlt() {
 		editAlt = file.metadata?.alt || '';
 		isEditingAlt = true;
+		// The field only exists after the state change, so wait for the DOM before
+		// moving focus — otherwise focus stayed on <body> (retest m8).
+		await tick();
+		altInputEl?.focus();
+		if (editAlt) altInputEl?.select();
 	}
 
 	function startEditCaption() {
@@ -563,6 +568,7 @@
 	>
 		<div class="min-w-0 flex-1">
 			<h2
+				dir="auto"
 				class="truncate text-base font-semibold text-surface-600 dark:text-surface-100"
 				title={file.filename}
 			>
@@ -607,12 +613,14 @@
 				 for assets that were never transcoded (a `<video src>` must be the media
 				 file itself, a poster/thumbnail derivative would break playback). -->
 			{#if hlsMaster}
-				<HlsVideoPlayer
-					src={hlsMaster}
-					poster={videoPoster}
-					label={`Preview ${file.filename}`}
-					class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg bg-surface-900 sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
-				/>
+				{#await import('@components/media/hls-video-player.svelte') then mod}
+					<mod.default
+						src={hlsMaster}
+						poster={videoPoster}
+						label={`Preview ${file.filename}`}
+						class="max-h-[min(30dvh,11rem)] w-full max-w-full rounded-lg bg-surface-900 sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
+					/>
+				{/await}
 			{:else}
 				<!-- svelte-ignore a11y_media_has_caption — CMS assets carry no authored subtitle track; captions ship inside the source file when present. -->
 				<video
@@ -731,6 +739,7 @@
 		>
 			<div class="min-w-0 flex-1">
 				<h2
+					dir="auto"
 					class="truncate text-base font-semibold text-surface-600 sm:text-lg dark:text-surface-100"
 					title={file.filename}
 				>
@@ -797,6 +806,7 @@
 									{:else}
 										<Button
 											variant="ghost"
+											dir="auto"
 											class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100"
 											onclick={startEditName}
 											aria-label="Edit asset name"
@@ -816,6 +826,8 @@
 												<Input
 													type="text"
 													bind:value={editAlt}
+													bind:inputRef={altInputEl}
+													aria-label="Alt text"
 													class="flex-1"
 													oninput={() => {
 														altSaveStatus = 'saving';
@@ -842,6 +854,7 @@
 										{:else}
 											<Button
 												variant="ghost"
+												dir="auto"
 												class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100"
 												onclick={startEditAlt}
 												aria-label="Edit alt text">{file.metadata?.alt || 'Add alt text…'}</Button
@@ -886,6 +899,7 @@
 									{:else}
 										<Button
 											variant="ghost"
+											dir="auto"
 											class="w-full cursor-pointer text-start text-sm text-surface-600 hover:text-primary-500 dark:text-surface-100"
 											onclick={startEditCaption}
 											aria-label="Edit caption">{file.metadata?.caption || 'Add caption…'}</Button
@@ -1222,6 +1236,7 @@
 										<Badge variant="surface" size="sm">v{ver.version}</Badge>
 										<div class="min-w-0">
 											<p
+												dir="auto"
 												class="truncate text-xs font-semibold text-surface-600 dark:text-surface-100"
 												title={ver.filename}
 											>
@@ -1386,7 +1401,7 @@
 						</h3>
 						<div class="flex flex-col gap-2">
 							{#each file.metadata?.sharedLinks || [] as link (link.url || link)}
-								{const expired = isExpired(link.expiry)}
+								{@const expired = isExpired(link.expiry)}
 								<div
 									class="flex flex-col gap-2 rounded-lg border border-surface-500/30 bg-surface-500/10 p-3 dark:border-surface-500/40 dark:bg-surface-900/60"
 								>
@@ -1466,7 +1481,11 @@
 
 	{#if file.type === 'video'}
 		<Modal bind:open={showTranscode} title="Transcode video" size="lg">
-			<TranscodeModal {file} onClose={() => (showTranscode = false)} />
+			{#if showTranscode}
+				{#await import('@components/media/transcode-modal.svelte') then mod}
+					<mod.default {file} onClose={() => (showTranscode = false)} />
+				{/await}
+			{/if}
 		</Modal>
 	{/if}
 </div>

@@ -14,6 +14,7 @@
 	import { toast } from '@src/stores/toast.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { formatDisplayDate } from '@utils/date';
+	import { formatTrashActor } from '@utils/trash-item';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Loader from '@components/ui/loader.svelte';
@@ -143,7 +144,7 @@
 											<Badge preset="tonal" color="secondary">{item.collectionName}</Badge>
 										</td>
 										<td class="py-3">{formatDisplayDate(item.deletedAt || '')}</td>
-										<td class="py-3">{item.deletedBy || 'System'}</td>
+										<td class="py-3">{formatTrashActor(item.deletedBy)}</td>
 										<td class="py-3 text-end">
 											<Button
 												variant="tertiary"

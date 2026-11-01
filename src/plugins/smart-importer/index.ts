@@ -154,7 +154,7 @@ export const smartImporterPlugin = definePlugin({
       },
     ],
   },
-  migrations,
+  migrations: import.meta.env?.SSR !== false ? migrations : [],
   hooks: {
     beforeSave: async (_context, _collection, data) => {
       if (import.meta.env.SSR) {
@@ -179,59 +179,3 @@ export const smartImporterPlugin = definePlugin({
 });
 
 export default smartImporterPlugin;
-
-/**
- * Clear tier definition for UI display and feature gating.
- */
-export const FEATURE_TIERS = {
-  free: {
-    label: "Free",
-    platforms: 5,
-    universalFormats: 9,
-    features: [
-      "5 CMS platform parsers",
-      "9 universal format parsers (CSV, Markdown, SQL, API, etc.)",
-      "AI field mapping with confidence scores",
-      "5-step visual wizard",
-      "Dry-run validation",
-      "Batch processing (100/batch)",
-      "Content type selection",
-      "Draft-by-Default Airgap",
-      "Basic conflict resolution (skip, overwrite)",
-      "Dead-Letter Queue",
-      "Tenant isolation",
-      "CLI: import, validate, scaffold",
-    ],
-  },
-  pro: {
-    label: "Pro",
-    platforms: 36,
-    universalFormats: 9,
-    features: [
-      "All 36 CMS platform parsers",
-      "All 9 universal format parsers",
-      "AST compilers (RichText, PortableText, Lexical)",
-      "AI enrichments (word count, SEO, auto-tagging)",
-      "Delta/incremental imports",
-      "Transaction rollback with asset cleanup",
-      "Background job queue (100K+ items)",
-      "PII scrubbing (GDPR/CCPA)",
-      "Crypto-chained audit logging",
-      "Webhooks + exportable reports",
-      "Custom parser plugin API",
-      "Migration presets",
-      "Advanced conflict resolution (merge, keep_both, per-field)",
-      "Smart filters + partial imports",
-      "Resumable imports (checkpoint/restore)",
-      "Forward-reference auto-stubbing",
-      "Deep JSONPath + schema diff",
-      "In-body media harvesting",
-      "Cyclic dependency resolution",
-      "Direct database connection",
-      "Token auto-conversion",
-      "Media optimization + S3 upload",
-      "SSE streaming progress",
-      "Rate-limited media downloads",
-    ],
-  },
-} as const;

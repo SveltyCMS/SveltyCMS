@@ -50,10 +50,9 @@
 		languageTag = locale.systemLanguage
 	}: Props = $props();
 
-	// Use production host logo if available, otherwise fall back to GitHub
-	const logoSrc = publicEnv?.HOST_PROD
-		? `${publicEnv.HOST_PROD}/SveltyCMS.png`
-		: 'https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png';
+	// Production host logo when configured; otherwise the same-origin static asset
+	// (a cross-origin fallback is blocked by COEP in the sandboxed preview iframe).
+	const logoSrc = publicEnv?.HOST_PROD ? `${publicEnv.HOST_PROD}/SveltyCMS.png` : '/SveltyCMS.png';
 
 	// The tokenLink is now passed directly from the API, no need to construct it here.
 </script>

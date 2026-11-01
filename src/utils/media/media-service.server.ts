@@ -130,6 +130,9 @@ const SVG_HANDLER_RE = new RegExp(
   "gi",
 );
 
+const SVG_DANGEROUS_PAIR_RE = /<(script|foreignObject|iframe|object|embed)[/\s>][\s\S]*?<\/\1>/gi;
+const SVG_DANGEROUS_SELF_CLOSING_RE = /<(?:script|foreignObject|iframe|object|embed)[^>]*?\/>/gi;
+
 export function sanitizeSvg(svg: string): string {
   let cleaned = svg;
   let previous = "";
@@ -142,11 +145,8 @@ export function sanitizeSvg(svg: string): string {
     // 1. Strip dangerous tags (with their content, including self-closing variants).
     //    `/` right after the tag name covers the no-space bypass `<script/src=…>`;
     //    the self-closing pass handles `<script/>` exactly (`[^>]*?/>`).
-    const DANGEROUS_TAGS = ["script", "foreignObject", "iframe", "object", "embed"];
-    for (const tag of DANGEROUS_TAGS) {
-      cleaned = cleaned.replace(new RegExp(`<${tag}[/\\s>][\\s\\S]*?</${tag}>`, "gi"), "");
-      cleaned = cleaned.replace(new RegExp(`<${tag}[^>]*?\\/>`, "gi"), "");
-    }
+    cleaned = cleaned.replace(SVG_DANGEROUS_PAIR_RE, "");
+    cleaned = cleaned.replace(SVG_DANGEROUS_SELF_CLOSING_RE, "");
 
     // 2. Strip inline event handlers — inside loop for defense-in-depth
     // codeql[js/incomplete-multi-character-sanitization]: iterative SVG scrubber (loop re-scans until
@@ -799,21 +799,29 @@ export class MediaService {
    * @returns the first missing storage path, or `null` when every file resolves.
    */
   private async findMissingStoredFile(record: DbMediaItem): Promise<string | null> {
+    const uniqueRelPaths = new Set<string>();
     const original = resolveMediaRelPath(record as unknown as Record<string, unknown>);
-    if (original && !(await fileExists(original, { refresh: true }))) return original;
+    if (original) uniqueRelPaths.add(original);
 
     const enrichable = record as unknown as EnrichableRecord;
-    const candidates: Array<string | undefined> = [];
     for (const thumb of Object.values(enrichable.thumbnails ?? {})) {
-      candidates.push(thumb?.path, thumb?.url);
+      const p = toStorageRelPath(thumb?.path);
+      const u = toStorageRelPath(thumb?.url);
+      if (p) uniqueRelPaths.add(p);
+      if (u) uniqueRelPaths.add(u);
     }
     for (const variant of enrichable.metadata?.imageVariants ?? []) {
-      candidates.push(variant.path, variant.url);
+      const p = toStorageRelPath(variant.path);
+      const u = toStorageRelPath(variant.url);
+      if (p) uniqueRelPaths.add(p);
+      if (u) uniqueRelPaths.add(u);
     }
 
-    for (const candidate of candidates) {
-      const rel = toStorageRelPath(candidate);
-      if (rel && !(await fileExists(rel, { refresh: true }))) return rel;
+    if (uniqueRelPaths.size === 0) return null;
+    const paths = Array.from(uniqueRelPaths);
+    const checks = await Promise.all(paths.map((rel) => fileExists(rel, { refresh: true })));
+    for (let i = 0; i < paths.length; i++) {
+      if (!checks[i]) return paths[i];
     }
     return null;
   }
@@ -1926,49 +1934,40 @@ export class MediaService {
 
     // overwrite: push current file to version history, update record in place
     const versions = (existing.metadata?.versions as MediaVersionEntry[] | undefined) || [];
-    await this.updateMedia(
-      id,
-      {
-        hash: newHash,
-        path: relPath,
-        size: outputBuffer.byteLength,
-        thumbnails: derivativeThumbnails,
-        updatedBy: userId,
-        updatedAt: now,
-        metadata: {
-          ...existing.metadata,
-          ...derivativeMetadata,
-          ...(storedFocal ? { focalPoint: storedFocal } : {}),
-          imageVariants: editedVariantMetadata,
-          processingStatus: editedStatus,
-          ...(editedStatus === MediaProcessingStatus.Failed
-            ? { processingError: "No variants generated" }
-            : {}),
-          versions: [
-            ...versions,
-            buildVersionSnapshot(
-              existing as unknown as EnrichableRecord,
-              versions.length + 1,
-              userId,
-              "edit",
-              now,
-            ),
-          ],
-        },
+    const overwritePatch = {
+      hash: newHash,
+      path: relPath,
+      size: outputBuffer.byteLength,
+      thumbnails: derivativeThumbnails,
+      updatedBy: userId,
+      updatedAt: now,
+      metadata: {
+        ...existing.metadata,
+        ...derivativeMetadata,
+        ...(storedFocal ? { focalPoint: storedFocal } : {}),
+        imageVariants: editedVariantMetadata,
+        processingStatus: editedStatus,
+        ...(editedStatus === MediaProcessingStatus.Failed
+          ? { processingError: "No variants generated" }
+          : {}),
+        versions: [
+          ...versions,
+          buildVersionSnapshot(
+            existing as unknown as EnrichableRecord,
+            versions.length + 1,
+            userId,
+            "edit",
+            now,
+          ),
+        ],
       },
-      tenantId,
-      { internal: true },
-    );
+    };
+    await this.updateMedia(id, overwritePatch, tenantId, { internal: true });
 
-    const finalRes = await this.db.crud.findOne<DbMediaItem>(
-      "media",
-      { _id: id as DatabaseId },
-      { tenantId: tenantId },
-    );
-    if (!finalRes.success || !finalRes.data) throw new Error("Failed to retrieve updated media");
-    return this.enrichMediaWithUrl(
-      finalRes.data as unknown as EnrichableRecord,
-    ) as unknown as MediaItem;
+    return this.enrichMediaWithUrl({
+      ...(existing as unknown as EnrichableRecord),
+      ...overwritePatch,
+    } as unknown as EnrichableRecord) as unknown as MediaItem;
   }
 
   public async batchProcessImages(
@@ -1977,16 +1976,29 @@ export class MediaService {
     userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaItem[]> {
-    const results: MediaItem[] = [];
-    for (const id of ids) {
-      try {
-        const res = await this.manipulateMedia(id, config, userId, tenantId);
-        results.push(res);
-      } catch (err) {
-        logger.error(`Batch processing failed for ${id}:`, err);
-      }
-    }
-    return results;
+    if (ids.length === 0) return [];
+    const concurrency = Math.min(4, ids.length);
+    const ordered: Array<MediaItem | undefined> = Array.from(
+      { length: ids.length },
+      () => undefined,
+    );
+    let cursor = 0;
+
+    await Promise.all(
+      Array.from({ length: concurrency }, async () => {
+        while (cursor < ids.length) {
+          const idx = cursor++;
+          const id = ids[idx];
+          try {
+            ordered[idx] = await this.manipulateMedia(id, config, userId, tenantId);
+          } catch (err) {
+            logger.error(`Batch processing failed for ${id}:`, err);
+          }
+        }
+      }),
+    );
+
+    return ordered.filter((item): item is MediaItem => item !== undefined);
   }
 
   /**
@@ -2357,21 +2369,14 @@ export class MediaService {
         );
       }
 
-      // Return the updated media item enriched
-      const finalRes = await this.db.crud.findOne<DbMediaItem>(
-        "media",
-        { _id: mediaId as DatabaseId },
-        { tenantId: tenantId },
-      );
-      if (finalRes.success && finalRes.data) {
-        return {
-          success: true,
-          data: this.enrichMediaWithUrl(
-            finalRes.data as unknown as EnrichableRecord,
-          ) as unknown as MediaItem,
-        };
-      }
-      throw new Error("Failed to retrieve updated media item");
+      // Return the updated media item enriched directly without a redundant DB round-trip
+      return {
+        success: true,
+        data: this.enrichMediaWithUrl({
+          ...existingR,
+          ...updateData,
+        } as unknown as EnrichableRecord) as unknown as MediaItem,
+      };
     } catch (err: unknown) {
       this.mapFileSystemError(err);
       const e = err as Error;
@@ -2476,20 +2481,13 @@ export class MediaService {
         );
       }
 
-      const finalRes = await this.db.crud.findOne<DbMediaItem>(
-        "media",
-        { _id: mediaId as DatabaseId },
-        { tenantId: tenantId },
-      );
-      if (finalRes.success && finalRes.data) {
-        return {
-          success: true,
-          data: this.enrichMediaWithUrl(
-            finalRes.data as unknown as EnrichableRecord,
-          ) as unknown as MediaItem,
-        };
-      }
-      throw new Error("Failed to retrieve restored media item");
+      return {
+        success: true,
+        data: this.enrichMediaWithUrl({
+          ...existingR,
+          ...updateData,
+        } as unknown as EnrichableRecord) as unknown as MediaItem,
+      };
     } catch (err: unknown) {
       const e = err as Error;
       logger.error(`[MediaService] Error restoring version:`, err);

@@ -5,7 +5,6 @@
 
 import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
-import { runAfterHydration } from "../../helpers/hydration";
 
 test.describe("User Management — Invite Flow", () => {
   test.setTimeout(120_000);
@@ -31,7 +30,7 @@ test.describe("User Management — Invite Flow", () => {
     await expect(emailTokenBtn).toBeVisible({ timeout: 15_000 });
     await emailTokenBtn.click();
 
-    // Modal title is "Edit Token Data" (multibuttontoken_modaltitle)
+    // Modal title is "Invite User" (useradmin_invite_user_title, retest m7)
     const tokenDialog = page.getByRole("dialog").filter({ hasText: /token/i }).first();
     await expect(tokenDialog).toBeVisible({ timeout: 15_000 });
 
@@ -90,25 +89,16 @@ test.describe("User Management — Invite Flow", () => {
           });
         }
       }
+      const signupForm = invitePage.locator("#signup-form");
       const signUpBtn = invitePage.getByRole("button", { name: /Go to Sign Up/i });
-      // The login page is fully client-rendered (root layout ssr=false); under
-      // parallel CI load the bundle can take >15s to hydrate — wait generously.
-      await signUpBtn.waitFor({ state: "visible", timeout: 30_000 });
-      await runAfterHydration(invitePage, () => signUpBtn.click(), { selector: signUpBtn });
-
-      // The login page is client-rendered; a click that lands before the router
-      // is ready is a silent no-op. Retry the click until the form renders.
+      // Invite links open the Sign Up form directly (retest m7); older builds showed
+      // the chooser first. Keep the click as a fallback so the contract survives either.
       await expect(async () => {
-        if (
-          !(await invitePage
-            .locator("#signup-form")
-            .isVisible()
-            .catch(() => false))
-        ) {
+        if (!(await signupForm.isVisible().catch(() => false))) {
           await signUpBtn.click({ timeout: 2_000 }).catch(() => {});
         }
-        await expect(invitePage.locator("#signup-form")).toBeVisible({ timeout: 2_000 });
-      }).toPass({ timeout: 20_000 });
+        await expect(signupForm).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 30_000 });
       await expect(invitePage.locator("#emailsignUp")).toHaveValue(inviteEmail, {
         timeout: 10_000,
       });

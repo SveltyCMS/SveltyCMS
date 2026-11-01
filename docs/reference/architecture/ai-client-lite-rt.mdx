@@ -153,32 +153,22 @@ Gracefully shut down the AI Worker. Call when leaving the admin panel.
 
 ## Components
 
-### `<AltTextSuggestion>`
+The AI client is a **library**, not a set of mounted components: `src/services/ai-client/components/` is empty in the current tree. Call the API from the surface that needs it:
 
-Button component for the image editor that generates alt-text suggestions.
+```typescript
+import { ai } from "@src/services/ai-client";
 
-```svelte
-<script lang="ts">
-  import AltTextSuggestion from "@src/services/ai-client/components/alt-text-suggestion.svelte";
-</script>
-
-<AltTextSuggestion
-  imageData={imageBuffer}
-  mimeType="image/jpeg"
-  currentAltText={altText}
-  onsuggestion={(result) => { altText = result.altText; }}
-/>
+const result = await ai.generateAltText(imageBuffer, "image/jpeg", contextHint);
+// { altText, confidence, backend }
 ```
 
-### `<AiStatusBadge>`
-
-Status indicator for the admin shell footer showing AI backend availability.
+The image editor and media details modal own their own UI; there is no `<AltTextSuggestion>` or `<AiStatusBadge>` component to import.
 
 ## Adding New Models
 
 1. Convert or download the model to `.tflite` format
-2. Place it in `static/ai/models/{id}.tflite`
-3. Add an entry to `src/services/ai-client/models/registry.ts`
+2. Publish it to the CDN the worker fetches from (there is no `static/ai/` directory in this repo; `ModelInfo.id` maps to the remote file)
+3. Add a `ModelInfo` entry to `MODEL_REGISTRY` in `src/services/ai-client/types.ts`
 4. Add a handler in `src/services/ai-client/ai.worker.ts`
 5. Add a method to the `ai` object in `src/services/ai-client/index.ts`
 
@@ -220,16 +210,11 @@ Models are cached by the browser's HTTP cache after first download.
 
 ## Files
 
-| File                                                           | Purpose                                    |
-| -------------------------------------------------------------- | ------------------------------------------ |
-| `src/services/ai-client/index.ts`                              | Public API — clean function interface      |
-| `src/services/ai-client/types.ts`                              | RPC protocol, model metadata, result types |
-| `src/services/ai-client/runtime.ts`                            | Worker manager + RPC bridge (singleton)    |
-| `src/services/ai-client/ai.worker.ts`                          | LiteRT.js Web Worker (Vite-bundled)        |
-| `src/services/ai-client/fallback.ts`                           | Server-side Ollama fallback                |
-| `src/services/ai-client/models/registry.ts`                    | Model metadata registry                    |
-| `src/services/ai-client/components/alt-text-suggestion.svelte` | Alt-text UI for image editor               |
-| `src/services/ai-client/components/ai-status-badge.svelte`     | Status indicator component                 |
-| `static/ai/wasm/`                                              | LiteRT.js WASM binaries                    |
-| `static/ai/models/`                                            | `.tflite` model files                      |
-| `tests/unit/services/ai-client/runtime.test.ts`                | Worker manager tests                       |
+| File                                            | Purpose                                      |
+| ----------------------------------------------- | -------------------------------------------- |
+| `src/services/ai-client/index.ts`               | Public API — clean function interface        |
+| `src/services/ai-client/types.ts`               | RPC protocol, `MODEL_REGISTRY`, result types |
+| `src/services/ai-client/runtime.ts`             | Worker manager + RPC bridge (singleton)      |
+| `src/services/ai-client/ai.worker.ts`           | LiteRT.js Web Worker (Vite-bundled)          |
+| `src/services/ai-client/fallback.ts`            | Server-side Ollama fallback                  |
+| `tests/unit/services/ai-client/runtime.test.ts` | Worker manager tests                         |

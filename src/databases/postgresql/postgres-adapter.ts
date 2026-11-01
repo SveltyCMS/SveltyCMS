@@ -94,6 +94,12 @@ export class PostgreSQLAdapter extends PostgresAdapterCore implements IDBAdapter
     const result = await super.connect(connectionOrOptions, options);
     if (!result.success || !this.sql) return result;
 
+    // Setup connection probes open the pool without touching the schema; the
+    // wizard provisions system tables on its explicit Next/Complete step.
+    if ((options as { skipSchemaBootstrap?: boolean } | undefined)?.skipSchemaBootstrap) {
+      return result;
+    }
+
     const sql = this.sql;
     let migrationError: string | null = null;
     await withMigrationLock(this as any, "postgresql", async () => {

@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:email-outline"
 author: "SveltyCMS Team"
 created: "2026-02-13"
-updated: "2026-10-29"
+updated: "2026-11-01"
 tags:
   - "email"
   - "smtp"
@@ -39,12 +39,15 @@ SveltyCMS uses `@better-svelte-email/server` as its email rendering engine, whic
 ### 3. Zero-Configuration Preview (Dev Mode)
 
 When running in development mode or when SMTP is not configured, SveltyCMS skips
-actual SMTP delivery. The rendered email HTML is logged to the server console and,
-for critical flows like password reset, an **inline reset form** appears
-immediately in the browser so the user can proceed without waiting for an email.
+actual SMTP delivery. The rendered email HTML is logged to the server console.
+
+The in-page reset form is **not** unconditional. The server returns `resetLink` only when no SMTP host is configured **and** a developer opted in with `ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE=true` outside production (`resetLinkExposureAllowed()` in `src/routes/login/auth.remote.ts`). Only then does the sign-in view switch to the reset form with a real token; otherwise it keeps the forgot-password form and shows the server's message ("no email provider is configured — ask an administrator…").
 
 The reset link is also printed to the server terminal so an admin can share it
 manually if needed.
+
+> [!IMPORTANT]
+> B1 (2026-10-31): the reset form must never receive a token on an install where an anonymous visitor could reset the administrator password. SMTP is optional in the setup wizard, so handing the link back by default would be an account-takeover path. Do not relax `resetLinkExposureAllowed()` to "always".
 
 ## SMTP Configuration
 

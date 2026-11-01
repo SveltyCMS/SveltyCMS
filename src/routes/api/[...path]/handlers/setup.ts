@@ -151,32 +151,21 @@ async function handleTestDatabase(event: RequestEvent) {
     throw new AppError("Invalid database configuration", 400, "VALIDATION_ERROR", issues);
   }
 
-  const { getSetupDatabaseAdapter } = await import("@src/routes/setup/utils");
-  let adapterWrapper: Awaited<ReturnType<typeof getSetupDatabaseAdapter>> | undefined;
-
-  try {
-    adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {
-      createIfMissing: true,
-    });
-    const dbAdapter = adapterWrapper.dbAdapter;
-
-    const healthCheck = await dbAdapter.getConnectionHealth();
-    if (!healthCheck.success) {
-      throw new AppError(`Connection failed: ${healthCheck.message}`, 400, "DB_CONNECT_FAILED");
-    }
-  } catch (e: any) {
-    logger.error("Database setup test error:", e);
-    throw new AppError(`Failed to connect/test DB: ${e.message}`, 400, "DB_CONNECT_ERROR");
-  } finally {
-    if (adapterWrapper?.dbAdapter?.disconnect) {
-      await adapterWrapper.dbAdapter.disconnect();
-    }
+  // Shared read-only probe: no DB file/schema creation, no seeding and no
+  // config/private.ts write — provisioning is deferred to the seed/complete steps.
+  const { testDatabaseConnection } = await import("@src/routes/setup/setup.server");
+  const result = await testDatabaseConnection(
+    { ...dbConfig, port: dbConfig.port ?? "" },
+    false,
+    false,
+    false,
+  );
+  if (!result.success) {
+    const message = "error" in result ? result.error : "Database connection failed";
+    throw new AppError(`Failed to connect/test DB: ${message}`, 400, "DB_CONNECT_ERROR");
   }
 
-  return successResponse(event, {
-    success: true,
-    message: "Database connection and schema tested successfully",
-  });
+  return successResponse(event, result);
 }
 
 /**
@@ -340,6 +329,9 @@ async function verifyDatabaseUnseeded(dbConfig: DatabaseConfig) {
   try {
     adapterWrapper = await getSetupDatabaseAdapter(dbConfig, {
       createIfMissing: false,
+      skipModuleInit: true,
+      // Read-only guard: never bootstrap system tables while checking for admins.
+      readOnlyProbe: true,
     });
     const dbAdapter = adapterWrapper.dbAdapter;
     const adminCountResult = await dbAdapter.auth.getUserCount(

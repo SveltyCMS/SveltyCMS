@@ -282,7 +282,13 @@ export function scanFile(filePath: string): Offense[] {
       if (Array.isArray(child)) {
         for (const c of child) walk(c, node);
       } else if (child && typeof child === "object") {
-        walk(child, node);
+        if (child.type === "Fragment") {
+          // A fragment is transparent: its children belong to `node`, so text inside
+          // <code>/<pre>/<svg> is attributed to that element instead of the fragment.
+          for (const c of child.nodes ?? []) walk(c, node);
+        } else {
+          walk(child, node);
+        }
       }
     }
   }

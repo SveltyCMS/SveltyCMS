@@ -1,9 +1,15 @@
 /**
- * @file src/lib/json-render/catalog.ts
- * @description Central catalog for AI-native generative layouts using json-render-svelte.
+ * @file src/services/json-render/catalog.ts
+ * @description Native Svelte 5 + Valibot catalog and types for AI-native generative layouts.
+ *
+ * Features:
+ * - Zero `json-render-svelte` / `zod` dependency footprint
+ * - Valibot `SpecSchema` + `validateSpec()` for runtime AI spec validation
+ * - Lazy Vite display component loading via `getComponentLoader()`
  */
 
-import { schema, defineRegistry } from "json-render-svelte";
+import type { Component, Snippet } from "svelte";
+import { array, boolean, object, optional, record, safeParse, string, unknown } from "valibot";
 import type { WidgetDefinition } from "@widgets/types";
 import { logger } from "@utils/logger";
 import { getComponentLoader } from "@src/widgets/scanner";
@@ -13,23 +19,82 @@ import VerticalLayout from "./components/vertical-layout.svelte";
 import HorizontalLayout from "./components/horizontal-layout.svelte";
 import Text from "./components/text.svelte";
 
-// The unified catalog containing all AI-generatable components.
-export const sveltyCatalog = schema.createCatalog({
-  components: {},
-  actions: {},
+/**
+ * Single node in an AI-generated layout specification.
+ * Supports both `{ props, children }` and JSON-Forms-style `{ elements, label, options }`.
+ */
+export interface UIElement {
+  type: string;
+  props?: Record<string, unknown>;
+  children?: string[];
+  elements?: string[];
+  visible?: boolean;
+  label?: string;
+  scope?: string;
+  options?: Record<string, unknown>;
+}
+
+/**
+ * Root AI-generated layout specification.
+ */
+export interface Spec {
+  root: string;
+  elements: Record<string, UIElement>;
+}
+
+/**
+ * Props passed to registered generative layout components.
+ */
+export interface ComponentRenderProps {
+  element?: UIElement;
+  children?: Snippet;
+  loading?: boolean;
+  emit?: (eventName: string) => void;
+  bindings?: Record<string, string>;
+}
+
+/**
+ * Valibot schema for validating AI-generated layout specs.
+ */
+export const UIElementSchema = object({
+  type: string(),
+  props: optional(record(string(), unknown())),
+  children: optional(array(string())),
+  elements: optional(array(string())),
+  visible: optional(boolean()),
+  label: optional(string()),
+  scope: optional(string()),
+  options: optional(record(string(), unknown())),
 });
+
+export const SpecSchema = object({
+  root: string(),
+  elements: record(string(), UIElementSchema),
+});
+
+/**
+ * Validates an untrusted AI payload against `SpecSchema`.
+ */
+export function validateSpec(input: unknown): Spec | null {
+  const result = safeParse(SpecSchema, input);
+  return result.success ? (result.output as Spec) : null;
+}
+
+// The unified catalog containing all AI-generatable components.
+export const sveltyCatalog = {
+  data: {
+    components: {} as Record<string, unknown>,
+    actions: {} as Record<string, unknown>,
+  },
+};
 
 // The registry that maps component names to Svelte components.
-const { registry } = defineRegistry(sveltyCatalog as any, {
-  components: {
-    VerticalLayout: VerticalLayout as any,
-    HorizontalLayout: HorizontalLayout as any,
-    Text: Text as any,
-    Control: Text as any, // Fallback Control to Text for now
-  },
-});
-
-export const sveltyRegistry = registry as any;
+export const sveltyRegistry: Record<string, Component<ComponentRenderProps>> = {
+  VerticalLayout: VerticalLayout as Component<ComponentRenderProps>,
+  HorizontalLayout: HorizontalLayout as Component<ComponentRenderProps>,
+  Text: Text as Component<ComponentRenderProps>,
+  Control: Text as Component<ComponentRenderProps>,
+};
 
 /**
  * Registers a widget into the generative catalog.
@@ -38,7 +103,7 @@ export async function registerForJsonRender(widget: WidgetDefinition): Promise<v
   if (!widget.jsonRender) return;
 
   // 1. Add to the catalog schema so AI knows it exists (synchronous)
-  (sveltyCatalog.data as any).components[widget.Name] = {
+  sveltyCatalog.data.components[widget.Name] = {
     props: {
       value: { type: "any" },
       field: { type: "object" },
@@ -50,12 +115,12 @@ export async function registerForJsonRender(widget: WidgetDefinition): Promise<v
   if (loader) {
     try {
       const mod = await loader();
-      sveltyRegistry[widget.Name] = mod.default;
+      sveltyRegistry[widget.Name] = mod.default as Component<ComponentRenderProps>;
     } catch (err) {
       logger.debug(`[JsonRender] Failed to load display component for ${widget.Name}:`, err);
-      sveltyRegistry[widget.Name] = Text;
+      sveltyRegistry[widget.Name] = Text as Component<ComponentRenderProps>;
     }
   } else {
-    sveltyRegistry[widget.Name] = Text;
+    sveltyRegistry[widget.Name] = Text as Component<ComponentRenderProps>;
   }
 }

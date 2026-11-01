@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:source-branch"
 author: "SveltyCMS Team"
 created: "2026-07-04"
-updated: "2026-10-05"
+updated: "2026-11-01"
 tags:
   - "version"
   - "update"
@@ -121,7 +121,7 @@ A manual trigger remains at `Actions → Auto Release → Run workflow`, and pus
 | **Version Tests**          | `tests/unit/api/version.test.ts`              | Unit tests for `compareVersions` (SemVer incl. prerelease precedence) and `checkForUpdates` — these import the real implementation, not a copy |
 | **Auto Release**           | `.github/workflows/auto-release.yaml`         | CI pass on `main` (or manual `v*` tag push / dispatch) → tag, GitHub Release, npm publish                                                      |
 
-> **Note**: `src/utils/media/version-history.ts` is a separate module for tracking **media file** revisions (create/update/replace diffs) — not related to CMS release versioning.
+> **Note**: media file revisions are a different feature. They live in `src/utils/media/media-storage.server.ts` (`createVersion`, `compareMediaVersions`, `getVersionStats`) and the `POST /api/media/version/{id}` routes — not related to CMS release versioning, and there is no `src/utils/media/version-history.ts`.
 
 ---
 
@@ -163,7 +163,7 @@ Queries the GitHub Releases API and compares against the installed version from 
 }
 ```
 
-If GitHub is unreachable, the endpoint returns `latestVersion: null` with `updateAvailable: false` and an `error` field.
+If GitHub is unreachable, the endpoint normally returns `latestVersion: null` with `updateAvailable: false` and an `error` field — **unless a successful check is still fresh**. Transient failures (non-2xx, timeout, network error) are answered from the last successful result while it is under 6 hours old (`SUCCESS_CACHE_TTL_MS`, process-wide in `src/services/core/version-service.ts`), so a 403 rate limit does not repaint a known-current install as "could not check". Payload problems (unexpected shape, no releases) stay errors: they are not expected to heal.
 
 ---
 
@@ -173,6 +173,7 @@ The `VersionCheck` component (`src/components/version-check.svelte`) appears in 
 
 - Reads `PKG_VERSION` from `publicEnv` (loaded from `package.json` at server boot via `settings-service.ts` → `+layout.server.ts`)
 - Fetches `/api/system/version/check` every hour to compare against the latest GitHub release (not on `/setup` — see below)
+- Keeps the last successful verdict on a transient failure: the server serves its cached result for up to 6 hours, so the badge does not flip to a warning/error because one poll hit a rate limit
 - Shows a clickable badge linking to the releases page
 
 | Badge State            | Meaning                                                                                               |

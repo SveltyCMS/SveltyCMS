@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-08-19"
+updated: "2026-11-01"
 tags:
   - "dashboard"
   - "widgets"
@@ -558,13 +558,15 @@ System health check for dashboard widgets.
 {
 	"overallStatus": "READY" | "DEGRADED" | "INITIALIZING" | "FAILED" | "IDLE",
 	"timestamp": "2025-01-20T10:30:00Z",
-	"uptime": 3600,
+	"uptime": 1784889000,
 	"components": {
 		"database": { "status": "healthy", "responseTime": 5 },
 		"cache": { "status": "healthy" }
 	}
 }
 ```
+
+> `uptime` on this endpoint is **milliseconds** (`Math.floor(process.uptime() * 1000)`), not seconds. `GET /api/dashboard/stats` reports `process.uptime()` in seconds — the two payloads do not share a unit, so format per endpoint instead of guessing from magnitude.
 
 **Status Codes**:
 
@@ -600,6 +602,8 @@ Performance metrics from the MetricsService.
   }
 }
 ```
+
+> The `system.uptime` value is milliseconds: `MetricsService.getSystemMetrics()` returns `Date.now() - startTime`. The admin monitor formats it with `formatUptimeMs()` from `@utils/format-uptime` (e.g. `29m`, `1d 2h 3m`, `< 1m`), which never infers the unit from the value.
 
 **Use Case**: performance-widget, unified-metrics-widget
 
@@ -1064,28 +1068,20 @@ The service reads credentials from `config/private.ts` (`CF_API_TOKEN`, `CF_ZONE
 
 ## Security Alerting & SIEM Integration
 
-`src/services/security/monitoring-service.ts` provides real-time anomaly detection with webhook-based alerting for external security systems:
+The monitor's security quadrant is fed by `securityResponseService` (`src/services/security/response-service.ts`) and the security state store, not by a standalone monitoring service:
 
-```
-import { securityMonitor } from "@services/security/monitoring-service";
+```typescript
+import { securityResponseService } from "@src/services/security/response-service";
 
-// Start monitoring (called during server boot)
-securityMonitor.start();
+const stats = await securityResponseService.getSecurityStats(tenantId);
+// { activeIncidents, totalIncidentsLast24h, threatDistribution: { low, medium, high, critical } }
 
-// Configure SIEM webhook (JSON, CEF, or LEEF format)
-securityMonitor.configureWebhook({
-  url: "https://siem.company.com/ingest",
-  secret: "webhook-signing-key",
-  format: "cef",
-  enabled: true,
-});
-
-// Check monitoring status for dashboard widget
-const status = securityMonitor.getStatus();
-// { isMonitoring, alertCount, unacknowledgedCount, activeRules, eventCounts }
+const active = await securityResponseService.getActiveIncidents(tenantId);
 ```
 
-Five anomaly detection rules run automatically: brute force detection, unusual access patterns, permission escalation attempts, rapid session creation, and token abuse detection. Each rule has configurable thresholds and cooldown periods to prevent alert fatigue.
+- **Incident feed**: `getSecurityStats()` and `getActiveIncidents()` read the tenant-scoped incident store. `analyzeRequest()` (called from `hooks/handle-security.ts` on every request) and `reportSecurityEvent()` append threat indicators and evaluate the response policies; a confirmed incident is persisted with `securityStore.addIncident()`. The monitor (`/config/monitor`) renders the counts plus the recent-incident list.
+- **No SIEM exporter in this tree**: there is no `monitoring-service.ts`, no `securityMonitor.configureWebhook()` API, and no CEF/LEEF/log-format exporter. Forwarding incidents to an external SIEM requires a custom integration against the audit log or the incident store; earlier revisions of this page documented an API that does not exist.
+- **Outbound webhooks** are the event-driven path (`config:webhooks`, `X-Svelty-Signature`). They deliver configured events and are not a security-alert transport on their own.
 
 ## Planned Enhancements
 

@@ -212,3 +212,30 @@ describe("saveMedia — dedupe before derivative generation", () => {
     await vi.waitFor(() => expect(mocks.processImageWithPresets).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("batchProcessImages — bounded concurrency", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("processes items with bounded concurrency (max 4 in-flight) and preserves input order", async () => {
+    const svc = createService();
+    let inFlight = 0;
+    let maxInFlight = 0;
+
+    vi.spyOn(svc, "manipulateMedia").mockImplementation(async (id: string) => {
+      inFlight += 1;
+      if (inFlight > maxInFlight) maxInFlight = inFlight;
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight -= 1;
+      return { _id: id } as unknown as Awaited<ReturnType<typeof svc.manipulateMedia>>;
+    });
+
+    const ids = Array.from({ length: 10 }, (_, i) => `media-${i}`);
+    const out = await svc.batchProcessImages(ids, {}, "user-1", TENANT_ID);
+
+    expect(out.map((item) => item._id)).toEqual(ids);
+    expect(maxInFlight).toBeGreaterThan(1);
+    expect(maxInFlight).toBeLessThanOrEqual(4);
+  });
+});

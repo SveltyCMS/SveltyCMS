@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:wizard-hat"
 author: "SveltyCMS Team"
 created: "2025-10-30"
-updated: "2026-10-13"
+updated: "2026-11-01"
 tags:
   - "setup"
   - "wizard"
@@ -49,7 +49,7 @@ The setup wizard is a multi-step form that guides users through initial SveltyCM
 
 ### Before you start
 
-- **A target database — or none at all.** SQLite needs only a writable path. For MongoDB, PostgreSQL, MySQL, or MariaDB, have host, port, and database name ready, plus a user and password for every type except plain `mongodb`.
+- **A target database — or none at all.** SQLite needs only a writable path. For MongoDB, PostgreSQL, or MariaDB, have host, port, and database name ready, plus a user and password for every type except plain `mongodb`.
 - **The production URL** the install will serve, for example `https://cms.example.com`.
 - **The administrator account**: username, email, and a password that meets the rules in [Step 2](#step-2-admin-account-creation).
 - **SMTP details** if the CMS should send mail — optional, and changeable later in settings.
@@ -138,11 +138,14 @@ WCAG 2.1 AA compliant features:
 
 **fields**:
 
-- Database Type (SQLite, PostgreSQL, MariaDB/MySQL, MongoDB, MongoDB Atlas)
+- Database Type (SQLite, PostgreSQL, MariaDB, MongoDB, MongoDB Atlas)
+
+> **MySQL is not a separate option.** MariaDB is the supported MySQL-compatible engine and is driven through the `mysql2` driver; the wizard has no `mysql` database type. Documentation that lists "MySQL" as a fourth SQL choice describes a removed option.
+
 - Host/Connection String
 - Port (for non-Atlas)
 - Database Name
-- Username (required for PostgreSQL, MariaDB/MySQL and `mongodb+srv`, optional for a local MongoDB)
+- Username (required for PostgreSQL, MariaDB and `mongodb+srv`, optional for a local MongoDB)
 - Password (same rules as the username)
 - **Redis caching** (optional): when enabled, Redis host, port, and password, plus a **Test Redis Connection** button
 - **Advanced Database Options (Clustering & Scaling)** (optional): full connection strings for regional read-only replicas (PostgreSQL and MongoDB), one per replica, with an optional `?region=code` suffix for geo routing
@@ -154,7 +157,7 @@ WCAG 2.1 AA compliant features:
 - **Atlas Helper**: Collapsible guide for MongoDB Atlas setup
 - **Existing Data Detection**: Probes the target database for existing tables or collections before proceeding.
 - **Data Overwrite Confirmation**: If existing data is detected, the wizard provides a clear modal warning. Users can choose to **Overwrite** the database (which drops and recreates it) or specify different connection details to prevent accidental data loss.
-- **Test Connection**: Validates configuration before proceeding
+- **Test Connection** is a **read-only probe**: it does not create the SQLite file, tables, or indexes, does not seed, and does not write `config/private.ts` (`createIfMissing: false`, `skipModuleInit: true`, `readOnlyProbe: true`). A missing target returns success with "will be created when you continue setup". The one destructive branch is the explicit **Overwrite** confirmation for an existing database.
 - **Error Classification**: Detailed error messages (auth failed, timeout, DNS error, etc.)
 
 **Validation Rules**:
@@ -162,7 +165,7 @@ WCAG 2.1 AA compliant features:
 - Host is required and non-empty
 - Database name is required, and may contain letters, numbers, hyphens, underscores, and dots
 - Port must be a number between 1 and 65535 (not required for Atlas)
-- Username and password are required for PostgreSQL, MariaDB/MySQL and `mongodb+srv`
+- Username and password are required for PostgreSQL, MariaDB and `mongodb+srv`
 - Credentials validated on test
 
 **Redis caching (optional)**:
@@ -190,7 +193,7 @@ These are three separate scaling layers: Redis caches database queries in memory
 
 - Green success message with connection details
 - "Next" button enabled
-- Seeding has already started in the background: the wizard writes `config/private.ts` and seeds settings, roles, and themes while you fill in the remaining steps
+- Nothing has been written yet. The explicit **Next** is what materializes the database (SQLite file / schema), writes `config/private.ts`, and queues the seed of settings, roles, and themes; `completeSetup` waits for that work before finalizing.
 - Editing the connection fields after a green test hides the success summary and asks for another test — the check always applies to the connection you are about to use
 
 ```
@@ -292,7 +295,7 @@ stateDiagram-v2
 **Basic Settings**:
 
 - Site Name (e.g., "My SveltyCMS Site")
-- Production URL (full URL with https://)
+- Production URL (full URL with https://) — pre-filled from the request origin (`url.origin` in `+page.server.ts`), so a wizard opened at `https://cms.example.com/setup` starts with that value instead of a hardcoded localhost default
 - Timezone
 
 **Language Configuration**:
@@ -331,6 +334,7 @@ stateDiagram-v2
   - **Content Languages**: From ISO-639-1 (150+ languages), no rebuild required.
 - **Cloud Storage Notice**: When a cloud media storage type is selected, a notice appears beside the Cloudflare CDN heading reminding you to configure the credentials in System Settings after setup
 - **Collapsible CDN Section**: The Cloudflare purge fields sit behind a chevron toggle, collapsed by default and expanded automatically for a cloud media storage type. The section and each of the three field labels carry a help tooltip
+- **No consent banner during setup**: the cookie-consent banner is deliberately suppressed on `/setup` (its API sits behind the setup gate and there is no finished site to consent to). It renders on every other route once setup completes.
 
 **Validation Rules**:
 
@@ -692,7 +696,7 @@ bun add mongoose
 pnpm add mongoose
 ```
 
-Then clear localStorage and retry test. MongoDB and SQLite drivers ship with the CMS, so this only affects PostgreSQL, MySQL, and MariaDB (`postgres`, `mysql2`).
+Then clear localStorage and retry test. MongoDB and SQLite drivers ship with the CMS, so this only affects PostgreSQL and MariaDB (`postgres`, `mysql2`).
 
 #### Issue: A Step Will Not Let Me Continue
 

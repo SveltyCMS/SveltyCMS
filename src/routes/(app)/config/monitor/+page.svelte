@@ -54,6 +54,7 @@
 		monitor_webhook_status
 	} from '@src/paraglide/messages';
 	import { formatTime, formatDateTime } from '@utils/format-date';
+	import { formatUptimeMs } from '@utils/format-uptime';
 
 	let { data } = $props();
 	const system = $derived(data.system as any);
@@ -72,19 +73,6 @@
 
 		return () => clearInterval(interval);
 	});
-
-	// Format uptime from seconds
-	function formatUptime(seconds: number): string {
-		if (!seconds || seconds < 0) return 'Just started';
-		const d = Math.floor(seconds / 86400);
-		const h = Math.floor((seconds % 86400) / 3600);
-		const m = Math.floor((seconds % 3600) / 60);
-		const parts: string[] = [];
-		if (d > 0) parts.push(`${d}d`);
-		if (h > 0) parts.push(`${h}h`);
-		if (m > 0) parts.push(`${m}m`);
-		return parts.length > 0 ? parts.join(' ') : '< 1m';
-	}
 </script>
 
 <AdminPageShell
@@ -170,7 +158,7 @@
 				<div>
 					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">{monitor_system()}</h3>
 					<p class="text-3xl font-black" data-testid="monitor-uptime">
-						{formatUptime(system?.uptime ?? 0)}
+						{formatUptimeMs(system?.uptime ?? 0)}
 						<span class="text-base font-normal opacity-50">{monitor_uptime()}</span>
 					</p>
 				</div>

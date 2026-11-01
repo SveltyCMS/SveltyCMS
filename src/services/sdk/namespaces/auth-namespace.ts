@@ -3,28 +3,16 @@
  * @description Authentication namespace for LocalCMS SDK.
  */
 import { hasTenantBypass, withSystemScope } from "@src/databases/system-tenant-scope";
+import { lazyModule } from "@utils/lazy-module";
 
 /** Cached lazy handle to the authentication hook — one module-registry lookup instead of one per call. */
-let handleAuthenticationModulePromise:
-  | Promise<typeof import("@src/hooks/handle-authentication")>
-  | undefined;
-function loadHandleAuthenticationModule(): Promise<
-  typeof import("@src/hooks/handle-authentication")
-> {
-  return (handleAuthenticationModulePromise ??= import("@src/hooks/handle-authentication"));
-}
+const loadHandleAuthenticationModule = lazyModule(() => import("@src/hooks/handle-authentication"));
 
 /** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
-let handleTurboGetModulePromise: Promise<typeof import("@src/hooks/handle-turbo-get")> | undefined;
-function loadHandleTurboGetModule(): Promise<typeof import("@src/hooks/handle-turbo-get")> {
-  return (handleTurboGetModulePromise ??= import("@src/hooks/handle-turbo-get"));
-}
+const loadHandleTurboGetModule = lazyModule(() => import("@src/hooks/handle-turbo-get"));
 
 /** Cached lazy handle to the SSO session store — one module-registry lookup instead of one per call. */
-let ssoSessionModulePromise: Promise<typeof import("@src/databases/auth/sso-session")> | undefined;
-function loadSsoSessionModule(): Promise<typeof import("@src/databases/auth/sso-session")> {
-  return (ssoSessionModulePromise ??= import("@src/databases/auth/sso-session"));
-}
+const loadSsoSessionModule = lazyModule(() => import("@src/databases/auth/sso-session"));
 
 import { AppError, getErrorMessage, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";

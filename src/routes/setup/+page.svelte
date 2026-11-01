@@ -58,13 +58,16 @@
 	// Step Content Components
 	import WelcomeModal from './welcome-modal.svelte';
 	import Stepper from '@components/ui/stepper.svelte';
+	import type { PageData } from './$types';
 	import VersionCheck from '@src/components/version-check.svelte';
 	import { logger } from '@src/utils/logger.ts';
 	import { dbConfigForHint, isPresetId } from './market';
 	import { readSetupHints } from './setup.remote';
 
 	// --- 1. STATE MANAGEMENT (Wired to Store) ---
-	let { data: _data } = $props();
+	// `origin` comes from the server load; the intersection keeps editors happy
+	// even before `svelte-kit sync` regenerates PageData.
+	let { data }: { data: PageData & { origin?: string } } = $props();
 	// Stores
 	const wizard = setupStore.wizard;
 	const {
@@ -115,6 +118,10 @@
 				logger.info('[Setup] Existing session detected. Loading saved data.');
 				loadStore();
 			}
+
+			// Prefer the request origin over the legacy localhost default so the
+			// production URL review matches the host the operator actually uses.
+			setupStore.seedHostProdFromOrigin(data?.origin);
 
 			initialDataSnapshot = JSON.stringify(wizard);
 			setupPersistenceFn();
@@ -248,8 +255,11 @@
 			if (dbConfigComponent && typeof dbConfigComponent.installDatabaseDriver === 'function') {
 				await dbConfigComponent.installDatabaseDriver(wizard.dbConfig.type);
 			}
-			// Seeding is now triggered automatically by the store when the test passes.
-			// If it's already in progress or done, we just move to the next step.
+			// The connection test is read-only: materialize the database (file/schema),
+			// write config/private.ts and seed system data only on this explicit Next.
+			// `seedDatabase` returns as soon as the server queues the background work;
+			// `completeSetup` waits for it before finalizing.
+			await setupStore.seedDatabase();
 		}
 		if (
 			(wizard.currentStep === 1 || wizard.currentStep === 3) &&

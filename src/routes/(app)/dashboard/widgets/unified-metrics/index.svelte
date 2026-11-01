@@ -68,6 +68,7 @@
 		widget_unified_uptime
 	} from '@src/paraglide/messages';
 	import { formatNumber } from '@utils/format-date';
+	import { formatUptimeMs } from '@utils/format-uptime';
 
 	interface UnifiedMetrics {
 		requests: { total: number; errors: number; errorRate: number; avgResponseTime: number };
@@ -151,12 +152,6 @@
 			cacheHitHistory,
 			(m.api.cacheHitRate + m.authentication.cacheHitRate) / 2
 		);
-	}
-
-	function fmtUptime(sec: number): string {
-		const h = Math.floor(sec / 3600),
-			m = Math.floor((sec % 3600) / 60);
-		return h > 0 ? `${h}h ${m}m` : `${m}m`;
 	}
 
 	function fmtMs(ms: number): string {
@@ -266,7 +261,7 @@
 						</div>
 						<div class="text-end">
 							<div class="text-xs text-(--admin-text-muted)">{widget_unified_uptime()}</div>
-							<div class="font-mono text-sm tabular-nums">{fmtUptime(m.uptime)}</div>
+							<div class="font-mono text-sm tabular-nums">{formatUptimeMs(m.uptime)}</div>
 						</div>
 					</div>
 

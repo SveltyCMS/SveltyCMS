@@ -147,6 +147,29 @@ export function serveCachedEntry(cached: any, request: Request): Response {
 const _pendingPatterns = new Set<string>();
 let _patternFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * True when a cached plain-API body predates the latest write to its collection.
+ *
+ * The plain API cache is cleared by the debounced `schedulePatternClear` (50 ms)
+ * plus a Redis SCAN, so a list GET that lands inside that window — or reads the
+ * shared L2 copy before the scan reaches it — used to serve the superseded list.
+ * The entry carries the collection epoch captured when its request started; a
+ * write bumps the epoch, so the read is a miss immediately, without waiting for
+ * the flusher. Entries written before this fence (no `gen`) fall through to the
+ * old debounce path and expire on the API TTL.
+ */
+function isApiCacheEntryStale(
+  entry: unknown,
+  pathname: string,
+  tenantId: DatabaseId | null | undefined,
+): boolean {
+  if (!entry || typeof entry !== "object") return false;
+  const { collection, gen } = entry as { collection?: unknown; gen?: unknown };
+  if (typeof gen !== "number" || typeof collection !== "string") return false;
+  if (getCollectionFromPath(pathname) !== collection) return false;
+  return gen !== cacheService.getCollectionEpoch(collection, tenantId);
+}
+
 function schedulePatternClear(pattern: string, tenantId?: DatabaseId | null) {
   _pendingPatterns.add(`${pattern}::${tenantId || "default"}`);
   if (!_patternFlushTimer) {
@@ -207,6 +230,14 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
     const cacheKey = isGet
       ? buildUserCacheKey(url.pathname, url.search, getUserCacheId(locals.user))
       : "";
+    // Captured BEFORE resolve() so a concurrent write can never stamp this
+    // response with the post-write generation (which would make a superseded
+    // body look fresh). See `isApiCacheEntryStale`.
+    const apiCacheCollection = isGet ? getCollectionFromPath(url.pathname) : null;
+    const apiCacheGeneration =
+      apiCacheCollection !== null
+        ? cacheService.getCollectionEpoch(apiCacheCollection, locals.tenantId)
+        : undefined;
 
     const refresh = isGet && url.searchParams.get("refresh") === "true";
     const nocache =
@@ -233,13 +264,19 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
         try {
           const cached = await cacheService.get<any>(cacheKey, locals.tenantId);
           if (cached) {
-            metricsService.recordApiCacheHit();
-            // 🚀 Stash the cache entry's already-serialized payload into locals so
-            // the downstream token-resolution hook reuses it instead of
-            // response.clone().text() on the cache-HIT body (its #1 hot-path cost).
-            (locals as any).apiData = cached?.data ?? (locals as any).apiData;
-            if (typeof cached?.body === "string") (locals as any).apiBody = cached.body;
-            return serveCachedEntry(cached, request);
+            if (isApiCacheEntryStale(cached, url.pathname, locals.tenantId)) {
+              // Drop it before resolve() so the dispatcher's sync L1 probe
+              // (`cacheService.getSync`) cannot serve it right after this hook.
+              void cacheService.delete(cacheKey, locals.tenantId).catch(() => {});
+            } else {
+              metricsService.recordApiCacheHit();
+              // 🚀 Stash the cache entry's already-serialized payload into locals so
+              // the downstream token-resolution hook reuses it instead of
+              // response.clone().text() on the cache-HIT body (its #1 hot-path cost).
+              (locals as any).apiData = cached?.data ?? (locals as any).apiData;
+              if (typeof cached?.body === "string") (locals as any).apiBody = cached.body;
+              return serveCachedEntry(cached, request);
+            }
           }
         } catch (cacheError) {
           logger.warn(`Cache read error: ${getErrorMessage(cacheError)}`);
@@ -433,6 +470,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
                     const cacheEntry = {
                       data: responseData,
                       body: responseBody,
+                      ...(apiCacheCollection !== null && apiCacheGeneration !== undefined
+                        ? { collection: apiCacheCollection, gen: apiCacheGeneration }
+                        : {}),
                       compressed: Object.keys(compressedPayloads).length
                         ? compressedPayloads
                         : undefined,

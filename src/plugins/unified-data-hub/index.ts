@@ -20,7 +20,6 @@
  */
 
 import { definePlugin } from "../define-plugin";
-export { unifiedDataHubHeadlessContracts } from "./headless-contracts";
 
 export const unifiedDataHubPlugin = definePlugin({
   metadata: {

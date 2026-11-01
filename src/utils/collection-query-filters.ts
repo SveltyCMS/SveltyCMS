@@ -478,10 +478,17 @@ export function buildCollectionQueryCacheKey(params: BuildCollectionCacheKeyPara
   return `collection:${collectionId}:query:${queryHash}:page:${page}:size:${pageSize}:lang:${lang}:tenant:${tenant}:user:${user}:edit:${edit}`;
 }
 
+const searchableFieldsCache = new WeakMap<object, string[]>();
+
 /**
  * Searchable field names for global FTS within a collection (list + count).
  */
 export function getSearchableFieldNames(collection: Schema | null | undefined): string[] {
+  if (collection && typeof collection === "object") {
+    const cached = searchableFieldsCache.get(collection);
+    if (cached) return cached;
+  }
+
   const names: string[] = [];
   if (collection?.fields?.length) {
     for (const field of collection.fields) {
@@ -493,5 +500,9 @@ export function getSearchableFieldNames(collection: Schema | null | undefined): 
     }
   }
   names.push("_id", "status", "createdBy", "updatedBy");
+
+  if (collection && typeof collection === "object") {
+    searchableFieldsCache.set(collection, names);
+  }
   return names;
 }

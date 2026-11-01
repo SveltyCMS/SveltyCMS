@@ -81,4 +81,52 @@ describe("/config tile search (client interaction)", () => {
       rendered.cleanup();
     }
   });
+
+  it("shows an Editor the Design System and Dashboard tiles, never admin-only pages (retest m6)", () => {
+    const rendered = renderPage(ConfigPage, {
+      pluginStates: {},
+      isAdmin: false,
+      permissions: {
+        "config:appearance": { hasPermission: true, isRateLimited: false },
+        "system:dashboard": { hasPermission: true, isRateLimited: false },
+      },
+    });
+    try {
+      expect(rendered.target.querySelector("a[href='/config/design-system']")).not.toBeNull();
+      expect(rendered.target.querySelector("a[href='/dashboard']")).not.toBeNull();
+
+      for (const adminOnlyHref of [
+        "/config/system-settings",
+        "/config/access-management",
+        "/config/automations",
+        "/config/extensions",
+        "/config/monitor",
+        "/config/webhooks",
+      ]) {
+        expect(
+          rendered.target.querySelector(`a[href='${adminOnlyHref}']`),
+          adminOnlyHref,
+        ).toBeNull();
+      }
+
+      expect(rendered.target.querySelector("[data-testid='config-no-access']")).toBeNull();
+    } finally {
+      rendered.cleanup();
+    }
+  });
+
+  it("renders the no-access state when no tile is usable", () => {
+    const rendered = renderPage(ConfigPage, {
+      pluginStates: {},
+      isAdmin: false,
+      permissions: {},
+    });
+    try {
+      expect(rendered.target.querySelector("[data-testid='config-no-access']")).not.toBeNull();
+      expect(rendered.target.querySelector("a[href='/config/design-system']")).toBeNull();
+      expect(rendered.target.querySelector("a[href='/dashboard']")).toBeNull();
+    } finally {
+      rendered.cleanup();
+    }
+  });
 });

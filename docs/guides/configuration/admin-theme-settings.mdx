@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:compass-outline"
 author: "SveltyCMS Team"
 created: "2026-06-04"
-updated: "2026-10-11"
+updated: "2026-11-01"
 tags:
   - "theme"
   - "appearance"
@@ -50,6 +50,10 @@ Navigate to **Config → Design System → Themes**.
 | **Delete**   | Remove an unused theme. Cannot delete the active or default theme. |
 
 The active theme shows a green **Active** badge. The system default theme (created during setup) shows a **Default** badge and cannot be deleted.
+
+### Marketplace themes
+
+The palette browser in the Themes tab loads its catalog through the same-origin proxy `GET /api/marketplace?type=theme` (with credentials), not by calling `marketplace.sveltycms.com` from the browser. The handler is admin-gated and merges the local built-in themes with the remote catalog server-side, so no third-party origin, credential, or CORS policy is involved in the page; a failed or offline call returns the local themes (`source: "local"`) instead of an error state. Install goes through `POST /api/marketplace/install` (admin-only, `validateEgressUrl` + `safeFetch`).
 
 The built-in theme is a single row named **Default**. On boot (and on every `/src/themes/*.json` change) the file sync reconciles it: a legacy `SveltyCMSTheme` row is renamed to **Default**, any duplicate built-in row is pruned, and a stale `customCss` palette is cleared so brand colors always come from the `src/app.css` `@theme` tokens unless you explicitly set one.
 
@@ -459,7 +463,7 @@ The `ui-store` is verified by unit tests (`tests/unit/ui-store.test.ts`) confirm
 
 ### Responsive Breakpoints
 
-Layout visibility adapts to screen size via `src/utils/screen-size.ts`, which defines six breakpoints:
+Layout visibility adapts to screen size via `src/stores/screen-size-store.svelte.ts`, which defines six breakpoints:
 
 | Breakpoint | Min Width | Layout Behavior                                 |
 | :--------- | :-------- | :---------------------------------------------- |
@@ -470,7 +474,7 @@ Layout visibility adapts to screen size via `src/utils/screen-size.ts`, which de
 | `xl`       | 1280px    | Large desktop — spacious density comfortable    |
 | `2xl`      | 1536px    | Ultrawide — maximum content area                |
 
-The `screen` store (`src/stores/screen-size-store.svelte`) exposes `isDesktop` and `isMobile` booleans. On mobile, a `<FloatingNav />` replaces the sidebar, and the main content area gets extra bottom padding for the mobile navigation bar.
+The `screen` store (`src/stores/screen-size-store.svelte.ts`) exposes `isDesktop` and `isMobile` booleans. On mobile, a `<FloatingNav />` replaces the sidebar, and the main content area gets extra bottom padding for the mobile navigation bar.
 
 ### How Themes Leverage the Shell
 

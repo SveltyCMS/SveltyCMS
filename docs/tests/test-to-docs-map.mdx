@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-10-11"
+updated: "2026-11-01"
 tags:
   - "tests"
   - "documentation"
@@ -32,6 +32,20 @@ tags:
 | `tests/unit/services/memory-governor-profile-target.test.ts`            | `docs/reference/database/performance-architecture.mdx` (§ Memory governor: one RSS-target derivation)                                                                |
 | `tests/unit/services/memory-governor.test.ts`                           | `docs/reference/database/performance-architecture.mdx` (§ Memory governor)                                                                                           |
 | `tests/unit/core/response-cache-l1-budget.test.ts`                      | `docs/reference/database/performance-architecture.mdx` (§ Memory governor: L1 byte budgets)                                                                          |
+| `tests/unit/core/response-cache-read-after-write.test.ts`               | `docs/reference/architecture/cache-system.mdx` (evict-on-write + generation fence), `docs/reference/database/performance-architecture.mdx`                           |
+| `tests/unit/hooks/api-requests.test.ts`                                 | `docs/reference/architecture/cache-system.mdx` (plain-API cache generation), `docs/reference/database/performance-architecture.mdx`                                  |
+| `tests/unit/sdk/revision-history-sqlite.test.ts`                        | `docs/reference/api/collections.mdx` (§ Entry revisions), `docs/project/achievements-2026.mdx` (§3.65)                                                               |
+| `tests/unit/setup/preset-collections.test.ts`                           | `docs/guides/configuration/setup-wizard.mdx` (revision defaults in presets), `docs/reference/api/collections.mdx`                                                    |
+| `tests/unit/routes/collectionbuilder-action-page-server.test.ts`        | `docs/reference/architecture/collection-builder-architecture.mdx`, `docs/reference/api/collections.mdx` (revision toggle/round-trip)                                 |
+| `tests/unit/routes/trash-page-server.test.ts`                           | `docs/reference/api/utility.mdx` (trash title/date/author fallbacks)                                                                                                 |
+| `tests/unit/databases/soft-delete-write.test.ts`                        | `docs/reference/api/utility.mdx` (soft-delete audit columns)                                                                                                         |
+| `tests/integration/databases/differential-parity.test.ts`               | `docs/reference/database/performance-architecture.mdx`, `docs/reference/api/utility.mdx` (four-engine soft-delete parity)                                            |
+| `tests/unit/utils/trash-item.test.ts`                                   | `docs/reference/api/utility.mdx` (shared trash projection + actor labels)                                                                                            |
+| `tests/unit/api/trash-utility.test.ts`                                  | `docs/reference/api/utility.mdx` (GET /api/trash envelope/fallbacks)                                                                                                 |
+| `tests/unit/databases/cache-service-epoch-propagation.test.ts`          | `docs/reference/architecture/cache-system.mdx` (cross-node epoch propagation), `docs/reference/database/performance-architecture.mdx`                                |
+| `tests/e2e/routes/collection-builder/kitchen-sink.spec.ts`              | `docs/reference/architecture/collection-builder-architecture.mdx`, `docs/reference/api/collections.mdx` (existing-blueprint save, revision flags)                    |
+| `tests/unit/widgets/core/rich-text.test.ts`                             | `src/widgets/core/rich-text/rich-text.mdx` (HTML comparison normalizer)                                                                                              |
+| `tests/unit/utils/format-uptime.test.ts`                                | `docs/reference/architecture/dashboard-system.mdx` (uptime units), `docs/reference/api/dashboard.mdx`                                                                |
 | `tests/unit/security/system-tenant-scope.test.ts`                       | `docs/reference/architecture/multi-tenancy.mdx`, `docs/project/achievements-2026.mdx` (§3.16)                                                                        |
 | `tests/integration/api/collections-mutations.test.ts`                   | `docs/tests/api-testing.mdx` (create/update/delete/clone/schedule HTTP contract)                                                                                     |
 | `tests/integration/api/optimistic-lock.test.ts`                         | `docs/reference/api/collections.mdx` (optimistic locking, revision restore, filter validation), `docs/project/achievements-2026.mdx` (§3.56)                         |

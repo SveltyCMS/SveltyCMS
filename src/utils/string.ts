@@ -19,6 +19,8 @@ export interface PluralForms {
   other: string;
 }
 
+const pluralRulesCache = new Map<string, Intl.PluralRules>();
+
 /**
  * i18n pluralization using Intl.PluralRules with explicit zero-form support.
  */
@@ -30,7 +32,12 @@ export function pluralize(
 ): string {
   if (count === 0 && forms.zero) return appendCount ? `0 ${forms.zero}` : forms.zero;
 
-  const rule = new Intl.PluralRules(locale).select(count);
+  let rules = pluralRulesCache.get(locale);
+  if (!rules) {
+    rules = new Intl.PluralRules(locale);
+    pluralRulesCache.set(locale, rules);
+  }
+  const rule = rules.select(count);
   const result = forms[rule as keyof PluralForms] ?? forms.other;
 
   return appendCount ? `${count} ${result}` : result;
@@ -145,30 +152,42 @@ export async function sha256(buffer: ArrayBuffer): Promise<string> {
   return arrayBuffer2hex(hashBuffer);
 }
 
+const EDIT_DISTANCE_SCRATCH_CAP = 257;
+const _editDistV0 = new Int32Array(EDIT_DISTANCE_SCRATCH_CAP);
+const _editDistV1 = new Int32Array(EDIT_DISTANCE_SCRATCH_CAP);
+
 /**
  * 🚀 Performance: Optimized Levenshtein Distance.
- * Uses two Int32Array rows instead of a full N×M matrix — O(N) memory.
+ * Uses pre-allocated module scratch Int32Array rows for strings up to 256 chars
+ * (zero heap allocations per call) instead of a full N×M matrix.
  */
 export function getEditDistance(a: string, b: string): number {
   if (a === b) return 0;
-  if (a.length === 0) return 1;
-  if (b.length === 0) return 1;
+  const lenA = a.length;
+  const lenB = b.length;
+  if (lenA === 0) return 1;
+  if (lenB === 0) return 1;
 
-  const v0 = new Int32Array(a.length + 1);
-  const v1 = new Int32Array(a.length + 1);
+  const useScratch = lenA < EDIT_DISTANCE_SCRATCH_CAP;
+  const v0 = useScratch ? _editDistV0 : new Int32Array(lenA + 1);
+  const v1 = useScratch ? _editDistV1 : new Int32Array(lenA + 1);
 
-  for (let i = 0; i <= a.length; i++) v0[i] = i;
+  for (let i = 0; i <= lenA; i++) v0[i] = i;
 
-  for (let i = 0; i < b.length; i++) {
+  for (let i = 0; i < lenB; i++) {
     v1[0] = i + 1;
-    for (let j = 0; j < a.length; j++) {
-      const cost = a[j] === b[i] ? 0 : 1;
-      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+    const bCode = b.charCodeAt(i);
+    for (let j = 0; j < lenA; j++) {
+      const cost = a.charCodeAt(j) === bCode ? 0 : 1;
+      const del = v0[j + 1] + 1;
+      const ins = v1[j] + 1;
+      const sub = v0[j] + cost;
+      v1[j + 1] = del < ins ? (del < sub ? del : sub) : ins < sub ? ins : sub;
     }
-    v0.set(v1);
+    for (let j = 0; j <= lenA; j++) v0[j] = v1[j];
   }
 
-  return v0[a.length] / Math.max(a.length, b.length);
+  return v0[lenA] / Math.max(lenA, lenB);
 }
 
 /**

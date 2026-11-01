@@ -25,6 +25,42 @@ describe("Setup Store", () => {
     expect(wizard.adminUser.username).toBe("");
   });
 
+  it("seeds the production URL from the request origin", () => {
+    const { wizard } = setupStore;
+    // Fresh wizard still carries the legacy default until an origin is applied.
+    expect(wizard.systemSettings.hostProd).toBe("https://localhost:5173");
+
+    setupStore.seedHostProdFromOrigin("https://cms.example.com");
+
+    expect(wizard.systemSettings.hostProd).toBe("https://cms.example.com");
+  });
+
+  it("normalizes a request origin and drops its path", () => {
+    const { wizard } = setupStore;
+
+    setupStore.seedHostProdFromOrigin("http://localhost:4173/setup?step=1");
+
+    expect(wizard.systemSettings.hostProd).toBe("http://localhost:4173");
+  });
+
+  it("never overwrites a production URL the user entered", () => {
+    const { wizard } = setupStore;
+    wizard.systemSettings.hostProd = "https://mysite.example.org";
+
+    setupStore.seedHostProdFromOrigin("https://cms.example.com");
+
+    expect(wizard.systemSettings.hostProd).toBe("https://mysite.example.org");
+  });
+
+  it("keeps the current value for an invalid or missing origin", () => {
+    const { wizard } = setupStore;
+
+    setupStore.seedHostProdFromOrigin("not a url");
+    setupStore.seedHostProdFromOrigin(undefined);
+
+    expect(wizard.systemSettings.hostProd).toBe("https://localhost:5173");
+  });
+
   it("should validate step 0 (Database) correctly", () => {
     const { wizard } = setupStore;
 

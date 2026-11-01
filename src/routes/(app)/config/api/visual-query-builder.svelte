@@ -65,12 +65,11 @@
 	/** Shared card chrome — mirrors the `/user` account panels. */
 	const cardClass = 'p-5 sm:p-6';
 
-	// Active configuration state
+	// Active configuration state — default to empty filters so initial "Run Query Now"
+	// returns all documents without assuming a hardcoded "published" status.
 	let customCollection = $state<string | null>(null);
 	const selectedCollection = $derived(customCollection ?? (collections[0]?.id || 'posts'));
-	let filters = $state<FilterRow[]>([
-		{ id: '1', field: 'status', operator: 'eq', value: 'published' }
-	]);
+	let filters = $state<FilterRow[]>([]);
 	let sortField = $state<string>('createdAt');
 	let sortOrder = $state<'desc' | 'asc'>('desc');
 	let limit = $state<number>(20);

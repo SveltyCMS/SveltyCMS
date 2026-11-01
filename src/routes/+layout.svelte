@@ -46,10 +46,8 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	import { beforeNavigate, afterNavigate } from '$app/navigation';
 
 	// WebMCP Support (Polyfill + Plugin)
-	// The 6.x ESM entry is side-effect-free and does not auto-install on import.
-	// Install explicitly, in the browser only — module scope so
-	// document.modelContext exists before onMount runs initWebMCP().
-	import { installWebMCP } from '@mcp-b/webmcp-polyfill';
+	// Lazy-loaded inside onMount after hydration so the root layout entry chunk
+	// (node 0) does not block first paint with @mcp-b/webmcp-polyfill + 4 tool modules.
 
 	// Components
 	import DialogManager from '@src/components/system/dialog-manager.svelte';
@@ -60,7 +58,6 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	import { applyDocumentLanguage, applySystemLanguage } from '@utils/system-locale';
 	import { initIdGenerator } from '@utils/id-generator';
 	import CookieConsent from '@src/plugins/cookie-consent/cookie-consent.svelte';
-	import { initWebMCP } from '@src/plugins/webmcp/init';
 	// Global Settings
 	import { initPublicEnv, publicEnv } from '@src/stores/global-settings.svelte';
 	import { globalLoadingStore, loadingOperations } from '@src/stores/loading-store.svelte';
@@ -206,7 +203,6 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// Initialize public environment settings from server data
 	// Note: Only access page.data after mount to avoid hydration issues
 	if (browser) {
-		installWebMCP();
 		globalLoadingStore.startLoading(loadingOperations.initialization);
 	}
 
@@ -305,11 +301,19 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 		// Initialize toast navigation handlers (must be called from onMount)
 		toast.init();
 
-		// Initialize WebMCP (Client-side AI Tools)
+		// Initialize WebMCP (Client-side AI Tools) lazily after hydration
 		if (browser) {
-			// Tiny delay to ensure polyfill overrides are settled
-			setTimeout(() => {
-				initWebMCP().catch((err) => logger.error('[WebMCP] init failed:', err));
+			setTimeout(async () => {
+				try {
+					const [{ installWebMCP }, { initWebMCP }] = await Promise.all([
+						import('@mcp-b/webmcp-polyfill'),
+						import('@src/plugins/webmcp/init')
+					]);
+					installWebMCP();
+					await initWebMCP();
+				} catch (err) {
+					logger.error('[WebMCP] init failed:', err);
+				}
 			}, 100);
 		}
 

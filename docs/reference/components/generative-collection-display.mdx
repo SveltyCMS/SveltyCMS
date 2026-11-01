@@ -1,49 +1,94 @@
 ---
 path: "docs/reference/components/generative-collection-display.mdx"
-title: "Generative Collection Display"
-description: "AI-native collection display using json-render-svelte for dynamic, spec-driven layouts."
+title: "Generative Layout Display"
+description: "AI-generated, spec-driven admin layouts rendered natively with Svelte 5 snippets and Valibot — no JSON-Render dependency."
 order: 99
 icon: "mdi:auto-fix"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-06-27"
+updated: "2026-11-01"
 tags:
   - "components"
   - "architecture"
   - "ai"
 ---
 
-# Generative Collection Display
+# Generative Layout Display
 
-The **Generative Collection Display** renders a collection's data using a dynamic JSON specification powered by `json-render-svelte`. It enables AI-generated, interactive layouts that leverage existing widgets from the svelty component registry.
+The generative layer renders an AI-produced JSON layout spec as live, state-bound Svelte 5 UI. It is used by the **Agentic Dashboard** (`src/routes/(app)/dashboard/generativedashboard.svelte`) and is built entirely from in-repo code: Valibot for spec validation and native Svelte 5 snippets for recursion.
 
-## Props
+> **History:** this surface originally wrapped the third-party `json-render-svelte` package (and `zod`). Both are gone from the package manifest, and no emitted client JS chunk references the renderer; the native implementation below replaced them. The CI bundle gate now fails if `json-render-svelte` reappears in any client chunk (see [Testing Scripts](../../tests/testing-scripts.mdx)).
 
-| Prop      | Type                      | Default  | Description                                         |
-| --------- | ------------------------- | -------- | --------------------------------------------------- |
-| `schema`  | `Schema`                  | required | Collection schema with optional `displaySpec` field |
-| `entries` | `CollectionEntry[]`       | required | Collection entries to display                       |
-| `context` | `Record<string, unknown>` | `{}`     | Additional context passed to the renderer           |
+## Data contract
 
-## Architecture
+`src/services/json-render/catalog.ts` is the single source of truth:
 
-The component works in three layers:
+| Export                    | Kind      | Purpose                                                                                                 |
+| :------------------------ | :-------- | :------------------------------------------------------------------------------------------------------ |
+| `UIElement`               | interface | One node: `type`, optional `props`, `children`, `elements`, `visible`, `label`, `scope`, `options`      |
+| `Spec`                    | interface | Root object: `root` (element key) plus `elements` (key → `UIElement`)                                   |
+| `ComponentRenderProps`    | interface | Props every registered component receives: `element`, `children` snippet, `loading`, `emit`, `bindings` |
+| `UIElementSchema`         | Valibot   | Per-node schema (`type` required, everything else optional)                                             |
+| `SpecSchema`              | Valibot   | `{ root: string, elements: Record<string, UIElement> }`                                                 |
+| `validateSpec()`          | function  | `safeParse(SpecSchema, input)` → `Spec` or `null` (never throws)                                        |
+| `sveltyRegistry`          | object    | Component-name → Svelte component map (see below)                                                       |
+| `sveltyCatalog`           | object    | Schema fragments AI providers read to learn which components exist                                      |
+| `registerForJsonRender()` | function  | Registers a widget's display component lazily via `getComponentLoader()`                                |
 
-1. **Schema Layer**: The collection `Schema` may include a `displaySpec` field — a JSON object conforming to the `json-render-svelte` `Spec` interface
-2. **Registry Layer**: `sveltyRegistry` from `@src/services/json-render/catalog` maps component names (e.g., `"EntryList"`) to actual Svelte components
-3. **Renderer Layer**: `JSONUIProvider` and `Renderer` from `json-render-svelte` consume the spec + registry to produce the UI
+Two child-list spellings are accepted: `children` (JSON-Render style) and `elements` (JSON-Forms style). The renderer resolves `children ?? elements`.
 
-## Fallback Behavior
+## Renderer
 
-If `schema.displaySpec` is not defined, the component falls back to a default render spec that wraps entries in a basic `EntryList` component, ensuring the display always works even without AI-generated layouts.
-
-## Usage
+`generativedashboard.svelte` walks the spec with a recursive snippet:
 
 ```svelte
-<GenerativeCollectionDisplay {schema} {entries} />
+{#snippet renderElement(elementKey: string, depth: number = 0)}
+  {#if currentSpec && depth < 16}
+    {@const element = currentSpec.elements[elementKey]}
+    {#if element && element.visible !== false}
+      {@const Comp = sveltyRegistry[element.type] ?? sveltyRegistry.Text}
+      <svelte:boundary onerror={(err) => logger.error(err)}>
+        <Comp {element} loading={isRegenerating}>
+          {#each resolveChildKeys(element) as childKey (childKey)}
+            {@render renderElement(childKey, depth + 1)}
+          {/each}
+        </Comp>
+      </svelte:boundary>
+    {/if}
+  {/if}
+{/snippet}
 ```
+
+Behaviour that the renderer guarantees:
+
+- **Depth cap**: recursion stops at `depth < 16`, so a cyclic or pathologically deep AI spec cannot exhaust the stack.
+- **Error isolation**: each element renders inside its own `<svelte:boundary>`; one failing component does not blank the dashboard.
+- **Unknown types**: a `type` not present in `sveltyRegistry` falls back to `Text`.
+- **Hidden nodes**: `visible: false` skips the node and its subtree.
+- **Fallback**: with no spec, the dashboard renders its default children (the manual widget grid) instead of an empty shell.
+
+## Registry
+
+`sveltyRegistry` ships with three layout primitives and a text renderer:
+
+| Name               | Component                                                  | Role                      |
+| :----------------- | :--------------------------------------------------------- | :------------------------ |
+| `VerticalLayout`   | `services/json-render/components/vertical-layout.svelte`   | Stack children vertically |
+| `HorizontalLayout` | `services/json-render/components/horizontal-layout.svelte` | Place children in a row   |
+| `Text` / `Control` | `services/json-render/components/text.svelte`              | Render a label/value leaf |
+
+Widgets join the registry when `registerForJsonRender(widget)` runs for a widget whose definition sets `jsonRender`. Registration adds the widget name to `sveltyCatalog` synchronously and resolves its `Display.svelte` through the existing Vite chunk loader; a load failure falls back to `Text` instead of breaking the whole layout.
+
+## Regeneration
+
+The dashboard posts the operator's prompt to `POST /api/ai/generate-layout` and validates the response with `validateSpec()`. An invalid payload is kept only as a last resort (`validateSpec(spec) ?? spec`) so a malformed response is still renderable, while the initial `spec` prop is validated the same way.
+
+## Schema field
+
+`src/content/types.ts` declares `displaySpec?: Record<string, unknown>` on the collection schema — a reserved slot for a per-collection display specification. **No runtime consumer renders `displaySpec` in the current tree**; the generative renderer is driven by the dashboard's `spec` prop, not by a collection schema field.
 
 ## Related
 
 - [Entry List Component](./entry-list.mdx)
-- [AI Integration Guide](../../../development/ai-integration.mdx)
+- [AI Integration Guide](../../development/ai-integration.mdx)
+- [AI Builder & Designer](../../development/ai-builder-design.mdx)

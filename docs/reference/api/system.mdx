@@ -6,7 +6,7 @@ order: 15
 icon: "mdi:cog-box"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-04-12"
+updated: "2026-11-01"
 tags:
   - "api"
   - "system"
@@ -35,7 +35,7 @@ The System API is the foundational administrative layer of SveltyCMS. It coordin
 | **Health**      | `/api/system/health` | `GET`          | **Public**                        |
 
 > [!NOTE]
-> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles resolve through the separate map in `src/routes/(app)/config/config-tile-permissions.ts`, which now points only at real `PERMISSION_CATALOG` ids (`system:admin` for admin-only pages). There is no `manage:*` vocabulary — those ids were never registered and failed closed; see [Access Management](../../guides/configuration/access-management.mdx#3-config-hub-tiles).
 
 ---
 
@@ -67,6 +67,8 @@ Webhooks allow SveltyCMS to notify external systems about content changes or sys
 
 - **Create/Update**: `POST /api/webhooks` — Saves a webhook with a target URL and event filters.
 - **Test Webhook**: `POST /api/webhooks/{id}/test` — Dispatches a dummy payload to verify connectivity.
+- **Delivery logs**: `GET /api/webhooks/logs` — Returns `{ success: true, data: [] }` for a tenant with no deliveries (an empty list is a normal answer, not a 404). Optional `?limit=` and `?status=`.
+- **Retry a delivery**: `POST /api/webhooks/logs/{id}/retry` — Re-dispatches one logged delivery; an unknown id raises `404`.
 - **Security**: Every webhook delivery includes an `X-Svelty-Signature` (HMAC-SHA256) for verification.
 
 ---

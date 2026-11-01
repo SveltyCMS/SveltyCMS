@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:shield-alert"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-08-29"
+updated: "2026-11-01"
 tags:
   - "security"
   - "csp"
@@ -112,6 +112,7 @@ Content-Security-Policy: script-src 'self' 'nonce-...'; style-src 'self' 'nonce-
 
 - **Cryptographic Nonces**: Each HTML response generates a unique CSPRNG nonce via `globalThis.crypto.getRandomValues()`.
 - **Zero Trust Extensions**: Third-party browser extensions or injected DOM scripts cannot execute without matching the request nonce.
+- **Cross-origin isolation**: page routes default to `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Opener-Policy: same-origin`. The one route-scoped exception is the email preview below.
 
 ---
 
@@ -126,6 +127,20 @@ Content-Security-Policy: worker-src 'self'; script-src 'self' 'wasm-unsafe-eval'
 ```
 
 - **WASM Acceleration**: `'wasm-unsafe-eval'` permits SIMD/WASM inference compilation while still forbidding JS `eval()`.
+
+---
+
+### 6. Email Preview Page (`/email-previews`)
+
+The preview renders arbitrary transactional-email HTML inside a sandboxed `srcdoc` iframe (an opaque origin). Under the page default `COEP: require-corp`, every embedded image or font without a CORP header is blocked — including the CMS logo — so the preview would not show what recipients receive.
+
+```http
+Cross-Origin-Embedder-Policy: credentialless
+```
+
+- **Scoped exception**: `applyAllSecurityHeaders()` sets `credentialless` only for `/email-previews` and `/email-previews/*`; every other page keeps `require-corp`.
+- **`credentialless`**: keeps the page isolated from credentialed cross-origin reads while letting no-cors asset requests through — the same policy the media routes use.
+- **Logo allowlist**: `/SveltyCMS.png` is the only static asset the pipeline marks `Cross-Origin-Resource-Policy: cross-origin` (`CROSS_ORIGIN_STATIC_ASSETS` in `src/hooks/handle-security-headers.ts`), because templates embed it and static assets skip the normal header pass. Never widen this to a path prefix.
 
 ---
 

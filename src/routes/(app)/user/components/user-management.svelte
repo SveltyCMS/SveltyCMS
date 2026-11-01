@@ -129,9 +129,12 @@
 		useradmin_fetch_error,
 		useradmin_fetch_failed,
 		useradmin_fetching_data,
+		useradmin_filter_users_aria,
 		useradmin_input,
 		useradmin_invitations,
 		useradmin_invite_user,
+		useradmin_invite_user_body,
+		useradmin_invite_user_title,
 		useradmin_manage_sessions,
 		useradmin_manage_sessions_tooltip,
 		useradmin_never,
@@ -793,8 +796,10 @@
 		modalState.trigger(
 			ModalEditToken as any,
 			{
-				title: multibuttontoken_modaltitle(),
-				body: multibuttontoken_modalbody(),
+				// Invitation dialog: the shared edit-token copy described the wrong task
+				// ("Edit Token Data" / "Modify this token data") for a create flow (retest m7).
+				title: useradmin_invite_user_title(),
+				body: useradmin_invite_user_body(),
 				roles, // Pass available roles
 				user: currentUser // Pass current user context if needed
 			},
@@ -838,7 +843,7 @@
 	<div
 		class="flex flex-wrap items-center gap-1.5 text-xs"
 		role="group"
-		aria-label="Filter users"
+		aria-label={useradmin_filter_users_aria()}
 		data-testid="user-facets"
 	>
 		<button

@@ -35,7 +35,7 @@
 	import { onMount, type Component } from 'svelte';
 	import { flip } from 'svelte/animate';
 	import { SvelteMap } from 'svelte/reactivity';
-	import type { Spec } from 'json-render-svelte';
+	import type { Spec } from '@src/services/json-render/catalog';
 	import type { PageData } from './$types';
 	import type { DashboardWidgetPickerInfo } from './widget-runtime';
 
@@ -72,7 +72,10 @@
 		dashboard_title,
 		dashboard_widget_failed_load,
 		dashboard_widget_load_error,
-		dashboard_widget_reorder_aria
+		dashboard_widget_reorder_aria,
+		widget_license_free,
+		widget_license_freemium,
+		widget_license_paid
 	} from '@src/paraglide/messages';
 	import { page } from '$app/state';
 
@@ -882,20 +885,22 @@
 												<Badge
 													variant="warning"
 													size="sm"
-													class="text-[9px] px-1.5 py-0 leading-tight">Freemium</Badge
+													class="text-[9px] px-1.5 py-0 leading-tight"
+													>{widget_license_freemium()}</Badge
 												>
 											{:else if widgetInfo?.license === 'paid'}
 												<Badge
 													variant="primary"
 													size="sm"
-													class="text-[9px] px-1.5 py-0 leading-tight">Paid</Badge
+													class="text-[9px] px-1.5 py-0 leading-tight"
+													>{widget_license_paid()}</Badge
 												>
 											{:else}
 												<Badge
 													variant="surface"
 													size="sm"
 													class="text-[9px] px-1.5 py-0 leading-tight text-(--admin-text-muted)"
-													>Free</Badge
+													>{widget_license_free()}</Badge
 												>
 											{/if}
 										</div>

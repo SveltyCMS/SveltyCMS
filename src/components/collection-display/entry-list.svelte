@@ -140,8 +140,10 @@ bulk actions, and predictive preloading.
 	import EntryListCell from './entry-list-cell.svelte';
 	import { createSmartFilter } from './create-smart-filter.svelte';
 	import SmartFilterRow from './smart-filter-row.svelte';
-	import BulkFieldEditModal from './bulk-field-edit-modal.svelte';
-	import AdvancedFilterModal, { type AdvancedFilterClause } from './advanced-filter-modal.svelte';
+	import { memoizeLazyLoader } from '@utils/lazy-module';
+	import type { AdvancedFilterClause } from './advanced-filter-modal.svelte';
+	const loadBulkFieldEditModal = memoizeLazyLoader(() => import('./bulk-field-edit-modal.svelte'));
+	const loadAdvancedFilterModal = memoizeLazyLoader(() => import('./advanced-filter-modal.svelte'));
 
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -1691,7 +1693,10 @@ bulk actions, and predictive preloading.
 														label="Select entry {rowId}"
 														hideLabel
 													/>
-													<span class="text-xs font-bold text-(--admin-text-body) truncate">
+													<span
+														class="text-xs font-bold text-(--admin-text-body) truncate"
+														dir="auto"
+													>
 														{String(
 															entry[visibleTableHeaders[0]?.name as any] || entry._id || 'Entry'
 														)}
@@ -1720,6 +1725,7 @@ bulk actions, and predictive preloading.
 															>{header.label}:</span
 														>
 														<span
+															dir="auto"
 															class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]"
 														>
 															{displayValue}
@@ -1888,6 +1894,7 @@ bulk actions, and predictive preloading.
 														{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
 														<td
 															role="gridcell"
+															dir="auto"
 															aria-colindex={colIdx + 2}
 															class="{SMART_TABLE_TD} {cellPaddingClass} text-sm {(
 																header as TableHeader
@@ -2065,22 +2072,30 @@ bulk actions, and predictive preloading.
 	</div>
 {/if}
 
-<BulkFieldEditModal
-	bind:isOpen={isBulkEditOpen}
-	selectedCount={smartTable.selectedCount}
-	fields={currentCollection?.fields || []}
-	onApply={handleApplyBulkEdit}
-	onClose={() => (isBulkEditOpen = false)}
-/>
+{#if isBulkEditOpen}
+	{#await loadBulkFieldEditModal() then { default: BulkFieldEditModal }}
+		<BulkFieldEditModal
+			bind:isOpen={isBulkEditOpen}
+			selectedCount={smartTable.selectedCount}
+			fields={currentCollection?.fields || []}
+			onApply={handleApplyBulkEdit}
+			onClose={() => (isBulkEditOpen = false)}
+		/>
+	{/await}
+{/if}
 
-<AdvancedFilterModal
-	bind:isOpen={isAdvancedFilterOpen}
-	fields={currentCollection?.fields || []}
-	initialClauses={advancedFilterClauses}
-	initialConjunction={advancedFilterConjunction}
-	onApply={handleApplyAdvancedFilters}
-	onClose={() => (isAdvancedFilterOpen = false)}
-/>
+{#if isAdvancedFilterOpen}
+	{#await loadAdvancedFilterModal() then { default: AdvancedFilterModal }}
+		<AdvancedFilterModal
+			bind:isOpen={isAdvancedFilterOpen}
+			fields={currentCollection?.fields || []}
+			initialClauses={advancedFilterClauses}
+			initialConjunction={advancedFilterConjunction}
+			onApply={handleApplyAdvancedFilters}
+			onClose={() => (isAdvancedFilterOpen = false)}
+		/>
+	{/await}
+{/if}
 
 <style>
 	div::-webkit-scrollbar {

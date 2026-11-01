@@ -6,7 +6,7 @@ order: 28
 icon: "mdi:tools"
 author: "SveltyCMS Team"
 created: "2026-06-25"
-updated: "2026-09-14"
+updated: "2026-11-01"
 tags:
   - "architecture"
   - "utilities"
@@ -16,22 +16,24 @@ tags:
 
 # Utility System Architecture
 
-SveltyCMS utilities are organized by domain into flat files and subdirectories. The `@utils/*` path alias enables direct, tree-shakeable imports. The `utils.ts` barrel exists for backward compatibility — prefer direct imports.
+SveltyCMS utilities are organized by domain into flat files and subdirectories. The `@utils/*` path alias enables direct, tree-shakeable imports. The legacy `src/utils/utils.ts` barrel no longer exists — it was removed in the 2026 lean-out and `tests/unit/utils/circular-imports.test.ts` fails if a util imports `@utils/utils` again.
 
 ---
 
 ## 1. Directory Structure
 
 ```
-src/utils/
-├── compilation/      3 files   AST compilation for content scanner
-├── media/           14 files   DAM engine — storage, processing, search, sharing, MIME, Canvas 2D
-├── schema/           5 files   Validation, comparison, tree, field utilities, Web Worker
-├── security/        11 files   Crypto, CSRF, CORS, credential hashing, auth utils
-├── server/           5 files   Setup checks, batch loading, deferred SSR elements
+src/utils/                          (counts verified 2026-11-01)
+├── api-playground/   1 file    REST playground URL builder
+├── auth/             2 files   Post-auth landing (server + shared)
+├── compilation/      4 files   AST compilation for content scanner
+├── media/           26 files   DAM engine — storage, processing, search, sharing, MIME, Canvas 2D
+├── rate-limit/      12 files   Adaptive limits, token bucket, Redis client, tenant plans
+├── schema/           3 files   Validation, comparison, tree
+├── security/        23 files   Crypto, CSRF, CORS, envelope, field encryption, auth utils
+├── server/           9 files   Setup checks, batch loading, layout caches, HMAC tokens
 │
-├── ~35 flat utility files (see below)
-└── utils.ts                    Barrel re-export — prefer direct imports
+├── 126 flat `.ts` modules + `sanitize.svelte` + `iso639-1.json` (most-used listed below)
 ```
 
 ---
@@ -40,28 +42,31 @@ src/utils/
 
 ### Data & Strings
 
-| File              | Key exports                                                                                                         |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `string.ts`       | `cn`, `parse`, `getEditDistance`, `getTextDirection`, `escapeRegex`, `hex2arrayBuffer`, `arrayBuffer2hex`, `sha256` |
-| `file.ts`         | `formatBytes`, `obj2formdata`, `ReadableExpireIn`, `sanitize`, `removeExtension`                                    |
-| `object-utils.ts` | `deepCopy`                                                                                                          |
-| `array-utils.ts`  | `uniqueItems`                                                                                                       |
-| `diff-utils.ts`   | `computeFieldDiff`, `DiffEntry`                                                                                     |
+| File            | Key exports                                                                                                         |
+| --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `string.ts`     | `cn`, `parse`, `getEditDistance`, `getTextDirection`, `escapeRegex`, `hex2arrayBuffer`, `arrayBuffer2hex`, `sha256` |
+| `file.ts`       | `formatBytes`, `obj2formdata`, `ReadableExpireIn`, `sanitize`, `removeExtension`                                    |
+| `data-utils.ts` | `deepCopy`, `uniqueItems`, `copyDataWithFreshRowIds`                                                                |
+| `diff-utils.ts` | `computeFieldDiff`, `DiffEntry`                                                                                     |
+
+> `object-utils.ts` and `array-utils.ts` no longer exist; their helpers live in `data-utils.ts`.
 
 ### Async & Performance
 
-| File                     | Key exports                                                 |
-| ------------------------ | ----------------------------------------------------------- |
-| `debounce.ts`            | `debounce()`, `debounce.create()`                           |
-| `server/batch-loader.ts` | `BatchLoader`, `BatchFunction`                              |
-| `mutex.ts`               | Async mutex for concurrent access                           |
-| `predictive-preload.ts`  | `initPredictivePreload` — MutationObserver-based preloading |
+| File                     | Key exports                                                                                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `debounce.ts`            | `debounce()`, `debounce.create()`                                                                                                                                            |
+| `lazy-module.ts`         | `lazyModule()` — memoized dynamic `import()` singleton that is self-healing (a rejected load clears the memo and retries); `memoizeLazyLoader` is the component-loader alias |
+| `server/batch-loader.ts` | `BatchLoader`, `BatchFunction`                                                                                                                                               |
+| `mutex.ts`               | Async mutex for concurrent access                                                                                                                                            |
+| `predictive-preload.ts`  | `initPredictivePreload` — MutationObserver-based preloading                                                                                                                  |
 
 ### Date & Time
 
-| File      | Key exports                                                                                                                                                                                                                                  |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `date.ts` | `nowISODateString`, `toISOString`, `dateToISODateString`, `isoDateStringToDate`, `isISODateString`, `formatDisplayDate`, `formatRelativeDate`, `formatDateString`, `formatUptime`, `formatIsoDuration`, `ReadableExpireIn`, `getCurrentDate` |
+| File               | Key exports                                                                                                                                                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `date.ts`          | `nowISODateString`, `toISOString`, `dateToISODateString`, `isoDateStringToDate`, `isISODateString`, `formatDisplayDate`, `formatRelativeDate`, `formatDateString`, `formatUptime` (**seconds**), `formatIsoDuration`, `ReadableExpireIn`, `getCurrentDate` |
+| `format-uptime.ts` | `formatUptimeMs` — **milliseconds** in, deterministic `1d 2h 3m` / `29m` / `< 1m` / `Just started` out; no magnitude heuristic, no locale. Used by the admin monitor, whose `metricsService.getSystemMetrics().uptime` is `Date.now() - startTime`.        |
 
 ### Security (flat, in addition to `security/` subdir)
 
@@ -73,7 +78,7 @@ src/utils/
 
 ### Media Engine (`media/` subdirectory)
 
-All 14 files are **wired to API handlers** or planned for wiring:
+26 files, all wired to API handlers or the gallery loaders (the largest ones are listed):
 
 | File                      | Key exports                                                           | API endpoint        |
 | ------------------------- | --------------------------------------------------------------------- | ------------------- |
@@ -99,14 +104,15 @@ All 14 files are **wired to API handlers** or planned for wiring:
 
 ### Infrastructure
 
-| File                | Key exports                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| `logger.ts`         | Universal level-gated logger (masking, channels); see [Logger Levels](./logger-levels.mdx) |
-| `event-bus.ts`      | Server-only wildcard event emitter with `IS_SERVER` guard                                  |
-| `id-generator.ts`   | Hydration-safe SSR deterministic IDs                                                       |
-| `hook-utils.ts`     | Pre-compiled regexes, request classification, `isPublicRoute`                              |
-| `error-handling.ts` | `AppError`, `handleApiError`, `getErrorMessage`                                            |
-| `auto-tag.ts`       | AI-powered auto-tagging on publish                                                         |
+| File                  | Key exports                                                                                                                                                                                                                             |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `logger.ts`           | Universal level-gated logger (masking, channels); see [Logger Levels](./logger-levels.mdx)                                                                                                                                              |
+| `event-bus.ts`        | Server-only wildcard event emitter with `IS_SERVER` guard                                                                                                                                                                               |
+| `id-generator.ts`     | Hydration-safe SSR deterministic IDs                                                                                                                                                                                                    |
+| `hook-utils.ts`       | Pre-compiled regexes, request classification, `isPublicRoute`                                                                                                                                                                           |
+| `error-handling.ts`   | `AppError`, `handleApiError`, `getErrorMessage`                                                                                                                                                                                         |
+| `auto-tag.ts`         | AI-powered auto-tagging on publish                                                                                                                                                                                                      |
+| `preference-value.ts` | `looksJsonEncoded`, `decodePreferenceValue` — the codec the SQL preference adapter and config sync share. SQL persists preferences as text (`String(value)`), so `"600"` and `600` are the same stored value and must hash identically. |
 
 ### Data Structures
 
@@ -117,14 +123,16 @@ All 14 files are **wired to API handlers** or planned for wiring:
 
 ### UI & Components
 
-| File                   | Key exports                                                       |
-| ---------------------- | ----------------------------------------------------------------- |
-| `cn.ts`                | Class name joiner                                                 |
-| `form.svelte.ts`       | `obj2formData`, `Form` class                                      |
-| `use-dialog.svelte.ts` | Native `<dialog>` lifecycle with focus trapping                   |
-| `admin-transitions.ts` | `adminFade`, `motion` — prefers-reduced-motion aware              |
-| `adaptive-ui.ts`       | `getAdaptiveUISortOrder` — adaptive dashboard grids               |
-| `readability.ts`       | `calculateReadability`, `getReadingEaseDescription` — SEO scoring |
+| File                    | Key exports                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `cn.ts`                 | Class name joiner                                                                                                   |
+| `form.svelte.ts`        | `obj2formData`, `Form` class                                                                                        |
+| `use-dialog.svelte.ts`  | Native `<dialog>` lifecycle with focus trapping                                                                     |
+| `admin-transitions.ts`  | `adminFade`, `motion` — prefers-reduced-motion aware                                                                |
+| `layout-state-prefs.ts` | `USER_LAYOUT_PREF_KEYS`, `uiStateToLayoutPrefs`, `diffLayoutPrefsFromTenant` — sidebar/panel visibility persistence |
+| `readability.ts`        | `calculateReadability`, `getReadingEaseDescription` — SEO scoring                                                   |
+
+> `adaptive-ui.ts` / `getAdaptiveUISortOrder()` moved out of `utils/`: the function now lives in `src/services/intelligence/content-insights.ts` and returns collection ids ordered by recorded usage.
 
 ### Domain-Specific
 
@@ -153,36 +161,47 @@ All functions wired or planned for wiring to API handlers. See **Section 2: Medi
 
 ### `schema/` — Schema Management
 
-| File                   | Purpose                                                               |
-| ---------------------- | --------------------------------------------------------------------- |
-| `field-utils.ts`       | `getFieldName()`, `getGuiFields()`, `extractData()`, `GuiFieldConfig` |
-| `comparison.ts`        | Schema diffing                                                        |
-| `tree.ts`              | Content tree operations                                               |
-| `validation.ts`        | Schema validation                                                     |
-| `validation.worker.ts` | Web Worker for async validation                                       |
+| File             | Purpose                                                               |
+| ---------------- | --------------------------------------------------------------------- |
+| `field-utils.ts` | `getFieldName()`, `getGuiFields()`, `extractData()`, `GuiFieldConfig` |
+| `comparison.ts`  | Schema diffing                                                        |
+| `tree.ts`        | Content tree operations                                               |
 
-### `security/` — Security Infrastructure
+> `validation.ts` and `validation.worker.ts` no longer exist. Schema shapes are validated with Valibot in `src/content/schema-contract.ts`, so the hand-written validator and its Web Worker are gone.
 
-| File                  | Purpose                                                |
-| --------------------- | ------------------------------------------------------ |
-| `crypto.ts`           | Argon2 hashing, AES encryption/decryption, worker pool |
-| `constants.ts`        | CSP headers, security configuration                    |
-| `auth-utils.ts`       | Session duration parsing                               |
-| `csrf-utils.ts`       | CSRF token generation and validation                   |
-| `cors-utils.ts`       | CORS header construction                               |
-| `credential-hash.ts`  | SHA-256 credential hashing                             |
-| `mongo-sanitize.ts`   | MongoDB injection prevention                           |
-| `permission-cache.ts` | Permission caching                                     |
-| `safe-query.ts`       | Safe query construction                                |
-| `index.ts`            | Barrel re-export for `@utils/security`                 |
+### `security/` — Security Infrastructure (23 files)
 
-### `server/` — Server-Side Utilities
+Most imported:
 
-| File                  | Purpose                                                          |
-| --------------------- | ---------------------------------------------------------------- |
-| `setup-check.ts`      | Setup completion detection, test secrets, `invalidateSetupCache` |
-| `setup-check-fast.ts` | Fast synchronous setup check                                     |
-| `batch-loader.ts`     | DataLoader-style request batching                                |
+| File                  | Purpose                                                   |
+| --------------------- | --------------------------------------------------------- |
+| `crypto.ts`           | Argon2 hashing, AES encryption/decryption, worker pool    |
+| `constants.ts`        | CSP headers, security configuration                       |
+| `auth-utils.ts`       | Session duration parsing                                  |
+| `csrf-utils.ts`       | CSRF token generation and validation                      |
+| `cors-utils.ts`       | CORS header construction                                  |
+| `credential-hash.ts`  | SHA-256 credential hashing                                |
+| `mongo-sanitize.ts`   | MongoDB injection prevention                              |
+| `permission-cache.ts` | Permission caching                                        |
+| `safe-query.ts`       | Tenant isolation helpers shared by Mongo and SQL adapters |
+
+The remaining files: `audit-flags.ts`, `checksum.ts`, `client-csrf.ts`, `constant-time.ts`, `envelope.ts`, `field-encryption.ts`, `hybrid-kem.ts`, `input-sanitizer.ts`, `publication-policy.ts`, `safe-redirect.ts`, `session-cookie.ts`, `stream-redaction.ts`, `submission-guard.ts`, `user-attribute-policy.ts`. `index.ts` and the `@utils/security` barrel were removed — import the file directly.
+
+### `server/` — Server-Side Utilities (9 files)
+
+| File                              | Purpose                                                          |
+| --------------------------------- | ---------------------------------------------------------------- |
+| `setup-check.ts`                  | Setup completion detection, test secrets, `invalidateSetupCache` |
+| `batch-loader.ts`                 | DataLoader-style request batching                                |
+| `collection-utils.server.ts`      | First-collection path lookup + its 5-minute memo                 |
+| `layout-caches.server.ts`         | Layout-scoped memoization                                        |
+| `hmac-token.server.ts`            | Stateless HMAC token mint/verify                                 |
+| `pending-2fa-token.server.ts`     | Short-lived pending-2FA token                                    |
+| `request-cms.server.ts`           | Request-scoped `LocalCMS` bridge                                 |
+| `session-reauth.server.ts`        | Step-up re-authentication                                        |
+| `user-attribute-update.server.ts` | Privilege-stripped user patch path                               |
+
+> `setup-check-fast.ts` is flat (`src/utils/setup-check-fast.ts`), not in `server/`.
 
 ---
 
@@ -191,17 +210,19 @@ All functions wired or planned for wiring to API handlers. See **Section 2: Medi
 ```typescript
 // ✅ Direct import — tree-shakeable, 1 module loaded
 import { cn } from "@utils/string";
-import { deepCopy } from "@utils/object-utils";
+import { deepCopy } from "@utils/data-utils";
 import { debounce } from "@utils/debounce";
+import { lazyModule } from "@utils/lazy-module";
 import { formatBytes } from "@utils/file";
+import { formatUptimeMs } from "@utils/format-uptime";
+import { decodePreferenceValue } from "@utils/preference-value";
 import { hashPassword } from "@utils/security/crypto";
-import { isSetupComplete } from "@utils/server/setup-check-fast";
+import { isSetupComplete } from "@utils/setup-check-fast";
 import { advancedSearch } from "@utils/media/advanced-search";
 import { createLink, revoke } from "@utils/media/sharing";
-
-// ⚠️ Barrel import — convenient but loads all sub-modules
-import { cn, deepCopy, debounce } from "@utils/utils";
 ```
+
+> ❌ `import { cn } from "@utils/utils"` no longer resolves — the barrel was deleted. Any remaining occurrence is a bug, not a shortcut.
 
 ---
 
@@ -221,8 +242,8 @@ Utilities connected to REST API handlers:
 
 ## 6. Design Rules
 
-1. **No inline business logic in `utils.ts`** — the barrel only re-exports
-2. **New utilities go in domain files** — not in the barrel
+1. **No barrel files** — `src/utils/utils.ts` and `src/utils/security/index.ts` were removed; every import names its module (enforced by `tests/unit/utils/circular-imports.test.ts`)
+2. **New utilities go in domain files**
 3. **No duplicate exports across modules** — use `import` instead of redefining
 4. **Server-only files must guard** — throw on browser import, or use `.server.ts` suffix
 5. **Subdirectories need 3+ related files** — single-file subdirs were flattened

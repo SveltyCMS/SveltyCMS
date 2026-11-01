@@ -73,6 +73,14 @@ export interface CollectionPreset {
   fields: FieldTemplate[];
   /** Enable live preview for this collection */
   livePreview?: boolean | string;
+  /**
+   * Version history for this collection. Preset content defaults to `true`
+   * (opt-out, not opt-in) so a fresh install records history without manual
+   * setup; structural/transactional tables set `false` explicitly.
+   */
+  revision?: boolean;
+  /** Versions kept per entry. Omitted → the SDK's `DEFAULT_REVISION_LIMIT` (100). */
+  revisionLimit?: number;
   /** Plugin IDs to enable on this collection */
   plugins?: string[];
   /** Display order in the generated content tree. */
@@ -1386,6 +1394,9 @@ const ecommerceCollections: CollectionPreset[] = [
     label: "Tax Rates",
     icon: "mdi:percent-outline",
     description: "Sales tax configuration by region",
+    // Configuration table, not authored content: history would only ever hold
+    // price-list snapshots nobody restores.
+    revision: false,
     fields: [
       {
         db_fieldName: "country",
@@ -1449,6 +1460,8 @@ const ecommerceCollections: CollectionPreset[] = [
     label: "Shipping Zones",
     icon: "mdi:truck-delivery-outline",
     description: "Shipping zones, rates, and methods",
+    // Configuration table (see tax_rates above).
+    revision: false,
     fields: [
       {
         db_fieldName: "name",
@@ -1504,6 +1517,8 @@ const ecommerceCollections: CollectionPreset[] = [
     label: "Carts",
     icon: "mdi:cart-outline",
     description: "Active shopping carts (guest and logged-in)",
+    // Ephemeral session rows; a revision per cart update would be pure noise.
+    revision: false,
     fields: [
       {
         db_fieldName: "sessionId",
@@ -1568,6 +1583,8 @@ const ecommerceCollections: CollectionPreset[] = [
     label: "Orders",
     icon: "mdi:receipt",
     description: "Customer orders with line items, shipping, and status tracking",
+    // Transactional ledger: orders are immutable facts, not edited copy.
+    revision: false,
     fields: [
       {
         db_fieldName: "orderNumber",

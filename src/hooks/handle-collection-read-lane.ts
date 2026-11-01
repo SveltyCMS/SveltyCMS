@@ -5,10 +5,10 @@
  * A turbo miss used to `resolve()` through ~9 async hooks + SvelteKit routing
  * before the same `crud.findById` / `find` the write lane already reaches directly.
  * After turbo-auth is warm this lane serves L1 or LocalCMS and skips the rest.
- * After a write, list turbo bodies are marked stale (not deleted). This lane
- * serves the previous bytes immediately. A background `find()` refill on the
- * same thread stalled the next TURBO-HIT (~60ms) and pinned mixed/soak ~80 RPS.
- * Fresh bytes come from a true miss, `?refresh=true`, or TTL — not from GET.
+ * After a write, list turbo bodies of the collection are evicted, so the next
+ * GET is a true miss that rebuilds from the database (read-after-write
+ * consistency; serving the superseded bytes left lists stale for the TTL).
+ * Fresh bytes also come from `?refresh=true` or TTL expiry.
  *
  * ### Features:
  * - GET/HEAD `/api/collections/:collection` (list) or `/:collection/:entryId`
@@ -19,7 +19,7 @@
  * - Non-admins whose schema declares a field guard fall through; the SDK
  *   redacts that response. Admins and unguarded schemas stay on this lane.
  * - Stashes turbo L1 on first set (point-reads use a dedicated FIFO)
- * - Serve-stale lists after write; single-flight only on true miss
+ * - Lists evicted on write; single-flight only on true miss
  * - Trims the point-read payload through the shared `trimPointReadEnvelope`
  *   helper (byte-identity with the `handleCollectionEntry` dispatcher fallback)
  * - Labels every owned response: `X-Cache: TURBO-HIT` on hit, `MISS`/`BYPASS`

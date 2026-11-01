@@ -41,6 +41,7 @@ import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
 import type { CollectionAction, FieldInstance, Schema } from "@src/content/types";
+import { DEFAULT_REVISION_LIMIT, MIN_REVISION_LIMIT } from "@src/content/revision-defaults";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { copyDataWithFreshRowIds } from "@utils/data-utils";
 import { resolvePopulatedRelations } from "./populate-resolver";
@@ -309,13 +310,16 @@ const DECRYPT_CLONE_OPTIONS: Readonly<{ clone: true }> = Object.freeze({ clone: 
 /** Searchable field names — hoisted so the per-item filter loop shares one array. */
 const SEARCHABLE_FIELDS = ["title", "content", "description", "name"];
 
-/** Revisions kept per entry when the schema does not set `revisionLimit`. */
-const DEFAULT_REVISION_LIMIT = 100;
-
-/** Effective, sane revision bound for a schema (`revisionLimit` is author-controlled). */
+/**
+ * Effective, sane revision bound for a schema (`revisionLimit` is author-controlled).
+ * The Collection Builder accepts 1–1000, so any positive integer is honoured; an
+ * absent/non-finite limit falls back to {@link DEFAULT_REVISION_LIMIT}.
+ */
 function revisionLimitOf(schema: Schema): number {
   const configured = schema.revisionLimit;
-  if (!Number.isFinite(configured) || (configured as number) < 5) return DEFAULT_REVISION_LIMIT;
+  if (!Number.isFinite(configured) || (configured as number) < MIN_REVISION_LIMIT) {
+    return DEFAULT_REVISION_LIMIT;
+  }
   return Math.floor(configured as number);
 }
 

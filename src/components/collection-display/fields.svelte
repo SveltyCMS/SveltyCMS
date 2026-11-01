@@ -65,7 +65,7 @@
 	import { buildFieldSkeleton } from './field-skeleton';
 
 	import Portal from '@components/ui/portal.svelte';
-	import RevisionDiffModal from './revision-diff-modal.svelte';
+	const loadRevisionDiffModal = memoizeLazyLoader(() => import('./revision-diff-modal.svelte'));
 
 	let isDiffModalOpen = $state(false);
 
@@ -1004,14 +1004,16 @@
 								tabindex="-1"
 							>
 								<div onclick={(e) => e.stopPropagation()} role="presentation">
-									<RevisionDiffModal
-										oldData={selectedRevision.data}
-										newData={currentCollectionValue}
-										fields={filteredFields}
-										oldLabel={`Revision (${formatDate(selectedRevision.revision_at)})`}
-										newLabel="Current Content"
-										close={() => (isDiffModalOpen = false)}
-									/>
+									{#await loadRevisionDiffModal() then { default: RevisionDiffModal }}
+										<RevisionDiffModal
+											oldData={selectedRevision.data}
+											newData={currentCollectionValue}
+											fields={filteredFields}
+											oldLabel={`Revision (${formatDate(selectedRevision.revision_at)})`}
+											newLabel="Current Content"
+											close={() => (isDiffModalOpen = false)}
+										/>
+									{/await}
 								</div>
 							</div>
 						</Portal>

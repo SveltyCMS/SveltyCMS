@@ -1,5 +1,12 @@
+<!--
+@file src/services/json-render/components/vertical-layout.svelte
+@component
+@description Vertical flex container for AI-generated dashboard specs.
+### Features
+- Vertical stack layout with consistent spacing
+-->
 <script lang="ts">
-	import type { ComponentRenderProps } from 'json-render-svelte';
+	import type { ComponentRenderProps } from '../catalog';
 
 	let { children }: ComponentRenderProps = $props();
 </script>

@@ -7,6 +7,7 @@
 	import { fetchApi } from '@utils/api';
 	import { toast } from '@src/stores/toast.svelte';
 	import { formatDisplayDate } from '@utils/date';
+	import type { WebhookDeliveryLog } from '@src/services/background/webhook-service';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Loader from '@components/ui/loader.svelte';
@@ -30,8 +31,9 @@
 		webhooks_logs_webhook_event
 	} from '@src/paraglide/messages';
 
-	let logs = $state<any[]>([]);
+	let logs = $state<WebhookDeliveryLog[]>([]);
 	let isLoading = $state(true);
+	let loadError = $state<string | null>(null);
 	let filterStatus = $state('');
 
 	const statusOptions = [
@@ -43,12 +45,17 @@
 
 	async function loadLogs() {
 		isLoading = true;
+		loadError = null;
 		const query = filterStatus ? `?status=${filterStatus}` : '';
-		const response = await fetchApi<any[]>(`/api/webhooks/logs${query}`);
+		const response = await fetchApi<WebhookDeliveryLog[]>(`/api/webhooks/logs${query}`);
 		if (response.success) {
-			logs = response.data || [];
+			// An empty delivery log is a normal state (fresh install, quiet tenant) —
+			// it must never surface as an error toast.
+			logs = Array.isArray(response.data) ? response.data : [];
 		} else {
-			toast.error(response.message || 'Failed to load webhook logs');
+			logs = [];
+			loadError = response.message || 'Failed to load webhook logs';
+			toast.error(loadError);
 		}
 		isLoading = false;
 	}
@@ -107,6 +114,14 @@
 			>
 				<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel="Loading delivery logs" />
 			</AdminCard>
+		{:else if loadError}
+			<AdminCard
+				class="border border-error-500/30 bg-error-500/10 p-6 text-center dark:border-error-500/40 dark:bg-error-900/20"
+				data-testid="webhook-logs-error"
+			>
+				<h3 class="text-lg font-semibold text-error-500">{common_error()}</h3>
+				<p class="mt-1 text-sm text-error-500">{loadError}</p>
+			</AdminCard>
 		{:else if logs.length === 0}
 			<AdminCard
 				class="border-2 border-dashed border-surface-500/30 p-12 text-center dark:border-surface-500/40"
@@ -143,8 +158,8 @@
 									class="text-surface-600 transition-colors hover:bg-surface-500/40 dark:text-surface-400 dark:hover:bg-surface-900/20"
 								>
 									<td class="px-4 py-3">
-										<div class="font-medium">{log.payload?.webhook?.name}</div>
-										<Badge preset="tonal" color="surface" size="sm">{log.payload?.event}</Badge>
+										<div class="font-medium">{log.webhookName}</div>
+										<Badge preset="tonal" color="surface" size="sm">{log.event}</Badge>
 									</td>
 									<td class="px-4 py-3">
 										{#if log.status === 'completed'}

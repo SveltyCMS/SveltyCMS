@@ -63,14 +63,26 @@
 	const hasAdminUser = $derived(data.hasAdminUser);
 	const returningUser = $derived(data.returningUser);
 
+	// Invite links used to land on the Sign In / Sign Up chooser, so an invited
+	// user had to pick Sign Up themselves (retest m7). Default to the Sign Up form
+	// whenever the loader recognised an invitation (valid token) or reported an
+	// invitation error worth showing. The back button still reveals the chooser.
+	const isInviteEntry = $derived(
+		Boolean(
+			(data as { isInviteFlow?: boolean }).isInviteFlow ||
+			(data as { inviteError?: string }).inviteError
+		)
+	);
+
 	// Check for reset password URL parameters (initially false, updated by effect)
 	let hasResetParams = $state(false);
 
-	// Initial active state: returning users (a session cookie is present — see +page.server.ts)
-	// land on the Sign In form directly; new visitors start at the Sign In / Sign Up chooser.
+	// Initial active state: an invitation opens the Sign Up form directly;
+	// returning users (a session cookie is present — see +page.server.ts) land on
+	// the Sign In form; new visitors start at the Sign In / Sign Up chooser.
 	let active: undefined | 0 | 1 = $state(undefined);
 	$effect(() => {
-		active = returningUser ? 0 : undefined;
+		active = isInviteEntry ? 1 : returningUser ? 0 : undefined;
 	});
 
 	// Update active state when URL parameters are detected
@@ -114,6 +126,13 @@
 	$effect(() => {
 		if (hasResetParams) {
 			background = 'white'; // White background for reset password form
+		}
+	});
+
+	// Invitation entries use the dark Sign Up card.
+	$effect(() => {
+		if (isInviteEntry) {
+			background = darkBackground;
 		}
 	});
 

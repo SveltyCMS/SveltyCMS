@@ -58,7 +58,7 @@ import { generateUUID } from "@utils/native-utils";
 import { serializeSuccessEnvelope } from "@utils/fast-json";
 import { trimPointReadEnvelope } from "@utils/point-read-payload";
 import { versionTokenString } from "@utils/optimistic-lock";
-import { nowISODateString } from "@src/utils/date";
+import { nowISODateString, isoDateStringToDate } from "@src/utils/date";
 import {
   count as drizzleCount,
   getTableColumns,
@@ -3148,6 +3148,23 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // CRUD: delete
   // --------------------------------------------------------------------------
 
+  /**
+   * SET payload for a soft delete: `isDeleted` plus the audit pair the trash
+   * view reads. `deletedAt`/`deletedBy` are written only when the table has the
+   * physical columns, so system tables that predate them keep working.
+   *
+   * Mongo's CRUD layer has always persisted this pair; SQL only flipped
+   * `isDeleted` and stamped `updatedAt`, so the trash rendered "Deleted by:
+   * System" for every relational row.
+   */
+  protected buildSoftDeleteSet(table: any, userId?: DatabaseId | null): Record<string, unknown> {
+    const now = isoDateStringToDate(nowISODateString());
+    const set: Record<string, unknown> = { isDeleted: true, updatedAt: now };
+    if (this.getColumn(table, "deletedAt")) set.deletedAt = now;
+    if (this.getColumn(table, "deletedBy") && userId != null) set.deletedBy = userId;
+    return set;
+  }
+
   async delete(
     collection: string,
     id: DatabaseId,
@@ -3197,7 +3214,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         } else {
           await this.getDrizzleInstance(options)
             .update(table)
-            .set({ isDeleted: true, updatedAt: new Date() })
+            .set(this.buildSoftDeleteSet(table, options.userId))
             .where(and(...conditions));
         }
         if (this.hooks.length > 0)
@@ -3241,7 +3258,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
             return { deletedCount: rowsAffected(wiped) ?? -1 };
           }
           const wiped = await execWrite(
-            db.update(table).set({ isDeleted: true, updatedAt: new Date() }) as {
+            db.update(table).set(this.buildSoftDeleteSet(table, options.userId)) as {
               run?: () => Promise<unknown>;
             },
           );
@@ -3257,7 +3274,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         const res = await execWrite(
           db
             .update(table)
-            .set({ isDeleted: true, updatedAt: new Date() })
+            .set(this.buildSoftDeleteSet(table, options.userId))
             .where(whereCondition) as {
             run?: () => Promise<unknown>;
           },
@@ -3303,9 +3320,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
         // tenant (assertTenantContext + applyTenantFilter fail closed).
         const conditions: SQL[] = [eq(idCol, id as any)];
         applyTenantFilter(conditions, this.getColumn(table, "tenantId"), options);
+        // A restored row must not keep the previous delete's audit stamp —
+        // otherwise a later delete by a caller without an actor reports the
+        // original deleter. Mongo unsets both on restore for the same reason.
+        const restoreSet: Record<string, unknown> = { isDeleted: false, updatedAt: new Date() };
+        if (this.getColumn(table, "deletedAt")) restoreSet.deletedAt = null;
+        if (this.getColumn(table, "deletedBy")) restoreSet.deletedBy = null;
         await this.getDrizzleInstance(options)
           .update(table)
-          .set({ isDeleted: false, updatedAt: new Date() })
+          .set(restoreSet)
           .where(and(...conditions));
       },
       "RESTORE_FAILED",

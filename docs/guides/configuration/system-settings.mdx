@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:cog"
 author: "SveltyCMS Team"
 created: "2025-10-03"
-updated: "2026-09-08"
+updated: "2026-11-01"
 tags:
   - "settings"
   - "configuration"
@@ -338,16 +338,16 @@ The top section displays configured TTLs in an easy-to-read grid:
 
 #### Reset to Defaults
 
-Click **"Reset to Defaults"** to restore all TTL values to recommended defaults:
+Click **"Reset to Defaults"** to restore the documented defaults (`placeholder` values in `src/routes/(app)/config/system-settings/settings-groups.ts`):
 
 - Schema: 600s (10 minutes)
 - Widget: 600s (10 minutes)
 - Theme: 300s (5 minutes)
 - Content: 180s (3 minutes)
 - Media: 300s (5 minutes)
-- API: 900s (15 minutes)
-- Static: 3600s (1 hour)
-- Collection: 600s (10 minutes)
+- Session: 86400s (24 hours)
+- User: 60s (1 minute)
+- API: 300s (5 minutes)
 
 ### Recommended Settings by Environment
 

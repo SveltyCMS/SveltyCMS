@@ -16,6 +16,7 @@ import { error } from "@sveltejs/kit";
 import { AppError } from "@utils/error-handling";
 import { bodyTooLargeMessage } from "@utils/api-body-limits";
 import { logger } from "@utils/logger";
+import { FastLRU } from "@utils/native-utils";
 import type { CmsMediaMetadata } from "./media-models";
 import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
@@ -142,8 +143,11 @@ async function parseExif(buffer?: Buffer): Promise<ExifData | undefined> {
 
 export class MediaProcessingService {
   private static instance: MediaProcessingService;
-  private metadataCache = new Map<string, { data: CmsMediaMetadata; expires: number }>();
   private static METADATA_CACHE_TTL = 86_400_000; // 24 hours — metadata is immutable per hash
+  private metadataCache = new FastLRU<string, CmsMediaMetadata>({
+    max: 5_000,
+    ttl: MediaProcessingService.METADATA_CACHE_TTL,
+  });
 
   private constructor() {}
   static getInstance(): MediaProcessingService {
@@ -164,22 +168,13 @@ export class MediaProcessingService {
 
     // Check cache
     const cached = this.metadataCache.get(cacheKey);
-    if (cached && Date.now() < cached.expires) {
-      return cached.data;
+    if (cached) {
+      return cached;
     }
 
     // Cache miss — run sharp pipeline
     const result = await this._extractMetadata(buffer, options);
-    this.metadataCache.set(cacheKey, {
-      data: result,
-      expires: Date.now() + MediaProcessingService.METADATA_CACHE_TTL,
-    });
-
-    // Evict oldest if over 5k entries
-    if (this.metadataCache.size > 5_000) {
-      const oldest = this.metadataCache.entries().next().value;
-      if (oldest) this.metadataCache.delete(oldest[0]);
-    }
+    this.metadataCache.set(cacheKey, result);
 
     return result;
   }

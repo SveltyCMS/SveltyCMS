@@ -128,14 +128,14 @@ describe("scheduleTurboVariantStash", () => {
     expect(entry?.compressed).toBeUndefined();
   });
 
-  it("attaches variants to a stale entry without clearing the write's staleness mark", async () => {
+  it("never resurrects a list body evicted by a concurrent write", async () => {
     const collection = "unit-stash-stale";
     const key = `/api/collections/${collection}?page=1`;
     const body = payload(250);
     const size = Buffer.byteLength(body, "utf8");
     responseCache.set(key, { body, etag: '"v1"' }, 60_000, TENANT, { skipSharedL1: true });
     responseCache.invalidateLocal(collection, TENANT);
-    expect(responseCache.get(key, TENANT)?.stale).toBe(true);
+    expect(responseCache.get(key, TENANT)).toBeNull();
 
     await scheduleTurboVariantStash({
       key,
@@ -147,9 +147,7 @@ describe("scheduleTurboVariantStash", () => {
       setOptions: { skipSharedL1: true },
     });
 
-    const entry = responseCache.get(key, TENANT);
-    expect(entry?.stale).toBe(true);
-    expect(entry?.compressed && Object.keys(entry.compressed).length).toBeGreaterThan(0);
+    expect(responseCache.get(key, TENANT)).toBeNull();
   });
 
   it("is a no-op below the size gate and for point-read keys", async () => {

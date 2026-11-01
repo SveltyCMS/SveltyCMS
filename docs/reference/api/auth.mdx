@@ -6,7 +6,7 @@ order: 45
 icon: "mdi:shield-account-outline"
 author: "SveltyCMS Team"
 created: "2026-04-12"
-updated: "2026-08-04"
+updated: "2026-11-01"
 tags:
   - "api"
   - "auth"
@@ -64,7 +64,7 @@ The Authentication API handles the complete lifecycle of a user identity within 
 
 > **TOTP Secret Encryption**: TOTP secrets are encrypted at rest using AES-256-GCM under the instance's `ENCRYPTION_KEY`. Legacy plaintext secrets are handled transparently — no migration needed.
 
-> **Two permission vocabularies — do not mix them.** Namespaced API routes are authorized **fail-closed** against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (unmapped namespace ⇒ 403). That map speaks `system:read` / `system:settings` / `system:admin` / `collection:read` / `media:*` / `user:read|write`, e.g. `api-keys` ⇒ `system:read` (read) or `system:settings` (write), `permission` ⇒ `system:admin`, `media` ⇒ `media:read` / `media:write` / `media:delete`, `gdpr` ⇒ `user:read` / `user:write`. The admin **UI** tiles use a different vocabulary (`manage:system`, `manage:user`, `manage:theme`, …) declared in `CONFIG_TILE_PERMISSIONS` (`src/routes/(app)/config/+page.server.ts`) — those are UI-tile gates, **not** the API contract.
+> **Two permission vocabularies — do not mix them.** Namespaced API routes are authorized **fail-closed** against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (unmapped namespace ⇒ 403). That map speaks `system:read` / `system:settings` / `system:admin` / `collection:read` / `media:*` / `user:read|write`, e.g. `api-keys` ⇒ `system:read` (read) or `system:settings` (write), `permission` ⇒ `system:admin`, `media` ⇒ `media:read` / `media:write` / `media:delete`, `gdpr` ⇒ `user:read` / `user:write`. Admin **UI** tiles resolve through `CONFIG_TILE_PERMISSIONS` (`src/routes/(app)/config/config-tile-permissions.ts`), which maps each tile to a real `PERMISSION_CATALOG` id (`system:admin` for admin-only pages, `config:themeManagement` for Design System) — those are UI-tile gates, **not** the API contract. There is no `manage:*` vocabulary.
 >
 > `user` and `auth` namespaces have their own branch (`+server.ts:325-369`): `me`, `login`, `logout`, `oidc-*`, `sso-providers`, `frontchannel-logout`, `backchannel-logout`, `saml` and `2fa` are exempted **by action name** (their handlers still apply their own checks), a bare `GET /api/auth` is self-service, `update-roles` is denied outright for non-admins (the handler fail-closes too), and every other user-management endpoint requires `user:read` (GET) or `user:write` (mutations).
 

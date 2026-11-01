@@ -15,6 +15,7 @@
  * - multi-field creation, serialization, and API round-trip
  * - post-reload hydration and field value preservation
  * - update and edit persistence
+ * - existing blueprint (`posts`) edit save → reload round-trip (CB1)
  * - zero uncaught browser page errors (`zeroErrorGuard`)
  */
 
@@ -23,6 +24,7 @@ import { resetAndSeedDatabase, TEST_API_HEADERS } from "../../helpers/api";
 import { openCollectionEntries } from "../../helpers/collection-builder-flow";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
+import { runAfterHydration } from "../../helpers/hydration";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
 import { assertNoZeroErrors, attachZeroErrorGuard } from "../../helpers/zero-error-guard";
 
@@ -109,6 +111,83 @@ async function expectWriteOk(page: Page, method: "POST" | "PATCH", actionName: s
     throw new Error(`${actionName} rejected: HTTP ${response.status()} ${body.slice(0, 400)}`);
   }
   return response;
+}
+
+/**
+ * The blog blueprint's field list (`PRESET_COLLECTIONS.blog[0]`), minus the
+ * relation/asset widgets that need their target collections to exist.
+ *
+ * Seed-first: the E2E database has no `posts` after a reset (the wizard seeds
+ * the website starter), and CB1 is specifically about editing a collection that
+ * already exists — so the fixture is provisioned through the testing API rather
+ * than created in this session by the editor.
+ */
+const POSTS_BLUEPRINT_FIELDS = [
+  {
+    db_fieldName: "title",
+    label: "Title",
+    widget: { Name: "Input" },
+    type: "string",
+    required: true,
+  },
+  { db_fieldName: "slug", label: "Slug", widget: { Name: "Slug" }, type: "string" },
+  { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
+  { db_fieldName: "excerpt", label: "Excerpt", widget: { Name: "Input" }, type: "string" },
+];
+
+/** Seed the `posts` blueprint so the edit route has a pre-existing collection. */
+async function seedPostsBlueprint(page: Page): Promise<void> {
+  const response = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "create-collection",
+      schema: {
+        _id: "posts",
+        name: "posts",
+        path: "/collection/posts",
+        icon: "mdi:post-outline",
+        status: "publish",
+        livePreview: "/posts/{slug}",
+        description: "Blog posts with SEO support and rich text editing",
+        fields: POSTS_BLUEPRINT_FIELDS,
+      },
+    },
+  });
+  expect(response.ok(), `seed posts blueprint failed: ${response.status()}`).toBeTruthy();
+  const body = (await response.json()) as { success?: boolean; message?: string };
+  // The handler reports per-schema failures in a 200 body — a silently
+  // unprovisioned `posts` would otherwise surface later as an unrelated 404.
+  expect(
+    body.success,
+    `seed posts blueprint rejected: ${body.message ?? JSON.stringify(body).slice(0, 400)}`,
+  ).toBe(true);
+}
+
+/**
+ * Click the visible, enabled Save control.
+ *
+ * No `force`: the editor's header actions are never covered (toasts are detached
+ * from them), so an obscured Save control is a product bug, not a test workaround.
+ */
+async function clickSave(page: Page): Promise<void> {
+  const candidates = page.locator('[data-testid="save-collection-button"]');
+  await expect(
+    page.locator('[data-testid="save-collection-button"]:not([disabled])').first(),
+    "the Save control must enable for a complete existing collection",
+  ).toBeVisible({ timeout: 20_000 });
+
+  const count = await candidates.count();
+  for (let i = 0; i < count; i++) {
+    const button = candidates.nth(i);
+    const isEnabled = await button.isEnabled().catch(() => false);
+    const isVisible = await button.isVisible().catch(() => false);
+    if (isEnabled && isVisible) {
+      await button.scrollIntoViewIfNeeded().catch(() => undefined);
+      await button.click();
+      return;
+    }
+  }
+  throw new Error("No enabled, visible Save button in the collection editor");
 }
 
 test.describe("Kitchen Sink Master Collection — Editorial Lifecycle", () => {
@@ -210,5 +289,72 @@ test.describe("Kitchen Sink Master Collection — Editorial Lifecycle", () => {
       await deleteBtn.click();
       await confirmModal(page).catch(() => {});
     }
+  });
+
+  /**
+   * CB1 — editing an existing blueprint collection must save.
+   *
+   * The retest saved a NEW collection but editing the seeded `posts` blueprint
+   * answered `500 Failed to generate collection file: null is not an object
+   * (evaluating 's.replace')`, so the generator was fed a collection whose
+   * identity flags had been dropped on the load → edit round-trip. The unit proof
+   * (`tests/unit/routes/collectionbuilder-action-page-server.test.ts`) pins the
+   * action; this pins the same path through the real editor UI: load the edit
+   * route, change only the description, save, then reload and read the value back
+   * from a fresh server render.
+   */
+  test("existing blueprint edit saves and survives reload", async ({ page }) => {
+    await seedPostsBlueprint(page);
+
+    await page.goto("/config/collectionbuilder/edit/posts", { waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/collection not found/i)).toHaveCount(0);
+
+    const nameInput = page.getByTestId("collection-name-input");
+    await expect(nameInput).toHaveValue("posts", { timeout: 15_000 });
+
+    // Harmless change: description only, so the save cannot be explained by a
+    // schema migration and the persisted value is directly observable.
+    const editedDescription = `CB1 edit save ${Date.now().toString(36)}`;
+    const description = page.locator("#description");
+    await expect(description).toBeVisible({ timeout: 15_000 });
+    await runAfterHydration(
+      page,
+      async () => {
+        await description.fill(editedDescription);
+        await description.blur();
+      },
+      { selector: page.getByTestId("collection-editor-tabs") },
+    );
+
+    // The failure under test was the action answering HTTP 500; assert the
+    // response itself, then the UI's success surface (the editor stays on
+    // edit/:name for an edit, so the toast is the success signal).
+    const saveResponse = page.waitForResponse(
+      (res) =>
+        res.request().method() === "POST" &&
+        res.url().includes("/config/collectionbuilder/") &&
+        res.url().includes("saveCollection"),
+      { timeout: 30_000 },
+    );
+    await runAfterHydration(page, () => clickSave(page));
+
+    const response = await saveResponse;
+    expect(
+      response.ok(),
+      `saveCollection answered HTTP ${response.status()} — the blueprint edit save failed`,
+    ).toBeTruthy();
+    await expect(page.getByText(/collection saved/i).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page).toHaveURL(/\/config\/collectionbuilder\/edit\/posts/, { timeout: 15_000 });
+
+    // Persistence: a fresh render must resolve the collection again (a broken or
+    // deleted source file 404s here) and show the saved description.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByTestId("collection-editor-tabs")).toBeVisible({ timeout: 20_000 });
+    await expect(nameInput).toHaveValue("posts", { timeout: 15_000 });
+    await expect(page.locator("#description")).toHaveValue(editedDescription, {
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/collection not found/i)).toHaveCount(0);
   });
 });

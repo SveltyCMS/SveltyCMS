@@ -43,8 +43,16 @@ import {
   getCompiledCollectionsPath,
 } from "@utils/tenant.server";
 import { contentStore } from "@stores/content-registry.svelte";
+import { nowISODateString } from "@utils/date";
+import { lazyModule } from "@utils/lazy-module";
 import { deepClone, fastHash } from "@utils/native-utils";
 import { shouldRequireLayoutInvalidate } from "./content-hmr";
+
+const loadEngineModule = lazyModule(() => import("./engine.server"));
+const loadResponseCacheModule = lazyModule(() => import("@src/services/cache/response-cache"));
+const loadBenchmarkRuntimeModule = lazyModule(() => import("@utils/benchmark-runtime"));
+const loadBenchmarkPathsModule = lazyModule(() => import("@utils/benchmark-paths"));
+const loadBenchmarkSandboxModule = lazyModule(() => import("@utils/benchmark-sandbox"));
 
 export type SyncContentReason =
   | "boot"
@@ -304,6 +312,7 @@ function collectChangedNodesForHmr(
     }
 
     if (schema) {
+      const now = nowISODateString();
       const node: ContentNode = {
         _id: (schema._id || id) as ContentNode["_id"],
         name: String(schema.name || id),
@@ -315,9 +324,8 @@ function collectChangedNodesForHmr(
         translations: schema.translations || [],
         tenantId: (schema.tenantId ?? tenantId ?? undefined) as ContentNode["tenantId"],
         source: "filesystem",
-        createdAt:
-          existingNode?.createdAt || (new Date().toISOString() as ContentNode["createdAt"]),
-        updatedAt: new Date().toISOString() as ContentNode["updatedAt"],
+        createdAt: existingNode?.createdAt || now,
+        updatedAt: now,
       };
       nodes.push(deepClone(node));
     }
@@ -356,8 +364,10 @@ async function listSourceCollectionFiles(userCollections: string): Promise<strin
   const files: string[] = [];
   // Hoisted: resolved once per scan — importing inside walk() re-resolved the
   // modules for every subdirectory visited.
-  const { isBenchmarkRuntime } = await import("@utils/benchmark-runtime");
-  const { isBenchmarkRelativePath } = await import("@utils/benchmark-paths");
+  const [{ isBenchmarkRuntime }, { isBenchmarkRelativePath }] = await Promise.all([
+    loadBenchmarkRuntimeModule(),
+    loadBenchmarkPathsModule(),
+  ]);
   const benchRuntime = isBenchmarkRuntime();
 
   async function walk(dir: string, relative = ""): Promise<void> {
@@ -542,7 +552,7 @@ export async function detectOrganizationalDrift(
   tenantId?: string | null,
   adapter?: DatabaseAdapter,
 ): Promise<OrganizationalDriftReport> {
-  const { contentService } = await import("./engine.server");
+  const { contentService } = await loadEngineModule();
   const [manifestOrder, manifestStructure, dbNodes] = await Promise.all([
     getCollectionOrder(tenantId ?? null),
     getStructureNodes(tenantId ?? null),
@@ -571,7 +581,7 @@ export async function reconcileOrganizationalManifest(
   const report = await detectOrganizationalDrift(tenantId, adapter);
   if (!report.drifted) return report;
 
-  const { contentService } = await import("./engine.server");
+  const { contentService } = await loadEngineModule();
   const dbNodes = await contentService.getContentStructureFromDatabase("flat", tenantId, adapter);
   const { order, structureNodes } = buildOrganizationalManifestFromNodes(dbNodes);
   await setOrganizationalManifest(order, structureNodes, tenantId ?? null);
@@ -588,7 +598,7 @@ async function applyGuiStructureSave(
   tenantId?: string | null,
   _adapter?: DatabaseAdapter,
 ): Promise<ContentNode[]> {
-  const { contentService } = await import("./engine.server");
+  const { contentService, notifyContentUpdate } = await loadEngineModule();
 
   const normalized: ContentNodeOperation[] = operations.map((op) => {
     if (op.node.nodeType === "category" && !op.node.source) {
@@ -704,7 +714,7 @@ async function applyGuiStructureSave(
   // cleared the cached structure — the SSE refresh below then handed every client
   // the pre-save order, which overwrote the just-saved one in the UI.
   try {
-    const { responseCache } = await import("@src/services/cache/response-cache");
+    const { responseCache } = await loadResponseCacheModule();
     await responseCache.invalidateCollection("content-structure", tenantId ?? null);
     await responseCache.invalidateCollection("content", tenantId ?? null);
   } catch (err) {
@@ -716,7 +726,6 @@ async function applyGuiStructureSave(
   // mutations (gui-save / collection-save), so the schema cache must always be invalidated.
   // Passing `invalidateSchema:true` makes notifyContentUpdate call invalidateSchemaCache(),
   // which now also clears the real `_schemaCache` LRU (see Fix 3) that peekReadySchema reads.
-  const { notifyContentUpdate } = await import("./engine.server");
   await notifyContentUpdate(tenantId, { invalidateSchema: true });
 
   return updated;
@@ -799,7 +808,8 @@ async function compileAndRefresh(
     return;
   }
 
-  const { markFileDirty, invalidateScanCache, refreshContent } = await import("./engine.server");
+  const { markFileDirty, invalidateScanCache, refreshContent, contentService } =
+    await loadEngineModule();
   invalidateScanCache();
 
   for (const js of result.compiled.changedJsPaths) {
@@ -831,7 +841,6 @@ async function compileAndRefresh(
     result.compiled.orphanedFiles.length > 0
   ) {
     // Multi-file or orphans: process dirty set, full reload if orphans
-    const { contentService } = await import("./engine.server");
     await contentService.processChangedFiles(options.tenantId, options.adapter, {
       requireFullReload: result.compiled.orphanedFiles.length > 0 || options.fullBuild === true,
     });
@@ -898,7 +907,7 @@ export async function syncContentState(
     }
   }
 
-  const { refreshContent } = await import("./engine.server");
+  const { refreshContent } = await loadEngineModule();
 
   // Track success so a failed compile RELEASES the lock (no cooldown) and
   // lets the watcher retry the same write instead of suppressing it.
@@ -1003,7 +1012,7 @@ export async function syncContentState(
 
     case "boot":
     default: {
-      const { isLocalBenchmarkSandbox } = await import("@utils/benchmark-sandbox");
+      const { isLocalBenchmarkSandbox } = await loadBenchmarkSandboxModule();
       if (!isLocalBenchmarkSandbox()) {
         result.orgDrift = await reconcileOrganizationalManifest(tenantId, adapter);
       }

@@ -102,15 +102,3 @@ export function shouldDisableRealtime(): boolean {
   ensureInitialized();
   return connectionState.isDegraded || !connectionState.isOnline;
 }
-
-export function shouldReduceMotion(): boolean {
-  if (!browser) return true;
-  ensureInitialized();
-  if (connectionState.isSlow) return true;
-
-  try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  } catch {
-    return false;
-  }
-}

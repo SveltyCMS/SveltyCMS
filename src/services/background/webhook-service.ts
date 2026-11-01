@@ -6,6 +6,7 @@
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import { dbAdapter } from "@src/databases/db";
+import type { Job } from "@src/databases/db-interface";
 import { isBenchmarkExternalServicesDisabled } from "@utils/benchmark-runtime";
 import { jobQueue } from "./jobs/job-queue-service";
 import { webhookDeliveryHandler } from "./jobs/webhook-jobs";
@@ -22,6 +23,54 @@ export interface Webhook {
   headers?: Record<string, string>;
   failureCount?: number;
   lastTriggered?: string;
+}
+
+/**
+ * One row of the delivery log / Dead-Letter Queue shown in the admin UI.
+ *
+ * A projection of the durable `webhook-delivery` job (never the full job): the
+ * job payload contains the tenant's event body, which must not reach the
+ * browser just to render a name and an error line.
+ */
+export interface WebhookDeliveryLog {
+  _id: string;
+  attempts: number;
+  createdAt: string;
+  event: string;
+  lastError?: string;
+  maxAttempts: number;
+  status: Job["status"];
+  updatedAt: string;
+  webhookId: string;
+  webhookName: string;
+}
+
+/** Subset of job statuses the logs UI can filter on. */
+const DELIVERY_LOG_STATUSES: ReadonlySet<string> = new Set([
+  "pending",
+  "running",
+  "completed",
+  "failed",
+]);
+
+/** Maps a queued `webhook-delivery` job onto the public log shape. */
+function toDeliveryLog(job: Job): WebhookDeliveryLog {
+  const payload = (job.payload ?? {}) as {
+    event?: unknown;
+    webhook?: { id?: unknown; name?: unknown };
+  };
+  return {
+    _id: String(job._id),
+    webhookId: String(payload.webhook?.id ?? ""),
+    webhookName: String(payload.webhook?.name ?? "Webhook"),
+    event: String(payload.event ?? ""),
+    status: job.status,
+    attempts: job.attempts ?? 0,
+    maxAttempts: job.maxAttempts ?? 3,
+    lastError: job.lastError,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+  };
 }
 
 export type WebhookEvent =
@@ -282,13 +331,79 @@ export class WebhookService {
     return result.success ? result.data : [];
   }
 
-  public async getTenantLogs(tenantId: string, limit = 50) {
-    const result = await auditLogService.queryLogs({
-      tenantId,
-      eventTypes: [AuditEventType.WEBHOOK_TRIGGERED],
-      limit,
-    });
-    return result.success ? result.data : [];
+  /**
+   * Delivery log / Dead-Letter Queue for one tenant.
+   *
+   * Deliveries are tracked by the durable job queue (`webhook-delivery` rows),
+   * which is exactly the data the logs page renders — attempts, last error and
+   * retry state. The audit ledger only records webhook *configuration* changes,
+   * so querying it here produced a permanently empty list.
+   */
+  public async getTenantLogs(
+    tenantId: string,
+    options: { limit?: number; status?: string } = {},
+  ): Promise<WebhookDeliveryLog[]> {
+    const tid = tenantId || "global";
+    const db = dbAdapter;
+    if (!db?.system?.jobs) {
+      logger.warn(`Database adapter not available for webhook logs (tenant: ${tid})`);
+      return [];
+    }
+
+    const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+    const status =
+      options.status && DELIVERY_LOG_STATUSES.has(options.status) ? options.status : undefined;
+
+    try {
+      const result = await db.system.jobs.list({
+        taskType: "webhook-delivery",
+        limit,
+        tenantId: tid as any,
+        ...(status ? { status } : {}),
+      });
+      if (!result.success || !Array.isArray(result.data)) return [];
+      return result.data.map(toDeliveryLog);
+    } catch (err) {
+      logger.error(`Failed to load webhook deliveries for tenant ${tid}:`, err);
+      return [];
+    }
+  }
+
+  /**
+   * Requeues a failed delivery (DLQ → pending) so the job queue retries it.
+   * Tenant-scoped: a job id from another tenant is reported as not found.
+   */
+  public async retryDelivery(jobId: string, tenantId: string): Promise<void> {
+    const tid = tenantId || "global";
+    const db = dbAdapter;
+    if (!db?.system?.jobs) {
+      throw new Error("Database adapter not available");
+    }
+
+    const found = await db.system.jobs.getById(jobId as any, { tenantId: tid as any });
+    const job = found.success ? found.data : null;
+    if (!job || job.taskType !== "webhook-delivery" || String(job.tenantId ?? "") !== tid) {
+      throw new Error(`Webhook delivery ${jobId} not found`);
+    }
+
+    const updated = await db.system.jobs.update(
+      jobId as any,
+      {
+        attempts: 0,
+        lastError: "",
+        nextRunAt: new Date(),
+        progress: 0,
+        status: "pending",
+      },
+      { tenantId: tid as any },
+    );
+    if (!updated.success) {
+      throw new Error(updated.message || "Failed to requeue webhook delivery");
+    }
+
+    // Same immediate kick as `jobQueue.dispatch()` — the poller would pick the
+    // job up within 10 s, but the operator expects the row to move now.
+    void jobQueue.processNextBatch();
   }
 }
 

@@ -34,34 +34,18 @@ import { bulkImportCollectionDocuments } from "@src/services/background/jobs/imp
 import { lazyModule } from "@src/utils/lazy-module";
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
-let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
-function loadContentModule(): Promise<typeof import("@src/content/index.server")> {
-  return (contentModulePromise ??= import("@src/content/index.server"));
-}
+const loadContentModule = lazyModule(() => import("@src/content/index.server"));
 
 /** Cached lazy handle to the widget store — one module-registry lookup instead of one per call. */
-let widgetStoreModulePromise:
-  | Promise<typeof import("@src/stores/widget-store.svelte.ts")>
-  | undefined;
-function loadWidgetStoreModule(): Promise<typeof import("@src/stores/widget-store.svelte.ts")> {
-  return (widgetStoreModulePromise ??= import("@src/stores/widget-store.svelte.ts"));
-}
+const loadWidgetStoreModule = lazyModule(() => import("@src/stores/widget-store.svelte.ts"));
 
 /** Cached lazy handle to the credential auth cache (website-token invalidation). */
-let credentialAuthCachePromise:
-  | Promise<typeof import("@src/databases/auth/credential-auth-cache")>
-  | undefined;
-function loadCredentialAuthCache(): Promise<
-  typeof import("@src/databases/auth/credential-auth-cache")
-> {
-  return (credentialAuthCachePromise ??= import("@src/databases/auth/credential-auth-cache"));
-}
+const loadCredentialAuthCache = lazyModule(
+  () => import("@src/databases/auth/credential-auth-cache"),
+);
 
 /** Cached lazy handle to the email module. */
-let emailModulePromise: Promise<typeof import("@utils/email.server")> | undefined;
-function loadEmailModule(): Promise<typeof import("@utils/email.server")> {
-  return (emailModulePromise ??= import("@utils/email.server"));
-}
+const loadEmailModule = lazyModule(() => import("@utils/email.server"));
 
 export abstract class BaseNamespace {
   constructor(protected _dbAdapter: IDBAdapter) {}

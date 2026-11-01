@@ -29,6 +29,10 @@ vi.mock("@src/databases/cache/cache-service", () => ({
     generateKey: vi.fn(
       (key: string, tenantId?: string) => `tenant:${tenantId || "default"}:${key}`,
     ),
+    // Collection generations fence shared-L2 list/GraphQL refills after a write
+    // (see response-cache `generationMatches`). Static values are enough here.
+    getCollectionEpoch: vi.fn(() => 0),
+    bumpCollectionEpoch: vi.fn(() => 1),
   },
 }));
 

@@ -21,8 +21,6 @@ function loadLicenseManagerModule(): Promise<typeof import("@src/utils/license-m
   return (licenseManagerModulePromise ??= import("@src/utils/license-manager"));
 }
 
-export { initWebMCP } from "./init";
-
 export const webmcpPlugin = definePlugin({
   metadata: {
     id: "webmcp",

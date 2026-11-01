@@ -6,7 +6,7 @@ order: 19
 icon: "mdi:view-dashboard-outline"
 author: "SveltyCMS Team"
 created: "2026-03-24"
-updated: "2026-08-23"
+updated: "2026-11-01"
 tags:
   - "api"
   - "dashboard"
@@ -70,6 +70,8 @@ Returns a unified snapshot of content, user, and media counts plus system health
   "timestamp": "2026-06-15T10:00:00.000Z"
 }
 ```
+
+> This `uptime` is `process.uptime()` in **seconds**. `GET /api/dashboard/health` and the admin monitor use milliseconds instead; they are different fields on different endpoints, so do not apply one formatter to both.
 
 ### Metrics Report
 

@@ -6,7 +6,7 @@ order: 101
 icon: "mdi:database-arrow-right"
 author: "SveltyCMS Team"
 created: "2026-07-10"
-updated: "2026-07-10"
+updated: "2026-11-01"
 tags:
   - "api"
   - "migrations"
@@ -35,7 +35,7 @@ The Data Migration API provides a safety-first workflow for applying schema and 
 | **Verify Migration**  | `/api/migrations/verify`  | `POST` | `migration:apply` |
 
 > [!NOTE]
-> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `migrations` entry maps `POST` ⇒ `migration:apply`, everything else ⇒ `migration:read`). Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts` (the `migrations` entry maps `POST` ⇒ `migration:apply`, everything else ⇒ `migration:read`). Admin UI tiles resolve through their own map (`src/routes/(app)/config/config-tile-permissions.ts`), which points at real `PERMISSION_CATALOG` ids (`system:admin` for admin-only pages) — the two contracts are separate.
 
 ---
 

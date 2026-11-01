@@ -28,45 +28,78 @@ import { logger } from "@utils/logger";
 /**
  * Permission sets shipped before the media-capability fix. A stored role that
  * matches one of these byte-for-byte (as a set) was never customised.
+ *
+ * A role is a list of sets, not one set: the editor default gained the media
+ * capabilities and `ai:use`, then the Design System tile grant
+ * (`config:themeManagement`, retest m6). An install seeded before either change
+ * must still be recognised as pristine so the next boot can add the new grant.
  */
-const LEGACY_BUILTIN_ROLE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
+const LEGACY_BUILTIN_ROLE_PERMISSION_SETS: Readonly<
+  Record<string, readonly (readonly string[])[]>
+> = {
   developer: [
-    "system:dashboard",
-    "api:graphql",
-    "api:collections",
-    "api:export",
-    "api:systemInfo",
-    "api:user",
-    "api:userActivity",
-    "api:media",
-    "api:widgets",
-    "api:send-mail",
-    "collections:read",
-    "collections:update",
-    "collections:create",
-    "content:builder",
-    "config:collectionbuilder",
-    "config:widgetManagement",
-    "config:adminArea",
-    "config:settings",
-    "user:manage",
-    "user.create",
+    [
+      "system:dashboard",
+      "api:graphql",
+      "api:collections",
+      "api:export",
+      "api:systemInfo",
+      "api:user",
+      "api:userActivity",
+      "api:media",
+      "api:widgets",
+      "api:send-mail",
+      "collections:read",
+      "collections:update",
+      "collections:create",
+      "content:builder",
+      "config:collectionbuilder",
+      "config:widgetManagement",
+      "config:adminArea",
+      "config:settings",
+      "user:manage",
+      "user.create",
+    ],
   ],
   editor: [
-    "collections:read",
-    "collections:read_drafts",
-    "collections:update",
-    "collections:create",
-    "content:editor",
-    "content:read_drafts",
-    "content:images",
-    "system:dashboard",
-    "api:systemInfo",
-    "api:collections",
-    "api:user",
-    "api:userActivity",
-    "api:media",
-    "user:manage",
+    // Original seed before the media capabilities / ai:use grant.
+    [
+      "collections:read",
+      "collections:read_drafts",
+      "collections:update",
+      "collections:create",
+      "content:editor",
+      "content:read_drafts",
+      "content:images",
+      "system:dashboard",
+      "api:systemInfo",
+      "api:collections",
+      "api:user",
+      "api:userActivity",
+      "api:media",
+      "user:manage",
+    ],
+    // Previous default, before the Design System tile grant.
+    [
+      "collections:read",
+      "collections:read_drafts",
+      "collections:update",
+      "collections:create",
+      "content:editor",
+      "content:read_drafts",
+      "content:images",
+      "system:dashboard",
+      "api:systemInfo",
+      "api:collections",
+      "api:user",
+      "api:userActivity",
+      "api:media",
+      "media:read",
+      "media:write",
+      "media:delete",
+      "user:manage",
+      "ai:use",
+    ],
   ],
 };
 
@@ -79,7 +112,7 @@ function samePermissionSet(current: readonly string[], expected: readonly string
 /** Resolve a stored role to a built-in id, falling back to its display name. */
 function builtinRoleId(role: Role): string | null {
   const id = String(role._id ?? "");
-  if (LEGACY_BUILTIN_ROLE_PERMISSIONS[id]) return id;
+  if (LEGACY_BUILTIN_ROLE_PERMISSION_SETS[id]) return id;
 
   const name = String(role.name ?? "")
     .trim()
@@ -120,12 +153,12 @@ export async function reconcileBuiltinRolePermissions(
     const id = builtinRoleId(role);
     if (!id) continue;
 
-    const legacy = LEGACY_BUILTIN_ROLE_PERMISSIONS[id];
+    const legacySets = LEGACY_BUILTIN_ROLE_PERMISSION_SETS[id];
     const next = nextPermissions.get(id);
-    if (!legacy || !next || next.length === 0) continue;
+    if (!legacySets || !next || next.length === 0) continue;
 
     const current = role.permissions ?? [];
-    if (!samePermissionSet(current, legacy)) continue;
+    if (!legacySets.some((legacy) => samePermissionSet(current, legacy))) continue;
 
     try {
       const result = await auth.updateRole(

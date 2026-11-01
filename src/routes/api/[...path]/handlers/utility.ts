@@ -19,6 +19,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { collectionTableName } from "@src/databases/core/collection-name";
+import { toTrashItem } from "@utils/trash-item";
 
 /** Cached lazy handle to the config service — one module-registry lookup instead of one per call. */
 let configServiceModulePromise:
@@ -159,7 +160,15 @@ export async function handleUtilityRoutes(
           type: type ?? undefined,
           search: url.searchParams.get("search") || undefined,
         });
-        return successResponse(event, result);
+        // `limit` is a presentation hint (the collection-builder palette asks for
+        // 24); the catalog itself is always fetched whole so the server-side
+        // cache stays reusable across callers.
+        const limitParam = Number.parseInt(url.searchParams.get("limit") ?? "", 10);
+        const limited =
+          Number.isFinite(limitParam) && limitParam > 0
+            ? { ...result, items: result.items.slice(0, Math.min(limitParam, 200)) }
+            : result;
+        return successResponse(event, limited);
       }
 
       if (request.method === "POST" && method === "install") {
@@ -373,13 +382,15 @@ async function handleTrashRoutes(
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "50", 10), 200);
     const schemas = await contentSystem.getCollections(tenantId);
 
-    // Parallelize — fire all DB queries concurrently to eliminate N+1
+    // Parallelize — fire all DB queries concurrently to eliminate N+1. The
+    // shared projection keeps a client refresh byte-identical to the SSR load
+    // (title + delete-audit fallbacks for legacy rows).
     const queries = schemas
       .filter((s: any) => s._id)
       .map(async (schema: any) => {
-        const col = collectionTableName(schema._id);
+        const collectionId = String(schema._id);
         const r = await cms.db.crud.findMany(
-          col,
+          collectionTableName(collectionId),
           { isDeleted: true },
           {
             tenantId: tenantId as DatabaseId,
@@ -388,22 +399,12 @@ async function handleTrashRoutes(
           },
         );
         return r.success && r.data
-          ? r.data.map((item: any) => ({
-              ...item,
-              collectionId: schema._id,
-              collectionName: schema.name || schema._id,
-              // SQL engines implement soft delete as `isDeleted = true` + `updatedAt`
-              // and never write the `deletedAt`/`deletedBy` pair, so the trash table
-              // rendered "System" and an empty date for those rows. Fall back to the
-              // soft-delete stamp that IS there.
-              deletedAt: item.deletedAt ?? item.updatedAt ?? null,
-              deletedBy: item.deletedBy ?? item.updatedBy ?? null,
-            }))
+          ? r.data.map((item: any) => toTrashItem(item, collectionId, schema.name || collectionId))
           : [];
       });
 
     const results = await Promise.all(queries);
-    const allDeleted: any[] = results.flat();
+    const allDeleted = results.flat();
 
     allDeleted.sort(
       (a, b) => new Date(b.deletedAt || 0).getTime() - new Date(a.deletedAt || 0).getTime(),

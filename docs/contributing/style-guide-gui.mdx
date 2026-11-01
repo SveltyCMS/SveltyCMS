@@ -6,7 +6,7 @@ order: 3
 icon: "mdi:palette"
 author: "SveltyCMS Team"
 created: "2025-11-04"
-updated: "2026-10-15"
+updated: "2026-11-01"
 tags:
   - "gui"
   - "styling"
@@ -187,6 +187,19 @@ SveltyCMS is fully localized (Paraglide) and must render correctly in both direc
 - Transforms (`-translate-x-*`) are physical — for directional icons (chevrons), mirror them with `rtl:-scale-x-[-1]`.
 
 Exception: image editors / canvas overlays use physical coordinates (`left-1/2`, `-translate-x-1/2`) because the canvas itself is never mirrored.
+
+### User-generated text uses `dir="auto"`
+
+Logical properties set the **page** direction; they cannot know the direction of a string the operator typed. Content that may be Arabic, Hebrew, or a mixed slug therefore carries `dir="auto"` so the browser resolves the direction per value:
+
+| Surface                                             | Where                                                                                                 |
+| :-------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| Collection table cells (title and data columns)     | `src/components/collection-display/entry-list.svelte`                                                 |
+| Media titles and filenames                          | `src/routes/(app)/mediagallery/media-table.svelte`, `src/components/media/media-details-modal.svelte` |
+| Media alt text and captions                         | `src/components/media/media-details-modal.svelte`                                                     |
+| Tag names, transcode paths, aspect-preview captions | `tag-editor-modal.svelte`, `transcode-modal.svelte`, `aspect-preview-modal.svelte`                    |
+
+Do not replace these with `text-start`: that forces the interface direction onto the value.
 
 ## Light & dark mode
 

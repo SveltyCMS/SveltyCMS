@@ -1113,6 +1113,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       data: text("data").notNull().default("{}"),
       status: text("status").notNull().default("draft"),
       isDeleted: integer("isDeleted", { mode: "boolean" }).notNull().default(false),
+      // Soft-delete audit pair (parity with Mongo): written by crud.delete/deleteMany
+      // so the trash can show who deleted an entry and when.
+      deletedAt: integer("deletedAt", { mode: "timestamp_ms" }),
+      deletedBy: text("deletedBy"),
       createdAt: integer("createdAt", { mode: "timestamp_ms" })
         .notNull()
         .default(sql`(strftime('%s','now')*1000)`),
@@ -1138,6 +1142,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
           colName === "tenantId" ||
           colName === "status" ||
           colName === "isDeleted" ||
+          colName === "deletedAt" ||
+          colName === "deletedBy" ||
           colName === "createdAt" ||
           colName === "updatedAt" ||
           colName === "data" ||
@@ -1644,7 +1650,11 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         const collectionName = normalizeCollectionTableName(String(row._id));
         if (this.tableRegistry.has(collectionName)) continue;
         try {
-          this.getTable(collectionName);
+          const table = this.getTable(collectionName);
+          // The warm path intentionally skips createModel's DDL (cold-start fast
+          // path), so a table provisioned before the soft-delete audit columns
+          // existed must be widened here — the write path now sets them.
+          await this.ensureSoftDeleteColumns(getTableName(table as any));
           this._provisionedTables.add(collectionName);
           warmed++;
         } catch {
@@ -1658,6 +1668,36 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       }
     } catch {
       /* non-critical */
+    }
+  }
+
+  /**
+   * Adds the soft-delete audit columns to an existing collection table.
+   * Idempotent: a boot with both columns present pays one PRAGMA and no ALTER.
+   */
+  private async ensureSoftDeleteColumns(physicalName: string): Promise<void> {
+    const required = [
+      { name: "deletedAt", type: "INTEGER" },
+      { name: "deletedBy", type: "TEXT" },
+    ];
+    let existing: Set<string>;
+    try {
+      const info = this.prepareAndExecute(`PRAGMA table_info("${physicalName}")`, "all") as any[];
+      if (!Array.isArray(info)) return;
+      existing = new Set(info.map((column: any) => String(column?.name ?? "")));
+    } catch {
+      // Table may not exist yet; createModel provisions it with both columns.
+      return;
+    }
+    for (const column of required) {
+      if (existing.has(column.name)) continue;
+      try {
+        await this.raw.execute(
+          `ALTER TABLE "${physicalName}" ADD COLUMN "${column.name}" ${column.type}`,
+        );
+      } catch {
+        /* column may already exist / ALTER unsupported on the proxy driver */
+      }
     }
   }
 
@@ -2258,12 +2298,14 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
       async () => {
         const debugMode = process.env.BENCHMARK_DEBUG === "true";
 
-        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "collection" TEXT, "slug" TEXT, "locale" TEXT, "status" TEXT DEFAULT 'draft', "publishedAt" INTEGER, "isDeleted" INTEGER DEFAULT 0, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
+        const ddl = `CREATE TABLE IF NOT EXISTS "${physicalName}" ("_id" TEXT PRIMARY KEY, "tenantId" TEXT, "collection" TEXT, "slug" TEXT, "locale" TEXT, "status" TEXT DEFAULT 'draft', "publishedAt" INTEGER, "isDeleted" INTEGER DEFAULT 0, "deletedAt" INTEGER, "deletedBy" TEXT, "createdAt" INTEGER, "updatedAt" INTEGER, "data" TEXT);`;
         if (debugMode) logger.debug(`[DB Provision] [SQLITE] Executing DDL for ${physicalName}`);
         await this.raw.execute(ddl);
 
         const columns = [
           { name: "isDeleted", type: "INTEGER DEFAULT 0" },
+          { name: "deletedAt", type: "INTEGER" },
+          { name: "deletedBy", type: "TEXT" },
           { name: "status", type: "TEXT DEFAULT 'draft'" },
           { name: "tenantId", type: "TEXT" },
           { name: "createdAt", type: "INTEGER" },
@@ -2362,6 +2404,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
               await this.raw.execute(
                 `ALTER TABLE "${physicalName}" ADD COLUMN "${safeColName}" ${col.type}`,
               );
+              // The soft-delete audit pair is written by delete(), never by the
+              // entry payload, so there is nothing to backfill from `data`.
+              if (safeColName === "deletedAt" || safeColName === "deletedBy") {
+                existingCols.add(safeColName);
+                addedColumns.add(safeColName);
+                continue;
+              }
               // 🚀 SELF-HEALING BACKFILL: legacy rows keep their field values in
               // the `data` blob — copy them into the new column so filters and
               // sorts on the materialized field match old rows too (idempotent:

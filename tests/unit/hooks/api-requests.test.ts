@@ -29,9 +29,13 @@ vi.mock("$app/environment", () => ({
 vi.mock("@src/databases/cache/cache-service", () => ({
   cacheService: {
     get: vi.fn(),
+    getSync: vi.fn(),
     set: vi.fn(),
     delete: vi.fn(),
     clearByPattern: vi.fn(),
+    clearByTags: vi.fn(),
+    getCollectionEpoch: vi.fn(() => 0),
+    bumpCollectionEpoch: vi.fn(() => 1),
   },
   getSessionCacheTTL: vi.fn(() => 3600),
   getUserPermCacheTTL: vi.fn(() => 60),
@@ -59,6 +63,8 @@ beforeEach(() => {
   vi.mocked(cacheService.set).mockReset();
   vi.mocked(cacheService.delete).mockReset();
   vi.mocked(cacheService.clearByPattern).mockReset();
+  vi.mocked(cacheService.getCollectionEpoch).mockReset().mockReturnValue(0);
+  vi.mocked(cacheService.bumpCollectionEpoch).mockReset().mockReturnValue(1);
 });
 
 afterEach(() => {
@@ -279,6 +285,49 @@ describe("handleApiRequests middleware paths", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("x-cache")).toBe("HIT");
     expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("keeps a cached GET whose collection generation is still current", async () => {
+    const event = createMockEvent("/api/collections/Articles", { method: "GET", user: admin });
+    vi.mocked(cacheService.getCollectionEpoch).mockReturnValue(3);
+    vi.mocked(cacheService.get).mockResolvedValue({
+      data: { items: [] },
+      body: '{"success":true,"data":{"items":[]}}',
+      headers: { "content-type": "application/json" },
+      collection: "Articles",
+      gen: 3,
+    } as never);
+    const resolve = vi.fn();
+    const res = await handleApiRequests({ event, resolve });
+    expect(res.headers.get("x-cache")).toBe("HIT");
+    expect(resolve).not.toHaveBeenCalled();
+    expect(cacheService.delete).not.toHaveBeenCalled();
+  });
+
+  it("treats a cached GET from a superseded collection generation as a miss (50 ms flush race)", async () => {
+    // A list GET that wins the debounced `schedulePatternClear` race used to
+    // serve the pre-write body. The entry's write-time epoch is compared with
+    // the live one BEFORE the flusher runs, and the stale L1 copy is deleted
+    // synchronously so the dispatcher's getSync probe cannot serve it either.
+    const event = createMockEvent("/api/collections/Articles", { method: "GET", user: admin });
+    vi.mocked(cacheService.getCollectionEpoch).mockReturnValue(4);
+    vi.mocked(cacheService.get).mockResolvedValue({
+      data: { items: ["pre-write"] },
+      body: '{"success":true,"data":{"items":["pre-write"]}}',
+      headers: { "content-type": "application/json" },
+      collection: "Articles",
+      gen: 3,
+    } as never);
+    const resolve = vi.fn().mockResolvedValue(new Response("fresh", { status: 200 }));
+
+    const res = await handleApiRequests({ event, resolve });
+
+    expect(resolve).toHaveBeenCalledWith(event);
+    expect(res.headers.get("x-cache")).not.toBe("HIT");
+    expect(cacheService.delete).toHaveBeenCalledWith(
+      expect.stringContaining("/api/collections/Articles"),
+      event.locals.tenantId,
+    );
   });
 
   it("falls through to resolve when the cache read fails", async () => {

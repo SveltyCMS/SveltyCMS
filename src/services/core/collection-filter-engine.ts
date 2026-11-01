@@ -99,14 +99,22 @@ export interface ApplyFilterOptions {
 
 // ─── Resolve (schema + FLAC) ─────────────────────────────────────────────────
 
+const fieldByIdMapCache = new WeakMap<object, ReadonlyMap<string, FieldInstance>>();
+
 function fieldById(collection: Schema | null | undefined, id: string): FieldInstance | null {
   if (!collection?.fields?.length) return null;
-  for (const raw of collection.fields) {
-    const field = raw as FieldInstance;
-    const name = field.db_fieldName || getFieldName(field);
-    if (name === id) return field;
+  let index = fieldByIdMapCache.get(collection);
+  if (!index) {
+    const map = new Map<string, FieldInstance>();
+    for (const raw of collection.fields) {
+      const field = raw as FieldInstance;
+      const name = field.db_fieldName || getFieldName(field);
+      if (name && !map.has(name)) map.set(name, field);
+    }
+    index = map;
+    fieldByIdMapCache.set(collection, index);
   }
-  return null;
+  return index.get(id) ?? null;
 }
 
 const SYSTEM_FILTERABLE_FIELDS = new Set(["status", "createdAt", "updatedAt", "_id"]);

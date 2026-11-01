@@ -55,6 +55,7 @@
 	import { page } from '$app/state';
 	import type { MigrationPlan } from '@src/services/core/migration-engine';
 	import CollectionForm from './tabs/collection-form.svelte';
+	import { DEFAULT_REVISION_LIMIT } from '@src/content/revision-defaults';
 	import CollectionWidget from './tabs/collection-widget.svelte';
 	import CollectionPermissions from './tabs/collection-permissions.svelte';
 	import { validateMinimumCollectionFields } from '../../collectionbuilder-utils';
@@ -86,7 +87,12 @@
 							.toLowerCase()
 							.replace(/\s+/g, '-')
 							.replace(/[^a-z0-9-]/g, '')
-					: ''
+					: '',
+			// New collections record history by default (competitive bet #1).
+			// Existing collections keep whatever their schema declares; the
+			// Define tab's toggle writes the explicit value on save.
+			revision: true,
+			revisionLimit: DEFAULT_REVISION_LIMIT
 		} as Schema;
 	}
 
@@ -107,6 +113,15 @@
 			if (!collections.active || !collections.active.name) {
 				const draftCollection = createDraftCollection(page.params.contentPath);
 				setCollection(draftCollection);
+			} else if (typeof collections.active.revision !== 'boolean') {
+				// A pre-filled draft (schema ingestion, template staging) reaches this
+				// branch without a revision flag. Creation is still the default-on path,
+				// so seed it here; an explicit `false` is preserved.
+				setCollection({
+					...collections.active,
+					revision: true,
+					revisionLimit: collections.active.revisionLimit ?? DEFAULT_REVISION_LIMIT
+				});
 			}
 			originalName = collections.active?.name ? String(collections.active.name) : '';
 		}

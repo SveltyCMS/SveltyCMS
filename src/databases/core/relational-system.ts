@@ -24,6 +24,7 @@ import type {
 } from "../db-interface";
 import { hashCredentialSha256Hex } from "@src/utils/security/credential-hash";
 import { assertTenantContext } from "@src/utils/security/safe-query";
+import { decodePreferenceValue } from "@src/utils/preference-value";
 import {
   applyTenantFilter,
   assertSafeSqlIdentifier,
@@ -35,38 +36,6 @@ import {
   generateId,
   getTenantCondition,
 } from "./relational-utils";
-
-function looksJsonEncoded(value: string): boolean {
-  const trimmed = value.trim();
-  if (!trimmed) return false;
-  return (
-    trimmed.startsWith("{") ||
-    trimmed.startsWith("[") ||
-    trimmed.startsWith('"') ||
-    trimmed === "null" ||
-    trimmed === "true" ||
-    trimmed === "false" ||
-    /^-?\d+(\.\d+)?$/.test(trimmed)
-  );
-}
-
-function decodePreferenceValue<T>(value: unknown): T {
-  let current = value;
-
-  for (let depth = 0; depth < 2; depth++) {
-    if (typeof current !== "string" || !looksJsonEncoded(current)) {
-      break;
-    }
-
-    try {
-      current = JSON.parse(current);
-    } catch {
-      break;
-    }
-  }
-
-  return current as T;
-}
 
 function encodePreferenceValue(adapterType: string, value: unknown): unknown {
   const usesNativeJson =

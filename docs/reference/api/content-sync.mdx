@@ -6,7 +6,7 @@ order: 104
 icon: "mdi:sync"
 author: "SveltyCMS Team"
 created: "2026-07-10"
-updated: "2026-07-10"
+updated: "2026-11-01"
 tags:
   - "api"
   - "content"
@@ -45,7 +45,7 @@ The Content Sync API provides bidirectional content synchronization between Svel
 | **Job Status**       | `/api/content-sync/jobs/:jobId`  | `GET`    | `content:read` |
 
 > [!NOTE]
-> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles use the separate `manage:*` vocabulary (`CONFIG_TILE_PERMISSIONS` in `src/routes/(app)/config/+page.server.ts`) — the two are not interchangeable.
+> Permission ids in this table are the **namespaced API route** vocabulary, authorized fail-closed against `ENDPOINT_PERMISSIONS` in `src/routes/api/[...path]/+server.ts`. Admin UI tiles resolve through their own map (`src/routes/(app)/config/config-tile-permissions.ts`), which points at real `PERMISSION_CATALOG` ids (`system:admin` for admin-only pages) — the two contracts are separate.
 
 ---
 

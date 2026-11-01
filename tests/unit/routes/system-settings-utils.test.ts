@@ -14,7 +14,10 @@ import {
   initializeGroupValues,
   validateSettingField,
 } from "../../../src/routes/(app)/config/system-settings/settings-utils";
-import type { SettingField } from "../../../src/routes/(app)/config/system-settings/settings-groups";
+import {
+  settingsGroups,
+  type SettingField,
+} from "../../../src/routes/(app)/config/system-settings/settings-groups";
 
 function numberField(overrides: Partial<SettingField> = {}): SettingField {
   return {
@@ -92,5 +95,45 @@ describe("validateSettingField", () => {
     const field = numberField({ key: "PASSWORD_MIN_LENGTH", required: true });
     expect(validateSettingField(field, null)).toMatch(/required/);
     expect(validateSettingField(field, 8)).toBeNull();
+  });
+});
+
+/**
+ * F16: `category: "private"` settings load from `config/private.ts` on a fresh
+ * install, which carries no cache TTLs. With `min: 1` and no placeholder every
+ * TTL rendered (and could be saved as) 1 second, silently disabling caching.
+ * The documented defaults live in `docs/reference/security/secrets-inventory.mdx`
+ * and must match the DB seed (`src/routes/setup/seed.ts`).
+ */
+describe("cache TTL field defaults", () => {
+  const EXPECTED_TTL_DEFAULTS: Record<string, number> = {
+    CACHE_TTL_SCHEMA: 600,
+    CACHE_TTL_WIDGET: 600,
+    CACHE_TTL_THEME: 300,
+    CACHE_TTL_CONTENT: 180,
+    CACHE_TTL_MEDIA: 300,
+    CACHE_TTL_SESSION: 86_400,
+    CACHE_TTL_USER: 60,
+    CACHE_TTL_API: 300,
+  };
+
+  const cacheGroup = settingsGroups.find((group) => group.id === "cache");
+
+  it("documents real seconds — never the `min` of 1", () => {
+    expect(cacheGroup).toBeDefined();
+    for (const [key, expected] of Object.entries(EXPECTED_TTL_DEFAULTS)) {
+      const field = cacheGroup?.fields.find((f) => f.key === key);
+      expect(field, `missing ${key}`).toBeDefined();
+      expect(field?.placeholder).toBe(String(expected));
+      expect(defaultFieldValue(field as SettingField)).toBe(expected);
+    }
+  });
+
+  it("keeps DB-seeded values authoritative when present", () => {
+    const fields = cacheGroup?.fields ?? [];
+    const initialized = initializeGroupValues(fields, { CACHE_TTL_SCHEMA: 42 });
+    expect(initialized.CACHE_TTL_SCHEMA).toBe(42);
+    // Untouched fields still fall back to the documented default, not 1.
+    expect(initialized.CACHE_TTL_USER).toBe(60);
   });
 });
