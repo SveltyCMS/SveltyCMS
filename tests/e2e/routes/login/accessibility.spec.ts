@@ -55,7 +55,7 @@ async function revealSignInForm(page: Page): Promise<void> {
  * ramp bright (see src/app.css).
  */
 const BRAND_CLASS =
-  /(?:^|[^.\w-])(?:bg|text|shadow|border)-primary-500|preset-(?:filled|tonal)-primary/;
+  /(?:^|[^.\w-])(?:bg|text|shadow|border)-(?:primary|tertiary)-500|preset-(?:filled|tonal)-(?:primary|tertiary)/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
 /**
  * The installed-version badge is the brand-primary fill. Its computed green varies

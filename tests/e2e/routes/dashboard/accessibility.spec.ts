@@ -28,7 +28,8 @@ const ACTION_TIMEOUT = 20_000;
  * enforces. Only nodes that are EXCLUSIVELY brand-colored are exempted from the
  * blocking gate; every other element is still fully checked.
  */
-const BRAND_FILL_CLASS = /(?:^|[^.\w-])bg-primary-500|preset-filled-primary-500/;
+const BRAND_FILL_CLASS =
+  /(?:^|[^.\w-])(?:bg|text|shadow|border)-(?:primary|tertiary)-500|preset-(?:filled|tonal)-(?:primary|tertiary)/;
 const SURFACE_TEXT_CLASS = /text-surface-500/;
 
 /**
