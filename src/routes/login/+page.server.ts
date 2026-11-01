@@ -26,6 +26,7 @@ import {
 } from "@src/databases/auth/google-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
 import { readSessionCookie } from "@src/databases/auth/constants";
+import { resolveUserPostAuthLanding } from "@utils/auth/post-auth-landing.server";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";
 import type { PageServerLoad } from "./$types";
@@ -256,7 +257,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
     // If already authenticated, redirect to the intended destination or default
     if (locals.user) {
-      const returnTo = safeRedirect(url.searchParams.get("redirect"), "/config/collectionbuilder");
+      // Same landing rule as the login commands: a role without the
+      // collection-builder permission would get a 403 from the builder page.
+      const returnTo = safeRedirect(
+        url.searchParams.get("redirect"),
+        resolveUserPostAuthLanding(locals.user, {
+          roles: locals.roles,
+          isAdmin: locals.isAdmin === true,
+        }),
+      );
       throw redirect(302, returnTo);
     }
 
@@ -417,7 +426,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
               logger.debug("Google user attribute update failed silently");
             });
 
-          throw redirect(303, "/config/collectionbuilder");
+          throw redirect(
+            303,
+            resolveUserPostAuthLanding(existingUser, {
+              roles: locals.roles,
+              isAdmin: locals.isAdmin === true,
+            }),
+          );
         }
       } catch (err: any) {
         if (isRedirect(err)) throw err;

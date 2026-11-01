@@ -380,6 +380,14 @@ export function escapeLikePattern(value: string): string {
 }
 
 /**
+ * ESCAPE character for every LIKE built here. Bound as a parameter, never
+ * inlined: on MySQL/MariaDB a backslash inside a string literal is itself an
+ * escape, so `ESCAPE '\'` written as SQL text is a syntax error there (fine on
+ * SQLite/Postgres).
+ */
+const LIKE_ESCAPE_CHAR = "\\";
+
+/**
  * Translate a Mongo-style `$regex` value (anchors included) into a SQL LIKE
  * pattern. Regex-escaped literals (e.g. `\.` from an email domain) are
  * unescaped first — otherwise the backslash would be LIKE-escaped as a literal
@@ -1124,12 +1132,21 @@ function addSingleCondition(
         .includes("i");
       // Postgres LIKE is case-sensitive — use lower() on both sides for $options:"i"
       // (SQLite/MySQL LIKE are already case-insensitive by default).
-      const ESCAPE_CHAR = "\\";
       conditions.push(
         caseInsensitive
-          ? sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${ESCAPE_CHAR}`
-          : sql`${col} LIKE ${pattern} ESCAPE ${ESCAPE_CHAR}`,
+          ? sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`
+          : sql`${col} LIKE ${pattern} ESCAPE ${LIKE_ESCAPE_CHAR}`,
       );
+      break;
+    }
+    case "$contains": {
+      // Case-insensitive substring match — the same semantics Mongo's
+      // `MONGO_OP_MAP.$contains` (escaped `$regex` with the `i` flag) has, so
+      // `filter[field][contains]=x` behaves identically on every engine.
+      // The LIKE wildcards in the searched-for term are escaped: a user typing
+      // "100%" must match that text, not "100" followed by anything.
+      const pattern = `%${escapeLikePattern(String(val ?? ""))}%`;
+      conditions.push(sql`lower(${col}) LIKE lower(${pattern}) ESCAPE ${LIKE_ESCAPE_CHAR}`);
       break;
     }
     case "$options":
