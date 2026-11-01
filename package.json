@@ -266,7 +266,7 @@
   "optionalDependencies": {
     "mongoose": "^9.11.4",
     "mysql2": "^3.24.6",
-    "postgres": "^3.4.9"
+    "postgres": "^4.0.0"
   },
   "overrides": {
     "@graphql-tools/utils": "^13.1.3",
