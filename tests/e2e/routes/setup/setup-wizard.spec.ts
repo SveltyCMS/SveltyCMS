@@ -8,6 +8,7 @@ import { handleDialog } from "../../helpers/setup-wizard";
 import { HYDRATION_SELECTOR, runAfterHydration } from "../../helpers/hydration";
 import { resetToSetupMode, TEST_API_HEADERS } from "../../helpers/api";
 import { CONSENT_VALUE } from "../../helpers/cookie-consent";
+import { attachZeroErrorGuard, getZeroErrorContext } from "../../helpers/zero-error-guard";
 
 // --- PAGE OBJECT MODEL ---
 
@@ -348,6 +349,47 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await expect(page.locator("#db-host")).not.toHaveValue("DIRTY_STATE", {
       timeout: 10000,
     });
+  });
+});
+
+// Regression: the wizard threw an uncaught `effect_orphan` on EVERY visit.
+// `setupStore.setupPersistence()` was armed from the page's `onMount` continuation
+// (after `await applyScaffoldHints()`), where no effect root is active, so its bare
+// `$effect(...)` threw before it could register: the persistence writer never
+// installed and the exception escaped as a pageerror that no DOM assertion sees.
+// The product's own hydration marker proves the page is live; the collector proves
+// nothing threw while it became live.
+test.describe("Setup Wizard: Uncaught Error Contract", () => {
+  test("mounting the wizard raises no uncaught client error (effect_orphan regression)", async ({
+    wizard,
+    page,
+  }) => {
+    attachZeroErrorGuard(page);
+
+    await wizard.hardReset();
+    await wizard.waitForInteractive();
+
+    // The persistence effect is armed from an async continuation of `onMount` (it
+    // awaits the setup-hints request), so the DOM is complete before the throw. Wait
+    // for the page to go quiet instead of asserting on a selector that passes either way.
+    await page.waitForLoadState("networkidle");
+    await page.waitForTimeout(250);
+
+    const { pageErrors, consoleErrors } = getZeroErrorContext(page);
+    expect(pageErrors, `uncaught browser errors on /setup:\n${pageErrors.join("\n\n")}`).toEqual(
+      [],
+    );
+    // Uncaught exceptions also land in console.error. The collector is not asserted
+    // wholesale because the run injects `extraHTTPHeaders` (x-test-mode) into every
+    // request, including the icon CDN, whose CORS rejections are harness noise.
+    // What must never appear is a Svelte runtime error — that is this bug's class.
+    const svelteRuntimeErrors = consoleErrors.filter((entry) =>
+      /Svelte error|effect_orphan|svelte\.dev\/e\//.test(entry),
+    );
+    expect(
+      svelteRuntimeErrors,
+      `Svelte runtime errors on /setup:\n${svelteRuntimeErrors.join("\n\n")}`,
+    ).toEqual([]);
   });
 });
 
