@@ -27,6 +27,11 @@ import { MigrationEngine, exemptDeclaredFieldRenames } from "@src/services/core/
 import { widgets } from "@src/stores/widget-store.svelte.ts";
 import { type Actions, error, fail, isHttpError, isRedirect } from "@sveltejs/kit";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
+import {
+  SUBMISSION_GUARD_HEADER,
+  decideSubmissionGuard,
+  warnRecordIdWithoutToken,
+} from "@utils/security/submission-guard";
 // System Logger
 import { logger } from "@utils/logger";
 import {
@@ -245,7 +250,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 export const actions: Actions = {
   // Save Collection
-  saveCollection: async ({ request, locals }) => {
+  saveCollection: async ({ request, url, locals }) => {
     const user = getAuthenticatedUser(locals);
     const { roles: tenantRoles, isAdmin } = locals;
     try {
@@ -254,6 +259,18 @@ export const actions: Actions = {
       }
 
       const formData = await request.formData();
+      // Dev-time, once per route: this payload carries `_id` (the collection id)
+      // and the request sent no submission token, i.e. exactly the shape that
+      // broke saving during CB1. The guard itself must not parse the body to
+      // notice it, so the reminder is emitted here, where the payload is already
+      // parsed. Never blocks the request.
+      if (
+        formData.has("_id") &&
+        !decideSubmissionGuard(url.searchParams, request.headers.get(SUBMISSION_GUARD_HEADER))
+          .engaged
+      ) {
+        warnRecordIdWithoutToken(url.pathname, locals.tenantId);
+      }
       const fieldsData = formData.get("fields") as string;
       const originalName = formData.get("originalName") as string;
       // Server-side validation is authoritative: trim and reject empty/
