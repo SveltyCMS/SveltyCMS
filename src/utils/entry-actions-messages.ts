@@ -82,6 +82,10 @@ export const entryMessages = {
   updateFailed: (operation: string) =>
     update_failed?.({ operation }) || `Failed to ${operation} entries`,
 
+  /** Batch mutation answered success with zero written rows. */
+  noEntriesChanged: () =>
+    "No entries were changed — they may already have that status or be outside your access scope.",
+
   deleteFailed: (operation: string) =>
     delete_failed?.({ operation }) || `Failed to ${operation} entries`,
 

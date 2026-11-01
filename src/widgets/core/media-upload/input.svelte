@@ -40,7 +40,7 @@
 	import { page } from '$app/state';
 	import type { FieldType } from './';
 	import type { MediaFile } from './types';
-	import { mediaCache } from './media-cache';
+	import { loadMediaDocs, mediaCache } from './media-cache';
 	import AspectPreviewModal from '@components/media/aspect-preview-modal.svelte';
 	import 'iconify-icon';
 
@@ -139,8 +139,13 @@
 	async function fetchMediaData(ids: string[]): Promise<MediaFile[]> {
 		logger.debug('Fetching data for IDs:', ids);
 		try {
-			const fetchedFiles: MediaFile[] = [];
+			// One coalesced request for every id this render pass needs (the cache
+			// short-circuits already-hydrated assets). A per-id loop here meant one
+			// `/api/media/:id` request per selected asset.
+			const missing = ids.filter((id) => !mediaCache.get(id));
+			const docs = missing.length > 0 ? await loadMediaDocs(missing) : new Map();
 
+			const fetchedFiles: MediaFile[] = [];
 			for (const id of ids) {
 				const cached = mediaCache.get(id);
 				if (cached) {
@@ -148,14 +153,8 @@
 					continue;
 				}
 
-				const response = await fetch(`/api/media/${encodeURIComponent(id)}`);
-				if (!response.ok) continue;
-
-				const payload = (await response.json()) as
-					| Record<string, unknown>
-					| { data?: Record<string, unknown> };
-				const found = (payload?.data ?? payload) as Record<string, unknown> | null;
-				if (!found || typeof found !== 'object') continue;
+				const found = docs.get(id) as Record<string, unknown> | undefined;
+				if (!found) continue;
 
 				const file = toMediaFile(found, id);
 				mediaCache.set(id, file);

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { pluralize } from "@src/utils/string";
+import { englishPlural, pluralize } from "@src/utils/string";
 
 describe("internationalized pluralize utility", () => {
   it("handles English (default locale)", () => {
@@ -63,5 +63,33 @@ describe("internationalized pluralize utility", () => {
     expect(pluralize(15, bookAr, "ar-SA")).toBe("كتابًا");
     expect(pluralize(100, bookAr, "ar-SA")).toBe("كتاب");
     expect(pluralize(105, bookAr, "ar-SA")).toBe("كتب");
+  });
+});
+
+describe("englishPlural (labels without a translated plural form)", () => {
+  it("keeps the singular for one item", () => {
+    expect(englishPlural("entry", 1)).toBe("entry");
+    expect(englishPlural("item", 1)).toBe("item");
+  });
+
+  it("pluralises regular and -y nouns", () => {
+    expect(englishPlural("item", 2)).toBe("items");
+    expect(englishPlural("user", 0)).toBe("users");
+    expect(englishPlural("entry", 2)).toBe("entries");
+    expect(englishPlural("category", 3)).toBe("categories");
+  });
+
+  it("handles sibilant endings", () => {
+    expect(englishPlural("class", 2)).toBe("classes");
+    expect(englishPlural("match", 2)).toBe("matches");
+  });
+
+  it("leaves an already-plural label alone", () => {
+    expect(englishPlural("entries", 2)).toBe("entries");
+    expect(englishPlural("categories", 3)).toBe("categories");
+  });
+
+  it("is tolerant of empty input", () => {
+    expect(englishPlural("", 3)).toBe("");
   });
 });

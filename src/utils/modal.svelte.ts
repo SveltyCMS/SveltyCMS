@@ -34,6 +34,7 @@ import {
 // Dialog Components
 import ConfirmDialog from "@components/system/confirm-dialog.svelte";
 import ScheduleModal from "@components/collection-display/schedule-modal.svelte";
+import { englishPlural } from "@utils/string";
 
 // --- Security ---
 
@@ -181,8 +182,10 @@ class ModalManager {
     const theme = isArchive ? DEFAULT_THEMES.archive : DEFAULT_THEMES.delete;
 
     // 🛡️ XSS Protection: Escape user-provided item names before injecting into HTML
+    // Copy is pluralised, not parenthesised: "Delete 2 entry(s)" / "Delete 2 user"
+    // read as broken grammar (the title also produced "Delete  entry" for one row).
     const safeTarget = isBatch
-      ? `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${escapeHtml(itemType)}(s)</span>`
+      ? `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${escapeHtml(englishPlural(itemType, count))}</span>`
       : `<span class="text-tertiary-500 dark:text-primary-500 font-bold">${escapeHtml(String(itemName))}</span>`;
 
     const body = `Are you sure you want to ${action.toLowerCase()} ${safeTarget}?`;
@@ -195,8 +198,11 @@ class ModalManager {
          </div>`
         : "";
 
+    const batchTitle =
+      count > 1 ? `${action} ${count} ${englishPlural(itemType, count)}` : `${action} ${itemType}`;
+
     return this.showConfirm({
-      title: `${action} ${count > 1 ? count : ""} ${itemType}`,
+      title: batchTitle,
       body: body + adminWarning,
       confirmText: action,
       theme,
@@ -217,7 +223,7 @@ class ModalManager {
 
     return this.showConfirm({
       title: "Confirm Status Change",
-      body: `Change <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span> to <span class="text-tertiary-500 dark:text-primary-500 font-bold">${safeStatus}</span>?`,
+      body: `Change <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${englishPlural("item", count)}</span> to <span class="text-tertiary-500 dark:text-primary-500 font-bold">${safeStatus}</span>?`,
       confirmText: "Change Status",
       theme: DEFAULT_THEMES[status] || DEFAULT_THEMES.default,
       onConfirm,
@@ -251,7 +257,7 @@ class ModalManager {
     const { count = 1, onConfirm } = options;
     return this.showConfirm({
       title: "Clone Items",
-      body: `Clone <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span>?`,
+      body: `Clone <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${englishPlural("item", count)}</span>?`,
       confirmText: "Clone",
       theme: DEFAULT_THEMES.clone,
       onConfirm,

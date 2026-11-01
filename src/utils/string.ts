@@ -37,6 +37,28 @@ export function pluralize(
 }
 
 /**
+ * Derives the English plural of a UI noun label ("entry" → "entries").
+ *
+ * Confirmation dialogs and toasts build strings like "Delete 2 entries" from a
+ * singular, locale-independent label. Concatenating the label produced
+ * "Delete 2 entry"; writing "(s)" produced "Delete 2 entry(s)". Use with a
+ * count when no translated plural form is available; localized copy goes
+ * through Paraglide plural messages instead.
+ *
+ * @param noun Singular English noun.
+ * @param count Number of items the noun refers to.
+ */
+export function englishPlural(noun: string, count: number): string {
+  const word = String(noun ?? "").trim();
+  if (!word || count === 1) return word;
+  // Already plural ("entries", "media") — leave it alone.
+  if (/s$/i.test(word) && !/ss$/i.test(word)) return word;
+  if (/[^aeiou]y$/i.test(word)) return `${word.slice(0, -1)}ies`;
+  if (/(s|x|z|ch|sh)$/i.test(word)) return `${word}es`;
+  return `${word}s`;
+}
+
+/**
  * Escapes regex metacharacters in a string.
  */
 export function escapeRegex(string: string): string {
