@@ -29,6 +29,18 @@ import { dateToISODateString, nowISODateString } from "@utils/date";
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 
+/**
+ * The sign-in URL carries a live token, so returning it in a response is an
+ * account-takeover primitive for anyone who can read that response (the
+ * reset-link class of bug). Opt-in only, never in production builds — dev
+ * diagnostics must be requested explicitly via the environment.
+ */
+export function isDevLinkResponseAllowed(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return env.NODE_ENV !== "production" && env.ALLOW_MAGIC_LINK_IN_RESPONSE === "true";
+}
+
 export interface MagicLinkSendResult {
   sent: boolean;
   smtpConfigured: boolean;
@@ -85,7 +97,11 @@ export async function sendMagicLinkForEmail(
       const origin = new URL(event.request.url).origin;
       const baseUrl = publicEnv.HOST_PROD || origin;
       const magicLink = `${baseUrl}/login?magic_token=${token}&email=${encodeURIComponent(email)}`;
-      devLink = magicLink;
+      // Opt-in only (see isDevLinkResponseAllowed) — the key is omitted entirely
+      // otherwise, so no downstream spread can leak the link.
+      if (isDevLinkResponseAllowed()) {
+        devLink = magicLink;
+      }
 
       sendMail({
         recipientEmail: email,
@@ -110,7 +126,11 @@ export async function sendMagicLinkForEmail(
     // uniform response — no account enumeration
   }
 
-  return { sent: true, smtpConfigured, devLink };
+  return {
+    sent: true,
+    smtpConfigured,
+    ...(devLink ? { devLink } : {}),
+  };
 }
 
 /**
