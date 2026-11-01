@@ -777,6 +777,22 @@ async function signUpInternal(event: RequestEvent, input: any) {
   return { success: true, redirectPath: "/config/collectionbuilder" };
 }
 
+/**
+ * Handing the password-reset link back to the browser is a LOCAL DEVELOPMENT convenience and must
+ * never be the default: the setup wizard makes SMTP optional, so on any such install an anonymous
+ * visitor could reset the administrator password and sign in with it (audit 2026-10-31, B1).
+ * Opt in explicitly with ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE=true outside production.
+ *
+ * Read at CALL time, not at module scope: a value captured on import is frozen for the lifetime of
+ * the process, and a server bundle built in development can be started as a production process —
+ * the flag alone would then be the only thing standing between an anonymous visitor and an
+ * administrator password reset. Passing the env object in as an argument also keeps the bundler from
+ * inlining `process.env.NODE_ENV` into the server build.
+ */
+function resetLinkExposureAllowed(env: Record<string, string | undefined> = process.env): boolean {
+  return env.ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE === "true" && env.NODE_ENV !== "production";
+}
+
 async function forgotPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
@@ -803,11 +819,14 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
     // Ignore errors
   }
 
+  // Without an email provider a reset request is only a no-op message: no token is minted and no
+  // link leaves the server, unless a developer opted in locally (see resetLinkExposureAllowed).
+  const exposeResetLink = !smtpConfigured && resetLinkExposureAllowed();
   let resetLink: string | undefined;
 
   try {
     const user = await auth.checkUser({ email: result.output.email });
-    if (user?._id) {
+    if (user?._id && (smtpConfigured || exposeResetLink)) {
       const exp = new Date(Date.now() + 3600000);
       const token = await auth.createToken({
         user_id: user._id,
@@ -852,11 +871,13 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
     success: true,
     message: smtpConfigured
       ? "If an account exists, a reset link has been sent."
-      : "SMTP not configured — use the link below to reset your password.",
+      : exposeResetLink
+        ? "SMTP not configured — use the link below to reset your password."
+        : "Password reset by email is unavailable because no email provider is configured. Ask an administrator to set a new password for you.",
     smtpConfigured,
-    // Only expose the reset link when SMTP is off (dev/no-config mode).
-    // When SMTP is on, the link is delivered via email for security.
-    resetLink: smtpConfigured ? undefined : resetLink,
+    // The in-page fallback exists for local development only; in every other case the link never
+    // leaves the server (audit 2026-10-31, B1 — account takeover without email access).
+    resetLink: exposeResetLink ? resetLink : undefined,
   };
 }
 
