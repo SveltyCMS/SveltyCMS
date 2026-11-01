@@ -236,6 +236,9 @@ async function startDevServer(): Promise<ChildProcess> {
         ...process.env,
         TEST_MODE: process.env.TEST_MODE || "true",
         TEST_API_SECRET: resolveTestSecret(),
+        // The login E2E drives the in-page reset form, which only renders while the server may
+        // return the reset link (off by default since the B1 fix). Harness opt-in, like a dev's.
+        ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true",
         // 🛡️ CI-PARITY: without DB_TYPE/DB_NAME/JWT/ENCRYPTION keys, the private
         // config validation fails and the SQLite adapter refuses to boot
         // (fail-closed guard) — and after a wizard reset the re-init gets an
@@ -285,6 +288,9 @@ async function startPreviewServer(): Promise<ChildProcess> {
     STRICT_SETUP_CHECK: "true",
     TEST_API_SECRET: resolveTestSecret(),
     SKIP_TEST_CLEANUP: "true",
+    // Harness opt-in for the in-page reset form (see startDevServer above): the link is only
+    // returned when the service opts in, and the built preview server publishes no NODE_ENV.
+    ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true",
     // 🛡️ CI-PARITY SECRETS: privateConfigSchema requires JWT_SECRET_KEY +
     // ENCRYPTION_KEY (≥32 chars). Without them the private config validation
     // fails after a wizard reset → re-init gets an empty connection string →

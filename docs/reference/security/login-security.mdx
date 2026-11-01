@@ -6,7 +6,7 @@ order: 4
 icon: "mdi:shield-check"
 author: "SveltyCMS Team"
 created: "2026-05-24"
-updated: "2026-09-29"
+updated: "2026-11-01"
 tags:
   - "security"
   - "authentication"
@@ -69,6 +69,22 @@ Accounts are locked for 15 minutes after 5 consecutive failed login attempts. Th
 - **UI**: `sign-in.svelte` `handleResetSubmit` maps `result.code` to toasts (no false success toast).
 - **Remote**: `auth.remote.ts` `resetPWInternal` forwards `code` to the client.
 - **E2E**: `tests/e2e/routes/login/extended-auth.spec.ts` — `seed-expired-password-reset` testing action seeds a past-expiry `password_reset` token; submit asserts **Link expired** toast (no soft-skip).
+
+### 7a. Reset-Link Exposure in the Response (opt-in, off by default)
+
+SMTP is optional in the setup wizard, so "SMTP not configured" is a normal production state — it must not double as a public password-reset path. `forgotPW` (`src/routes/login/auth.remote.ts`) therefore hands the reset link back to the browser only on an explicit opt-in, and only outside production:
+
+| `ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE`     | `NODE_ENV`     | `forgotPW` result when SMTP is **not** configured                                         |
+| :------------------------------------------ | :------------- | :---------------------------------------------------------------------------------------- |
+| unset / anything but `"true"` (**default**) | any            | no token minted, `resetLink: undefined`, message asks an administrator to set a password  |
+| `"true"`                                    | `production`   | no token minted, `resetLink: undefined` — production wins over the flag                   |
+| `"true"`                                    | not production | `password_reset` token minted, `resetLink` returned, sign-in opens the in-page reset form |
+
+With SMTP configured the link is always delivered by email and never returned, whatever the flag says. Rate limiting, the timing-attack dummy verify and the audit log are unchanged.
+
+- The decision is evaluated **per call** (`resetLinkExposureAllowed()`), not at module scope: a server bundle built in development can be started as a production process, and a value captured on import would freeze the build-time answer into the running process.
+- The browser only renders the in-page form when `result.smtpConfigured === false && result.resetLink` (`sign-in.svelte`), so with the flag off the form cannot appear.
+- E2E sets the flag for the harness only: `playwright.config.ts` (`webServer.env`), `scripts/runs/run-e2e.ts` (dev + preview server) and the E2E jobs in `.github/workflows/ci.yml`. Unit coverage: `tests/unit/routes/login-forgot-pw-reset-link.test.ts`.
 
 ## Accessibility Fixes (WCAG 2.2 AA)
 
