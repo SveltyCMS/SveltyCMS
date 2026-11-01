@@ -318,21 +318,29 @@ This page dynamically switches between List views and Field editors based on the
 					// Clear errors from the previous entry — a stale key for a field the
 					// new entry lacks would otherwise block Save (isFormValid sums all keys).
 					validationStore.clearAllErrors();
-					const matchedEntry =
-						entries?.find((e: any) => String(e?._id) === String(parsed.entryId)) ??
-						(entries && entries.length === 1 ? entries[0] : null);
-					if (matchedEntry) {
-						// Data already loaded by server
-						collections.setMode('edit');
-						collections.setCollectionValue(matchedEntry);
-						initialCollectionValue = JSON.stringify(matchedEntry);
-					} else {
-						// Need to reload data
-						refreshAll().then(() => {
-							collections.setMode('edit');
-							logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
+
+					// Row activation loads the STORED document (openEntryForEdit) and only
+					// then reflects the URL, so the store already holds the entry this URL
+					// names. `entries` carries the one-language display projection — writing
+					// it back here is exactly the data loss this route must not repeat
+					// (blocker B2), so an already-loaded entry wins.
+					// untrack: the URL effect must not re-run on every keystroke.
+					const loadedEntryId = untrack(() => collections.activeValue?._id);
+					if (loadedEntryId && String(loadedEntryId) === String(parsed.entryId)) {
+						untrack(() => {
+							initialCollectionValue = JSON.stringify(collections.activeValue);
 						});
+						return;
 					}
+
+					// No row ever seeds the form: `entries` is the one-language list
+					// projection, so matching it here would hand the editor a display
+					// snapshot (blocker B2). The entry named by the URL is not loaded,
+					// so reload the stored document.
+					refreshAll().then(() => {
+						collections.setMode('edit');
+						logger.debug(`[URL Change] Reloaded entry ${parsed.entryId}`);
+					});
 				} else if (parsed.mode === 'view' && collections.mode === 'edit') {
 					// Exiting edit mode
 					collections.setMode('view');
