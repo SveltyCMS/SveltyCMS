@@ -118,8 +118,19 @@ async function flushPending(): Promise<void> {
  * Resolve media documents by id, coalescing every id requested in the same task
  * into one HTTP request. Cached ids never cause a request.
  */
+/**
+ * Values the list renders as "no media". They are DISPLAY placeholders, not ids, and
+ * must never become a request: an entry list with 10 empty cells would otherwise ask
+ * the server for `/api/media/-` ten times.
+ */
+const MEDIA_PLACEHOLDERS = new Set(["", "-", "\u2013", "\u2014"]);
+
+function isMediaId(value: unknown): value is string {
+  return typeof value === "string" && !MEDIA_PLACEHOLDERS.has(value.trim());
+}
+
 export function loadMediaDocs(ids: readonly string[]): Promise<Map<string, MediaDoc>> {
-  const wanted = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+  const wanted = [...new Set(ids.filter(isMediaId))];
   const resolved = new Map<string, MediaDoc>();
   const misses: string[] = [];
 

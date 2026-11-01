@@ -136,3 +136,28 @@ describe("media widget hydration (m5: one request per list page)", () => {
     expect(resolved.size).toBe(0);
   });
 });
+
+it("never turns a placeholder row into a request (10 rows, half of them empty)", async () => {
+  // The audited list stored "-" as DATA for an empty cell; the display still renders
+  // an en dash. Neither may reach the wire: 10 rows -> ONE batch request carrying only
+  // the 5 real ids, and no URL that mentions a placeholder.
+  const tableRows = Array.from({ length: 10 }, (_, i) => (i % 2 === 0 ? `media-${i}` : "-"));
+  resetMediaCache();
+  const { log } = stubLoggedFetch();
+
+  const docs = await loadMediaDocs(tableRows);
+
+  const urls = log.urls;
+  const placeholderCalls = urls.filter(
+    (u) => /\/api\/media\/[-\u2013\u2014]?($|\?)/.test(u) && !u.includes("batch-get"),
+  );
+  expect(placeholderCalls, "a placeholder must never be requested").toEqual([]);
+  expect(urls.filter((u) => classifyMediaUrl(u) === "per-id")).toEqual([]);
+  expect(urls.filter((u) => classifyMediaUrl(u) === "batch")).toHaveLength(1);
+  expect(mediaBatchStats.requests).toBe(1);
+
+  // Only the real ids are in the batch, and only they resolve.
+  const batchUrl = urls.find((u) => u.includes("batch-get"))!;
+  for (let i = 0; i < 10; i += 2) expect(batchUrl).toContain(`media-${i}`);
+  expect(docs.size).toBe(5);
+});
