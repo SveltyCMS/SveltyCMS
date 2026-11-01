@@ -43,6 +43,7 @@
 	import { logger } from '@utils/logger';
 	import { showConfirm } from '@utils/modal.svelte';
 	import { obj2formData } from '@utils/form.svelte';
+	import { serializeCollectionFieldsPayload } from '../../collectionbuilder-utils';
 	import { registerHotkey } from '@src/utils/hotkeys';
 	import { onMount, onDestroy, untrack } from 'svelte';
 	// Programmatic re-submit (`fetch('?/save', …)`) must decode the action's devalue
@@ -322,12 +323,16 @@
 
 		try {
 			isLoading = true;
-			// Ensure fields always serializes as JSON array for the server action
+			// The widget list is serialised as an ORDERED ARRAY: the canvas order is the
+			// saved order, so the payload must not re-key it into a position map
+			// (see serializeCollectionFieldsPayload).
 			const payload: Record<string, unknown> = {
 				originalName,
 				...collections.active,
 				name,
-				fields: collections.active?.fields ?? [],
+				fields: serializeCollectionFieldsPayload(
+					(collections.active?.fields as FieldInstance[] | undefined) ?? []
+				),
 				icon: collections.active?.icon || 'bi:collection',
 				slug:
 					collections.active?.slug ||

@@ -60,6 +60,53 @@ export function parseOperations(ops: unknown): ContentNodeOperation[] | null {
 }
 
 /**
+ * Widget list as persisted by the collection builder: an ORDERED ARRAY.
+ *
+ * The builder posts and re-displays `fields` in display order, so the array
+ * index *is* the order. Anything that re-keys the list (e.g. an index-keyed
+ * object map) loses that contract: `JSON.stringify` emits integer-like keys in
+ * ascending numeric order, so a list whose positions do not match its display
+ * order is silently re-sorted on write and comes back reordered after reload.
+ */
+export type OrderedWidgetList = Record<string, unknown>[];
+
+/** Transient UI-only keys that must never reach a collection file. */
+const TRANSIENT_WIDGET_KEYS = new Set(["_dragId", "__fieldIndex"]);
+
+/**
+ * Normalise a decoded `fields` payload into the ordered list shape.
+ *
+ * Accepts the array the builder posts and the legacy index-keyed map written by
+ * earlier builds (one-way migration: the next save persists an ordered array).
+ * Returns `null` for shapes the builder cannot persist.
+ */
+export function normalizeCollectionFieldsPayload(parsed: unknown): OrderedWidgetList | null {
+  const list = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object"
+      ? Object.values(parsed as Record<string, unknown>)
+      : null;
+  if (!list) return null;
+  return list.filter((field) => !!field && typeof field === "object") as OrderedWidgetList;
+}
+
+/**
+ * Serialise the widget list for the `saveCollection` action — order preserved,
+ * transient drag/inspector bookkeeping stripped.
+ */
+export function serializeCollectionFieldsPayload(fields: readonly object[]): string {
+  return JSON.stringify(
+    fields.map((field) =>
+      Object.fromEntries(
+        Object.entries(field as Record<string, unknown>).filter(
+          ([key]) => !TRANSIENT_WIDGET_KEYS.has(key),
+        ),
+      ),
+    ),
+  );
+}
+
+/**
  * Minimum a collection needs to survive the compilation pipeline: at least one
  * field, and every field resolvable — an identity (`db_fieldName`/`name`) plus
  * a widget/type (see `docs/reference/architecture/compilation-pipeline.mdx`).
