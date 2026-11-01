@@ -277,7 +277,11 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     await page.getByTestId("entry-list-action-delete").first().click();
     await confirmModal(page);
 
-    await expect(page.getByText(/deleted|archived/i).first()).toBeVisible({ timeout: 25_000 });
+    // Delete is restorable by default, so the truthful toast reads "moved to the Trash";
+    // keep the assertion on intent (a success toast that names what happened), not on one wording.
+    await expect(page.getByText(/moved to the trash|deleted|archived/i).first()).toBeVisible({
+      timeout: 25_000,
+    });
 
     // Persistence: a fresh render must not show the row again (the old bug
     // toasted success while the write never happened).
