@@ -8,6 +8,7 @@
  *
  * Features:
  * - Complete-string redaction via `redactSecrets`
+ * - Structural redaction via `redactSecretsDeep` for values serialized as JSON afterwards
  * - Chunk-safe streaming redaction via `createStreamRedactor` (bounded tail hold-back)
  * - API keys (`sck_`, `sk-`), Bearer tokens, JWTs, PEM private keys
  * - Email addresses, phone numbers, and Luhn-valid card-like digit groups
@@ -89,7 +90,15 @@ function isLuhnValid(value: string): boolean {
 
 function isPhoneLike(value: string): boolean {
   const digits = countDigits(value);
-  return digits >= 10 && digits <= 15;
+  if (digits < 10 || digits > 15) return false;
+
+  // An unseparated run of 13+ digits is an identifier or a millisecond timestamp, not a
+  // phone number in any conventional notation (`+1 555…`, `555-1234`, `(555) 123`).
+  // Redacting it silently rewrote `{"timestamp":1793522984546}` into invalid JSON.
+  const hasSeparator = value.length > digits;
+  if (!hasSeparator && digits >= 13) return false;
+
+  return true;
 }
 
 /**
@@ -111,6 +120,50 @@ export function redactSecrets(text: string): string {
     .replace(EMAIL_ADDRESS, REDACTED)
     .replace(CARD_CANDIDATE, (match) => (isLuhnValid(match) ? REDACTED : match))
     .replace(PHONE_CANDIDATE, (match) => (isPhoneLike(match) ? REDACTED : match));
+}
+
+/**
+ * Structural variant of {@link redactSecrets} for values that are serialized as JSON
+ * *after* redaction.
+ *
+ * Redacting the serialized form is unsafe: the text patterns also match inside JSON
+ * tokens, and a rewrite there yields a document the receiver can no longer parse (a
+ * 13-digit epoch millisecond used to become `"timestamp":[REDACTED]`). Walking the value
+ * instead keeps the envelope intact by construction — only string leaves are rewritten,
+ * so numbers, booleans and `null` keep their JSON type and the result always serializes.
+ *
+ * Cycles are not followed (returned as-is); `JSON.stringify` reports them, as before.
+ */
+export function redactSecretsDeep<T>(value: T): T {
+  return redactValue(value, new WeakSet()) as T;
+}
+
+/** Guards against pathological nesting in caller-supplied payloads. */
+const MAX_REDACTION_DEPTH = 32;
+
+function redactValue(value: unknown, seen: WeakSet<object>, depth = 0): unknown {
+  if (typeof value === "string") return redactSecrets(value);
+  if (value === null || typeof value !== "object") return value;
+  if (depth >= MAX_REDACTION_DEPTH) return value;
+
+  const object = value as object;
+  if (seen.has(object)) return value;
+  seen.add(object);
+
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactValue(entry, seen, depth + 1));
+  }
+
+  // Only plain records are walked: dates, maps and class instances keep their identity,
+  // which is what `JSON.stringify` expects from them anyway.
+  const prototype = Object.getPrototypeOf(object);
+  if (prototype !== Object.prototype && prototype !== null) return value;
+
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(object)) {
+    result[key] = redactValue(entry, seen, depth + 1);
+  }
+  return result;
 }
 
 export interface StreamRedactor {

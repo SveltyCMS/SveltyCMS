@@ -21,6 +21,7 @@
 <script lang="ts">
 	import { toast } from '@src/stores/toast.svelte';
 	import { logger } from '@utils/logger';
+	import { SseFrameBuffer, parseSseData } from '@utils/sse-client';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { formatNumber, formatTime } from '@utils/format-date';
 	import { fade, slide } from 'svelte/transition';
@@ -277,21 +278,19 @@
 			if (!reader) throw new Error('No response stream');
 
 			const decoder = new TextDecoder();
-			let buffer = '';
+			// Per-stream buffer: a frame split across chunks is reassembled before it is
+			// parsed, and comment frames (keep-alive) are dropped instead of parsed.
+			const frames = new SseFrameBuffer();
 
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
 
-				buffer += decoder.decode(value, { stream: true });
-				const blocks = buffer.split('\n\n');
-				buffer = blocks.pop() || '';
+				for (const frame of frames.push(decoder.decode(value, { stream: true }))) {
+					const parsed = parseSseData(frame.data);
+					if (!parsed.ok) continue;
 
-				for (const block of blocks) {
-					const line = block.trim();
-					if (!line.startsWith('data: ')) continue;
-
-					const payload = JSON.parse(line.slice(6));
+					const payload = parsed.value as any;
 
 					if (payload.type === 'progress') {
 						importPhase = payload.phase || 'processing';

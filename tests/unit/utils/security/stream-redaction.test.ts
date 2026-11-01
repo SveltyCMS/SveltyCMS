@@ -11,7 +11,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createStreamRedactor, redactSecrets } from "@utils/security/stream-redaction";
+import {
+  createStreamRedactor,
+  redactSecrets,
+  redactSecretsDeep,
+} from "@utils/security/stream-redaction";
 
 describe("redactSecrets", () => {
   it("redacts sck_ and sk- API keys", () => {
@@ -110,5 +114,45 @@ describe("createStreamRedactor", () => {
     expect(output).not.toContain("MIIEowIBAAKCAQEA04");
     expect(output).toContain("[REDACTED]");
     expect(output).toContain("done");
+  });
+});
+
+describe("redactSecrets — structured payloads", () => {
+  it("keeps a serialized SSE payload parseable: an epoch-ms timestamp is not a phone number", () => {
+    const payload = { type: "content_update", event: "content:update", timestamp: 1793522984546 };
+    const wire = redactSecrets(JSON.stringify(payload));
+
+    // Before the fix this threw `SyntaxError: Unexpected token 'R'` because the
+    // 13-digit millisecond value was replaced by `[REDACTED]` inside the JSON.
+    expect(JSON.parse(wire)).toEqual(payload);
+  });
+
+  it("still redacts a conventionally written phone number beside a timestamp", () => {
+    const wire = JSON.stringify({ timestamp: 1793522984546, note: "call +1 (555) 123-4567" });
+    const output = redactSecrets(wire);
+
+    expect(output).not.toContain("555");
+    expect(JSON.parse(output).timestamp).toBe(1793522984546);
+  });
+
+  it("redactSecretsDeep keeps the JSON envelope valid and redacts string leaves only", () => {
+    const payload = {
+      type: "content_update",
+      timestamp: 1793522984546,
+      nested: [{ note: "jane.doe@example.com" }],
+    };
+
+    const output = redactSecretsDeep(payload);
+
+    expect(output.timestamp).toBe(1793522984546);
+    expect(output.nested[0].note).toBe("[REDACTED]");
+    expect(JSON.parse(JSON.stringify(output))).toEqual(output);
+  });
+
+  it("redactSecretsDeep tolerates cycles without recursing forever", () => {
+    const node: Record<string, unknown> = { timestamp: 1793522984546 };
+    node.self = node;
+
+    expect(() => redactSecretsDeep(node)).not.toThrow();
   });
 });

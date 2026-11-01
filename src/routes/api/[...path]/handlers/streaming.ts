@@ -12,7 +12,7 @@
  */
 
 import { logger } from "@utils/logger";
-import { redactSecrets } from "@utils/security/stream-redaction";
+import { redactSecretsDeep } from "@utils/security/stream-redaction";
 import {
   csvRowFromRecord,
   encodeCsvHeader,
@@ -346,8 +346,11 @@ export function sseStreamingResponse(
         for await (const data of iterator) {
           if (isClosed) break;
 
-          // Redact the serialized payload, never the SSE framing (`event:`/`id:`/`retry:`).
-          const payload = `event: ${event}\n` + `data: ${redactSecrets(JSON.stringify(data))}\n\n`;
+          // Redact the value, then serialize: redacting the serialized document rewrote
+          // numeric JSON tokens (a 13-digit epoch-ms matched the phone pattern) and handed
+          // the client invalid JSON. The frame always ends with a blank line.
+          const payload =
+            `event: ${event}\n` + `data: ${JSON.stringify(redactSecretsDeep(data))}\n\n`;
 
           controller.enqueue(encoder.encode(payload));
         }
