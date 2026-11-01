@@ -120,16 +120,17 @@ CI runs 2 whitebox jobs (policy/quality + unit) + harness build + DB ×4 + bench
 | 🧪 DB (`${{ matrix.db }}`)         | `DB_TYPE=<db> bun run test:integration` against the docker-compose adapter (CI adds `--strict-no-build --summary`); local parity: `bun run test:parity` (add `--docker` to boot missing engines, `--require-all` to fail on skips) |
 | 🧪 E2E shards                      | `bun run test:e2e` (harness build → wizard → auth-setup → chromium); one group: `bun run test:e2e -- --grep="(<shard>)"`; flake gate: `bun run flake:budget`                                                                       |
 
-**Protected branches run the full E2E suite** — a push to `next` or `main` runs every spec, because the two branches differ only in the release bump. A targeted subset once let a media bulk-download 500 through on `next` that the `main` gate caught, so targeted runs are now feature-branch only. Feature branches run `tests/e2e/smoke.spec.ts` (auth → CRUD → persistence) plus, depending on the changed paths, the contracts CI would otherwise catch first:
+**`next` and `main` share one E2E contract-set rule** — both branches compute the target list from the same diff base (`origin/next`), so the release bump (only `package.json` + `sbom.json`) is the only difference between them. The gate runs `tests/e2e/smoke.spec.ts` (auth → CRUD → persistence) plus, depending on the changed paths, the contracts CI would otherwise catch first:
 
-| Changed paths                                                          | Added specs                                                                    |
-| :--------------------------------------------------------------------- | :----------------------------------------------------------------------------- |
-| `src/components/`, `src/app.css`, `src/routes/**/*.svelte`, `(admin)/` | `routes/login/accessibility.spec.ts`, `routes/dashboard/accessibility.spec.ts` |
-| `src/components/ui/`, `src/app.css`, design-system route, `(admin)/`   | `routes/admin-theme/visual-regression.spec.ts`                                 |
-| `src/routes/(app)/mediagallery/`, `src/components/media/`              | `routes/mediagallery/theme-visual.spec.ts`                                     |
-| `src/widgets/`, `src/components/collection-display/`, collection route | `routes/collection-builder/kitchen-sink.spec.ts`                               |
+| Changed paths                                                          | Added specs                                                                                                            |
+| :--------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------- |
+| `src/components/`, `src/app.css`, `src/routes/**/*.svelte`, `(admin)/` | `routes/login/accessibility.spec.ts`, `routes/dashboard/accessibility.spec.ts`                                         |
+| `src/components/ui/`, `src/app.css`, design-system route, `(admin)/`   | `routes/admin-theme/visual-regression.spec.ts`                                                                         |
+| `src/routes/(app)/mediagallery/`, `src/components/media/`              | `routes/mediagallery/mediagallery.spec.ts`, `routes/mediagallery/theme-visual.spec.ts`                                 |
+| `src/utils/media/`, `src/services/media/`, media API handlers          | `routes/mediagallery/{mediagallery,folders-bulk,media-bulk-partial-failure}.spec.ts`, `routes/site/share-link.spec.ts` |
+| `src/widgets/`, `src/components/collection-display/`, collection route | `routes/collection-builder/kitchen-sink.spec.ts`                                                                       |
 
-The mapping targets spec **paths**, never `--grep` (a path cannot be combined with `--shard` and cannot silently select zero tests). If you touch UI and the hook did not list one of these specs, the mapping is stale — fix the hook before trusting a green gate.
+The mapping targets spec **paths**, never `--grep` (a path cannot be combined with `--shard` and cannot silently select zero tests). The media-server row exists because a bulk-download 500 shipped from `src/utils/media/sharing.ts`, which matched no mapping and therefore never ran `folders-bulk.spec.ts`. If you touch a subsystem and the hook did not list its spec, the mapping is stale — fix the hook before trusting a green gate. **The full serial suite stays on CI** (9 shards, isolated DBs); running it on one shared local DB takes ~17 min and exposes spec-isolation artefacts, not product regressions.
 
 **Parity rules — the ones that break otherwise-green trees:**
 

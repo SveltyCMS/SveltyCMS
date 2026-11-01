@@ -238,10 +238,14 @@ test.describe("Media bulk actions", () => {
 
   test("bulk download requests archive endpoint", async ({ page }) => {
     await openGallery(page);
-    await uploadImage(page);
+    const filename = await uploadImage(page);
 
     await page.getByTestId("media-selection-toggle").click();
-    const item = page.getByTestId("media-item").first();
+    // Target the row this test uploaded: the shared E2E database can hold media
+    // rows seeded without files on disk, and archiving one of those fails before
+    // the contract under test is reached.
+    const item = page.getByTestId("media-item").filter({ hasText: filename }).first();
+    await expect(item).toBeVisible({ timeout: ACTION_TIMEOUT });
     // Click visible label — native Checkbox component has label with for={id}
     const label = item.locator("label").first();
     await label.click({ timeout: ACTION_TIMEOUT });

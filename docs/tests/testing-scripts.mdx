@@ -85,7 +85,7 @@ Runs before every commit. Steps:
 7. **Backend changes only** — harness build + `run-integration.ts --no-build --diff`
 8. **SBOM sync** — when `bun.lock` / `package.json` changed
 
-### `.githooks/pre-push` — CI unit parity → build → integration → browser → mutation (~5–6 min feature branch; ~15–25 min `next`/`main`)
+### `.githooks/pre-push` — CI unit parity → build → integration → browser → mutation (~5–6 min)
 
 Runs before every push, in this order:
 
@@ -97,7 +97,7 @@ Runs before every push, in this order:
 6. **Security/policy** — `bun audit`, `scan-secret-misuse --strict --full`, hardware probe, `lint:tenant -- --full` + `test:tenant`, deploy-backdoor probe
 7. **SQLite integration** — `run-integration.ts --no-build --diff` (full suite when no diff mapping)
 8. **DB parity** — only when adapter/service code changed (plus a non-UTC clock run)
-9. **Browser gate** — `next`/`main` run the **full** E2E suite; feature branches run `smoke.spec.ts` plus path-mapped accessibility, visual and behavioural specs. Then `check-flake-budget.ts --max-flaky=0`
+9. **Browser gate** — `smoke.spec.ts` plus the changed-path accessibility, visual, behavioural and media-server specs (identical mapping on `next` and `main`); then `check-flake-budget.ts --max-flaky=0`
 10. **Mutation** — `test:mutation` runs **last**; it rewrites source files, restores them atomically, and the hook restores a dirty target from HEAD as a second line of defence
 
 ### Full DB Matrix (Local Pre-CI) — ~8 min

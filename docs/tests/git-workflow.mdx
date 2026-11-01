@@ -66,26 +66,26 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 
 `.githooks/pre-push` runs:
 
-| Check                         | Command                                                                                                | Est.                                        |
-| :---------------------------- | :----------------------------------------------------------------------------------------------------- | :------------------------------------------ |
-| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`                                                              | ~25–120s                                    |
-| Prod backdoor verify          | `scripts/security/verify-prod-build-backdoor.ts --mode=bench`                                          | ~5–15s                                      |
-| Bundle size gate              | `scripts/check/check-bundle-size.ts`                                                                   | ~1s                                         |
-| Quality gate                  | `bun run check`                                                                                        | ~50s                                        |
-| Unit coverage (CI parity)     | `bun run test:unit:coverage`                                                                           | ~65–130s                                    |
-| Component interactions        | `bun run test:unit:components`                                                                         | ~11s                                        |
-| Secret misuse scan            | `scripts/security/scan-secret-misuse.ts --strict --full`                                               | ~1–5s                                       |
-| Hardware tiers probe          | `scripts/probe/probe-hardware-tiers.ts`                                                                | ~1s                                         |
-| Tenant isolation              | `lint:tenant -- --full` + `test:tenant`                                                                | ~2–20s                                      |
-| Deploy backdoor probe         | `scripts/probe/probe-deploy-testing-api.ts`                                                            | ~30s                                        |
-| SQLite integration tests      | `run-integration.ts --no-build --diff`                                                                 | ~35–180s                                    |
-| DB parity (conditional)       | `test:parity` when adapter/service code changed                                                        | ~1–5 min                                    |
-| E2E browser gate              | `next`/`main`: full suite; feature branches: changed-path specs + `smoke.spec.ts`; then `flake:budget` | ~70–180s (feature) / ~10–20 min (protected) |
-| Mutation (last)               | `bun run test:mutation`                                                                                | ~6s                                         |
+| Check                         | Command                                                               | Est.     |
+| :---------------------------- | :-------------------------------------------------------------------- | :------- |
+| Production build (4 adapters) | `COMPILE_ALL_ADAPTERS=true bun run build`                             | ~25–120s |
+| Prod backdoor verify          | `scripts/security/verify-prod-build-backdoor.ts --mode=bench`         | ~5–15s   |
+| Bundle size gate              | `scripts/check/check-bundle-size.ts`                                  | ~1s      |
+| Quality gate                  | `bun run check`                                                       | ~50s     |
+| Unit coverage (CI parity)     | `bun run test:unit:coverage`                                          | ~65–130s |
+| Component interactions        | `bun run test:unit:components`                                        | ~11s     |
+| Secret misuse scan            | `scripts/security/scan-secret-misuse.ts --strict --full`              | ~1–5s    |
+| Hardware tiers probe          | `scripts/probe/probe-hardware-tiers.ts`                               | ~1s      |
+| Tenant isolation              | `lint:tenant -- --full` + `test:tenant`                               | ~2–20s   |
+| Deploy backdoor probe         | `scripts/probe/probe-deploy-testing-api.ts`                           | ~30s     |
+| SQLite integration tests      | `run-integration.ts --no-build --diff`                                | ~35–180s |
+| DB parity (conditional)       | `test:parity` when adapter/service code changed                       | ~1–5 min |
+| E2E browser gate              | same changed-path contract set + `smoke.spec.ts` on `next` and `main` | ~70–180s |
+| Mutation (last)               | `bun run test:mutation`                                               | ~6s      |
 
-**Protected branches run the full E2E matrix locally.** `next` and `main` differ only in the release bump, so a push to either runs every spec; a green `next` therefore proves the same browser behaviour as a green `main`. Feature branches keep the changed-path mapping + smoke to stay fast — a regression outside those paths waits for CI.
+**`next` and `main` run the same gate.** Both compute the browser targets from the same diff base (`origin/next`) and the same path mapping, so the release bump (`package.json` + `sbom.json`) is the only difference between them. The full serial suite is **CI-only**: it is split into 9 shards with isolated databases, because one shared local database takes ~17 min and surfaces spec-isolation artefacts rather than product regressions.
 
-**Multi-adapter DB matrix, benchmarks, and the CI shard partitioning remain CI-only.** Pre-push runs the SQLite suite plus the browser suite, but the 4-engine matrix and the 9-shard split only exist on CI. Docs-only pushes skip build + integration + browser + mutation.
+**Multi-adapter DB matrix, benchmarks, and the CI shard partitioning remain CI-only.** Pre-push runs the SQLite suite plus the mapped browser contracts; the 4-engine matrix and the 9-shard split only exist on CI. Docs-only pushes skip build + integration + browser + mutation.
 
 **Release preparation (opt-in).** `bun run git push --release` (or `--release=patch|minor|major`) arms a
 post-gate step: once the nine checks pass, `scripts/version.ts auto` derives the next SemVer version from

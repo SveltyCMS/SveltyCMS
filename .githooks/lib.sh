@@ -244,16 +244,28 @@ prepare_release() {
 
 # ── Change detection ──────────────────────────────────────────────
 # pre-commit MUST inspect the staging index (the commit has not happened yet);
-# pre-push compares against the upstream divergence (merge-base).
+# pre-push compares against the branch-independent base below.
 has_staged_changes() {
   local patterns="$1"
   git diff --cached --name-only --diff-filter=ACMR 2>/dev/null | grep -qE "$patterns"
 }
 
+# Branch-independent diff base. `origin/next` is the dev trunk, so `next` and
+# `main` compute the same changed-path set for the same tree — the release bump
+# (package.json + sbom.json) is the only difference between them. Fall back to
+# the upstream merge-base, then the previous commit.
+push_diff_base() {
+  local base
+  base="$(git merge-base HEAD origin/next 2>/dev/null || true)"
+  [ -n "$base" ] || base="$(git merge-base HEAD @{upstream} 2>/dev/null || true)"
+  [ -n "$base" ] || base="HEAD~1"
+  printf '%s\n' "$base"
+}
+
 has_push_changes() {
   local patterns="$1"
   local base
-  base="$(git merge-base HEAD @{upstream} 2>/dev/null || echo 'HEAD~1')"
+  base="$(push_diff_base)"
   git diff --name-only "$base" -- 2>/dev/null | grep -qE "$patterns"
 }
 

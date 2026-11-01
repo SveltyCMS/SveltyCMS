@@ -66,10 +66,10 @@ if [ ! -t 0 ]; then
   done
 fi
 
-# Changed paths vs the upstream merge-base — used for the E2E target mapping.
+# Changed paths vs the branch-independent base — used for the E2E target mapping.
 push_changed_files() {
   local base
-  base="$(git merge-base HEAD @{upstream} 2>/dev/null || echo 'HEAD~1')"
+  base="$(push_diff_base)"
   git diff --name-only "$base" -- 2>/dev/null || true
 }
 
@@ -219,79 +219,59 @@ fi
 # cannot silently select zero tests.
 if [ "${SKIP_E2E_SMOKE:-false}" != "true" ]; then
   E2E_TARGETS="tests/e2e/smoke.spec.ts"
-
-  # ── Protected branches run the full suite ──────────────────────────────
-  # `next` and `main` differ only in the release bump. A targeted subset let a
-  # media bulk-download 500 through on `next` that the `main` gate caught, so
-  # both branches now run every spec. Feature branches keep the changed-path
-  # mapping below to stay fast.
-  E2E_FULL=false
-  E2E_BRANCH=""
-  case " $PUSHED_BRANCHES " in
-    *" main "*) E2E_BRANCH="main" ;;
-    *" next "*) E2E_BRANCH="next" ;;
-  esac
-  if [ -z "$E2E_BRANCH" ]; then
-    # Manual hook runs (stdin closed) have no pushed refs — fall back to HEAD.
-    HEAD_BRANCH="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
-    case "$HEAD_BRANCH" in
-      main|next) E2E_BRANCH="$HEAD_BRANCH" ;;
-    esac
-  fi
-  if [ -n "$E2E_BRANCH" ]; then
-    info "Protected branch ($E2E_BRANCH) — running the full E2E suite (CI parity)"
-    E2E_FULL=true
-    E2E_TARGETS=""
-  fi
-  # Changed-path mapping is only meaningful for feature branches — protected
-  # branches already run everything above.
-  if [ "$E2E_FULL" = false ]; then
-    # Any changed E2E spec must run locally too. A spec-only push previously
-    # skipped the shard it edited (CI run 1847), and the hook had no mapping for
-    # tests/e2e/** at all.
-    CHANGED_SPECS="$(push_changed_files | grep -E '^tests/e2e/.*\.(spec|test)\.ts$' || true)"
-    if [ -n "$CHANGED_SPECS" ]; then
-      info "Changed E2E specs detected — running them in the browser gate"
-      for spec in $CHANGED_SPECS; do
-        [ -f "$spec" ] && E2E_TARGETS="$E2E_TARGETS $spec"
-      done
-    fi
-    # Config-workspace changes have burned the Config & System shard repeatedly
-    # with post-mutation reads (theme create, trash restore, density reload).
-    if has_push_changes '^(src/routes/\(app\)/config/|^src/routes/api/theme/)'; then
-      info "Config UI/API changes detected — adding the config goldens"
-      E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/config/design-system.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts tests/e2e/routes/config/data-ops.spec.ts tests/e2e/routes/config/access-management.spec.ts"
-    fi
-    if has_push_changes '^(src/widgets/|src/components/collection-display/|src/routes/\(app\)/\[language\]/\[\.\.\.collection\]/)'; then
-      info "Collection or widget changes detected — expanding gate to include Kitchen Sink journey"
-      E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/collection-builder/kitchen-sink.spec.ts"
-    fi
-    # Any component or route-markup change can move a colour pair, an RTL
-    # logical property, or an accessible name — exactly what the CI Axe/RTL jobs
-    # assert. Run the accessibility contracts with the smoke gate.
-    if has_push_changes '^(src/components/|src/app\.css|src/routes/.*\.svelte|src/routes/\(admin\)/)'; then
-      info "UI changes detected — adding accessibility contracts (login, dashboard)"
-      E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/login/accessibility.spec.ts tests/e2e/routes/dashboard/accessibility.spec.ts"
-    fi
-    if has_push_changes '^(src/components/ui/|src/app\.css|src/routes/\(app\)/config/design-system/|src/routes/\(admin\)/)'; then
-      info "Design-system changes detected — adding the admin theme visual regression"
-      E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/admin-theme/visual-regression.spec.ts"
-    fi
-    if has_push_changes '^(src/routes/\(app\)/mediagallery/|src/components/media/)'; then
-      info "Media UI changes detected — adding the behavioral gallery suite and the theme visual audit"
-      E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/mediagallery.spec.ts tests/e2e/routes/mediagallery/theme-visual.spec.ts"
-    fi
-    # A path can be added twice (e.g. a changed spec that also matches a UI mapping);
-    # de-duplicate so Playwright does not run it twice and inflate the flake count.
-    UNIQUE_TARGETS=""
-    for target in $E2E_TARGETS; do
-      case " $UNIQUE_TARGETS " in
-        *" $target "*) ;;
-        *) UNIQUE_TARGETS="$UNIQUE_TARGETS $target" ;;
-      esac
+  # Any changed E2E spec must run locally too. A spec-only push previously
+  # skipped the shard it edited (CI run 1847), and the hook had no mapping for
+  # tests/e2e/** at all.
+  CHANGED_SPECS="$(push_changed_files | grep -E '^tests/e2e/.*\.(spec|test)\.ts$' || true)"
+  if [ -n "$CHANGED_SPECS" ]; then
+    info "Changed E2E specs detected — running them in the browser gate"
+    for spec in $CHANGED_SPECS; do
+      [ -f "$spec" ] && E2E_TARGETS="$E2E_TARGETS $spec"
     done
-    E2E_TARGETS="${UNIQUE_TARGETS# }"
-  fi # end feature-branch target mapping
+  fi
+  # Config-workspace changes have burned the Config & System shard repeatedly
+  # with post-mutation reads (theme create, trash restore, density reload).
+  if has_push_changes '^(src/routes/\(app\)/config/|^src/routes/api/theme/)'; then
+    info "Config UI/API changes detected — adding the config goldens"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/config/design-system.spec.ts tests/e2e/routes/config/appearance-golden.spec.ts tests/e2e/routes/config/data-ops.spec.ts tests/e2e/routes/config/access-management.spec.ts"
+  fi
+  if has_push_changes '^(src/widgets/|src/components/collection-display/|src/routes/\(app\)/\[language\]/\[\.\.\.collection\]/)'; then
+    info "Collection or widget changes detected — expanding gate to include Kitchen Sink journey"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/collection-builder/kitchen-sink.spec.ts"
+  fi
+  # Any component or route-markup change can move a colour pair, an RTL
+  # logical property, or an accessible name — exactly what the CI Axe/RTL jobs
+  # assert. Run the accessibility contracts with the smoke gate.
+  if has_push_changes '^(src/components/|src/app\.css|src/routes/.*\.svelte|src/routes/\(admin\)/)'; then
+    info "UI changes detected — adding accessibility contracts (login, dashboard)"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/login/accessibility.spec.ts tests/e2e/routes/dashboard/accessibility.spec.ts"
+  fi
+  if has_push_changes '^(src/components/ui/|src/app\.css|src/routes/\(app\)/config/design-system/|src/routes/\(admin\)/)'; then
+    info "Design-system changes detected — adding the admin theme visual regression"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/admin-theme/visual-regression.spec.ts"
+  fi
+  if has_push_changes '^(src/routes/\(app\)/mediagallery/|src/components/media/)'; then
+    info "Media UI changes detected — adding the behavioral gallery suite and the theme visual audit"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/mediagallery.spec.ts tests/e2e/routes/mediagallery/theme-visual.spec.ts"
+  fi
+  # Server-side media changes are invisible to the UI mapping above: the bulk
+  # download shipped a 500 because `src/utils/media/sharing.ts` matched nothing,
+  # so `folders-bulk.spec.ts` never ran on `next`. Any media server path now
+  # pulls the gallery, bulk and share-link contracts.
+  if has_push_changes '^(src/utils/media/|src/services/media/|src/routes/api/.*media)'; then
+    info "Media server changes detected — adding gallery, bulk and share-link suites"
+    E2E_TARGETS="$E2E_TARGETS tests/e2e/routes/mediagallery/mediagallery.spec.ts tests/e2e/routes/mediagallery/folders-bulk.spec.ts tests/e2e/routes/mediagallery/media-bulk-partial-failure.spec.ts tests/e2e/routes/site/share-link.spec.ts"
+  fi
+  # A path can be added twice (e.g. a changed spec that also matches a UI mapping);
+  # de-duplicate so Playwright does not run it twice and inflate the flake count.
+  UNIQUE_TARGETS=""
+  for target in $E2E_TARGETS; do
+    case " $UNIQUE_TARGETS " in
+      *" $target "*) ;;
+      *) UNIQUE_TARGETS="$UNIQUE_TARGETS $target" ;;
+    esac
+  done
+  E2E_TARGETS="${UNIQUE_TARGETS# }"
   if run "🌐  E2E Browser Gate (Chromium)" pm_run scripts/runs/run-e2e.ts --no-build $E2E_TARGETS; then
     OK=$((OK + 1))
     # Any retried-pass locally is a warning sign: CI scores it against a budget.
