@@ -578,6 +578,14 @@ export async function loginAsAdmin(page: Page, waitForUrl?: string | RegExp) {
       // Test may have ended before icon fetch completed — ignore silently
     }
   });
+  await page.route("https://api2.iconify.design/**", async (route) => {
+    try {
+      const response = await route.fetch();
+      await route.fulfill({ response });
+    } catch {
+      // Test may have ended before icon fetch completed — ignore silently
+    }
+  });
   await page.route("https://api.unisvg.com/**", async (route) => {
     try {
       const response = await route.fetch();

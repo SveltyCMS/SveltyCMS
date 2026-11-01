@@ -60,7 +60,8 @@ export const BROWSER_NOISE: readonly RegExp[] = [
   /net::ERR_FAILED/i,
   /net::ERR_NAME_NOT_RESOLVED/i,
   /favicon\.ico/i,
-  /api\.iconify\.design/i,
+  /api2?\.iconify\.design/i,
+  /api\.(unisvg|simplesvg)\.com/i,
   // The widget marketplace is an external service and CI runs without a CORS
   // proxy, so the browser rejects the prefetch itself: the API answers without
   // Access-Control-Allow-Origin.

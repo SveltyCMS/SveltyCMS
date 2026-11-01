@@ -32,7 +32,8 @@ const activeGuards = new WeakMap<Page, ErrorGuardContext>();
  */
 const IGNORED_CONSOLE_PATTERNS: readonly RegExp[] = [
   /favicon\.ico/i,
-  /api\.iconify\.design/i,
+  /api2?\.iconify\.design/i,
+  /api\.(unisvg|simplesvg)\.com/i,
   /ResizeObserver loop/i,
   /net::ERR_FAILED/i,
   /net::ERR_ABORTED/i,
@@ -41,7 +42,8 @@ const IGNORED_CONSOLE_PATTERNS: readonly RegExp[] = [
 ];
 
 const IGNORED_REQUEST_PATTERNS: readonly RegExp[] = [
-  /api\.iconify\.design/i,
+  /api2?\.iconify\.design/i,
+  /api\.(unisvg|simplesvg)\.com/i,
   /favicon\.ico/i,
   /net::ERR_ABORTED/i,
 ];
