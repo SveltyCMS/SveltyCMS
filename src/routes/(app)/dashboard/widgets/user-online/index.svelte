@@ -174,6 +174,7 @@
 							u.email.toLowerCase().includes(searchTerm.toLowerCase())
 					)
 				: onlineUsers}
+			{const badgeCount = searchTerm.trim() ? filteredUsers.length : totalOnline}
 
 			{#if totalOnline === 0}
 				<!-- ===== Empty State ===== -->
@@ -241,11 +242,11 @@
 							>
 						</div>
 
-						{#if totalOnline > 1}
+						{#if badgeCount > 1}
 							<div
 								class="rounded-full bg-surface-500/10 px-2.5 py-0.5 text-xs text-(--admin-text-muted) dark:bg-surface-800 dark:text-(--admin-text-muted)"
 							>
-								{totalOnline}
+								{badgeCount}
 								{widget_useronline_active()}
 							</div>
 						{/if}

@@ -284,7 +284,7 @@
 				rows={textareaRows}
 				placeholder={(field?.placeholder && field?.placeholder !== ''
 					? field?.placeholder
-					: field?.db_fieldName) as string | undefined}
+					: undefined) as string | undefined}
 				required={field?.required as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}
@@ -310,7 +310,7 @@
 				id={field?.db_fieldName}
 				placeholder={(field?.placeholder && field?.placeholder !== ''
 					? field?.placeholder
-					: field?.db_fieldName) as string | undefined}
+					: undefined) as string | undefined}
 				required={field?.required as boolean | undefined}
 				disabled={field?.disabled as boolean | undefined}
 				readonly={field?.readonly as boolean | undefined}

@@ -216,6 +216,8 @@ async function handleGetRoutes(
       return handleMediaAnalytics(event, cms, tenantId);
     case "bulk-download":
       return handleMediaBulkDownload(event, cms, tenantId);
+    case "batch-get":
+      return handleMediaBatchGet(event, cms, tenantId, url);
     case "search":
       return handleMediaSearch(event, cms, tenantId, url);
   }
@@ -305,6 +307,50 @@ async function handleDeleteRoutes(
 }
 
 // ─── Route Implementations ──────────────────────────────────────────────────
+
+/**
+ * GET /api/media/batch-get?ids=a,b,c — hydrate many media documents in one call.
+ *
+ * The media widget's display pillar renders one cell per list row; fetching each
+ * asset separately cost one `/api/media/:id` request per row (a 25-row list = 25
+ * requests). One request answers the whole page. Accepts repeated `ids=` params
+ * as well as a comma list, and is capped like the other batch endpoints so an
+ * unbounded id list cannot become a query-amplification vector.
+ */
+export const MAX_BATCH_GET_IDS = 100;
+
+export async function handleMediaBatchGet(
+  event: RequestEvent,
+  cms: LocalCMS,
+  tenantId: DatabaseId,
+  url: URL,
+) {
+  const ids = [
+    ...new Set(
+      url.searchParams
+        .getAll("ids")
+        .flatMap((value) => value.split(","))
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  if (ids.length === 0) throw new AppError("ids[] is required", 400, "INVALID_BATCH_IDS");
+  if (ids.length > MAX_BATCH_GET_IDS) {
+    throw new AppError(
+      `Batch size exceeds maximum limit of ${MAX_BATCH_GET_IDS}`,
+      400,
+      "INVALID_BATCH_SIZE",
+    );
+  }
+
+  const result = await cms.media.findManyByIds(ids, { tenantId });
+  if (!result.success) {
+    throw new AppError(result.message || "Failed to load media documents", 500);
+  }
+
+  return successResponse(event, result.data ?? []);
+}
 
 export async function handleMediaExists(event: RequestEvent, cms: LocalCMS, tenantId: DatabaseId) {
   const urlParam = event.url.searchParams.get("url");

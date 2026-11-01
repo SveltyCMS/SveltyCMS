@@ -167,8 +167,25 @@ export async function deleteEntries(
         status: StatusTypes.archive,
       });
       if (result.success) {
+        // Same contract as setEntriesStatus: report the rows the server
+        // confirms, never the selection size. Uses the shared
+        // bulk-write-outcome helper so both paths read the count the same way.
+        const outcome = describeBulkWriteOutcome(entryIds, result);
+        const archived = outcome?.affected ?? entryIds.length;
+        if (archived === 0) {
+          toast.warning({ description: entryMessages.noEntriesChanged() });
+          onSuccess();
+          return;
+        }
+        if (outcome?.level === "partial") {
+          toast.warning({
+            description: `${entryMessages.entriesArchived(archived)} (${outcome.affected} of ${outcome.requested}; ${outcome.missing} not found)`,
+          });
+          onSuccess();
+          return;
+        }
         toast.success({
-          description: entryMessages.entriesArchived(entryIds.length),
+          description: entryMessages.entriesArchived(archived),
         });
         onSuccess();
       } else {

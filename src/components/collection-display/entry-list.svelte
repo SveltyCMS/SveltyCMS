@@ -1682,6 +1682,15 @@ bulk actions, and predictive preloading.
 											<div class="my-3 space-y-1.5 text-xs text-(--admin-text-muted)">
 												{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
 													{@const fieldName = (header as TableHeader).name || ''}
+													<!-- System timestamps are ISO strings in the row, so `String()`
+													     printed "2026-10-31T09:12:33.000Z" in the card while the
+													     table view formatted the same column. -->
+													{@const isDateField =
+														fieldName === 'createdAt' || fieldName === 'updatedAt'}
+													{@const rawValue = (entry as Record<string, unknown>)[fieldName]}
+													{@const displayValue = isDateField
+														? formatDisplayDate(rawValue as string) || '-'
+														: String(rawValue ?? '-')}
 													<div class="flex items-center justify-between gap-2">
 														<span class="font-medium text-surface-500 capitalize truncate"
 															>{header.label}:</span
@@ -1689,7 +1698,7 @@ bulk actions, and predictive preloading.
 														<span
 															class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]"
 														>
-															{String((entry as any)[fieldName] ?? '-')}
+															{displayValue}
 														</span>
 													</div>
 												{/each}
