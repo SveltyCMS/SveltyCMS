@@ -53,7 +53,8 @@
 	// --- Derived from page & stores ---
 	import { logger } from '@utils/logger';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
-	import { showCloneModal, showScheduleModal } from '@utils/modal.svelte';
+	import { modalState, showCloneModal, showScheduleModal } from '@utils/modal.svelte';
+	import { attachSaveShortcut } from '@utils/save-shortcut';
 	import { navigationManager } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { untrack } from 'svelte';
@@ -81,6 +82,9 @@
 
 	// --- Local mutable state ---
 	let showMore = $state(false);
+	// One save at a time: the Save button and Ctrl/Cmd+S guard on this, so a
+	// held key or a double click cannot fire a second request.
+	let isSaving = $state(false);
 	let previousLanguage = $state(contentLanguage.value);
 	let previousTabSet = $state(ui.wizard.tabSetState);
 	let tempData = $state<Record<string, CollectionEntry>>({});
@@ -315,6 +319,16 @@
 	}
 
 	async function save(): Promise<void> {
+		if (isSaving) return;
+		isSaving = true;
+		try {
+			await persistEntry();
+		} finally {
+			isSaving = false;
+		}
+	}
+
+	async function persistEntry(): Promise<void> {
 		if (!isFormValid) {
 			const errorKeys = Object.keys(validationStore.errors || {}).filter(
 				(k) => validationStore.errors[k]
@@ -364,6 +378,27 @@
 
 		await navigationManager.toList();
 	}
+
+	// ── Ctrl/Cmd+S (M6) ───────────────────────────────────────────────────────
+	// The editor had no binding, so the browser opened its own "Save page"
+	// dialog and nothing was saved. The shortcut runs this component's save() —
+	// the same function its Save button calls, so the same path, one request.
+	// The decision (editor mode, open modal, save in flight, write permission)
+	// lives in @utils/save-shortcut and is unit-tested there.
+	// Bound here and nowhere else: HeaderEdit is mounted once per editor, while
+	// RightSidebar renders for both the desktop aside and the mobile drawer — a
+	// binding there could mean two listeners and two saves.
+	$effect(() =>
+		attachSaveShortcut({
+			getContext: () => ({
+				mode: currentMode,
+				modalOpen: modalState.isOpen,
+				saving: isSaving,
+				canWrite
+			}),
+			runSave: save
+		})
+	);
 
 	function cancel(): void {
 		document.dispatchEvent(new CustomEvent('cancelEdit', { bubbles: true }));
