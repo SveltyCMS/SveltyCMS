@@ -9,7 +9,13 @@ import { ADMIN_CREDENTIALS, prepareLoginForm, enable2FAForTestUser } from "../..
 
 test.describe("Extended Authentication UI Flows", () => {
   // Ensure we start with a clean state
-  test.use({ storageState: { cookies: [], origins: [] } });
+  test.use({
+    storageState: { cookies: [], origins: [] },
+    // "Magic Link & WebAuthn UI Toggles (Mocked)" fulfils checkAuthMethods with a
+    // hand-written devalue payload; the remote-function client rejects that shape
+    // and logs `Error: Invalid input`. The mock is the subject, not a product path.
+    expectedConsoleErrors: ["Error: Invalid input"],
+  });
 
   test.beforeEach(async ({ page }) => {
     await resetAndSeedDatabase(page);

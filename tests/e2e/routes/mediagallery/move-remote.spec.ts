@@ -137,7 +137,13 @@ async function uploadImage(page: Page): Promise<string> {
 }
 
 test.describe.configure({ mode: "serial" });
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({
+  storageState: { cookies: [], origins: [] },
+  // "remote tab calls uploadRemoteUrls remote query" posts a real internet URL and
+  // accepts 400/422/500, because the fetch runs from the server without a stubbed
+  // peer. The app reports the failed ingest in the console by design.
+  expectedConsoleErrors: [/Failed to fetch remote media/],
+});
 
 // ---------------------------------------------------------------------------
 // Move: selection + breadcrumb, then a real pointer drag onto a sidebar folder

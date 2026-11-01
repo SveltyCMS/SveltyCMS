@@ -42,7 +42,14 @@ async function openDetails(page: Page, filename: string) {
   return modal;
 }
 
-test.use({ storageState: { cookies: [], origins: [] } });
+test.use({
+  storageState: { cookies: [], origins: [] },
+  // The transcode case explicitly accepts a 503 when the image has no ffmpeg
+  // binary and asserts the dialog's inline explanation, so the 5xx and the
+  // browser's own log for it are the asserted outcome, not a defect.
+  expectedConsoleErrors: [/status of 503/],
+  expectedServerErrors: [/api\/media\/transcode.*HTTP 503/],
+});
 
 test.describe("Media gallery — video playback + transcoding", () => {
   test.setTimeout(180_000);

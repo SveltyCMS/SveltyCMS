@@ -72,6 +72,13 @@ test.afterAll(async () => {
 test.describe.configure({ mode: "serial", timeout: 180_000 });
 
 test.describe("Media — remote URL ingestion", () => {
+  test.use({
+    // The cloud-metadata case uploads 169.254.169.254 to prove the SSRF guard
+    // rejects it; the rejection is the assertion, so the app logging
+    // "HTTP not allowed in production" for that URL is expected.
+    expectedConsoleErrors: [/HTTP not allowed in production/],
+  });
+
   test("ingests a reachable URL and stores the fetched asset", async ({ page }) => {
     await openUploadMediaPage(page);
 

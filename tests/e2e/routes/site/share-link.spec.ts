@@ -20,7 +20,12 @@ const EXPIRED_TOKEN = `e2e-share-expired-${RUN_STAMP}`;
 
 test.describe("Public media share links", () => {
   // Guests must not inherit the admin storageState — blank context per test.
-  test.use({ storageState: { cookies: [], origins: [] } });
+  test.use({
+    storageState: { cookies: [], origins: [] },
+    // The expired-link case asserts the 410 Gone page: the client load answers
+    // error(410) on purpose and the browser logs that non-2xx response.
+    expectedConsoleErrors: [/status of 410 \(Gone\)/],
+  });
 
   let validMediaId = "";
   let expiredMediaId = "";
