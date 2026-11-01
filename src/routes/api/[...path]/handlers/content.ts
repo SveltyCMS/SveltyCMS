@@ -13,7 +13,7 @@
 
 import { logger } from "@utils/logger";
 import { AppError, raise } from "@utils/error-handling";
-import { redactSecrets } from "@utils/security/stream-redaction";
+import { redactSecretsDeep } from "@utils/security/stream-redaction";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
@@ -321,7 +321,11 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
         if (isClosed) return;
         const clientPayload = normalizeSseEventPayload(payload, tenantId);
         if (!clientPayload) return;
-        eventBuffer.push(`data: ${redactSecrets(JSON.stringify(clientPayload))}\n\n`);
+        // Redact the VALUE, never the serialized document: text patterns also match
+        // inside JSON tokens (a 13-digit epoch-ms read as a phone number rewrote
+        // `"timestamp":1793522984546` to `"timestamp":[REDACTED]`, which the client then
+        // reported as `Unexpected token 'R'`). The frame always ends with a blank line.
+        eventBuffer.push(`data: ${JSON.stringify(redactSecretsDeep(clientPayload))}\n\n`);
       };
 
       eventBus.on("*", handler);

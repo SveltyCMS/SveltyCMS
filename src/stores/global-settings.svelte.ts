@@ -18,6 +18,7 @@
 import { publicConfigSchema } from "../databases/public-config-schema";
 // Universal Logger (safe for client and server)
 import { logger } from "@utils/logger";
+import { classifySseError, parseSseData } from "@utils/sse-client";
 import type { InferOutput } from "valibot";
 
 // Helper to safely get browser mode without crashing if $app/env is missing (e.g. in some Bun test contexts)
@@ -71,6 +72,15 @@ class GlobalStore {
 const getStore = () => GlobalStore.getInstance();
 
 let eventSource: EventSource | null = null;
+/** Normal teardown (page navigation or `stopListening()`): errors from here on are expected. */
+let tearingDown = false;
+/** Consecutive errors since the last successful `onopen`. */
+let consecutiveFailures = 0;
+/** Pending reconnect, so a burst of errors cannot stack several connections. */
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Base delay between reconnect attempts after a real failure (grows with the attempt). */
+const SSE_RECONNECT_BASE_MS = 5_000;
 
 /**
  * Check if settings have been loaded on the client.
@@ -127,28 +137,90 @@ function startListening() {
     return;
   }
 
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+
   try {
+    tearingDown = false;
     eventSource = new EventSource("/api/content/events");
 
+    eventSource.onopen = () => {
+      consecutiveFailures = 0;
+    };
+
     eventSource.addEventListener("settings:update", (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.key && "value" in data) {
-          updatePublicEnv(data.key as keyof PublicEnv, data.value);
+      // Tolerant parse: a comment line or a truncated/redacted document must not throw.
+      const parsed = parseSseData(event.data);
+      if (!parsed.ok) {
+        if (parsed.reason === "invalid-json") {
+          logger.debug("[GlobalSettings] Ignored unparseable real-time update");
         }
-      } catch (err) {
-        logger.error("[GlobalSettings] Error parsing real-time update", err);
+        return;
+      }
+
+      const data = parsed.value as { key?: keyof PublicEnv; value?: any } | null;
+      if (data && data.key && "value" in data) {
+        updatePublicEnv(data.key, data.value);
       }
     });
 
     eventSource.onerror = (err) => {
-      logger.error("[GlobalSettings] SSE Connection error", err);
+      consecutiveFailures++;
+      const verdict = classifySseError({
+        readyState: eventSource?.readyState ?? null,
+        teardown: tearingDown,
+        consecutiveFailures,
+      });
+      if (verdict.level === "silent") return;
+
+      const message = "[GlobalSettings] SSE Connection error";
+      if (verdict.level === "warn") logger.warn(message, { attempt: consecutiveFailures });
+      else logger.error(message, { attempt: consecutiveFailures, error: err });
+
+      if (!verdict.reconnect) return;
+
+      // The browser gave up (readyState CLOSED) or the reconnect kept failing.
       eventSource?.close();
       eventSource = null;
-      setTimeout(startListening, 5000);
+      scheduleReconnect();
     };
   } catch (err) {
     logger.error("[GlobalSettings] Failed to initialize SSE", err);
+  }
+}
+
+/**
+ * Rebuilds the stream after a real failure, with growing backoff.
+ * Never re-arms after a teardown, and never stacks a second timer.
+ */
+function scheduleReconnect() {
+  if (!isBrowser || tearingDown || retryTimer) return;
+
+  const delay = SSE_RECONNECT_BASE_MS * Math.min(consecutiveFailures, 5);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    if (!tearingDown) startListening();
+  }, delay);
+}
+
+/**
+ * Stops listening without logging: an aborted stream on page teardown is expected, so it
+ * must not be reported as a connection error. `startListening()` may run again afterwards.
+ */
+export function stopListening() {
+  tearingDown = true;
+  consecutiveFailures = 0;
+
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
   }
 }
 
@@ -190,3 +262,13 @@ export const publicEnv: PublicEnv = new Proxy({} as PublicEnv, {
     return Reflect.getOwnPropertyDescriptor(getStore().state, prop);
   },
 });
+
+// A navigation tears the page down while the stream is open. Flag it before the browser
+// aborts the connection, so the resulting error is not reported as a failure.
+if (isBrowser) {
+  window.addEventListener("pagehide", () => stopListening());
+  // Restored from the back/forward cache: resume listening without logging anything.
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted) startListening();
+  });
+}
