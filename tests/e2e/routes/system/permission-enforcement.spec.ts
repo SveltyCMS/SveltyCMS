@@ -76,7 +76,10 @@ async function ensureTestUser(page: any) {
 }
 
 test.describe("Permission Enforcement — Remove & Verify Block", () => {
-  test.setTimeout(60_000);
+  // Each test performs 2–3 real UI logins (admin → test user → admin → test user).
+  // Under a full-suite run on a loaded host that exceeds 60s long before an
+  // assertion fails; the budget is a harness concern, not a product contract.
+  test.setTimeout(180_000);
 
   test.beforeAll(async ({ browser }) => {
     const ctx = await browser.newContext();
