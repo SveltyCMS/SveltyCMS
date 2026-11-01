@@ -17,7 +17,7 @@
  * { timeout: 10000 } for async assertions, test.describe blocks for organization.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { ensureAuthenticated, seedInviteToken } from "../../helpers/api";
 import { toggleCheckbox } from "../../helpers/checkbox";
 import {

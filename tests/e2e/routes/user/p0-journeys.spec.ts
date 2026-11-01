@@ -7,7 +7,7 @@
  * 3. Token edit/delete with seeded invite token
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor } from "../../helpers/auth";
 import { prepareTestUser, seedInviteToken, TEST_USERS } from "../../helpers/api";
 import { TEST_API_HEADERS } from "../../helpers/api";

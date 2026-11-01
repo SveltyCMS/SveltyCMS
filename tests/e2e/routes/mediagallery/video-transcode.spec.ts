@@ -10,7 +10,7 @@
  * asserted unconditionally.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 import { seedMediaWithMetadata } from "../../helpers/api";

@@ -6,7 +6,7 @@
  *   - Delete, block, and unblock users
  *   - Invite user via email and accept invitation
  */
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { prepareTestUser, seedTestUsers, TEST_USERS } from "../../helpers/api";
 import { clearTableSearch, openTableSearch, openUserManagement } from "../../helpers/user-page";

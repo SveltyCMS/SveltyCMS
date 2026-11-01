@@ -13,7 +13,7 @@
  * - rejects SvelteKit error-page markers in the rendered body
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 
 /** Static admin routes only — parameterized pages are covered by their feature specs. */

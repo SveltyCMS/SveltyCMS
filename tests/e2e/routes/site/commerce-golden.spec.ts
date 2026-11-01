@@ -9,7 +9,7 @@
  * testing API in beforeAll; the seeds' success is asserted (no soft-skips).
  */
 
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "../../fixtures";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
 

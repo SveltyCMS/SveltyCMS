@@ -8,7 +8,7 @@
  * redirect to /login (stale storageState), matching appearance.spec.ts.
  */
 
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { seedCookieConsent } from "../../helpers/cookie-consent";
 

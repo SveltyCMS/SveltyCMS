@@ -3,7 +3,7 @@
  * @description Sync shell + trash golden restore (seed-trash). No soft-skip.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { purgeTrash, seedTrash } from "../../helpers/api";

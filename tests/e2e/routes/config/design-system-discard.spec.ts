@@ -11,7 +11,7 @@
  * of an `AdminCard` (`flat` → 0px, `bordered`/`elevated` → 1px).
  */
 
-import { test, expect, type Locator, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { seedCookieConsent } from "../../helpers/cookie-consent";
 

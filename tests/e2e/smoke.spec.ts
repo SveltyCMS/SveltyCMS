@@ -23,7 +23,7 @@
  * - `pageerror` guard: uncaught browser exceptions fail the test
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import { TEST_API_HEADERS } from "./helpers/api";
 import { loginAsAdmin, waitForHydration } from "./helpers/auth";
 import {

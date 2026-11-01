@@ -17,7 +17,7 @@
  * extensions widget catalog, entry publish UI (API status asserted in golden).
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { resetAndSeedDatabase } from "../../helpers/api";
 import {
   addInputField,

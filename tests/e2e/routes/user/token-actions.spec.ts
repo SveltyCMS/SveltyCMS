@@ -16,7 +16,7 @@
  * | Unit | `tests/unit/routes/token-routes-handler.test.ts` — update allowlist + delete honesty |
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { resetAndSeedDatabase, seedInviteToken } from "../../helpers/api";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";

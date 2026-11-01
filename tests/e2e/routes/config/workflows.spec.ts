@@ -3,7 +3,7 @@
  * @description Workflow builder golden E2E — shell + seed-workflow (no soft-skip).
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { deleteWorkflow, seedWorkflow } from "../../helpers/api";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";

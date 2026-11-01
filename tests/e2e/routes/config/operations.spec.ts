@@ -4,7 +4,7 @@
  * System-settings deep coverage lives in system/settings.spec.ts.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 
 const ACTION_TIMEOUT = 20_000;

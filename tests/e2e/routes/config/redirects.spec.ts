@@ -3,7 +3,7 @@
  * @description Redirects E2E — Testing 2026 golden journey + minimal shell.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";

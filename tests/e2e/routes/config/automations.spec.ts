@@ -4,7 +4,7 @@
  * Soft-skip banned; seeds via /api/testing when needed outside golden create path.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { confirmModal } from "../../helpers/confirm-modal";
 import { deleteAutomation, seedAutomation } from "../../helpers/api";

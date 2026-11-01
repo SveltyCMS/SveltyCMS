@@ -10,7 +10,7 @@
  * Based on: docs/architecture/admin-user-management.mdx
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "../../fixtures";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
 import { seedTestUsers, TEST_USERS } from "../../helpers/api";
 

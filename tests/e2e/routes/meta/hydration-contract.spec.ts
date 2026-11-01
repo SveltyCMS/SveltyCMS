@@ -14,7 +14,7 @@
  * published by `src/routes/+layout.svelte` (`hydration.markHydrated()`).
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { HYDRATION_ATTRIBUTE, HYDRATION_SELECTOR } from "../../helpers/hydration";
 

@@ -5,7 +5,7 @@
  * Selectors are role/testid based — stable under CSS/theme refactors.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import {
   dismissCookieBannerIfPresent,

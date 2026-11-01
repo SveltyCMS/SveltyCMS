@@ -28,7 +28,7 @@
  */
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures";
 import { ensureAuthenticated } from "../helpers/test-auth";
 import { TEST_API_HEADERS } from "../helpers/api";
 

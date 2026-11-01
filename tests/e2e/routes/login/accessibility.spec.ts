@@ -7,7 +7,7 @@
  *   - Programmatically verifies keyboard focus management.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";

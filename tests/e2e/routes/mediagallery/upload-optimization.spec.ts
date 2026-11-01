@@ -12,7 +12,7 @@
  * request succeeded.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import sharp from "sharp";
 import { waitForHydration } from "../../helpers/auth";
 import { deleteMediaRow, openUploadMediaPage } from "../../helpers/media";

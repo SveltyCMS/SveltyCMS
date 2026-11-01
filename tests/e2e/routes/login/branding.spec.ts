@@ -3,7 +3,7 @@
  * @description E2E tests for tenant-branded login and public branding API.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin, logout } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";
 import { enableBrandedLogin, getAdminTheme, resetAdminTheme } from "../../helpers/theme";

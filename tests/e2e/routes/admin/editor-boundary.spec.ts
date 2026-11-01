@@ -15,7 +15,7 @@
  * - Enforces zero-error contract (`assertNoZeroErrors`)
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { prepareTestUser, resetAndSeedDatabase } from "../../helpers/api";
 import { loginAsEditor } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";

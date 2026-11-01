@@ -20,7 +20,7 @@
  * after the window is simply outside the contract this spec asserts.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import { TEST_API_HEADERS } from "./helpers/api";
 import { ADMIN_CREDENTIALS, loginAsAdmin, waitForHydration } from "./helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "./helpers/cookie-consent";

@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { ADMIN_CREDENTIALS, TEST_API_HEADERS } from "../../helpers/api";
 import { loginAsAdmin } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";

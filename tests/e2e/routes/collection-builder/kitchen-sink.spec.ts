@@ -18,7 +18,7 @@
  * - zero uncaught browser page errors (`zeroErrorGuard`)
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { resetAndSeedDatabase, TEST_API_HEADERS } from "../../helpers/api";
 import { openCollectionEntries } from "../../helpers/collection-builder-flow";
 import { confirmModal } from "../../helpers/confirm-modal";

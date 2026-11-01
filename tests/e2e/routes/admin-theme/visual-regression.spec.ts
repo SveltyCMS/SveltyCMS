@@ -6,7 +6,7 @@
  * Update with: bun x playwright test --project=visual-regression --update-snapshots
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";
 import {

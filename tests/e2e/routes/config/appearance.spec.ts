@@ -5,7 +5,7 @@
  * Locators use stable #layout-pref-* ids and data-testids (not role text alone).
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { seedCookieConsent } from "../../helpers/cookie-consent";
 

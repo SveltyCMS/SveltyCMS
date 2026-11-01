@@ -15,7 +15,7 @@
  * - Unauthenticated redirect to /login on subsequent protected navigation
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";

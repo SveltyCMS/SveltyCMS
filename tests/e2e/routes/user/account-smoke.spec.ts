@@ -3,7 +3,7 @@
  * @description Smoke: admin can open profile, update display name (persists across reload), and logout.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { ADMIN_CREDENTIALS, loginAsAdmin, logout } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import {

@@ -8,7 +8,7 @@
  * was tested but granular permission removal was not.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/api";
 

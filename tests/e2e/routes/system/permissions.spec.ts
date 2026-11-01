@@ -13,7 +13,7 @@
  * from SvelteKit's __data.json endpoint.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { toggleCheckbox } from "../../helpers/checkbox";
 

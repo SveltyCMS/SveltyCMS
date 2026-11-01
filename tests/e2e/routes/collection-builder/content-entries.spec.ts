@@ -22,7 +22,7 @@
  * | Unit | `tests/unit/utils/error-display.test.ts` (error copy rules) |
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { resetAndSeedDatabase, TEST_API_HEADERS } from "../../helpers/api";
 import {
   collectionSlugCandidates,

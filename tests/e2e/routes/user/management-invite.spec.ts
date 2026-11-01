@@ -3,7 +3,7 @@
  * @description Isolated E2E: admin invite token flow (split from management.spec.ts).
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { runAfterHydration } from "../../helpers/hydration";
 

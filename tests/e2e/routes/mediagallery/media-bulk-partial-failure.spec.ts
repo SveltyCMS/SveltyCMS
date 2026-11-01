@@ -18,7 +18,7 @@
  * | reload (persistence)         | failed asset exists, confirmed-deleted one is gone |
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { seedMediaWithMetadata } from "../../helpers/api";
 import { openMediaGallery } from "../../helpers/media";
 

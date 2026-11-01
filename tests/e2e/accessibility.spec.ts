@@ -5,7 +5,7 @@
  * @see docs/tests/accessibility-audit.mdx
  * @see tests/e2e/routes/login/accessibility.spec.ts (comprehensive axe-core audits)
  */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 import { seedCookieConsent } from "./helpers/cookie-consent";
 import { prepareLoginForm } from "./helpers/auth";
 

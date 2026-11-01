@@ -17,7 +17,7 @@
  * assertion is a create → render → scroll → cleanup round-trip.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { seedMediaWithMetadata } from "../../helpers/api";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";

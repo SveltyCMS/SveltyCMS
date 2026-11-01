@@ -3,7 +3,7 @@
  * @description Comprehensive E2E test suite for the SveltyCMS Setup Wizard.
  * Combines full provisioning flow (all DB types), error handling, and navigation tests.
  */
-import { expect, test as base, type Locator, type Page } from "@playwright/test";
+import { expect, test as base, type Locator, type Page } from "../../fixtures";
 import { handleDialog } from "../../helpers/setup-wizard";
 import { HYDRATION_SELECTOR, runAfterHydration } from "../../helpers/hydration";
 import { resetToSetupMode, TEST_API_HEADERS } from "../../helpers/api";

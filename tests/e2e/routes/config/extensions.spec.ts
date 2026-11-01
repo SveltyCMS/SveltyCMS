@@ -3,7 +3,7 @@
  * @description E2E for /config/extensions — tabs, plugins grid, marketplace type filter, widget cards.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 
 const ACTION_TIMEOUT = 20_000;

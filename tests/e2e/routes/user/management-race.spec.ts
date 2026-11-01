@@ -12,7 +12,7 @@
  * | E2E | this file (deterministic delayed response via `page.route`) |
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { resetAndSeedDatabase, seedInviteToken } from "../../helpers/api";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";

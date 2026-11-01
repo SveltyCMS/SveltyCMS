@@ -5,7 +5,7 @@
  * Uses data-testid selectors (not role/CSS) so tests survive layout changes.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../fixtures";
 import { waitForHydration } from "../../helpers/auth";
 import { seedMediaWithMetadata } from "../../helpers/api";
 import {

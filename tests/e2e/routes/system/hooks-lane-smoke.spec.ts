@@ -11,7 +11,7 @@
  * Does NOT soft-skip: hard-fails if session is lost or shell fails to mount.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { loginAsAdmin } from "../../helpers/auth";

@@ -14,7 +14,7 @@
  * - Plugin slot exists for injectors
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 
 const ACTION_TIMEOUT = 20_000;

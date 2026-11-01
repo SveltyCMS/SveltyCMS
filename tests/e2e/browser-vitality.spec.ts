@@ -15,7 +15,7 @@
  * - asserts performance budgets without flakiness
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 import { loginAsAdmin } from "./helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "./helpers/cookie-consent";
 import { dismissCookieBannerIfPresent } from "./helpers/stable";

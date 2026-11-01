@@ -6,7 +6,7 @@
  * in beforeAll and its success is asserted — no soft-skips on seed availability.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";

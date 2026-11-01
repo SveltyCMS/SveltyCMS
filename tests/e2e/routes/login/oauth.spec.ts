@@ -7,7 +7,7 @@
  *   - Simulates avatar processing and email sending during signup
  *   - Checks for proper error handling and configuration in different environments
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 
 test.describe("OAuth First User Signup", () => {
   test.beforeEach(async ({ page }) => {

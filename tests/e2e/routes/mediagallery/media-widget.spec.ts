@@ -17,7 +17,7 @@
  * and attached through the real create → picker → save journey.
  */
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "../../fixtures";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";

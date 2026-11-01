@@ -15,7 +15,7 @@
  * assertions — screenshots are non-blocking (no cross-OS pixel baselines).
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { seedCookieConsent } from "../../helpers/cookie-consent";
 

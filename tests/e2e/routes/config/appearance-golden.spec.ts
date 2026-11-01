@@ -3,7 +3,7 @@
  * @description Appearance theme golden: create → list → delete (admin). No soft-skip.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { runAfterHydration } from "../../helpers/hydration";
 

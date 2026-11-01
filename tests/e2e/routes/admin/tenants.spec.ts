@@ -3,7 +3,7 @@
  * @description E2E tests for /admin/tenants — multi-tenant management.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 
 test.describe("Tenant Management", () => {

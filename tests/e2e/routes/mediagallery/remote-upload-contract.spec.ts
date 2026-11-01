@@ -16,7 +16,7 @@
  */
 
 import http from "node:http";
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import sharp from "sharp";
 import { allowTestEgressOrigin } from "../../helpers/api";
 import { waitForHydration } from "../../helpers/auth";

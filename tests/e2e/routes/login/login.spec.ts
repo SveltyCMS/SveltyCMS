@@ -6,7 +6,7 @@
  *   - Verifies successful navigation to the admin area
  *   - Logs out and checks redirect to login page
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin, logout } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";
 

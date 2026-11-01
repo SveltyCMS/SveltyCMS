@@ -4,7 +4,7 @@
  * Migration tests use enable-plugin + hard fail (no soft-skip) when wizard is control-mapped.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import {
   advanceToValidateStep,

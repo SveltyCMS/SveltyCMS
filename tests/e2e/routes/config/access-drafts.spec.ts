@@ -13,7 +13,7 @@
  * role list or an unpersisted save is a product failure.
  */
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { fillUntil, runAfterHydration } from "../../helpers/hydration";
 import { dismissCookieBannerIfPresent, waitForAdminShell } from "../../helpers/stable";

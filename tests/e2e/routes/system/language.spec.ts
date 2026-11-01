@@ -2,7 +2,7 @@
  * @file tests/e2e/routes/system/language.spec.ts
  * @description System language selector — hard assert chrome (no soft-skip).
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { ensureSidebarVisible, loginAsAdmin } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
 

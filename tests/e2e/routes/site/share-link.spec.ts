@@ -10,7 +10,7 @@
  * provisioned via the testing API in beforeAll; seed success is asserted.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { seedMediaWithMetadata } from "../../helpers/api";
 import { dismissCookieBannerIfPresent } from "../../helpers/stable";
 

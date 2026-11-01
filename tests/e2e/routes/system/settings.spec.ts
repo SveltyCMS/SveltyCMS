@@ -6,7 +6,7 @@
  * sidebar SettingsMenu remains available and links to the same `?group=` URLs.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { fillUntil, selectAndWaitForUrl } from "../../helpers/hydration";
 

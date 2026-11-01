@@ -6,7 +6,7 @@
  *   - Signs up the first user and checks validations
  *   - Tests sign out, login, and forgot password flows
  */
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { TEST_API_HEADERS } from "../../helpers/api";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
 import { runAfterHydration } from "../../helpers/hydration";

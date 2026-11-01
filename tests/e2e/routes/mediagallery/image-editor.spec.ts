@@ -4,7 +4,7 @@
  * Hard-fails on upload/open (no soft-skip) so CI cannot green-pass empty paths.
  */
 
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "../../fixtures";
 import sharp from "sharp";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";

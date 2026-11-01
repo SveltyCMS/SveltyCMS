@@ -14,7 +14,7 @@
  * - Multi-tenant column absence when MT off
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import { getCurrentTOTPCode } from "../../../../src/databases/auth/totp";
 import { ADMIN_CREDENTIALS, loginAsAdmin, loginAsEditor, TEST_PASSWORD } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";

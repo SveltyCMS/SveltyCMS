@@ -18,7 +18,7 @@
  * row is deleted afterwards, so this is a create → page → assert → cleanup run.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { seedMediaWithMetadata } from "../../helpers/api";
 import { deleteMediaRow, openMediaGallery } from "../../helpers/media";
 

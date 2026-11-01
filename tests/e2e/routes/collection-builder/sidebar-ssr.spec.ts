@@ -11,7 +11,7 @@
  * collection row is in the server HTML and the empty state is not.
  */
 
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
 import { seedCollectionFixture } from "../../helpers/collection-builder-flow";
 

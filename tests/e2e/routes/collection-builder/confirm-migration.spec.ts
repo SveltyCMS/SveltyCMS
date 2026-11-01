@@ -13,7 +13,7 @@
  * | Unit | `collectionbuilder-utils`, `+page.server.ts` suites |
  */
 
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "../../fixtures";
 import { resetAndSeedDatabase } from "../../helpers/api";
 import {
   addInputField,

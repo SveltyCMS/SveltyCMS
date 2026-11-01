@@ -13,7 +13,7 @@
  *     findings that are common to every admin page and out of scope here.
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "../../fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { seedCookieConsent } from "../../helpers/cookie-consent";
