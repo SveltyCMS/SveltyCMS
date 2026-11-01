@@ -189,6 +189,24 @@ export function updateEntry(
   });
 }
 
+/**
+ * Point read: the stored document for one entry, every locale and payload
+ * intact. This is what the editor must start from — a list row is a
+ * one-language display projection (see `@utils/entry-values`).
+ */
+export function getEntry(
+  collectionId: string,
+  entryId: string,
+): Promise<ApiResponse<Record<string, unknown>>> {
+  // `publicationFilter=all` mirrors what the list already showed this caller
+  // (the row was visible); the server still clamps the request by role, so a
+  // user without draft access cannot read a draft through this path.
+  return fetchApi(
+    `/api/collections/${collectionId}/${encodeURIComponent(entryId)}?publicationFilter=all`,
+    { method: "GET" },
+  );
+}
+
 export function batchUpdateEntries(
   collectionId: string,
   payload: Record<string, unknown>,

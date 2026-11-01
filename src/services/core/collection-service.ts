@@ -47,6 +47,7 @@ import { getHotCollections } from "@src/services/intelligence/behavioral-learner
 import { error } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { deepClone } from "@utils/native-utils";
+import { mapEntryValues } from "@utils/entry-values";
 
 const clientSchemaMemo = new WeakMap<object, Schema>();
 
@@ -480,24 +481,20 @@ export class CollectionService {
       });
     }
 
-    // Language projection (view mode)
+    // Language projection (view mode) — one shared mapping with the editor
+    // (`@utils/entry-values`). It returns copies and never writes a display
+    // placeholder into a row: an empty translation stays "" and the table cell
+    // draws the en dash. The previous inline projection stored "-" in the row,
+    // and that value was saved back over the document when a list row seeded
+    // the editor (blocker B2).
     if (!editEntryId) {
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i] as Record<string, unknown>;
-        for (const field of collection.fields as Array<Record<string, unknown>>) {
-          const fieldName = (field.db_fieldName || field.label) as string;
-          if (
-            field.translated &&
-            entry[fieldName] &&
-            typeof entry[fieldName] === "object" &&
-            !Array.isArray(entry[fieldName])
-          ) {
-            const localized = entry[fieldName] as Record<string, unknown>;
-            const value = localized[language];
-            entry[fieldName] = value !== undefined && value !== null && value !== "" ? value : "-";
-          }
-        }
-      }
+      entries = entries.map(
+        (entry) =>
+          mapEntryValues(entry as Record<string, unknown>, collection.fields, {
+            language,
+            mode: "list",
+          }) as CollectionEntry,
+      );
       await hydrateRelationDisplays(entries, collection, dbAdapter, tenantId);
     }
 
