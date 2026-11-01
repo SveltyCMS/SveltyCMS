@@ -37,17 +37,21 @@ afterEach(() => {
 
 describe("Media widget display (entry list)", () => {
   it("unwraps `{ success, data }` and renders the stored thumbnail", async () => {
+    // The widget hydrates through the media BATCH route now (one request for every id
+    // on the page), so the stub answers in that contract: `data` is an array.
     stubFetch({
       success: true,
-      data: {
-        _id: "media-1",
-        filename: "photo.png",
-        mimeType: "image/png",
-        url: "/files/original/photo.png",
-        size: 2048,
-        thumbnails: { thumbnail: { url: "/files/thumbnail/photo.png" } },
-        metadata: {},
-      },
+      data: [
+        {
+          _id: "media-1",
+          filename: "photo.png",
+          mimeType: "image/png",
+          url: "/files/original/photo.png",
+          size: 2048,
+          thumbnails: { thumbnail: { url: "/files/thumbnail/photo.png" } },
+          metadata: {},
+        },
+      ],
     });
 
     const { target, cleanup } = renderComponent(MediaDisplay, { value: "media-1" });
