@@ -21,7 +21,12 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { generateSubmissionId, clearSubmissionReplayCache } from "@utils/security/submission-guard";
+import {
+  SUBMISSION_GUARD_HEADER,
+  SUBMISSION_GUARD_MARKER,
+  clearSubmissionReplayCache,
+  generateSubmissionId,
+} from "@utils/security/submission-guard";
 
 const h = vi.hoisted(() => {
   const analyzeRequest = vi.fn(async (): Promise<{ action: string; reason?: string }> => ({
@@ -114,10 +119,12 @@ function okResolve() {
   return vi.fn(async () => new Response("resolved", { status: 200 }));
 }
 
+// The resolver may be a bare mock (okResolve) or a mock that inspects the event,
+// so the parameter stays open here - this is a test helper, not the hook contract.
 async function run(
   eventInit: EventInit = {},
-  resolve = okResolve(),
-): Promise<{ response: Response | null; error: any; resolve: ReturnType<typeof okResolve> }> {
+  resolve: any = okResolve(),
+): Promise<{ response: Response | null; error: any; resolve: any }> {
   try {
     const response = await handleSecurity({ event: makeEvent(eventInit), resolve } as any);
     return { response, error: null, resolve };
@@ -331,25 +338,66 @@ describe("handleSecurity — GraphQL limits", () => {
 });
 
 describe("handleSecurity — form replay guard", () => {
-  it("rejects a malformed submission id", async () => {
+  it("lets a payload _id through (collection builder saveCollection)", async () => {
+    // CB1: the builder posts its collection id as `_id`. That is payload, not a
+    // submission token, so the request must reach the action untouched.
     const { response, resolve } = await run({
-      url: "https://cms.test/login",
+      url: "https://cms.test/config/collectionbuilder/edit/posts?/saveCollection",
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: "_id=not-a-uuid",
+      body: "_id=posts&name=posts&originalName=posts",
     });
 
-    expect(response?.status).toBe(400);
-    expect(resolve).not.toHaveBeenCalled();
+    expect(response?.status).toBe(200);
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(h.incrementSecurityViolations).not.toHaveBeenCalled();
+  });
+
+  it("does not read the body, and the action still sees its _id", async () => {
+    const formDataSpy = vi.spyOn(Request.prototype, "formData");
+    const textSpy = vi.spyOn(Request.prototype, "text");
+    const formData = new FormData();
+    formData.set("_id", "posts");
+    formData.set("name", "AuditNotes");
+
+    // Body reads made BEFORE the action runs: the guard must contribute none.
+    const bodyReadsBeforeAction: number[] = [];
+    let actionId: unknown = null;
+    const resolve = vi.fn(async (event: any) => {
+      bodyReadsBeforeAction.push(formDataSpy.mock.calls.length, textSpy.mock.calls.length);
+      actionId = (await event.request.formData()).get("_id");
+      return new Response("resolved", { status: 200 });
+    });
+
+    try {
+      const { response } = await run(
+        {
+          url: "https://cms.test/config/collectionbuilder/new?/saveCollection",
+          method: "POST",
+          body: formData,
+        },
+        resolve,
+      );
+
+      expect(response?.status).toBe(200);
+      expect(resolve).toHaveBeenCalledTimes(1);
+      // Zero body parsing in the guard: both counters are still 0 when the
+      // action starts, so the multipart body reaches it untouched.
+      expect(bodyReadsBeforeAction).toEqual([0, 0]);
+      expect(actionId).toBe("posts");
+    } finally {
+      formDataSpy.mockRestore();
+      textSpy.mockRestore();
+    }
   });
 
   it("accepts the first urlencoded submission and rejects the replay", async () => {
     const id = generateSubmissionId();
     const init: EventInit = {
-      url: "https://cms.test/login",
+      url: `https://cms.test/login?_id=${id}`,
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
-      body: `_id=${id}&email=a%40b.com`,
+      body: "email=a%40b.com",
     };
 
     const first = await run(init);
@@ -362,20 +410,33 @@ describe("handleSecurity — form replay guard", () => {
     expect(replay.resolve).not.toHaveBeenCalled();
   });
 
-  it("reads the submission id from multipart form data", async () => {
-    const id = generateSubmissionId();
-    const formData = new FormData();
-    formData.set("_id", id);
-    formData.set("email", "a@b.com");
+  it("rejects a malformed submission id only when the request opts in", async () => {
+    const url = "https://cms.test/login";
+    const headers = { "content-type": "application/x-www-form-urlencoded" };
 
-    const { response, resolve } = await run({
-      url: "https://cms.test/login",
+    // No marker: `_id=not-a-uuid` is an ordinary payload id, not a token.
+    const plain = await run({ url: `${url}?_id=not-a-uuid`, method: "POST", headers, body: "" });
+    expect(plain.response?.status).toBe(200);
+
+    // Opted in via query marker: the claimed token must be well-formed.
+    const marked = await run({
+      url: `${url}?_id=not-a-uuid&${SUBMISSION_GUARD_MARKER}=1`,
       method: "POST",
-      body: formData,
+      headers,
+      body: "",
     });
+    expect(marked.response?.status).toBe(400);
+    expect(marked.resolve).not.toHaveBeenCalled();
 
-    expect(response?.status).toBe(200);
-    expect(resolve).toHaveBeenCalledTimes(1);
+    // Opted in via header with no token at all: fail closed.
+    const headerOnly = await run({
+      url,
+      method: "POST",
+      headers: { ...headers, [SUBMISSION_GUARD_HEADER]: "1" },
+      body: "email=a%40b.com",
+    });
+    expect(headerOnly.response?.status).toBe(400);
+    expect(headerOnly.resolve).not.toHaveBeenCalled();
   });
 });
 
