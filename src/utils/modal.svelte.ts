@@ -39,6 +39,7 @@ import {
 // Dialog Components
 import ConfirmDialog from "@components/system/confirm-dialog.svelte";
 import ScheduleModal from "@components/collection-display/schedule-modal.svelte";
+import { englishPlural } from "@utils/string";
 
 // --- Security ---
 
@@ -210,9 +211,11 @@ class ModalManager {
     const action = isArchive ? "Archive" : "Delete";
     const theme = isArchive ? DEFAULT_THEMES.archive : DEFAULT_THEMES.delete;
 
-    // Singular/plural of the counted noun. The old title template rendered
-    // "Archive 2 item" (no plural) and "Archive  item" (double space) — BUG M5.
-    const noun = count === 1 ? itemType : `${itemType}s`;
+    // Singular/plural of the counted noun through the shared pluraliser
+    // (@utils/string englishPlural): the old title template rendered "Archive 2 item"
+    // (no plural) and "Archive  item" (double space) — BUG M5 — and a plain
+    // `${itemType}s` would render "Move 2 entrys to the Trash".
+    const noun = count === 1 ? itemType : englishPlural(itemType, count);
     const subject = count > 1 ? `${count} ${noun}` : noun;
 
     // 🛡️ XSS Protection: Escape user-provided item names before injecting into HTML
@@ -259,7 +262,7 @@ class ModalManager {
 
     return this.showConfirm({
       title: "Confirm Status Change",
-      body: `Change <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span> to <span class="text-tertiary-500 dark:text-primary-500 font-bold">${safeStatus}</span>?`,
+      body: `Change <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${englishPlural("item", count)}</span> to <span class="text-tertiary-500 dark:text-primary-500 font-bold">${safeStatus}</span>?`,
       confirmText: "Change Status",
       theme: DEFAULT_THEMES[status] || DEFAULT_THEMES.default,
       onConfirm,
@@ -293,7 +296,7 @@ class ModalManager {
     const { count = 1, onConfirm } = options;
     return this.showConfirm({
       title: "Clone Items",
-      body: `Clone <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} item(s)</span>?`,
+      body: `Clone <span class="text-tertiary-500 dark:text-primary-500 font-bold">${count} ${englishPlural("item", count)}</span>?`,
       confirmText: "Clone",
       theme: DEFAULT_THEMES.clone,
       onConfirm,
