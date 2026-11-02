@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:4fdae9ed-09b9-47f1-9c3c-19f1636721fc",
+  "serialNumber": "urn:uuid:901e68a6-b3e2-407e-a96e-3ccb1addc6bd",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-01T18:42:40.302Z",
+    "timestamp": "2026-11-02T17:04:13.248Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -3064,91 +3064,91 @@
     {
       "type": "library",
       "name": "@shikijs/core",
-      "version": "4.5.0",
-      "purl": "pkg:npm/@shikijs/core@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/@shikijs/core@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-6CIgwq+bt2JZ3OSjb/nBkkwEf/CfpHcbam+Mg5Pllco7HAGRQ2/EFhZrrJtbyNTgKwknfVS+llsXGygiDGwJWw=="
+          "content": "sha512-bfd4OKgvoyXYiYmMRuleA656P4V7M/Du9lcTl38Ngm6KszMj7bq4J1IGZwSYR4c95Tv5UQALtYNWUwaI9UT3xw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/engine-javascript",
-      "version": "4.5.0",
-      "purl": "pkg:npm/@shikijs/engine-javascript@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/@shikijs/engine-javascript@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Ed6UdEj84LyYkwnxM5CvSMWAD+id9ExTYri0/+x41U9zrgNifPSS9lZm0JqBP0VfYI8yr8tY5nbNq9+p9R0kFA=="
+          "content": "sha512-K0oqxFoL+kEMdz89mHLFO15Tsbv3kFZ6WR1cXZKMvLSc+oqaM00A6pyga1qSeXB22dP0tTiSApRcGBaKWsEccg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/engine-oniguruma",
-      "version": "4.5.0",
-      "purl": "pkg:npm/@shikijs/engine-oniguruma@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/@shikijs/engine-oniguruma@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-dKVmbJecVdB9recl8a/CU4jdpNXyjJQrIcesIkpS70s5HS02ohpnCSpMUbotPnEUzbAcLQ+S4hwZYbkBBiTcJw=="
+          "content": "sha512-aggd6Q7SuJOXNnsUbfG2XesxBJKBMAw/PDTUo9PyRjMaaJJ2dNrI+q0C+25ARXAK9yLHAlwxc9oRT2u68YKZ7w=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/langs",
-      "version": "4.5.0",
-      "purl": "pkg:npm/@shikijs/langs@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/@shikijs/langs@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-wwBTqwduXSz0X4v9Qa2EWeFaYJEw1clCncWjoRNQRbVDu3SPRTRWucnouYapKj3b8Q+sk/41Vbc4B5c8nuYzLA=="
+          "content": "sha512-1yMEX3oCVV54LUq/ovfpRkDQoYDkcvjSWFFa/YLUDMiSoRzMi2uxLJYbv41ahT8Lu9lFMaa7hecd3Q39trqUyg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/primitive",
-      "version": "4.5.0",
-      "purl": "pkg:npm/@shikijs/primitive@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/@shikijs/primitive@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-UM7ShlA8oz0OWxLLO8BmO9Ip6fVqdkt8yF0EH7nOCqHfrx1eEAzF0ZUVK7L+I8NEgeu1PEWSRlxaiPPeCb4iDg=="
+          "content": "sha512-c54+TQEo9ToqgfL/AU8FpjnV09+GA9Oa7M5ROkkXteZfp5XzpAJGXjjvZQFQioJOwm/w/6Z3lIzQstAkl8coag=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/themes",
-      "version": "4.5.0",
-      "purl": "pkg:npm/@shikijs/themes@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/@shikijs/themes@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zGb87H3UBbpuI4yoh5UguB1XbU+2BDU3kflM7UfZ+Cy2hWo9lBtqjSVK20gmLY6ukYl040hAypGXMgud9vul8Q=="
+          "content": "sha512-qHAVAs80RiGD+IRuH9G+JPDOEc9A/kHsng4EzCUCwB9bLzW6Z0y9WETh2YyCcADJBmfrIaJ1Jp7KBNP6FHkgtQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@shikijs/types",
-      "version": "4.5.0",
-      "purl": "pkg:npm/@shikijs/types@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/@shikijs/types@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-drtPrtD8N0DENyD2cyt6Ajy+IWsiCLgMxODwLTpvH1UsN6a9jf90tNTPjqwHvA+0Lzu9e0txk8DjfqH1p9UJRw=="
+          "content": "sha512-+ENG1adsKt/X7cRYw1Nl7BEpBmPOjmQ7bR/eGmHuMlT8gtOFf3KEi5l31DJYyAWhW6Y6bjP1plU7FmaxWGENFw=="
         }
       ]
     },
@@ -4351,130 +4351,130 @@
     {
       "type": "library",
       "name": "@vitest/browser",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/browser@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/browser@5.1.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-IDMoZX/iZ8rkilw7weaSgN8tJ7iZ9hUv0wYoKXyiyjWjWFwLSWAY707DcVTgxTYOudWC1E3HA9LYn7kVa9a7uQ=="
+          "content": "sha512-2sjGVAC/Rs8Jwv+xxBgklNG2g1LGyNgcFMBw71AcfBstLz25UGv1+fVvvZ+z8IfSuNg3nipERijnFtoEIdRDEA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/browser-playwright",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/browser-playwright@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/browser-playwright@5.1.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-lcdThFUUcMV9mGGV1SUiZXPxfjgW4CssA7o3STxzh8WK0tT2r526kc12tZIBRZfoLMwkhxjLmMXkWXONzdsDQw=="
+          "content": "sha512-3PbVvX/KNeUEzUeTTXw5bQDyfJS+WqU/UJ8RNWIojHb0mE6d/IBjuLmt+i7OpJ00tjNWv0O6XBm5ler/tEf3eg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/coverage-v8",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/coverage-v8@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/coverage-v8@5.1.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-4KpkGdIrSqBihx/JyP/e+S+IKB98etg1XDQiLAxksLfcShnwi1VReGeOT9NI43hLHbknosKp/1CCLn9Zgcs8mg=="
+          "content": "sha512-OY9aShBQG5KOIw2zCo9fDoCHI9RHliNHJ//nM7m6jGg41Hyke9JOGWmeMlK74xYErsxMoK8mIB3gAeEyFVA7LA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/istanbul-lib-coverage",
-      "version": "1.0.2",
-      "purl": "pkg:npm/@vitest/istanbul-lib-coverage@1.0.2",
+      "version": "2.1.0",
+      "purl": "pkg:npm/@vitest/istanbul-lib-coverage@2.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-9J/JMwOf9AoJhAywhrn7ScKTL38hsWQP/qPG60OtaAFcQ5OXPwKsxZFlbnuCKmZ61m8/lGgHYnFpdyQZUvG/iA=="
+          "content": "sha512-WOjuS+xcjSIy7ruYBQ+9BUcV7XZQ0FyVcbWbWxW9TRx/kLGx5SQaeFRIFDJxjNplb6YsT7SpKo2zuXXUo91OIQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/istanbul-lib-report",
-      "version": "1.0.2",
-      "purl": "pkg:npm/@vitest/istanbul-lib-report@1.0.2",
+      "version": "2.1.0",
+      "purl": "pkg:npm/@vitest/istanbul-lib-report@2.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-gUsfXZJbzPamoIY5TvHFiMMoXESBrUMo+xqaj+rYrWI69+EnvRlYBlP96ZnHPY4vX8kyUpgAnFUCg5wZG/HkDQ=="
+          "content": "sha512-+ZFta25nWtGCOBG9/IET8w1RO5Oawsd6H8Uf6AJ9EA/StFuKVtKAEJEJ6uRt84OH+T4YkI0ASmIHAhRA+0KVxw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/mocker",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/mocker@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/mocker@5.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-xLL3lkDegJZw+MGoGaCCsFayDZthGgpAtr3Vziyfc4p7xH89K7KRPcRBBh/kEYm0Aqkt5DtTmkYpBtRV/FrHZg=="
+          "content": "sha512-5umB9/jlWcqVS6fsrFmv5Gdnpu6wAUio/lEOwAmvB7v+lFo/IW2B9FhAD0p19GCULTgMzLCdUmuCDCnAzWgppQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/pretty-format",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/pretty-format@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/pretty-format@5.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-24sSdIlMA9DVPXnYiB9siwU0bTd887Y9jX3+vabztCSsvHwo7ipvJ/a2L3Rljw8+2rK1f5fCj3h5U9I/Jsqgbw=="
+          "content": "sha512-IRx5mc30CrFzyMNni6SZKQ1r53kv049Mcvvk0WbWcD6PUz/bFjG4zYv0KosQAeonPpGp5WxqYBMqdSOfJfvVWw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/spy",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/spy@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/spy@5.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw=="
+          "content": "sha512-2DPO5OMHWKrBngC+fCmTQqemNF0gidRhp3lxbBmRhW+M1XJrfgPpqNqWVevXtn2f2ufD5ZaR1B6B641aAlcX5A=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/ui",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/ui@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/ui@5.1.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-dCoGUOdgmCaSB2g+WQ/spPCBkytAWdNUkFSXY4z+eYp2d8JEOY8v0uDRaJTG9qf/kTlTVZ4CuYMYMz/f1HS/qQ=="
+          "content": "sha512-00S3x4NRmqIBUiTVWF9/xLaA9EP9KeKv0+1sBO7e2Y4luBISlW+2ttnhlk/zjbTqEvVhJWCCo7MXzu6zNbefqQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@vitest/utils",
-      "version": "5.0.5",
-      "purl": "pkg:npm/@vitest/utils@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/@vitest/utils@5.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-/rBu7gzLDQI/SC79Tn98b5DwOgaHU/Gt4I9OVeP3YofzNaYtbImRCOJQmT1S6vOJg9gEIlWC+r3QxKkjuSa1nQ=="
+          "content": "sha512-V+qgCwkvVw+s1t1S5TaoBHsLi5Sz/YmohCMoOu0mZ8ZQst2bKhRYARAQucWpVg8D0mv0x5MHcWXY5QdOsoiGBQ=="
         }
       ]
     },
@@ -7835,13 +7835,13 @@
     {
       "type": "library",
       "name": "shiki",
-      "version": "4.5.0",
-      "purl": "pkg:npm/shiki@4.5.0",
+      "version": "4.6.0",
+      "purl": "pkg:npm/shiki@4.6.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-OcRW72ngQvc+MSVWBRIovC/BTW589iUE/Vxav7VeM4RcY9MUjqB+IR6ILG1k9nuW6LiG/nct9uma4/MBtnZbmQ=="
+          "content": "sha512-imjLsVHgPuWhvpU3P+zOekvMYqnel7QmKsFC4Sn0fCuAvaaalBsxwKEsrU8Ko5BdFnZA6Go/8a0RzahS634UgA=="
         }
       ]
     },
@@ -8082,13 +8082,13 @@
     {
       "type": "library",
       "name": "svelte-check",
-      "version": "4.7.7",
-      "purl": "pkg:npm/svelte-check@4.7.7",
+      "version": "4.7.8",
+      "purl": "pkg:npm/svelte-check@4.7.8",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Ge2IMdeTpbJuzNFGRiiMg0RWgbScysKQu7xwcyFJ22+DU9F5nPX51+Q3gHmGqRxYQMx2knreVWt5oCtfe0vf2g=="
+          "content": "sha512-laZ49GFHZ3b0z2PWinJWL0syehc/PTR8aHaUaTiBkWJ+4Y38nhxjmXsSz7CbGa3VdKopViVbrBH3bGNqIAI0bQ=="
         }
       ]
     },
@@ -8524,13 +8524,13 @@
     {
       "type": "library",
       "name": "vitest",
-      "version": "5.0.5",
-      "purl": "pkg:npm/vitest@5.0.5",
+      "version": "5.1.0",
+      "purl": "pkg:npm/vitest@5.1.0",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-cPODOMF8YnkiiYtDdHo6n4wWmBrOBBbOIYH2d33M4l3CdNn72h+qMmO6uXffUN6A5AZFXNND/d+krS9mgkXRfg=="
+          "content": "sha512-MzmNFnrwa8v8lF1bLxw3UJ4EREwVOVb75VqJZmUDRjJ6EluK/x9th7qTbaeDk41WxE1GxWqmTXcdsfobfH5sOA=="
         }
       ]
     },
