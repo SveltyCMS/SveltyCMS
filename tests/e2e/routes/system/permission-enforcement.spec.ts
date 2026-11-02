@@ -6,12 +6,26 @@
  * Tests the full pipeline: DB → role → user → hasPermissionWithRoles →
  * API guard → UI guard. Closes the gap where only role-level page access
  * was tested but granular permission removal was not.
+ *
+ * ### Features:
+ * - Removes a grant from the built-in `editor` role and asserts the endpoint
+ *   gate answers 403, then restores the role in `afterEach`
+ * - Opts out of the E2E `x-test-secret` authorization bypass for the probes
+ * - Custom-role UI navigation probe stays on a disposable role
+ *
+ * ### Why the built-in editor role
+ * `handle-api-requests` allows `/api/*` by **role id** (`api-permissions.ts`
+ * allowlist). A synthetic role is denied every API route before the capability
+ * gate runs, so it can only be used for page-level (UI) assertions. The API
+ * probes therefore mutate the editor role's permission list and restore it.
  */
 
-import { expect, test } from "../../fixtures";
+import { expect, test, type Page } from "../../fixtures";
+import type { Browser, BrowserContext } from "@playwright/test";
 import { loginAsAdmin, loginAs, ADMIN_CREDENTIALS } from "../../helpers/auth";
-import { TEST_API_HEADERS } from "../../helpers/api";
+import { primeCsrfHeaders, TEST_API_HEADERS } from "../../helpers/api";
 
+const EDITOR_ROLE_ID = "editor";
 const TEST_ROLE_ID = "e2e-perm-test-role";
 const TEST_USER = {
   email: "perm-test@example.com",
@@ -20,9 +34,47 @@ const TEST_USER = {
 };
 
 /**
+ * Grants needed to create/update entries through `/api/collections/:id`.
+ * The dispatcher gate for the `collections` namespace requires the canonical
+ * `collections:write` (aliases: collections:create/update/delete); the handler
+ * and field guard additionally read the content-entry ids (`collection:*`).
+ */
+const ENTRY_WRITE_GRANTS = [
+  "collections:read",
+  "collections:write",
+  "collection:read",
+  "collection:write",
+];
+
+/** Editor grants captured before the spec mutates the shared role. */
+let editorPermissions: string[] = [];
+
+/**
+ * Write capabilities that must actually leave the role.
+ * `collections:create/update/delete` are aliases of `collections:write`
+ * (same 64-bit grant), so filtering only the canonical id would keep the
+ * capability alive — the exact false-green this spec exists to prevent.
+ */
+const WRITE_GRANTS = new Set([
+  "collections:write",
+  "collections:create",
+  "collections:update",
+  "collections:delete",
+  "collection:write",
+  "collection:create",
+  "collection:update",
+  "media:write",
+]);
+
+/** The editor snapshot minus every write grant (read-only baseline). */
+function editorReadOnlyGrants(): string[] {
+  return editorPermissions.filter((permission) => !WRITE_GRANTS.has(permission));
+}
+
+/**
  * Create or update a role with specific permissions via the testing API.
  */
-async function upsertTestRole(page: any, permissions: string[]) {
+async function upsertTestRole(page: Page, permissions: string[]) {
   const res = await page.request.post("/api/testing", {
     headers: TEST_API_HEADERS,
     data: {
@@ -40,32 +92,48 @@ async function upsertTestRole(page: any, permissions: string[]) {
 
   // If insert fails because it already exists, update it
   if (!res.ok()) {
-    const updateRes = await page.request.post("/api/testing", {
-      headers: TEST_API_HEADERS,
-      data: {
-        action: "update",
-        collectionId: "roles",
-        id: TEST_ROLE_ID,
-        data: { permissions, isAdmin: false },
-      },
-    });
-    if (!updateRes.ok()) {
-      throw new Error(`Failed to upsert test role: ${await updateRes.text()}`);
-    }
+    await setRolePermissions(page, TEST_ROLE_ID, permissions);
   }
 }
 
+/** Replace a role's permission list through the testing API. */
+async function setRolePermissions(page: Page, roleId: string, permissions: string[]) {
+  const updateRes = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: {
+      action: "update",
+      collectionId: "roles",
+      id: roleId,
+      data: { permissions, isAdmin: false },
+    },
+  });
+  if (!updateRes.ok()) {
+    throw new Error(`Failed to update role ${roleId}: ${await updateRes.text()}`);
+  }
+}
+
+/** Read a role's current permission list (snapshot for later restore). */
+async function readRolePermissions(page: Page, roleId: string): Promise<string[]> {
+  const res = await page.request.post("/api/testing", {
+    headers: TEST_API_HEADERS,
+    data: { action: "get-role", id: roleId },
+  });
+  if (!res.ok()) throw new Error(`Failed to read role ${roleId}: ${await res.text()}`);
+  const body = (await res.json()) as { role?: { permissions?: unknown } };
+  return Array.isArray(body.role?.permissions) ? (body.role.permissions as string[]) : [];
+}
+
 /**
- * Create or update the test user with the test role.
+ * Create or update the test user with the given role.
  */
-async function ensureTestUser(page: any) {
+async function ensureTestUser(page: Page, role: string) {
   const res = await page.request.post("/api/testing", {
     headers: TEST_API_HEADERS,
     data: {
       action: "prepare-test-user",
       email: TEST_USER.email,
       password: TEST_USER.password,
-      role: TEST_ROLE_ID,
+      role,
       username: TEST_USER.username,
     },
   });
@@ -75,47 +143,85 @@ async function ensureTestUser(page: any) {
   return (await res.json()).user;
 }
 
+/**
+ * Re-prime the context headers with `x-test-security: true`.
+ *
+ * `loginAs()` ends with a plain `primeCsrfHeaders()`, which sends the harness
+ * `x-test-secret` on every request from the browser context. In TEST_MODE the
+ * server turns that into `locals.__testBypass`, skipping the fail-closed
+ * endpoint permission gate — so a probe issued after a login would be testing
+ * an always-authorized server. Calling this after the last login keeps the
+ * testing secret (needed by `/api/testing`) but requires real authorization.
+ */
+async function enforceRealAuthorization(page: Page) {
+  await primeCsrfHeaders(page, { requireRealAuth: true });
+}
+
+/** Fresh admin-authenticated page, for setup/teardown outside a test's fixture. */
+async function adminPage(browser: Browser): Promise<{ ctx: BrowserContext; page: Page }> {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await loginAsAdmin(page);
+  return { ctx, page };
+}
+
 test.describe("Permission Enforcement — Remove & Verify Block", () => {
   // Each test performs 2–3 real UI logins (admin → test user → admin → test user).
   // Under a full-suite run on a loaded host that exceeds 60s long before an
   // assertion fails; the budget is a harness concern, not a product contract.
   test.setTimeout(180_000);
 
+  // The media probe deliberately POSTs a non-multipart body to /api/media/upload
+  // to prove the caller reached the handler; the handler's `400 Invalid payload
+  // wrapper context structure` is the expected answer, so the browser's resource
+  // error for it is declared rather than a product defect.
+  test.use({ expectedConsoleErrors: [/status of 400 \(Bad Request\)/] });
+
   test.beforeAll(async ({ browser }) => {
-    const ctx = await browser.newContext();
-    const page = await ctx.newPage();
+    const { ctx, page } = await adminPage(browser);
 
-    // Login as admin to set up roles and users
-    await loginAsAdmin(page);
-
-    // Create role with full write + read permissions
-    await upsertTestRole(page, [
-      "collection:read",
-      "collection:write",
-      "collection:create",
+    // Snapshot the editor grants, then give the role the write superset the
+    // API probes need. `afterEach` restores the snapshot.
+    editorPermissions = await readRolePermissions(page, EDITOR_ROLE_ID);
+    expect(editorPermissions.length, "editor role must be seeded before this spec").toBeGreaterThan(
+      0,
+    );
+    await setRolePermissions(page, EDITOR_ROLE_ID, [
+      ...editorPermissions,
+      ...ENTRY_WRITE_GRANTS,
       "media:read",
       "media:write",
     ]);
-    // Create test user
-    await ensureTestUser(page);
+
+    await ensureTestUser(page, EDITOR_ROLE_ID);
 
     await ctx.close();
   });
 
-  test("Removing collection:write blocks entry creation via API (403)", async ({ page }) => {
+  test.afterEach(async ({ browser }) => {
+    if (editorPermissions.length === 0) return;
+    const { ctx, page } = await adminPage(browser);
+    try {
+      await setRolePermissions(page, EDITOR_ROLE_ID, editorPermissions);
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  test("Removing collections:write blocks entry creation via API (403)", async ({ page }) => {
     // --- Phase 1: User CAN create with write permission ---
     await loginAsAdmin(page);
-    await upsertTestRole(page, [
-      "collection:read",
-      "collection:write",
-      "collection:create",
+    await setRolePermissions(page, EDITOR_ROLE_ID, [
+      ...editorPermissions,
+      ...ENTRY_WRITE_GRANTS,
       "media:read",
       "media:write",
     ]);
-    await ensureTestUser(page);
+    await ensureTestUser(page, EDITOR_ROLE_ID);
 
     // Log in as the test user
     await loginAs(page, TEST_USER.email, TEST_USER.password);
+    await enforceRealAuthorization(page);
 
     // Verify create works via API (or collection simply doesn't exist → 404 is also non-403)
     const createRes = await page.evaluate(async () => {
@@ -124,17 +230,21 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: { title: "Permission Test Entry", status: "draft" } }),
       });
-      return { status: res.status, ok: res.ok };
+      return { status: res.status, ok: res.ok, body: await res.text() };
     });
     // 200/201 = success, 404 = collection missing (acceptable), anything else = unexpected failure
-    expect(createRes.ok || createRes.status === 201 || createRes.status === 404).toBeTruthy();
+    expect(
+      createRes.ok || createRes.status === 201 || createRes.status === 404,
+      `phase 1 create answered HTTP ${createRes.status}: ${createRes.body.slice(0, 300)}`,
+    ).toBeTruthy();
 
     // --- Phase 2: Remove write permission ---
     await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password); // back to admin
-    await upsertTestRole(page, ["collection:read", "media:read"]); // write removed
+    await setRolePermissions(page, EDITOR_ROLE_ID, editorReadOnlyGrants()); // write removed
 
     // --- Phase 3: User is now BLOCKED ---
     await loginAs(page, TEST_USER.email, TEST_USER.password);
+    await enforceRealAuthorization(page);
 
     const blockedRes = await page.evaluate(async () => {
       const res = await fetch("/api/collections/posts", {
@@ -160,11 +270,16 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
 
   test("Removing media:write blocks media upload via API (403)", async ({ page }) => {
     await loginAsAdmin(page);
-    await upsertTestRole(page, ["collection:read", "media:read", "media:write"]);
-    await ensureTestUser(page);
+    await setRolePermissions(page, EDITOR_ROLE_ID, [
+      ...editorPermissions,
+      "media:read",
+      "media:write",
+    ]);
+    await ensureTestUser(page, EDITOR_ROLE_ID);
 
     // Verify media upload works (accept 400 for malformed probe — indicates user CAN reach the handler)
     await loginAs(page, TEST_USER.email, TEST_USER.password);
+    await enforceRealAuthorization(page);
     const canUpload = await page.evaluate(async () => {
       const res = await fetch("/api/media/upload", {
         method: "POST",
@@ -183,10 +298,11 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
 
     // Remove media:write
     await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
-    await upsertTestRole(page, ["collection:read", "media:read"]); // write removed
+    await setRolePermissions(page, EDITOR_ROLE_ID, editorReadOnlyGrants()); // write removed
 
     // Verify blocked
     await loginAs(page, TEST_USER.email, TEST_USER.password);
+    await enforceRealAuthorization(page);
     const blockedUpload = await page.evaluate(async () => {
       const res = await fetch("/api/media/upload", {
         method: "POST",
@@ -201,12 +317,13 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
 
   test("Permission removal survives page refresh (persisted to DB)", async ({ page }) => {
     await loginAsAdmin(page);
-    await upsertTestRole(page, ["collection:read", "collection:write"]);
-    await ensureTestUser(page);
+    await setRolePermissions(page, EDITOR_ROLE_ID, [...editorPermissions, ...ENTRY_WRITE_GRANTS]);
+    await ensureTestUser(page, EDITOR_ROLE_ID);
     let probeResult: boolean | number;
 
     // Verify access works (404 = collection not found but user IS authorized — acceptable probe)
     await loginAs(page, TEST_USER.email, TEST_USER.password);
+    await enforceRealAuthorization(page);
     probeResult = await page.evaluate(async () => {
       const res = await fetch("/api/collections/posts", {
         method: "POST",
@@ -215,15 +332,16 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
       });
       return res.ok || res.status === 201 || res.status === 404;
     });
-    expect(probeResult).toBeTruthy();
+    expect(probeResult, `pre-refresh probe answered HTTP ${String(probeResult)}`).toBeTruthy();
 
     // Remove permission as admin
     await loginAs(page, ADMIN_CREDENTIALS.email, ADMIN_CREDENTIALS.password);
-    await upsertTestRole(page, ["collection:read"]); // write removed
+    await setRolePermissions(page, EDITOR_ROLE_ID, editorReadOnlyGrants()); // write removed
 
     // Refresh and re-login as test user
     await page.goto("/login", { waitUntil: "domcontentloaded" });
     await loginAs(page, TEST_USER.email, TEST_USER.password);
+    await enforceRealAuthorization(page);
 
     // Verify blocked after refresh
     probeResult = await page.evaluate(async () => {
@@ -240,8 +358,10 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
 
   test("Permission gating blocks UI navigation to restricted pages", async ({ page }) => {
     await loginAsAdmin(page);
+    // Page-level gate reads the capability ids, not the API role allowlist, so a
+    // disposable role isolates this probe from the shared editor grants.
     await upsertTestRole(page, ["collection:read"]); // minimal permissions
-    await ensureTestUser(page);
+    await ensureTestUser(page, TEST_ROLE_ID);
 
     await loginAs(page, TEST_USER.email, TEST_USER.password);
 
@@ -291,23 +411,28 @@ test.describe("Permission Enforcement — Remove & Verify Block", () => {
   });
 
   test.afterAll(async ({ browser }) => {
-    const ctx = await browser.newContext();
-    const page = await ctx.newPage();
-    await loginAsAdmin(page);
-    // Delete the test user
-    await page.request
-      .post("/api/testing", {
-        headers: TEST_API_HEADERS,
-        data: { action: "delete-user-by-email", email: TEST_USER.email },
-      })
-      .catch(() => {});
-    // Delete the test role
-    await page.request
-      .post("/api/testing", {
-        headers: TEST_API_HEADERS,
-        data: { action: "delete", collectionId: "roles", id: TEST_ROLE_ID },
-      })
-      .catch(() => {});
-    await ctx.close();
+    const { ctx, page } = await adminPage(browser);
+    try {
+      // Restore the shared editor role even if a test aborted before afterEach.
+      if (editorPermissions.length > 0) {
+        await setRolePermissions(page, EDITOR_ROLE_ID, editorPermissions).catch(() => {});
+      }
+      // Delete the test user
+      await page.request
+        .post("/api/testing", {
+          headers: TEST_API_HEADERS,
+          data: { action: "delete-user-by-email", email: TEST_USER.email },
+        })
+        .catch(() => {});
+      // Delete the disposable role
+      await page.request
+        .post("/api/testing", {
+          headers: TEST_API_HEADERS,
+          data: { action: "delete", collectionId: "roles", id: TEST_ROLE_ID },
+        })
+        .catch(() => {});
+    } finally {
+      await ctx.close();
+    }
   });
 });
