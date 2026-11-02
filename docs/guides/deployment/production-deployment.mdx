@@ -52,7 +52,8 @@ Before starting, ensure you have:
 - Root or sudo access
 - Domain name with DNS configured
 - SSL certificate (Let's Encrypt recommended)
-- Node.js 24+ installed
+- Node.js **24.22.1+** installed
+  - Security floor for **CVE-2026-111497** (Node's bundled Brotli decoder, out-of-bounds write → RCE). Node compiles its own Brotli into the binary, so updating a system brotli (e.g. nginx/Plesk) does **not** patch `node:zlib`. `bun run check` and CI fail below this version.
 - Redis 6+ installed
 - Nginx installed
 - **ImageMagick & Ghostscript** (Optional, for PDF thumbnails)
