@@ -11,15 +11,21 @@ name: CodeQL
 # with: "CodeQL analyses from advanced configurations cannot be processed when
 # the default setup is enabled").
 #
-# - Default setup: continuous results on push/PR (GitHub-managed)
-# - This workflow: manual / weekly advanced queries (security-extended), no upload
-#   when default setup is on. Re-enable upload after disabling default setup.
+# - Default setup: continuous results on `main` pushes and PRs (GitHub-managed)
+# - This workflow: `next` pushes, manual and weekly advanced queries
+#   (security-extended), no upload while default setup is on. Re-enable upload
+#   after disabling default setup.
 
 on:
   workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
-  # Intentionally no push/PR while default CodeQL setup is enabled (see above).
+  # GitHub default setup scans the default branch (`main`) and PRs only, so a
+  # push to `next` never gets a CodeQL analysis. Run this advanced workflow on
+  # `next` pushes too (`upload: never` keeps it compatible with default setup).
+  # Remove the branch restriction after switching the repo to advanced setup.
+  push:
+    branches: [next]
 
 concurrency:
   group: codeql-${{ github.ref }}
@@ -31,7 +37,7 @@ permissions:
 
 jobs:
   codeql:
-    name: CodeQL (JS/TS, security-extended)
+    name: CodeQL (JS/TS + Actions, security-extended)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -41,14 +47,13 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: javascript-typescript
+          languages: javascript-typescript, actions
           queries: security-extended
           build-mode: none
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
-          category: "/language:javascript-typescript"
           # Avoid SARIF upload conflict with default setup; still fails the job
           # if analysis itself fails.
           upload: never
