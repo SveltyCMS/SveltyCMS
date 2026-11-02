@@ -44,6 +44,16 @@ export function normalizeExpectedVersion(raw: unknown): VersionToken {
     value = value.slice(1, -1).trim();
   }
 
+  // Fast-path: canonical ISO timestamp (e.g. "2026-10-21T15:04:05.000Z", len 24)
+  if (value.length === 24 && value.charCodeAt(10) === 84 && value.charCodeAt(23) === 90) {
+    return value;
+  }
+
+  // Fast-path: epoch milliseconds string (e.g. "1761050000000", len 13)
+  if (value.length === 13 && /^\d{13}$/.test(value)) {
+    return value;
+  }
+
   const iso = TRAILING_ISO.exec(value);
   if (iso) {
     let t = iso[1].replace(" ", "T");
