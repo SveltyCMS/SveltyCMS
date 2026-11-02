@@ -374,6 +374,13 @@ async function handleCollectionDrafts(
     }
 
     case "POST": {
+      if (isDraftsRoot && draftId && event.url.searchParams.get("action") === "promote") {
+        return successResponse(
+          event,
+          await cms.drafts.promoteDraft(collectionId, draftId, { user, tenantId }),
+          200,
+        );
+      }
       if (targetEntryId) {
         throw new AppError(
           "Drafts are written at /drafts with an entryId in the body",
