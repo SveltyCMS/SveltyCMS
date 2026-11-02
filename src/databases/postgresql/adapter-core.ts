@@ -2043,6 +2043,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onclose,
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
+          fetch_types: false,
           // 🚀 Postgres.js v4: leave `infer: false` (default) so server-side planner determines
           // parameter types from schema context without client-side guess overhead.
           infer: false,
@@ -2083,6 +2084,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
           onclose,
           transform: { undefined: null },
           types: PG_TEXT_DATE_TYPES,
+          fetch_types: false,
           infer: false,
           prepare: usePrepared,
           idle_timeout: pgIdleTimeout(c.idle_timeout),

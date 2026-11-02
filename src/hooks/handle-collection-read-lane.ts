@@ -96,7 +96,7 @@ interface CoalescedCollectionRead {
 }
 
 const inflightCollectionReads = new Map<string, Promise<CoalescedCollectionRead | null>>();
-const MAX_INFLIGHT_COLLECTION_READS = 64;
+const MAX_INFLIGHT_COLLECTION_READS = 128;
 
 /**
  * Stateless SDK bridge — one instance per process. `LocalCMS.getLocals()`
@@ -826,7 +826,13 @@ async function coalesceCollectionRefill(
     const shared = await inflight;
     if (!shared) return null;
     // Response bodies are single-use — waiters rebuild from the shared string / buffer.
-    return { body: shared.body, etag: shared.etag, buffer: shared.buffer };
+    return {
+      body: shared.body,
+      etag: shared.etag,
+      buffer: shared.buffer,
+      compressed: shared.compressed,
+      miss: false,
+    };
   }
 
   // The executor runs synchronously, so `releaseFlight` is bound before use.

@@ -46,7 +46,7 @@ const IS_TEST_MODE =
 
 // Bounded capacity — per-tenant keys must never grow without bound in
 // multi-tenant deployments (FastLRU evicts least-recently-used at capacity).
-const MAX_CACHE_ENTRIES = 1000;
+const MAX_CACHE_ENTRIES = 5000;
 
 let multiTenantCached: boolean | null = null;
 const userCountCache = new FastLRU<string, { count: number; timestamp: number }>({
