@@ -160,14 +160,24 @@ export async function csrfToken(page: Page): Promise<string | null> {
  * testing headers (test mode/secret/worker) that playwright.config.ts set.
  * Per-request headers still win, which keeps the `x-test-security` RBAC probes
  * (empty secret) working.
+ *
+ * `requireRealAuth` adds `x-test-security: true`, which is the server's
+ * documented opt-out from the `x-test-secret` authorization bypass
+ * (`locals.__testBypass`). Any spec that asserts RBAC must set it: with the
+ * bare harness secret the fail-closed endpoint permission gate is skipped and
+ * every assertion runs against an always-authorized server.
  */
-export async function primeCsrfHeaders(page: Page): Promise<void> {
+export async function primeCsrfHeaders(
+  page: Page,
+  options: { requireRealAuth?: boolean } = {},
+): Promise<void> {
   const token = await csrfToken(page);
   if (!token) return;
   const origin =
     process.env.PLAYWRIGHT_TEST_BASE_URL || process.env.ORIGIN || "http://127.0.0.1:4173";
   await page.context().setExtraHTTPHeaders({
     ...TEST_API_HEADERS,
+    ...(options.requireRealAuth ? { "x-test-security": "true" } : {}),
     "X-CSRF-Token": token,
     Origin: origin,
   });

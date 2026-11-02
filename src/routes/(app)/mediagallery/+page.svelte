@@ -99,7 +99,18 @@
 	let { data }: { data: PageData } = $props();
 
 	// State
-	let files = $state<Array<MediaBase | MediaImage>>([]);
+	//
+	// Seed from the SSR payload, not from the `$effect` below: effects never run
+	// on the server, so an empty seed made SSR paint `media-grid-empty` (a
+	// `col-span-full` row) and the grid swap to tiles after hydration — while the
+	// empty state's 200ms outro finished, a stale full-width row stayed in the
+	// grid and every tile then jumped up by its height. Seeding keeps the
+	// pre-hydration box and the settled box identical.
+	// untrack: one-time seed from page data — avoids state_referenced_locally on $props().
+	const initialMedia = untrack(
+		() => ((data as { media?: unknown }).media ?? []) as Array<MediaBase | MediaImage>
+	);
+	let files = $state<Array<MediaBase | MediaImage>>([...initialMedia]);
 
 	/** Server page contract for the gallery (see `+page.server.ts` → `mediaPagination`). */
 	interface MediaPagination {

@@ -262,10 +262,16 @@
 		touchActiveId = null;
 	}}
 >
+	<!--
+		Intro-only fade: the empty state is a full-width grid row (`col-span-full`).
+		With a two-way `transition:`, the outgoing row would stay in the grid's flow
+		for the fade duration while the tiles are already rendered, then collapse and
+		shift every tile up by its height. Intro-only keeps the grid rows stable.
+	-->
 	{#if filteredFiles.length === 0}
 		<div
 			class="col-span-full flex min-h-full flex-col items-center justify-center gap-3 py-16 text-center"
-			transition:adminFade={{ duration: 200 }}
+			in:adminFade={{ duration: 200 }}
 			data-testid="media-grid-empty"
 		>
 			<iconify-icon icon="mdi:cloud-upload-outline" width="48" class="text-(--admin-text-muted)"

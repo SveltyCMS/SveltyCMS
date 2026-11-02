@@ -20,6 +20,24 @@ import {
   type TestingContext,
 } from "./testing-shared";
 
+/**
+ * Drop every grant cache a role write can leave stale.
+ *
+ * `hasPermissionWithRoles` layers three levels: the per-user PermissionCache,
+ * the turbo-auth context (`permMask`/roles), and `handle-authorization`'s 60 s
+ * roles cache that hydrates `event.locals.roles`. A role edit through the
+ * testing API bypasses `AuthNamespace.updateRoles`, so without this the API
+ * answers from pre-edit grants while the DB already holds the new list.
+ */
+async function invalidateRoleGrantCaches(tenantId: DatabaseId): Promise<void> {
+  const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+  invalidatePermissionCache();
+  const { clearTurboAuthCache } = await loadHandleTurboGetModule();
+  clearTurboAuthCache();
+  const { invalidateRolesCache } = await import("@src/hooks/handle-authorization");
+  await invalidateRolesCache(tenantId);
+}
+
 export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Response | undefined> {
   const { event, cms, tenantId, params, initializedAdapter, action } = ctx;
 
@@ -387,6 +405,20 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
     }
   }
 
+  if (action === "get-role") {
+    const id = params.id || params.role;
+    if (!id) throw new AppError("id or role required", 400);
+    const result = await cms.db.crud.findOne("roles", { _id: id } as any, {
+      tenantId,
+      ...withSystemScope("testing"),
+    });
+    return rawResponse({
+      success: result.success,
+      role: result.success ? result.data : undefined,
+      message: result.success ? undefined : result.message,
+    });
+  }
+
   if (action === "insert") {
     const collectionId = params.collectionId || params.collection;
     const data = params.data;
@@ -399,13 +431,11 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
       ...withSystemScope("testing"),
     });
 
-    // Role writes via the testing API must invalidate the permission cache —
-    // see the update action below for the full rationale.
+    // Role writes via the testing API must invalidate every grant cache the
+    // authorization pipeline reads — see the update action below for the full
+    // rationale.
     if (collectionId === "roles") {
-      const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
-      invalidatePermissionCache();
-      const { clearTurboAuthCache } = await loadHandleTurboGetModule();
-      clearTurboAuthCache();
+      await invalidateRoleGrantCaches(tenantId);
     }
 
     const responseBody = result.success
@@ -437,14 +467,12 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
     });
 
     // Role mutations via the testing API bypass AuthNamespace.updateRoles (which
-    // invalidates the permission cache globally). Without this, hasPermissionWithRoles
-    // keeps serving the pre-removal grant for up to 5 minutes (PermissionCache TTL)
-    // and permission-removal E2E assertions flake.
+    // invalidates the grant caches). Without this, hasPermissionWithRoles keeps
+    // serving the pre-removal grant — the permission cache for up to 5 minutes,
+    // and `event.locals.roles` for the 60 s handle-authorization roles TTL — so
+    // permission-removal E2E assertions flake (or pass while the DB already denies).
     if (collectionId === "roles") {
-      const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
-      invalidatePermissionCache();
-      const { clearTurboAuthCache } = await loadHandleTurboGetModule();
-      clearTurboAuthCache();
+      await invalidateRoleGrantCaches(tenantId);
     }
 
     const responseBody = result.success
