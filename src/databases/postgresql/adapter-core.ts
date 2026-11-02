@@ -1974,6 +1974,9 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
   public async connect(connection: any, _options?: any): Promise<DatabaseResult<void>> {
     try {
       let finalConnection = connection;
+      // A setup probe passes `preferTcp` so the wizard tests the host and
+      // credentials the operator entered instead of a trusted Unix socket.
+      const preferTcp = (_options as { preferTcp?: boolean } | undefined)?.preferTcp === true;
 
       if (
         !finalConnection ||
@@ -2019,7 +2022,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
         const url = new URL(effectiveConnection);
         const { detectPostgresSocketDir, preferIpv4Loopback } = await import("../db-local-socket");
-        const socketDir = detectPostgresSocketDir(url.hostname);
+        const socketDir = preferTcp ? undefined : detectPostgresSocketDir(url.hostname);
         const hw = getHardwareProfile();
         // 🚀 POOL SIZING: the hardware profile OWNS the default — it is CPU- and
         // memory-derived (2 × budget cores, memory-capped), so a 1-core/512 MB
@@ -2066,7 +2069,7 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
 
         const { detectPostgresSocketDir, preferIpv4Loopback } = await import("../db-local-socket");
         const rawHost = c.host || c.DB_HOST || "127.0.0.1";
-        const socketDirObj = detectPostgresSocketDir(rawHost);
+        const socketDirObj = preferTcp ? undefined : detectPostgresSocketDir(rawHost);
         options = {
           host: socketDirObj || preferIpv4Loopback(String(rawHost)),
           port: Number(c.port || c.DB_PORT || 5432),

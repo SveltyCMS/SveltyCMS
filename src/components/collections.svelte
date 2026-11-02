@@ -867,7 +867,7 @@ Provides an organized interface for navigating hierarchical content structures.
 						</p>
 						<a
 							href="/config/collectionbuilder"
-							class="inline-flex items-center gap-1.5 rounded-md bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-500 no-underline!"
+							class="inline-flex items-center gap-1.5 rounded-md bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-600 no-underline!"
 						>
 							<iconify-icon icon="ic:round-add" width="16"></iconify-icon>
 							<span>{collections_add()}</span>

@@ -99,26 +99,31 @@ export async function dismissOpenDialogs(page: Page): Promise<void> {
 
 /** Switch editor to Widgets tab and wait for the field canvas. */
 export async function goToWidgetsTab(page: Page): Promise<void> {
-  const defineNext = page.getByTestId("collection-define-next");
-  if (await defineNext.isVisible({ timeout: 1_000 }).catch(() => false)) {
-    await expect(defineNext).toBeEnabled({ timeout: 10_000 });
-    await defineNext.click();
-  } else {
-    const widgetsTab = page.getByTestId("tab-widgets");
-    await expect(widgetsTab).toBeVisible({ timeout: 15_000 });
-    const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
-    if (selected !== "true") {
-      await stableClick(widgetsTab, 15_000);
+  // Retry the whole switch: an early click can land before Svelte hydrates the
+  // tab handler (silent no-op), which is how this flaked on CI. `toPass` re-probes
+  // the panel and repeats the click instead of waiting 20s on a dead handler.
+  await expect(async () => {
+    const defineNext = page.getByTestId("collection-define-next");
+    if (await defineNext.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await expect(defineNext).toBeEnabled({ timeout: 10_000 });
+      await defineNext.click({ timeout: 5_000 });
+    } else {
+      const widgetsTab = page.getByTestId("tab-widgets");
+      await expect(widgetsTab).toBeVisible({ timeout: 10_000 });
+      const selected = await widgetsTab.getAttribute("aria-selected").catch(() => null);
+      if (selected !== "true") {
+        await stableClick(widgetsTab, 10_000);
+      }
     }
-  }
-  // Canvas or add control proves the tab panel mounted
-  await expect(
-    page
-      .getByTestId("widget-fields-list")
-      .or(page.getByTestId("add-field-button"))
-      .or(page.getByTestId("collection-widgets-tab"))
-      .first(),
-  ).toBeVisible({ timeout: 20_000 });
+    // Canvas or add control proves the tab panel mounted
+    await expect(
+      page
+        .getByTestId("widget-fields-list")
+        .or(page.getByTestId("add-field-button"))
+        .or(page.getByTestId("collection-widgets-tab"))
+        .first(),
+    ).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 45_000, intervals: [1_000, 2_000, 3_000] });
 }
 
 /**

@@ -95,7 +95,14 @@ export async function getSetupDatabaseAdapter(
   // Relational adapters run `bootstrapSystemSchema()` on connect (CREATE TABLE
   // IF NOT EXISTS …). A probe must not provision anything — the wizard's explicit
   // Next/Complete step owns that write — so pass the opt-out through.
-  const connectOptions = options.readOnlyProbe ? { skipSchemaBootstrap: true } : undefined;
+  //
+  // `preferTcp` is the wizard contract: the probe must exercise the host and
+  // credentials the operator typed. Auto-detecting a same-host Unix socket made
+  // "Test Connection" succeed with a wrong user/password (the socket is trusted
+  // in the CI Postgres image), so the setup probe never switches transport.
+  const connectOptions = options.readOnlyProbe
+    ? { skipSchemaBootstrap: true, preferTcp: true }
+    : undefined;
 
   logger.info(`🔌 Connecting to ${config.type}...`);
   const connectionString = buildDatabaseConnectionString(config);
