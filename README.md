@@ -6,6 +6,12 @@
 <p align="center"><strong><a href="https://SveltyCMS.com">SveltyCMS.com</a></strong> <img src="https://img.shields.io/github/package-json/v/SveltyCMS/SveltyCMS?color=blue&style=flat-square&label=" alt="Version" style="vertical-align: middle;"></p>
 <p align="center"><strong>(Still in Development — your support is appreciated!)</strong></p>
 
+<p align="center">
+  <a href="https://demo.sveltycms.com"><img src="https://img.shields.io/badge/Live%20Demo-demo.sveltycms.com-22c55e?style=for-the-badge&logo=svelte&logoColor=white" alt="Live Demo"></a>
+  <a href="https://docs.sveltycms.com"><img src="https://img.shields.io/badge/Documentation-docs.sveltycms.com-3b82f6?style=for-the-badge&logo=googledocs&logoColor=white" alt="Documentation"></a>
+  <a href="https://marketplace.sveltycms.com"><img src="https://img.shields.io/badge/Marketplace-marketplace.sveltycms.com-a855f7?style=for-the-badge" alt="Marketplace"></a>
+</p>
+
 <div align="center">
   <a href="https://discord.gg/qKQRB6mP"><img src="https://img.shields.io/discord/1369537436656603188?label=chat&logo=discord&color=7289da" alt="Chat"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/License-BSL%201.1%20Fair%20Source-blue.svg" alt="License: BSL 1.1"></a>
