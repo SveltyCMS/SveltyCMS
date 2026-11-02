@@ -44,6 +44,7 @@ import {
 import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
 import { isSurfaceStepUp } from "@src/databases/auth/session-user";
 import { recordAuditEntry } from "./handle-audit-logging";
+import { fastEscapeString } from "@utils/fast-json";
 
 /**
  * `SVELTY_SRV_DUR=1` records total server time for the write lane (`x-srv-dur`)
@@ -550,9 +551,10 @@ async function executeWarmCollectionWrite(
         (result as any)?._id ||
         (result as any)?.id
       : entryId;
+    const idStr = String(resId ?? "");
     const res = fastSuccessResponse(
       event,
-      `{"_id":${JSON.stringify(resId)}}`,
+      `{"_id":"${fastEscapeString(idStr)}"}`,
       { _id: resId },
       isPost ? 201 : 200,
       precompiledHeaders,
