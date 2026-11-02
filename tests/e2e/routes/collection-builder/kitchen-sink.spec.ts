@@ -216,13 +216,20 @@ test.describe("Kitchen Sink Master Collection — Editorial Lifecycle", () => {
       .first();
 
     await expect(createBtn).toBeVisible({ timeout: 15_000 });
-    await createBtn.click();
 
     // 3. Locate inputs for the multiple widgets
     const titleInput = page
       .getByRole("textbox", { name: /^title$/i })
       .or(page.locator('input[name="title"]').first());
-    await expect(titleInput).toBeVisible({ timeout: 15_000 });
+
+    // Create is a client-side mode switch, not a navigation: a click before the
+    // list hydrates is a silent no-op. Re-click while the form is absent.
+    await expect(async () => {
+      if (!(await titleInput.isVisible().catch(() => false))) {
+        await createBtn.click({ timeout: 5_000 });
+      }
+      await expect(titleInput).toBeVisible({ timeout: 3_000 });
+    }).toPass({ timeout: 30_000, intervals: [1_000, 2_000, 3_000] });
 
     const summaryInput = page
       .getByRole("textbox", { name: /^summary$/i })
