@@ -149,6 +149,12 @@ run() {
         printf '%s\n' "$fails" | while IFS= read -r line; do
           printf '%b\n' "    ${RED}✘${NC}  $line"
         done
+        # Vitest prints the unhandled cause after the header; without it the
+        # gate reports only "Unhandled Errors" and the failure is undebuggable.
+        if printf '%s\n' "$fails" | grep -q "Unhandled Errors"; then
+          printf '%b\n' "  ${BOLD}Unhandled error detail:${NC}"
+          grep -A 30 "Unhandled Errors" "$outfile" 2>/dev/null | tail -n +2 | sed 's/^/    /'
+        fi
       else
         tail -15 "$outfile" | sed 's/^/    /'
       fi
