@@ -18,6 +18,7 @@
 const COLLECTION_TABLE_PREFIX = "collection_";
 
 const _nameCache = new Map<string, string>();
+const _tagsCache = new Map<string, readonly string[]>();
 
 /**
  * Derives the physical table/model name for a collection id.
@@ -37,6 +38,11 @@ export function collectionTableName(collectionId: string): string {
  *           "posts" → "posts".
  */
 function collectionBareName(collection: string): string {
+  if (collection.indexOf("-") === -1) {
+    return collection.startsWith(COLLECTION_TABLE_PREFIX)
+      ? collection.slice(COLLECTION_TABLE_PREFIX.length)
+      : collection;
+  }
   const id = collection.startsWith(COLLECTION_TABLE_PREFIX)
     ? collection.slice(COLLECTION_TABLE_PREFIX.length)
     : collection;
@@ -64,6 +70,9 @@ function collectionBareName(collection: string): string {
  * the write path); producers and invalidators share this definition.
  */
 export function buildCollectionCacheTags(collection: string): string[] {
+  const cached = _tagsCache.get(collection);
+  if (cached !== undefined) return cached as string[];
+
   const physical = collectionTableName(collection);
   const bare = collectionBareName(collection);
   const tags: string[] = [];
@@ -75,6 +84,10 @@ export function buildCollectionCacheTags(collection: string): string[] {
   }
   if (bare.length > 0 && bare !== collection && bare !== physical) {
     tags.push(`collection:${bare}`, `count:${bare}`);
+  }
+
+  if (_tagsCache.size < 512) {
+    _tagsCache.set(collection, Object.freeze([...tags]));
   }
   return tags;
 }
