@@ -322,6 +322,15 @@ export class MongoMediaMethods {
           };
         }
 
+        if (options.search?.trim()) {
+          const s = options.search.trim();
+          const searchRegex = new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+          query = {
+            ...query,
+            $or: [{ filename: searchRegex }, { originalFilename: searchRegex }],
+          };
+        }
+
         if (jsonPath?.trim()) {
           const { filter: jpFilter } = buildMediaJsonPathMongoFilter(jsonPath.trim());
           if (jpFilter) {
