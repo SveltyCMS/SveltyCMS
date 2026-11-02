@@ -254,6 +254,9 @@ jobs:
           - task: 01-policy
             name: 🖌️ Static, Policy & Quality
             run: |
+              echo "::group::Node runtime security floor"
+              node scripts/security/check-node-runtime.ts
+              echo "::endgroup::"
               echo "::group::oxfmt --check"
               bun run format --check
               echo "::endgroup::"
