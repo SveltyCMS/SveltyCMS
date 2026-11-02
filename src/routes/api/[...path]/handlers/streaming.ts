@@ -27,6 +27,27 @@ const OPEN_DATA_CHUNK = SHARED_TEXT_ENCODER.encode('{"success":true,"data":[');
 const COMMA_CHUNK = SHARED_TEXT_ENCODER.encode(",");
 const STREAM_ERROR_CHUNK = SHARED_TEXT_ENCODER.encode('],"error":"Stream interrupted"}');
 
+/**
+ * Reusable encoding buffer for high-throughput stream serialization.
+ * Avoids per-record Uint8Array allocations when record size fits within 64KB.
+ */
+const POOL_BUFFER_SIZE = 65536;
+const encodePoolBuffer = new Uint8Array(POOL_BUFFER_SIZE);
+
+/**
+ * Efficiently encodes a string to a Uint8Array, utilizing the pool buffer for
+ * small-to-medium records (avoiding new Uint8Array header/buffer allocation overhead).
+ */
+function encodeOptimized(str: string): Uint8Array {
+  // If string length in UTF-8 might exceed the pool, fall back to direct encode
+  if (str.length * 3 > POOL_BUFFER_SIZE) {
+    return SHARED_TEXT_ENCODER.encode(str);
+  }
+  const result = SHARED_TEXT_ENCODER.encodeInto(str, encodePoolBuffer);
+  // Return a subarray slice of the exact written bytes
+  return encodePoolBuffer.slice(0, result.written);
+}
+
 /** True when the source exposes an async iterator (DB cursor/generator) rather than a plain array. */
 function isAsyncIterableSource(source: unknown): source is AsyncIterable<unknown> {
   return (
@@ -105,7 +126,7 @@ export function streamingJsonResponse(
       }
 
       if (!first) controller.enqueue(COMMA_CHUNK);
-      controller.enqueue(SHARED_TEXT_ENCODER.encode(JSON.stringify(step.value)));
+      controller.enqueue(encodeOptimized(JSON.stringify(step.value)));
       first = false;
       itemCount++;
     },
@@ -223,7 +244,7 @@ export function streamingExportResponse(
           ? (step.value as Record<string, unknown>)
           : { value: step.value };
       controller.enqueue(
-        SHARED_TEXT_ENCODER.encode(
+        encodeOptimized(
           isCsv ? csvRowFromRecord(record, columns) : encodeNdjsonLine(record),
         ),
       );
