@@ -27,19 +27,24 @@ export function prefersMinimalReturn(
   urlOrQuery?: URL | URLSearchParams | string | null | undefined,
 ): boolean {
   if (urlOrQuery) {
-    const hasSearch = urlOrQuery instanceof URL ? !!urlOrQuery.search : true;
-    const searchParams = hasSearch
-      ? urlOrQuery instanceof URL
-        ? urlOrQuery.searchParams
-        : urlOrQuery instanceof URLSearchParams
+    let searchStr: string | null = null;
+    if (urlOrQuery instanceof URL) {
+      searchStr = urlOrQuery.search;
+    } else if (urlOrQuery instanceof URLSearchParams) {
+      searchStr = urlOrQuery.toString();
+    } else if (typeof urlOrQuery === "string") {
+      searchStr = urlOrQuery.startsWith("?") ? urlOrQuery.slice(1) : urlOrQuery;
+    }
+
+    // Fast-path: if search string is empty or absent, skip URLSearchParams instantiations
+    if (searchStr && searchStr.length > 0) {
+      const searchParams =
+        urlOrQuery instanceof URLSearchParams
           ? urlOrQuery
-          : typeof urlOrQuery === "string"
-            ? urlOrQuery
-              ? new URLSearchParams(urlOrQuery.startsWith("?") ? urlOrQuery.slice(1) : urlOrQuery)
-              : null
-            : null
-      : null;
-    if (searchParams) {
+          : urlOrQuery instanceof URL
+            ? urlOrQuery.searchParams
+            : new URLSearchParams(searchStr);
+
       // Query params are the strongest signal — explicit per-request override.
       const ret = searchParams.get("return")?.toLowerCase();
       if (ret === "minimal") return true;
