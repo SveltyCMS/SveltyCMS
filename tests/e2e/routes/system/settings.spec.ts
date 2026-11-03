@@ -216,6 +216,30 @@ test.describe("System Settings shell", () => {
     expect(verifyBody.values?.CACHE_TTL_SCHEMA).toBe(Number(target));
   });
 
+  test("appearance settings toggle saves and reloads without errors", async ({ page }) => {
+    await goSettings(page, "appearance");
+    await expect(page.getByTestId("settings-panel-appearance")).toBeVisible({
+      timeout: ACTION_TIMEOUT,
+    });
+
+    const seasonsField = page.getByTestId("settings-field-SEASONS");
+    await expect(seasonsField).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    const toggle = seasonsField.locator('input[type="checkbox"]').first();
+    await expect(toggle).toBeAttached({ timeout: ACTION_TIMEOUT });
+
+    const groupSave = page.getByTestId("settings-group-save");
+    await toggle.click({ force: true });
+    await expect(groupSave).toBeEnabled({ timeout: ACTION_TIMEOUT });
+
+    await groupSave.click();
+    await expect(groupSave.getByText("Saved")).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+    // Assert no error banner appears after saving and reloading
+    const errorBanner = page.locator(".bg-error-500\\/10, [data-testid='settings-error']");
+    await expect(errorBanner).toHaveCount(0);
+  });
+
   test("export import reset and discard controls are present", async ({ page }) => {
     await goSettings(page, "security");
     await expect(page.getByTestId("settings-panel-security")).toBeVisible({
