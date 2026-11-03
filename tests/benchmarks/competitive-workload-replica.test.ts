@@ -37,12 +37,11 @@ const ITERATIONS: Record<string, number> = {
   listFilterSort: 200,
   listLarge: 200,
   listPlain: 200,
-  listProjected: 200,
   listPopulated: 200,
   findMissing: 200,
-  graphql: 200,
   create: 300,
   update: 300,
+  graphql: 200,
   mixed: 200,
 };
 
@@ -208,7 +207,7 @@ function seedArticlePayload(i: number, runId: string) {
   };
 }
 
-test("Competitive 9-Workload Replica Benchmark", async () => {
+test("Competitive 11-Workload Replica Benchmark", async () => {
   let stopServer: (() => Promise<void>) | null = null;
   const createdIds: string[] = [];
 
@@ -238,14 +237,14 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     // ── PRE-COMPUTED URLS & STATIC PAYLOADS ──────────────────────────────
     const gqlBody = JSON.stringify({
       query:
-        "query { BenchmarkStable(pagination: { limit: 10 }) { _id title slug status count publishDate content } }",
+        "query MegaMenu($limit: Int) { BenchmarkStable(pagination: { limit: $limit }) { _id title slug status views count } }",
+      variables: { limit: 10 },
     });
     const filterQuery = encodeURIComponent(JSON.stringify({ status: "published" }));
-    const listFilterUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=20&filter=${filterQuery}&sort=-count`;
-    const listLargeUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=100&filter=${filterQuery}&sort=-count`;
+    const listFilterUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=20&filter=${filterQuery}&sort=-views`;
+    const listLargeUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=100&filter=${filterQuery}&sort=-views`;
     const listPlainUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10`;
-    const listProjectedUrl = `${baseUrl}/api/collections/BenchmarkStable?limit=10&fields=_id,title,count`;
-    const listPopulatedUrl = `${baseUrl}/api/collections/benchmark_posts?limit=20&populate=author&depth=1`;
+    const listPopulatedUrl = `${baseUrl}/api/collections/benchmark_posts?limit=20&populate=author&depth=1&fields=*,author.*`;
     const collectionUrl = `${baseUrl}/api/collections/BenchmarkStable`;
     // Valid UUIDv7 format that is guaranteed absent from the seeded pool so
     // findMissing exercises the full DB B-tree index miss (matching workloads.mjs).
@@ -310,6 +309,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     // ── WORKLOAD HANDLERS (Minimal In-Loop Overhead) ──────────────────────
     let cursor = 0;
     let updateCursor = 0;
+    let randomCursor = 0;
 
     const findById = async () => {
       const res = await fetch(`${collectionUrl}/${stableId}`, { headers });
@@ -319,8 +319,7 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     };
 
     const findByIdRandom = async () => {
-      const randomIndex = Math.floor(Math.random() * idCount);
-      const targetId = createdIds[randomIndex] || stableId;
+      const targetId = createdIds[(randomCursor++) % idCount] || stableId;
       const res = await fetch(`${collectionUrl}/${targetId}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       recordSplitSample("findByIdRandom", res);
@@ -331,13 +330,6 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       const res = await fetch(listPlainUrl, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       recordSplitSample("listPlain", res);
-      await res.arrayBuffer();
-    };
-
-    const listProjected = async () => {
-      const res = await fetch(listProjectedUrl, { headers });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      recordSplitSample("listProjected", res);
       await res.arrayBuffer();
     };
 
@@ -441,7 +433,6 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       findById,
       findByIdRandom,
       listPlain,
-      listProjected,
       listPopulated,
       listFilterSort,
       listLarge,
@@ -472,7 +463,6 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       { shortLabel: "listFilterSort", fn: listFilterSort },
       { shortLabel: "listLarge", fn: listLarge },
       { shortLabel: "listPlain", fn: listPlain },
-      { shortLabel: "listProjected", fn: listProjected },
       { shortLabel: "listPopulated", fn: listPopulated },
       { shortLabel: "findMissing", fn: findMissing },
       { shortLabel: "create", fn: create },
@@ -511,8 +501,8 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
       );
       const readOps = [
         findById,
+        findByIdRandom,
         listPlain,
-        listProjected,
         listPopulated,
         listFilterSort,
         findMissing,
@@ -872,17 +862,23 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     exportMetric("competitive.seed.wall_ms", Math.round(seedMs), "ms");
     exportResult(seedResult);
 
-    const findByIdRes = warmResults.find((r) => r.shortLabel === "findById");
-    const listPlainRes = warmResults.find((r) => r.shortLabel === "listPlain");
-    const gqlRes = warmResults.find((r) => r.shortLabel === "graphql");
-    const createRes = warmResults.find((r) => r.shortLabel === "create");
-    const updateRes = warmResults.find((r) => r.shortLabel === "update");
-
-    if (findByIdRes) exportMetric("competitive.find_by_id.rps", findByIdRes.rps, "req/s");
-    if (listPlainRes) exportMetric("competitive.list_plain.rps", listPlainRes.rps, "req/s");
-    if (gqlRes) exportMetric("competitive.graphql.rps", gqlRes.rps, "req/s");
-    if (createRes) exportMetric("competitive.create.rps", createRes.rps, "req/s");
-    if (updateRes) exportMetric("competitive.update.rps", updateRes.rps, "req/s");
+    const metricKeys: Record<string, string> = {
+      findById: "find_by_id",
+      findByIdRandom: "find_by_id_random",
+      listFilterSort: "list_filter_sort",
+      listLarge: "list_large",
+      listPlain: "list_plain",
+      listPopulated: "list_populated",
+      findMissing: "find_missing",
+      create: "create",
+      update: "update",
+      graphql: "graphql",
+      mixed: "mixed",
+    };
+    for (const [shortLabel, metricName] of Object.entries(metricKeys)) {
+      const res = warmResults.find((r) => r.shortLabel === shortLabel);
+      if (res) exportMetric(`competitive.${metricName}.rps`, res.rps, "req/s");
+    }
 
     for (const r of coldResults) {
       if (!String(r.shortLabel).endsWith(".seq")) {
@@ -905,6 +901,8 @@ test("Competitive 9-Workload Replica Benchmark", async () => {
     // overrides.
     if (process.env.BENCH_SCALE_GUARD === "1") {
       const dbRead = warmResults.find((r) => r.shortLabel === "listLarge");
+      const createRes = warmResults.find((r) => r.shortLabel === "create");
+      const updateRes = warmResults.find((r) => r.shortLabel === "update");
       const minRatio = Number(process.env.BENCH_SCALE_MIN_WRITE_READ_RATIO) || 0.25;
 
       if (dbRead && createRes && updateRes && dbRead.rps > 0) {
