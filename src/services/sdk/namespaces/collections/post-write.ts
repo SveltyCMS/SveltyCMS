@@ -139,7 +139,8 @@ function queueInvalidation(
   if (!skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
   }
-  if (schema._id) {
+  const isPointWrite = Boolean(writtenId && (!writtenIds || writtenIds.length <= 1));
+  if (schema._id && !isPointWrite) {
     cacheService.bumpCollectionEpoch(schema._id as string, tenantId as string | null | undefined);
   }
 
@@ -169,22 +170,24 @@ function queueInvalidation(
     try {
       const rc = await getResponseCacheLazy();
       if (schemaId) {
-        const tagsToClear = [`collection:${schemaId}`, `count:${schemaId}`, "res:graphql"];
-        const physicalSchemaId = collectionTableName(schemaId);
-        if (physicalSchemaId !== schemaId) {
-          tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
-        }
-        if (ids && ids.size > 0) {
+        const isPoint = ids && ids.size > 0;
+        const tagsToClear: string[] = [];
+        if (isPoint) {
           for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
         } else {
-          tagsToClear.push(`res:${schemaId}`);
+          tagsToClear.push(
+            `collection:${schemaId}`,
+            `count:${schemaId}`,
+            "res:graphql",
+            `res:${schemaId}`,
+          );
+          const physicalSchemaId = collectionTableName(schemaId);
+          if (physicalSchemaId !== schemaId) {
+            tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
+          }
         }
         void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
-        rc.invalidateLocal(
-          schemaId,
-          tenantKey,
-          ids && ids.size > 0 ? { entryIds: ids } : undefined,
-        );
+        rc.invalidateLocal(schemaId, tenantKey, isPoint ? { entryIds: ids } : undefined);
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
       }

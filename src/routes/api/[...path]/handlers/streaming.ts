@@ -244,9 +244,7 @@ export function streamingExportResponse(
           ? (step.value as Record<string, unknown>)
           : { value: step.value };
       controller.enqueue(
-        encodeOptimized(
-          isCsv ? csvRowFromRecord(record, columns) : encodeNdjsonLine(record),
-        ),
+        encodeOptimized(isCsv ? csvRowFromRecord(record, columns) : encodeNdjsonLine(record)),
       );
       itemCount++;
     },

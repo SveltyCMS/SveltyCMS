@@ -567,7 +567,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           mutatedEntry !== "bulk" &&
           mutatedEntry !== "increment";
         if (mutatedCollection) {
-          cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
+          if (!isPointWrite) {
+            cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
+          }
           responseCache.invalidateLocal(
             mutatedCollection,
             tenantIdString,

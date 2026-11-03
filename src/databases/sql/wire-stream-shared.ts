@@ -190,7 +190,7 @@ export function validateWireListInput(
 
   const orderClause =
     sortField && sortCol !== defaultIdCol
-      ? `ORDER BY ${sortCol} ${sortDirection}, ${defaultIdCol} ASC`
+      ? `ORDER BY ${sortCol} ${sortDirection}, ${defaultIdCol} ${sortDirection}`
       : `ORDER BY ${sortCol} ${sortDirection}`;
 
   const sortKey = `${sortCol}:${sortDirection}`;

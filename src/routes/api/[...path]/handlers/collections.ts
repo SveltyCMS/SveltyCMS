@@ -680,12 +680,7 @@ export async function handleCollectionCreate(
   if (result?.success && isMinimal) {
     const rawId = (result.data as any)?._id || (result.data as any)?.id;
     const safeId = fastEscapeString(String(rawId ?? ""));
-    return fastSuccessResponse(
-      event,
-      `{"_id":"${safeId}"}`,
-      { _id: rawId },
-      201,
-    );
+    return fastSuccessResponse(event, `{"_id":"${safeId}"}`, { _id: rawId }, 201);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result, 201);

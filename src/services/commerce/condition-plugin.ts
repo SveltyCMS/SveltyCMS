@@ -64,9 +64,7 @@ export function evaluatePromotionConditions(
         if (
           cond.couponCode &&
           (!context.couponCodes ||
-            !context.couponCodes.some(
-              (c) => c.toLowerCase() === cond.couponCode!.toLowerCase(),
-            ))
+            !context.couponCodes.some((c) => c.toLowerCase() === cond.couponCode!.toLowerCase()))
         ) {
           return false;
         }

@@ -1165,30 +1165,21 @@ class ResponseCacheService {
     opts?: InvalidateLocalOpts,
   ): void {
     const tenant = tenantId || "default";
-    // Lists/GraphQL are EVICTED, never served stale: every read path (read lane,
-    // turbo GET, api-requests) serves any L1 body it finds, so a stale mark kept
-    // superseded lists alive for the full TTL (retest M2: created rows missing,
-    // trashed rows still listed, bulk-published rows still DRAFT for minutes).
-    //
-    // Local-process only: this drops L1 + the local L2 copies of indexed keys.
-    // Callers bump the collection epoch first (handle-api-requests, post-write,
-    // invalidateCollection) so an L2 body that is no longer indexed (admission
-    // rejected / FIFO-evicted) is fenced at refill time by `generationMatches`.
-    // A peer node receives the bump on the invalidation channel and rejects its
-    // own already-admitted L1 bodies through the same fence (`l1GenerationMatches`).
-    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
-    this.evictListSet(this.graphqlIndex, tenant, tenantId);
-    // GraphQL keys are not scoped to one collection, so any write bumps the
-    // synthetic scope — same coverage as the whole-index eviction above, but
-    // also reaching GraphQL bodies that are L2-only.
-    if (this.graphqlL2Tenants.has(tenant)) {
-      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
-    }
+
+    // 🎯 Surgical point-write fast path: when specific entryIds are mutated (e.g. PATCH /:id),
+    // drop only those document turbo keys so sibling findById, lists, and GraphQL stay warm.
     if (opts?.entryIds) {
       for (const id of opts.entryIds) {
         this.dropIndexSet(this.entryIndex, `${tenant}\0${collectionName}\0${id}`);
       }
       return;
+    }
+
+    // Structural mutations (insert/delete/bulk/reorder) evict lists and GraphQL.
+    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
+    this.evictListSet(this.graphqlIndex, tenant, tenantId);
+    if (this.graphqlL2Tenants.has(tenant)) {
+      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
     }
     const colKey = `${tenant}\0${collectionName}`;
     const entryKeys = this.collectionEntriesIndex.get(colKey);

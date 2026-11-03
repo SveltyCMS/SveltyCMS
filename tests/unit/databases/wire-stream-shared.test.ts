@@ -90,7 +90,7 @@ describe("wire-stream-shared", () => {
       getColumn: (_table: unknown, colName: string) => (knownCols.has(colName) ? {} : null),
     };
 
-    it("adds deterministic _id ASC tie-breaker when sorting by a non-_id column", () => {
+    it("adds deterministic _id tie-breaker with matching sort direction when sorting by a non-_id column", () => {
       const res = validateWireListInput(
         mockExecutor,
         {},
@@ -98,7 +98,7 @@ describe("wire-stream-shared", () => {
         '"',
       );
       expect(res).not.toBeNull();
-      expect(res?.orderClause).toBe('ORDER BY "created_at" DESC, "_id" ASC');
+      expect(res?.orderClause).toBe('ORDER BY "created_at" DESC, "_id" DESC');
       expect(res?.limit).toBe(25);
       expect(res?.offset).toBe(10);
     });

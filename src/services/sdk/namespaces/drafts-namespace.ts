@@ -326,7 +326,12 @@ export class DraftsNamespace {
       if (isNew || !contentId) {
         result = await (this._collections as any).create(collectionId, liveData, options);
       } else {
-        result = await (this._collections as any).update(collectionId, contentId, liveData, options);
+        result = await (this._collections as any).update(
+          collectionId,
+          contentId,
+          liveData,
+          options,
+        );
       }
 
       if (result.success) {
