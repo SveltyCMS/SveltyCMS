@@ -264,8 +264,8 @@ It provides the following functionality:
 		{access_roles_intro()}
 	</p>
 
-	<div class="wrapper my-4">
-		<div class="mb-4 flex flex-wrap items-center justify-between gap-4">
+	<div class="wrapper my-2">
+		<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 			<div class="flex items-center gap-2">
 				<Button
 					variant="tertiary"

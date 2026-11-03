@@ -370,9 +370,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 
 	<!-- Navigation: Collapsible Sections -->
 	<div
-		class="w-full flex-1 space-y-4 my-4 max-h-[calc(100vh-220px)] navigation-scroll-container {ui
-			.routeContext.isSystemSettings
-			? 'overflow-y-hidden flex flex-col'
+		class="w-full flex-1 min-h-0 space-y-4 my-4 navigation-scroll-container {ui.routeContext
+			.isSystemSettings
+			? 'overflow-hidden flex flex-col'
 			: 'overflow-y-auto'}"
 	>
 		{#if ui.routeContext.isSystemSettings}

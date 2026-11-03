@@ -12,7 +12,6 @@
 	import {
 		common_active,
 		monitor_24h,
-		monitor_actions,
 		monitor_active_hooks,
 		monitor_all_secured,
 		monitor_audit_details,
@@ -26,16 +25,13 @@
 		monitor_audit_trail_desc,
 		monitor_avg,
 		monitor_blocked,
-		monitor_collection_builder,
 		monitor_error_rate,
 		monitor_errors,
 		monitor_export_chain,
 		monitor_failures,
 		monitor_incidents,
 		monitor_init_time,
-		monitor_jump_tools,
 		monitor_message,
-		monitor_quick_links,
 		monitor_requests,
 		monitor_security,
 		monitor_security_feed,
@@ -46,7 +42,6 @@
 		monitor_syncing,
 		monitor_system,
 		monitor_system_is,
-		monitor_system_settings,
 		monitor_title,
 		monitor_total,
 		monitor_uptime,
@@ -104,10 +99,13 @@
 
 	<div data-testid="monitor-page" class="contents">
 		<!-- Stats Grid -->
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4" data-testid="monitor-stats">
+		<div
+			class="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-4"
+			data-testid="monitor-stats"
+		>
 			<!-- Security Card -->
 			<AdminCard
-				class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
+				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-security"
 			>
 				<div class="flex items-center justify-between">
@@ -130,9 +128,7 @@
 						<span class="text-base font-normal opacity-50">{monitor_incidents()}</span>
 					</p>
 				</div>
-				<div
-					class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40"
-				>
+				<div class="flex justify-between border-t border-(--admin-border-default) pt-2 text-xs">
 					<span
 						>{monitor_blocked()}
 						<b class="text-error-500">{data.security?.blockedIpsCount || 0}</b></span
@@ -143,7 +139,7 @@
 
 			<!-- System State Card -->
 			<AdminCard
-				class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
+				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-system"
 			>
 				<div class="flex items-center justify-between">
@@ -162,9 +158,7 @@
 						<span class="text-base font-normal opacity-50">{monitor_uptime()}</span>
 					</p>
 				</div>
-				<div
-					class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40"
-				>
+				<div class="flex justify-between border-t border-(--admin-border-default) pt-2 text-xs">
 					<span>{monitor_services()} <b>{systemState?.services?.length ?? 0}</b></span>
 					<span class="opacity-50"
 						>{monitor_avg()}
@@ -177,7 +171,7 @@
 
 			<!-- API Traffic Card -->
 			<AdminCard
-				class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
+				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-requests"
 			>
 				<div class="flex items-center justify-between">
@@ -195,9 +189,7 @@
 						<span class="text-base font-normal opacity-50">{monitor_total()}</span>
 					</p>
 				</div>
-				<div
-					class="flex justify-between border-t border-surface-500/30 pt-2 text-xs dark:border-surface-500/40"
-				>
+				<div class="flex justify-between border-t border-(--admin-border-default) pt-2 text-xs">
 					<span
 						>{monitor_errors()} <b class="text-error-500">{system?.requests?.errors ?? 0}</b></span
 					>
@@ -209,47 +201,40 @@
 				</div>
 			</AdminCard>
 
-			<!-- Quick Actions Card -->
+			<!-- Background Worker / Queue Card -->
 			<AdminCard
-				class="space-y-4 border border-surface-500/30 bg-white p-6 shadow-sm backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/50"
+				class="space-y-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm backdrop-blur-md dark:bg-surface-900/50"
 				data-testid="monitor-card-actions"
 			>
 				<div class="flex items-center justify-between">
-					<div class="flex size-10 items-center justify-center rounded bg-tertiary-500/10">
-						<iconify-icon icon="mdi:lightning-bolt" class="text-2xl text-tertiary-500"
+					<div
+						class="flex size-10 items-center justify-center rounded bg-tertiary-500/10 dark:bg-primary-500/10"
+					>
+						<iconify-icon
+							icon="mdi:tray-full"
+							class="text-2xl text-tertiary-500 dark:text-primary-500"
 						></iconify-icon>
 					</div>
-					<Badge preset="tonal" color="primary" size="sm">{monitor_actions()}</Badge>
+					<Badge preset="tonal" color="primary" size="sm">Queue</Badge>
 				</div>
 				<div>
-					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">
-						{monitor_quick_links()}
-					</h3>
-					<p class="text-sm opacity-60">{monitor_jump_tools()}</p>
+					<h3 class="text-sm font-bold uppercase tracking-widest opacity-40">Background Tasks</h3>
+					<p class="text-3xl font-black">
+						{webhooks?.active ?? 0}
+						<span class="text-base font-normal opacity-50">Webhooks Active</span>
+					</p>
 				</div>
-				<div class="space-y-2 border-t border-surface-500/30 pt-2 dark:border-surface-500/40">
+				<div class="space-y-2 border-t border-(--admin-border-default) pt-2">
 					<Button
 						variant="tertiary"
 						size="sm"
-						href="/config/system-settings"
+						href="/config/queue"
 						class="w-full justify-between"
 						data-sveltekit-preload-data="hover"
 						data-preload="hover"
-						data-testid="monitor-link-settings"
+						data-testid="monitor-link-queue"
 					>
-						<span>{monitor_system_settings()}</span>
-						<iconify-icon icon="mdi:arrow-right"></iconify-icon>
-					</Button>
-					<Button
-						variant="tertiary"
-						size="sm"
-						href="/config/collectionbuilder"
-						class="w-full justify-between"
-						data-sveltekit-preload-data="hover"
-						data-preload="hover"
-						data-testid="monitor-link-builder"
-					>
-						<span>{monitor_collection_builder()}</span>
+						<span>View Background Queue</span>
 						<iconify-icon icon="mdi:arrow-right"></iconify-icon>
 					</Button>
 				</div>
@@ -258,7 +243,7 @@
 
 		<!-- Service Health Table -->
 		<AdminCard
-			class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
+			class="border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm dark:bg-surface-900"
 			data-testid="monitor-service-health"
 		>
 			<h2 class="mb-4 text-lg font-bold">{monitor_service_health()}</h2>
@@ -321,34 +306,34 @@
 		</AdminCard>
 
 		<!-- Security Feed & Webhooks Sidebar -->
-		<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+		<div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
 			<AdminCard
-				class="border border-surface-500/30 bg-white p-6 shadow-sm lg:col-span-2 dark:border-surface-500/40 dark:bg-surface-900"
+				class="border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm lg:col-span-2 dark:bg-surface-900"
 			>
-				<div class="mb-6 flex items-center justify-between">
-					<h2 class="text-lg font-bold">{monitor_security_feed()}</h2>
+				<div class="mb-4 flex items-center justify-between">
+					<h2 class="text-base font-bold">{monitor_security_feed()}</h2>
 					<Button variant="ghost" size="sm">{monitor_view_all_logs()}</Button>
 				</div>
-				<div class="space-y-4">
+				<div class="space-y-3">
 					{#if data.security?.recentIncidents?.length > 0}
 						{#each data.security.recentIncidents as incident (incident._id)}
 							{const inc = incident as any}
 							<div
-								class="flex items-center gap-4 rounded border-s-4 border-error-500 bg-surface-500/10 p-3 dark:bg-surface-800"
+								class="flex items-center gap-3 rounded border-s-4 border-error-500 bg-surface-500/10 p-3 dark:bg-surface-800"
 							>
 								<iconify-icon icon="mdi:alert-decagram" class="text-xl text-error-500"
 								></iconify-icon>
-								<div class="flex-1">
-									<p class="text-sm font-bold">{inc.type}</p>
-									<p class="text-xs opacity-50">{inc.message}</p>
+								<div class="flex-1 min-w-0">
+									<p class="text-sm font-bold truncate">{inc.type}</p>
+									<p class="text-xs opacity-50 truncate">{inc.message}</p>
 								</div>
-								<span class="text-xs opacity-30">{formatTime(inc.timestamp)}</span>
+								<span class="text-xs opacity-30 shrink-0">{formatTime(inc.timestamp)}</span>
 							</div>
 						{/each}
 					{:else}
-						<div class="py-12 text-center italic opacity-30">
-							<iconify-icon icon="mdi:shield-check" width="48" class="mb-2"></iconify-icon>
-							<p>{monitor_all_secured()}</p>
+						<div class="py-8 text-center italic opacity-30">
+							<iconify-icon icon="mdi:shield-check" width="40" class="mb-1"></iconify-icon>
+							<p class="text-xs">{monitor_all_secured()}</p>
 						</div>
 					{/if}
 				</div>
@@ -356,10 +341,10 @@
 
 			<div class="space-y-6">
 				<AdminCard
-					class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
+					class="border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm dark:bg-surface-900"
 				>
-					<h2 class="mb-4 text-lg font-bold">{monitor_webhook_status()}</h2>
-					<div class="space-y-4">
+					<h2 class="mb-3 text-base font-bold">{monitor_webhook_status()}</h2>
+					<div class="space-y-3">
 						<div class="flex items-center justify-between text-sm">
 							<span class="opacity-50">{monitor_active_hooks()}</span>
 							<span class="font-bold">{webhooks?.active || 0}</span>
@@ -385,11 +370,11 @@
 
 		<!-- Cryptographic Audit Logs -->
 		<AdminCard
-			class="border border-surface-500/30 bg-white p-6 shadow-sm dark:border-surface-500/40 dark:bg-surface-900"
+			class="border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-4 sm:p-5 shadow-sm dark:bg-surface-900"
 		>
-			<div class="mb-6 flex items-center justify-between">
+			<div class="mb-4 flex items-center justify-between">
 				<div>
-					<h2 class="text-lg font-bold">{monitor_audit_trail()}</h2>
+					<h2 class="text-base font-bold">{monitor_audit_trail()}</h2>
 					<p class="text-xs text-surface-500 dark:text-surface-400">
 						{monitor_audit_trail_desc()}
 					</p>

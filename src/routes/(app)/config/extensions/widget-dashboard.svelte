@@ -491,21 +491,21 @@ Features:
 				</div>
 			</div>
 
-			<!-- Badges Counts -->
+			<!-- Filter Pills -->
 			<div class="flex flex-wrap gap-2">
 				{#each [{ value: 'all' as const, label: 'All', count: stats.total, icon: 'mdi:widgets' }, { value: 'active' as const, label: 'Active', count: stats.active, icon: 'mdi:check-circle' }, { value: 'inactive' as const, label: 'Inactive', count: stats.inactive, icon: 'mdi:pause-circle' }, { value: 'core' as const, label: 'Core', count: stats.core, icon: 'mdi:puzzle' }, { value: 'custom' as const, label: 'Custom', count: stats.custom, icon: 'mdi:puzzle-plus' }] as filter (filter.value)}
 					<Button
-						variant="tertiary"
+						variant={activeFilter === filter.value ? 'primary' : 'surface'}
+						size="sm"
 						onclick={() => (activeFilter = filter.value)}
 						aria-label={wd_filter_aria({ filter: filter.label, count: filter.count })}
-						class={activeFilter === filter.value ? 'text-white' : ''}
 					>
-						<iconify-icon icon={filter.icon} width="20"></iconify-icon>
+						<iconify-icon icon={filter.icon} width="16"></iconify-icon>
 						<span>{filter.label}</span>
 						<span
-							class="rounded-full px-2 py-0.5 text-xs font-semibold {activeFilter === filter.value
-								? 'bg-tertiary-500 text-white'
-								: 'bg-gray-300 text-gray-700 dark:bg-gray-600 dark:text-gray-300'}"
+							class="rounded-full px-1.5 py-0.2 text-xs font-semibold {activeFilter === filter.value
+								? 'bg-white/20 text-white'
+								: 'bg-surface-500/20 text-(--admin-text-muted)'}"
 						>
 							{filter.count}
 						</span>

@@ -109,12 +109,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     // 1-based server page — the gallery used to hardcode page 1 and silently
     // drop every asset past the first 100.
     const mediaPage = parseGalleryPage(url.searchParams.get("page"));
+    // Server-side search filter (?q= or ?search=)
+    const searchQuery = (url.searchParams.get("q") || url.searchParams.get("search") || "")
+      .trim()
+      .slice(0, 100);
     // Server-side JSON path filter (shareable via URL; same syntax as client filter)
     const jsonPath = (url.searchParams.get("jsonPath") || url.searchParams.get("jsonpath") || "")
       .trim()
       .slice(0, 500);
     logger.debug(
-      `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive}${jsonPath ? `, jsonPath` : ""})`,
+      `Loading media gallery for folderId: ${folderId || "root"} (recursive: ${recursive}${searchQuery ? `, search: "${searchQuery}"` : ""}${jsonPath ? `, jsonPath` : ""})`,
     );
 
     // 🚀 Fetch virtual folders with SWR (5 min fresh, 30 min stale)
@@ -177,6 +181,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
             recursive,
             user, // Pass user for ownership filtering
             tenantId, // Explicit scope (raw adapter — see note above)
+            ...(searchQuery ? { search: searchQuery } : {}),
             // Push metadata.* clauses into SQLite JSON1 / PG jsonb / Mongo when possible
             ...(jsonPath ? { jsonPath } : {}),
           });

@@ -70,6 +70,7 @@ export const SESSION_COOKIE_VARIANTS = Object.freeze([
 
 export {
   readSessionCookie,
+  readSessionIdFromCookieHeader,
   clearAllSessionCookies,
   type CookieReader,
   type CookieDeleter,

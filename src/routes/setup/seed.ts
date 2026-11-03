@@ -391,6 +391,12 @@ PRESET_COLLECTIONS.demo = [
         type: "number",
       },
       {
+        db_fieldName: "views",
+        label: "Views",
+        widget: { Name: "Number" },
+        type: "number",
+      },
+      {
         db_fieldName: "publishDate",
         label: "Publish Date",
         widget: { Name: "DateTime" },

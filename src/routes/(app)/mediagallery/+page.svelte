@@ -921,12 +921,13 @@
 				const formData = new FormData();
 				formData.append('imageData', JSON.stringify(file));
 				const response = await fetch('?/deleteMedia', { method: 'POST', body: formData });
-				if (response.ok) {
+				const outcome = await evaluateDeleteResponse(response);
+				if (outcome.ok) {
 					files = files.filter((f) => f._id !== file._id);
 					await refreshAll();
 					toast.success('File deleted');
 				} else {
-					toast.error('Delete failed');
+					toast.error(outcome.message || 'Delete failed');
 				}
 			}
 		});

@@ -50,7 +50,6 @@ Handles all field types and validation automatically
 		settings_languages_content_heading,
 		settings_languages_system_heading,
 		settings_loading,
-		settings_locales_help,
 		settings_no_matches,
 		settings_remove_language,
 		settings_remove_log_level,
@@ -105,8 +104,8 @@ Handles all field types and validation automatically
 		initialValues?: Record<string, unknown> | null;
 		groupsNeedingConfig: SvelteSet<string>;
 		onUnsavedChanges?: (hasChanges: boolean) => void;
-		/** Parent may call fire() to save; discard() reverts local edits */
-		saveTrigger?: { fire: () => void; discard?: () => void };
+		/** Parent may call fire() to save; discard() reverts local edits; reset() resets group */
+		saveTrigger?: { fire: () => void; discard?: () => void; reset?: () => void };
 		saving?: boolean;
 		children?: import('svelte').Snippet;
 	}
@@ -138,6 +137,36 @@ Handles all field types and validation automatically
 	let hasEmptyRequiredFields = $state(false);
 	let importInputEl = $state<HTMLInputElement | null>(null);
 
+	// Redis Live Test Connection State
+	let testingRedis = $state(false);
+	let redisTestResult = $state<{
+		success: boolean;
+		message?: string;
+		latencyMs?: number;
+		error?: string;
+	} | null>(null);
+
+	async function runRedisTest() {
+		testingRedis = true;
+		redisTestResult = null;
+		try {
+			const { testRedisConnection } = await import('./admin.remote');
+			const res = await testRedisConnection({
+				host: (values.REDIS_HOST as string) || 'localhost',
+				port: Number(values.REDIS_PORT) || 6379,
+				password: (values.REDIS_PASSWORD as string) || undefined
+			});
+			redisTestResult = res;
+		} catch (err) {
+			redisTestResult = {
+				success: false,
+				error: err instanceof Error ? err.message : String(err)
+			};
+		} finally {
+			testingRedis = false;
+		}
+	}
+
 	// Optimize: Use $derived instead of $effect for unsaved changes.
 	// Guard on !loading: while the initial load is in flight, `originalValues` is not
 	// populated yet, so a naive comparison would treat the seeded defaults as edits and
@@ -154,11 +183,12 @@ Handles all field types and validation automatically
 		}
 	});
 
-	// Wire up saveTrigger / discard for parent shell actions
+	// Wire up saveTrigger / discard / reset for parent shell actions
 	$effect(() => {
 		if (saveTrigger) {
 			saveTrigger.fire = saveSettings;
 			saveTrigger.discard = discardChanges;
+			saveTrigger.reset = resetToDefaults;
 		}
 	});
 
@@ -383,6 +413,35 @@ Handles all field types and validation automatically
 	}
 
 	function removeLanguage(fieldKey: string, langCode: string) {
+		const currentValues = (values[fieldKey] as string[]) || [];
+
+		// Safeguard warning modal if a content language is being removed
+		if (fieldKey === 'AVAILABLE_CONTENT_LANGUAGES') {
+			if (currentValues.length <= 1) {
+				toast.error({ description: 'At least one content language must remain enabled.' });
+				return;
+			}
+			const langName = displayLanguage(langCode);
+			showConfirm({
+				title: 'Disable Content Language',
+				body: `Are you sure you want to disable <strong>${langName} (${langCode})</strong>?<br/><br/><span class="text-error-500 text-xs">Existing content authored in this language will remain in the database, but editors will no longer be able to select or edit this language in collection forms.</span>`,
+				confirmText: 'Disable Language',
+				onConfirm: () => {
+					performRemoveLanguage(fieldKey, langCode);
+					// If the default content language was removed, reset it to the first available language
+					if (values.DEFAULT_CONTENT_LANGUAGE === langCode) {
+						const remaining = (values[fieldKey] as string[]) || [];
+						values.DEFAULT_CONTENT_LANGUAGE = remaining[0] || 'en';
+					}
+				}
+			});
+			return;
+		}
+
+		performRemoveLanguage(fieldKey, langCode);
+	}
+
+	function performRemoveLanguage(fieldKey: string, langCode: string) {
 		const currentValues = (values[fieldKey] as string[]) || [];
 		values[fieldKey] = currentValues.filter((code) => code !== langCode);
 		// Trigger validation
@@ -722,9 +781,9 @@ Handles all field types and validation automatically
 	});
 </script>
 
-<div class="space-y-4 max-w-full pb-6">
+<div class="space-y-4 max-w-full pb-2">
 	<!-- Header -->
-	<div class="mb-6">
+	<div class="mb-2">
 		<h2 class="mb-2 text-xl font-bold md:text-2xl">
 			<span class="me-2">
 				<GroupIcon icon={group.icon} />
@@ -742,7 +801,7 @@ Handles all field types and validation automatically
 	{/if}
 
 	<!-- Default Values Notice -->
-	{#if hasEmptyRequiredFields}
+	{#if hasEmptyRequiredFields && group.id !== 'languages'}
 		<Alert variant="error" title={settings_default_values_detected_title()} class="mb-4">
 			{settings_default_values_detected_body()}
 		</Alert>
@@ -823,23 +882,46 @@ Handles all field types and validation automatically
 
 						{#if availableLangsField}
 							<div>
-								<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-									<iconify-icon
-										icon="mdi:book-multiple"
-										width="14"
-										class="text-tertiary-500 dark:text-primary-500"
-									></iconify-icon>
-									<span>{availableLangsField.label}</span>
-									{#if availableLangsField.required}
-										<span class="text-error-500">*</span>
+								<div
+									class="mb-1 flex items-center justify-between gap-1 text-sm font-medium tracking-wide"
+								>
+									<div class="flex items-center gap-1">
+										<iconify-icon
+											icon="mdi:book-multiple"
+											width="14"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										<span>{availableLangsField.label}</span>
+										{#if availableLangsField.required}
+											<span class="text-error-500">*</span>
+										{/if}
+										<SystemTooltip title={availableLangsField.description}>
+											<HelpIcon ariaLabel="Field information" />
+										</SystemTooltip>
+									</div>
+									{#if !availableLangsField.readonly}
+										<Button
+											variant="primary"
+											size="sm"
+											type="button"
+											onclick={() => {
+												showLanguagePicker[availableLangsField.key] = true;
+												languageSearch[availableLangsField.key] = '';
+											}}
+											aria-haspopup="dialog"
+											aria-expanded={showLanguagePicker[availableLangsField.key]}
+											aria-controls="{availableLangsField.key}-lang-picker"
+											rounded
+											class="font-medium"
+										>
+											<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+											<span>{button_add()}</span>
+										</Button>
 									{/if}
-									<SystemTooltip title={availableLangsField.description}>
-										<HelpIcon ariaLabel="Field information" />
-									</SystemTooltip>
 								</div>
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[
+										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 {errors[
 											availableLangsField.key
 										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
@@ -875,24 +957,6 @@ Handles all field types and validation automatically
 											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{availableLangsField.placeholder}</span
 											>
-										{/if}
-
-										{#if !availableLangsField.readonly}
-											<Button
-												variant="tertiary"
-												type="button"
-												onclick={() => {
-													showLanguagePicker[availableLangsField.key] = true;
-													languageSearch[availableLangsField.key] = '';
-												}}
-												aria-haspopup="dialog"
-												aria-expanded={showLanguagePicker[availableLangsField.key]}
-												aria-controls="{availableLangsField.key}-lang-picker"
-												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
-											>
-												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												{button_add()}
-											</Button>
 										{/if}
 									</div>
 
@@ -1016,23 +1080,47 @@ Handles all field types and validation automatically
 
 						{#if localesField}
 							<div data-testid="settings-field-LOCALES">
-								<div class="mb-1 flex items-center gap-1 text-sm font-medium tracking-wide">
-									<iconify-icon
-										icon="mdi:translate-variant"
-										width="14"
-										class="text-tertiary-500 dark:text-primary-500"
-									></iconify-icon>
-									<span>{setup_label_system_languages()}</span>
-									{#if localesField.required}
-										<span class="text-error-500">*</span>
+								<div
+									class="mb-1 flex items-center justify-between gap-1 text-sm font-medium tracking-wide"
+								>
+									<div class="flex items-center gap-1">
+										<iconify-icon
+											icon="mdi:translate-variant"
+											width="14"
+											class="text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										<span>{setup_label_system_languages()}</span>
+										{#if localesField.required}
+											<span class="text-error-500">*</span>
+										{/if}
+										<SystemTooltip title={localesField.description}>
+											<HelpIcon ariaLabel="Field information" />
+										</SystemTooltip>
+									</div>
+									{#if !localesField.readonly && (BUNDLED_SYSTEM_LOCALES as readonly string[]).filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
+										<Button
+											variant="primary"
+											size="sm"
+											type="button"
+											onclick={() => {
+												showLanguagePicker[localesField.key] = true;
+												languageSearch[localesField.key] = '';
+											}}
+											aria-haspopup="dialog"
+											aria-expanded={showLanguagePicker[localesField.key]}
+											aria-controls="{localesField.key}-lang-picker"
+											data-testid="settings-add-system-language"
+											rounded
+											class="font-medium"
+										>
+											<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
+											<span>{button_add()}</span>
+										</Button>
 									{/if}
-									<SystemTooltip title={localesField.description}>
-										<HelpIcon ariaLabel="Field information" />
-									</SystemTooltip>
 								</div>
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[
+										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 {errors[
 											localesField.key
 										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
@@ -1089,25 +1177,6 @@ Handles all field types and validation automatically
 											<span class="text-(--admin-text-muted) dark:text-surface-50 text-xs"
 												>{localesField.placeholder}</span
 											>
-										{/if}
-
-										{#if !localesField.readonly && (BUNDLED_SYSTEM_LOCALES as readonly string[]).filter((code) => !((values[localesField.key] as string[]) || []).includes(code)).length > 0}
-											<Button
-												variant="tertiary"
-												type="button"
-												onclick={() => {
-													showLanguagePicker[localesField.key] = true;
-													languageSearch[localesField.key] = '';
-												}}
-												aria-haspopup="dialog"
-												aria-expanded={showLanguagePicker[localesField.key]}
-												aria-controls="{localesField.key}-lang-picker"
-												data-testid="settings-add-system-language"
-												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
-											>
-												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												{button_add()}
-											</Button>
 										{/if}
 									</div>
 
@@ -1213,9 +1282,6 @@ Handles all field types and validation automatically
 								<p class="mt-1 text-[10px] leading-relaxed text-(--admin-text-muted)">
 									{setup_note_machine_translate()}
 								</p>
-								<p class="mt-1 text-[10px] text-(--admin-text-muted)">
-									{settings_locales_help()}
-								</p>
 								{#if localesField.placeholder}
 									<p class="mt-1 text-[10px] text-(--admin-text-muted)">
 										{settings_example()}
@@ -1253,13 +1319,11 @@ Handles all field types and validation automatically
 								{#if field.required}
 									<span class="text-error-500">*</span>
 								{/if}
-								<!-- Technical key: the identifier admins look up in config/private.ts -->
-								<code
-									class="font-mono text-[10px] font-medium text-tertiary-500 dark:text-primary-500"
-									>{field.key}</code
-								>
 								<!-- The icon is the only tooltip trigger; the label text stays inert -->
-								<SystemTooltip title={field.description} positioning={{ placement: 'top' }}>
+								<SystemTooltip
+									title={field.description ? `${field.description} (${field.key})` : field.key}
+									positioning={{ placement: 'top' }}
+								>
 									<HelpIcon ariaLabel="Field information" />
 								</SystemTooltip>
 							</div>
@@ -1306,38 +1370,40 @@ Handles all field types and validation automatically
 								</div>
 								<!-- Password Input -->
 							{:else if field.type === 'security'}
-								<div class="relative">
-									<Input
-										id={field.key}
-										type={showPassword[field.key] ? 'text' : 'password'}
-										bind:value={values[field.key] as string}
-										placeholder={field.sensitive ? '********' : field.placeholder}
-										required={field.required}
-										disabled={field.readonly}
-										oninput={() => (errors[field.key] = '')}
-										autocomplete="current-password"
-										error={errors[field.key]}
-										inputClass={field.sensitive && field.readonly ? '' : 'pe-10'}
-									/>
-									{#if field.sensitive && field.readonly}
-										<div class="absolute inset-e-2 top-2 text-xs text-(--admin-text-muted) italic">
-											{settings_configured_in_env()}
-										</div>
-									{:else if !field.readonly}
-										<Button
-											variant="ghost"
-											type="button"
-											class="absolute inset-e-0 top-0 p-0! min-w-0"
-											onclick={() => (showPassword[field.key] = !showPassword[field.key])}
-											aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
-										>
-											<iconify-icon
-												icon={showPassword[field.key] ? 'bi:eye-slash-fill' : 'bi:eye-fill'}
-												width="20"
-											></iconify-icon>
-										</Button>
-									{/if}
-								</div>
+								<Input
+									id={field.key}
+									type={showPassword[field.key] ? 'text' : 'password'}
+									bind:value={values[field.key] as string}
+									placeholder={field.sensitive ? '********' : field.placeholder}
+									required={field.required}
+									disabled={field.readonly}
+									oninput={() => (errors[field.key] = '')}
+									autocomplete="current-password"
+									error={errors[field.key]}
+								>
+									{#snippet post()}
+										{#if field.sensitive && field.readonly}
+											<span class="text-xs text-(--admin-text-muted) italic pe-2">
+												{settings_configured_in_env()}
+											</span>
+										{:else if !field.readonly}
+											<Button
+												variant="ghost"
+												size="sm"
+												type="button"
+												class="size-8 min-w-0! p-0! shrink-0 items-center justify-center rounded text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-500/15 transition-colors"
+												onclick={() => (showPassword[field.key] = !showPassword[field.key])}
+												aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
+											>
+												<iconify-icon
+													icon={showPassword[field.key] ? 'mdi:eye-off' : 'mdi:eye'}
+													width="18"
+													class="opacity-80 hover:opacity-100"
+												></iconify-icon>
+											</Button>
+										{/if}
+									{/snippet}
+								</Input>
 								<!-- Boolean Input -->
 							{:else if field.type === 'boolean'}
 								<Checkbox
@@ -1393,7 +1459,9 @@ Handles all field types and validation automatically
 								<!-- Language Multi-Select (Styled like SystemConfig.svelte) -->
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
+										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 pe-20 {errors[
+											field.key
+										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
 											: 'border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-700/40'}"
 									>
@@ -1431,6 +1499,7 @@ Handles all field types and validation automatically
 										{#if !field.readonly}
 											<Button
 												variant="tertiary"
+												size="sm"
 												type="button"
 												onclick={() => {
 													showLanguagePicker[field.key] = true;
@@ -1439,10 +1508,11 @@ Handles all field types and validation automatically
 												aria-haspopup="dialog"
 												aria-expanded={showLanguagePicker[field.key]}
 												aria-controls="{field.key}-lang-picker"
-												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
+												rounded
+												class="absolute inset-e-1.5 top-1.5 font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												{button_add()}
+												<span>{button_add()}</span>
 											</Button>
 										{/if}
 									</div>
@@ -1509,7 +1579,9 @@ Handles all field types and validation automatically
 							{:else if field.type === 'loglevel-multi'}
 								<div class="relative">
 									<div
-										class="flex min-h-10 flex-wrap gap-2 rounded border p-2 pe-16 {errors[field.key]
+										class="flex min-h-10 flex-wrap items-center gap-2 rounded border p-2 pe-20 {errors[
+											field.key
+										]
 											? 'border-error-500 bg-error-500/10 dark:bg-error-900/20'
 											: 'border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-700/40'}"
 									>
@@ -1545,15 +1617,17 @@ Handles all field types and validation automatically
 										{#if !field.readonly}
 											<Button
 												variant="tertiary"
+												size="sm"
 												type="button"
 												onclick={() => (showLogLevelPicker[field.key] = true)}
 												aria-haspopup="dialog"
 												aria-expanded={showLogLevelPicker[field.key]}
 												aria-controls="{field.key}-loglevel-picker"
-												class="absolute inset-e-2 top-2 rounded-full text-xs font-medium"
+												rounded
+												class="absolute inset-e-1.5 top-1.5 font-medium"
 											>
 												<iconify-icon icon="mdi:plus" width="14"></iconify-icon>
-												{button_add()}
+												<span>{button_add()}</span>
 											</Button>
 										{/if}
 									</div>
@@ -1611,8 +1685,62 @@ Handles all field types and validation automatically
 				</div>
 			{/if}
 
+			{#if group.id === 'redis'}
+				<div class="mt-6 pt-6 border-t border-(--admin-border-default) space-y-3">
+					<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+						<div>
+							<h4 class="text-sm font-semibold flex items-center gap-1.5">
+								<iconify-icon
+									icon="mdi:connection"
+									width="16"
+									class="text-tertiary-500 dark:text-primary-500"
+								></iconify-icon>
+								<span>Verify Redis Reachability</span>
+							</h4>
+							<p class="text-xs text-(--admin-text-muted) max-w-xl mt-0.5">
+								Performs a live PING against the configured Redis host and port to confirm network
+								connectivity and credentials before rebooting.
+							</p>
+						</div>
+						<Button
+							variant="tertiary"
+							type="button"
+							disabled={testingRedis}
+							onclick={runRedisTest}
+							class="shrink-0 items-center justify-center gap-1.5"
+						>
+							<iconify-icon
+								icon="mdi:swap-horizontal-bold"
+								width="16"
+								class={testingRedis ? 'animate-spin' : ''}
+							></iconify-icon>
+							<span>{testingRedis ? 'Testing Connection...' : 'Test Redis Connection'}</span>
+						</Button>
+					</div>
+					{#if redisTestResult}
+						<div
+							class="rounded border p-3 text-xs {redisTestResult.success
+								? 'border-success-500/30 bg-success-500/10 text-success-500'
+								: 'border-error-500/30 bg-error-500/10 text-error-500'}"
+						>
+							<p class="font-semibold">
+								{redisTestResult.success
+									? '✅ Redis Connected Successfully!'
+									: '❌ Connection Failed'}
+							</p>
+							{#if redisTestResult.latencyMs}
+								<p class="mt-0.5 opacity-80">Latency: {redisTestResult.latencyMs}ms</p>
+							{/if}
+							{#if redisTestResult.error}
+								<p class="mt-0.5 opacity-90">{redisTestResult.error}</p>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/if}
+
 			<!-- Local Group Actions -->
-			<div class="mt-8 border-t border-(--admin-border-default) pt-6">
+			<div class="mt-4 border-t border-(--admin-border-default) pt-6">
 				<!-- Children slot (e.g. Repair Cache) rendered outside StickyActions to avoid double-render in global sticky bar -->
 				{#if children}
 					<div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto mb-3">
@@ -1621,30 +1749,32 @@ Handles all field types and validation automatically
 				{/if}
 
 				<StickyActions>
-					<div class="flex w-full flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-						<div class="flex flex-wrap items-center gap-2">
-							<Button
-								variant="error"
-								type="button"
-								onclick={resetToDefaults}
-								disabled={saving}
-								data-testid="settings-group-reset"
-								class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-medium"
-							>
-								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
-								<span>{settings_reset_defaults()}</span>
-							</Button>
-
+					<div class="flex w-full items-center justify-between gap-2">
+						<div class="flex items-center gap-2">
 							<Button
 								variant="ghost"
 								type="button"
 								disabled={saving || !hasUnsavedChanges}
 								data-testid="settings-group-discard"
 								onclick={discardChanges}
-								class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-medium"
+								class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium"
 							>
 								<iconify-icon icon="mdi:undo" width="16"></iconify-icon>
-								<span>{settings_discard()}</span>
+								<span class="hidden sm:inline">{settings_discard()}</span>
+							</Button>
+
+							<Button
+								variant="ghost"
+								type="button"
+								disabled={loading || saving}
+								data-testid="settings-group-reset"
+								onclick={resetToDefaults}
+								aria-label={settings_reset_defaults()}
+								title={settings_reset_defaults()}
+								class="hidden sm:inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-3 py-1.5 text-sm font-medium"
+							>
+								<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
+								<span>{settings_reset_defaults()}</span>
 							</Button>
 
 							<!-- Secondary import/export: icon-only so the bar cannot clip labels -->
@@ -1689,7 +1819,7 @@ Handles all field types and validation automatically
 
 						<!-- System Status (decorative; hidden where it would crowd the bar) -->
 						<div
-							class="hidden flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-center 2xl:flex"
+							class="hidden flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-center xl:flex"
 						>
 							<div class="flex items-center gap-1.5 shrink-0">
 								<span class="text-2xl text-tertiary-500 dark:text-primary-500 leading-none">●</span>
@@ -1732,7 +1862,7 @@ Handles all field types and validation automatically
 							form="settings-group-form"
 							disabled={saving || !hasUnsavedChanges || !group.fields?.length}
 							data-testid="settings-group-save"
-							class="w-full shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-semibold sm:w-auto"
+							class="shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded px-4 py-2 text-sm font-semibold"
 						>
 							{#if saving}
 								<iconify-icon icon="mdi:loading" width="18" class="animate-spin"></iconify-icon>

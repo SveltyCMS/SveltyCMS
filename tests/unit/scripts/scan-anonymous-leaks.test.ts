@@ -241,6 +241,6 @@ describe("route classification", () => {
 
   it("treats .remote.ts as public transport", () => {
     expect(isHookAuthenticated("src/routes/(app)/user/user.remote.ts")).toBe(false);
-    expect(isHookAuthenticated("src/routes/(admin)/admin/tenants/tenants.remote.ts")).toBe(false);
+    expect(isHookAuthenticated("src/routes/(app)/config/tenants/tenants.remote.ts")).toBe(false);
   });
 });

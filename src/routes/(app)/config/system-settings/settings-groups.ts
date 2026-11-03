@@ -974,28 +974,6 @@ export const settingsGroups: SettingGroup[] = [
     ],
   },
   {
-    id: "customCss",
-    name: "Custom CSS",
-    icon: "💅",
-    description: "Add custom CSS to your site for advanced styling.",
-    enabled: true,
-    requiresRestart: false,
-    adminOnly: true,
-    permissionId: "config:settings:customCss",
-    fields: [
-      {
-        key: "CUSTOM_SITE_CSS",
-        label: "Custom Site CSS",
-        description:
-          "Enter your custom CSS here. This will be injected directly into your site's <head>.",
-        type: "textarea",
-        category: "public",
-        placeholder: "/* Your custom CSS here */",
-        rows: 10,
-      },
-    ],
-  },
-  {
     id: "gdpr",
     name: "Privacy & GDPR",
     icon: "🛡️",
@@ -1005,30 +983,6 @@ export const settingsGroups: SettingGroup[] = [
     adminOnly: true,
     permissionId: "config:settings:gdpr",
     fields: [], // Custom UI handled in +page.svelte
-  },
-  {
-    // Distinct id from "licensing" (BSL compliance group) — was a silent catalog collision
-    id: "license-keys",
-    name: "License Keys",
-    icon: "mdi:key",
-    description:
-      "Activate marketplace extensions. Enter your license key from marketplace.sveltycms.com. One key covers all purchased extensions. SLM-DEMO- keys provide a 14-day trial.",
-    enabled: true,
-    requiresRestart: false,
-    adminOnly: true,
-    permissionId: "config:settings:license",
-    fields: [
-      {
-        key: "LICENSE_KEY",
-        label: "Master License Key",
-        description:
-          "Your license key from marketplace.sveltycms.com. This activates all purchased extensions.",
-        type: "text",
-        category: "private",
-        sensitive: true,
-        placeholder: "SLM-XXXX-XXXX-XXXX",
-      },
-    ],
   },
 ];
 

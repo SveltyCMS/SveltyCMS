@@ -36,9 +36,11 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import Textarea from '@components/ui/textarea.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 
 	interface Props {
 		currentGroupName: string;
@@ -153,21 +155,41 @@
 		data-testid="role-form"
 	>
 		<Input
-			label="Role Name"
 			name="roleName"
 			bind:value={formName}
 			placeholder={access_role_name_placeholder()}
 			required
 			data-testid="role-name-input"
-		/>
+		>
+			{#snippet labelSnippet()}
+				<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+					<span>Role Name</span>
+					<Tooltip
+						title="Unique human-readable title for this permission role (e.g., Content Editor, Moderator)."
+					>
+						<HelpIcon ariaLabel="Role name information" />
+					</Tooltip>
+				</div>
+			{/snippet}
+		</Input>
 		<Textarea
 			id="role-description"
-			label="Role Description"
 			bind:value={formDescription}
 			placeholder={access_role_description_placeholder()}
 			rows={3}
 			data-testid="role-description-input"
-		/>
+		>
+			{#snippet labelSnippet()}
+				<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+					<span>Role Description</span>
+					<Tooltip
+						title="Summary of permissions and responsibilities assigned to users with this role."
+					>
+						<HelpIcon ariaLabel="Role description information" />
+					</Tooltip>
+				</div>
+			{/snippet}
+		</Textarea>
 
 		<div class="space-y-2">
 			<div class="flex items-center justify-between gap-2">

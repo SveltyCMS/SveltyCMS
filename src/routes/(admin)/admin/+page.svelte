@@ -25,7 +25,7 @@
 			<p class="mb-4 text-sm text-surface-600 dark:text-surface-400">
 				Manage organizations, quotas, and tenant status.
 			</p>
-			<Button variant="primary" href="/admin/tenants" data-preload="hover">Manage Tenants</Button>
+			<Button variant="primary" href="/config/tenants" data-preload="hover">Manage Tenants</Button>
 		</AdminCard>
 	</div>
 </AdminPageShell>

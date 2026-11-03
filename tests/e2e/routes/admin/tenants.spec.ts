@@ -1,6 +1,6 @@
 /**
  * @file tests/e2e/routes/admin/tenants.spec.ts
- * @description E2E tests for /admin/tenants — multi-tenant management.
+ * @description E2E tests for /config/tenants — multi-tenant management.
  */
 
 import { test, expect } from "../../fixtures";
@@ -12,10 +12,10 @@ test.describe("Tenant Management", () => {
   });
 
   test("page loads with tenant list", async ({ page }) => {
-    await page.goto("/admin/tenants", { waitUntil: "domcontentloaded" });
+    await page.goto("/config/tenants", { waitUntil: "domcontentloaded" });
     // Re-auth if content-init bounced us to login/collectionbuilder without session
     if (page.url().includes("/login")) {
-      await loginAsAdmin(page, "/admin/tenants");
+      await loginAsAdmin(page, "/config/tenants");
     }
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
     // The tenants table (with quota columns) always renders once the page loads —
@@ -28,9 +28,9 @@ test.describe("Tenant Management", () => {
   });
 
   test("shows quota information when tenants exist", async ({ page }) => {
-    await page.goto("/admin/tenants", { waitUntil: "domcontentloaded" });
+    await page.goto("/config/tenants", { waitUntil: "domcontentloaded" });
     if (page.url().includes("/login")) {
-      await loginAsAdmin(page, "/admin/tenants");
+      await loginAsAdmin(page, "/config/tenants");
     }
     await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
     const table = page.getByRole("table");

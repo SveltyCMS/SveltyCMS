@@ -159,6 +159,12 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
 
 - **Interactive Admin Session Console (September 2026):** Shipped a comprehensive user session management modal (`modal-user-sessions.svelte` and `DELETE /api/user/sessions`) inside User Management. Administrators can inspect concurrent active sessions per user account, complete with client metadata (OS, browser type, IP address, and current active session indicator) and execute one-click remote session revocation with instantaneous authorization cache invalidation. Tests: `tests/unit/auth/sessions/session-manager.test.ts`.
 
+- **Access Management Category Filters & UI Polish (November 2026):**
+  - **Permission Category Filter Chips**: Added horizontal category filter chips (_All_, _System_, _API Access_, _Content Management_, _Media Management_, _Configuration_, _User Management_, _Collection Entries_) to `/config/access-management` permissions matrix, enabling granular inspection and bulk role management per functional domain.
+  - **Tab Strip Elevation & Breathing Room**: Added comfortable top breathing room over `<Tabs.List>` in Access Management cards to eliminate border crowding.
+  - **Webhook Creation Modal Guidance**: Integrated `<HelpIcon>` + `<Tooltip>` explanations into all modal form fields (_Webhook Name_, _Payload URL_, _Secret Key_, and _Trigger Events_) with contextual HTTPS security indicators.
+  - **System Monitor Card Cleanup**: Streamlined `/config/monitor` cards to remove redundant configuration links and embedded background queue telemetry directly.
+
 - **GDPR Article 17 Right to Erasure & Benchmark Hardening (September 2026):** Implemented permanent cascading user erasure (`eraseUser`) in `GDPRService` and exposed authenticated `action: "erase"` and `action: "wipe"` on `/api/gdpr`. Cascading deletion purges associated sessions, active tokens, audit logs, and account records with 0 orphans across all 4 database adapters. Migrated `tests/benchmarks/right-to-be-forgotten-audit.test.ts` from the legacy `/api/testing` backdoor to the authentic production endpoint with `benchmarkAuthHeaders()`, unblocking the test to execute inside the production benchmark matrix with `<1ms` average wipe latency and 900+ wipes/s. Tests: `tests/unit/api/gdpr.test.ts`, `tests/unit/services/gdpr-service.test.ts`, `tests/benchmarks/right-to-be-forgotten-audit.test.ts`. Docs: [ADR: Testing 2026](../tests/adr-testing-2026.mdx).
 
 - **Point-Lookup Slab & Hot-Path Serialization (September 2026):**
@@ -862,7 +868,7 @@ Selected 2025–2026 engineering milestones. Metrics are self-measured unless no
 - **High-Performance GraphQL**: Resolver memoization and JIT execution reducing API latency and redundant database hits.
 - **GraphQL.js 17 + Yoga (August 2026)**: Upgraded to `graphql@17.0.2` with native `graphql-yoga@5.22.0` support and zero-allocation AST visitors.
 
-- **Tenant Management Admin Dashboard (July 2026)**: Full-featured tenant administration UI at `/admin/tenants` with create/suspend/activate operations, real-time quota visualization (users, storage, collections), and plan-level resource enforcement. Gated behind system-admin `isAdmin && !tenantId` guard. Backed by the database-agnostic `ISystemAdapter.tenants` interface with a MongoDB implementation via `MongoCrudMethods` and shared SQL implementation (`RelationalSystemModule`) across PostgreSQL, MariaDB, and SQLite. Integrated into the sidebar navigation for instant access.
+- **Tenant Management Admin Dashboard (July 2026)**: Full-featured tenant administration UI at `/config/tenants` with create/suspend/activate operations, real-time quota visualization (users, storage, collections), and plan-level resource enforcement. Gated behind system-admin `isAdmin && !tenantId` guard and multi-tenant flag. Backed by the database-agnostic `ISystemAdapter.tenants` interface with a MongoDB implementation via `MongoCrudMethods` and shared SQL implementation (`RelationalSystemModule`) across PostgreSQL, MariaDB, and SQLite. Integrated into the system settings configuration for instant access.
 
 - **CLI Maintenance Suite**: Native `cache:clear` utilities for system-wide and tenant-specific operations.
 - **5-Pillar Content Architecture**: Consolidation of 19 fragmented files into 5 high-performance pillars, reducing content system module overhead by **74%**.
@@ -2018,9 +2024,19 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 
 - **Storage**: `content_drafts` gained `collectionId` (nullable for legacy rows) on SQLite, PostgreSQL, MariaDB and MongoDB, plus the `(tenantId, collectionId, authorId, updatedAt)` autosave index. The boot renderer derives the column from `system-schema-spec.ts` (ALTER on existing databases; no backfill), and the Mongo schema + the SQL physical-column allowlist carry the same field.
 - **Adapters**: `getLatestForContent`, `getLatestForCollection`, `upsertDraft` and `deleteForContent` exist on the relational module and the Mongo module, all tenant-scoped and author-scoped on reads. A draft for an unsaved entry takes the row's own UUID as `contentId` (never `""`) and is tagged `data.__draft = { kind: "new" }`; legacy rows with a null `collectionId` remain reachable by entry id. `upsertDraft` bumps `version` in place and prunes rows outside a 20-version window. Two Mongo bugs were fixed on the way: `update()` now applies the caller's field patch instead of wrapping it in `{ data }`, and `publishMany()` writes `status: "archived"` (the previous `"publish"` was not an enum member).
-- **SDK**: `cms.drafts` (`saveDraft`, `getDraft`, `discardDraft`, `discardDraftsForEntry`) runs the same schema resolution + ownership/access-rule gate as `collections.update()`. It keeps the new-entry marker on resume, strips it from entry drafts, and reports another author's draft id as 404.
+- **SDK**: `cms.drafts` (`saveDraft`, `getDraft`, `discardDraft`, `discardDraftsForEntry`, `promoteDraft`) runs the same schema resolution + ownership/access-rule gate as `collections.update()`. It keeps the new-entry marker on resume, strips it from entry drafts, and reports another author's draft id as 404.
+- **Atomic Draft Promotion (Shipped 2026-11-02)**: Added `promoteDraft(collectionId, draftId, options)` to `DraftsNamespace` and wired `POST /api/collections/:id/drafts/:draftId?action=promote`. Strips internal markers, validates and promotes draft state directly to the live collection record, and discards the draft in a single atomic pipeline.
 - **API**: `GET|POST|DELETE /api/collections/:collectionId/drafts` and `GET|DELETE /api/collections/:collectionId/:entryId/drafts` return the usual `{ success, data }` envelope; a missing draft is `data: null`, an unknown draft or collection is 404. Drafts are never part of the entry list, export or GraphQL lane. `drafts` is mapped in `ENDPOINT_PERMISSIONS` (read → `collections:read`, mutation → `collections:write`).
 - **Tests**: `tests/unit/databases/content-drafts-adapter.test.ts` (7, real in-memory SQLite), `tests/unit/databases/mongo-drafts-parity.test.ts` (2), `tests/unit/sdk/drafts-namespace-sqlite.test.ts` (7, real SQLite + SDK), `tests/unit/api/drafts-routes.test.ts` (14, routing/envelope/permission). `bun run test:parity --docker` passes on SQLite, PostgreSQL, MariaDB and MongoDB.
+
+#### Performance & Write-Path Optimizations (Shipped 2026-11-02)
+
+- **Minimal Write Response Ack Serialization**: Direct microsecond string construction (`{"_id":"..."}`) using `fastEscapeString` in collection write handlers and the write lane, avoiding generic V8 `JSON.stringify` overhead on status-only responses.
+- **Synchronous OpenSSL SHA-256 for Rolling Merkle Ledger**: Accelerated Merkle hash tree append time from 21.75 ms to 0.69 ms (31.5× faster) via `crypto.hash("sha256")`, keeping tamper-evident audit logging intact without async Promise overhead.
+- **Pre-Compiled Allowed Keys & Fast Concurrency Checks**: Zero-allocation ASCII token validation for optimistic locking (`If-Match`), memoized collection cache tags, and pre-compiled `allowedKeys` lookup sets per schema identity.
+- **Zero-Allocation Stream Encoding Buffer**: Pooled `TextEncoder.encodeInto` buffer in `streaming.ts` eliminates per-record `Uint8Array` allocations on high-volume JSON and CSV exports.
+- **Commerce Promotion & Condition Engine**: Shipped `ConditionPlugin` evaluating `min_subtotal`, `coupon`, and `line_quantity` discount rules with full test coverage (`tests/unit/commerce/condition-plugin.test.ts`).
+- **Server-Side Media Search**: Integrated database-backed `getByFolder` ILIKE/regex search across all relational and MongoDB adapters, enabling immediate search across unfetched pages.
 
 #### Protected-branch E2E parity and bulk-download root fix
 
@@ -2028,6 +2044,26 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **The mapping now covers media server code**: `src/utils/media/`, `src/services/media/` and media API handlers pull `folders-bulk`, `media-bulk-partial-failure`, `mediagallery` and `share-link`. The bulk-download 500 shipped because `src/utils/media/sharing.ts` matched no mapping; `folders-bulk.spec.ts` also selected the first gallery row instead of the file it uploaded, and tolerated a `500` — both fixed.
 - **Bulk download root disagreement fixed**: `src/utils/media/sharing.ts` resolved archives against `process.env.MEDIA_FOLDER || "uploads"` while uploads land under the configured folder (`resolveConfiguredMediaFolder()` → `mediaFolder`), so every row looked like a traversal and the endpoint returned 500. The archive now uses the canonical resolver, normalizes legacy `/files/` prefixes, and keeps the `sep`-based traversal guard. Regression tests: `tests/unit/media/sharing.test.ts` (4 new: configured-root archive, `/files/` prefix, traversal block, blocked-count message).
 - **SSE disconnects are warnings**: `content-sse.svelte.ts` and `global-settings.svelte.ts` log recoverable stream interruptions at `warn` level; an `error` entry tripped the E2E console guard and overstated a transient network event.
+
+#### UI & Admin Polish Upgrades (Shipped 2026-11-03)
+
+- **Workflow State Machine Editor Stage Overhaul (`/config/workflows`)**: Complete visual upgrade into a modern canvas stage with an SVG dot grid, always-visible transition labels (pill tags with high contrast), drag-from-port transition wire creation (`+` handle on card hover), pan and zoom controls (Zoom in, Zoom out, Fit, Reset) with middle-click / Alt+drag grabbing canvas navigation, dirty-state save badge, auto-layout engine, and deletion confirmation dialogs for states with existing transition wires.
+- **Background Queue Observability & Usability (`/config/queue`)**:
+  - Interactive multi-column sorting (ascending/descending arrow indicators on `_id`, `taskType`, `status`, `attempts`, `nextRunAt`, `createdAt`) executed directly at the SQL/relational layer (`relational-system.ts`).
+  - Added a "Hide Empty Heartbeats" action toggle to filter out routine 0ms no-op maintenance tasks (`publish-scheduled` with `{}` payload) and isolate user-triggered work and failed jobs.
+  - Aligned page refresh button height with other administrative surfaces, added vertical layout breathing room between details and stats cards, and replaced native browser tooltip attributes with design system `<Tooltip>` components.
+  - Formatted stringified JSON payloads in the diagnostic details modal automatically.
+- **License Management Relocation (`/config/extensions`)**:
+  - Migrated license key management from generic System Settings into the Marketplace & Extensions center.
+  - Implemented an "Activate License" modal with status indicator badges (`Free Tier`, `Community`, `Enterprise Active`) and automated feature capability unlock feedback.
+- **Form & Input Alignment Parity**:
+  - Harmonized `<Select>` and `<Input>` vertical margin (`space-y-2`) and label line heights (`leading-none`) across all forms to ensure perfect baseline alignment when rendered side-by-side.
+  - Added password toggle reveal postfix icons with accessible state management.
+- **Multi-Tenancy Navigation & Isolation**:
+  - Consolidated `/admin/tenants` into the canonical `(app)` administrative layout at `/config/tenants`, establishing immediate navigation access from the sidebar when multi-tenancy is enabled.
+- **Sidebar & Settings Menu Scrolling Hygiene**:
+  - Fixed arbitrary viewport clipping by converting sidebar height to a flex-driven `flex-1 min-h-0` container.
+  - Added bottom padding (`pb-6`) in the settings drawer so the final item remains comfortably visible above the bottom footer divider.
 
 #### Deliberately not claimed
 

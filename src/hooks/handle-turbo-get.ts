@@ -75,7 +75,7 @@ export interface TurboAuthContext {
 
 const turboAuthCache = new Map<string, TurboAuthContext>();
 export { turboAuthCache };
-const TURBO_AUTH_CACHE_MAX = 1000;
+const TURBO_AUTH_CACHE_MAX = 5000;
 // 🚀 TURBO AUTH CACHE: Resolved session → user context cache. The 60s TTL slides
 // with every hit (getTurboAuthContext), keeping hot sessions warm indefinitely.
 // Benchmark suites run long-lived single-session workloads — extend the TTL so

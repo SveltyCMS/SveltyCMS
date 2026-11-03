@@ -14,6 +14,7 @@ import {
   LANE_BYPASSED_HOOKS,
   installFastLanes,
   registerFastLane,
+  resetFastLanesForTest,
 } from "@src/hooks/fast-lane.server";
 import { isLaneServingAllowed } from "@src/hooks/lane-state-gate";
 import { setSystemState } from "@src/stores/system/state.svelte.ts";
@@ -36,6 +37,7 @@ describe("fast-lane bypass policy", () => {
 
   beforeEach(() => {
     delete (globalThis as RegistryHost)[FAST_LANE_REGISTRY];
+    resetFastLanesForTest();
     // The gate declines every state except the operational set, so a lane test
     // must start from an operational state or it would pass for the gate's
     // reason instead of the lane's.
@@ -44,6 +46,7 @@ describe("fast-lane bypass policy", () => {
 
   afterEach(() => {
     delete (globalThis as RegistryHost)[FAST_LANE_REGISTRY];
+    resetFastLanesForTest();
     setSystemState("READY");
     if (savedFlag === undefined) delete process.env.SVELTY_FAST_LANE;
     else process.env.SVELTY_FAST_LANE = savedFlag;
@@ -125,5 +128,33 @@ describe("fast-lane bypass policy", () => {
 
     setSystemState("READY");
     await expect(dispatch?.(laneInput)).resolves.toMatchObject({ status: 200 });
+  });
+
+  it("extracts canonical session cookie with port-stripped hostname", async () => {
+    process.env.SVELTY_FAST_LANE = "1";
+    let inspectedLocals: Record<string, unknown> | undefined;
+    registerFastLane(async (input) => {
+      // Simulate collection lane session extraction
+      const host = input.origin.replace(/^https?:\/\//, "").split(":")[0];
+      const protocol = input.origin.startsWith("https") ? "https:" : "http:";
+      const isSecure = host !== "127.0.0.1" && host !== "localhost" && protocol === "https:";
+      const cookies = input.headers["cookie"] as string;
+      const match = isSecure
+        ? cookies.match(/__Host-auth_sessions=([^;]+)/)
+        : cookies.match(/(?:^|;\s*)auth_sessions=([^;]+)/);
+      inspectedLocals = { turboSessionId: match ? match[1] : undefined };
+      return null;
+    });
+    installFastLanes();
+    const dispatch = (globalThis as RegistryHost)[FAST_LANE_REGISTRY];
+
+    await dispatch?.({
+      method: "GET",
+      url: "/api/collections/articles/abc",
+      origin: "http://127.0.0.1:3000",
+      headers: { cookie: "auth_sessions=sess_hot_123" },
+    });
+
+    expect(inspectedLocals?.turboSessionId).toBe("sess_hot_123");
   });
 });

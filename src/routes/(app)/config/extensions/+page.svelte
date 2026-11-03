@@ -12,12 +12,11 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
-	import {
-		extensions_categories_aria,
-		extensions_in_app,
-		extensions_marketplace,
-		extensions_title
-	} from '@src/paraglide/messages';
+	import Modal from '@components/ui/modal.svelte';
+	import Input from '@components/ui/input.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
+	import { fetchApi } from '@utils/api';
+	import { extensions_categories_aria, extensions_title } from '@src/paraglide/messages';
 	import PluginsView from './plugins-view.svelte';
 	import WidgetDashboard from './widget-dashboard.svelte';
 	import DashboardWidgetsView from './dashboard-widgets-view.svelte';
@@ -27,6 +26,9 @@
 	let { data }: { data: any } = $props();
 
 	let activeTab = $state('plugins');
+	let isLicenseModalOpen = $state(false);
+	let masterLicenseKey = $state('');
+	let isSavingLicense = $state(false);
 
 	const tabs = [
 		{ id: 'plugins', label: 'Plugins', icon: 'mdi:puzzle' },
@@ -34,6 +36,34 @@
 		{ id: 'dashboard', label: 'Dashboard Widgets', icon: 'mdi:view-dashboard-outline' },
 		{ id: 'marketplace', label: 'Marketplace', icon: 'mdi:store' }
 	] as const;
+
+	async function saveMasterLicense() {
+		if (!masterLicenseKey.trim()) return;
+		isSavingLicense = true;
+		try {
+			const res = await fetchApi<unknown>('/api/marketplace/license', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+				body: JSON.stringify({ licenseKey: masterLicenseKey.trim() })
+			});
+			if (!res.success) {
+				throw new Error(res.message || res.error || 'Failed to save license key');
+			}
+			toast.success({
+				title: 'License Activated',
+				description: 'Marketplace extensions master license key saved and verified.'
+			});
+			isLicenseModalOpen = false;
+			masterLicenseKey = '';
+		} catch (err) {
+			toast.error({
+				title: 'License Error',
+				description: err instanceof Error ? err.message : 'Failed to save license key'
+			});
+		} finally {
+			isSavingLicense = false;
+		}
+	}
 </script>
 
 <AdminPageShell
@@ -44,6 +74,17 @@
 	backUrl="/config"
 	fullHeight
 >
+	{#snippet actions()}
+		<Button
+			variant="tertiary"
+			onclick={() => (isLicenseModalOpen = true)}
+			data-testid="extensions-activate-license"
+			class="flex items-center gap-1.5"
+		>
+			<iconify-icon icon="mdi:key-outline" width="18" aria-hidden="true"></iconify-icon>
+			<span>Activate License</span>
+		</Button>
+	{/snippet}
 	<div data-testid="extensions-page" class="contents">
 		<AdminCard
 			class="flex min-h-0 flex-1 flex-col border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs p-6"
@@ -57,7 +98,7 @@
 				>
 					{#each tabs as tab (tab.id)}
 						<Button
-							variant="ghost"
+							variant="transparent"
 							onclick={() => (activeTab = tab.id)}
 							class={tabTrigger(activeTab === tab.id)}
 							aria-selected={activeTab === tab.id}
@@ -71,8 +112,10 @@
 								<Badge variant="surface" size="sm" class="ms-1.5 font-normal">
 									{data.plugins.length}
 								</Badge>
-							{:else if tab.id === 'widgets'}
-								<Badge variant="surface" size="sm" class="ms-1.5 font-normal">17</Badge>
+							{:else if tab.id === 'widgets' && data?.widgets?.length}
+								<Badge variant="surface" size="sm" class="ms-1.5 font-normal"
+									>{data.widgets.length}</Badge
+								>
 							{:else if tab.id === 'dashboard' && data?.dashboardWidgets?.length}
 								<Badge variant="surface" size="sm" class="ms-1.5 font-normal">
 									{data.dashboardWidgets.length}
@@ -83,21 +126,6 @@
 						</Button>
 					{/each}
 				</div>
-
-				<button
-					type="button"
-					class="hidden items-center gap-2 rounded bg-surface-500/10 px-4 py-2 text-sm font-medium transition-colors hover:bg-surface-200 dark:bg-surface-800 dark:hover:bg-surface-700 sm:flex"
-					data-testid="extensions-marketplace"
-					onclick={() => (activeTab = 'marketplace')}
-				>
-					<iconify-icon icon="mdi:store" width={24} class="text-lg"></iconify-icon>
-					<span>{extensions_marketplace()}</span>
-					<span
-						class="rounded bg-tertiary-500/10 px-1.5 py-0.5 text-[10px] uppercase text-tertiary-500 dark:bg-primary-900/20 dark:text-primary-500"
-					>
-						{extensions_in_app()}
-					</span>
-				</button>
 			</div>
 
 			<div
@@ -120,3 +148,58 @@
 		</AdminCard>
 	</div>
 </AdminPageShell>
+
+<Modal bind:open={isLicenseModalOpen} title="Activate Marketplace License" size="md">
+	<form
+		class="flex flex-col gap-4"
+		onsubmit={(e) => {
+			e.preventDefault();
+			saveMasterLicense();
+		}}
+	>
+		<p class="text-sm text-(--admin-text-muted)">
+			Enter your master license key from marketplace.sveltycms.com. One key activates all purchased
+			plugins and widgets across your installation. <code
+				class="text-xs bg-surface-500/10 px-1 py-0.5 rounded">SLM-DEMO-</code
+			> keys grant a 14-day trial.
+		</p>
+		<div class="space-y-1">
+			<label for="master-license-key-input" class="text-xs font-semibold text-(--admin-text-body)">
+				Master License Key
+			</label>
+			<Input
+				id="master-license-key-input"
+				bind:value={masterLicenseKey}
+				placeholder="SLM-XXXX-XXXX-XXXX"
+				required
+				data-testid="marketplace-master-license-input"
+			/>
+		</div>
+		<div class="flex items-center justify-end gap-2 pt-2 border-t border-(--admin-border-default)">
+			<Button
+				variant="ghost"
+				type="button"
+				onclick={() => {
+					isLicenseModalOpen = false;
+					masterLicenseKey = '';
+				}}
+			>
+				Cancel
+			</Button>
+			<Button
+				variant="primary"
+				type="submit"
+				disabled={isSavingLicense || !masterLicenseKey.trim()}
+				data-testid="marketplace-master-license-save"
+			>
+				{#if isSavingLicense}
+					<iconify-icon icon="mdi:loading" width="16" class="animate-spin"></iconify-icon>
+					<span>Activating...</span>
+				{:else}
+					<iconify-icon icon="mdi:check" width="16"></iconify-icon>
+					<span>Activate License</span>
+				{/if}
+			</Button>
+		</div>
+	</form>
+</Modal>

@@ -11,7 +11,7 @@ import { load } from "../../../src/routes/(admin)/admin/+page.server";
 import {
   createTenant,
   toggleTenantStatus,
-} from "../../../src/routes/(admin)/admin/tenants/tenants-actions.server";
+} from "../../../src/routes/(app)/config/tenants/tenants-actions.server";
 
 type CreateTenantFn = IDBAdapter["system"]["tenants"]["create"];
 type UpdateTenantFn = IDBAdapter["system"]["tenants"]["update"];
@@ -132,9 +132,9 @@ describe("createTenant", () => {
       status: "active",
       quota: {
         maxApiRequestsPerMonth: 10000,
-        maxCollections: 20,
-        maxStorageBytes: 5368709120,
-        maxUsers: 10,
+        maxCollections: 10,
+        maxStorageBytes: 26214400,
+        maxUsers: 5,
       },
     });
     expect(payload.ownerId).toEqual(expect.any(String));

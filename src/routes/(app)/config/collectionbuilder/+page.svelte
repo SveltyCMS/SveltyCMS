@@ -853,7 +853,7 @@ None (TreeView has its own keyboard navigation)
 				{@html sanitizeHtml(builder_note_layout())}
 			</p>
 
-			<div class="max-h-[calc(100vh-120px)] overflow-auto" data-testid="collection-builder-board">
+			<div data-testid="collection-builder-board">
 				<div class="mx-auto w-full max-w-screen-2xl">
 					{#if pendingPresetId !== null || pendingDuplicates.length > 0 || Object.keys(nodesToSave).length > 0}
 						<div

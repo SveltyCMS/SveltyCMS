@@ -969,7 +969,7 @@ When enabling multi-tenancy:
 
 ## Admin Management
 
-Admins can manage tenants via the **Tenant Dashboard** (`/admin/tenants`).
+Multi-tenancy is disabled by default (`MULTI_TENANT=false` in `config/private.ts`). When enabled, super-administrators can manage tenants via the **Tenant Dashboard** (`/config/tenants`).
 
 ### Features
 
@@ -977,7 +977,7 @@ Admins can manage tenants via the **Tenant Dashboard** (`/admin/tenants`).
 - **Quota Visualization**: Real-time progress bars for Users, Storage, and Collections.
 - **Status Control**: Suspend or Activate tenants instantly.
   - **Suspended**: Users prevent from logging in; API access blocked.
-- **Create Tenant**: Provision new tenants manually with specific plans.
+- **Create Tenant**: Provision new tenants manually with specific plans, custom IDs, domains, and configurable quotas.
 
 This UI interacts directly with `TenantService`, ensuring all changes are auditable and safe.
 

@@ -203,6 +203,12 @@ export async function handleUtilityRoutes(
         const { setLicenseKey, marketplace } =
           await import("@src/services/intelligence/marketplace-client");
         setLicenseKey(licenseKey);
+        try {
+          const { setPrivateSetting } = await import("@src/services/core/settings-service");
+          await setPrivateSetting("MARKETPLACE_LICENSE_KEY", licenseKey, tenantId || undefined);
+        } catch {
+          /* best effort persistence */
+        }
         const check = pluginId
           ? await marketplace.checkLicense(pluginId)
           : { valid: true, tier: "pro" as const, pluginId: "" };

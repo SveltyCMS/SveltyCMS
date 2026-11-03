@@ -50,7 +50,10 @@
 	let { data } = $props();
 
 	const showTenantsTile = $derived(
-		(page.data.isMultiTenant as boolean) && data.isAdmin && !page.data.tenantId
+		!page.data.isDemoMode &&
+			(page.data.isMultiTenant as boolean) &&
+			data.isAdmin &&
+			!page.data.tenantId
 	);
 
 	onMount(() => {
@@ -87,7 +90,7 @@
 		},
 		{
 			id: 'tenants',
-			href: '/admin/tenants',
+			href: '/config/tenants',
 			label: 'Tenants',
 			icon: 'mdi:office-building',
 			iconColor: 'text-tertiary-500',

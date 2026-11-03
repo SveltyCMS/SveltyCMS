@@ -137,7 +137,7 @@ SveltyCMS has **comprehensive security test coverage** across multiple test suit
 - ✅ **Centralized Permission Guards**: `requireCollectionBuilderPermission()` helper eliminates duplicated authorization logic across all Collection Builder actions (`src/routes/(app)/config/collectionbuilder/+page.server.ts`).
 - ✅ **Critical Bug Fixes**: Restored missing `initSystemFast` import in setup seed flow. Fixed adapter disconnect-before-use race condition in setup completion handler.
 
-**Files Modified**: `src/hooks/handle-authentication.ts`, `src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/handlers/system.ts`, `src/routes/api/[...path]/handlers/media.ts`, `src/routes/(app)/config/collectionbuilder/+page.server.ts`, `src/routes/(admin)/admin/tenants/+page.server.ts`.
+**Files Modified**: `src/hooks/handle-authentication.ts`, `src/hooks/handle-system-state.ts`, `src/routes/api/[...path]/handlers/setup.ts`, `src/routes/api/[...path]/handlers/system.ts`, `src/routes/api/[...path]/handlers/media.ts`, `src/routes/(app)/config/collectionbuilder/+page.server.ts`, `src/routes/(app)/config/tenants/+page.server.ts`.
 
 **Tests**: `tests/unit/hooks/authentication.test.ts`, `tests/unit/hooks/authorization.test.ts`, `tests/unit/api/dispatcher-security-matrix.test.ts`.
 

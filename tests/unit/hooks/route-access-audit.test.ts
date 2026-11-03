@@ -20,7 +20,7 @@ const PROTECTED_CMS_ROUTES = [
   "/user",
   "/en/posts",
   "/admin",
-  "/admin/tenants",
+  "/config/tenants",
   "/api/collections/posts",
   "/api/media",
   "/api/graphql",

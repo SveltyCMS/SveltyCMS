@@ -24,6 +24,7 @@ import { collectionTableName, buildCollectionCacheTags } from "@src/databases/co
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, fastSuccessResponse, rawResponse } from "./base";
+import { fastEscapeString } from "@utils/fast-json";
 import { prefersMinimalReturn } from "@utils/http-preferences";
 import { trimPointReadEnvelope, trimListEnvelope } from "@utils/point-read-payload";
 import { streamingExportResponse, streamingJsonResponse } from "./streaming";
@@ -374,6 +375,13 @@ async function handleCollectionDrafts(
     }
 
     case "POST": {
+      if (isDraftsRoot && draftId && event.url.searchParams.get("action") === "promote") {
+        return successResponse(
+          event,
+          await cms.drafts.promoteDraft(collectionId, draftId, { user, tenantId }),
+          200,
+        );
+      }
       if (targetEntryId) {
         throw new AppError(
           "Drafts are written at /drafts with an entryId in the body",
@@ -670,13 +678,9 @@ export async function handleCollectionCreate(
 
   // RFC 7240: `Prefer: return=minimal` asks for a status-only ack with created ID.
   if (result?.success && isMinimal) {
-    const createdId = (result.data as any)?._id || (result.data as any)?.id;
-    return fastSuccessResponse(
-      event,
-      `{"_id":${JSON.stringify(createdId)}}`,
-      { _id: createdId },
-      201,
-    );
+    const rawId = (result.data as any)?._id || (result.data as any)?.id;
+    const safeId = fastEscapeString(String(rawId ?? ""));
+    return fastSuccessResponse(event, `{"_id":"${safeId}"}`, { _id: rawId }, 201);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result, 201);
@@ -751,7 +755,8 @@ export async function handleCollectionUpdate(
   // which is 82x what a caller that only needs "it worked" puts on the wire. The write
   // itself, its validation and its hooks are unchanged; only the representation is dropped.
   if (result?.success && isMinimal) {
-    return fastSuccessResponse(event, `{"_id":${JSON.stringify(entryId)}}`, { _id: entryId }, 200);
+    const safeEntryId = fastEscapeString(String(entryId ?? ""));
+    return fastSuccessResponse(event, `{"_id":"${safeEntryId}"}`, { _id: entryId }, 200);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result);

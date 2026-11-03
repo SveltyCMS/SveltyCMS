@@ -243,12 +243,12 @@
 	{/snippet}
 
 	<AdminCard
-		class="border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs"
+		class="border border-(--admin-border-default) bg-(--admin-bg-card) backdrop-blur-md shadow-xs pt-4"
 		data-testid="access-mgmt-page"
 	>
 		<Tabs value={currentTab} onValueChange={(e) => (currentTab = e.value)} class="grow">
 			<div data-testid="access-mgmt-tabs">
-				<Tabs.List class="px-4">
+				<Tabs.List class="px-3 pt-2">
 					<Tabs.Trigger
 						value="0"
 						data-testid="access-tab-permissions"
@@ -313,14 +313,14 @@
 			</div>
 
 			<Tabs.Content value="0">
-				<div class="px-4 pb-4">
+				<div class="p-2">
 					{#if currentTab === '0'}
 						<Permissions roleData={rolesData} {setRoleData} {updateModifiedCount} />
 					{/if}
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="1">
-				<div class="px-4 pb-4">
+				<div class="p-2">
 					{#if currentTab === '1'}
 						<Roles
 							roleData={rolesData}
@@ -333,21 +333,21 @@
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="2">
-				<div class="px-4 pb-4">
+				<div class="p-2">
 					{#if currentTab === '2'}
 						<AdminRole roleData={rolesData} {setRoleData} />
 					{/if}
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="3">
-				<div class="px-4 pb-4">
+				<div class="p-2">
 					{#if currentTab === '3'}
 						<WebsiteTokens permissions={page.data.permissions} />
 					{/if}
 				</div>
 			</Tabs.Content>
 			<Tabs.Content value="4">
-				<div class="px-4 pb-4">
+				<div class="p-2">
 					{#if currentTab === '4'}
 						<SsoProviders availableRoles={rolesData} />
 					{/if}

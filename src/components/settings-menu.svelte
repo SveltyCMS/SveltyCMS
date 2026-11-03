@@ -83,11 +83,11 @@ Sidebar navigation for System Settings
 	</div>
 
 	<!-- Groups List -->
-	<div class="flex-1 overflow-y-auto px-1 space-y-1 flex flex-col settings-list">
+	<div class="flex-1 overflow-y-auto px-1 pb-6 space-y-1 flex flex-col settings-list">
 		{#each filteredGroups as group (group.id)}
 			<SystemTooltip
 				title={group.name}
-				positioning={{ placement: 'right-end', gutter: 15 }}
+				positioning={{ placement: 'right', gutter: 12 }}
 				contentClass="!text-sm"
 				triggerClass="block w-full"
 			>

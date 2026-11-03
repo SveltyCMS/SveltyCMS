@@ -120,6 +120,26 @@ const numberFieldValidatorCache = new WeakMap<object, (doc: Record<string, unkno
 const hookPipelineOptionsCache = new WeakMap<object, SchemaHookPipelineOptions>();
 
 /**
+ * Pre-compiled set of allowed keys for strict or pruned schemas.
+ * Merges declared fields + SYSTEM_WRITABLE_FIELDS into a single frozen Set per schema.
+ */
+const allowedKeysCache = new WeakMap<object, Set<string>>();
+
+export function getAllowedKeys(schema: Schema): Set<string> | null {
+  const declared = getDeclaredFieldNames(schema);
+  if (!declared) return null;
+  let allowed = allowedKeysCache.get(schema as object);
+  if (!allowed) {
+    allowed = new Set<string>(declared);
+    for (const sysField of SYSTEM_WRITABLE_FIELDS) {
+      allowed.add(sysField);
+    }
+    allowedKeysCache.set(schema as object, allowed);
+  }
+  return allowed;
+}
+
+/**
  * Single-pass write payload preparation used by create() and update():
  * (a) sanitize + constraints via prepareCollectionFields (flagged by hot flags)
  * (b) clone via `{...data}` only when the helper returned the same reference
@@ -229,10 +249,10 @@ export function prepareWritePayload(
     (schema as { strict?: boolean }).strict === true ||
     (opts as { pruneUndeclared?: boolean }).pruneUndeclared === true
   ) {
-    const declared = getDeclaredFieldNames(schema);
-    if (declared) {
+    const allowed = getAllowedKeys(schema);
+    if (allowed) {
       for (const k in entryData) {
-        if (!declared.has(k) && !SYSTEM_WRITABLE_FIELDS.has(k)) {
+        if (!allowed.has(k)) {
           delete entryData[k];
         }
       }

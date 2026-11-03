@@ -285,4 +285,64 @@ export class DraftsNamespace {
       throw err;
     }
   }
+
+  /**
+   * Promotes an existing draft to the live collection entry.
+   * Cleans internal __draft markers, updates or creates the live row, and clears the draft.
+   */
+  async promoteDraft(
+    collectionId: string,
+    draftId: string,
+    options: LocalApiOptions = {},
+  ): Promise<DatabaseResult<unknown>> {
+    try {
+      if (typeof draftId !== "string" || draftId.length === 0) {
+        raise(400, "Draft id is required.", "DRAFT_ID_REQUIRED");
+      }
+      const { user, tenantId, system } = options;
+      await this._assertCollectionAccess(collectionId, undefined, options, true);
+      const authorId = authorIdOf(user, system);
+
+      const found = await this._dbAdapter.crud.findOne(
+        DRAFT_COLLECTION,
+        { _id: draftId } as never,
+        { tenantId: tenantId as DatabaseId },
+      );
+      const row = found.success ? (found.data as Record<string, unknown> | null) : null;
+      if (
+        !row ||
+        (row.authorId !== undefined && String(row.authorId) !== authorId && !system) ||
+        (row.collectionId != null && String(row.collectionId) !== collectionId)
+      ) {
+        raise(404, "Draft not found.", "NOT_FOUND");
+      }
+
+      const rawData = (row.data as Record<string, unknown>) || {};
+      const isNew = isNewEntryDraft(row as unknown as ContentDraft);
+      const liveData = withoutDraftMarker(rawData);
+      const contentId = row.contentId as string | undefined;
+
+      let result: DatabaseResult<unknown>;
+      if (isNew || !contentId) {
+        result = await (this._collections as any).create(collectionId, liveData, options);
+      } else {
+        result = await (this._collections as any).update(
+          collectionId,
+          contentId,
+          liveData,
+          options,
+        );
+      }
+
+      if (result.success) {
+        // Automatically prune/discard the promoted draft once live row is written
+        await this.discardDraft(collectionId, draftId, options).catch(() => {});
+      }
+      return result;
+    } catch (err) {
+      rethrow(err);
+      logger.debug(`[Drafts] promoteDraft failed for ${collectionId}/${draftId}:`, err);
+      throw err;
+    }
+  }
 }

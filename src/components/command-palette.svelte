@@ -587,7 +587,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 <!-- Panel -->
 <div
 	bind:this={panelElement}
-	class="command-palette fixed inset-x-0 top-[12%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:border-surface-600 dark:bg-surface-900"
+	class="command-palette fixed inset-x-0 top-[18%] z-1001 mx-auto flex w-full max-w-2xl flex-col overflow-hidden rounded border border-surface-500/30 bg-surface-500/10 shadow-2xl dark:border-surface-600 dark:bg-surface-900"
 	role="dialog"
 	aria-modal="true"
 	aria-label={msg('global_search_aria_label', 'Global search')}
@@ -638,28 +638,30 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 			inputClass="h-12 w-full border-0 bg-transparent py-3 text-base text-surface-900 shadow-none outline-none ring-0 focus-visible:ring-0 dark:text-surface-50 dark:placeholder:text-surface-400"
 			class="border-0 shadow-none"
 		/>
-		<button
-			type="button"
-			class="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-transparent text-(--admin-text-muted) transition-colors hover:bg-surface-500/10 hover:text-(--admin-text-body) focus-visible:ring-2 focus-visible:ring-(--admin-focus-ring) focus-visible:outline-none"
-			onclick={() => {
-				if (searchQuery) {
+		{#if searchQuery}
+			<button
+				type="button"
+				class="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-transparent text-(--admin-text-muted) transition-colors hover:bg-surface-500/10 hover:text-(--admin-text-body) focus-visible:ring-2 focus-visible:ring-(--admin-focus-ring) focus-visible:outline-none"
+				onclick={() => {
 					searchQuery = '';
 					inputRef?.focus();
-				} else {
-					showShortcuts = !showShortcuts;
-				}
-			}}
-			aria-label={searchQuery ? 'Clear search' : 'Keyboard shortcuts'}
-			title={searchQuery ? 'Clear search' : 'Keyboard shortcuts'}
-			data-testid="palette-clear-or-help"
-		>
-			<iconify-icon icon={searchQuery ? 'mdi:close' : 'mdi:help'} width="18"></iconify-icon>
-		</button>
-		<kbd
-			class="hidden shrink-0 rounded border border-surface-500/30 bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-surface-600 sm:inline dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300"
+				}}
+				aria-label="Clear search"
+				title="Clear search"
+				data-testid="palette-clear"
+			>
+				<iconify-icon icon="mdi:close" width="18"></iconify-icon>
+			</button>
+		{/if}
+		<button
+			type="button"
+			onclick={closePalette}
+			class="hidden shrink-0 cursor-pointer rounded border border-surface-500/30 bg-surface-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-surface-600 transition-colors hover:bg-surface-500/20 sm:inline dark:border-surface-600 dark:bg-surface-800 dark:text-surface-300 dark:hover:bg-surface-700"
+			aria-label="Close search"
+			title="Close (Esc)"
 		>
 			ESC
-		</kbd>
+		</button>
 	</div>
 
 	<!-- Context / filter chips -->
@@ -746,7 +748,7 @@ Opened with Alt+G (all platforms) or Mod+K. Light/dark aware, WCAG-oriented.
 							class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md
 								{selected
 								? 'bg-white/15 text-white'
-								: 'bg-surface-200 text-surface-600 dark:bg-surface-800 dark:text-surface-300'}"
+								: 'bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500'}"
 							aria-hidden="true"
 						>
 							<iconify-icon icon={item.entry.icon || 'mdi:file-document-outline'} width="20"

@@ -67,7 +67,7 @@ describe("Queue table chrome", () => {
 
     // Status + action cells centre their content instead of anchoring to an edge.
     const groups = Array.from(
-      rendered.target.querySelectorAll("tbody tr > td > div"),
+      rendered.target.querySelectorAll("tbody tr > td > div.flex"),
     ) as HTMLElement[];
     expect(groups.length).toBeGreaterThanOrEqual(2);
     for (const group of groups) {

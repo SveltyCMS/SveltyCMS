@@ -66,10 +66,12 @@ The two poller-driven rows are maintenance sweeps. They run even when there is n
 ## The `/config/queue` page
 
 - **Stats** — total / pending / running / completed / failed, each a filter link.
-- **Rows** — newest first, 10–100 per page. Click a row (or the eye button) for the task explanation, attempts, timings, tenant, last error and the raw payload.
+- **Rows** — newest first, 10–100 per page. Click a row (or the eye button) for the task explanation, attempts, timings, tenant, last error and the formatted payload.
+- **Interactive Sorting** — click any column header (`Job ID`, `Task Type`, `Status`, `Attempts`, `Next Run`, `Created`) to toggle ascending/descending sorting powered directly by database queries.
+- **Noise Filter ("Hide Empty Heartbeats")** — toggles routine 0ms maintenance ticks (e.g. idle `publish-scheduled` checks with empty `{}` payloads) off/on so administrators can focus on actionable tasks and errors.
 - **Retry** — only shown for `failed` rows; resets attempts and queues immediately.
 - **Delete** — removes one row, any status.
-- **Clear Completed** — calls `system.jobs.cleanup(now)`, which deletes **`completed` rows only** and honours the request tenant, so pending retries and failed jobs are never lost.
+- **Clear Completed** — calls `system.jobs.cleanup(now)` and refreshes in one step. Only active when completed jobs exist; deletes **`completed` rows only** and honours the request tenant, so pending retries and failed jobs are never lost.
 
 ## Multi-tenancy
 

@@ -6,7 +6,7 @@
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@src/utils/logger";
-import { and, asc, desc, eq, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, lte, not, sql } from "drizzle-orm";
 import type {
   BaseQueryOptions,
   DatabaseId,
@@ -479,10 +479,35 @@ export class RelationalSystemModule implements ISystemAdapter {
         if (options?.status) conditions.push(eq(this.schema.sveltyJobs.status, options.status));
         if (options?.taskType)
           conditions.push(eq(this.schema.sveltyJobs.taskType, options.taskType));
+        if ((options as any)?.filter?.hideRoutine) {
+          // Hide routine no-op checks (e.g. publish-scheduled with payload '{}' that finished with 0 error)
+          const routineClause = and(
+            eq(this.schema.sveltyJobs.taskType, "publish-scheduled"),
+            eq(this.schema.sveltyJobs.status, "completed"),
+            eq(this.schema.sveltyJobs.payload, "{}"),
+          );
+          if (routineClause) {
+            conditions.push(not(routineClause));
+          }
+        }
         applyTenantFilter(conditions, this.schema.sveltyJobs.tenantId, options);
 
         if (conditions.length > 0) q = q.where(and(...conditions));
-        q = q.orderBy(desc(this.schema.sveltyJobs.createdAt));
+
+        // Sorting: default to createdAt DESC, support sortField & sortDirection
+        const sortField = (options as any)?.sortField || "createdAt";
+        const sortDirection = (options as any)?.sortDirection || "desc";
+        const columnMap: Record<string, any> = {
+          _id: this.schema.sveltyJobs._id,
+          taskType: this.schema.sveltyJobs.taskType,
+          status: this.schema.sveltyJobs.status,
+          attempts: this.schema.sveltyJobs.attempts,
+          nextRunAt: this.schema.sveltyJobs.nextRunAt,
+          createdAt: this.schema.sveltyJobs.createdAt,
+          updatedAt: this.schema.sveltyJobs.updatedAt,
+        };
+        const targetCol = columnMap[sortField] ?? this.schema.sveltyJobs.createdAt;
+        q = q.orderBy(sortDirection === "asc" ? asc(targetCol) : desc(targetCol));
 
         if (options?.limit) q = q.limit(options.limit);
         if (options?.offset) q = q.offset(options.offset);

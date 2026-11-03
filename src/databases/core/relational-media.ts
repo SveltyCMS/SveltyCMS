@@ -120,6 +120,18 @@ export class RelationalMediaModule implements IMediaAdapter {
               }
             }
 
+            if (options?.search?.trim()) {
+              const isPg = (this.adapter as any).dialect === "postgresql";
+              const qry = `%${escapeLikePattern(options.search.trim())}%`;
+              const ESCAPE_CHAR = "\\";
+              const filenameCol = this.schema.mediaItems.filename;
+              const originalCol = this.schema.mediaItems.originalFilename;
+              const nameMatch = isPg
+                ? sql`(lower(${filenameCol}) LIKE lower(${qry}) ESCAPE ${ESCAPE_CHAR} OR lower(${originalCol}) LIKE lower(${qry}) ESCAPE ${ESCAPE_CHAR})`
+                : sql`(${filenameCol} LIKE ${qry} ESCAPE ${ESCAPE_CHAR} OR ${originalCol} LIKE ${qry} ESCAPE ${ESCAPE_CHAR})`;
+              conditions.push(nameMatch);
+            }
+
             const jsonPathExpr = options?.jsonPath?.trim();
             if (jsonPathExpr) {
               const dialect = resolveMediaJsonSqlDialect(this.adapter as any);

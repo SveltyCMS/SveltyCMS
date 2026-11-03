@@ -184,7 +184,7 @@ export async function checkExtensionLicense(
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "_")}`;
   const specificKey = safeGetSetting(specificKeyName);
-  const masterKey = safeGetSetting("LICENSE_KEY");
+  const masterKey = safeGetSetting("MARKETPLACE_LICENSE_KEY") || safeGetSetting("LICENSE_KEY");
 
   // Dynamic cache key: changes when license keys change (auto-invalidates on purchase)
   const cacheKey = `${extensionId}|${specificKey}|${masterKey}`;

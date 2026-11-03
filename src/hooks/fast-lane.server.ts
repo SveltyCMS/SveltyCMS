@@ -26,6 +26,10 @@
 
 import type { RequestEvent } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
+import {
+  isSecureCookieContext,
+  readSessionIdFromCookieHeader,
+} from "@src/databases/auth/constants";
 import { isSimpleCollectionRead, tryCollectionReadLane } from "./handle-collection-read-lane";
 import { tryCollectionWriteLane } from "./handle-collection-write-lane";
 import { isLaneServingAllowed } from "./lane-state-gate";
@@ -114,6 +118,11 @@ export function registerFastLane(lane: FastLane): void {
   lanes.push(lane);
 }
 
+/** Test-only helper to reset registered lanes between tests. */
+export function resetFastLanesForTest(): void {
+  lanes.length = 0;
+}
+
 /** Marks the lane's `resolve()` fall-through so it cannot be confused with a Response. */
 const FALL_THROUGH = Symbol("fast-lane-fall-through");
 
@@ -180,7 +189,9 @@ function fastLaneUrl(input: FastLaneInput): URL {
   const search = q >= 0 ? raw.slice(q) : "";
   const schemeEnd = input.origin.indexOf("://");
   const protocol = schemeEnd >= 0 ? input.origin.slice(0, schemeEnd + 1) : "http:";
-  const hostname = schemeEnd >= 0 ? input.origin.slice(schemeEnd + 3) : input.origin;
+  const host = schemeEnd >= 0 ? input.origin.slice(schemeEnd + 3) : input.origin;
+  const colon = host.indexOf(":");
+  const hostname = colon >= 0 ? host.slice(0, colon) : host;
   let parsedParams: URLSearchParams | null = search ? null : EMPTY_SEARCH_PARAMS;
   return {
     pathname,
@@ -190,6 +201,7 @@ function fastLaneUrl(input: FastLaneInput): URL {
       return parsedParams;
     },
     protocol,
+    host,
     hostname,
   } as unknown as URL;
 }
@@ -265,12 +277,9 @@ const collectionReadLane: FastLane = async (input) => {
   const getHeader = headerLookup(input.headers);
   const url = fastLaneUrl(input);
   const rawCookie = getHeader("cookie");
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const turboSessionId = readSessionIdFromCookieHeader(rawCookie, isSecure);
   const cookies = cookieLookup(rawCookie);
-  const turboSessionId = rawCookie
-    ? cookies.get("__Host-session_id") ||
-      cookies.get("session_id") ||
-      cookies.get("__Secure-session_id")
-    : undefined;
   // The lane reads `request.method`, `request.headers.get`, `url` and `cookies`.
   // A real `Request` would mean paying the bridging cost this lane exists to avoid.
   const request = { method: input.method, headers: { get: getHeader } } as unknown as Request;
@@ -325,10 +334,9 @@ const collectionWriteLane: FastLane = async (input) => {
   } as unknown as Request;
 
   const rawCookie = getHeader("cookie");
+  const isSecure = isSecureCookieContext(url.protocol, url.hostname);
+  const turboSessionId = readSessionIdFromCookieHeader(rawCookie, isSecure);
   const jar = cookieLookup(rawCookie);
-  const turboSessionId = rawCookie
-    ? jar.get("__Host-session_id") || jar.get("session_id") || jar.get("__Secure-session_id")
-    : undefined;
   const setCookies: string[] = [];
   const cookies = {
     get: (name: string) => jar.get(name),

@@ -1575,6 +1575,7 @@ export default defineConfig(() => {
         // them, editor TS servers infer exports from the 4.6 MB `_index.js` and
         // can serve stale module surfaces after a message regeneration.
         emitTsDeclarations: true,
+        isServer: "import.meta.env.SSR",
       }),
     ],
     // 🚀 SK3: aliases moved from the deprecated `config.alias` to plain Vite

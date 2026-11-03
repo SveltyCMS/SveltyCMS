@@ -48,28 +48,49 @@ export const loadSettingsGroup = query(
         return { success: false, error: `Settings group ${groupId} not found` };
       }
 
-      let settings: unknown;
-      if (groupId && groupId !== "all" && groupId !== "general") {
-        if (bypassCache) {
-          await cms.system.settings.invalidateCache({ tenantId: tenantId as never });
-        }
-        const pref = await cms.db.system.preferences.get(groupId, {
-          scope: "system",
-          tenantId: tenantId as never,
-        });
-        // `preferences.get` can resolve to `undefined` while the adapter is
-        // momentarily not connected (see the same guard in
-        // databases/auth/magic-link.ts). Reading `.success` unguarded threw
-        // "Cannot read properties of undefined (reading 'success')" and blanked
-        // the whole group, so fall back to an empty snapshot and let the form
-        // render its defaults.
-        settings = pref?.success ? pref.data : {};
-      } else {
-        settings = await cms.system.settings.get(groupId || "all", {
-          tenantId: tenantId as never,
-        });
+      if (bypassCache) {
+        await cms.system.settings.invalidateCache({ tenantId: tenantId as never });
       }
-      return { success: true, values: (settings as Record<string, unknown>) || {} };
+
+      const values: Record<string, unknown> = {};
+
+      if (group) {
+        const keys = group.fields.map((f) => f.key);
+        // Load settings by their field keys from system preferences
+        if (keys.length > 0) {
+          const prefResult = await cms.db.system.preferences
+            .getMany(keys, {
+              scope: "system",
+              tenantId: tenantId as never,
+            })
+            .catch(() => null);
+
+          if (prefResult?.success && prefResult.data) {
+            Object.assign(values, prefResult.data);
+          }
+        }
+
+        // Also check if there's any fallback group document
+        const groupDoc = await cms.db.system.preferences
+          .get(groupId, {
+            scope: "system",
+            tenantId: tenantId as never,
+          })
+          .catch(() => null);
+
+        if (groupDoc?.success && groupDoc.data && typeof groupDoc.data === "object") {
+          Object.assign(values, groupDoc.data);
+        }
+      } else {
+        const settings = await cms.system.settings.get(groupId || "all", {
+          tenantId: tenantId as never,
+        });
+        if (settings && typeof settings === "object") {
+          Object.assign(values, settings);
+        }
+      }
+
+      return { success: true, values };
     } catch (err) {
       return { success: false, error: remoteErrorMessage(err, "Failed to load settings") };
     }
@@ -99,21 +120,41 @@ export const saveSettingsGroup = query(
     try {
       requireAdmin();
       const { cms, tenantId } = await getRequestLocalCMS();
-      if (groupId && groupId !== "all" && groupId !== "general") {
-        const group = settingsGroups.find((g) => g.id === groupId);
-        if (group) {
-          const allowedKeys = new Set(group.fields.map((f) => f.key));
-          for (const key of Object.keys(values)) {
-            if (!allowedKeys.has(key)) {
-              return { success: false, error: `Invalid setting key ${key} for group ${groupId}` };
-            }
+      const group = settingsGroups.find((g) => g.id === groupId);
+      if (group) {
+        const allowedKeys = new Set(group.fields.map((f) => f.key));
+        for (const key of Object.keys(values)) {
+          if (!allowedKeys.has(key)) {
+            return { success: false, error: `Invalid setting key ${key} for group ${groupId}` };
           }
         }
+
+        // Persist each setting key into system.preferences with its category
+        const ops = Object.entries(values).map(([key, val]) => {
+          const field = group.fields.find((f) => f.key === key);
+          return {
+            key,
+            value: val,
+            category: field?.category || "private",
+            scope: "system" as const,
+          };
+        });
+
+        if (ops.length > 0) {
+          const res = await cms.db.system.preferences.setMany(ops, {
+            tenantId: tenantId as never,
+          });
+          if (!res.success) {
+            return { success: false, error: res.error?.message || "Failed to persist settings" };
+          }
+        }
+      } else {
+        await cms.system.settings.set(groupId || "all", values, {
+          tenantId: tenantId as never,
+        });
       }
-      const result = await cms.system.settings.set(groupId || "all", values, {
-        tenantId: tenantId as never,
-      });
-      void result; // settings.set persists silently; the saved snapshot is `values`.
+
+      await cms.system.settings.invalidateCache({ tenantId: tenantId as never });
       let inlang:
         | {
             added: string[];

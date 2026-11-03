@@ -51,7 +51,8 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 		syssettings_selected_group_missing_part1,
 		syssettings_selected_group_missing_part2,
 		syssettings_title,
-		syssettings_warnings
+		syssettings_warnings,
+		settings_reset_defaults
 	} from '@src/paraglide/messages';
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -73,7 +74,9 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 		getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name))
 	);
 	let hasUnsavedChanges = $state(false);
-	let saveTrigger = $state<{ fire: () => void; discard?: () => void }>({ fire: () => {} });
+	let saveTrigger = $state<{ fire: () => void; discard?: () => void; reset?: () => void }>({
+		fire: () => {}
+	});
 	let saving = $state(false);
 
 	// Unsaved changes guard (modal confirm instead of window.confirm)
@@ -219,6 +222,22 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	backUrl="/config"
 	spaceY="4"
 >
+	{#snippet actions()}
+		{#if activeGroup && activeGroup.id !== 'gdpr'}
+			<Button
+				variant="error"
+				size="sm"
+				type="button"
+				onclick={() => saveTrigger.reset?.()}
+				disabled={saving}
+				data-testid="settings-group-reset"
+			>
+				<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
+				<span>{settings_reset_defaults()}</span>
+			</Button>
+		{/if}
+	{/snippet}
+
 	<div data-testid="system-settings-page" class="flex flex-col gap-4">
 		<!-- Summary: group count + groups that still need configuration -->
 		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -312,49 +331,62 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 								onUnsavedChanges={(val) => (hasUnsavedChanges = val)}
 							>
 								{#if activeGroup.id === 'cache'}
-									<Button
-										variant="warning"
-										type="button"
-										disabled={isRepairing}
-										data-testid="system-settings-repair-cache"
-										onclick={async () => {
-											isRepairing = true;
-											repairResult = null;
-											try {
-												const { repairContentCache } = await import('./admin.remote');
-												const result = await repairContentCache();
-												if (result.success) {
-													repairResult = { success: true, message: result.message };
-													setTimeout(() => {
-														repairResult = null;
-													}, 5000);
-												} else {
-													repairResult = {
-														success: false,
-														error: result.error || 'Repair failed'
-													};
-												}
-											} catch (e: unknown) {
-												repairResult = {
-													success: false,
-													error: e instanceof Error ? e.message || String(e) : 'Repair failed'
-												};
-											} finally {
-												isRepairing = false;
-											}
-										}}
-										aria-label={syssettings_repair_aria()}
-										class="w-full items-center justify-center gap-1.5 sm:w-auto"
-									>
-										<iconify-icon
-											icon="mdi:wrench"
-											width="16"
-											class={isRepairing ? 'animate-spin' : ''}
-										></iconify-icon>
-										<span class="hidden sm:inline"
-											>{isRepairing ? 'Repairing...' : 'Repair Cache'}</span
-										>
-									</Button>
+									<div class="mt-6 pt-6 border-t border-(--admin-border-default) space-y-3">
+										<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+											<div>
+												<h3 class="text-sm font-semibold flex items-center gap-1.5">
+													<iconify-icon icon="mdi:tools" width="16" class="text-warning-500"
+													></iconify-icon>
+													<span>Cache Rebuild & Schema Sync</span>
+												</h3>
+												<p class="text-xs text-(--admin-text-muted) max-w-xl mt-0.5">
+													Flushes memory and Redis schema caches, re-scans collection definitions,
+													and synchronizes database models without restarting the server.
+												</p>
+											</div>
+											<Button
+												variant="warning"
+												type="button"
+												disabled={isRepairing}
+												data-testid="system-settings-repair-cache"
+												onclick={async () => {
+													isRepairing = true;
+													repairResult = null;
+													try {
+														const { repairContentCache } = await import('./admin.remote');
+														const result = await repairContentCache();
+														if (result.success) {
+															repairResult = { success: true, message: result.message };
+															setTimeout(() => {
+																repairResult = null;
+															}, 5000);
+														} else {
+															repairResult = {
+																success: false,
+																error: result.error || 'Repair failed'
+															};
+														}
+													} catch (e: unknown) {
+														repairResult = {
+															success: false,
+															error: e instanceof Error ? e.message || String(e) : 'Repair failed'
+														};
+													} finally {
+														isRepairing = false;
+													}
+												}}
+												aria-label={syssettings_repair_aria()}
+												class="w-full shrink-0 items-center justify-center gap-1.5 sm:w-auto"
+											>
+												<iconify-icon
+													icon="mdi:wrench"
+													width="16"
+													class={isRepairing ? 'animate-spin' : ''}
+												></iconify-icon>
+												<span>{isRepairing ? 'Syncing...' : 'Purge & Rebuild Cache'}</span>
+											</Button>
+										</div>
+									</div>
 								{/if}
 							</GenericSettingsGroup>
 						</AdminCard>
@@ -392,102 +424,104 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 			{/if}
 		</div>
 
-		<!-- Multi-Tenancy migration — separate concern, own card -->
-		<AdminCard class="p-4 md:p-6" data-testid="system-settings-mt-migration">
-			<div class="mb-4 flex items-start gap-3">
-				<iconify-icon
-					icon="mdi:server-network"
-					width="22"
-					class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
-					aria-hidden="true"
-				></iconify-icon>
-				<div>
-					<h2 class="text-lg font-semibold">{syssettings_mt_heading()}</h2>
-					<p class="text-sm text-(--admin-text-muted)">{syssettings_mt_intro()}</p>
+		<!-- Multi-Tenancy migration — only on cache/scaling maintenance panels -->
+		{#if activeGroup?.id === 'cache' || activeGroup?.id === 'scaling'}
+			<AdminCard class="p-4 md:p-6" data-testid="system-settings-mt-migration">
+				<div class="mb-4 flex items-start gap-3">
+					<iconify-icon
+						icon="mdi:server-network"
+						width="22"
+						class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+						aria-hidden="true"
+					></iconify-icon>
+					<div>
+						<h2 class="text-lg font-semibold">{syssettings_mt_heading()}</h2>
+						<p class="text-sm text-(--admin-text-muted)">{syssettings_mt_intro()}</p>
+					</div>
 				</div>
-			</div>
 
-			{#if migrationResult}
-				<div
-					class="mb-4"
-					role="status"
-					aria-live="polite"
-					data-testid="system-settings-migration-status"
-				>
-					<Alert variant={migrationResult.success ? 'success' : 'error'}>
-						<p class="font-semibold">
-							{migrationResult.success ? '\u2705' : '\u274c'}
-							{migrationResult.message || migrationResult.error}
+				{#if migrationResult}
+					<div
+						class="mb-4"
+						role="status"
+						aria-live="polite"
+						data-testid="system-settings-migration-status"
+					>
+						<Alert variant={migrationResult.success ? 'success' : 'error'}>
+							<p class="font-semibold">
+								{migrationResult.success ? '\u2705' : '\u274c'}
+								{migrationResult.message || migrationResult.error}
+							</p>
+							{#if migrationResult.details}
+								<ul class="mt-2 list-inside list-disc text-sm opacity-90">
+									<li>
+										{syssettings_collections_moved()}
+										{migrationResult.details.collectionsMoved}
+									</li>
+									<li>{syssettings_media_moved()} {migrationResult.details.mediaFilesMoved}</li>
+									<li>{syssettings_db_updated()} {migrationResult.details.mediaRecordsUpdated}</li>
+									{#if migrationResult.details.warnings.length > 0}
+										<li>{syssettings_warnings()} {migrationResult.details.warnings.join(', ')}</li>
+									{/if}
+								</ul>
+							{/if}
+						</Alert>
+					</div>
+				{/if}
+
+				{#if structureInfo}
+					<div
+						class="mb-4 text-sm"
+						data-testid="system-settings-structure-info"
+						role="status"
+						aria-live="polite"
+					>
+						<p>
+							{syssettings_mode()}
+							<strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong>
 						</p>
-						{#if migrationResult.details}
-							<ul class="mt-2 list-inside list-disc text-sm opacity-90">
-								<li>
-									{syssettings_collections_moved()}
-									{migrationResult.details.collectionsMoved}
-								</li>
-								<li>{syssettings_media_moved()} {migrationResult.details.mediaFilesMoved}</li>
-								<li>{syssettings_db_updated()} {migrationResult.details.mediaRecordsUpdated}</li>
-								{#if migrationResult.details.warnings.length > 0}
-									<li>{syssettings_warnings()} {migrationResult.details.warnings.join(', ')}</li>
-								{/if}
-							</ul>
+						{#if structureInfo.warnings && structureInfo.warnings.length > 0}
+							<div class="mt-2 rounded-lg bg-warning-500/10 p-3 text-warning-500">
+								{#each structureInfo.warnings as w, i (i)}
+									<p class="text-xs">{'\u26a0\ufe0f'} {w}</p>
+								{/each}
+							</div>
 						{/if}
-					</Alert>
-				</div>
-			{/if}
+					</div>
+				{/if}
 
-			{#if structureInfo}
-				<div
-					class="mb-4 text-sm"
-					data-testid="system-settings-structure-info"
-					role="status"
-					aria-live="polite"
-				>
-					<p>
-						{syssettings_mode()}
-						<strong>{structureInfo.isMultiTenant ? 'Multi-Tenant' : 'Single-Tenant'}</strong>
-					</p>
-					{#if structureInfo.warnings && structureInfo.warnings.length > 0}
-						<div class="mt-2 rounded-lg bg-warning-500/10 p-3 text-warning-500">
-							{#each structureInfo.warnings as w, i (i)}
-								<p class="text-xs">{'\u26a0\ufe0f'} {w}</p>
-							{/each}
-						</div>
+				<div class="flex flex-wrap gap-3">
+					<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
+					<Button
+						variant="tertiary"
+						type="button"
+						disabled={isMigrating || !hydration.hydrated}
+						onclick={checkStructure}
+						data-testid="system-settings-check-structure"
+					>
+						<iconify-icon icon="mdi:refresh" width="16" class={isMigrating ? 'animate-spin' : ''}
+						></iconify-icon>
+						<span>{syssettings_check_structure()}</span>
+					</Button>
+
+					{#if structureInfo?.needsMigration}
+						<Button
+							variant="warning"
+							type="button"
+							disabled={isMigrating}
+							onclick={runMigration}
+							data-testid="system-settings-run-migration"
+						>
+							<iconify-icon
+								icon="mdi:swap-horizontal-bold"
+								width="16"
+								class={isMigrating ? 'animate-spin' : ''}
+							></iconify-icon>
+							<span>{isMigrating ? 'Migrating...' : 'Migrate Now'}</span>
+						</Button>
 					{/if}
 				</div>
-			{/if}
-
-			<div class="flex flex-wrap gap-3">
-				<!-- Disabled in the server HTML: `onclick` only exists after hydration. -->
-				<Button
-					variant="tertiary"
-					type="button"
-					disabled={isMigrating || !hydration.hydrated}
-					onclick={checkStructure}
-					data-testid="system-settings-check-structure"
-				>
-					<iconify-icon icon="mdi:refresh" width="16" class={isMigrating ? 'animate-spin' : ''}
-					></iconify-icon>
-					<span>{syssettings_check_structure()}</span>
-				</Button>
-
-				{#if structureInfo?.needsMigration}
-					<Button
-						variant="warning"
-						type="button"
-						disabled={isMigrating}
-						onclick={runMigration}
-						data-testid="system-settings-run-migration"
-					>
-						<iconify-icon
-							icon="mdi:swap-horizontal-bold"
-							width="16"
-							class={isMigrating ? 'animate-spin' : ''}
-						></iconify-icon>
-						<span>{isMigrating ? 'Migrating...' : 'Migrate Now'}</span>
-					</Button>
-				{/if}
-			</div>
-		</AdminCard>
+			</AdminCard>
+		{/if}
 	</div>
 </AdminPageShell>

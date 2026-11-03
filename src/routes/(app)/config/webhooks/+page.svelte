@@ -24,6 +24,8 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
@@ -31,6 +33,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 		WEBHOOK_EVENT_TYPES,
 		filterWebhooksByQuery,
 		validateWebhookDraft,
+		validateWebhookUrl,
 		type WebhookDraft
 	} from './webhooks-utils';
 	import {
@@ -223,7 +226,6 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 				data-preload="hover"
 				data-testid="webhooks-logs-link"
 				leadingIcon="mdi:clipboard-text-outline"
-				size="sm"
 			>
 				{webhooks_delivery_logs()}
 			</Button>
@@ -401,29 +403,63 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 				</header>
 
 				<section class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-					<Input
-						label="Webhook Name"
-						type="text"
-						placeholder={webhooks_name_placeholder()}
-						bind:value={activeWebhook.name}
-						error={formErrors.name}
-						data-testid="webhook-name"
-					/>
+					<div class="space-y-1">
+						<div class="flex items-center gap-1.5">
+							<label for="webhook-name-input" class="text-sm font-semibold"> Webhook Name </label>
+							<Tooltip
+								title="Human-readable identifier for this webhook (e.g., Slack Alerts, Shopify Sync)"
+							>
+								<HelpIcon ariaLabel="Webhook name information" />
+							</Tooltip>
+						</div>
+						<Input
+							id="webhook-name-input"
+							type="text"
+							placeholder={webhooks_name_placeholder()}
+							bind:value={activeWebhook.name}
+							error={formErrors.name}
+							data-testid="webhook-name"
+						/>
+					</div>
 
-					<Input
-						label="Payload URL"
-						type="url"
-						placeholder={automation_webhook_url_placeholder()}
-						bind:value={activeWebhook.url}
-						error={formErrors.url}
-						data-testid="webhook-url"
-					/>
+					<div class="space-y-1">
+						<div class="flex items-center gap-1.5">
+							<label for="webhook-url-input" class="text-sm font-semibold"> Payload URL </label>
+							<Tooltip
+								title="The HTTPS destination server endpoint that receives POST JSON payloads (HTTP allowed on localhost)"
+							>
+								<HelpIcon ariaLabel="Payload URL information" />
+							</Tooltip>
+						</div>
+						<Input
+							id="webhook-url-input"
+							type="url"
+							placeholder={automation_webhook_url_placeholder()}
+							bind:value={activeWebhook.url}
+							oninput={() => {
+								if (formErrors.url) {
+									const err = validateWebhookUrl(activeWebhook.url || '');
+									if (err) formErrors.url = err;
+									else delete formErrors.url;
+								}
+							}}
+							error={formErrors.url}
+							data-testid="webhook-url"
+						/>
+					</div>
 
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div class="space-y-1">
-							<span class="text-sm font-semibold text-surface-600 dark:text-surface-400"
-								>{webhooks_secret_key_label()}</span
-							>
+							<div class="flex items-center gap-1.5">
+								<span class="text-sm font-semibold">
+									{webhooks_secret_key_label()}
+								</span>
+								<Tooltip
+									title="HMAC-SHA256 signature token used in the X-Hub-Signature header to verify payload integrity"
+								>
+									<HelpIcon ariaLabel="Secret key information" />
+								</Tooltip>
+							</div>
 							<div class="flex gap-1">
 								<Input
 									type="text"
@@ -437,7 +473,6 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 									variant="ghost"
 									onclick={() => activeWebhook && (activeWebhook.secret = generateSecureToken(16))}
 									aria-label={webhooks_regenerate_secret()}
-									size="sm"
 									data-testid="webhook-regenerate-secret"
 								>
 									<iconify-icon icon="mdi:refresh"></iconify-icon>
@@ -448,7 +483,7 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 							</p>
 						</div>
 
-						<div class="space-y-2">
+						<div class="space-y-2 pt-6">
 							<Checkbox bind:checked={activeWebhook.active} label="Active (Enabled)" />
 						</div>
 					</div>
@@ -456,7 +491,14 @@ Reference route for Testing 2026 ADR: thin UI over webhooks-api + webhooks-utils
 					<hr class="opacity-30" />
 
 					<div class="space-y-2" data-testid="webhook-events">
-						<span class="block font-bold">{webhooks_trigger_events()}</span>
+						<div class="flex items-center gap-1.5">
+							<span class="block font-bold">{webhooks_trigger_events()}</span>
+							<Tooltip
+								title="Select one or more content and media events that will trigger this webhook to fire"
+							>
+								<HelpIcon ariaLabel="Trigger events information" />
+							</Tooltip>
+						</div>
 						{#if formErrors.events}
 							<p class="text-sm text-error-500" role="alert">{formErrors.events}</p>
 						{/if}

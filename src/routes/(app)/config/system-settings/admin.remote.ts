@@ -45,6 +45,64 @@ export const repairContentCache = command(
   },
 );
 
+export const testRedisConnection = command(
+  "unchecked",
+  async (payload: {
+    host?: string;
+    port?: number;
+    password?: string;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    latencyMs?: number;
+    error?: string;
+  }> => {
+    const event = getRequestEvent();
+    if (!event.locals.isAdmin) {
+      return {
+        success: false,
+        error: "Only administrators can test the Redis connection.",
+      };
+    }
+
+    const { testRedisConnection: runTest } = await import("@src/routes/setup/setup.server");
+    return runTest(payload.host || "localhost", Number(payload.port) || 6379, payload.password);
+  },
+);
+
+export const setMultiTenantConfig = command(
+  "unchecked",
+  async (payload: {
+    enabled: boolean;
+  }): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> => {
+    const event = getRequestEvent();
+    if (!event.locals.isAdmin) {
+      return {
+        success: false,
+        error: "Only administrators can configure multi-tenancy mode.",
+      };
+    }
+
+    try {
+      const { updatePrivateConfigMode } = await import("@src/routes/setup/write-private-config");
+      await updatePrivateConfigMode({ multiTenant: payload.enabled });
+      return {
+        success: true,
+        message: `Multi-tenancy has been ${payload.enabled ? "enabled" : "disabled"} in private.ts. A server restart is required for changes to take full effect.`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  },
+);
+
 export const runTenantMigration = command(
   "unchecked",
   async (payload: {

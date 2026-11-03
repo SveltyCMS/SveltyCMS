@@ -1440,6 +1440,7 @@ export async function seedBenchmarkState(): Promise<void> {
         { db_fieldName: "status", label: "Status", widget: { Name: "Select" }, type: "string" },
         { db_fieldName: "content", label: "Content", widget: { Name: "RichText" }, type: "string" },
         { db_fieldName: "count", label: "Count", widget: { Name: "Input" }, type: "number" },
+        { db_fieldName: "views", label: "Views", widget: { Name: "Input" }, type: "number" },
         {
           db_fieldName: "publishDate",
           label: "Publish Date",
