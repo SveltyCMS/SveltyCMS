@@ -115,16 +115,16 @@
 
 	<!-- Info Alert -->
 	<div
-		class="alert preset-filled-tertiary-500 dark:preset-filled-primary-500/10 border-s-4 border-tertiary-500 dark:border-primary-500 rounded p-4 mb-6"
+		class="rounded border-s-4 border-tertiary-500 bg-tertiary-500/10 p-4 mb-6 dark:border-primary-500 dark:bg-primary-500/10"
 	>
 		<div class="flex items-start gap-3">
 			<iconify-icon
 				icon="mdi:shield-check"
 				width="24"
-				class="text-tertiary-500 dark:text-primary-500 mt-0.5"
+				class="text-tertiary-500 dark:text-primary-500 mt-0.5 shrink-0"
 			></iconify-icon>
 			<div>
-				<h3 class="font-bold text-sm">Compliance Tools</h3>
+				<h3 class="font-bold text-sm text-(--admin-text-body)">Compliance Tools</h3>
 				<p class="text-xs text-(--admin-text-muted) mt-1">
 					These tools perform permanent actions to comply with GDPR Articles 17 & 20. All actions
 					are strictly logged in the Audit Trail.
@@ -138,17 +138,28 @@
 		<AdminCard class="p-6 rounded space-y-4">
 			<div class="flex items-center gap-3 mb-2">
 				<div
-					class="p-2 rounded-full bg-tertiary-500 dark:bg-primary-500/10 text-tertiary-500 dark:text-primary-500"
+					class="p-2 rounded-full bg-tertiary-500/10 text-tertiary-500 dark:bg-primary-500/10 dark:text-primary-500"
 				>
 					<iconify-icon icon="mdi:database-export" width="24"></iconify-icon>
 				</div>
 				<div>
 					<h3 class="font-bold">Data Portability</h3>
-					<p class="text-xs opacity-70">Export all user data to JSON</p>
+					<p class="text-xs text-(--admin-text-muted)">Export all user data to JSON</p>
 				</div>
 			</div>
 
-			<Input label="User ID" type="text" placeholder="Enter User ID..." bind:value={userIdExport} />
+			<div>
+				<Input
+					label="User ID"
+					type="text"
+					placeholder="Enter user UUID or email..."
+					bind:value={userIdExport}
+				/>
+				<p class="mt-1 text-xs text-(--admin-text-muted)">
+					The unique user identifier or account email address whose personal data will be compiled
+					and exported.
+				</p>
+			</div>
 
 			<Button
 				variant="tertiary"
@@ -173,16 +184,22 @@
 				</div>
 				<div>
 					<h3 class="font-bold">Right to Erasure</h3>
-					<p class="text-xs opacity-70">Permanently anonymize user</p>
+					<p class="text-xs text-(--admin-text-muted)">Permanently anonymize user</p>
 				</div>
 			</div>
 
-			<Input
-				label="User ID"
-				type="text"
-				placeholder="Enter User ID..."
-				bind:value={userIdAnonymize}
-			/>
+			<div>
+				<Input
+					label="User ID"
+					type="text"
+					placeholder="Enter user UUID or email..."
+					bind:value={userIdAnonymize}
+				/>
+				<p class="mt-1 text-xs text-(--admin-text-muted)">
+					The user identifier to permanently scrub and anonymize. Associated audit events remain
+					anonymized.
+				</p>
+			</div>
 
 			<Button
 				variant="error"

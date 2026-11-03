@@ -48,7 +48,8 @@ export function validateWebhookUrl(url: string): string | null {
     if (
       parsed.protocol === "http:" &&
       parsed.hostname !== "localhost" &&
-      parsed.hostname !== "127.0.0.1"
+      parsed.hostname !== "127.0.0.1" &&
+      parsed.hostname !== "::1"
     ) {
       return "HTTP is only allowed for localhost; use HTTPS in production";
     }

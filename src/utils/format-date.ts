@@ -10,8 +10,22 @@
  * - Safe fallback on null, undefined, or invalid date values without throwing
  */
 
-import { page } from "$app/state";
 import { getLocale } from "@src/paraglide/runtime";
+
+/** Cached lazy handle to $app/state — safe when loaded outside SvelteKit (e.g. CLI, tests, background workers). */
+let svelteKitStatePromise: Promise<typeof import("$app/state") | null> | undefined;
+function getSvelteKitState(): Promise<typeof import("$app/state") | null> {
+  return (svelteKitStatePromise ??= import("$app/state").catch(() => null));
+}
+let svelteKitPage: { data?: { systemLanguage?: string } } | null = null;
+if (
+  typeof window !== "undefined" ||
+  (typeof process !== "undefined" && process.env.NODE_ENV !== "test")
+) {
+  getSvelteKitState().then((mod) => {
+    if (mod) svelteKitPage = mod.page as any;
+  });
+}
 
 /**
  * Resolves the active UI locale deterministically for SSR and hydration.
@@ -28,7 +42,7 @@ export function resolveLocale(explicitLocale?: string): string {
   }
 
   try {
-    const pageLang = page?.data?.systemLanguage;
+    const pageLang = svelteKitPage?.data?.systemLanguage;
     if (pageLang && typeof pageLang === "string" && pageLang.trim().length > 0) {
       return pageLang.trim();
     }

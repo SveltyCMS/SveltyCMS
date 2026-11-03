@@ -1,8 +1,10 @@
 /**
- * @file src/routes/(admin)/admin/tenants/+page.server.ts
+ * @file src/routes/(app)/config/tenants/+page.server.ts
  * @description
  * Server-side logic for tenant management.
  * Enforces strict system administrative authorization on page load and status toggle actions.
+ * Multi-tenancy must be explicitly enabled in config/private.ts (`MULTI_TENANT=true` or demo mode)
+ * before this route can be accessed; otherwise redirects to `/config`.
  * Uses the database-agnostic adapter (dbAdapter.system.tenants) for multi-DB compatibility.
  */
 
@@ -10,6 +12,7 @@ import { redirect } from "@sveltejs/kit";
 import { raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
+import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 
 /** Cached lazy handle to the DB module — one module-registry lookup instead of one per call. */
 let dbModulePromise: Promise<typeof import("@src/databases/db")> | undefined;
@@ -19,8 +22,12 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
 
 import type { PageServerLoad } from "./$types";
 
-// Only System Admins can access this
+// Only System Admins with multi-tenancy enabled can access this
 export const load: PageServerLoad = async ({ locals }) => {
+  if (!isMultiTenantEnabled()) {
+    throw redirect(303, "/config");
+  }
+
   const user = getAuthenticatedUser(locals);
   const { isAdmin } = locals;
   if (!isAdmin || user.tenantId) throw redirect(303, "/");

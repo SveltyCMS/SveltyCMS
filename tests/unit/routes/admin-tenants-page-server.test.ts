@@ -13,6 +13,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   getDbInitPromise: vi.fn<(force?: boolean, scope?: string) => Promise<void>>(),
   listTenants: vi.fn<(options?: unknown) => Promise<unknown>>(),
+  isMultiTenantEnabled: vi.fn<() => boolean>(),
+}));
+
+vi.mock("@utils/tenant-isolation.server", () => ({
+  isMultiTenantEnabled: () => h.isMultiTenantEnabled(),
 }));
 
 vi.mock("@src/databases/db", () => ({
@@ -26,7 +31,7 @@ vi.mock("@src/databases/db", () => ({
   },
 }));
 
-import { load } from "../../../src/routes/(admin)/admin/tenants/+page.server";
+import { load } from "../../../src/routes/(app)/config/tenants/+page.server";
 
 type TenantsLoadEvent = Parameters<typeof load>[0];
 
@@ -57,11 +62,21 @@ const TENANTS = [
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.isMultiTenantEnabled.mockReturnValue(true);
   h.getDbInitPromise.mockResolvedValue(undefined);
   h.listTenants.mockResolvedValue({ success: true, data: TENANTS });
 });
 
-describe("/admin/tenants +page.server load", () => {
+describe("/config/tenants +page.server load", () => {
+  it("redirects to /config when multi-tenancy is disabled", async () => {
+    h.isMultiTenantEnabled.mockReturnValue(false);
+    await expect(load(makeLoadEvent(makeLocals()))).rejects.toMatchObject({
+      status: 303,
+      location: "/config",
+    });
+    expect(h.listTenants).not.toHaveBeenCalled();
+  });
+
   it("redirects a non-admin to the site root", async () => {
     await expect(load(makeLoadEvent(makeLocals({ isAdmin: false })))).rejects.toMatchObject({
       status: 303,

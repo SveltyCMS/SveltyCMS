@@ -58,7 +58,7 @@ and active border indicator. Receives context from parent Tabs component.
 </script>
 
 <Button
-	variant="ghost"
+	variant="transparent"
 	role="tab"
 	data-value={triggerValue}
 	aria-selected={active}

@@ -17,10 +17,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import Button from '@components/ui/button.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import {
 		button_cancel,
 		button_edit,
@@ -421,9 +423,16 @@
 			<!-- Core OIDC Settings Grid -->
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div>
-					<label for="sso-id" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-						>{sso_provider_id_label()}</label
-					>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-id" class="text-xs font-semibold text-(--admin-text-muted)"
+							>{sso_provider_id_label()}</label
+						>
+						<Tooltip
+							title="Unique machine identifier for this OIDC provider (e.g., google, azure-ad, keycloak)."
+						>
+							<HelpIcon ariaLabel="Provider ID information" />
+						</Tooltip>
+					</div>
 					<Input
 						id="sso-id"
 						bind:value={formId}
@@ -433,9 +442,16 @@
 				</div>
 
 				<div>
-					<label for="sso-name" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-						>{sso_display_name_label()}</label
-					>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-name" class="text-xs font-semibold text-(--admin-text-muted)"
+							>{sso_display_name_label()}</label
+						>
+						<Tooltip
+							title="User-facing button label displayed on the login screen (e.g., Google Workspace, Corporate SSO)."
+						>
+							<HelpIcon ariaLabel="Display name information" />
+						</Tooltip>
+					</div>
 					<Input
 						id="sso-name"
 						bind:value={formName}
@@ -445,9 +461,16 @@
 				</div>
 
 				<div>
-					<label for="sso-icon" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-						>{sso_icon_label()}</label
-					>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-icon" class="text-xs font-semibold text-(--admin-text-muted)"
+							>{sso_icon_label()}</label
+						>
+						<Tooltip
+							title="Iconify icon name displayed next to the sign-in button (e.g., devicon:google, mdi:microsoft-azure)."
+						>
+							<HelpIcon ariaLabel="Icon information" />
+						</Tooltip>
+					</div>
 					<Input
 						id="sso-icon"
 						bind:value={formIcon}
@@ -457,12 +480,16 @@
 				</div>
 
 				<div>
-					<label
-						for="sso-issuer"
-						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-					>
-						{sso_issuer_label()}
-					</label>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-issuer" class="text-xs font-semibold text-(--admin-text-muted)">
+							{sso_issuer_label()}
+						</label>
+						<Tooltip
+							title="The OpenID Connect base URL hosting the /.well-known/openid-configuration discovery document."
+						>
+							<HelpIcon ariaLabel="Issuer URL information" />
+						</Tooltip>
+					</div>
 					<div class="flex gap-2">
 						<Input
 							id="sso-issuer"
@@ -487,11 +514,16 @@
 				</div>
 
 				<div>
-					<label
-						for="sso-client-id"
-						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-						>{sso_client_id_label()}</label
-					>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-client-id" class="text-xs font-semibold text-(--admin-text-muted)"
+							>{sso_client_id_label()}</label
+						>
+						<Tooltip
+							title="Public client identifier assigned by the identity provider application registration."
+						>
+							<HelpIcon ariaLabel="Client ID information" />
+						</Tooltip>
+					</div>
 					<Input
 						id="sso-client-id"
 						bind:value={formClientId}
@@ -501,11 +533,16 @@
 				</div>
 
 				<div>
-					<label
-						for="sso-client-secret"
-						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-						>{sso_client_secret_label()}</label
-					>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-client-secret" class="text-xs font-semibold text-(--admin-text-muted)"
+							>{sso_client_secret_label()}</label
+						>
+						<Tooltip
+							title="Confidential client secret for token exchange. Stored securely and encrypted at rest."
+						>
+							<HelpIcon ariaLabel="Client secret information" />
+						</Tooltip>
+					</div>
 					<Input
 						id="sso-client-secret"
 						type="password"
@@ -516,9 +553,16 @@
 				</div>
 
 				<div>
-					<label for="sso-scopes" class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-						>{sso_scopes_label()}</label
-					>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-scopes" class="text-xs font-semibold text-(--admin-text-muted)"
+							>{sso_scopes_label()}</label
+						>
+						<Tooltip
+							title="Space-separated OIDC scopes requested during login (standard: openid email profile)."
+						>
+							<HelpIcon ariaLabel="Scopes information" />
+						</Tooltip>
+					</div>
 					<Input
 						id="sso-scopes"
 						bind:value={formScopes}
@@ -528,11 +572,16 @@
 				</div>
 
 				<div>
-					<label
-						for="sso-redirect-uris"
-						class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-						>{sso_redirects_label()}</label
-					>
+					<div class="flex items-center gap-1.5 mb-1">
+						<label for="sso-redirect-uris" class="text-xs font-semibold text-(--admin-text-muted)"
+							>{sso_redirects_label()}</label
+						>
+						<Tooltip
+							title="Authorized redirect URI callback configured in your IdP application settings."
+						>
+							<HelpIcon ariaLabel="Redirect URIs information" />
+						</Tooltip>
+					</div>
 					<Input
 						id="sso-redirect-uris"
 						bind:value={formRedirectUris}
@@ -579,11 +628,18 @@
 						class="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 rounded bg-surface-500/10 border border-surface-500/20"
 					>
 						<div>
-							<label
-								for="sso-default-role"
-								class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-								>{sso_default_role_label()}</label
-							>
+							<div class="flex items-center gap-1.5 mb-1">
+								<label
+									for="sso-default-role"
+									class="text-xs font-semibold text-(--admin-text-muted)"
+									>{sso_default_role_label()}</label
+								>
+								<Tooltip
+									title="Baseline local role granted to newly provisioned users who sign in via SSO."
+								>
+									<HelpIcon ariaLabel="Default role information" />
+								</Tooltip>
+							</div>
 							<Select
 								id="sso-default-role"
 								bind:value={formDefaultRole}
@@ -599,11 +655,16 @@
 						</div>
 
 						<div>
-							<label
-								for="sso-claim-field"
-								class="block text-xs font-semibold text-(--admin-text-muted) mb-1"
-								>{sso_claim_field_label()}</label
-							>
+							<div class="flex items-center gap-1.5 mb-1">
+								<label for="sso-claim-field" class="text-xs font-semibold text-(--admin-text-muted)"
+									>{sso_claim_field_label()}</label
+								>
+								<Tooltip
+									title="The ID token claim inspected for role mapping (e.g., groups, roles, permissions)."
+								>
+									<HelpIcon ariaLabel="Claim field information" />
+								</Tooltip>
+							</div>
 							<Input
 								id="sso-claim-field"
 								bind:value={formClaimField}

@@ -19,6 +19,9 @@ export interface MarketplaceItem {
   author: string;
   installed: boolean;
   type: "theme" | "widget" | "preset" | "plugin" | "dashboard";
+  icon?: string;
+  category?: string;
+  status?: string;
   previewUrl?: string;
   downloadUrl?: string;
   source?: string;
@@ -258,6 +261,9 @@ export class MarketplaceService {
             description: String(description),
             version: p.version || "0.0.0",
             author: p.author || p.publisher || "SveltyCMS",
+            icon: p.icon || undefined,
+            category: p.category || undefined,
+            status: p.status || undefined,
             installed: isInstalled,
             installable: !isInstalled && p.installable !== false,
             homepageUrl: p.homepageUrl || p.homepage,

@@ -454,9 +454,9 @@
 					</ol>
 					<div class="space-y-1 text-xs text-(--admin-text-muted)">
 						<p>
-							<strong class="text-(--admin-text-body)">Need an export?</strong> WordPress → Tools → Export
-							(WXR). Strapi, Directus, Contentful → JSON export. Shopify → product CSV. Generic tables
-							→ CSV or TSV with a header row.
+							<strong class="text-(--admin-text-body)">Standard export formats:</strong> WordPress (WXR
+							export via Tools → Export), Strapi, Directus, Contentful (JSON exports), Shopify (product
+							CSV), and generic CSV or TSV files with a header row are supported for data portability.
 						</p>
 						<p>
 							<strong class="text-(--admin-text-body)">Large file?</strong> Browser uploads are

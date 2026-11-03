@@ -885,7 +885,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 	<AdminCard class="shadow-sm backdrop-blur-md">
 		<!-- Underline tab style of the shared Tabs component (ui/tabs/chrome.ts) -->
 		<div
-			class="{TAB_STRIP} px-2"
+			class="{TAB_STRIP} px-2 overflow-x-auto scrollbar-hide max-w-full"
 			role="tablist"
 			tabindex="-1"
 			onkeydown={onTabKeydown}
@@ -1052,7 +1052,7 @@ Deep links: /config/design-system?tab=overrides|preview|themes|presets|...
 						</p>
 
 						{#if loadingThemes}
-							<div class="text-center py-8 text-(--admin-text-muted)">{theme_loading_themes()}</div>
+							<div class="text-center py-2 text-(--admin-text-muted)">{theme_loading_themes()}</div>
 						{:else}
 							<div class="space-y-3 max-w-2xl" data-testid="appearance-theme-list">
 								{#each themes as t (t.id)}

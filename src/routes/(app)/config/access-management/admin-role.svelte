@@ -35,7 +35,9 @@ It provides functionality to:
 	import { showConfirm } from '@utils/modal.svelte';
 	import { tick } from 'svelte';
 	import Button from '@components/ui/button.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 
 	const { roleData, setRoleData } = $props();
 
@@ -135,11 +137,21 @@ It provides functionality to:
 
 		<!-- Dropdown to select admin role -->
 		<Select
-			label="Select new Administrator Role:"
 			bind:value={selectedAdminRole}
 			options={adminRoleOptions}
 			placeholder={access_admin_role_placeholder()}
-		/>
+		>
+			{#snippet labelSnippet()}
+				<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+					<span>Select new Administrator Role:</span>
+					<Tooltip
+						title="The role that possesses unrestricted system-wide administrative privileges by default."
+					>
+						<HelpIcon ariaLabel="Administrator role information" />
+					</Tooltip>
+				</div>
+			{/snippet}
+		</Select>
 
 		<!-- Save and Cancel Buttons -->
 		{#if hasChanges}

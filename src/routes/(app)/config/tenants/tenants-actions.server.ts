@@ -1,5 +1,5 @@
 /**
- * @file src/routes/(admin)/admin/tenants/tenants-actions.server.ts
+ * @file src/routes/(app)/config/tenants/tenants-actions.server.ts
  * @description Tenant Management Actions.
  * Uses the database-agnostic adapter for multi-DB compatibility.
  *
@@ -9,7 +9,14 @@
  * - Fail-closed validation before any adapter call
  */
 
-import type { DatabaseId, DatabaseResult, IDBAdapter, Tenant } from "@src/databases/db-interface";
+import type {
+  DatabaseId,
+  DatabaseResult,
+  EntityCreate,
+  IDBAdapter,
+  Tenant,
+  TenantQuota,
+} from "@src/databases/db-interface";
 import { raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
@@ -21,6 +28,15 @@ export interface ToggleTenantStatusInput {
 
 export interface CreateTenantInput {
   name: string;
+  plan?: "free" | "pro" | "enterprise";
+  quota?: Partial<TenantQuota>;
+}
+
+export interface UpdateTenantInput {
+  tenantId: string;
+  name?: string;
+  plan?: "free" | "pro" | "enterprise";
+  quota?: Partial<TenantQuota>;
 }
 
 /** Only these statuses may be toggled from the admin UI. */
@@ -50,10 +66,77 @@ export const toggleTenantStatus = async (data: ToggleTenantStatusInput, dbAdapte
   return { success: true };
 };
 
+export const updateTenant = async (data: UpdateTenantInput, dbAdapter: IDBAdapter) => {
+  const { tenantId, name, plan, quota } = data;
+  if (!tenantId) {
+    raise(400, "Tenant ID is required", "BAD_REQUEST");
+  }
+
+  // Fetch current tenant to merge quota cleanly
+  const existing = await dbAdapter.system.tenants.getById(tenantId as DatabaseId);
+  if (!existing.success || !existing.data) {
+    raise(404, "Tenant not found", "NOT_FOUND");
+  }
+
+  const patch: Partial<EntityCreate<Tenant>> = {};
+  if (name && typeof name === "string" && name.trim()) {
+    patch.name = name.trim();
+  }
+  if (plan && (plan === "free" || plan === "pro" || plan === "enterprise")) {
+    patch.plan = plan;
+  }
+  if (quota && typeof quota === "object") {
+    patch.quota = {
+      ...existing.data.quota,
+      ...quota,
+    };
+  }
+
+  try {
+    const result = await dbAdapter.system.tenants.update(tenantId as DatabaseId, patch);
+    if (!result.success) {
+      raise(500, result.message || "Failed to update tenant", "INTERNAL_SERVER_ERROR");
+    }
+    return { success: true, tenant: result.data };
+  } catch (err) {
+    rethrow(err);
+    logger.error(`Failed to update tenant ${tenantId}`, err);
+    raise(500, "Failed to update tenant", "INTERNAL_SERVER_ERROR");
+  }
+};
+
 export const createTenant = async (data: CreateTenantInput, dbAdapter: IDBAdapter) => {
   if (!data.name || typeof data.name !== "string" || data.name.trim().length === 0) {
     raise(400, "Tenant name is required", "BAD_REQUEST");
   }
+
+  const plan = data.plan || "free";
+  const defaultQuotas: Record<string, TenantQuota> = {
+    free: {
+      maxUsers: 5,
+      maxStorageBytes: 26214400, // 25 MB
+      maxCollections: 10,
+      maxApiRequestsPerMonth: 10000,
+    },
+    pro: {
+      maxUsers: 25,
+      maxStorageBytes: 10737418240, // 10 GB
+      maxCollections: 50,
+      maxApiRequestsPerMonth: 100000,
+    },
+    enterprise: {
+      maxUsers: 100,
+      maxStorageBytes: 107374182400, // 100 GB
+      maxCollections: 200,
+      maxApiRequestsPerMonth: 1000000,
+    },
+  };
+
+  const chosenDefault = defaultQuotas[plan] || defaultQuotas.free;
+  const mergedQuota: TenantQuota = {
+    ...chosenDefault,
+    ...(data.quota || {}),
+  };
 
   let result: DatabaseResult<Tenant>;
   try {
@@ -61,14 +144,9 @@ export const createTenant = async (data: CreateTenantInput, dbAdapter: IDBAdapte
     result = await dbAdapter.system.tenants.create({
       name: data.name.trim(),
       ownerId,
-      plan: "free",
+      plan,
       status: "active",
-      quota: {
-        maxApiRequestsPerMonth: 10000,
-        maxCollections: 20,
-        maxStorageBytes: 5368709120, // 5 GB
-        maxUsers: 10,
-      },
+      quota: mergedQuota,
       usage: {
         apiRequestsMonth: 0,
         collectionsCount: 0,

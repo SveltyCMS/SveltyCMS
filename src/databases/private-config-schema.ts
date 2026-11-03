@@ -90,6 +90,7 @@ export const privateConfigSchema = object({
 
   // --- Licensing & Telemetry (BSL 1.1 Support) ---
   LICENSE_KEY: optional(string()),
+  MARKETPLACE_LICENSE_KEY: optional(string()),
   SVELTYCMS_TELEMETRY: optional(coercedBoolean),
   TELEMETRY_CLIENT_SECRET: optional(string()),
 

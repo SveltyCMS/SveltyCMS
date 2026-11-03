@@ -57,6 +57,9 @@
 		version: string;
 		author: string;
 		type: string;
+		icon?: string;
+		category?: string;
+		status?: string;
 		source?: string;
 		installed?: boolean;
 		installable?: boolean;
@@ -259,15 +262,38 @@
 		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="marketplace-grid">
 			{#each items as item (item.id)}
 				<AdminCard class="flex flex-col gap-3 p-4" data-testid={`marketplace-card-${item.id}`}>
-					<div class="flex items-start justify-between gap-2">
-						<div>
-							<h3 class="font-semibold text-surface-900 dark:text-surface-100">{item.name}</h3>
-							<p class="text-xs text-surface-500">
-								{item.author}
-								{mp_version_sep()}{item.version}
-							</p>
+					<div class="flex items-start justify-between gap-3">
+						<div class="flex items-start gap-3 min-w-0">
+							<div
+								class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface-500/10 dark:bg-surface-800 text-tertiary-500 dark:text-primary-500"
+							>
+								<iconify-icon
+									icon={item.icon ||
+										(item.type === 'widget'
+											? 'mdi:widgets'
+											: item.type === 'dashboard'
+												? 'mdi:view-dashboard'
+												: item.type === 'theme'
+													? 'mdi:palette'
+													: 'mdi:puzzle')}
+									width="24"
+									aria-hidden="true"
+								></iconify-icon>
+							</div>
+							<div class="min-w-0">
+								<h3 class="font-semibold text-surface-900 dark:text-surface-100 truncate">
+									{item.name}
+								</h3>
+								<p class="text-xs text-surface-500 truncate">
+									{item.author}
+									{mp_version_sep()}{item.version}
+									{#if item.category}
+										<span class="opacity-60">· {item.category}</span>
+									{/if}
+								</p>
+							</div>
 						</div>
-						<div class="flex flex-col items-end gap-1">
+						<div class="flex flex-col items-end gap-1 shrink-0">
 							<Badge variant="outline">{item.type}</Badge>
 							{#if item.license}
 								<Badge
@@ -400,27 +426,114 @@
 	}}
 >
 	{#if detailItem}
-		<div class="flex flex-col gap-3" data-testid="marketplace-package-detail">
-			<p class="text-sm text-surface-600 dark:text-surface-400">{detailItem.description}</p>
-			<p class="text-xs text-surface-500">
-				{detailItem.author}
-				{mp_version_sep()}{detailItem.version} · {detailItem.type}
-			</p>
-			{#if detailItem.homepageUrl}
-				<a
-					href={detailItem.homepageUrl}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="text-sm text-tertiary-600 underline dark:text-primary-400"
+		<div class="flex flex-col gap-4" data-testid="marketplace-package-detail">
+			<div class="flex items-center gap-4 border-b border-(--admin-border-default) pb-4">
+				<div
+					class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-surface-500/10 dark:bg-surface-800 text-tertiary-500 dark:text-primary-500"
 				>
-					{mp_open_listing()}
-				</a>
-			{/if}
-			{#if !detailItem.installed && detailItem.installable !== false}
-				<Button variant="primary" onclick={() => detailItem && installItem(detailItem)}>
-					{mp_install()}
-				</Button>
-			{/if}
+					<iconify-icon
+						icon={detailItem.icon ||
+							(detailItem.type === 'widget'
+								? 'mdi:widgets'
+								: detailItem.type === 'dashboard'
+									? 'mdi:view-dashboard'
+									: detailItem.type === 'theme'
+										? 'mdi:palette'
+										: 'mdi:puzzle')}
+						width="32"
+						aria-hidden="true"
+					></iconify-icon>
+				</div>
+				<div class="flex-1 min-w-0">
+					<div class="flex items-center gap-2">
+						<h3 class="text-lg font-bold text-surface-900 dark:text-surface-100">
+							{detailItem.name}
+						</h3>
+						<Badge variant="outline">{detailItem.type}</Badge>
+						{#if detailItem.license}
+							<Badge
+								variant={detailItem.license === 'free'
+									? 'success'
+									: detailItem.license === 'paid'
+										? 'warning'
+										: 'tertiary'}
+								size="sm"
+							>
+								{detailItem.license === 'free'
+									? 'Free'
+									: detailItem.license === 'paid'
+										? 'Paid'
+										: 'Freemium'}
+							</Badge>
+						{/if}
+					</div>
+					<p class="text-xs text-surface-500 mt-1">
+						{detailItem.author}
+						{mp_version_sep()}v{detailItem.version}
+						{#if detailItem.category}
+							<span>· Category: {detailItem.category}</span>
+						{/if}
+						{#if detailItem.price != null && detailItem.price > 0}
+							<span>· €{detailItem.price.toFixed(2)}</span>
+						{/if}
+					</p>
+				</div>
+			</div>
+
+			<div class="space-y-2">
+				<h4 class="text-xs font-semibold text-(--admin-text-muted) uppercase tracking-wider">
+					Description
+				</h4>
+				<p class="text-sm text-surface-700 dark:text-surface-300 leading-relaxed">
+					{detailItem.description || 'No detailed description available.'}
+				</p>
+			</div>
+
+			<div
+				class="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-lg border border-(--admin-border-default) bg-surface-500/5 p-3 text-xs"
+			>
+				<div>
+					<span class="block text-surface-500">Package ID</span>
+					<span class="font-mono font-medium text-surface-800 dark:text-surface-200"
+						>{detailItem.id}</span
+					>
+				</div>
+				<div>
+					<span class="block text-surface-500">Type</span>
+					<span class="font-medium capitalize text-surface-800 dark:text-surface-200"
+						>{detailItem.type}</span
+					>
+				</div>
+				<div>
+					<span class="block text-surface-500">Installation Status</span>
+					{#if detailItem.installed}
+						<span class="font-semibold text-success-600 dark:text-success-400">Installed</span>
+					{:else}
+						<span class="text-surface-500">Not Installed</span>
+					{/if}
+				</div>
+			</div>
+
+			<div class="flex items-center justify-end gap-3 pt-2">
+				{#if detailItem.homepageUrl}
+					<Button
+						variant="surface"
+						href={detailItem.homepageUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						size="sm"
+					>
+						<iconify-icon icon="mdi:open-in-new" width="16"></iconify-icon>
+						<span>{mp_open_listing()}</span>
+					</Button>
+				{/if}
+				{#if !detailItem.installed && detailItem.installable !== false}
+					<Button variant="primary" onclick={() => detailItem && installItem(detailItem)} size="sm">
+						<iconify-icon icon="mdi:download" width="16"></iconify-icon>
+						<span>{mp_install()}</span>
+					</Button>
+				{/if}
+			</div>
 		</div>
 	{/if}
 </Modal>

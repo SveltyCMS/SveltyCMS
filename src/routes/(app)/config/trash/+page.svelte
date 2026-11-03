@@ -79,7 +79,7 @@
 
 <AdminPageShell
 	title={trash_page_title()}
-	icon="mdi:delete-outline"
+	icon="mdi:trash-can-outline"
 	description={trash_page_description()}
 	showBackButton={true}
 	backUrl="/config"
@@ -108,7 +108,10 @@
 					class="p-12 text-center border-dashed border-2 shadow-xs"
 					data-testid="trash-empty"
 				>
-					<iconify-icon icon="mdi:trash-can-outline" width="64" class="mx-auto mb-4 opacity-20"
+					<iconify-icon
+						icon="mdi:trash-can-outline"
+						width="64"
+						class="mx-auto mb-4 text-tertiary-500 dark:text-primary-500"
 					></iconify-icon>
 					<h3 class="text-xl font-semibold">{trash_empty_title()}</h3>
 					<p class="text-surface-500">{trash_empty_description()}</p>

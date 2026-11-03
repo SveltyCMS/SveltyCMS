@@ -13,6 +13,8 @@
 	import { adminFade } from '@utils/admin-transitions';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Modal from '@components/ui/modal.svelte';
@@ -214,6 +216,33 @@
 		params.set('offset', '0');
 		return `?${params.toString()}`;
 	}
+
+	function handleSort(column: string) {
+		const currentSort = page.url.searchParams.get('sort') || 'createdAt';
+		const currentOrder = page.url.searchParams.get('order') || 'desc';
+		const params = new URLSearchParams(page.url.searchParams.toString());
+
+		if (currentSort === column) {
+			params.set('order', currentOrder === 'asc' ? 'desc' : 'asc');
+		} else {
+			params.set('sort', column);
+			params.set('order', 'asc');
+		}
+		params.set('offset', '0');
+		goto(`?${params.toString()}`);
+	}
+
+	function toggleHideRoutine() {
+		const params = new URLSearchParams(page.url.searchParams.toString());
+		const current = params.get('hideRoutine') === 'true';
+		if (current) {
+			params.delete('hideRoutine');
+		} else {
+			params.set('hideRoutine', 'true');
+		}
+		params.set('offset', '0');
+		goto(`?${params.toString()}`);
+	}
 </script>
 
 <AdminPageShell
@@ -228,7 +257,6 @@
 		<Button
 			variant="ghost"
 			onclick={() => refreshAll()}
-			size="sm"
 			leadingIcon="mdi:refresh"
 			data-testid="queue-refresh"
 			aria-label={queue_refresh_aria()}
@@ -240,7 +268,7 @@
 	<div data-testid="queue-page" class="contents">
 		<!-- First-run orientation: what the queue is, why periodic rows exist, what a row means. -->
 		<details
-			class="shrink-0 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-4 dark:border-primary-500/30 dark:bg-primary-500/10"
+			class="mb-4 shrink-0 rounded border border-tertiary-500/30 bg-tertiary-500/10 p-4 dark:border-primary-500/30 dark:bg-primary-500/10"
 			open
 			data-testid="queue-how-it-works"
 		>
@@ -278,122 +306,169 @@
 			in:adminFade={{ delay: 100 }}
 			data-testid="queue-stats"
 		>
-			<a
-				aria-label={queue_view_all_aria()}
-				href={getFilterUrl()}
-				class="block no-underline text-inherit"
-				data-testid="queue-stat-total"
-				data-preload="hover"
-			>
-				<AdminCard
-					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
+			<div class="relative block no-underline text-inherit w-full">
+				<a
+					aria-label={queue_view_all_aria()}
+					href={getFilterUrl()}
+					class="block no-underline text-inherit h-full"
+					data-testid="queue-stat-total"
+					data-preload="hover"
 				>
-					<div class="flex items-center gap-3">
-						<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
-							<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
+					<AdminCard
+						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors h-full"
+					>
+						<div class="flex items-center gap-3">
+							<div class="p-2 rounded bg-surface-200 dark:bg-surface-700">
+								<iconify-icon icon="mdi:format-list-bulleted" class="text-2xl"></iconify-icon>
+							</div>
+							<div>
+								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_total()}</p>
+								<p class="text-2xl font-bold" data-testid="queue-stat-total-value">
+									{data.stats.total}
+								</p>
+							</div>
 						</div>
-						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_total()}</p>
-							<p class="text-2xl font-bold" data-testid="queue-stat-total-value">
-								{data.stats.total}
-							</p>
-						</div>
-					</div>
-				</AdminCard>
-			</a>
+					</AdminCard>
+				</a>
+				<div class="absolute top-2.5 right-2.5 z-10">
+					<Tooltip title="Total number of jobs registered in the queue across all statuses">
+						<HelpIcon ariaLabel="Total jobs information" />
+					</Tooltip>
+				</div>
+			</div>
 
-			<a
-				aria-label={queue_view_pending_aria()}
-				href={getFilterUrl('pending')}
-				class="block no-underline text-inherit"
-				data-testid="queue-stat-pending"
-				data-preload="hover"
-			>
-				<AdminCard
-					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors"
+			<div class="relative block no-underline text-inherit w-full">
+				<a
+					aria-label={queue_view_pending_aria()}
+					href={getFilterUrl('pending')}
+					class="block no-underline text-inherit h-full"
+					data-testid="queue-stat-pending"
+					data-preload="hover"
 				>
-					<div class="flex items-center gap-3">
-						<div class="p-2 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400">
-							<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
+					<AdminCard
+						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-surface-500 transition-colors h-full"
+					>
+						<div class="flex items-center gap-3">
+							<div class="p-2 rounded bg-surface-500/10 text-surface-600 dark:text-surface-400">
+								<iconify-icon icon="mdi:clock-outline" class="text-2xl"></iconify-icon>
+							</div>
+							<div>
+								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+									{queue_pending()}
+								</p>
+								<p class="text-2xl font-bold">{data.stats.pending}</p>
+							</div>
 						</div>
-						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_pending()}</p>
-							<p class="text-2xl font-bold">{data.stats.pending}</p>
-						</div>
-					</div>
-				</AdminCard>
-			</a>
+					</AdminCard>
+				</a>
+				<div class="absolute top-2.5 right-2.5 z-10">
+					<Tooltip
+						title="Jobs waiting for their scheduled time or awaiting an available background worker"
+					>
+						<HelpIcon ariaLabel="Pending jobs information" />
+					</Tooltip>
+				</div>
+			</div>
 
-			<a
-				aria-label={queue_view_running_aria()}
-				href={getFilterUrl('running')}
-				class="block no-underline text-inherit"
-				data-testid="queue-stat-running"
-				data-preload="hover"
-			>
-				<AdminCard
-					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors"
+			<div class="relative block no-underline text-inherit w-full">
+				<a
+					aria-label={queue_view_running_aria()}
+					href={getFilterUrl('running')}
+					class="block no-underline text-inherit h-full"
+					data-testid="queue-stat-running"
+					data-preload="hover"
 				>
-					<div class="flex items-center gap-3">
-						<div class="p-2 rounded bg-primary-500/10 text-primary-500 dark:text-primary-400">
-							<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
+					<AdminCard
+						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-tertiary-500 dark:hover:border-primary-500 transition-colors h-full"
+					>
+						<div class="flex items-center gap-3">
+							<div class="p-2 rounded bg-primary-500/10 text-primary-500 dark:text-primary-400">
+								<iconify-icon icon="mdi:loading" class="text-2xl"></iconify-icon>
+							</div>
+							<div>
+								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+									{queue_running()}
+								</p>
+								<p class="text-2xl font-bold">{data.stats.running}</p>
+							</div>
 						</div>
-						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_running()}</p>
-							<p class="text-2xl font-bold">{data.stats.running}</p>
-						</div>
-					</div>
-				</AdminCard>
-			</a>
+					</AdminCard>
+				</a>
+				<div class="absolute top-2.5 right-2.5 z-10">
+					<Tooltip
+						title="Jobs currently being claimed and executed by a background worker right now"
+					>
+						<HelpIcon ariaLabel="Running jobs information" />
+					</Tooltip>
+				</div>
+			</div>
 
-			<a
-				aria-label={queue_view_completed_aria()}
-				href={getFilterUrl('completed')}
-				class="block no-underline text-inherit"
-				data-testid="queue-stat-completed"
-				data-preload="hover"
-			>
-				<AdminCard
-					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors"
+			<div class="relative block no-underline text-inherit w-full">
+				<a
+					aria-label={queue_view_completed_aria()}
+					href={getFilterUrl('completed')}
+					class="block no-underline text-inherit h-full"
+					data-testid="queue-stat-completed"
+					data-preload="hover"
 				>
-					<div class="flex items-center gap-3">
-						<div class="p-2 rounded bg-success-500/10 text-success-500 dark:text-success-400">
-							<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
+					<AdminCard
+						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-success-500 transition-colors h-full"
+					>
+						<div class="flex items-center gap-3">
+							<div class="p-2 rounded bg-success-500/10 text-success-500 dark:text-success-400">
+								<iconify-icon icon="mdi:check-circle-outline" class="text-2xl"></iconify-icon>
+							</div>
+							<div>
+								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+									{queue_completed()}
+								</p>
+								<p class="text-2xl font-bold">{data.stats.completed}</p>
+							</div>
 						</div>
-						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
-								{queue_completed()}
-							</p>
-							<p class="text-2xl font-bold">{data.stats.completed}</p>
-						</div>
-					</div>
-				</AdminCard>
-			</a>
+					</AdminCard>
+				</a>
+				<div class="absolute top-2.5 right-2.5 z-10">
+					<Tooltip title="Jobs that have finished successfully (auto-pruned after 7 days)">
+						<HelpIcon ariaLabel="Completed jobs information" />
+					</Tooltip>
+				</div>
+			</div>
 
-			<a
-				aria-label={queue_view_failed_aria()}
-				href={getFilterUrl('failed')}
-				class="block no-underline text-inherit"
-				data-testid="queue-stat-failed"
-				data-preload="hover"
-			>
-				<AdminCard
-					class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors"
+			<div class="relative block no-underline text-inherit w-full">
+				<a
+					aria-label={queue_view_failed_aria()}
+					href={getFilterUrl('failed')}
+					class="block no-underline text-inherit h-full"
+					data-testid="queue-stat-failed"
+					data-preload="hover"
 				>
-					<div class="flex items-center gap-3">
-						<div class="p-2 rounded bg-error-500/10 text-error-500 dark:text-error-400">
-							<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
+					<AdminCard
+						class="p-4 border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) dark:bg-surface-900/20 backdrop-blur-md shadow-xs hover:border-error-500 transition-colors h-full"
+					>
+						<div class="flex items-center gap-3">
+							<div class="p-2 rounded bg-error-500/10 text-error-500 dark:text-error-400">
+								<iconify-icon icon="mdi:alert-circle-outline" class="text-2xl"></iconify-icon>
+							</div>
+							<div>
+								<p class="text-xs opacity-60 uppercase font-bold tracking-wider">
+									{queue_failed()}
+								</p>
+								<p class="text-2xl font-bold">{data.stats.failed}</p>
+							</div>
 						</div>
-						<div>
-							<p class="text-xs opacity-60 uppercase font-bold tracking-wider">{queue_failed()}</p>
-							<p class="text-2xl font-bold">{data.stats.failed}</p>
-						</div>
-					</div>
-				</AdminCard>
-			</a>
+					</AdminCard>
+				</a>
+				<div class="absolute top-2.5 right-2.5 z-10">
+					<Tooltip
+						title="Jobs that exhausted their retries and crashed with an error (click row to inspect error)"
+					>
+						<HelpIcon ariaLabel="Failed jobs information" />
+					</Tooltip>
+				</div>
+			</div>
 		</div>
 
-		<div class="flex shrink-0 flex-wrap items-center justify-between gap-4">
+		<div class="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-4">
 			<div class="flex items-center gap-2">
 				<h2 class="text-lg font-bold">{queue_recent()}</h2>
 				{#if page.url.searchParams.has('status')}
@@ -409,8 +484,22 @@
 
 			<div class="flex items-center gap-2">
 				<Button
+					variant={page.url.searchParams.get('hideRoutine') === 'true' ? 'secondary' : 'ghost'}
+					size="sm"
+					onclick={toggleHideRoutine}
+					leadingIcon={page.url.searchParams.get('hideRoutine') === 'true'
+						? 'mdi:eye-off-outline'
+						: 'mdi:eye-outline'}
+					data-testid="queue-toggle-routine"
+				>
+					{page.url.searchParams.get('hideRoutine') === 'true'
+						? 'Showing User & Error Jobs'
+						: 'Hide Empty Heartbeats'}
+				</Button>
+
+				<Button
 					variant="ghost"
-					disabled={isClearing}
+					disabled={isClearing || (data.stats.completed ?? 0) === 0}
 					onclick={handleClearCompleted}
 					size="sm"
 					leadingIcon="mdi:broom"
@@ -447,13 +536,109 @@
 							<tr
 								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 							>
-								<th class={SMART_TABLE_TH}>{queue_job_id()}</th>
-								<th class={SMART_TABLE_TH}>{queue_task_type()}</th>
-								<th class={SMART_TABLE_TH}>{queue_status()}</th>
-								<th class={SMART_TABLE_TH}>{queue_attempts()}</th>
-								<th class={SMART_TABLE_TH}>{queue_next_run()}</th>
-								<th class={SMART_TABLE_TH}>{queue_created()}</th>
-								<th class={SMART_TABLE_TH}>{queue_actions()}</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => handleSort('_id')}
+									>
+										{queue_job_id()}
+										{#if (page.url.searchParams.get('sort') || 'createdAt') === '_id'}
+											<iconify-icon
+												icon={page.url.searchParams.get('order') === 'asc'
+													? 'mdi:arrow-up'
+													: 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => handleSort('taskType')}
+									>
+										{queue_task_type()}
+										{#if page.url.searchParams.get('sort') === 'taskType'}
+											<iconify-icon
+												icon={page.url.searchParams.get('order') === 'asc'
+													? 'mdi:arrow-up'
+													: 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => handleSort('status')}
+									>
+										{queue_status()}
+										{#if page.url.searchParams.get('sort') === 'status'}
+											<iconify-icon
+												icon={page.url.searchParams.get('order') === 'asc'
+													? 'mdi:arrow-up'
+													: 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => handleSort('attempts')}
+									>
+										{queue_attempts()}
+										{#if page.url.searchParams.get('sort') === 'attempts'}
+											<iconify-icon
+												icon={page.url.searchParams.get('order') === 'asc'
+													? 'mdi:arrow-up'
+													: 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => handleSort('nextRunAt')}
+									>
+										{queue_next_run()}
+										{#if page.url.searchParams.get('sort') === 'nextRunAt'}
+											<iconify-icon
+												icon={page.url.searchParams.get('order') === 'asc'
+													? 'mdi:arrow-up'
+													: 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => handleSort('createdAt')}
+									>
+										{queue_created()}
+										{#if (page.url.searchParams.get('sort') || 'createdAt') === 'createdAt'}
+											<iconify-icon
+												icon={page.url.searchParams.get('order') === 'asc'
+													? 'mdi:arrow-up'
+													: 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">{queue_actions()}</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
@@ -469,10 +654,11 @@
 									}}
 								>
 									<td class={SMART_TABLE_TD}>
-										<span
-											class="font-mono text-xs text-tertiary-500 dark:text-primary-500"
-											title={job._id}>{job._id.slice(0, 8)}...</span
-										>
+										<Tooltip title={job._id}>
+											<span class="font-mono text-xs text-tertiary-500 dark:text-primary-500">
+												{job._id.slice(0, 8)}...
+											</span>
+										</Tooltip>
 									</td>
 									<td class={SMART_TABLE_TD}>
 										<span class="font-medium">{job.taskType}</span>
@@ -488,11 +674,12 @@
 												{job.status}
 											</Badge>
 											{#if job.lastError}
-												<iconify-icon
-													icon="mdi:information-outline"
-													class="text-error-500 cursor-help"
-													title={job.lastError}
-												></iconify-icon>
+												<Tooltip title={job.lastError}>
+													<iconify-icon
+														icon="mdi:information-outline"
+														class="text-error-500 cursor-help"
+													></iconify-icon>
+												</Tooltip>
 											{/if}
 										</div>
 									</td>
@@ -507,55 +694,60 @@
 									</td>
 									<td class={SMART_TABLE_TD}>
 										<div class="flex items-center justify-center gap-1">
-											<Button
-												variant="ghost"
-												title={queue_details_title()}
-												onclick={() => openDetails(job)}
-												size="sm"
-												data-testid="queue-job-details"
-												aria-label={queue_details_aria({ task: job.taskType, id: job._id })}
-											>
-												<iconify-icon icon="mdi:eye-outline"></iconify-icon>
-											</Button>
+											<Tooltip title={queue_details_title()}>
+												<Button
+													variant="ghost"
+													onclick={() => openDetails(job)}
+													size="sm"
+													data-testid="queue-job-details"
+													aria-label={queue_details_aria({ task: job.taskType, id: job._id })}
+												>
+													<iconify-icon icon="mdi:eye-outline"></iconify-icon>
+												</Button>
+											</Tooltip>
 
 											{#if job.status === 'failed'}
-												<Button
-													variant="primary"
-													title={queue_retry_title()}
-													disabled={isRetrying}
-													onclick={async () => {
-														isRetrying = true;
-														try {
-															const result = await retryJob(job._id);
-															if (result.success) {
-																toast.success('Job rescheduled.');
-																await refreshAll();
+												<Tooltip title={queue_retry_title()}>
+													<Button
+														variant="primary"
+														disabled={isRetrying}
+														onclick={async () => {
+															isRetrying = true;
+															try {
+																const result = await retryJob(job._id);
+																if (result.success) {
+																	toast.success('Job rescheduled.');
+																	await refreshAll();
+																}
+															} catch (e: unknown) {
+																toast.error(
+																	e instanceof Error
+																		? e.message || String(e)
+																		: 'Failed to retry job.'
+																);
+															} finally {
+																isRetrying = false;
 															}
-														} catch (e: unknown) {
-															toast.error(
-																e instanceof Error ? e.message || String(e) : 'Failed to retry job.'
-															);
-														} finally {
-															isRetrying = false;
-														}
-													}}
-													size="sm"
-												>
-													<iconify-icon icon="mdi:replay"></iconify-icon>
-												</Button>
+														}}
+														size="sm"
+													>
+														<iconify-icon icon="mdi:replay"></iconify-icon>
+													</Button>
+												</Tooltip>
 											{/if}
 
-											<Button
-												variant="error"
-												title={queue_delete_title()}
-												disabled={isDeleting}
-												onclick={() => handleDeleteJob(job._id)}
-												size="sm"
-												data-testid="queue-job-delete"
-												aria-label={queue_delete_aria({ id: job._id })}
-											>
-												<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
-											</Button>
+											<Tooltip title={queue_delete_title()}>
+												<Button
+													variant="error"
+													disabled={isDeleting}
+													onclick={() => handleDeleteJob(job._id)}
+													size="sm"
+													data-testid="queue-job-delete"
+													aria-label={queue_delete_aria({ id: job._id })}
+												>
+													<iconify-icon icon="mdi:trash-can-outline"></iconify-icon>
+												</Button>
+											</Tooltip>
 										</div>
 									</td>
 								</tr>
@@ -625,11 +817,16 @@
 						{queue_payload()}
 					</h4>
 					<pre
-						class="max-h-64 overflow-auto rounded-lg border border-surface-500/30 bg-surface-900 p-3 font-mono text-xs text-surface-100">{JSON.stringify(
-							selectedJob.payload ?? {},
-							null,
-							2
-						)}</pre>
+						class="max-h-64 overflow-auto rounded-lg border border-surface-500/30 bg-surface-900 p-3 font-mono text-xs text-surface-100">{typeof selectedJob.payload ===
+						'string'
+							? (() => {
+									try {
+										return JSON.stringify(JSON.parse(selectedJob.payload), null, 2);
+									} catch {
+										return selectedJob.payload;
+									}
+								})()
+							: JSON.stringify(selectedJob.payload ?? {}, null, 2)}</pre>
 				</div>
 			</div>
 		{/if}

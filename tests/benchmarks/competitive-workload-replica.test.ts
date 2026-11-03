@@ -319,7 +319,7 @@ test("Competitive 11-Workload Replica Benchmark", async () => {
     };
 
     const findByIdRandom = async () => {
-      const targetId = createdIds[(randomCursor++) % idCount] || stableId;
+      const targetId = createdIds[randomCursor++ % idCount] || stableId;
       const res = await fetch(`${collectionUrl}/${targetId}`, { headers });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       recordSplitSample("findByIdRandom", res);

@@ -152,12 +152,20 @@ It provides the following functionality:
 	};
 
 	// Derived reactive values
+	let selectedCategory = $state('All');
+
+	const allCategories = $derived(['All', ...getGroups(permissionsList)]);
+
 	const filteredPermissions = $derived(
 		permissionsList.filter(
 			(permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false
 		)
 	);
-	const groups = $derived(getGroups(filteredPermissions));
+	const groups = $derived(
+		getGroups(filteredPermissions).filter(
+			(group) => selectedCategory === 'All' || group === selectedCategory
+		)
+	);
 	const nonAdminRolesCount = $derived(roles.filter((role) => !role.isAdmin).length);
 
 	// Initialize data when component mounts and whenever page data changes
@@ -297,7 +305,7 @@ It provides the following functionality:
 {#if error}
 	<p class="error">{error}</p>
 {:else}
-	<div class="sticky top-0 z-10 mb-6 flex items-center justify-between">
+	<div class="sticky top-0 z-10 mb-4 flex flex-col gap-2.5">
 		<div class="w-full">
 			<FloatingInput
 				bind:value={searchTerm}
@@ -306,11 +314,33 @@ It provides the following functionality:
 				aria-label={access_permissions_search_aria()}
 			/>
 		</div>
+
+		{#if allCategories.length > 2}
+			<div
+				class="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-thin scrollbar-thumb-surface-500/30"
+				role="toolbar"
+				aria-label="Filter permissions by category"
+			>
+				{#each allCategories as category}
+					<button
+						type="button"
+						class="px-2.5 py-1 text-xs rounded-full transition-colors whitespace-nowrap cursor-pointer {selectedCategory ===
+						category
+							? 'bg-primary-500 text-white font-semibold shadow-xs'
+							: 'bg-surface-500/10 text-surface-400 hover:bg-surface-500/20 hover:text-surface-300'}"
+						onclick={() => (selectedCategory = category)}
+						aria-pressed={selectedCategory === category}
+					>
+						{category}
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 
 	{#if filteredPermissions.length === 0}
 		<div
-			class="text-center py-8 border border-dashed border-(--admin-border-default) rounded bg-(--admin-bg-chip)"
+			class="text-center py-2 border border-dashed border-(--admin-border-default) rounded bg-(--admin-bg-chip)"
 		>
 			<iconify-icon
 				icon="material-symbols:search-off-rounded"
@@ -448,7 +478,7 @@ It provides the following functionality:
 							<tr class="bg-surface-500/10 dark:bg-surface-800">
 								<td
 									colspan={nonAdminRolesCount + 2}
-									class="border-y border-surface-500/30 px-2 py-2 text-xs font-bold tracking-wider uppercase text-(--admin-text-body) dark:border-surface-500/40"
+									class="border-y border-surface-500/30 px-2 py-2 text-xs font-bold tracking-wider text-center uppercase text-(--admin-text-body) dark:border-surface-500/40"
 								>
 									{group}
 								</td>
@@ -457,9 +487,7 @@ It provides the following functionality:
 							{#each filterGroups(filteredPermissions, group) as permission (permission._id)}
 								<tr class={SMART_TABLE_ROW_HOVER}>
 									<!-- Type -->
-									<td
-										class="{SMART_TABLE_TD} text-start! text-sm font-medium text-(--admin-text-muted)"
-									>
+									<td class="{SMART_TABLE_TD} text-start! text-sm font-medium">
 										<span class="inline-flex items-center gap-1.5">
 											{permission.name}
 											{#if permission.description}

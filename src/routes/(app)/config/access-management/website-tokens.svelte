@@ -69,8 +69,10 @@
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import {
 		listUsersForTokens,
 		listWebsiteTokens,
@@ -492,7 +494,7 @@
 	</p>
 
 	<AdminCard class="mb-4 border border-(--admin-border-default)">
-		<div class="p-4 space-y-4">
+		<div class="p-2 space-y-2">
 			<h4
 				class="h4 mb-2 font-bold text-tertiary-500 dark:text-primary-500"
 				data-testid="website-tokens-generate"
@@ -501,32 +503,81 @@
 			</h4>
 
 			<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-				<Input
-					label="Token Name"
-					placeholder={tokens_name_placeholder()}
-					bind:value={newTokenName}
-				/>
+				<Input placeholder={tokens_name_placeholder()} bind:value={newTokenName}>
+					{#snippet labelSnippet()}
+						<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+							<span>Token Name</span>
+							<Tooltip
+								title="Descriptive identifier for this website access token (e.g., Marketing Site, NextJS App)."
+							>
+								<HelpIcon ariaLabel="Token name information" />
+							</Tooltip>
+						</div>
+					{/snippet}
+				</Input>
 
 				<div class="flex flex-col gap-2">
-					<Select label="Tenant Scope" bind:value={tenantScope} options={tenantScopeOptions} />
-					<Select label="Expiration" bind:value={expirationOption} options={expirationOptions} />
+					<Select bind:value={tenantScope} options={tenantScopeOptions}>
+						{#snippet labelSnippet()}
+							<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+								<span>Tenant Scope</span>
+								<Tooltip
+									title="Scope token access to the current tenant or grant cross-tenant access if permitted."
+								>
+									<HelpIcon ariaLabel="Tenant scope information" />
+								</Tooltip>
+							</div>
+						{/snippet}
+					</Select>
+					<Select bind:value={expirationOption} options={expirationOptions}>
+						{#snippet labelSnippet()}
+							<div class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)">
+								<span>Expiration</span>
+								<Tooltip
+									title="Token lifetime validity duration after which API requests will be rejected."
+								>
+									<HelpIcon ariaLabel="Expiration duration information" />
+								</Tooltip>
+							</div>
+						{/snippet}
+					</Select>
 					{#if expirationOption === 'custom'}
-						<Input label="Custom Date" type="date" bind:value={customExpirationDate} />
+						<Input type="date" bind:value={customExpirationDate}>
+							{#snippet labelSnippet()}
+								<div
+									class="flex items-center gap-1.5 text-sm font-semibold text-(--admin-text-body)"
+								>
+									<span>Custom Date</span>
+									<Tooltip title="Specific future expiration date for this access token.">
+										<HelpIcon ariaLabel="Custom expiration date information" />
+									</Tooltip>
+								</div>
+							{/snippet}
+						</Input>
 					{/if}
 				</div>
 			</div>
 
 			<div class="mt-4">
-				<div class="mb-2 flex items-center justify-between">
-					<h5 class="h5 font-bold">{tokens_permissions()}</h5>
-					<div class="flex items-center gap-4">
+				<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+					<div class="flex items-center gap-1.5">
+						<h5 class="h5 text-tertiary-500 dark:text-primary-500 font-bold">
+							{tokens_permissions()}
+						</h5>
+						<Tooltip
+							title="Select permissions to grant to this website token. If none are selected, token defaults to read-only content access."
+						>
+							<HelpIcon ariaLabel="Permissions information" />
+						</Tooltip>
+					</div>
+					<div class="flex items-center gap-2">
 						<Input
 							placeholder={tokens_search_placeholder()}
 							bind:value={permissionSearchTerm}
 							aria-label={tokens_search_aria()}
 							class="max-w-xs"
 						/>
-						<Button variant="surface" onclick={toggleSelectAllPermissions} size="sm">
+						<Button variant="surface" onclick={toggleSelectAllPermissions}>
 							{selectedPermissions.length === permissions.length ? 'Deselect All' : 'Select All'}
 						</Button>
 					</div>
@@ -560,22 +611,22 @@
 						</div>
 					{/if}
 				</AdminCard>
-			</div>
 
-			<div class="mt-4 flex justify-end">
-				<Button variant="tertiary" onclick={generateToken} leadingIcon="mdi:key-plus">
-					{tokens_generate()}
-				</Button>
+				<div class="mt-4 flex justify-end">
+					<Button variant="primary" onclick={generateToken} leadingIcon="mdi:key-plus">
+						{tokens_generate()}
+					</Button>
+				</div>
 			</div>
 		</div>
 	</AdminCard>
 
 	<AdminCard
-		class="my-2 flex h-full min-h-0 w-full flex-col border border-(--admin-border-default) sm:my-3"
+		class="my-2 flex h-full min-h-0 w-full flex-col border border-(--admin-border-default) "
 	>
-		<div class="px-4 pt-3">
+		<div class="p-2">
 			<div class={SMART_TABLE_TOOLBAR}>
-				<div class="flex items-center gap-4">
+				<div class="flex items-center gap-2">
 					<h4 class="h4 font-bold text-tertiary-500 dark:text-primary-500">{tokens_existing()}</h4>
 					{#if smartTable.selectedCount > 0}
 						<Button variant="error" onclick={bulkDeleteTokens} size="sm">

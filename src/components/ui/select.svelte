@@ -118,7 +118,7 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	}
 </script>
 
-<div class={cn('flex flex-col gap-1.5 w-full', className)}>
+<div class={cn('space-y-2 w-full', className)}>
 	{#if variant === 'floating' && label}
 		<!-- Floating label variant -->
 		<div class="relative">
@@ -183,7 +183,10 @@ and full accessibility. For search/filterable selects, use Combobox instead.
 	{:else}
 		<!-- Default label-above variant -->
 		{#if label || labelSnippet}
-			<label for={generatedId} class="text-sm font-semibold text-(--admin-text-muted)">
+			<label
+				for={generatedId}
+				class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+			>
 				{#if labelSnippet}
 					{@render labelSnippet()}
 				{:else}

@@ -135,6 +135,15 @@ export function hasEmptyConfigFields(
   values: Record<string, unknown>,
 ): boolean {
   return fields.some((field) => {
+    // Languages are configured during setup and have valid defaults; they do not require production warning banners.
+    if (
+      field.key === "DEFAULT_CONTENT_LANGUAGE" ||
+      field.key === "AVAILABLE_CONTENT_LANGUAGES" ||
+      field.key === "BASE_LOCALE" ||
+      field.key === "LOCALES"
+    ) {
+      return false;
+    }
     const value = values[field.key];
     if (typeof value === "string") {
       return (

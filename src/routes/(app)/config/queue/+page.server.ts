@@ -24,12 +24,23 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
   const status = url.searchParams.get("status") || undefined;
   const taskType = url.searchParams.get("taskType") || undefined;
+  const sortField = url.searchParams.get("sort") || "createdAt";
+  const sortDirection = (url.searchParams.get("order") as "asc" | "desc") || "desc";
+  const hideRoutine = url.searchParams.get("hideRoutine") === "true";
   const limit = Number(url.searchParams.get("limit")) || 25;
   const offset = Number(url.searchParams.get("offset")) || 0;
   const tenantId = locals.tenantId ?? undefined;
 
   const [jobsResult, countResult] = await Promise.all([
-    db.system.jobs.list({ status, taskType, limit, offset, tenantId }),
+    db.system.jobs.list({
+      status,
+      taskType,
+      limit,
+      offset,
+      tenantId,
+      ...(sortField ? { sortField, sortDirection } : {}),
+      ...(hideRoutine ? { filter: { hideRoutine: true } } : {}),
+    } as any),
     db.system.jobs.count({ status, taskType, tenantId }),
   ]);
 
@@ -59,6 +70,9 @@ export const load: PageServerLoad = async ({ url, locals }) => {
     pagination: {
       limit,
       offset,
+      sortField,
+      sortDirection,
+      hideRoutine,
     },
   };
 };

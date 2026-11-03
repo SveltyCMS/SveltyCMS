@@ -1099,7 +1099,7 @@ offset within the row on the native `dragover` event — that event carries
      ARIA tree, and a non-interactive role must not be focusable. -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
-	class="collection-builder-tree relative w-full h-auto overflow-y-auto rounded"
+	class="collection-builder-tree relative w-full h-auto rounded"
 	class:is-dragging={dndState.isDragging}
 	onkeydown={handleTreeKeyDown}
 	role={treeRoots.length > 0 ? 'tree' : undefined}

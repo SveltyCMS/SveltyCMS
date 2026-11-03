@@ -56,16 +56,34 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     if (dbAdapter.system?.preferences) {
       const results = await Promise.all(
         groups.map(async (group) => {
+          const keys = group.fields.map((f) => f.key);
+          const values: Record<string, unknown> = {};
+
+          if (keys.length > 0) {
+            const prefResult = await dbAdapter.system.preferences
+              .getMany(keys, {
+                scope: "system",
+                tenantId,
+              })
+              .catch(() => null);
+
+            if (prefResult?.success && prefResult.data) {
+              Object.assign(values, prefResult.data);
+            }
+          }
+
+          // Also check fallback group doc if any
           const pref = await dbAdapter.system.preferences
             .get(group.id, {
               scope: "system",
               tenantId,
             })
             .catch(() => null);
-          const values =
-            pref?.success && pref.data && typeof pref.data === "object"
-              ? { ...(pref.data as Record<string, unknown>) }
-              : {};
+
+          if (pref?.success && pref.data && typeof pref.data === "object") {
+            Object.assign(values, pref.data);
+          }
+
           // Mirror the form's historical default: an unset system timezone seeds
           // with the host timezone instead of rendering an empty required select.
           if (group.id === "site" && (!values.TIMEZONE || values.TIMEZONE === "")) {

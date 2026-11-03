@@ -40,7 +40,7 @@ test.describe("Operations Pages", () => {
     await expect(page.getByTestId("monitor-card-system")).toBeVisible();
     await expect(page.getByTestId("monitor-service-health")).toBeVisible();
     await expect(page.getByTestId("monitor-overall-state")).toBeVisible();
-    await expect(page.getByTestId("monitor-link-settings")).toBeVisible();
+    await expect(page.getByTestId("monitor-link-queue")).toBeVisible();
 
     // Verify system metrics card displays memory / CPU load
     const systemCard = page.getByTestId("monitor-card-system");

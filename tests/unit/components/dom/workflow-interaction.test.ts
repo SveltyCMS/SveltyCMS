@@ -36,6 +36,13 @@ const api = vi.hoisted(() => ({
 
 vi.mock("@src/routes/(app)/config/workflows/workflows-api", () => api);
 
+const modal = vi.hoisted(() => ({
+  showConfirm: vi.fn((options: { onConfirm?: () => void }) => options.onConfirm?.()),
+  modalState: {},
+}));
+
+vi.mock("@utils/modal.svelte", () => modal);
+
 const MOCK_COLLECTIONS = [
   { _id: "posts", name: "Blog Posts" },
   { _id: "articles", name: "News Articles" },
@@ -208,9 +215,8 @@ describe("Workflow Editor (DOM interaction)", () => {
       // Update the label via the inspector
       await typeText(labelInput, "Initial Draft");
 
-      // Card input should reflect the update
-      const cardInput = draftCard?.querySelector<HTMLInputElement>("input");
-      expect(cardInput?.value).toBe("Initial Draft");
+      // State card label text should reflect the update
+      expect(draftCard?.textContent).toContain("Initial Draft");
     } finally {
       cleanup();
     }

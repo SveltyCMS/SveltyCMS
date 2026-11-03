@@ -24,12 +24,14 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 	import { generateId } from '@utils/id-generator';
 	import type { HTMLTextareaAttributes } from 'svelte/elements';
 	import { getThemeContext } from './theme-context.svelte';
+	import type { Snippet } from 'svelte';
 
 	const generatedId = generateId('textarea');
 
 	type Props = HTMLTextareaAttributes & {
 		value?: string;
 		label?: string;
+		labelSnippet?: Snippet;
 		labelClass?: string;
 		textareaClass?: string;
 		error?: string;
@@ -39,6 +41,7 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 	let {
 		value = $bindable(''),
 		label,
+		labelSnippet,
 		labelClass,
 		textareaClass,
 		error,
@@ -68,7 +71,7 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 </script>
 
 <div class={cn('w-full space-y-2', className)}>
-	{#if label}
+	{#if label || labelSnippet}
 		<label
 			for={id}
 			class={cn(
@@ -76,7 +79,11 @@ Multi-line text input with label, error state, and AdminTheme radius integration
 				labelClass
 			)}
 		>
-			{label}
+			{#if labelSnippet}
+				{@render labelSnippet()}
+			{:else}
+				{label}
+			{/if}
 		</label>
 	{/if}
 

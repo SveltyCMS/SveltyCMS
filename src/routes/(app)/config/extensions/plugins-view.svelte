@@ -49,7 +49,7 @@
 	}
 
 	function handleConfigure(plugin: any) {
-		if (plugin.missingConfig && plugin.configUrl) {
+		if (plugin.configUrl) {
 			window.location.href = plugin.configUrl;
 			return;
 		}
