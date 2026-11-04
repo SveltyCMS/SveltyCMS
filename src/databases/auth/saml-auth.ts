@@ -67,6 +67,16 @@ function readPrivateSetting(key: string, tenant?: string | null): string | undef
   return (getPrivateSettingSync as any)(key, tenant ?? undefined) as string | undefined;
 }
 
+/**
+ * True when SAML Enterprise SSO is configured for the tenant.
+ */
+export function isSamlConfigured(tenant?: string | null): boolean {
+  return Boolean(
+    readPrivateSetting("SAML_ENTRY_POINT", tenant) ||
+    (typeof process !== "undefined" && process.env?.SAML_ENTRY_POINT),
+  );
+}
+
 /** Reads the tenant's IdP configuration from private settings. */
 function getSAMLConfig(tenant?: string | null, product?: string | null): SAMLConnectionConfig {
   const storedEntryPoint =
