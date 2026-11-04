@@ -142,8 +142,8 @@ describe("collections post-write invalidation", () => {
     expect(tags).toContain("res:Posts");
     expect(tags).toContain("collection:Posts");
     expect(tags).toContain("count:Posts");
-    // L1 must drop the list set as well, so no per-id opts are passed.
-    expect(invalidateCalls.at(-1)?.entryIds).toBeUndefined();
+    // L1 surgical entry invalidation passes the written ids so sibling findById turbo hits stay warm.
+    expect(invalidateCalls.at(-1)?.entryIds).toEqual(["abc-123"]);
   });
 
   it("clears every written doc tag for a coalesced bulk write", async () => {

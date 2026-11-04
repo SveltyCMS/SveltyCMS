@@ -676,6 +676,7 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
   try {
     event.locals.user = turbo.user;
     event.locals.isAdmin = turbo.isAdmin;
+    (event.locals as { __rateLimitAsyncRemote?: boolean }).__rateLimitAsyncRemote = true;
     const res = await handleRateLimit({
       event,
       resolve: async () => {
@@ -701,7 +702,9 @@ export const tryGraphqlWriteLane: Handle = async ({ event, resolve }) => {
     throw err;
   } finally {
     const durationMs = (performance.now() - start).toFixed(1);
-    recordAuditEntry(event, statusCode, durationMs, executionError);
+    if (!(event.locals as { __graphqlIsRead?: boolean }).__graphqlIsRead) {
+      recordAuditEntry(event, statusCode, durationMs, executionError);
+    }
   }
 };
 

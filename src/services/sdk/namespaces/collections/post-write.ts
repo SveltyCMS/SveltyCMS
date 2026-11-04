@@ -187,7 +187,11 @@ function queueInvalidation(
         // The written documents are cleared by id as well: a list body may embed them.
         if (ids) for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
         void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
-        rc.invalidateLocal(schemaId, tenantKey);
+        rc.invalidateLocal(
+          schemaId,
+          tenantKey,
+          ids && ids.size > 0 ? { entryIds: Array.from(ids) } : undefined,
+        );
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
       }

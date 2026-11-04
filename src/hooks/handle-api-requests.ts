@@ -563,7 +563,22 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
           // (measured: E2E "edited entry" missing). Turbo per-id keys are still
           // dropped below for the written entry.
           cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
-          responseCache.invalidateLocal(mutatedCollection, tenantIdString);
+          const pathParts = url.pathname.split("/").filter(Boolean);
+          const nameIdx = pathParts[1] === "local" ? 3 : 2;
+          const mutatedEntry = pathParts[nameIdx + 1];
+          const isPointWrite =
+            !!mutatedEntry &&
+            mutatedEntry !== "list" &&
+            mutatedEntry !== "search" &&
+            mutatedEntry !== "batch" &&
+            mutatedEntry !== "bulk" &&
+            mutatedEntry !== "increment";
+          const isCreate = request.method === "POST" && !mutatedEntry;
+          responseCache.invalidateLocal(
+            mutatedCollection,
+            tenantIdString,
+            isPointWrite ? { entryIds: [mutatedEntry] } : isCreate ? { entryIds: [] } : undefined,
+          );
         } else {
           void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
         }
