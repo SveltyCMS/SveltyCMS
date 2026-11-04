@@ -107,7 +107,18 @@ export async function migrateToSingleTenant(tenantId: string): Promise<{
 
   try {
     await fs.mkdir(flat, { recursive: true });
-    const entries = await fs.readdir(tenantDir, { withFileTypes: true });
+    let entries: import("node:fs").Dirent[] = [];
+    try {
+      entries = await fs.readdir(tenantDir, { withFileTypes: true });
+    } catch (e: any) {
+      if (e?.code === "ENOENT") {
+        logger.info(
+          `[Migration] Tenant directory does not exist: ${tenantDir}, skipping collection revert`,
+        );
+        return result;
+      }
+      throw e;
+    }
 
     for (const entry of entries) {
       if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
@@ -326,8 +337,9 @@ export async function detectFullStructure(): Promise<StructureInfo> {
   const { flat, tenant: _tenantDir } = getMigrationDirs();
 
   const configEntries = await fs.readdir(paths.config, { withFileTypes: true }).catch(() => []);
+  const nonTenantDirs = new Set(["collections", "database", "test-collections", "test-database"]);
   const tenantDirectories = configEntries
-    .filter((e) => e.isDirectory() && e.name !== "collections")
+    .filter((e) => e.isDirectory() && !nonTenantDirs.has(e.name))
     .map((e) => e.name);
 
   const flatFiles = await fs.readdir(flat).catch(() => []);

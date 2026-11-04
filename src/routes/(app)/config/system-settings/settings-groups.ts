@@ -334,6 +334,17 @@ export const settingsGroups: SettingGroup[] = [
           { value: "all", label: "Full Purge" },
         ],
       },
+      {
+        key: "DEMO_TTL",
+        label: "Demo Session TTL",
+        description: "Time in minutes before a demo tenant and session expire (default: 60)",
+        type: "number",
+        category: "public",
+        min: 1,
+        max: 1440,
+        unit: "minutes",
+        placeholder: "60",
+      },
     ],
   },
   {
@@ -468,17 +479,13 @@ export const settingsGroups: SettingGroup[] = [
       {
         key: "ENCRYPTION_KEY",
         label: "Encryption Key",
-        description: "Key for encrypting sensitive data (min 32 characters)",
+        description:
+          "Key for encrypting sensitive data (read-only, configured via config/private.ts)",
         type: "security",
         category: "private",
         required: true,
+        readonly: true,
         sensitive: true,
-        validation: (value) => {
-          if (!value || typeof value !== "string" || value.length < 32) {
-            return "Encryption Key must be at least 32 characters long";
-          }
-          return null;
-        },
       },
       {
         key: "PASSWORD_MIN_LENGTH",
@@ -610,17 +617,6 @@ export const settingsGroups: SettingGroup[] = [
         description: "Allow users to login with Google accounts",
         type: "boolean",
         category: "public",
-      },
-      {
-        key: "DEMO_TTL",
-        label: "Demo Session TTL",
-        description: "Time in minutes before a demo tenant and session expire (default: 60)",
-        type: "number",
-        category: "public",
-        min: 1,
-        max: 1440,
-        unit: "minutes",
-        placeholder: "60",
       },
       {
         key: "GOOGLE_CLIENT_ID",

@@ -400,9 +400,10 @@ export async function completeSetup(
       try {
         const existing = await dbAdapter.system.tenants.getById(primaryTenantId);
         if (!existing.success || !existing.data) {
-          await dbAdapter.system.tenants.create({
+          const createResult = await dbAdapter.system.tenants.create({
             _id: primaryTenantId,
             name: system.siteName || "Primary",
+            ownerId: primaryTenantId,
             status: "active",
             plan: "enterprise",
             quota: {
@@ -419,9 +420,17 @@ export async function completeSetup(
               lastUpdated: new Date(),
             },
           });
-          logger.info(`[Setup] Created primary tenant: ${primaryTenantId}`);
+          if (createResult.success) {
+            logger.info(`[Setup] Created primary tenant: ${primaryTenantId}`);
+            effectiveTenantId = primaryTenantId;
+          } else {
+            logger.warn(
+              `[Setup] Failed to create primary tenant: ${createResult.error?.message || "Unknown error"}, falling back to flat config`,
+            );
+          }
+        } else {
+          effectiveTenantId = primaryTenantId;
         }
-        effectiveTenantId = primaryTenantId;
       } catch (e) {
         logger.warn("[Setup] Failed to create primary tenant, falling back to flat config:", e);
       }
@@ -612,6 +621,8 @@ export async function completeSetup(
         await import("@src/databases/config-state");
       clearPrivateConfigCache();
       await loadPrivateConfig(true);
+      const { resetMultiTenantCache } = await import("@utils/tenant-isolation.server");
+      resetMultiTenantCache();
     } catch (e) {
       logger.error("Failed to save custom system preferences during setup:", e);
     }

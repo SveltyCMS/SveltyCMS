@@ -90,6 +90,14 @@ export const setMultiTenantConfig = command(
     try {
       const { updatePrivateConfigMode } = await import("@src/routes/setup/write-private-config");
       await updatePrivateConfigMode({ multiTenant: payload.enabled });
+      const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+      invalidateSettingsCache();
+      const { clearPrivateConfigCache, loadPrivateConfig } =
+        await import("@src/databases/config-state");
+      clearPrivateConfigCache();
+      await loadPrivateConfig(true);
+      const { resetMultiTenantCache } = await import("@utils/tenant-isolation.server");
+      resetMultiTenantCache();
       return {
         success: true,
         message: `Multi-tenancy has been ${payload.enabled ? "enabled" : "disabled"} in private.ts. A server restart is required for changes to take full effect.`,
@@ -132,14 +140,6 @@ export const runTenantMigration = command(
       const { updatePrivateConfigMode } = await import("@src/routes/setup/write-private-config");
       const tenantId = payload.tenantId || "primary";
 
-      // Toggle the MULTI_TENANT flag in config/private.ts
-      await updatePrivateConfigMode({
-        multiTenant: payload.direction === "to-multi",
-      });
-      logger.info(
-        `[Migration] Set MULTI_TENANT=${payload.direction === "to-multi"} in config/private.ts`,
-      );
-
       const result = await runFullMigration(tenantId, payload.direction);
 
       if (!result.success) {
@@ -148,6 +148,23 @@ export const runTenantMigration = command(
           error: result.warnings.join("; ") || "Migration failed",
         };
       }
+
+      // Toggle the MULTI_TENANT flag in config/private.ts ONLY on migration success
+      await updatePrivateConfigMode({
+        multiTenant: payload.direction === "to-multi",
+      });
+      const { invalidateSettingsCache } = await import("@src/services/core/settings-service");
+      invalidateSettingsCache();
+      const { clearPrivateConfigCache, loadPrivateConfig } =
+        await import("@src/databases/config-state");
+      clearPrivateConfigCache();
+      await loadPrivateConfig(true);
+      const { resetMultiTenantCache } = await import("@utils/tenant-isolation.server");
+      resetMultiTenantCache();
+
+      logger.info(
+        `[Migration] Set MULTI_TENANT=${payload.direction === "to-multi"} in config/private.ts`,
+      );
 
       const parts: string[] = [];
       if (result.collectionsMoved > 0) parts.push(`${result.collectionsMoved} collection(s) moved`);

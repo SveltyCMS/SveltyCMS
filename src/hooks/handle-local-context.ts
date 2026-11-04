@@ -18,7 +18,7 @@ import { logger } from "@utils/logger";
 import { getSetupState, SetupState } from "@utils/server/setup-check";
 
 const WHITELIST_REGEX =
-  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|config|user|dashboard|mediagallery|login|email-previews|admin|setup)(?:\/|$)/;
+  /^(?:\/[a-z]{2,5}(?:-[a-zA-Z]+)?)?\/(api|_app|config|user|dashboard|mediagallery|login|email-previews|admin|setup)(?:\/|$)/;
 
 const tenantInitializationFlights = new Map<string, Promise<void>>();
 
