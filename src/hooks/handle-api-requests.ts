@@ -556,25 +556,14 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
         // not the collection id — using it as the collection name used to wipe
         // every `/api/collections/*` turbo key on any write.
         const mutatedCollection = getCollectionFromPath(url.pathname);
-        const pathParts = url.pathname.split("/").filter(Boolean);
-        const nameIdx = pathParts[1] === "local" ? 3 : 2;
-        const mutatedEntry = pathParts[nameIdx + 1];
-        const isPointWrite =
-          !!mutatedEntry &&
-          mutatedEntry !== "list" &&
-          mutatedEntry !== "search" &&
-          mutatedEntry !== "batch" &&
-          mutatedEntry !== "bulk" &&
-          mutatedEntry !== "increment";
         if (mutatedCollection) {
-          if (!isPointWrite) {
-            cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
-          }
-          responseCache.invalidateLocal(
-            mutatedCollection,
-            tenantIdString,
-            isPointWrite ? { entryIds: [mutatedEntry] } : undefined,
-          );
+          // The epoch bump and the list eviction are unconditional: a single-entry
+          // PATCH changes fields the list renders (title, status, updatedAt), and
+          // skipping the list left the old row on screen until its TTL expired
+          // (measured: E2E "edited entry" missing). Turbo per-id keys are still
+          // dropped below for the written entry.
+          cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
+          responseCache.invalidateLocal(mutatedCollection, tenantIdString);
         } else {
           void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
         }
