@@ -990,25 +990,9 @@ async function rebuildWarmCollectionRead(
         const cacheT0 = marks ? performance.now() : 0;
         const tags = collectionResponseCacheTags(collectionId, null).tags;
         const bodyBytes = Buffer.byteLength(apiBody, "utf8");
-        let compressedVariants: Record<string, Uint8Array> | undefined;
-        const acceptEncoding = event.request.headers.get("accept-encoding") ?? "";
-        if (acceptEncoding && bodyBytes > STASH_MIN_BYTES && bodyBytes <= STASH_MAX_BYTES) {
-          const algo = negotiateEncoding(acceptEncoding, hasNativeCompression(), {
-            contentLength: bodyBytes,
-          });
-          if (algo) {
-            const variant =
-              bodyBytes <= SYNC_MAX_SIZE
-                ? compressSync(apiBody, algo, bodyBytes)
-                : await compressAsync(apiBody, algo, bodyBytes).catch(() => null);
-            if (variant) compressedVariants = { [algo]: variant };
-          }
-        }
         responseCache.set(
           pathKey,
-          compressedVariants
-            ? { body: apiBody, etag, byteLength: bodyBytes, compressed: compressedVariants }
-            : { body: apiBody, etag, byteLength: bodyBytes },
+          { body: apiBody, etag, byteLength: bodyBytes },
           300_000,
           cacheTenant,
           {
@@ -1017,9 +1001,18 @@ async function rebuildWarmCollectionRead(
           },
         );
         marks?.set("cachewrite", performance.now() - cacheT0);
-        return compressedVariants
-          ? { body: apiBody, etag, miss: true, compressed: compressedVariants }
-          : { body: apiBody, etag, miss: true };
+        if (tags) {
+          void scheduleTurboVariantStash({
+            key: pathKey,
+            body: apiBody,
+            etag,
+            byteLength: bodyBytes,
+            ttlMs: 300_000,
+            tenantId: cacheTenant,
+            setOptions: { tags, skipSharedL1: false },
+          });
+        }
+        return { body: apiBody, etag, miss: true };
       }
     }
   }
