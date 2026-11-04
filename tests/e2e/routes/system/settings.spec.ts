@@ -8,7 +8,7 @@
 
 import { expect, test, type Page } from "../../fixtures";
 import { loginAsAdmin } from "../../helpers/auth";
-import { fillUntil, selectAndWaitForUrl } from "../../helpers/hydration";
+import { fillUntil, runAfterHydration, selectAndWaitForUrl } from "../../helpers/hydration";
 
 const ACTION_TIMEOUT = 20_000;
 
@@ -204,16 +204,14 @@ test.describe("System Settings shell", () => {
       timeout: ACTION_TIMEOUT,
     });
 
-    // Verify persistence via API call instead of UI reload.
-    // CACHE_TTL_SCHEMA is category "private" — values load from config
-    // files on fresh page loads, so the UI input won't reflect DB saves.
-    // (saveRes above already resolved, so the DB write is committed.)
-    const verifyApi = await page.request.get(
-      `/api/settings/cache?bypassCache=true&_=${Date.now()}`,
-    );
-    expect(verifyApi.ok()).toBeTruthy();
-    const verifyBody = await verifyApi.json();
-    expect(verifyBody.values?.CACHE_TTL_SCHEMA).toBe(Number(target));
+    // Persistence proof: reload the group from the server. `loadSettingsGroup` merges
+    // the stored system-preferences document over the config default, so a value that
+    // only ever lived in the input comes back as the old number.
+    // The public `/api/settings/<group>` endpoint cannot prove this: it returns
+    // non-secret values only, and every cache field is category "private".
+    await goSettings(page, "cache");
+    const reloaded = page.getByTestId("settings-field-CACHE_TTL_SCHEMA").locator("input").first();
+    await expect(reloaded).toHaveValue(target, { timeout: ACTION_TIMEOUT });
   });
 
   test("appearance settings toggle saves and reloads without errors", async ({ page }) => {
@@ -229,7 +227,18 @@ test.describe("System Settings shell", () => {
     await expect(toggle).toBeAttached({ timeout: ACTION_TIMEOUT });
 
     const groupSave = page.getByTestId("settings-group-save");
-    await toggle.click({ force: true });
+    const wasChecked = await toggle.isChecked();
+
+    // The native checkbox is a 1×1 px input behind the styled track: a pointer click
+    // cannot reach it (measured: `click()` times out at any timeout and
+    // `{ force: true }` neither toggles nor dirties the form). Drive it like a
+    // keyboard user — focus + Space — which exercises the real change handler, and
+    // assert the state actually flipped before looking at the save button.
+    await runAfterHydration(page, async () => {
+      await toggle.focus();
+      await page.keyboard.press("Space");
+    });
+    await expect(toggle).toBeChecked({ checked: !wasChecked, timeout: ACTION_TIMEOUT });
     await expect(groupSave).toBeEnabled({ timeout: ACTION_TIMEOUT });
 
     await groupSave.click();
