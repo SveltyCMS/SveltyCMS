@@ -971,6 +971,7 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
   }
 
   const isQuery = isReadOnlyQuery(query);
+  (locals as { __graphqlIsRead?: boolean }).__graphqlIsRead = isQuery;
 
   if (!isQuery && request.method === "POST" && process.env.TEST_MODE !== "true") {
     const idempotencyKey =

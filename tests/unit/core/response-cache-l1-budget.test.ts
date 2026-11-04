@@ -141,9 +141,9 @@ describe("ResponseCache L1 byte budget", () => {
     expect(pointAfter.pointEntries).toBe(0);
     expect(pointAfter.pointBytes).toBe(pointBefore - ENTRY_BYTES);
     expect(pointAfter.pointBytes).toBe(pointAfter.recountPointBytes);
-    // The write also evicts the collection's list bodies (retest M2).
+    // Surgical point-write preserves collection list bodies (lists stay warm).
     expect(pointAfter.listBytes).toBe(pointAfter.recountListBytes);
-    expect(responseCache.get(LIST_KEY, "global")).toBeNull();
+    expect(responseCache.get(LIST_KEY, "global")?.body).toBeDefined();
 
     // 3. Key invalidation.
     responseCache.set(LIST_KEY, entry("e2"), 300_000, "global", { skipSharedL1: true });

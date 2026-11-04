@@ -177,6 +177,13 @@ The SveltyCMS auth surface has been expanded with 4 additional authentication me
 - **Magic Links**: Passwordless email login via single-use tokens with 15-min TTL, TOCTOU-safe consumption, and anti-enumeration responses.
 - **Guest Auth**: Ephemeral `ANONYMOUS_USER` on public routes with read-only `guest` role — stateless, no session created.
 - **WebAuthn/Passkeys** (~75%): Biometric login via platform authenticators — challenge/response ceremony complete, COSE→JWK attestation, CBOR parsing. Settings-page UI pending.
+- **Enterprise SSO (SAML 2.0 & OIDC)**: Enterprise federation supporting Okta, Microsoft Entra ID (Azure AD), Google Workspace, Auth0, and Keycloak:
+  - **SAML 2.0 SP**: `@node-saml/node-saml` service provider supporting both SP-initiated (`/api/auth/saml/login`) and IdP-initiated assertions at `/api/auth/saml/acs`.
+  - **CSRF & Replay Defense**: Cookie-bound `InResponseTo` request ID validation prevents replay attacks and unsolicited assertions.
+  - **OIDC Discovery & PKCE**: RFC 7636 (S256) PKCE flow with JWKS key rotation verification.
+  - **JIT Provisioning & Role Mapping**: Dynamic group/claim mapping rules auto-provision users into local RBAC roles on initial login.
+  - **RP-Initiated Logout**: OIDC RP-Initiated logout (`/api/auth/oidc-logout`) with strict redirect URI allowlists.
+  - **Zero-Latency Decoupling**: Post-login requests authenticate via the standard `__Host-` session cookie and in-register 64-bit bitmask (<0.5 ns), ensuring zero IdP network overhead during content CRUD.
 
 ---
 

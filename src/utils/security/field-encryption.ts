@@ -31,6 +31,7 @@ import {
   hybridOpen,
   isMlKemAvailable,
 } from "@utils/security/hybrid-kem";
+import { cloudKms } from "@utils/security/cloud-kms";
 
 const ALGORITHM = ENCRYPTION_CONFIG.algorithm;
 const IV_LENGTH = ENCRYPTION_CONFIG.ivLength;
@@ -60,6 +61,18 @@ function readEncryptionKeyRaw(): string | null {
  * Synchronous static AES key resolver (cached after first resolution).
  */
 export function getFieldKeysSync(): ResolvedKeyRing | null {
+  if (cloudKms.isEnabled()) {
+    const kmsDek = cloudKms.getActiveDekSync();
+    if (kmsDek) {
+      return {
+        primaryId: kmsDek.keyId,
+        primary: kmsDek.plaintext,
+        entries: [{ id: kmsDek.keyId, key: kmsDek.plaintext }],
+        legacy: [],
+      };
+    }
+  }
+
   if (_fieldKeys !== undefined) return _fieldKeys;
   _fieldKeys = null;
   try {
@@ -194,6 +207,13 @@ export function decryptFieldValueSync(
       return null;
     }
     const selection = keysForEnvelope(keys, parsed);
+    if (selection.unknownKeyId && parsed.keyId?.startsWith("kms.")) {
+      const kmsDek = cloudKms.getActiveDekSync();
+      if (kmsDek && kmsDek.keyId === parsed.keyId) {
+        selection.keys = [kmsDek.plaintext];
+        selection.unknownKeyId = false;
+      }
+    }
     if (selection.unknownKeyId) {
       logger.error("[FieldEncryption] Unknown key ID — refusing to decrypt", {
         fieldName,

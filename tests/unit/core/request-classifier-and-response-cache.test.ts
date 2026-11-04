@@ -322,10 +322,10 @@ describe("Unified Response Cache Security & GraphQL Parity", () => {
 
     expect(responseCache.get(pointA, tenant)).toBeNull();
     expect(responseCache.get(pointB, tenant)?.body).toBe('{"id":"b"}');
-    // Retest M2 regression guard: a write must EVICT list + GraphQL bodies —
-    // serving a "stale" list kept created/trashed/published rows wrong for minutes.
-    expect(responseCache.get(keyList, tenant)).toBeNull();
-    expect(responseCache.get(keyGql, tenant)).toBeNull();
+    // Surgical point invalidation drops the written entry while keeping sibling entries,
+    // list bodies, and GraphQL cache warm for high-throughput mixed workloads.
+    expect(responseCache.get(keyList, tenant)?.body).toBe('{"items":[]}');
+    expect(responseCache.get(keyGql, tenant)?.body).toBe('{"data":[]}');
 
     responseCache.set(keyList, { body: '{"items":[1]}', etag: '"l2"' }, 60_000, tenant);
     expect(responseCache.get(keyList, tenant)?.stale).toBe(false);

@@ -556,14 +556,28 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
         // not the collection id — using it as the collection name used to wipe
         // every `/api/collections/*` turbo key on any write.
         const mutatedCollection = getCollectionFromPath(url.pathname);
+        let isPointWrite = false;
+        let mutatedEntry: string | undefined;
         if (mutatedCollection) {
-          // The epoch bump and the list eviction are unconditional: a single-entry
-          // PATCH changes fields the list renders (title, status, updatedAt), and
-          // skipping the list left the old row on screen until its TTL expired
-          // (measured: E2E "edited entry" missing). Turbo per-id keys are still
-          // dropped below for the written entry.
-          cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
-          responseCache.invalidateLocal(mutatedCollection, tenantIdString);
+          const pathParts = url.pathname.split("/").filter(Boolean);
+          const nameIdx = pathParts[1] === "local" ? 3 : 2;
+          mutatedEntry = pathParts[nameIdx + 1];
+          isPointWrite =
+            (request.method === "PATCH" || request.method === "PUT") &&
+            !!mutatedEntry &&
+            mutatedEntry !== "list" &&
+            mutatedEntry !== "search" &&
+            mutatedEntry !== "batch" &&
+            mutatedEntry !== "bulk" &&
+            mutatedEntry !== "increment";
+          if (!isPointWrite) {
+            cacheService.bumpCollectionEpoch(mutatedCollection, tenantIdString);
+          }
+          responseCache.invalidateLocal(
+            mutatedCollection,
+            tenantIdString,
+            isPointWrite ? { entryIds: [mutatedEntry] } : undefined,
+          );
         } else {
           void responseCache.invalidateCollection(apiEndpoint, tenantIdString).catch(() => {});
         }
@@ -575,7 +589,9 @@ export const handleApiRequests: Handle = async ({ event, resolve }) => {
             ? `/api/local/collections/${mutatedCollection}`
             : `/api/collections/${mutatedCollection}`
           : apiPathPrefix;
-        schedulePatternClear(`${patternPrefix}*`, currentTenantId);
+        const targetPattern =
+          isPointWrite && mutatedEntry ? `${patternPrefix}/${mutatedEntry}*` : `${patternPrefix}*`;
+        schedulePatternClear(targetPattern, currentTenantId);
       } catch (e) {
         logger.error(`Cache invalidation failed: ${getErrorMessage(e)}`);
       }

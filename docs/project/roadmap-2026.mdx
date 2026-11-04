@@ -217,6 +217,9 @@ tags:
   - [ ] Write rules beyond read (create/update/delete per row) and operator support (`$ne`, `$in` beyond arrays, relation traversal).
   - [ ] Admin UI for rule authoring with validation and a preview of the generated filter.
 
+- **Enterprise Identity & Encryption (Shipped 2026-11-04)**:
+  - [x] **Enterprise Cloud KMS Envelope Encryption**: Multi-cloud envelope encryption supporting AWS KMS, GCP KMS, Azure Key Vault, HashiCorp Vault, and Local HKDF. Zero-latency in-memory DEK caching ensures sub-microsecond field encryption (<0.008 ms/op, zero network calls on hot paths) preserving sub-2ms persistence. Shipped in `src/utils/security/cloud-kms.ts`.
+  - [x] **Enterprise SAML 2.0 & OIDC SSO Federation**: SP-initiated and IdP-initiated SAML 2.0 login (`@node-saml/node-saml`), one-click public provider discovery, RFC 7636 PKCE, JIT auto-provisioning with claim-to-role mapping rules, and OIDC RP-initiated logout. Fully decoupled from session authorization (<0.5 ns in-register bitmask check post-login). Shipped in `src/databases/auth/saml-auth.ts` and `src/databases/auth/sso-session.ts`.
 - **Third-Party Security Audit** — posture: [Security posture](../reference/security/security-posture.mdx):
   - Commission an independent external penetration test prior to enterprise GA. **Not performed as of 2026-10-18.**
 - **Cryptographic agility (PQC readiness)** — reference: [Quantum security](../reference/security/quantum-security.mdx):

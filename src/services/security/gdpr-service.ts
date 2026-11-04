@@ -38,14 +38,39 @@ export class GDPRService {
 
     try {
       // 1. Fetch Core User Profile using Auth Adapter (scoped to tenant)
-      const userResult = await dbAdapter.auth.getUserById(userId as DatabaseId, {
-        tenantId: tenantId as DatabaseId,
-      });
+      // Allow lookup by email address if the input contains '@'
+      let userResult: any = null;
+      if (userId.includes("@") && typeof dbAdapter.auth.getUserByEmail === "function") {
+        userResult = await dbAdapter.auth.getUserByEmail(
+          { email: userId.trim(), tenantId: tenantId as DatabaseId },
+          { tenantId: tenantId as DatabaseId },
+        );
+      } else {
+        userResult = await dbAdapter.auth.getUserById(userId as DatabaseId, {
+          tenantId: tenantId as DatabaseId,
+        });
+      }
 
-      if (!(userResult.success && userResult.data)) {
+      // Fallback: if user ID was passed but not found, try email just in case
+      if (
+        !(userResult?.success && userResult?.data) &&
+        !userId.includes("@") &&
+        typeof dbAdapter.auth.getUserByEmail === "function"
+      ) {
+        const emailFallback = await dbAdapter.auth.getUserByEmail(
+          { email: userId.trim(), tenantId: tenantId as DatabaseId },
+          { tenantId: tenantId as DatabaseId },
+        );
+        if (emailFallback?.success && emailFallback?.data) {
+          userResult = emailFallback;
+        }
+      }
+
+      if (!(userResult?.success && userResult?.data)) {
         throw new Error("User not found or access denied");
       }
       const user = userResult.data;
+      const canonicalUserId = String(user._id ?? user.id ?? userId);
 
       // 2. Fetch User Activity (Audit Logs)
       // Scope the query server-side to this tenant and actor so we never load
@@ -53,15 +78,15 @@ export class GDPRService {
       const logsResult = await auditLogService.queryLogs({
         limit: 1000,
         tenantId: tenantId as DatabaseId,
-        filters: { actorId: userId },
+        filters: { actorId: canonicalUserId },
       });
       const userLogs = logsResult.success ? logsResult.data : [];
 
       // 3. Log the Export Request
       await auditLogService.log(
         "GDPR Data Export",
-        { id: userId as any, email: user.email || "", ip: "system" },
-        { type: "user", id: userId as any },
+        { id: canonicalUserId as any, email: user.email || "", ip: "system" },
+        { type: "user", id: canonicalUserId as any },
         AuditEventType.DATA_EXPORT,
         "medium",
         { method: "GDPRService.exportUserData", tenantId },

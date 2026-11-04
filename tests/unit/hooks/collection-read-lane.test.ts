@@ -194,7 +194,8 @@ describe("collection read lane single-flight", () => {
       user._id,
     );
 
-    responseCache.invalidateLocal("BenchmarkStable", null, { entryIds: ["1"] });
+    // A structural write (create / delete) evicts collection list bodies so newly created rows are visible.
+    responseCache.invalidateLocal("BenchmarkStable", null);
     expect(responseCache.get(key, null)).toBeNull();
 
     findMock.mockResolvedValue({

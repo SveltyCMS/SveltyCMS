@@ -7,7 +7,7 @@
  * - group keys stored as one preferences document
  */
 
-import { query, getRequestEvent } from "$app/server";
+import { command, query, getRequestEvent } from "$app/server";
 import { getRequestLocalCMS, remoteErrorMessage } from "@utils/server/request-cms.server";
 import { settingsGroups } from "./settings-groups";
 import { AppError } from "@utils/error-handling";
@@ -97,7 +97,7 @@ export const loadSettingsGroup = query(
   },
 );
 
-export const saveSettingsGroup = query(
+export const saveSettingsGroup = command(
   "unchecked",
   async ({
     groupId,

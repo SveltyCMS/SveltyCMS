@@ -64,6 +64,8 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	import { beforeNavigate } from '$app/navigation';
 	import { showConfirm } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Toggle from '@components/ui/toggle.svelte';
+	import { toast } from '@src/stores/toast.svelte.ts';
 
 	// Get user admin status from page data (set by +page.server.ts)
 	const { data } = $props();
@@ -151,16 +153,51 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 			const result = await runTenantMigration({ direction, tenantId: 'primary' });
 			if (result.success) {
 				migrationResult = { success: true, message: result.message, details: result.details };
+				toast.success(result.message || 'Migration completed successfully');
+				await checkStructure();
 			} else {
 				migrationResult = { success: false, error: result.error || 'Migration failed' };
+				toast.error(result.error || 'Migration failed');
 			}
 		} catch (e: unknown) {
 			migrationResult = {
 				success: false,
 				error: e instanceof Error ? e.message : 'Migration failed'
 			};
+			toast.error(migrationResult.error ?? 'Migration failed');
 		} finally {
 			isMigrating = false;
+		}
+	}
+
+	let isTogglingMt = $state(false);
+
+	async function handleToggleMultiTenant(targetEnabled: boolean) {
+		const confirmed = await showConfirm({
+			title: targetEnabled ? 'Enable Multi-Tenancy' : 'Disable Multi-Tenancy',
+			body: targetEnabled
+				? 'Enabling multi-tenancy mode switches data isolation to per-tenant scopes. If you have existing flat collections, run "Migrate Now" to place them in the primary tenant directory. Proceed?'
+				: 'Disabling multi-tenancy mode returns the CMS to single-tenant mode. Existing tenant-specific directories will remain on disk. Proceed?',
+			confirmText: targetEnabled ? 'Enable' : 'Disable',
+			cancelText: 'Cancel'
+		});
+
+		if (!confirmed) return;
+
+		isTogglingMt = true;
+		try {
+			const { setMultiTenantConfig } = await import('./admin.remote');
+			const result = await setMultiTenantConfig({ enabled: targetEnabled });
+			if (result.success) {
+				toast.success(result.message || 'Multi-tenancy configuration updated');
+				await checkStructure();
+			} else {
+				toast.error(result.error || 'Failed to update multi-tenancy configuration');
+			}
+		} catch (e: unknown) {
+			toast.error(e instanceof Error ? e.message : 'Failed to update multi-tenancy configuration');
+		} finally {
+			isTogglingMt = false;
 		}
 	}
 
@@ -280,7 +317,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 							{unconfiguredCount === 1 ? syssettings_group_needs() : syssettings_groups_need()}
 							{syssettings_configure_before_prod()}</strong
 						>
-						<p class="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1">
+						<div class="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1">
 							<span>{syssettings_configure_following()}</span>
 							{#each availableGroups.filter((g) => needsConfigIds.has(g.id)) as group, i (group.id)}
 								<Button
@@ -295,7 +332,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 									{group.name}
 								</Button>{i < unconfiguredCount - 1 ? ',' : ''}
 							{/each}
-						</p>
+						</div>
 					</div>
 				</Alert>
 			</div>
@@ -427,16 +464,28 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 		<!-- Multi-Tenancy migration — only on cache/scaling maintenance panels -->
 		{#if activeGroup?.id === 'cache' || activeGroup?.id === 'scaling'}
 			<AdminCard class="p-4 md:p-6" data-testid="system-settings-mt-migration">
-				<div class="mb-4 flex items-start gap-3">
-					<iconify-icon
-						icon="mdi:server-network"
-						width="22"
-						class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
-						aria-hidden="true"
-					></iconify-icon>
-					<div>
-						<h2 class="text-lg font-semibold">{syssettings_mt_heading()}</h2>
-						<p class="text-sm text-(--admin-text-muted)">{syssettings_mt_intro()}</p>
+				<div class="mb-4 flex items-start justify-between gap-4">
+					<div class="flex items-start gap-3">
+						<iconify-icon
+							icon="mdi:server-network"
+							width="22"
+							class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+							aria-hidden="true"
+						></iconify-icon>
+						<div>
+							<h2 class="text-lg font-semibold">{syssettings_mt_heading()}</h2>
+							<p class="text-sm text-(--admin-text-muted)">{syssettings_mt_intro()}</p>
+						</div>
+					</div>
+
+					<div class="flex items-center gap-2 shrink-0">
+						<Toggle
+							value={structureInfo?.isMultiTenant ?? (page.data.isMultiTenant as boolean)}
+							disabled={isTogglingMt || isMigrating || !hydration.hydrated}
+							label="Multi-Tenant Mode"
+							onToggle={(val) => handleToggleMultiTenant(val)}
+							data-testid="system-settings-mt-toggle"
+						/>
 					</div>
 				</div>
 

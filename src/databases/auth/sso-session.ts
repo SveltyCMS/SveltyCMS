@@ -26,7 +26,7 @@ import {
 import { logger } from "@utils/logger";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
-import { getUntypedSetting } from "@src/services/core/settings-service";
+import { getPrivateSettingSync, getUntypedSetting } from "@src/services/core/settings-service";
 import { validateEgressUrl, safeFetch } from "@src/utils/egress-guard";
 import type { DatabaseId } from "@src/content/types";
 
@@ -222,12 +222,27 @@ const DEFAULT_PROVIDER_ICONS: Record<string, string> = {
 };
 
 export function getPublicSsoProviders(tenantId?: string | null): PublicSsoProvider[] {
-  return getAllSsoProviders(tenantId).map((p) => ({
+  const providers = getAllSsoProviders(tenantId).map((p) => ({
     id: p.id,
     name: p.name || p.id.charAt(0).toUpperCase() + p.id.slice(1),
     icon: p.icon || DEFAULT_PROVIDER_ICONS[p.id.toLowerCase()] || "mdi:shield-key-outline",
     authUrl: `/api/auth/oidc-login?provider=${encodeURIComponent(p.id)}`,
   }));
+
+  const samlConfigured =
+    Boolean((getPrivateSettingSync as any)?.("SAML_ENTRY_POINT", tenantId ?? undefined)) ||
+    (typeof process !== "undefined" && Boolean(process.env?.SAML_ENTRY_POINT));
+
+  if (samlConfigured) {
+    providers.push({
+      id: "saml",
+      name: "Enterprise SSO (SAML)",
+      icon: "mdi:shield-account-outline",
+      authUrl: `/api/auth/saml/login?tenant=${encodeURIComponent(tenantId || "default")}`,
+    });
+  }
+
+  return providers;
 }
 
 /**

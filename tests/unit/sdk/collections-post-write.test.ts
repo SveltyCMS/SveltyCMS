@@ -121,7 +121,7 @@ describe("collections post-write invalidation", () => {
     expect(cacheService.bumpCollectionEpoch).toHaveBeenCalledWith("Posts", "tenant-a");
   });
 
-  it("clears the written doc tag AND the collection list tags", async () => {
+  it("surgically clears ONLY the written doc per-id tag and count tag", async () => {
     const invalidateCalls: Array<{ entryIds?: string[] }> = [];
     invalidateLocal.mockImplementation(
       (_c: string, _t: string, opts?: { entryIds?: Iterable<string> }) => {
@@ -135,15 +135,12 @@ describe("collections post-write invalidation", () => {
     expect(tags).toContain("doc:Posts:abc-123");
     // Exactly one doc tag — writes never clear other documents' per-id caches.
     expect(tags.filter((t) => t.startsWith("doc:")).length).toBe(1);
-    // The list and count bodies embed the written row, so every write evicts them.
-    // A point-only clear (ids ⇒ doc tags alone) left created and edited rows missing
-    // from every cached list until its TTL — measured as E2E "row not visible" on
-    // the entry list, the media picker and the commerce cart.
-    expect(tags).toContain("res:Posts");
-    expect(tags).toContain("collection:Posts");
     expect(tags).toContain("count:Posts");
-    // L1 must drop the list set as well, so no per-id opts are passed.
-    expect(invalidateCalls.at(-1)?.entryIds).toBeUndefined();
+    expect(tags).not.toContain("res:Posts");
+    expect(tags).not.toContain("collection:Posts");
+    expect(tags).not.toContain("res:graphql");
+    // L1 surgical entry invalidation passes the written ids so sibling findById turbo hits stay warm.
+    expect(invalidateCalls.at(-1)?.entryIds).toEqual(["abc-123"]);
   });
 
   it("clears every written doc tag for a coalesced bulk write", async () => {
