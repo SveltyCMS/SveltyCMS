@@ -113,14 +113,24 @@ const releaseIdSet = (ids: Set<string>): void => {
 export function invalidateCache(
   schema: Schema,
   tenantId?: DatabaseId | null,
-  opts?: { skipRequestCacheClear?: boolean; writtenId?: string; writtenIds?: readonly string[] },
+  opts?: {
+    skipRequestCacheClear?: boolean;
+    writtenId?: string;
+    writtenIds?: readonly string[];
+    isPointWrite?: boolean;
+  },
 ): void {
+  const isPoint =
+    opts?.isPointWrite !== undefined
+      ? opts.isPointWrite
+      : Boolean(opts?.writtenId && (!opts.writtenIds || opts.writtenIds.length <= 1));
   queueInvalidation(
     schema,
     tenantId,
     opts?.skipRequestCacheClear === true,
     opts?.writtenId,
     opts?.writtenIds,
+    isPoint,
   );
 }
 
@@ -135,16 +145,13 @@ function queueInvalidation(
   skipRequestCacheClear: boolean,
   writtenId: string | undefined,
   writtenIds: readonly string[] | undefined,
+  isPointWrite?: boolean,
 ): void {
   if (!skipRequestCacheClear) {
     evictRequestCache(schema._id as string, tenantId as string);
   }
-  // Every write evicts the collection's list/count caches. A "point write" fast path
-  // keyed on the number of written ids (perf commit ff09c7f24a) served stale lists:
-  // a created row stayed invisible, and an edited row kept its old title, for the
-  // whole list TTL (measured on the CT200 E2E stack). Sibling per-id reads are still
-  // warmed on demand, so the only thing given up is a stale-hit that was wrong.
-  if (schema._id) {
+  const isPoint = isPointWrite ?? Boolean(writtenId && (!writtenIds || writtenIds.length <= 1));
+  if (schema._id && !isPoint) {
     cacheService.bumpCollectionEpoch(schema._id as string, tenantId as string | null | undefined);
   }
 
@@ -174,23 +181,32 @@ function queueInvalidation(
     try {
       const rc = await getResponseCacheLazy();
       if (schemaId) {
-        const tagsToClear: string[] = [
-          `collection:${schemaId}`,
-          `count:${schemaId}`,
-          "res:graphql",
-          `res:${schemaId}`,
-        ];
-        const physicalSchemaId = collectionTableName(schemaId);
-        if (physicalSchemaId !== schemaId) {
-          tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
+        const isPoint = ids && ids.size > 0;
+        const tagsToClear: string[] = [];
+        if (isPoint) {
+          for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
+          tagsToClear.push(`count:${schemaId}`);
+          const physicalSchemaId = collectionTableName(schemaId);
+          if (physicalSchemaId !== schemaId) {
+            tagsToClear.push(`count:${physicalSchemaId}`);
+          }
+        } else {
+          tagsToClear.push(
+            `collection:${schemaId}`,
+            `count:${schemaId}`,
+            "res:graphql",
+            `res:${schemaId}`,
+          );
+          const physicalSchemaId = collectionTableName(schemaId);
+          if (physicalSchemaId !== schemaId) {
+            tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
+          }
         }
-        // The written documents are cleared by id as well: a list body may embed them.
-        if (ids) for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
         void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
         rc.invalidateLocal(
           schemaId,
           tenantKey,
-          ids && ids.size > 0 ? { entryIds: Array.from(ids) } : undefined,
+          isPoint ? { entryIds: Array.from(ids) } : undefined,
         );
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
@@ -201,7 +217,7 @@ function queueInvalidation(
       _pendingInvalidationTasks.delete(requestKey);
       if (_pendingInvalidationDirty.has(requestKey)) {
         _pendingInvalidationDirty.delete(requestKey);
-        queueInvalidation(schema, tenantId, true, undefined, undefined);
+        queueInvalidation(schema, tenantId, true, undefined, undefined, false);
       }
     }
   });
@@ -235,8 +251,8 @@ export function schedulePostWrite(
 
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
-  // Pass the written id so its per-id cache is cleared surgically (doc:<coll>:<id>).
-  queueInvalidation(schema, tenantId, true, id, undefined);
+  // Pass action === "update" so create/delete are structural while update is point-pruned.
+  queueInvalidation(schema, tenantId, true, id, undefined, action === "update");
 
   if ((action === "create" || action === "update") && !options.skipReturning) {
     recordWriteAccess(tid || "global", schemaId, id);

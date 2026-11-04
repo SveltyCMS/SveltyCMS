@@ -1166,16 +1166,19 @@ class ResponseCacheService {
   ): void {
     const tenant = tenantId || "default";
 
-    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
-    this.evictListSet(this.graphqlIndex, tenant, tenantId);
-    if (this.graphqlL2Tenants.has(tenant)) {
-      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
-    }
+    // 🎯 Surgical point-write fast path: when specific entryIds are mutated (e.g. PATCH /:id),
+    // drop only those document turbo keys so sibling findById, lists, and GraphQL stay warm.
     if (opts?.entryIds) {
       for (const id of opts.entryIds) {
         this.dropIndexSet(this.entryIndex, `${tenant}\0${collectionName}\0${id}`);
       }
       return;
+    }
+
+    this.evictListSet(this.listIndex, `${tenant}\0${collectionName}`, tenantId);
+    this.evictListSet(this.graphqlIndex, tenant, tenantId);
+    if (this.graphqlL2Tenants.has(tenant)) {
+      cacheService.bumpCollectionEpoch(GRAPHQL_CACHE_SCOPE, tenantId);
     }
     const colKey = `${tenant}\0${collectionName}`;
     const entryKeys = this.collectionEntriesIndex.get(colKey);
