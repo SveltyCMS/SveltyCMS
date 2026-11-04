@@ -57,7 +57,10 @@ vi.mock("@src/services/security/field-permission-service", () => ({
   invalidateFieldPermissionCache: vi.fn(),
 }));
 
-import { loadSettingsGroup, saveSettingsGroup } from "@src/routes/(app)/config/system-settings/settings.remote";
+import {
+  loadSettingsGroup,
+  saveSettingsGroup,
+} from "@src/routes/(app)/config/system-settings/settings.remote";
 
 describe("system settings remote functions", () => {
   beforeEach(() => {
@@ -171,4 +174,3 @@ describe("system settings remote functions", () => {
     });
   });
 });
-

@@ -484,23 +484,23 @@
 				<h4 class="text-xs font-semibold text-(--admin-text-muted) uppercase tracking-wider">
 					Description
 				</h4>
-				<p class="text-sm text-surface-700 dark:text-surface-300 leading-relaxed">
+				<p class="text-sm text-surface-600 dark:text-surface-400 leading-relaxed">
 					{detailItem.description || 'No detailed description available.'}
 				</p>
 			</div>
 
 			<div
-				class="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-lg border border-(--admin-border-default) bg-surface-500/5 p-3 text-xs"
+				class="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-lg border border-(--admin-border-default) bg-surface-500/10 p-3 text-xs"
 			>
 				<div>
 					<span class="block text-surface-500">Package ID</span>
-					<span class="font-mono font-medium text-surface-800 dark:text-surface-200"
+					<span class="font-mono font-medium text-surface-600 dark:text-surface-400"
 						>{detailItem.id}</span
 					>
 				</div>
 				<div>
 					<span class="block text-surface-500">Type</span>
-					<span class="font-medium capitalize text-surface-800 dark:text-surface-200"
+					<span class="font-medium capitalize text-surface-600 dark:text-surface-400"
 						>{detailItem.type}</span
 					>
 				</div>

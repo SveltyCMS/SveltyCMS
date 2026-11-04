@@ -1391,7 +1391,7 @@ Handles all field types and validation automatically
 												variant="ghost"
 												size="sm"
 												type="button"
-												class="size-8 min-w-0! p-0! shrink-0 items-center justify-center rounded text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-500/15 transition-colors"
+												class="size-8 min-w-0! p-0! shrink-0 items-center justify-center rounded text-surface-400 hover:text-surface-900 dark:hover:text-white hover:bg-surface-500/10 transition-colors"
 												onclick={() => (showPassword[field.key] = !showPassword[field.key])}
 												aria-label={showPassword[field.key] ? 'Hide password' : 'Show password'}
 											>

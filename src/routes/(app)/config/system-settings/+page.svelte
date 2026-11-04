@@ -230,7 +230,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 				type="button"
 				onclick={() => saveTrigger.reset?.()}
 				disabled={saving}
-				data-testid="settings-group-reset"
+				data-testid="settings-page-reset"
 			>
 				<iconify-icon icon="mdi:restore" width="16"></iconify-icon>
 				<span>{settings_reset_defaults()}</span>

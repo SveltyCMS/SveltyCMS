@@ -321,7 +321,7 @@ It provides the following functionality:
 				role="toolbar"
 				aria-label="Filter permissions by category"
 			>
-				{#each allCategories as category}
+				{#each allCategories as category (category)}
 					<button
 						type="button"
 						class="px-2.5 py-1 text-xs rounded-full transition-colors whitespace-nowrap cursor-pointer {selectedCategory ===
