@@ -135,7 +135,7 @@ export const createTenant = async (data: CreateTenantInput, dbAdapter: IDBAdapte
   const chosenDefault = defaultQuotas[plan] || defaultQuotas.free;
   const mergedQuota: TenantQuota = {
     ...chosenDefault,
-    ...(data.quota || {}),
+    ...data.quota,
   };
 
   let result: DatabaseResult<Tenant>;

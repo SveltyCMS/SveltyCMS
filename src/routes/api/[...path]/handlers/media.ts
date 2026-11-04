@@ -24,7 +24,6 @@ import { getPrivateEnv } from "@src/databases/db";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
-import { isAdmin } from "@src/databases/auth/constants";
 import {
   createLink,
   validateLink,
@@ -144,11 +143,13 @@ export async function handleMediaRoutes(
   const method = segments[1];
 
   // Public share endpoints are token-gated and may run without tenant locals.
-  // All other media operations require tenant isolation when multi-tenant is on,
-  // except for super-admins/system admins who operate globally across tenants.
+  // All other media operations fail closed when multi-tenant is on and the request
+  // carries no tenant: a system admin who needs another tenant uses the explicit
+  // `?tenantId=` super-admin override in the dispatcher, never an implicit bypass —
+  // an unscoped admin request would otherwise reach the handlers with tenantId
+  // null and crash there (500) instead of being rejected (400 TENANT_REQUIRED).
   const isSharePath = method === "share";
-  const isSystemAdmin = locals.isAdmin || isAdmin(user);
-  if (!isSharePath && isMultiTenantEnabled() && !tenantId && !isSystemAdmin) {
+  if (!isSharePath && isMultiTenantEnabled() && !tenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
 

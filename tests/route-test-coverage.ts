@@ -195,6 +195,14 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
     ],
   },
   {
+    route: "config/tenants",
+    testFiles: [
+      "tests/unit/routes/admin-tenants-page-server.test.ts",
+      "tests/unit/routes/admin-tenant-actions.test.ts",
+      "tests/e2e/routes/config/tenants.spec.ts",
+    ],
+  },
+  {
     route: "config/trash",
     testFiles: [
       "tests/unit/config/trash-api.test.ts",
