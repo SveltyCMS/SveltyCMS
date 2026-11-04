@@ -685,7 +685,7 @@ Professional free-form canvas with:
 		>
 			<!-- Canvas -->
 			<div
-				class="relative min-h-128 overflow-hidden rounded-xl border border-surface-500/20 bg-surface-50 dark:border-surface-500/25 dark:bg-surface-950 lg:col-span-3 select-none {isPanning
+				class="relative min-h-128 overflow-hidden rounded-xl border border-surface-500/20 bg-surface-500/10 dark:border-surface-500/25 dark:bg-surface-500/10 lg:col-span-3 select-none {isPanning
 					? 'cursor-grabbing'
 					: 'cursor-default'}"
 				bind:this={canvasEl}
@@ -805,7 +805,7 @@ Professional free-form canvas with:
 									class="pointer-events-auto absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium shadow-sm transition-all duration-150
 										{link.selected || hoveredConnectorId === link.id
 										? 'border-primary-500 bg-primary-500 text-white scale-105 ring-2 ring-primary-500/20'
-										: 'border-surface-300 bg-white text-surface-900 shadow-xs dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100'}"
+										: 'border-surface-500/30 bg-white text-surface-900 shadow-xs dark:border-surface-600 dark:bg-surface-800 dark:text-surface-100'}"
 									style="left: {link.lx}px; top: {link.ly}px;"
 								>
 									<span class="max-w-35 truncate">{link.label}</span>
@@ -839,7 +839,7 @@ Professional free-form canvas with:
 							class="group absolute z-10 w-55 cursor-grab touch-none rounded-xl border bg-white shadow-sm transition-all duration-150 active:cursor-grabbing dark:bg-surface-900
 								{isSelected
 								? 'border-primary-500 shadow-lg ring-4 ring-primary-500/15 scale-[1.015]'
-								: 'border-surface-200 hover:border-surface-300 hover:shadow-md dark:border-surface-700 dark:hover:border-surface-600'}"
+								: 'border-surface-500/30 hover:border-surface-500/30 hover:shadow-md dark:border-surface-500/40 dark:hover:border-surface-600'}"
 							style="left: {state.x ?? 0}px; top: {state.y ?? 0}px;"
 							onpointerdown={(event) => onCardPointerDown(event, state)}
 							onpointermove={onCardPointerMove}
@@ -861,7 +861,7 @@ Professional free-form canvas with:
 							<!-- Connection Port (Right handle to drag-create transition) -->
 							<button
 								type="button"
-								class="absolute -right-3.5 top-1/2 -translate-y-1/2 size-7 rounded-full border-2 border-white bg-primary-500 text-white shadow-md flex items-center justify-center cursor-crosshair transition-all duration-200 hover:scale-125 dark:border-surface-900 opacity-0 group-hover:opacity-100 group-hover:animate-pulse z-30"
+								class="absolute -right-3.5 top-1/2 -translate-y-1/2 size-7 rounded-full border-2 border-white bg-primary-500 text-white shadow-md flex items-center justify-center cursor-crosshair transition-all duration-200 hover:scale-125 dark:border-surface-500/40 opacity-0 group-hover:opacity-100 group-hover:animate-pulse z-30"
 								title="Drag to another state to connect"
 								aria-label={`Connect transition from ${state.label}`}
 								onpointerdown={(e) => startPortDrag(e, state)}
@@ -880,14 +880,14 @@ Professional free-form canvas with:
 										</span>
 										{#if state.isInitial}
 											<span
-												class="rounded-full bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400"
+												class="rounded-full bg-primary-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-600 dark:text-primary-400"
 											>
 												{workflows_initial()}
 											</span>
 										{/if}
 										{#if state.isFinal}
 											<span
-												class="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400"
+												class="rounded-full bg-success-500/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success-600 dark:text-success-400"
 											>
 												Final
 											</span>
@@ -900,7 +900,7 @@ Professional free-form canvas with:
 								>
 									<Tooltip title="Drag to move">
 										<span
-											class="inline-flex size-7 items-center justify-center rounded-md text-surface-400 hover:bg-surface-100 hover:text-surface-600 dark:hover:bg-surface-800"
+											class="inline-flex size-7 items-center justify-center rounded-md text-surface-400 hover:bg-surface-500/10 hover:text-surface-600 dark:hover:bg-surface-800"
 											aria-hidden="true"
 										>
 											<iconify-icon icon="mdi:drag-vertical" width="16"></iconify-icon>
@@ -923,7 +923,7 @@ Professional free-form canvas with:
 							</div>
 
 							<!-- Outgoing transitions -->
-							<div class="border-t border-surface-100 px-3 py-2.5 dark:border-surface-800">
+							<div class="border-t border-surface-100 px-3 py-2.5 dark:border-surface-500/40">
 								{#if transitions.some((t) => t.from === state.id)}
 									<div class="space-y-1">
 										{#each transitions.filter((t) => t.from === state.id) as trans (trans.id)}
@@ -931,8 +931,8 @@ Professional free-form canvas with:
 												type="button"
 												class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors
 													{selectedTransitionId === trans.id
-													? 'bg-primary-500/10 text-primary-700 dark:text-primary-300 font-medium'
-													: 'hover:bg-surface-100 dark:hover:bg-surface-800/80'}"
+													? 'bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
+													: 'hover:bg-surface-500/10 dark:hover:bg-surface-800/80'}"
 												onclick={(event) => {
 													event.stopPropagation();
 													selectTransition(trans.id);
@@ -957,12 +957,12 @@ Professional free-form canvas with:
 
 				<!-- Bottom-Right Canvas Controls: Zoom In / Out / Reset / Pan hint -->
 				<div
-					class="absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-lg border border-surface-200 bg-white/90 p-1 shadow-md backdrop-blur-sm dark:border-surface-700 dark:bg-surface-900/90"
+					class="absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-lg border border-surface-500/30 bg-white/90 p-1 shadow-md backdrop-blur-sm dark:border-surface-500/40 dark:bg-surface-900/90"
 				>
 					<Tooltip title="Zoom out">
 						<button
 							type="button"
-							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
+							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
 							onclick={zoomOut}
 							aria-label="Zoom out"
 						>
@@ -975,7 +975,7 @@ Professional free-form canvas with:
 					<Tooltip title="Zoom in">
 						<button
 							type="button"
-							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
+							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
 							onclick={zoomIn}
 							aria-label="Zoom in"
 						>
@@ -986,7 +986,7 @@ Professional free-form canvas with:
 					<Tooltip title="Reset viewport (100%)">
 						<button
 							type="button"
-							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
+							class="size-7 flex items-center justify-center rounded text-surface-600 hover:bg-surface-500/10 dark:text-surface-300 dark:hover:bg-surface-800 transition-colors"
 							onclick={resetViewport}
 							aria-label="Reset viewport"
 						>
@@ -1029,14 +1029,14 @@ Professional free-form canvas with:
 										id="accent-color"
 										type="color"
 										bind:value={node.color}
-										class="h-10 w-14 cursor-pointer rounded-lg border border-surface-200 bg-transparent p-1 dark:border-surface-700"
+										class="h-10 w-14 cursor-pointer rounded-lg border border-surface-500/30 bg-transparent p-1 dark:border-surface-500/40"
 									/>
 									<span class="font-mono text-xs text-surface-500">{node.color}</span>
 								</div>
 							</div>
 
 							<div
-								class="space-y-3 rounded-lg border border-surface-100 bg-surface-50/50 p-3 dark:border-surface-800 dark:bg-surface-900/50"
+								class="space-y-3 rounded-lg border border-surface-100 bg-surface-500/50 p-3 dark:border-surface-500/40 dark:bg-surface-900/50"
 							>
 								<Checkbox
 									checked={node.isInitial ?? false}
@@ -1123,9 +1123,9 @@ Professional free-form canvas with:
 				{:else}
 					<div class="space-y-6" in:fade={{ duration: 150 }}>
 						<div
-							class="rounded-xl border border-surface-200 bg-surface-50/80 p-4 dark:border-surface-700 dark:bg-surface-900/60"
+							class="rounded-xl border border-surface-500/30 bg-surface-500/80 p-4 dark:border-surface-500/40 dark:bg-surface-900/60"
 						>
-							<p class="mb-3 text-sm font-semibold text-surface-800 dark:text-surface-100">
+							<p class="mb-3 text-sm font-semibold text-surface-600 dark:text-surface-100">
 								{workflowName || 'Untitled workflow'}
 							</p>
 							<ul class="space-y-1.5 text-xs text-surface-500">
@@ -1153,12 +1153,12 @@ Professional free-form canvas with:
 
 						<div class="flex flex-col items-center justify-center py-8 text-center">
 							<div
-								class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-100 dark:bg-surface-800"
+								class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-500/10 dark:bg-surface-800"
 							>
 								<iconify-icon icon="mdi:gesture-tap" width="28" class="text-surface-400"
 								></iconify-icon>
 							</div>
-							<p class="text-sm font-medium text-surface-600 dark:text-surface-300">
+							<p class="text-sm font-medium text-surface-600 dark:text-surface-400">
 								{workflows_inspector_hint()}
 							</p>
 							<p class="mt-1 max-w-50 text-xs text-surface-400">
@@ -1167,28 +1167,28 @@ Professional free-form canvas with:
 						</div>
 
 						<div
-							class="border-t border-surface-200 dark:border-surface-800 pt-4 text-[11px] text-surface-400 space-y-1"
+							class="border-t border-surface-500/30 dark:border-surface-500/40 pt-4 text-[11px] text-surface-400 space-y-1"
 						>
 							<p class="font-semibold text-surface-500 uppercase tracking-wider text-[10px]">
 								Shortcuts
 							</p>
 							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-100 dark:bg-surface-800 font-mono"
+								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
 									>Del</kbd
 								> Delete selected
 							</p>
 							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-100 dark:bg-surface-800 font-mono"
+								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
 									>Esc</kbd
 								> Deselect
 							</p>
 							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-100 dark:bg-surface-800 font-mono"
+								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
 									>Arrows</kbd
 								> Nudge card
 							</p>
 							<p>
-								<kbd class="px-1 py-0.5 rounded bg-surface-100 dark:bg-surface-800 font-mono"
+								<kbd class="px-1 py-0.5 rounded bg-surface-500/10 dark:bg-surface-800 font-mono"
 									>Alt + Drag</kbd
 								> Pan canvas
 							</p>

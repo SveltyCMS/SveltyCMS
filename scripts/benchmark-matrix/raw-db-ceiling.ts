@@ -650,10 +650,13 @@ class PostgresEngine implements Engine {
       "createdAt" BIGINT NOT NULL,
       "updatedAt" BIGINT NOT NULL
     )`;
-    await this.sql`CREATE INDEX IF NOT EXISTS idx_tenant_status ON content_bench ("tenantId", status)`;
+    await this
+      .sql`CREATE INDEX IF NOT EXISTS idx_tenant_status ON content_bench ("tenantId", status)`;
     await this.sql`CREATE INDEX IF NOT EXISTS idx_updated ON content_bench ("updatedAt" DESC)`;
-    await this.sql`CREATE INDEX IF NOT EXISTS idx_tenant_status_updated ON content_bench ("tenantId", status, "updatedAt" DESC)`;
-    await this.sql`CREATE INDEX IF NOT EXISTS idx_tenant_updated ON content_bench ("tenantId", "updatedAt" DESC)`;
+    await this
+      .sql`CREATE INDEX IF NOT EXISTS idx_tenant_status_updated ON content_bench ("tenantId", status, "updatedAt" DESC)`;
+    await this
+      .sql`CREATE INDEX IF NOT EXISTS idx_tenant_updated ON content_bench ("tenantId", "updatedAt" DESC)`;
     await this.reseed();
 
     this.findStmt = (id: string, tenant: string) =>
@@ -669,7 +672,8 @@ class PostgresEngine implements Engine {
       FROM content_bench WHERE "tenantId" = ${tenant} AND status = ${status} AND "isDeleted" = 0
       LIMIT 50`;
     this.insertStmt = (id: string, tenant: string, data: string, status: string) =>
-      this.sql`INSERT INTO content_bench (_id, "tenantId", data, status, "isDeleted", "createdAt", "updatedAt")
+      this
+        .sql`INSERT INTO content_bench (_id, "tenantId", data, status, "isDeleted", "createdAt", "updatedAt")
       VALUES (${id}, ${tenant}, ${data}, ${status}, 0, ${this.now}, ${this.now})`;
     this.insertManyStmt = (id: string, tenant: string, data: string, status: string) =>
       this.sql.unsafe(
