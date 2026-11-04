@@ -229,7 +229,9 @@
 			params.set('order', 'asc');
 		}
 		params.set('offset', '0');
-		goto(`?${params.toString()}`);
+		// URL-sync for sort/filter: replace the history entry instead of pushing one per
+		// keystroke, and keep the scroll position (the table below must not jump).
+		goto(`?${params.toString()}`, { replaceState: true });
 	}
 
 	function toggleHideRoutine() {
@@ -241,7 +243,9 @@
 			params.set('hideRoutine', 'true');
 		}
 		params.set('offset', '0');
-		goto(`?${params.toString()}`);
+		// URL-sync for sort/filter: replace the history entry instead of pushing one per
+		// keystroke, and keep the scroll position (the table below must not jump).
+		goto(`?${params.toString()}`, { replaceState: true });
 	}
 </script>
 
@@ -330,7 +334,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 right-2.5 z-10">
+				<div class="absolute top-2.5 end-2.5 z-10">
 					<Tooltip title="Total number of jobs registered in the queue across all statuses">
 						<HelpIcon ariaLabel="Total jobs information" />
 					</Tooltip>
@@ -361,7 +365,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 right-2.5 z-10">
+				<div class="absolute top-2.5 end-2.5 z-10">
 					<Tooltip
 						title="Jobs waiting for their scheduled time or awaiting an available background worker"
 					>
@@ -394,7 +398,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 right-2.5 z-10">
+				<div class="absolute top-2.5 end-2.5 z-10">
 					<Tooltip
 						title="Jobs currently being claimed and executed by a background worker right now"
 					>
@@ -427,7 +431,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 right-2.5 z-10">
+				<div class="absolute top-2.5 end-2.5 z-10">
 					<Tooltip title="Jobs that have finished successfully (auto-pruned after 7 days)">
 						<HelpIcon ariaLabel="Completed jobs information" />
 					</Tooltip>
@@ -458,7 +462,7 @@
 						</div>
 					</AdminCard>
 				</a>
-				<div class="absolute top-2.5 right-2.5 z-10">
+				<div class="absolute top-2.5 end-2.5 z-10">
 					<Tooltip
 						title="Jobs that exhausted their retries and crashed with an error (click row to inspect error)"
 					>
