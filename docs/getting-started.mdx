@@ -55,13 +55,9 @@ bun install
 bun run dev
 ```
 
-### Docker
+### Docker (optional, self-built)
 
-```bash
-docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest
-```
-
-Open `http://localhost:4173`. The image uses SQLite and writes the database and secrets to the `svelty_data` volume.
+SveltyCMS does not publish a prebuilt image. The [Production deployment](./guides/deployment/production-deployment.mdx#docker) guide contains a multi-stage `Dockerfile` you can build and a `docker-compose.example.yml` to start it. The image uses SQLite by default; mount `/app/config` so the database and `private.ts` survive a restart.
 
 For the scaffold and the clone, open `http://localhost:5173`. A missing `config/private.ts` opens the wizard at `/setup`. Let the wizard create that file.
 
