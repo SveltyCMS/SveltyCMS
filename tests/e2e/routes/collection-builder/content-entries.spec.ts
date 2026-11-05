@@ -76,7 +76,8 @@ async function expectWriteOk(page: Page, method: "POST" | "PATCH", action: strin
     .waitForResponse(
       (res) =>
         res.request().method() === method &&
-        /\/api\/collections\//.test(new URL(res.url()).pathname),
+        /\/api\/collections\//.test(new URL(res.url()).pathname) &&
+        !new URL(res.url()).pathname.endsWith("/drafts"),
       { timeout: 25_000 },
     )
     .catch(() => null);

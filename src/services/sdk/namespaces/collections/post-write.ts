@@ -86,6 +86,7 @@ function queuePubSubEntryUpdated(event: PendingPubSubEvent): void {
  */
 let _pendingInvalidationTasks = new Set<string>();
 let _pendingInvalidationDirty = new Set<string>();
+let _pendingStructuralInvalidations = new Set<string>();
 /**
  * Per-request-key set of the SPECIFIC document ids written during a coalesced
  * tick. Lets the flush clear only the touched docs (`doc:<coll>:<id>`) instead
@@ -159,6 +160,10 @@ function queueInvalidation(
   const schemaId = schema._id as string | undefined;
   const requestKey = `${tenantKey}:${schemaId ?? "*"}`;
 
+  if (!isPoint) {
+    _pendingStructuralInvalidations.add(requestKey);
+  }
+
   if (schemaId && (writtenId || writtenIds?.length)) {
     let ids = _pendingInvalidationIds.get(requestKey);
     if (!ids) {
@@ -176,14 +181,16 @@ function queueInvalidation(
   _pendingInvalidationTasks.add(requestKey);
 
   queueMicrotask(async () => {
+    const isStructural = _pendingStructuralInvalidations.has(requestKey);
+    _pendingStructuralInvalidations.delete(requestKey);
     const ids = _pendingInvalidationIds.get(requestKey);
     _pendingInvalidationIds.delete(requestKey);
     try {
       const rc = await getResponseCacheLazy();
       if (schemaId) {
-        const isPoint = ids && ids.size > 0;
+        const isPoint = !isStructural && ids !== undefined && ids.size > 0;
         const tagsToClear: string[] = [];
-        if (isPoint) {
+        if (isPoint && ids) {
           for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
           tagsToClear.push(`count:${schemaId}`);
           const physicalSchemaId = collectionTableName(schemaId);
@@ -201,12 +208,15 @@ function queueInvalidation(
           if (physicalSchemaId !== schemaId) {
             tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
           }
+          if (ids) {
+            for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
+          }
         }
         void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
         rc.invalidateLocal(
           schemaId,
           tenantKey,
-          isPoint ? { entryIds: Array.from(ids) } : undefined,
+          isPoint && ids ? { entryIds: Array.from(ids) } : undefined,
         );
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
@@ -251,8 +261,7 @@ export function schedulePostWrite(
 
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
-  // Pass action === "update" so create/delete are structural while update is point-pruned.
-  queueInvalidation(schema, tenantId, true, id, undefined, action === "update");
+  queueInvalidation(schema, tenantId, true, id, undefined, false);
 
   if ((action === "create" || action === "update") && !options.skipReturning) {
     recordWriteAccess(tid || "global", schemaId, id);
