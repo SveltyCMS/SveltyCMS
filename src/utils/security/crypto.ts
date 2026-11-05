@@ -227,8 +227,9 @@ export function resolveStaticAesKey(
     cryptoMod.hkdfSync("sha256", raw, AES256_HKDF_SALT, info, ENCRYPTION_CONFIG.keyLength),
   );
   const fallbacks: Buffer[] = [
-    // slop:suppress — dual-read of pre-HKDF env-key envelopes (SHA-256(raw))
-    // codeql[js/insufficient-password-hash]: AES env-key compatibility digest, not a login password hash (Argon2id)
+    // slop:suppress — dual-read of pre-HKDF env-key envelopes (SHA-256(raw)).
+    // AES env-key compatibility digest, not a login password hash (Argon2id).
+    // codeql[js/insufficient-password-hash]
     cryptoMod.createHash("sha256").update(raw, "utf8").digest(),
   ];
   // slop:suppress — lenient base64 matches the pre-HKDF `Buffer.from(raw, "base64")`

@@ -145,12 +145,15 @@ export function sanitizeSvg(svg: string): string {
     // 1. Strip dangerous tags (with their content, including self-closing variants).
     //    `/` right after the tag name covers the no-space bypass `<script/src=…>`;
     //    the self-closing pass handles `<script/>` exactly (`[^>]*?/>`).
+    // RISK ACCEPTED (CodeQL js/incomplete-multi-character-sanitization): regex
+    // denylist, not a parser. Execution is contained by the CSP on media
+    // responses; a tree-based SVG sanitizer is tracked in the roadmap.
     cleaned = cleaned.replace(SVG_DANGEROUS_PAIR_RE, "");
     cleaned = cleaned.replace(SVG_DANGEROUS_SELF_CLOSING_RE, "");
 
-    // 2. Strip inline event handlers — inside loop for defense-in-depth
-    // codeql[js/incomplete-multi-character-sanitization]: iterative SVG scrubber (loop re-scans until
-    // fixpoint); DANGEROUS_TAGS + handler patterns come from hardcoded constants.
+    // 2. Strip inline event handlers — inside loop for defense-in-depth.
+    //    Iterative scrubber re-scans until fixpoint; DANGEROUS_TAGS and handler
+    //    patterns come from hardcoded constants.
     cleaned = cleaned.replace(SVG_HANDLER_RE, "");
   }
 

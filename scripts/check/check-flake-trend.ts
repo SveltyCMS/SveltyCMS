@@ -231,7 +231,7 @@ function formatRate(value: number): string {
 
 /** Keep a label from breaking the Markdown table. */
 function mdCell(value: string): string {
-  return value.replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+  return value.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
 }
 
 function printTable(entries: HistoryEntry[], window: WindowStats): void {

@@ -70,9 +70,10 @@ function buildJsonResponse(
   }
 
   if (event?.locals) {
-    // codeql[js/stack-trace-exposure]: same-response fast-path stash consumed
-    // by token-resolution/ETag middleware; locals is never serialized into
-    // responses or logs (handleApiError/handleError scrub in production).
+    // Same-response fast-path stash consumed by token-resolution/ETag middleware;
+    // locals is never serialized into responses or logs (handleApiError/handleError
+    // scrub in production).
+    // codeql[js/stack-trace-exposure]
     (event.locals as any).apiData = data;
     (event.locals as any).apiBody = serialized;
   }
@@ -156,9 +157,10 @@ export function fastSuccessResponse(
             ? STATIC_ENVELOPES.SUCCESS_TRUE
             : `{"success":true,"data":${serializedData}}`;
   if (event?.locals) {
-    // codeql[js/stack-trace-exposure]: same-response fast-path stash consumed
-    // by token-resolution/ETag middleware; locals is never serialized into
-    // responses or logs (handleApiError/handleError scrub in production).
+    // Same-response fast-path stash consumed by token-resolution/ETag middleware;
+    // locals is never serialized into responses or logs (handleApiError/handleError
+    // scrub in production).
+    // codeql[js/stack-trace-exposure]
     (event.locals as any).apiData = rawData;
     (event.locals as any).apiBody = serialized;
   }

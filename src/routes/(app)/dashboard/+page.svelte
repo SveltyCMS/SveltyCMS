@@ -1159,7 +1159,7 @@
 											<span class="truncate font-medium">{widgetInfo?.name || widgetName}</span>
 											{#if widgetInfo?.license === 'freemium'}
 												<Badge
-													variant="warning"
+													variant="secondary"
 													size="sm"
 													class="text-[9px] px-1.5 py-0 leading-tight"
 													>{widget_license_freemium()}</Badge
@@ -1175,7 +1175,7 @@
 												<Badge
 													variant="surface"
 													size="sm"
-													class="text-[9px] px-1.5 py-0 leading-tight text-(--admin-text-muted)"
+													class="text-[9px] px-1.5 py-0 leading-tight"
 													>{widget_license_free()}</Badge
 												>
 											{/if}

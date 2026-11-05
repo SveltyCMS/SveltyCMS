@@ -353,7 +353,8 @@ export class AuditService {
           previousHash: this.lastHash,
         };
 
-        // codeql[js/insufficient-password-hash]: tamper-evident audit chain (SHA-256 of the entry JSON), not a password KDF
+        // Tamper-evident audit chain (SHA-256 of the entry JSON), not a password KDF.
+        // codeql[js/insufficient-password-hash]
         const hash = createHash("sha256").update(JSON.stringify(entry)).digest("hex");
         const fullEntry = { ...entry, hash };
         this.lastHash = hash;

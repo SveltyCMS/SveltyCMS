@@ -123,16 +123,17 @@ export function sanitizeString(input: string): string {
 
   let cleaned = input;
 
-  // 1. Strip script/iframe/object/embed tags (including content)
-  // codeql[js/incomplete-multi-character-sanitization]: defense-in-depth blocklist; the render path
-  // re-sanitizes with parser-based sanitize-html.ts (see file header rationale).
+  // 1. Strip script/iframe/object/embed tags (including content).
+  // RISK ACCEPTED (CodeQL js/incomplete-multi-character-sanitization): this is a
+  // regex denylist, not a parser. Execution is contained by the CSP
+  // (script-src 'nonce' 'strict-dynamic', no 'unsafe-inline') on page and media
+  // responses; a tree-based sanitizer is tracked in docs/project/roadmap-2026.mdx.
   cleaned = cleaned.replace(SCRIPT_TAG_RE, "");
   cleaned = cleaned.replace(IFRAME_TAG_RE, "");
   cleaned = cleaned.replace(OBJECT_TAG_RE, "");
   cleaned = cleaned.replace(EMBED_TAG_RE, "");
 
   // 2. Strip event handlers (onclick, onload, onerror, etc.)
-  // codeql[js/incomplete-multi-character-sanitization]: intentional blocklist (see above).
   cleaned = cleaned.replace(EVENT_HANDLER_RE, "");
 
   // 3. Strip javascript: URLs in href attributes
@@ -142,7 +143,6 @@ export function sanitizeString(input: string): string {
   cleaned = cleaned.replace(DATA_JS_URL_RE, 'src=""');
 
   // 5. Strip dangerous tags (keep safe ones)
-  // codeql[js/incomplete-multi-character-sanitization]: intentional blocklist (see above).
   cleaned = cleaned.replace(DANGEROUS_TAGS_RE, "");
 
   return cleaned;

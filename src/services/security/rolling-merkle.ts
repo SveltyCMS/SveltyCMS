@@ -23,6 +23,8 @@ function fastSha256Hex(input: string): string {
   if (typeof cryptoHash === "function") {
     return cryptoHash("sha256", input, "hex");
   }
+  // Merkle roots are integrity digests, not password KDFs (Argon2id handles those).
+  // codeql[js/insufficient-password-hash]
   return createHash("sha256").update(input, "utf8").digest("hex");
 }
 

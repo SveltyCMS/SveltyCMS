@@ -537,7 +537,7 @@ Features:
 				></iconify-icon>
 				<span class="truncate">{customLabel}</span>
 				{#if license === 'freemium'}
-					<Badge variant="warning" size="sm" class="text-[9px] px-1.5 py-0 leading-tight shrink-0"
+					<Badge variant="secondary" size="sm" class="text-[9px] px-1.5 py-0 leading-tight shrink-0"
 						>{widget_license_freemium()}</Badge
 					>
 				{:else if license === 'paid'}

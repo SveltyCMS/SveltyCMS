@@ -68,8 +68,9 @@ export interface TestingContext {
  * Standard testing response helper
  */
 export function rawResponse(data: any, status = 200) {
-  // codeql[js/stack-trace-exposure]: /api/testing is production-gated + stripped
-  // from normal builds; only plain { success, message } envelopes are serialized here.
+  // /api/testing is production-gated and stripped from normal builds; only plain
+  // { success, message } envelopes are serialized here.
+  // codeql[js/stack-trace-exposure]
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json" },
