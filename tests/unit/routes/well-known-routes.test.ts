@@ -38,6 +38,8 @@ import { GET as getIndexNow } from "../../../src/routes/indexnow.txt/+server";
 import { GET as getLlms } from "../../../src/routes/llms.txt/+server";
 import { GET as getRobots } from "../../../src/routes/robots.txt/+server";
 import { GET as getSitemap } from "../../../src/routes/sitemap.xml/+server";
+import { GET as getSitemapImages } from "../../../src/routes/sitemap-images.xml/+server";
+import { GET as getSitemapNews } from "../../../src/routes/sitemap-news.xml/+server";
 import { invalidateSitemapCache } from "@src/services/content/seo/sitemap-cache";
 
 type RouteEvent = Parameters<typeof getIndexNow>[0];
@@ -265,5 +267,43 @@ describe("GET /sitemap.xml", () => {
     expect(body).not.toContain("broken");
     expect(h.findEntries).toHaveBeenCalledWith("broken", expect.anything());
     expect(h.findEntries).toHaveBeenCalledWith("posts", expect.anything());
+  });
+});
+
+describe("GET /sitemap-images.xml", () => {
+  it("renders Google Image XML sitemap for public collections", async () => {
+    settings({ DEFAULT_CONTENT_LANGUAGE: "en" });
+    h.listCollections.mockResolvedValue([{ name: "gallery" }]);
+    h.findEntries.mockResolvedValue({
+      data: [{ slug: "photo-1", image: "/media/photo1.jpg", title: "Photo One" }],
+    });
+
+    const response = await getSitemapImages(makeEvent("/sitemap-images.xml", "tenant-images"));
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/xml");
+    expect(body).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+    expect(body).toContain("<loc>https://cms.example.com/gallery/photo-1</loc>");
+    expect(body).toContain("<image:loc>https://cms.example.com/media/photo1.jpg</image:loc>");
+  });
+});
+
+describe("GET /sitemap-news.xml", () => {
+  it("renders Google News XML sitemap for recent articles", async () => {
+    settings({ DEFAULT_CONTENT_LANGUAGE: "en", SITE_NAME: "News Desk" });
+    h.listCollections.mockResolvedValue([{ name: "news" }]);
+    const recentDate = new Date(Date.now() - 3600 * 1000).toISOString();
+    h.findEntries.mockResolvedValue({
+      data: [{ slug: "breaking", title: "Breaking News", publishedAt: recentDate }],
+    });
+
+    const response = await getSitemapNews(makeEvent("/sitemap-news.xml", "tenant-news"));
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/xml");
+    expect(body).toContain('xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"');
+    expect(body).toContain("<news:title>Breaking News</news:title>");
   });
 });

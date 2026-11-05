@@ -85,6 +85,40 @@ describe("validateEgressUrl — SSRF defense", () => {
     await expect(validateEgressUrl("gopher://127.0.0.1/")).rejects.toThrow(/protocol|Blocked/i);
   });
 
+  it("blocks protocol-relative URLs", async () => {
+    await expect(validateEgressUrl("//evil.com/payload")).rejects.toThrow(
+      /Protocol-relative URL forbidden/i,
+    );
+    await expect(validateEgressUrl("/\\evil.com/payload")).rejects.toThrow(
+      /Protocol-relative URL forbidden/i,
+    );
+  });
+
+  it("enforces allowedOrigins and allowedHosts scope constraints", async () => {
+    const originOpts = { allowedOrigins: ["https://1.1.1.1", "https://9.9.9.9"] };
+    await expect(validateEgressUrl("https://1.1.1.1/v1/user", originOpts)).resolves.toBeTruthy();
+    await expect(validateEgressUrl("https://8.8.8.8/data", originOpts)).rejects.toThrow(
+      /Origin not in allowedOrigins list/i,
+    );
+
+    const hostOpts = { allowedHosts: ["1.1.1.1", /^9\./] };
+    await expect(validateEgressUrl("https://1.1.1.1/dns-query", hostOpts)).resolves.toBeTruthy();
+    await expect(validateEgressUrl("https://9.9.9.9/api", hostOpts)).resolves.toBeTruthy();
+    await expect(validateEgressUrl("https://8.8.8.8/test", hostOpts)).rejects.toThrow(
+      /Hostname not in allowedHosts list/i,
+    );
+  });
+
+  it("enforces custom urlScope predicate", async () => {
+    const scopeOpts = { urlScope: (url: URL) => url.pathname.startsWith("/api/safe/") };
+    await expect(
+      validateEgressUrl("https://1.1.1.1/api/safe/items", scopeOpts),
+    ).resolves.toBeTruthy();
+    await expect(validateEgressUrl("https://1.1.1.1/admin/secret", scopeOpts)).rejects.toThrow(
+      /urlScope predicate/i,
+    );
+  });
+
   it("allows public https URLs (structure only; DNS may fail offline)", async () => {
     // Public IPs are allowed without DNS when the host is already an IP
     const parsed = await validateEgressUrl("https://1.1.1.1/cdn-cgi/trace");
@@ -158,6 +192,52 @@ describe("safeFetch — redirect re-validation", () => {
       expect(result.success).toBe(false);
       expect(result.error).toMatch(/private|Blocked/i);
       // The redirect target was validated and rejected before a second request.
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("blocks redirects that break out of allowedOrigins or allowedHosts", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://8.8.8.8/escaped" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const result = await safeFetch("https://1.1.1.1/start", {
+        allowedHosts: ["1.1.1.1"],
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/allowedHosts/i);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("blocks protocol downgrade from https to http across redirect hops", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "http://1.1.1.1/downgraded" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const result = await safeFetch("https://1.1.1.1/start", {
+        allowHttp: true,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/protocol downgrade forbidden/i);
       expect(fetchMock).toHaveBeenCalledTimes(1);
     } finally {
       vi.unstubAllGlobals();

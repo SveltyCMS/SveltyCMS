@@ -10,6 +10,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  buildArticleJsonLd,
+  buildProductJsonLd,
   buildSeoHead,
   decodeStoredHtmlEntities,
   pickSeoLocaleData,
@@ -312,5 +314,64 @@ describe("buildSeoHead", () => {
     // Falls back to the origin hostname, so WebSite is still emitted.
     expect(result.autoJsonLd).toHaveLength(1);
     expect(result.autoJsonLd[0]).toContain('"name":"example.com"');
+  });
+
+  it("emits Article JSON-LD when article options are provided", () => {
+    const script = buildArticleJsonLd(
+      {
+        headline: "Breaking News: SveltyCMS 2026",
+        description: "A major CMS milestone",
+        authorName: "Jane Doe",
+        datePublished: "2026-11-05T10:00:00Z",
+        type: "NewsArticle",
+      },
+      "https://example.com",
+      "/news/breaking-news",
+      "SveltyCMS Daily",
+    );
+
+    expect(script).toBeDefined();
+    expect(script).toContain('"@type":"NewsArticle"');
+    expect(script).toContain('"headline":"Breaking News: SveltyCMS 2026"');
+    expect(script).toContain('"name":"Jane Doe"');
+    expect(script).toContain('"name":"SveltyCMS Daily"');
+
+    const result = buildSeoHead({
+      ...BASE,
+      pathname: "/news/post-1",
+      article: { headline: "Article Post 1" },
+    });
+    expect(result.autoJsonLd.some((s) => s.includes('"@type":"Article"'))).toBe(true);
+  });
+
+  it("emits Product JSON-LD for e-commerce routes", () => {
+    const script = buildProductJsonLd(
+      {
+        name: "Pro CMS License",
+        sku: "PRO-2026",
+        price: 99.0,
+        currency: "USD",
+        description: "Enterprise single-node license",
+        availability: "InStock",
+        ratingValue: 4.9,
+        reviewCount: 38,
+      },
+      "https://example.com",
+      "/shop/pro-license",
+    );
+
+    expect(script).toBeDefined();
+    expect(script).toContain('"@type":"Product"');
+    expect(script).toContain('"sku":"PRO-2026"');
+    expect(script).toContain('"price":99');
+    expect(script).toContain('"priceCurrency":"USD"');
+    expect(script).toContain('"@type":"AggregateRating"');
+
+    const result = buildSeoHead({
+      ...BASE,
+      pathname: "/shop/pro-license",
+      product: { name: "Pro CMS License", price: 99, currency: "USD" },
+    });
+    expect(result.autoJsonLd.some((s) => s.includes('"@type":"Product"'))).toBe(true);
   });
 });

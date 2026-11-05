@@ -25,6 +25,8 @@ vi.mock("@src/services/core/settings-service", () => ({
 import { GET as getLlms } from "../../../src/routes/llms.txt/+server";
 import { GET as getRobots } from "../../../src/routes/robots.txt/+server";
 import { GET as getSitemap } from "../../../src/routes/sitemap.xml/+server";
+import { GET as getSitemapImages } from "../../../src/routes/sitemap-images.xml/+server";
+import { GET as getSitemapNews } from "../../../src/routes/sitemap-news.xml/+server";
 
 type RouteEvent = Parameters<typeof getLlms>[0];
 
@@ -47,6 +49,20 @@ describe("discovery routes without a database", () => {
 
   it("sitemap.xml returns a 500 when the adapter is unavailable", async () => {
     const response = await getSitemap(makeEvent("/sitemap.xml"));
+
+    expect(response.status).toBe(500);
+    expect(await response.text()).toBe("Database not initialized");
+  });
+
+  it("sitemap-images.xml returns a 500 when the adapter is unavailable", async () => {
+    const response = await getSitemapImages(makeEvent("/sitemap-images.xml"));
+
+    expect(response.status).toBe(500);
+    expect(await response.text()).toBe("Database not initialized");
+  });
+
+  it("sitemap-news.xml returns a 500 when the adapter is unavailable", async () => {
+    const response = await getSitemapNews(makeEvent("/sitemap-news.xml"));
 
     expect(response.status).toBe(500);
     expect(await response.text()).toBe("Database not initialized");

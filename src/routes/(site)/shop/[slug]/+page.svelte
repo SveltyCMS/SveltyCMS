@@ -10,6 +10,9 @@
 	let { data } = $props();
 	let message = $state('');
 
+	/** JSON-LD payload is pre-escaped against script-breakout attacks via serializeJsonLd. */
+	const safeHtml = (content: string) => content;
+
 	async function addToCart() {
 		message = '';
 		const res = await fetch('/api/commerce/cart', {
@@ -42,3 +45,11 @@
 	<Button class="mt-4" variant="primary" onclick={addToCart}>Add to cart</Button>
 	<CommerceLegalBar labels={data.labels} />
 </section>
+
+<svelte:head>
+	<title>{data.product.title} - Shop</title>
+	{#if data.productJsonLd}
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+		{@html safeHtml(data.productJsonLd)}
+	{/if}
+</svelte:head>

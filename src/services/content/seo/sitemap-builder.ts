@@ -240,6 +240,175 @@ ${urls.join("\n")}
 </urlset>`;
 }
 
+export interface BuildImageSitemapOptions {
+  /** Absolute base (request origin), e.g. `https://example.com`. */
+  origin: string;
+  entries: SitemapEntryInput[];
+  defaultLang: string;
+  siteStarterEnabled?: boolean;
+}
+
+export interface BuildNewsSitemapOptions {
+  /** Absolute base (request origin), e.g. `https://example.com`. */
+  origin: string;
+  entries: SitemapEntryInput[];
+  defaultLang: string;
+  publicationName: string;
+  siteStarterEnabled?: boolean;
+  /** Max age of news in hours (default 48 hours per Google News guidelines). */
+  maxAgeHours?: number;
+}
+
+/** Extracts image URLs and titles associated with an entry. */
+export function extractEntryImages(
+  entry: SitemapEntryInput,
+  origin: string,
+): Array<{ loc: string; title?: string }> {
+  const images: Array<{ loc: string; title?: string }> = [];
+  const base = origin.replace(/\/+$/, "");
+
+  const addImg = (rawLoc: unknown, rawTitle?: unknown) => {
+    if (typeof rawLoc !== "string" || !rawLoc.trim()) return;
+    let loc = rawLoc.trim();
+    if (!loc.startsWith("http://") && !loc.startsWith("https://")) {
+      loc = `${base}${loc.startsWith("/") ? loc : `/${loc}`}`;
+    }
+    const title = typeof rawTitle === "string" ? rawTitle.trim() : undefined;
+    if (!images.some((img) => img.loc === loc)) {
+      images.push({ loc, ...(title ? { title } : {}) });
+    }
+  };
+
+  // 1. Check SEO widget images
+  if (entry.seo && typeof entry.seo === "object") {
+    const seoRec = entry.seo as Record<string, any>;
+    if (seoRec.ogImage) addImg(seoRec.ogImage, seoRec.title || entry.title);
+    if (seoRec.twitterImage) addImg(seoRec.twitterImage, seoRec.title || entry.title);
+  }
+
+  // 2. Common image fields on CMS entries
+  for (const field of ["image", "cover", "thumbnail", "featuredImage", "banner"]) {
+    const val = entry[field];
+    if (typeof val === "string") {
+      addImg(val, entry.title || entry.name);
+    } else if (val && typeof val === "object" && "url" in (val as Record<string, unknown>)) {
+      addImg((val as any).url, (val as any).title || entry.title);
+    }
+  }
+
+  // 3. Array of images
+  if (Array.isArray(entry.images)) {
+    for (const item of entry.images) {
+      if (typeof item === "string") addImg(item);
+      else if (item && typeof item === "object" && "url" in item) {
+        addImg((item as any).url, (item as any).title || (item as any).alt);
+      }
+    }
+  }
+
+  return images;
+}
+
+/**
+ * Builds Google-compliant Image Sitemap XML (`xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"`).
+ */
+export function buildImageSitemapXml(options: BuildImageSitemapOptions): string {
+  const { origin, entries, defaultLang, siteStarterEnabled } = options;
+  const urls: string[] = [];
+
+  for (const entry of entries) {
+    if (typeof entry.slug !== "string" || !entry.slug.trim()) continue;
+    if (!entryIsIndexable(entry, origin, defaultLang)) continue;
+
+    const loc = publicEntryUrl({
+      origin,
+      collection: entry.collection,
+      slug: entry.slug,
+      siteStarterEnabled,
+    });
+    if (!loc) continue;
+
+    const images = extractEntryImages(entry, origin);
+    if (images.length === 0) continue;
+
+    const imageTags = images.slice(0, 1000).map((img) => {
+      const titleTag = img.title
+        ? `\n      <image:title>${escapeXml(img.title)}</image:title>`
+        : "";
+      return `    <image:image>\n      <image:loc>${escapeXml(img.loc)}</image:loc>${titleTag}\n    </image:image>`;
+    });
+
+    urls.push(`  <url>\n    <loc>${escapeXml(loc)}</loc>\n${imageTags.join("\n")}\n  </url>`);
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+${urls.join("\n")}
+</urlset>`;
+}
+
+/**
+ * Builds Google-compliant News Sitemap XML (`xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"`).
+ * Filters entries published in the last 48 hours.
+ */
+export function buildNewsSitemapXml(options: BuildNewsSitemapOptions): string {
+  const {
+    origin,
+    entries,
+    defaultLang,
+    publicationName,
+    siteStarterEnabled,
+    maxAgeHours = 48,
+  } = options;
+  const urls: string[] = [];
+  const cutoffTime = Date.now() - maxAgeHours * 3600 * 1000;
+
+  for (const entry of entries) {
+    if (typeof entry.slug !== "string" || !entry.slug.trim()) continue;
+    if (!entryIsIndexable(entry, origin, defaultLang)) continue;
+
+    const pubDate = toW3CDateTime(entry.publishedAt ?? entry.createdAt ?? entry.updatedAt);
+    if (!pubDate) continue;
+
+    const timestamp = new Date(pubDate).getTime();
+    if (Number.isNaN(timestamp) || timestamp < cutoffTime) continue;
+
+    const loc = publicEntryUrl({
+      origin,
+      collection: entry.collection,
+      slug: entry.slug,
+      siteStarterEnabled,
+    });
+    if (!loc) continue;
+
+    const title =
+      typeof entry.title === "string" && entry.title.trim()
+        ? entry.title.trim()
+        : typeof entry.name === "string"
+          ? entry.name.trim()
+          : entry.slug;
+
+    urls.push(
+      `  <url>
+    <loc>${escapeXml(loc)}</loc>
+    <news:news>
+      <news:publication>
+        <news:name>${escapeXml(publicationName)}</news:name>
+        <news:language>${escapeXml(defaultLang)}</news:language>
+      </news:publication>
+      <news:publication_date>${escapeXml(pubDate)}</news:publication_date>
+      <news:title>${escapeXml(title)}</news:title>
+    </news:news>
+  </url>`,
+    );
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+${urls.join("\n")}
+</urlset>`;
+}
+
 /**
  * Builds robots.txt: admin/auth/system routes are never part of the public
  * site and are disallowed explicitly; the sitemap is advertised. When an

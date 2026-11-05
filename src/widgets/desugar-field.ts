@@ -50,6 +50,10 @@ export interface BaseField {
   helper?: string;
   placeholder?: string;
   default?: unknown;
+  /** Natural language guidance for AI agents regarding this specific field */
+  instructions?: string;
+  /** Synonym / alias for AI agent instructions */
+  agentInstructions?: string;
   [key: string]: unknown;
 }
 
@@ -356,6 +360,7 @@ function deepMergeMetadata(
 ): Record<string, unknown> {
   const merged = { ...built };
   for (const key of Object.keys(stripped)) {
+    if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
     const strippedVal = stripped[key];
     const builtVal = merged[key];
     if (
@@ -367,10 +372,10 @@ function deepMergeMetadata(
       !Array.isArray(builtVal)
     ) {
       // Both are plain objects — deep merge
-      merged[key] = {
-        ...(builtVal as Record<string, unknown>),
-        ...(strippedVal as Record<string, unknown>),
-      };
+      merged[key] = deepMergeMetadata(
+        builtVal as Record<string, unknown>,
+        strippedVal as Record<string, unknown>,
+      );
     } else {
       // Primitive, array, or missing on built — authored wins
       merged[key] = strippedVal;

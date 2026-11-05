@@ -40,6 +40,8 @@ const h = vi.hoisted(() => ({
 vi.mock("@src/services/core/settings-service", () => ({
   getUntypedSetting: h.getUntypedSetting,
   invalidateSettingsCache: h.invalidateSettingsCache,
+  getPrivateSettingSync: vi.fn(() => undefined),
+  getPublicSettingSync: vi.fn(() => undefined),
 }));
 
 vi.mock("@src/databases/db", () => ({

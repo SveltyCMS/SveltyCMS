@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:66026c8f-6f0f-41f4-83ae-60acc79ae743",
+  "serialNumber": "urn:uuid:aafd8594-e642-49c7-bcff-cacd86eb341c",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-03T21:23:30.682Z",
+    "timestamp": "2026-11-05T12:03:13.546Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -61,169 +61,169 @@
     {
       "type": "library",
       "name": "@aws-sdk/checksums",
-      "version": "3.1002.1",
-      "purl": "pkg:npm/@aws-sdk/checksums@3.1002.1",
+      "version": "3.1002.2",
+      "purl": "pkg:npm/@aws-sdk/checksums@3.1002.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-CXNESwkQC9jdrUG6cKXBfudVt1frGcYQykcCYbNclVrsewuGMbo3PlFjRteMe4OftNAqhyc3xC2jTz7SUqLasQ=="
+          "content": "sha512-u57THWR5YOCqjIzg5og8r5dDc54n7hENs2eVy+aw1+Fd+QERa2x72qNlsiMNJI9svSpQp3WevkSKljzIG6x1YA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/client-s3",
-      "version": "3.1161.0",
-      "purl": "pkg:npm/@aws-sdk/client-s3@3.1161.0",
+      "version": "3.1162.0",
+      "purl": "pkg:npm/@aws-sdk/client-s3@3.1162.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-iRZGMsJnYRrI98O+U6o5fHeLPQTP+Dc/w0mWLcBLQcEQ10DA06+XQj0WmdRiCM7vIso7QEtN1fsj9Vzo5/R3LQ=="
+          "content": "sha512-WIPNPTQJnZBpWeeejEp7TPb2Jajy2kHqOkq5GzbI/vCU9Hu8Ks8kdHBFUuu7IC+bZuC/OuvPKL3ciet0RQkiAA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/core",
-      "version": "3.979.1",
-      "purl": "pkg:npm/@aws-sdk/core@3.979.1",
+      "version": "3.980.0",
+      "purl": "pkg:npm/@aws-sdk/core@3.980.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ayOlV1VhLNMiq8PW9ZkVobG4gkldnUoHjG69yy2b8j+VYFlhz/uAL7ZdYQAoQ+eShtGUdNDnnG5rxDg6yUJrOg=="
+          "content": "sha512-2RVSP/SsPS8HSPPzIPWNYFnSmlOdxx8VDlt5gDOuMaq9UiIi35pUyo6ZEuJcysjVCu0L8Lv5dJevLLpEkyF0/Q=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-env",
-      "version": "3.972.80",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-env@3.972.80",
+      "version": "3.972.81",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-env@3.972.81",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-uO5TiSvb6j1w9RTe5z28OaOmsrOxVQUPaC5+wZl50RfOXcrYD/KgnS8I9lfyGXc7sGbkCopK6VnhNIAoLqfewQ=="
+          "content": "sha512-VD+EVZ9UHNZhSm4KtakXZAPzgfOw4mRx66dAXNUtHcdJUisbsE7kpi1PRZFMquvuqVfx52fCDBgJgYyOFT/4hQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-http",
-      "version": "3.972.82",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-http@3.972.82",
+      "version": "3.972.83",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-http@3.972.83",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-vQzlDHlC24Yz42p+rT4NBoP/5VdetkBoujbOLq9h6QYWC8THuZSPYnXIR9OP3XcOrdMgPBBipOrdssfxnIiWUg=="
+          "content": "sha512-NsLT02HXcWAQAgpuDJznoJDPIDH/Hh2LiQVlYc+1bVGsksEUZuYCMKa1E1L5qvzc5LLTphp7BP9LYVIhf+MbQA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-ini",
-      "version": "3.973.25",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-ini@3.973.25",
+      "version": "3.973.26",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-ini@3.973.26",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-b5xl71uCRdWsu7P1VeGpiGuCf6zfYETsSNOv8AmYVTrsgbvTJRXdmmOPVfxkvGGVNsiKkGctClQW3jAn0SZLug=="
+          "content": "sha512-vRydnN8wPqh5APe5R+/y4/UOts7QQQQP1UTczJq3fLcLzkQblbkYpLn+Srr8w9S/gzXU1pbiPKTv479unRawAA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-login",
-      "version": "3.972.87",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-login@3.972.87",
+      "version": "3.972.88",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-login@3.972.88",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-C4ZFmcwM+Zj14Z8huVUk54Gv4uzT1ZdzG9cY3Gdh8FePakq7Bss1OFsgZjAhWFOkFOGpBvFBeu0OWjWf8HNKRQ=="
+          "content": "sha512-J8IcBpuFj3j3RImHq/dVO5HtnUbFgvzg7JQvzLt5A42VmzLLgPLM+CUWN68jpIMdIPayu1bb1T+mJjDv9Sq1aA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-node",
-      "version": "3.972.92",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-node@3.972.92",
+      "version": "3.972.93",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-node@3.972.93",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-jC3zmOo7Qxlk+oBivvSsS1Ph7sFGm0QfuhqDGbqgRXi4cxUYMG+dWtBwS2XYYXgc8TIVXJiwgQ65sbNpbYupTA=="
+          "content": "sha512-f5Grg1sgckk11ojxZ7NUYG1ZCOvcNhuuPngKWVxOKGuZokj8eOmo/75+GyR6qAQx4wAGytglZ53r4a3UPleAPQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-process",
-      "version": "3.972.80",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-process@3.972.80",
+      "version": "3.972.81",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-process@3.972.81",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-xqfixO5aclje7tbQJDias+iNND5wp/3QZixCdZcVQpgWPTZ0V5DfTW9A804A5Z7ezu7sH3WRO+vzUjtiJBA8yg=="
+          "content": "sha512-6NBoFaNJbHB0YjcKW4WfrYIDmaMjtwbxlRreAf3MnXkD9WJX8XYu62pa78M0AQGgEt2TJmcNxqL3btAAjV67bA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-sso",
-      "version": "3.973.24",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-sso@3.973.24",
+      "version": "3.973.25",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-sso@3.973.25",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-nlg3BKG03Cgzvv/dMnhxvDJPhAhQSpaN0RUdwgU7ziwkasoev7iI8el8Xy4Rd5sqzgaDUbV269fOXck5SargqA=="
+          "content": "sha512-p1fNaa3as6S2L0wrWqe1cEz1r4iGQa7GbW23KJE3rJy+ZZxhPr6pr9cyCAJ7fAnzoMELvQGZZAuv/rG1ogRuOQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/credential-provider-web-identity",
-      "version": "3.972.86",
-      "purl": "pkg:npm/@aws-sdk/credential-provider-web-identity@3.972.86",
+      "version": "3.972.87",
+      "purl": "pkg:npm/@aws-sdk/credential-provider-web-identity@3.972.87",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zKTyLJBEyfQBVlYqT6Jt+mYV4r8kGbWM7dn6v4Y4MRARizhYafjDXP/iMu76UMRhToSPNmIKX1XAb24gtpBFIA=="
+          "content": "sha512-O2P6CUfMP2qi8vgYB6UHYj/NYTEAAdTr2geEVdVchr3JBofK4Q6W917FiVr2sleA72R59YAXMEhrpzPwkX/xdA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/middleware-sdk-s3",
-      "version": "3.972.85",
-      "purl": "pkg:npm/@aws-sdk/middleware-sdk-s3@3.972.85",
+      "version": "3.972.86",
+      "purl": "pkg:npm/@aws-sdk/middleware-sdk-s3@3.972.86",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Kyl2G6zhIS9qFoeLdlxvXFrWyc6g9D9ZCIRJnGkkfX6JZhxCZB5ebXBc7GKEeetrnhXcail6ALZT0lKbojcaNA=="
+          "content": "sha512-S3RunQUwvUJcuJ5VrVgvhN5OsVpK4GHRcuXaSawCbutO4piyHTmpObUKm19HdqqLBqjf6kHSeAOk/7OyAJ+hmA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@aws-sdk/nested-clients",
-      "version": "3.997.54",
-      "purl": "pkg:npm/@aws-sdk/nested-clients@3.997.54",
+      "version": "3.998.0",
+      "purl": "pkg:npm/@aws-sdk/nested-clients@3.998.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-/OczlavsS7U5sOodRO10Ug4R/AKFVZiXTstKipWe68EfjPkmdDFNXNl9FCJyXWkg1DG6RBm3qAuVB8FNW9O8KQ=="
+          "content": "sha512-aOD1oQVWG6UjOOEdp0MsrWE93vG8pPbvtymmeNtglGxAARplh1wzhHs4npqtY5JN5GBSrTaLbn1hQQ3W2Lk8ow=="
         }
       ]
     },
@@ -243,13 +243,13 @@
     {
       "type": "library",
       "name": "@aws-sdk/token-providers",
-      "version": "3.1161.0",
-      "purl": "pkg:npm/@aws-sdk/token-providers@3.1161.0",
+      "version": "3.1162.0",
+      "purl": "pkg:npm/@aws-sdk/token-providers@3.1162.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-ypbXSofNcSHwf/KA40bFCXJb0MLaAKrfT7sot4dFaA+2lsuXNah4zLRJIAU7Qmvs9PFJ6rnY0bZFEC+mE7attA=="
+          "content": "sha512-vOD6Ac0M43LtXaPu+/+wUMQCd27zIpKt/Le/a645qhx7T1MZeEK71PDhtIHGHgnQjGyNSfC6Z5RNud/hQb3veg=="
         }
       ]
     },
@@ -321,13 +321,13 @@
     {
       "type": "library",
       "name": "@babel/helper-string-parser",
-      "version": "7.29.11",
-      "purl": "pkg:npm/@babel/helper-string-parser@7.29.11",
+      "version": "7.29.13",
+      "purl": "pkg:npm/@babel/helper-string-parser@7.29.13",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-snZbO7MEDOof+hvNa97EjEY7qD7h2kwvQr5AJC3ZhQudKW5dnej6k3kP9NQV88hJwaS8vDqRLFo9rivLEhle2g=="
+          "content": "sha512-fWegr+WsEsiMVW4KUNdIIzzMTZSzNiqhy0//6+2MRi2d5NFNsL/AYwBQW8eBnRbTBVRnDVzjaJEUqKaCWjMMdQ=="
         }
       ]
     },
@@ -347,26 +347,26 @@
     {
       "type": "library",
       "name": "@babel/parser",
-      "version": "7.29.12",
-      "purl": "pkg:npm/@babel/parser@7.29.12",
+      "version": "7.29.13",
+      "purl": "pkg:npm/@babel/parser@7.29.13",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-WJ7JBp/Q4+z/ImydtI7jS6NVco5++632ExBemSX+Ysb+G1lCwQ5BVo3SY+jGGOcZXI4ZccbZSUSJLNBW6eEpJg=="
+          "content": "sha512-fJM50YYjlTiBhgdkGmC1tBpv+FMAyo4annf2X6Aks+0yRlaiVkYW/3f07xAfVVkYIoZ9fFZp+mEThUFnuybhkQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@babel/runtime",
-      "version": "7.29.10",
-      "purl": "pkg:npm/@babel/runtime@7.29.10",
+      "version": "7.29.13",
+      "purl": "pkg:npm/@babel/runtime@7.29.13",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-NpugTzbKgGrNe45Ui32cN8vCFFMxVtP/9rtfwv0nP5FRDAjvYBxJcLVpYA9mr1jxP6cnIT7x9LUzuDTbWYYNRA=="
+          "content": "sha512-v+oN26xP4YIlQsbQ/CbTH1WG5m/l/DjKKZNy/Kp3f/AFvbgt7Em/D0FeMM3O2hX0YzeN2M16W8lOpyhIkfCBcQ=="
         }
       ]
     },
@@ -1153,13 +1153,13 @@
     {
       "type": "library",
       "name": "@fastify/busboy",
-      "version": "3.2.4",
-      "purl": "pkg:npm/@fastify/busboy@3.2.4",
+      "version": "3.2.5",
+      "purl": "pkg:npm/@fastify/busboy@3.2.5",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-lQS8xcXT54rdJb+wlG/Q7SMSdtkZEpLPHooSDUZyyZm9LJD7X1kONPhVoPaHq+dsPtWUGGLIz9gBNhs9qKbylw=="
+          "content": "sha512-y8MTAeBlEQUNVnskmZQwpseZN3EgCksQNOULlfxWY6o6VEqh01+oExMgbM7gN6YLQ8pNDYeweNPKJRt8jQm2ZQ=="
         }
       ]
     },
@@ -1660,13 +1660,13 @@
     {
       "type": "library",
       "name": "@inlang/paraglide-js",
-      "version": "3.0.0",
-      "purl": "pkg:npm/@inlang/paraglide-js@3.0.0",
+      "version": "3.1.0",
+      "purl": "pkg:npm/@inlang/paraglide-js@3.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-wEs1S9pQMB6cHN4a6svK7nUnSiVuyHP08HRrFIItUw9p5HHJ7KSLRVc2MoCQzUmTVd5aSaOADIkLawOAMQ5m6A=="
+          "content": "sha512-V8pBa2ZdaPDq6SO7P7MRXs+FZRF7MMIS8sQamc1pjjzuYFF7aD39BAyZclZvf9DzjiLuKCDXMOLOoCPebjBzqw=="
         }
       ]
     },
@@ -1686,13 +1686,13 @@
     {
       "type": "library",
       "name": "@inlang/sdk",
-      "version": "4.1.1",
-      "purl": "pkg:npm/@inlang/sdk@4.1.1",
+      "version": "4.2.0",
+      "purl": "pkg:npm/@inlang/sdk@4.2.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-eeRnaW6mZPctXd8mwnATWEQgSg0J+EneUsBX2pJEl/7YRfosApCoc5aR4bHKwizLDd0CB3rtfuqteYirG5VSsg=="
+          "content": "sha512-Cmaqvn34wsxiF27318Zw2rg+017HHNJWV5MH8rfyVKVANZNpzlztxzRbFienE/gASMLD8oluYHHolIb/p6Egrw=="
         }
       ]
     },
@@ -3181,13 +3181,13 @@
     {
       "type": "library",
       "name": "@smithy/core",
-      "version": "3.38.1",
-      "purl": "pkg:npm/@smithy/core@3.38.1",
+      "version": "3.39.0",
+      "purl": "pkg:npm/@smithy/core@3.39.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-U/mB2XiwTLaf+NSgLSWwJfptsMT/H8aBi0aTAA/E5e2/TagFeGCqAyhKGG0w0A9IWTkm4qYEmLoD/HB6aYfnRA=="
+          "content": "sha512-JJ/46AWQ4ipS1N2eZmUj7yzIhH8NhQIfAE+dce7NSB6dmFh+7hvD4pbofcoT4I0Xzfy/LNhZx3V2QhwYyAiqdg=="
         }
       ]
     },
@@ -3220,13 +3220,13 @@
     {
       "type": "library",
       "name": "@smithy/node-http-handler",
-      "version": "4.14.1",
-      "purl": "pkg:npm/@smithy/node-http-handler@4.14.1",
+      "version": "4.14.2",
+      "purl": "pkg:npm/@smithy/node-http-handler@4.14.2",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-/T6E1jzCL0fErS9uq8JqES/5yYQQ4ppVmmYHwXw2nlov8KFzLb+3QqHR5iAun1BsuAB50IPxZliV8YMgghLwhA=="
+          "content": "sha512-i1uORV1v3qBqP43ayRKzIdm1q5x14tf8N4Dd06/QUX1Szm6VxHMrTsu20X5E63UFsaNZCRjI4SXG0jDmqYa+3w=="
         }
       ]
     },
@@ -3246,13 +3246,13 @@
     {
       "type": "library",
       "name": "@smithy/types",
-      "version": "4.19.0",
-      "purl": "pkg:npm/@smithy/types@4.19.0",
+      "version": "4.20.0",
+      "purl": "pkg:npm/@smithy/types@4.20.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q=="
+          "content": "sha512-lCA6QG22dPk9ecHbv91jDQZsmtPUjdS1aE2Il6NNPqe7DrYc0dZQi6DhcESk2KYXH2sp5xbAcGdYMZDFnuzA2A=="
         }
       ]
     },
@@ -3584,481 +3584,481 @@
     {
       "type": "library",
       "name": "@tiptap/core",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/core@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/core@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EitM8KY3agYfnp/bqhfxcaReVq4CUqVzMqoSIl7xSfYABTGYoTDtVXUdYSGutcCBFjc86BbXjrOlDlqkgC8BsQ=="
+          "content": "sha512-X9dHcIRE99cfHJnGw5ovmAtHX5LoEZWkiVKK1AU3HvWeIzGHgx4GC0fFBWo8J/qJkfkeBl8HmY27BdgBjF4IeA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-blockquote",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-blockquote@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-blockquote@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-VLcdnbOm7G52NpUhgbyo3XIOz6Eky7/DyGYuYnCpEUe0TE5xk7Qs6ukrh9vaf2XhyeLDHsmVZuzybGrdtqoC0w=="
+          "content": "sha512-XR7JwQjlRR1mH6HsBaIdbgd04qaeplNZ4+hSE9QW/KF1w+xnsklCVjc2KwEsv/EaUWf5Z5A4LAYWNwkXupZpyA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-bold",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-bold@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-bold@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-5Q8bScZEZbIBB2tBgnc7Cr6XuH2Nt/6l1HP3FO0wWO7nqXPOcodEbjslePI3v1iag+LNWX16BZ8fDrJr/PbxXA=="
+          "content": "sha512-SQw/q/UXz4ftwYd8UFgoWb62qW5x794+6im22CwR3y6/OJOKMzubKcoeZhX9LVcvpSsuxmtitRROhkX1yrLP3Q=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-bullet-list",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-bullet-list@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-bullet-list@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-YP7IlC3swrNPlnFHIgVDsDl70geqqWtcAkbuncQEs5FJ9UQg432VwVfwCUW4NsG532p5AqlTTwOKcSLS7p/pqA=="
+          "content": "sha512-E+tmPSQoNMf53KFt9J4AKQUZuU0ZKgkpm598e8v7NWh7FezhX8vWfFG6U+r8u7ijKK7WYUniNzkKQWUbL0u4iA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-character-count",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-character-count@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-character-count@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-00y1l1qeTUFfqRZhTnU4VO+c0Ge0PdiD6eWhNX8okE/zqRwvAg52vC4AZQyI8EYJuvUOotSxCpT1hZVWoMbyaw=="
+          "content": "sha512-teM6TZTs7vywa9uZxnK3+JbcIz+jXp31quuaF2pcix7T4f8ihzgE1YVJTaq1KMTUYjRL9HBHFOJ88oKPHTdXCA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-code",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-code@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-code@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-jm7qXuDmBzQYPemm/9chLepQjCNVtZhaoU9N2f4GxdUi8u/fi3AQLP7xlXjRCQUyam50FVqIIWgD567mLQ3sMg=="
+          "content": "sha512-g99Dl5SSvLR+39VO0zBXxtsYlwwskKCGb9aHJFtRWIcr/VZu3eCpT63164PFZajF8GC85j6Kg6F/eoTs3YYxFg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-code-block",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-code-block@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-code-block@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-KFkPMMgXEgXImGpbUsrHNaERtvOGbJ/JiWn0zHNGSJCf6frn44OLeRFPpEMptmwMqtJxftBVFbEbcPOlATYqDw=="
+          "content": "sha512-wM/pdtidRSFv7WGkpMPY6MBuGEwQ1+YIIiu6igThoZ/Jl9gnx7unrEOgjMch8q/0fBN8fJ6zCEF+PzODex9zMg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-color",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-color@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-color@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-VPu6oygqQyF4+THM+aVg6i8uxVCYxrM/vK/lEzaVVedwVSxZ1G/RliCufmZ/bnGHqgx+c4TDZUqlprKa9nvukQ=="
+          "content": "sha512-2OwTlAuE9BLoMU37jb2fJpZ5X3iNgMg3oeae8lR0U0V98+M0rwohSbDfzNVFz//Jfb+Motbpy8PdQrpE+xxlqg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-document",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-document@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-document@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-zKWj8jh1kpckfSwle+kqFn0ZnYvkhb7nz89nrNvpnnsQMbbGU2/+bUAfYU3XSEKZr3VBvW176FtlMPD8ggC3Cg=="
+          "content": "sha512-kfekMLBiaEA048kBCT2SPxyQndia1cRRxQ/sNqox90vNKzyikHpR8TO8AODisrUU5mJUkf9t2RR4VphxjbLrMQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-dropcursor",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-dropcursor@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-dropcursor@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-mE9muf4KSY3s+LCaHG/G957pVHVF2q46i+YkZF3ZG70errQcyZ5YFKnce9PSL1fiL0VLL+2UhMAL2QDM5oDiNA=="
+          "content": "sha512-TuoOc0jWMuE9B5FPrfakh0Iu+THZ7OCp0gIAEhFWsglSBIU8cRonbweFGFYXfICdIFgJj2dX0GWY7md4gj6FNg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-font-family",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-font-family@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-font-family@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-C1dys5j/u5aQke8DVzAJl6RFvOFm45KM3bGeL0R62gjMCZRTF9nziLZpZcZm7UVkoUhtMzFEtvA7/QSndUO4aw=="
+          "content": "sha512-SlyQvH7Mpf5gQjsILEY/GIXH8iKjujniyR5zWGGzed2/zpx4u2W5JWMf6Y/CDXKG95+QzDw0jFLa7gj/qhWCLA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-gapcursor",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-gapcursor@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-gapcursor@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7W/iX8h6KQ2HK2SfvzCIgySOEJwTM4owqz1tXVOPiLPvKSvDDa9GQsp60+xNyqDNHuplE8bRsZ5dH1nilgAaAg=="
+          "content": "sha512-9o9y7RTKnC8AL41J+zXmWIsCEVLOWh2VG1uYhMovdlff+jZw7IBDXC8AI/+ZB026JqPc3VZU7p88Sm8pFoE5Tg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-hard-break",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-hard-break@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-hard-break@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-oIdXmya2XBzp3Cw9Nr36agPvr9ZXP3p2fQXaFflxYYBKOG3UUzw38CId7J6K1jYxBf8c1zodbiKFEL7rttJ6fQ=="
+          "content": "sha512-RiSvfWiE9d4BgA99WdtgflU/1+zEnug2ZmmjX92VViAP3VyVOVk1zHk/JXmkGR0foll6Sepvzsh9phyBpDK6Kw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-heading",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-heading@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-heading@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-AE2WNA3jVnPV/cVyTwTmtmGZqX8LiiGicDHXX4bdvfzv+Aez4sgzdkuFjOGWtnEy43NnXdoI1UX7y/984NM0iA=="
+          "content": "sha512-PiASHMgQukDevfGQV+yg61jqbB+43+QqcDQi8kGPKleTeEcsMdXcz6mkDLBQPFI1E0wcfQHRz/n8dqG/2NYwng=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-horizontal-rule",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-horizontal-rule@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-horizontal-rule@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Pl0YRS60R339yHrAWGhPT9WHIlD72BO6SGVdj8lBs2OAaYw5RQL/1BGZi+7UvAyc2yJxaRC4XN9X4jdQHDUq9A=="
+          "content": "sha512-s5LOtUwMDrJgqFlHenhjbF75f9AciYtsGKoMPKqdDjuoeLYfuTIVxdZobytTSuKBLg/SxIcSfV7fo6W8IOrItA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-image",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-image@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-image@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-TRjp//2r1MTE1emLXxEki6+D0bOPYaX41CnM1hrUnp1iw/cS0a4XBXAWXxK/EFEl94zrqWrafkarU9rXpnBHeg=="
+          "content": "sha512-VkVK5F810cACjX0Xp2HmC6ih/zwJC7+QeRWxwX0vkrgvoRnrqyq2zcM6v4bW1g4mURZEqNwTNXd6iLozgtvXRw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-italic",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-italic@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-italic@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-aqk8OK4Xo59qZni7YSy42/ltQFb2IOmli3YERIq1XPQ4vl5sxoYhL+sFoOPmvbjHvaHZpK6n8vPh1SmAnB570A=="
+          "content": "sha512-3D1/18hxVv4Awb/acD/4nBCLg3W5g16Wi7qN8KdSM9eW632fYfp9eqmvfeY05FkXLT5osOENE6MFnb+70Sy5ZA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-link",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-link@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-link@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EwQtMXsU1Vc03n+yud7lfaR+RjHTPwFyI/hcEylvJba7iIXDSLA/ey4mnpwt2od8CEx/ZcOutIryORKVR9Py/Q=="
+          "content": "sha512-OLo2F71UgM3DbS4LuoeMuzYedtoBFSJrhbuQcUij8ljqahgv5ul6cVMzc0Odz2amKh37c5fNLy05OSHuzRgxQQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-list",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-list@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-list@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-rLYk3GXSswrCakyZwo8VW0+yjnYhLJSBRvzClneIrlPhqQ2r/oDUjeqkpm8lGvwREw1lDSh7wefGhkhTRcQkAw=="
+          "content": "sha512-47pjwNnnHBU4DKXoM02E0/jTy7+AdPClZ5tnTRhioPWduw3rLUrHK5RcgPPn6hUC0rnZogVyOV08qkH6n0vC0A=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-list-item",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-list-item@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-list-item@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-vTdPfzZODLVXog/NMs6zcaTOhtlh6ptJidlMg8l1TLhO+YQyEyO/K45aV429D9xTo/BOVazreav/C+hgemSnYg=="
+          "content": "sha512-SPpqcCu36wbe6p1dxpy3tT50JsAs12kEKfqDLGtCwcu5+zytzYJl8Gxtheo5N8laPk8/p+R8VcIEIYMzRRaaSw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-list-keymap",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-list-keymap@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-list-keymap@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-SioQO8TqRb8aq9L+GpI/a/F7HCSBarm3Uvqtt2YttyazjSjEedu1zSnaa93V+WEFmlqyXnxVa24vv2zj6qlavQ=="
+          "content": "sha512-fx/tCY+h+4Pb8r5LKVv8dlr7NlmTZvMBPHkbZ8i8760nTWPzXjmQWGPN78uTYAY+3lgUZutO3nvBNImSfy80QQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-ordered-list",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-ordered-list@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-ordered-list@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-WQw2fLtJAxCYftKAk+YNlPDc+OxtXK4nNfXRBwr6oC67SoJtoLe0bo5jS6vF+cEqzHjDaboJi+O3MSNp2L2VQA=="
+          "content": "sha512-uXtJ0z8mHMIPSkc12aIcvl3nLjVNL7H8vcJCFg1+nEyiRwryq7wnNW+nI6BtMWO5QApDq/q1EalRN79A1VwtYg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-paragraph",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-paragraph@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-paragraph@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-3bqC//4GEhUiux3dhW/TJuveBp9ADv4nHlqBdVQa3A+USGbaBvE9YvXxA32wZL0leSRykxEnHbNHZ1J4KjIynQ=="
+          "content": "sha512-CwHrW1LRsjNhCp9psMPxXVrzs6m4nDDA/81jaAdepqzXZC8ulbEt+gGPCm+llO62vRIJ8mXGs6mhqN/O4NVUrA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-placeholder",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-placeholder@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-placeholder@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-T+QVayKhakLbFhne7nEdo8omHcEevo8ksEYdKSCeTLoaVInaAiG9WwkKSJymhQ81EbOMS1WsO0XJnb3mrx9PHw=="
+          "content": "sha512-QCQkikwnFYiOKXGTw7iDiyKngzJPn0rvsMNmnGom8IFjR7q8APYFXo6rlumlQs6Vsnus46UI0G+QrZhkbvm6aQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-strike",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-strike@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-strike@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-i3d4vCrZySS9g5nGa5W0LS6LPMKxcAnJO6uADTnGVlKK0ewklcWWZbZ9GB/Fpx/IjKAvXWeayjfsNpTae/yVZg=="
+          "content": "sha512-Kc+lCjUa7+j8N9CgGNvhnZBtHw1vLDtJloS85v8ieSlY/MlYNpDHM2I9/X8GXvKWOSAq3UfrVOljxcQGPlucxw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-table@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-table@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-CIFQaKOwdNFPaApymZRNhAnpGpl3Y53V1sqTgQV9FtI4qi6H3mAR032GtasUzo7DpBaOHpNNbMgph0yyVCJF9g=="
+          "content": "sha512-NF+VlinGYmeVrIgiX8ewBfSpqQi9YFVvqEZaGPLxInIAIz3Jy7q/2OwGqnGvrdJ2PA9eXqCciXQMt2uWdZACoA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table-cell",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-table-cell@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-table-cell@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Qu37Px9pkKXyPzjS6RKnXJw6FlR5AltC6d0F3nArAW8xVQLeYIciWwcovEkKaGTcvFNExrlWszMUUmfiuUO/fA=="
+          "content": "sha512-RsLTXEzkY8vJYNMRbm5Xrk+s0K+kDx0qeygDN4bBHRdYpPw/H7SvwsmNroREmw7nJQp/y5WBIL4VdtuhMXttxQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table-header",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-table-header@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-table-header@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-hpOxkBBaIlXk99Q7MhwzOCUAuWPwDKWbas/iEpQeeBuLk9GhbrpNztF0HpKPEwtlOC5s/fgS4Z8hZGYaeIE6FA=="
+          "content": "sha512-doVWRPwUhM2amaL7HKshoEPbpGI2WNmZMGzj1o3OV33rvnLqvPqOf+tPnrdcWdm9yAMZWLWX6tsM4iWC58K8yA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-table-row",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-table-row@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-table-row@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-rlylXglVNwDUvXgn0bKZW2HuceSu2xb00fGhAlvniUlGEFAn7/6buEjVrJJKKmbc2OXsmfh4+MnwMPpd7rCnIg=="
+          "content": "sha512-z8w/gEYEQQIbS4g7N3+Vddq7HKNos3AS6MZXkM3/IZtNsuRG2NLy2OUzE1KXR4VzIrAr2Ujv0DnOlFwgIKAoRg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-text",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-text@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-text@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-W6G7UbQ71TyvZvORDdj6u8By8B/Dymy8KoaKGaNHqB82SpM42ZK2TmeFBHI0Lo4wTkZJL3LuI+QthaDvh0USsA=="
+          "content": "sha512-QRiRfwi8b2+B92ZK4lbJL+INKcbarcWb/ZwfJOBStYTBH2ByofTKzKG90KkqbE4/zlLuVivVLPI9ZixfNcmpXA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-text-align",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-text-align@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-text-align@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-o1DKPodB0FKqpdYp/OKyM6nYSbZXnPEC9rWx/O/Vccs2OOeF08iOO3cKYs1lS/qNg/xFeR8gKxGMrve7CfCkKA=="
+          "content": "sha512-3omH1td3kWXs5eNQ9WGOCIvC4BrZoFAKJfU5X+NgeaTC/4L+djHS4OzZQ75C90HofyaUJRXBehlOiaf2ESvCgQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-text-style",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-text-style@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-text-style@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-7VHyvO8V7xCOj4BY56gqCylZXF972dtk+ngIIXT19nhBXYuQZKXGrN11xPrfMip/1nGsMWov9PZB2HleYJnXGQ=="
+          "content": "sha512-lX0gy+xWMAnSrq+moxd9U2HkDpWEl02IeFWF9bynlmw6E8VBo6tbbT6tZl++0jBpj0vjxwsM/57vI8TegamW2A=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-underline",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-underline@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-underline@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-kY7B5ocKx3JzqIl2kLXGvnLGZRxuYEFzMkpgJ6Vh6/VTTK+JCeOVItYEQGFrAxrodIMmhIrXpi1jF57s6iZswg=="
+          "content": "sha512-4euEx/TV2urzmaAfgqoS0BOGNeCBu9wx4MbEMD5AUHVO6fGQ24PRCKl8sv+Yrx12JDU6u6i995q4LmGyB0VNMQ=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extension-youtube",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extension-youtube@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extension-youtube@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Dl5alxkK8BmlhGEcUkv4tnTVL0+Nil0axNFda+/QuE1+QMUjQSAKa6JoaYffD7fp62Ie0uvIW67gXvhXpX74kQ=="
+          "content": "sha512-vqN/MxJTDORViKBFskqImEbqSsAE6W2ijPxa8QD2PLgGKmvl8Ba5WisWsvcZ1hO0ZmalTttpi+6r8XiKsv0Mwg=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/extensions",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/extensions@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/extensions@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-TUE1JedPjYQ/T527f2a4xz+4Xi1a5nIgW8KwC0DjmqbaHirlz0eCNI2nMEN70pu5WPpqgXmki3lCF3LScQxIGw=="
+          "content": "sha512-WwS6W4qXdKNDDO6kXa5Sfi5ibTZgx57q3alaSXGM0cB4EwZ8+zNaHJzp2eIVqdvcL+ZjDs2um8P0LBepno4Ubw=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/pm",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/pm@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/pm@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-4cuUbYf55NnYBIvDBK/K1VFVQ4pocKwAZC5TAy4s9dptvazxVHkQVMbiQsyhwfIbM4rxmHWkM/6omaFfTB++/g=="
+          "content": "sha512-WTNTMJ6cD5xaT1rPfPCx0a8/IQWMRkqLlLDArk7vb48bunxF0GfCGmHBBedO45NesNi3iCejRHjGvSZq+UFYrA=="
         }
       ]
     },
     {
       "type": "library",
       "name": "@tiptap/starter-kit",
-      "version": "3.32.2",
-      "purl": "pkg:npm/@tiptap/starter-kit@3.32.2",
+      "version": "3.32.3",
+      "purl": "pkg:npm/@tiptap/starter-kit@3.32.3",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-6K+oOMF4orhnOxivgUTKiSpNAEftHyWOcfFIvIEMUP044b34obBUogzMTfM3RjtewZtQXVafO9zmGU30IllC1g=="
+          "content": "sha512-QvTDC3yni5nPDHcPsa2SnQN7xGDmDvvkvKhi9FpZaIXg7ioIsxybHwF4kV+vds2y9mOA6/McNH8sNg71mCvbZg=="
         }
       ]
     },
@@ -5781,13 +5781,13 @@
     {
       "type": "library",
       "name": "graphql",
-      "version": "17.0.2",
-      "purl": "pkg:npm/graphql@17.0.2",
+      "version": "17.1.0",
+      "purl": "pkg:npm/graphql@17.1.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-FRWbddMxfkjiB7z+aQDWIR+E34xo9I8c9mtK2RPv8PmMzKRvrdsreHL/Ui/TmwHJfhHChEtsFPyMHKI+xuarQQ=="
+          "content": "sha512-JKCOa7rSQNrket/JFhuua86hljUO+IIpyUHfKxlKD6FEfbrLX8jc1FDrA0KPKI+s8OspBCF/5npYccAICHXPpQ=="
         }
       ]
     },
@@ -6717,13 +6717,13 @@
     {
       "type": "library",
       "name": "mongodb",
-      "version": "7.7.0",
-      "purl": "pkg:npm/mongodb@7.7.0",
+      "version": "7.8.0",
+      "purl": "pkg:npm/mongodb@7.8.0",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-XG1xXEqyouAV8GCb3PuRaujofeXKpAJAPvXYWZgHl6Dz4QHSJ1nRLl0+GpqaLTwKvC0RFE9truOur34RNFY1nw=="
+          "content": "sha512-p2NKagbQ41+daACG/ZSvhTzeAo+DoEyWE9Cmpf/SyP3pTC43+X0mwKE/44PpKtCxp5wOxnXz+t2pXEZRSkt9Yg=="
         }
       ]
     },
@@ -6743,13 +6743,13 @@
     {
       "type": "library",
       "name": "mongoose",
-      "version": "9.11.4",
-      "purl": "pkg:npm/mongoose@9.11.4",
+      "version": "9.12.0",
+      "purl": "pkg:npm/mongoose@9.12.0",
       "scope": "optional",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-+xME0fduXl1sWF+NZpJHZaNcwQSt+X2vbJ/h7GRSZ/ltLycAkGZSEABhzic0+q3IMF66KqF0viEE5+frchKCAQ=="
+          "content": "sha512-nM8yl6hPcXuT+LbJYV7aFk1PmBF+0xR159pHHlaDzrovT89yQ5k+ty38Vcnd5elLYixndveBFtHJaWS9b80cKg=="
         }
       ]
     },
@@ -7445,13 +7445,13 @@
     {
       "type": "library",
       "name": "prosemirror-transform",
-      "version": "1.12.4",
-      "purl": "pkg:npm/prosemirror-transform@1.12.4",
+      "version": "1.12.5",
+      "purl": "pkg:npm/prosemirror-transform@1.12.5",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-2/WuPum3pn+O/Vi2vzpi8210ICUe2kIPXdLYjQ09Pv5DtT5bcKWMJhAKPBwvpPjpp5iOYUVwVEr0gOM1BY1Mgw=="
+          "content": "sha512-3EBXZBM4h3MKuWvs9sQ7IA0/v6jCqCZ4wC08PIvzY1VSQWDL90KEyfg5C0Ex52UJesf/QVogxvuBsZdKmLc3NQ=="
         }
       ]
     },
@@ -7835,13 +7835,13 @@
     {
       "type": "library",
       "name": "sift",
-      "version": "17.1.3",
-      "purl": "pkg:npm/sift@17.1.3",
+      "version": "17.1.4",
+      "purl": "pkg:npm/sift@17.1.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-Rtlj66/b0ICeFzYTuNvX/EF1igRbbnGSvEyT79McoZa/DeGhMyC5pWKOEsZKnpkqtSeovd5FL/bjHWC3CIIvCQ=="
+          "content": "sha512-/OIVvj9Ts1mFwTYzW09YODMPeIOnDoigMOvKSIN44OmaCyhuCH/05UPF45XW7Ax0snmzDzCzdlSYqvqsn8+sIg=="
         }
       ]
     },
@@ -8303,13 +8303,13 @@
     {
       "type": "library",
       "name": "undici",
-      "version": "8.12.3",
-      "purl": "pkg:npm/undici@8.12.3",
+      "version": "8.12.4",
+      "purl": "pkg:npm/undici@8.12.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-+fdndUTwBP86cVjihTp21hZHo7d6oj1c/47XPA3lL8mM0XHs+C4EkcjmgRsFnFk2f/UONGDy9ItBItmXsLOQHw=="
+          "content": "sha512-8Mx+uNKKER2bA4AdtedkqRbwUCIJFr2nJckXRe5yrDqzePqwLP7VNcctN8/XdmDSbF7mS+jJKIszlL+vbam1VA=="
         }
       ]
     },
@@ -8485,13 +8485,13 @@
     {
       "type": "library",
       "name": "vite",
-      "version": "8.3.5",
-      "purl": "pkg:npm/vite@8.3.5",
+      "version": "8.3.6",
+      "purl": "pkg:npm/vite@8.3.6",
       "scope": "excluded",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-z1YpjieJ9g0ebTmQpLBv/oq9E3F9EIlOe+7LahW8SrE3LTiG3udBRUXQOlYXP9b+IC2q2phHeVxj9xGlw34OEQ=="
+          "content": "sha512-UI7dK29NnS54Fk+mmo7o+jI6U8Fp7hDl+X5Q1k45WH+d4dSlbLVUETGQ+hfkNgvLQGyoElPj837nZyv4MBc0VA=="
         }
       ]
     },
@@ -9005,13 +9005,13 @@
     {
       "type": "library",
       "name": "undici-types",
-      "version": "8.12.3",
-      "purl": "pkg:npm/undici-types@8.12.3",
+      "version": "8.12.4",
+      "purl": "pkg:npm/undici-types@8.12.4",
       "scope": "required",
       "hashes": [
         {
           "alg": "SHA-512",
-          "content": "sha512-EXE4ydL3S76dFb27UFjNVZHTyv/TLdATj/KUe29ptdcg6qXL48J2tZ3126E5kICj5jn781OR+XlVH1N6Mz8jbA=="
+          "content": "sha512-GNCQH3MbVGB8OAVAoTiLH8pu4wx5Ni3DWKpnBzGj3WDsi8EwmK0aOVBooNEt+g5YL1eHPxcS9XUTouwFU6j1kQ=="
         }
       ]
     },

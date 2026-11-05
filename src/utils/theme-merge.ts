@@ -81,6 +81,8 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T> 
   if (!source) return target;
   const output = { ...target };
   for (const key in source) {
+    if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
+    if (!Object.hasOwn(source, key)) continue;
     if (typeof source[key] === "object" && source[key] !== null && key in target) {
       output[key] = deepMerge(target[key], source[key]);
     } else {

@@ -95,6 +95,17 @@ export interface EgressOptions {
   maxRedirects?: number;
   timeoutMs?: number;
   maxSizeBytes?: number;
+  /** Allowed hostnames (exact string or RegExp) or a Set of allowed hostnames */
+  allowedHosts?: (string | RegExp)[] | Set<string>;
+  /** Allowed origin strings (e.g. 'https://api.example.com') or a Set of allowed origins */
+  allowedOrigins?: string[] | Set<string>;
+  /** Custom scope filter predicate receiving the parsed URL */
+  urlScope?: (url: URL) => boolean;
+  /**
+   * Whether to forbid protocol downgrade (e.g. https: -> http:) on redirects.
+   * Defaults to true.
+   */
+  disallowProtocolDowngrade?: boolean;
 }
 
 export interface EgressResult {
@@ -154,6 +165,10 @@ function isBlockedIP(ip: string, allowPrivate: boolean): boolean {
  * SSRF and DNS Rebinding attacks.
  */
 export async function validateEgressUrl(url: string, options: EgressOptions = {}): Promise<URL> {
+  if (typeof url === "string" && (url.trim().startsWith("//") || url.trim().startsWith("/\\"))) {
+    throw new EgressError(`Protocol-relative URL forbidden: ${url}`);
+  }
+
   let parsed: URL;
 
   try {
@@ -188,6 +203,36 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
   }
   if (BLOCKED_HOSTS.has(hostname)) {
     throw new EgressError(`Blocked internal host: ${hostname}`);
+  }
+
+  // Scope constraints: allowedOrigins, allowedHosts, urlScope
+  if (options.allowedOrigins) {
+    const originMatched =
+      options.allowedOrigins instanceof Set
+        ? options.allowedOrigins.has(parsed.origin)
+        : options.allowedOrigins.includes(parsed.origin);
+    if (!originMatched) {
+      throw new EgressError(`Origin not in allowedOrigins list: ${parsed.origin}`);
+    }
+  }
+
+  if (options.allowedHosts) {
+    let hostMatched = false;
+    if (options.allowedHosts instanceof Set) {
+      hostMatched = options.allowedHosts.has(hostname);
+    } else {
+      hostMatched = options.allowedHosts.some((pattern) => {
+        if (typeof pattern === "string") return pattern.toLowerCase() === hostname;
+        return pattern.test(hostname);
+      });
+    }
+    if (!hostMatched) {
+      throw new EgressError(`Hostname not in allowedHosts list: ${hostname}`);
+    }
+  }
+
+  if (options.urlScope && !options.urlScope(parsed)) {
+    throw new EgressError(`URL does not satisfy urlScope predicate: ${parsed.href}`);
   }
 
   // If it's already an IP, check it directly
@@ -229,8 +274,24 @@ export async function safeFetch(
     maxRedirects = DEFAULT_MAX_REDIRECTS,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     maxSizeBytes = DEFAULT_MAX_SIZE_BYTES,
+    allowedHosts,
+    allowedOrigins,
+    urlScope,
+    disallowProtocolDowngrade = true,
     ...fetchOptions
   } = options;
+
+  const egressOpts: EgressOptions = {
+    allowHttp,
+    allowPrivate,
+    maxRedirects,
+    timeoutMs,
+    maxSizeBytes,
+    allowedHosts,
+    allowedOrigins,
+    urlScope,
+    disallowProtocolDowngrade,
+  };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -239,11 +300,22 @@ export async function safeFetch(
     let currentUrl = initialUrl;
     let redirectsCount = 0;
     let response: Response | null = null;
+    let initialProtocol: string | null = null;
 
     let redirecting = true;
-    // Manual redirect loop: re-validate each hop against SSRF rules
+    // Manual redirect loop: re-validate each hop against SSRF rules & scopes
     do {
-      const validatedUrl = await validateEgressUrl(currentUrl, { allowHttp, allowPrivate });
+      const validatedUrl = await validateEgressUrl(currentUrl, egressOpts);
+
+      if (!initialProtocol) {
+        initialProtocol = validatedUrl.protocol;
+      } else if (
+        disallowProtocolDowngrade &&
+        initialProtocol === "https:" &&
+        validatedUrl.protocol === "http:"
+      ) {
+        throw new EgressError("Redirect protocol downgrade forbidden: https: -> http:");
+      }
 
       response = await fetch(validatedUrl.toString(), {
         ...fetchOptions,

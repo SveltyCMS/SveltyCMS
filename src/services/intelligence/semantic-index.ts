@@ -6,12 +6,13 @@
  * users, admin pages) and provides fast cosine-similarity search. Integrates with
  * the behavioral learning engine to prioritize indexing of frequently-accessed content.
  *
- * ### Architecture:
+ * ### Features:
  * - Embedding backend: Ollama (NPU/GPU) → TF-IDF fallback (see embedding-service.ts)
  * - Storage: Cache layer (L1 in-memory + L2 Redis) with TTL-based freshness
  * - Indexing: Incremental — only re-indexes content that changed (mtime-based)
  * - Prioritization: Hot collections (from behavioral learner) indexed first
  * - Search: Brute-force cosine similarity (fine for <10K items; switch to HNSW at scale)
+ * - Candidate Reranker: Re-orders top-N search candidates by answer relevance with keyword fallback
  *
  * ### On Intel NPU:
  * - Ollama auto-detects Intel AI Boost via SYCL/OpenVINO
@@ -58,6 +59,23 @@ export interface IndexedItem {
 export interface SearchResult extends IndexedItem {
   score: number; // 0–1 cosine similarity
   matchType: "semantic" | "keyword" | "both";
+}
+
+export interface RerankOptions {
+  /** Number of top candidates to evaluate and re-rank (default 5). */
+  topN?: number;
+  /** Optional custom scoring hook for AI/LLM model rerankers. */
+  customScorer?: (query: string, candidate: SearchResult) => number | Promise<number>;
+}
+
+export interface SemanticSearchOptions {
+  limit?: number;
+  minScore?: number;
+  types?: IndexedItem["type"][];
+  collectionId?: string;
+  tenantId?: string;
+  /** Re-ranks top N candidates by enhanced answer relevance (e.g. 5). Set 0 to disable. */
+  rerankTopN?: number;
 }
 
 // ─── State ─────────────────────────────────────────────────────────────────
@@ -126,6 +144,181 @@ export async function indexBatch(
   logger.info(`[SemanticIndex] Batch-indexed ${items.length} items (${results[0].backend})`);
 }
 
+// ─── Reranker ──────────────────────────────────────────────────────────────
+
+/**
+ * Common English stop words stripped during lexical alignment analysis.
+ */
+const STOP_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "by",
+  "for",
+  "from",
+  "has",
+  "he",
+  "in",
+  "is",
+  "it",
+  "its",
+  "of",
+  "on",
+  "that",
+  "the",
+  "to",
+  "was",
+  "were",
+  "will",
+  "with",
+  "how",
+  "what",
+  "where",
+  "can",
+]);
+
+function computeLexicalScore(
+  queryTerms: string[],
+  fullQueryLower: string,
+  candidate: SearchResult,
+): number {
+  const titleLower = candidate.title.toLowerCase();
+  const descLower = candidate.description.toLowerCase();
+  const pathLower = candidate.path.toLowerCase();
+  const kwString = candidate.keywords.join(" ").toLowerCase();
+
+  let matchedTerms = 0;
+  let titleHits = 0;
+  let pathHits = 0;
+  let descHits = 0;
+
+  for (const term of queryTerms) {
+    let termFound = false;
+    if (titleLower.includes(term)) {
+      titleHits++;
+      termFound = true;
+    }
+    if (pathLower.includes(term)) {
+      pathHits++;
+      termFound = true;
+    }
+    if (descLower.includes(term) || kwString.includes(term)) {
+      descHits++;
+      termFound = true;
+    }
+    if (termFound) matchedTerms++;
+  }
+
+  const termCoverage = queryTerms.length > 0 ? matchedTerms / queryTerms.length : 0;
+  const titleBonus = queryTerms.length > 0 ? Math.min(titleHits / queryTerms.length, 1) * 0.4 : 0;
+  const pathBonus = queryTerms.length > 0 ? Math.min(pathHits / queryTerms.length, 1) * 0.3 : 0;
+  const descBonus = queryTerms.length > 0 ? Math.min(descHits / queryTerms.length, 1) * 0.2 : 0;
+
+  // Exact query phrase match bonus
+  const qTrim = fullQueryLower.trim();
+  const phraseMatch =
+    titleLower.includes(qTrim) || pathLower.includes(qTrim)
+      ? 0.25
+      : descLower.includes(qTrim)
+        ? 0.15
+        : 0;
+
+  const lexicalAlignment = Math.min(
+    termCoverage * 0.4 + titleBonus + pathBonus + descBonus + phraseMatch,
+    1.0,
+  );
+
+  // Re-ranked score: 50% baseline score (semantic + keyword fallback) + 50% answer relevance alignment
+  return Math.round((candidate.score * 0.5 + lexicalAlignment * 0.5) * 1000) / 1000;
+}
+
+/**
+ * Re-orders semantic-index candidates by answer relevance (top-N configurable),
+ * keeping initial keyword/semantic scores as the baseline fallback.
+ */
+export async function rerankCandidates(
+  query: string,
+  candidates: SearchResult[],
+  options: RerankOptions = {},
+): Promise<SearchResult[]> {
+  const { topN = 5, customScorer } = options;
+  if (candidates.length <= 1 || topN <= 0) return [...candidates];
+
+  const targetSlice = candidates.slice(0, topN);
+  const remainder = candidates.slice(topN);
+
+  const queryTerms = query
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
+  const fullQueryLower = query.toLowerCase();
+
+  const rerankedSlice = await Promise.all(
+    targetSlice.map(async (candidate) => {
+      if (customScorer) {
+        try {
+          const customScore = await customScorer(query, candidate);
+          if (Number.isFinite(customScore)) {
+            return {
+              ...candidate,
+              score: Math.round(customScore * 1000) / 1000,
+            };
+          }
+        } catch {
+          // Graceful fallback to default scoring
+        }
+      }
+
+      const score = computeLexicalScore(queryTerms, fullQueryLower, candidate);
+      return {
+        ...candidate,
+        score,
+      };
+    }),
+  );
+
+  rerankedSlice.sort((a, b) => b.score - a.score);
+  return [...rerankedSlice, ...remainder];
+}
+
+/**
+ * Synchronous candidate reranker using deterministic lexical answer-relevance scoring.
+ */
+export function rerankCandidatesSync(
+  query: string,
+  candidates: SearchResult[],
+  options: Omit<RerankOptions, "customScorer"> = {},
+): SearchResult[] {
+  const { topN = 5 } = options;
+  if (candidates.length <= 1 || topN <= 0) return [...candidates];
+
+  const targetSlice = candidates.slice(0, topN);
+  const remainder = candidates.slice(topN);
+
+  const queryTerms = query
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
+  const fullQueryLower = query.toLowerCase();
+
+  const rerankedSlice = targetSlice.map((candidate) => {
+    const score = computeLexicalScore(queryTerms, fullQueryLower, candidate);
+    return {
+      ...candidate,
+      score,
+    };
+  });
+
+  rerankedSlice.sort((a, b) => b.score - a.score);
+  return [...rerankedSlice, ...remainder];
+}
+
 /**
  * Search the semantic index by query text.
  *
@@ -133,20 +326,15 @@ export async function indexBatch(
  * 1. Cosine similarity against all vectors (semantic match)
  * 2. Substring match on title/keywords/description (keyword match)
  * 3. Merged and ranked by combined score
+ * 4. Optional candidate re-ranking by answer relevance (top-N configurable)
  *
  * Returns top-K results sorted by relevance.
  */
 export async function semanticSearch(
   query: string,
-  options: {
-    limit?: number;
-    minScore?: number;
-    types?: IndexedItem["type"][];
-    collectionId?: string;
-    tenantId?: string;
-  } = {},
+  options: SemanticSearchOptions = {},
 ): Promise<SearchResult[]> {
-  const { limit = 10, minScore = 0.2, types, collectionId, tenantId } = options;
+  const { limit = 10, minScore = 0.2, types, collectionId, tenantId, rerankTopN } = options;
 
   if (_index.size === 0) return [];
 
@@ -194,7 +382,13 @@ export async function semanticSearch(
 
   // Sort by score descending, take top K
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  const candidates = scored.slice(0, limit);
+
+  if (rerankTopN && rerankTopN > 0) {
+    return rerankCandidates(query, candidates, { topN: rerankTopN });
+  }
+
+  return candidates;
 }
 
 // ─── Internal Indexers ─────────────────────────────────────────────────────
