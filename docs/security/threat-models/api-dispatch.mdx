@@ -1,0 +1,44 @@
+---
+path: "docs/security/threat-models/api-dispatch.mdx"
+title: "Threat Model: API Dispatch"
+description: "STRIDE review of the HTTP API dispatcher, endpoint permission mapping and request-lane hooks."
+order: 70
+icon: "mdi:shield-search"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "threat-model"
+  - "api"
+---
+
+# Threat Model: API Dispatch
+
+Scope: `src/routes/api/**` plus the hooks that classify and gate API traffic
+(`src/hooks/handle-api-requests.ts`, `handle-request-classifier.ts`,
+`handle-turbo-get.ts`, `handle-turbo-pipeline.server.ts`, `handle-compression.ts`).
+The drift gate treats any file change in this surface as a reason to re-review
+this page (see `docs/reference/security/threat-models.mdx`).
+
+## STRIDE
+
+| Threat                                                                    | Surface                                                          | Existing control (file reference)                                                                                                                                                                                | Residual risk                                                                                                  |
+| :------------------------------------------------------------------------ | :--------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- |
+| **Spoofing** — forged session or API key reaches a handler                | `src/routes/api/[...path]/+server.ts`                            | Session resolution runs before dispatch; API keys are hashed and checked through `src/databases/auth/api-keys.ts`.                                                                                               | A stolen bearer token stays valid until session revocation; revocation epoch is process-local.                 |
+| **Tampering** — client edits a request body to cross a privilege boundary | `src/routes/api/[...path]/+server.ts`                            | JSON body parsing is centralized; CSRF origin check runs for non-public mutations in the same dispatcher.                                                                                                        | Handler-specific payload rules still need to reject unknown fields; this model does not audit every handler.   |
+| **Repudiation** — a mutation is denied later without a record             | `src/hooks/handle-audit-logging.ts`                              | Audit logging is part of the server pipeline and writes the actor, path and outcome.                                                                                                                             | Logs are only as complete as each handler's call site; read-only endpoints are not audited.                    |
+| **Information disclosure** — an unmapped endpoint is reachable            | `src/routes/api/[...path]/+server.ts`                            | `_checkEndpointPermission()` resolves `ENDPOINT_PERMISSIONS` from `src/databases/auth/permission-catalog.ts` and denies when no entry exists (fail-closed). Plugin routes instead require declared capabilities. | A new namespace must be added to the catalog; the denial is the intended failure mode, not a silent allow.     |
+| **Denial of service** — request floods exhaust CPU or the DB pool         | `src/hooks/handle-rate-limit.ts`, `src/hooks/handle-security.ts` | Token-bucket lanes (default/commerce) and the firewall run before handler dispatch.                                                                                                                              | Rate limits are per process unless a shared store is configured; distributed deployments depend on that store. |
+| **Elevation of privilege** — role/MFA checks are skipped                  | `src/routes/api/[...path]/+server.ts`                            | Role-based MFA enforcement and `hasPermissionWithRoles()` run inside the dispatcher; GraphQL blocks schema introspection in production (`src/routes/api/graphql/+server.ts`).                                    | Plugin route handlers own their own capability checks after dispatch.                                          |
+
+## Assumptions
+
+- Reverse proxy or adapter terminates TLS; the dispatcher trusts `request.url` origin only for CSRF comparison.
+- `ENDPOINT_PERMISSIONS` remains the single source of core endpoint authorization; plugin route capabilities are reviewed with the plugin.
+- Files matched by this surface are code only; generated Paraglide output is excluded from the fingerprint.
+
+## Out of scope
+
+- Handler-internal business rules (covered by the owning surface's model).
+- Reverse-proxy WAF and TLS configuration, which live outside this repository.

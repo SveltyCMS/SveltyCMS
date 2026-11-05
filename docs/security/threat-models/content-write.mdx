@@ -1,0 +1,44 @@
+---
+path: "docs/security/threat-models/content-write.mdx"
+title: "Threat Model: Content Write"
+description: "STRIDE review of collection mutations, the write lane, SDK collection namespace and public content delivery."
+order: 72
+icon: "mdi:shield-search"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "threat-model"
+  - "content"
+---
+
+# Threat Model: Content Write
+
+Scope: collection routes under `src/routes/(app)/[language]/**`, public delivery
+under `src/routes/(site)/**`, the collection/content handlers in
+`src/routes/api/[...path]/handlers/`, `src/services/sdk/namespaces/collections/**`,
+`src/services/content/**` and `src/hooks/handle-collection-write-lane.ts`.
+
+## STRIDE
+
+| Threat                                                                    | Surface                                                                   | Existing control (file reference)                                                                                                               | Residual risk                                                                                                        |
+| :------------------------------------------------------------------------ | :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
+| **Spoofing** — a write is attributed to another tenant                    | `src/databases/crud-tenant-guard.ts`                                      | Every adapter write carries a tenant scope; `withSystemScope()` in `src/databases/system-tenant-scope.ts` is the explicit bypass.               | A system-scoped code path that forgets the scope marker is a review item for this surface.                           |
+| **Tampering** — payload bypasses schema or field-level rules              | `src/services/sdk/namespaces/collections-namespace.ts`                    | The namespace resolves the collection schema, sanitizes values, validates numeric ranges and applies field permissions before adapters persist. | Custom widget validators are part of the trust boundary; a permissive widget widens accepted input.                  |
+| **Tampering** — malicious HTML stored in a rich-text field                | `src/utils/sanitize-html.ts`                                              | Rich-text output is sanitized through the shared sanitizer; Svelte escapes interpolated strings on render.                                      | Formats that bypass the sanitizer (raw HTML widgets) rely on the widget author's allowlist.                          |
+| **Repudiation** — a mutation has no audit entry                           | `src/hooks/handle-audit-logging.ts`                                       | The audit hook records collection mutations, including the fast write lane (`serveWarmCollectionWrite`).                                        | Direct adapter calls from scripts are outside the HTTP pipeline and outside this log.                                |
+| **Information disclosure** — a read returns fields the caller may not see | `src/services/sdk/namespaces/collections/read-pipeline.ts`                | Read projection and field guards are applied by the SDK namespace; `private`/`hidden` fields are redacted before the response.                  | Aggregate or custom query endpoints must use the same projection path to inherit the rule.                           |
+| **Denial of service** — oversized or pathological query burns the DB      | `src/utils/guarded-query.ts`, `src/hooks/handle-collection-write-lane.ts` | Write-lane requests pass `wafGuard.inspectEvent()`; query parsing caps page size via `src/utils/api-params.ts`.                                 | A slow but schema-valid filter can still be expensive; index coverage is an operational concern.                     |
+| **Elevation of privilege** — write skips a permission check               | `src/services/sdk/namespaces/collections-namespace.ts`                    | Mutations call `hasPermissionWithRoles()` with the caller's roles before persistence; the publish gate is evaluated against the stored row.     | Plugin-provided collection hooks run with the caller's scope and can add checks but cannot remove the built-in ones. |
+
+## Assumptions
+
+- Collection schemas are authored by administrators and validated before activation; a schema authored with `private: false` fields is an explicit configuration choice.
+- `handle-collection-write-lane.ts` is the only fast path; reads served from cache are invalidated by the SDK namespace after writes.
+- Public site pages render through Svelte templates, not through raw database-to-HTML concatenation.
+
+## Out of scope
+
+- Editor-side rich-text UI state; only the stored value and its sanitisation are in scope.
+- Adapter SQL generation, covered by the database adapter contract tests.

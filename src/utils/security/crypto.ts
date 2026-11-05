@@ -298,12 +298,24 @@ export function hmacSha256VerifyWithKeys(
   },
 ): boolean {
   const sig = Buffer.from(params.signatureB64url);
-  for (const key of params.keys) {
-    const expected = cryptoMod.createHmac("sha256", key).update(params.payload).digest("base64url");
-    const expectedBuf = Buffer.from(expected);
-    if (sig.length === expectedBuf.length && cryptoMod.timingSafeEqual(sig, expectedBuf)) {
-      return true;
+  try {
+    for (const key of params.keys) {
+      const expected = cryptoMod
+        .createHmac("sha256", key)
+        .update(params.payload)
+        .digest("base64url");
+      const expectedBuf = Buffer.from(expected);
+      try {
+        if (sig.length === expectedBuf.length && cryptoMod.timingSafeEqual(sig, expectedBuf)) {
+          return true;
+        }
+      } finally {
+        // Signature material is ephemeral — do not leave it for the next GC cycle.
+        expectedBuf.fill(0);
+      }
     }
+    return false;
+  } finally {
+    sig.fill(0);
   }
-  return false;
 }

@@ -46,6 +46,9 @@ export default defineConfig({
         "tests/unit/components/dom/mocks/optional-zstd.ts",
       ),
     },
+    // Match vite.config.ts: probe `.ts` first so extensionless source imports
+    // do not stat `.mjs` / `.js` / `.mts` before the real file.
+    extensions: [".ts", ".js", ".json"],
   },
   define: {
     "import.meta.env.SSR": "false",

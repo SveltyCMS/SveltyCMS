@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "generated_at": "2026-11-05T00:00:00.000Z",
+  "mode": "security",
+  "totals": {
+    "total": 14,
+    "killed": 8,
+    "survived": 4,
+    "invalid": 1,
+    "aborted": 1
+  },
+  "mutations": [
+    {
+      "id": "auth-revocation-global",
+      "file": "src/databases/auth/revocation-epoch.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/auth/revocation-epoch.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "auth-revocation-tenant",
+      "file": "src/databases/auth/revocation-epoch.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/auth/revocation-epoch.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "auth-revocation-user",
+      "file": "src/databases/auth/revocation-epoch.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/auth/revocation-epoch.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "auth-totp-secret-format",
+      "file": "src/databases/auth/totp.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/auth/totp/totp-pure.test.ts"],
+      "status": "survived",
+      "duration_ms": 1,
+      "detail": "tests passed with the mutation applied"
+    },
+    {
+      "id": "security-redirect-protocol-relative",
+      "file": "src/utils/security/safe-redirect.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/safe-redirect.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "security-redirect-backslash",
+      "file": "src/utils/security/safe-redirect.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/safe-redirect.test.ts"],
+      "status": "survived",
+      "duration_ms": 1,
+      "detail": "tests passed with the mutation applied"
+    },
+    {
+      "id": "security-input-sanitizer-prototype-keys",
+      "file": "src/utils/security/input-sanitizer.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/prototype-pollution.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "security-input-sanitizer-xss-gate",
+      "file": "src/utils/security/input-sanitizer.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/input-sanitization.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "security-input-sanitizer-xss-triage",
+      "file": "src/utils/security/input-sanitizer.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/input-sanitization.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "security-input-sanitizer-stale",
+      "file": "src/utils/security/input-sanitizer.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/input-sanitization.test.ts"],
+      "status": "invalid",
+      "duration_ms": 1,
+      "detail": "replacement target occurs 0× (expected exactly 1)"
+    },
+    {
+      "id": "egress-protocol-relative",
+      "file": "src/utils/egress-guard.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/egress-guard.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "egress-ipv6-ula",
+      "file": "src/utils/egress-guard.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/egress-guard.test.ts"],
+      "status": "killed",
+      "duration_ms": 1,
+      "detail": "tests failed as required"
+    },
+    {
+      "id": "egress-dirty-tree",
+      "file": "src/utils/egress-guard.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/egress-guard.test.ts"],
+      "status": "aborted",
+      "duration_ms": 1,
+      "detail": "target has uncommitted changes"
+    },
+    {
+      "id": "write-pipeline-updatedby-stamp",
+      "file": "src/services/sdk/namespaces/collections/write-pipeline.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/sdk/write-pipeline-perf.test.ts"],
+      "status": "survived",
+      "duration_ms": 1,
+      "detail": "tests passed with the mutation applied"
+    }
+  ]
+}

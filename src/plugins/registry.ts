@@ -104,14 +104,40 @@ export class PluginRegistry implements IPluginService {
   hasAnyHook(hookName: keyof PluginLifecycleHooks): boolean {
     const cached = this._hookPresence.get(hookName);
     if (cached !== undefined) return cached;
-    const found = this.getAll().some((p) => typeof (p.hooks as any)?.[hookName] === "function");
+    const found = this.getAll().some(
+      (p) =>
+        typeof (p.hooks as any)?.[hookName] === "function" ||
+        (p.metadata as any)?.isThirdParty === true,
+    );
     this._hookPresence.set(hookName, found);
     return found;
+  }
+
+  /** Clears the hook presence cache (e.g. after WASM plugin registration) */
+  invalidateHookPresence(): void {
+    this._hookPresence.clear();
   }
 
   // Get a specific plugin by ID
   get(pluginId: string): Plugin | undefined {
     return this.plugins.get(pluginId)?.plugin;
+  }
+
+  // Unregister a plugin by ID
+  unregister(pluginId: string): boolean {
+    const deleted = this.plugins.delete(pluginId);
+    if (deleted) {
+      this._allPlugins = null;
+      this._hookPresence.clear();
+    }
+    return deleted;
+  }
+
+  // Clear all registered plugins (for test isolation)
+  clear(): void {
+    this.plugins.clear();
+    this._allPlugins = null;
+    this._hookPresence.clear();
   }
 
   // Initialize the plugin settings service from a factory injected by the server

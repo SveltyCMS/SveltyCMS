@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-01"
+updated: "2026-11-05"
 tags:
   - "roadmap"
   - "backlog"
@@ -230,6 +230,16 @@ tags:
   - [x] Hybrid at-rest envelope (AES-256-GCM payload under a random DEK, DEK wrapped with ML-KEM-768 + HKDF). Primitive shipped in `src/utils/security/hybrid-kem.ts`; opt-in for backups via `PQC_HYBRID_BACKUPS=true` and collection fields via `PQC_HYBRID_FIELDS=true` (`src/utils/security/field-encryption.ts`).
   - [x] Optional SHA-384/SHA-512 checksum profile (`CHECKSUM_ALGORITHM`) for new artifacts; legacy bare-hex values still verify as SHA-256. The append-only audit chain stays SHA-256.
   - [x] Pin the documented parameters with `crypto-inventory`, `key-ring`, `hybrid-kem` and `checksum-profile` tests; extend them when an envelope format changes.
+- **AI-Assisted Security Assurance (Scaffolded 2026-11-05)** — an evidence-producing pipeline that substitutes machine-checkable artifacts for institutional headcount. Posture: [Security case](../reference/security/security-case.mdx). AI can industrialise the _artifacts_ a security team produces; it cannot substitute for third-party review, which stays a separate item above.
+  - [x] **Published advisory pipeline**: the ledger (`docs/security/advisories/`), Valibot schema, semantic state machine, duplicate detection and the assurance gate ship in `scripts/security/check-advisories.ts`. Advisory records carry OSV/CVE ids; GitHub is a CNA, so a CVE does not need a separate security team. **No advisory has been published yet** — the two records in the folder are `provenance: "example"` and are excluded from every statistic.
+  - [x] **Patch-latency ledger**: `docs/reference/security/patch-latency.mdx` is generated from the ledger (`--write-doc`), and the gate enforces the disclosed SLA on release and on open age. The table is empty by design until the first real advisory ships.
+  - [ ] **AI triage, human sign-off**: the agent may classify, de-duplicate, reproduce, bisect and draft the failing test plus a candidate patch; a named human reviews every security fix. The policy is published in the [security case](../reference/security/security-case.mdx); the tooling is not built yet.
+  - [x] **Mutation-score floors on security modules**: `test:mutation:security` mutates 12 seams across auth, security utilities, egress and the write pipeline; `scripts/security/check-test-strength.ts` enforces per-area floors. **No measured score has been published yet** — the floors are starting gates, not baselines.
+  - [x] **Executable red-team corpus**: 35 payloads across URL, XSS, SVG and prototype-key targets run on every PR (`tests/security-corpus/`, `tests/unit/security/red-team-corpus.test.ts`).
+  - [x] **Threat-model drift gate**: `docs/security/threat-model.json` + six STRIDE models cover 58/58 server route files (100%); `bun run security:assurance --only=threat-model` fails on handler drift, a missing model, an uncovered route, or a review older than 12 months.
+  - [x] **Executable invariants (first four)**: `tests/unit/security/invariants.test.ts` enforces no barrel imports, no `Math.random()` in security/auth/media, a no-growth ratchet on `new Date().toISOString()`, and manifest coverage. Expanding the `AGENTS.md` prose rules into further AST/Semgrep checks stays open.
+  - [ ] **Zero-backport surface, test-enforced**: document and assert the single supported line (`next`) and 4-adapter contract parity, so a fix ships once — the backport cost Drupal's PSA cut minor support to avoid does not exist here by construction.
+  - [ ] **External validation bundle**: `docs/security/external-validation.json`, `scripts/security/check-external-validation.ts` and the OpenSSF Scorecard workflow ship. Paid penetration test, public bug bounty, SLSA provenance and Sigstore signing remain **pending** — this is the row AI cannot close.
 - **GraphQL Supergraph**:
   - Apollo Federation v2 compatibility for multi-service enterprise architectures.
 - **Cross-Source Data Merge (v3.1)**:

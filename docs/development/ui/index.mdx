@@ -16,7 +16,7 @@ tags:
 
 # Native UI
 
-This page is for someone building an `(app)` route, a widget input, or a plugin view. It maps the **native UI**: `AdminPageShell`, `AdminCard`, and the Svelte 5 controls exported from `@components/ui` (`src/components/ui`).
+This page is for someone building an `(app)` route, a widget input, or a plugin view. It maps the **native UI**: `AdminPageShell`, `AdminCard`, and the Svelte 5 controls in `src/components/ui/*.svelte`.
 
 Operators who are changing colors, density, or motion use [Design System & Admin Theme Settings](../../guides/configuration/admin-theme-settings.mdx). Shade, RTL, and motion rules stay in the [GUI styling guide](../../contributing/style-guide-gui.mdx). Collection tables, field editors, and the entry list stay in [Collection display components](../../reference/components/index.mdx).
 
@@ -26,9 +26,9 @@ Operators who are changing colors, density, or motion use [Design System & Admin
 | :--------- | :--------------------------------------- | :----------------------------------------------------------------- |
 | Page shell | `src/components/admin-page-shell.svelte` | `import AdminPageShell from '@components/admin-page-shell.svelte'` |
 | Card shell | `src/components/admin-card.svelte`       | `import AdminCard from '@components/admin-card.svelte'`            |
-| Controls   | `src/components/ui/*.svelte`             | `import { Button, Input } from '@components/ui'`                   |
+| Controls   | `src/components/ui/*.svelte`             | `import Button from '@components/ui/button.svelte'`                |
 
-The barrel is `src/components/ui/index.ts`. Prefer it over a deep file path so a rename stays one change.
+The component barrel (`src/components/ui/index.ts`) was removed. Import the concrete `.svelte` file: one import pulls one component, so Vite's dev graph and production chunks stay shallow.
 
 Open **Design System → Live Preview** (`/config/design-system?tab=preview`) to see Button, Badge, Input, Select, Textarea, Toggle, and Card painted with the active theme. That screen is the visual check. Props and composition are the pages below.
 

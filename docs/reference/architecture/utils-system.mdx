@@ -23,12 +23,12 @@ SveltyCMS utilities are organized by domain into flat files and subdirectories. 
 ## 1. Directory Structure
 
 ```
-src/utils/                          (counts verified 2026-11-01)
+src/utils/                          (counts verified 2026-11-05)
 ├── api-playground/   1 file    REST playground URL builder
 ├── auth/             2 files   Post-auth landing (server + shared)
 ├── compilation/      4 files   AST compilation for content scanner
 ├── media/           26 files   DAM engine — storage, processing, search, sharing, MIME, Canvas 2D
-├── rate-limit/      12 files   Adaptive limits, token bucket, Redis client, tenant plans
+├── rate-limit/      13 files   Adaptive limits, L1 flood gate, token bucket, Redis client, tenant plans
 ├── schema/           3 files   Validation, comparison, tree
 ├── security/        23 files   Crypto, CSRF, CORS, envelope, field encryption, auth utils
 ├── server/           9 files   Setup checks, batch loading, layout caches, HMAC tokens
@@ -70,11 +70,11 @@ src/utils/                          (counts verified 2026-11-01)
 
 ### Security (flat, in addition to `security/` subdir)
 
-| File              | Key exports                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------- |
-| `egress-guard.ts` | `validateEgressUrl()`, `safeFetch()` — SSRF prevention, URL validation, timeout + size caps |
-| `cookie-utils.ts` | `parseCookies()` — WebSocket auth bridge                                                    |
-| `native-utils.ts` | `generateSecureToken()`, `generateUUID()`, `getGlobal()`, `setGlobal()`, `pc` (ANSI colors) |
+| File              | Key exports                                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `egress-guard.ts` | `validateEgressUrl()`, `safeFetch()` — SSRF prevention, DNS-pinned connections (no rebinding), redirect re-validation, timeout + size caps |
+| `cookie-utils.ts` | `parseCookies()` — WebSocket auth bridge                                                                                                   |
+| `native-utils.ts` | `generateSecureToken()`, `generateUUID()`, `getGlobal()`, `setGlobal()`, `pc` (ANSI colors)                                                |
 
 ### Media Engine (`media/` subdirectory)
 

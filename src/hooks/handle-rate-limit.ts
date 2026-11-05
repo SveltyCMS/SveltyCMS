@@ -53,6 +53,7 @@ import {
 import { resolveUserTier } from "@utils/rate-limit/adaptive";
 import { getTenantPlanScale } from "@utils/rate-limit/tenant-plan";
 import { initRateLimiter, rateLimit, resetRateLimitStores } from "@utils/rate-limit";
+import { checkL1PreFilter, resetL1Filter } from "@utils/rate-limit/l1-filter";
 import {
   getSessionCookieName,
   isAdmin,
@@ -401,8 +402,29 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   }
 
   const lane = getRateLimitLane(pathname);
-  const clientKey = getClientKey(event, lane);
   const now = Date.now();
+
+  // ⚡ L1 PRE-FILTER: Synchronous zero-allocation token bucket to drop volumetric DDoS floods
+  // (>200 req/s) before executing costly adaptive calculations or async Redis checks.
+  const l1Check = checkL1PreFilter(clientIp, now);
+  if (!l1Check.allowed) {
+    logger.warn(`[RateLimit] ${clientIp} exceeded L1 pre-filter flood threshold`, {
+      pathname,
+      method,
+    });
+    return withSecurityHeaders(
+      buildRateLimitResponse(event, {
+        retryAfterSeconds: l1Check.retryAfterSeconds,
+        limit: 200,
+        reason: "Too Many Requests (Flood Protection)",
+        scope: "ip",
+        lane,
+      }),
+      event,
+    );
+  }
+
+  const clientKey = getClientKey(event, lane);
   // 🚀 LANE-LEAN RATE LIMIT: the warm collection write lane sets this flag —
   // the in-memory bucket enforces synchronously and the Redis ledger gets the
   // spend propagated after the response (see rateLimit({ asyncRemote })).
@@ -570,6 +592,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
  */
 export function resetRateLimitBuckets(): void {
   resetRateLimitStores();
+  resetL1Filter();
 }
 
 // ─── Targeted Endpoint & Action Rate Limiter ───────────────────────────────

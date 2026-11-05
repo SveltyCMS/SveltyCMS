@@ -6,7 +6,7 @@ order: 8
 icon: "mdi:store"
 author: "SveltyCMS Team"
 created: "2026-08-04"
-updated: "2026-08-04"
+updated: "2026-11-05"
 tags:
   - "dashboard"
   - "widgets"
@@ -51,6 +51,8 @@ A dashboard widget package is the **whole folder**: component, `widget.json` man
 ```
 
 `type` is always `"dashboard-widget"`. The marketplace catalog (`GET /api/packages?type=dashboard-widget`) and the in-app catalog (`GET /api/marketplace?type=dashboard`) use it for filtering.
+
+Optional access fields narrow where the package is offered: `requiresPlugin` hides it until the named plugin is enabled, `requiresPermission` requires an RBAC grant (for example `dashboard:read`), and `requiresAdmin` restricts it to administrators. The dashboard server filters the picker for all three, and an already-persisted tile re-checks the manifest requirement at runtime.
 
 ## 📥 Install Path
 

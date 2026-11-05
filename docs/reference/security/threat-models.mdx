@@ -1,0 +1,138 @@
+---
+path: "docs/reference/security/threat-models.mdx"
+title: "Threat-Model Drift Gate"
+description: "How SveltyCMS keeps six security surfaces mapped to reviewed STRIDE models, and how CI fails when a route changes without a matching review."
+order: 58
+icon: "mdi:shield-search"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "threat-model"
+  - "ci"
+---
+
+# Threat-Model Drift Gate
+
+Six broad surfaces cover the server-side attack surface. Each surface owns a set
+of paths in `docs/security/threat-model.json` and a STRIDE page in
+`docs/security/threat-models/`. When a file inside a surface changes, its
+fingerprint no longer matches the recorded value and CI fails until the model is
+reviewed and the manifest is refreshed. Coverage is currently **58/58 server
+route files (100.0%)**.
+
+| Surface         | Files | Threat model                                                          |
+| :-------------- | ----: | :-------------------------------------------------------------------- |
+| `api-dispatch`  |    78 | [API dispatch](/docs/security/threat-models/api-dispatch)             |
+| `auth-session`  |    82 | [Authentication & session](/docs/security/threat-models/auth-session) |
+| `content-write` |    51 | [Content write](/docs/security/threat-models/content-write)           |
+| `media-files`   |    53 | [Media & files](/docs/security/threat-models/media-files)             |
+| `admin-pages`   |   207 | [Admin pages](/docs/security/threat-models/admin-pages)               |
+| `system-ops`    |    84 | [System operations](/docs/security/threat-models/system-ops)          |
+
+The per-surface MDX pages live in `docs/security/threat-models/`; the numbers
+above are the file counts reported by the last `--update`.
+
+## Manifest contract
+
+`docs/security/threat-model.json` is versioned and validated with Valibot by
+`scripts/security/threat-model-lib.ts` (`ManifestSchema`):
+
+```json
+{
+  "version": 1,
+  "surfaces": [
+    {
+      "id": "api-dispatch",
+      "description": "HTTP API dispatch, endpoint permission mapping and request-lane hooks.",
+      "paths": ["src/routes/api/**", "src/hooks/handle-api-requests.ts"],
+      "model": "docs/security/threat-models/api-dispatch.mdx",
+      "reviewed_at": "2026-11-05",
+      "fingerprint": "<64 hex chars>"
+    }
+  ]
+}
+```
+
+Rules enforced by the schema:
+
+- `version` is exactly `1`; surface ids are unique kebab-case strings.
+- `reviewed_at` is a real `YYYY-MM-DD` calendar date.
+- `fingerprint` is a lowercase sha256 hex digest.
+- `model` must resolve inside `docs/security/threat-models/` and end in `.mdx`.
+- Every route matched by `src/routes/**/+server.ts` or
+  `src/routes/**/+page.server.ts` must match at least one surface path.
+
+## How drift detection works
+
+1. `resolveSurfaceFiles()` expands the surface globs with a dependency-free
+   matcher (`**` spans segments, `*` stays inside one segment) and walks only
+   the static prefix of each pattern. Results are deduplicated and sorted.
+2. `computeFingerprint()` hashes the sorted `path \0 sha256(content)` entries,
+   so reordering files never changes the digest and one changed byte does.
+3. `evaluateManifest()` compares the computed digest with `fingerprint` for
+   every surface and returns four failure lists:
+   - `drifted` — fingerprint mismatch, or the surface now matches zero files
+     (a broken pattern is treated as drift, never as a pass).
+   - `missingModels` — the MDX file referenced by the surface does not exist.
+   - `uncovered` — a server route belongs to no surface.
+   - `stale` — `reviewed_at` is strictly older than 12 calendar months.
+4. Coverage is the union of route server files matched by any surface. The gate
+   requires 100%; a surface that matches nothing cannot contribute coverage.
+
+## Update workflow
+
+```sh
+# 1. Verify the current state (also prints coverage and the surface table).
+#    This is part of `bun run security:assurance` and therefore `bun run check`.
+bun run security:assurance --only=threat-model
+
+# 2. After reviewing the affected MDX model, refresh fingerprints.
+bun run security:threat-model:update --date YYYY-MM-DD
+
+# Machine-readable output for either mode
+bun run scripts/security/check-threat-model-drift.ts --check --json
+```
+
+`--update` refuses to run when a surface matches no files, so a renamed
+directory cannot silently shrink a surface to nothing. It always exits 0 when it
+writes successfully; run `--check` afterwards (CI does).
+
+A route change is expected to fail the gate first:
+
+1. Add or edit a route under `src/routes/`.
+2. `--check` reports either the new route as `uncovered` or the owning surface
+   as `drifted`.
+3. Update the surface's MDX page: threat, surface, existing control with a file
+   reference, residual risk.
+4. Run `--update --date <today>` and commit the model plus the manifest in the
+   same change.
+
+Review dates are not automatic: `--update` records the date you pass, which is
+the claim that the model was re-read. Do not pass a date before the review.
+
+## Executable invariants
+
+`tests/unit/security/invariants.test.ts` runs four rules over the real tree;
+each failure names the offending file and line.
+
+| Invariant                         | Scope                                                                  | Failure message                                   |
+| :-------------------------------- | :--------------------------------------------------------------------- | :------------------------------------------------ |
+| No `new Date().toISOString()`     | `src/**` except `src/paraglide/**`                                     | Use `nowISODateString()` from `src/utils/date.ts` |
+| No `Math.random()`                | `src/utils/security/**`, `src/databases/auth/**`, `src/utils/media/**` | Use `crypto.getRandomValues()` / `randomUUID()`   |
+| No `@components/ui` barrel import | `src/**`, `tests/**`                                                   | Import from the module path instead               |
+| Every server route is covered     | `src/routes/**/+server.ts`, `+page.server.ts`                          | Add the file to a surface in the manifest         |
+
+The date invariant is a ratchet: its allowlist records the exact number of
+legacy occurrences per file, so a new occurrence in an already-listed file still
+fails. `src/utils/date.ts` is the only sanctioned direct implementation; delete
+allowlist entries as files migrate. The full allowlist and its rationale live in
+the test file.
+
+## CI
+
+`.github/workflows/security-governance.yml` runs the drift gate and the
+invariant suite on every pull request that touches `src/**`,
+`scripts/security/**`, `docs/security/**` or the workflow itself, plus a weekly
+scheduled run so a stale review cannot hide in an untouched subtree.

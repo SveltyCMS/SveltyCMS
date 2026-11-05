@@ -31,6 +31,9 @@ export default defineConfig({
       "$app/server": path.resolve(__dirname, "tests/unit/mocks/$app/server.ts"),
       "bun:sqlite": path.resolve(__dirname, "tests/unit/mocks/bun-sqlite.ts"),
     },
+    // Match vite.config.ts: probe `.ts` first so extensionless source imports
+    // do not stat `.mjs` / `.js` / `.mts` before the real file.
+    extensions: [".ts", ".js", ".json"],
   },
   define: { "import.meta.env.SSR": "true" },
   test: {

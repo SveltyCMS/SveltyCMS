@@ -12,6 +12,8 @@ import {
   safeFetch,
   validateEgressUrl,
   EgressError,
+  pinDnsResolution,
+  getPinnedDnsResolution,
 } from "../../../src/utils/egress-guard";
 
 describe("validateEgressUrl — SSRF defense", () => {
@@ -187,6 +189,7 @@ describe("safeFetch — redirect re-validation", () => {
       const result = await safeFetch("https://1.1.1.1/start", {
         allowHttp: true,
         timeoutMs: 2000,
+        fetchImpl: fetchMock as unknown as typeof fetch,
       });
 
       expect(result.success).toBe(false);
@@ -211,6 +214,7 @@ describe("safeFetch — redirect re-validation", () => {
     try {
       const result = await safeFetch("https://1.1.1.1/start", {
         allowedHosts: ["1.1.1.1"],
+        fetchImpl: fetchMock as unknown as typeof fetch,
       });
 
       expect(result.success).toBe(false);
@@ -234,6 +238,7 @@ describe("safeFetch — redirect re-validation", () => {
     try {
       const result = await safeFetch("https://1.1.1.1/start", {
         allowHttp: true,
+        fetchImpl: fetchMock as unknown as typeof fetch,
       });
 
       expect(result.success).toBe(false);
@@ -294,5 +299,14 @@ describe("allowTestEgressOrigin — explicit test-only allowlist", () => {
       if (previousPlaywright === undefined) delete process.env.PLAYWRIGHT_TEST;
       else process.env.PLAYWRIGHT_TEST = previousPlaywright;
     }
+  });
+
+  it("pins resolved DNS addresses to eliminate secondary lookup and TOCTOU rebinding", () => {
+    pinDnsResolution("api.trusted-partner.com", "93.184.216.34", 4);
+    const pinned = getPinnedDnsResolution("api.trusted-partner.com");
+    expect(pinned).not.toBeNull();
+    expect(pinned?.address).toBe("93.184.216.34");
+    expect(pinned?.family).toBe(4);
+    expect(getPinnedDnsResolution("non-existent-host.com")).toBeNull();
   });
 });

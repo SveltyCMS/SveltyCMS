@@ -14,7 +14,7 @@
 import { logger } from "@utils/logger";
 import { dbInitPromise, getDb } from "@src/databases/db";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
-import { automationService } from "@src/services/background/automation";
+import { automationService } from "@src/services/background/automation/automation-service";
 import { watchdog } from "@src/services/system/watchdog";
 import { telemetryService } from "@src/services/observability/telemetry-service";
 import { startScheduler, stopScheduler } from "@src/services/scheduler";
@@ -22,7 +22,7 @@ import {
   startBehavioralEngine,
   stopBehavioralEngine,
 } from "@src/services/intelligence/behavioral-learner";
-import { outboxService } from "@src/services/outbox";
+import { outboxService } from "@src/services/outbox/outbox-service";
 
 process.env.SVELTY_IS_BACKGROUND_WORKER = "true";
 

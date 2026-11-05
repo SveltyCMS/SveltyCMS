@@ -50,6 +50,19 @@ SveltyCMS uses high-entropy, cryptographically secure random tokens for session 
 - **Stored directly** in secure cookies and the database.
 - **Rotated automatically** on login and renewal. On password change or explicit logout, all active sessions across all devices are immediately invalidated.
 
+### Revocation Epoch (instant logout, zero DB lookups)
+
+`src/databases/auth/revocation-epoch.ts` keeps three process-local monotonic
+counters: **global**, **per-tenant**, and **per-user**. A session carries the
+epoch it was issued at; on every authenticated request the session is rejected
+when `session.epoch < currentEpoch` — one integer comparison, no database read
+and no Redis round-trip on the hot path.
+
+- **Triggers**: password change, 2FA reset, admin lockout, `invalidateAllUserSessions()`, and tenant suspension bump the relevant epoch before the response is written.
+- **Bounded memory**: user/tenant maps are pruned at 20 000 tracked revocations (30-day retention, oldest-first eviction) so a hostile login loop cannot grow them without bound.
+- **Cluster note**: the epoch is process-local by design (the fast path must not depend on Redis). A multi-node deployment must still rely on the persisted session row/Redis cache for cross-node revocation; the epoch makes the common single-node and sticky-session cases immediate.
+- **Tests**: `tests/unit/auth/revocation-epoch.test.ts`.
+
 ### Session & CSRF Cookie Security Model
 
 SveltyCMS employs dual-cookie architecture enforcing strict browser boundaries:

@@ -18,11 +18,14 @@
 
 import { FastLRU } from "@utils/native-utils";
 import { logger } from "@utils/logger";
+import { isAppError, raise } from "@utils/error-handling";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { nowISODateString } from "@src/utils/date";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { pluginRegistry } from "@src/plugins/registry";
+import { wasmPluginRunner } from "@src/plugins/wasm/wasm-plugin-runner";
+import type { WasmHookFailurePolicy, WasmHostContext } from "@src/plugins/wasm/types";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
@@ -383,8 +386,9 @@ async function triggerLifecycleHookAsync(
   let finalData = data;
 
   for (const entry of plugins) {
+    const isWasm = wasmPluginRunner.isWasmPlugin(entry.metadata.id);
     const hook = (entry.hooks as any)?.[hookName];
-    if (hook) {
+    if (hook || isWasm) {
       if (
         !(await pluginRegistry.isEnabledForCollection(
           entry.metadata.id,
@@ -399,23 +403,77 @@ async function triggerLifecycleHookAsync(
         entry.metadata.id,
         activeTenantId as string,
       );
-      const context: PluginContext = {
-        collectionSchema: schema,
-        dbAdapter,
-        language: (options as any).language || "en",
-        tenantId: activeTenantId as string,
-        user: effectiveUser as any,
-        settings,
-        pluginConfig: state?.settings || {},
-      };
 
       try {
-        if (hookName === "beforeSave") {
-          finalData = await (hook as any)(context, collectionId, finalData);
-        } else {
-          await (hook as any)(context, collectionId, finalData);
+        if (isWasm) {
+          const wasmHostContext: WasmHostContext = {
+            pluginId: entry.metadata.id,
+            tenantId: activeTenantId as string,
+            user: effectiveUser as any,
+            dbAdapter,
+            collectionSchema: schema,
+            pluginConfig: state?.settings || {},
+            capabilities: new Set(
+              (entry.metadata as any).capabilities || ["db:read", "db:write:own"],
+            ),
+            stats: {
+              queryCount: 0,
+              bytesWritten: 0,
+              startTimeMs: performance.now(),
+            },
+          };
+
+          const wasmResult = await wasmPluginRunner.executeHook(
+            entry.metadata.id,
+            hookName,
+            { collectionId, data: finalData },
+            wasmHostContext,
+          );
+
+          if (!wasmResult.success) {
+            const effectivePolicy: WasmHookFailurePolicy =
+              (entry.metadata as any).hookFailurePolicies?.[hookName] ??
+              (entry.metadata as any).defaultFailurePolicy ??
+              (hookName === "beforeSave" ? "fail-closed" : "fail-open");
+
+            if (effectivePolicy === "fail-closed") {
+              raise(
+                500,
+                `WASM plugin "${entry.metadata.id}" failed in hook "${hookName}": ${wasmResult.error || "Execution failed"}`,
+                "PLUGIN_HOOK_FAILED",
+              );
+            } else {
+              logger.warn(
+                `[LifecycleHook] WASM plugin "${entry.metadata.id}" hook "${hookName}" soft-failed (fail-open): ${wasmResult.error}`,
+              );
+            }
+          } else if (hookName === "beforeSave" && wasmResult.data !== undefined) {
+            const returned = (wasmResult.data as any)?.data ?? wasmResult.data;
+            if (returned && typeof returned === "object") {
+              finalData = returned;
+            }
+          }
+        } else if (hook) {
+          const context: PluginContext = {
+            collectionSchema: schema,
+            dbAdapter,
+            language: (options as any).language || "en",
+            tenantId: activeTenantId as string,
+            user: effectiveUser as any,
+            settings,
+            pluginConfig: state?.settings || {},
+          };
+
+          if (hookName === "beforeSave") {
+            finalData = await (hook as any)(context, collectionId, finalData);
+          } else {
+            await (hook as any)(context, collectionId, finalData);
+          }
         }
       } catch (err) {
+        if (isAppError(err) || (err as any)?.code === "PLUGIN_HOOK_FAILED") {
+          throw err;
+        }
         logger.error(`[PluginSystem] Error in ${entry.metadata.id} hook ${String(hookName)}:`, err);
       }
     }

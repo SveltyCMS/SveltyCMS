@@ -1,0 +1,247 @@
+[
+  {
+    "id": "url-protocol-relative",
+    "target": "dashboard-endpoint",
+    "payload": "//evil.example/api/secret",
+    "expected": "reject",
+    "note": "Protocol-relative URLs inherit the current scheme and leave the origin; the widget sandbox must refuse them."
+  },
+  {
+    "id": "url-javascript-scheme",
+    "target": "dashboard-endpoint",
+    "payload": "javascript:alert(1)",
+    "expected": "reject",
+    "note": "A script URL is never a fetch endpoint."
+  },
+  {
+    "id": "url-data-scheme",
+    "target": "dashboard-endpoint",
+    "payload": "data:text/html,<script>alert(1)</script>",
+    "expected": "reject",
+    "note": "Data URLs can embed executable HTML; the sandbox may only call internal /api routes."
+  },
+  {
+    "id": "url-file-scheme",
+    "target": "dashboard-endpoint",
+    "payload": "file:///etc/passwd",
+    "expected": "reject",
+    "note": "File URLs read local storage and must never reach the widget fetcher."
+  },
+  {
+    "id": "url-encoded-dot-segment",
+    "target": "dashboard-endpoint",
+    "payload": "/api/%2e%2e/admin",
+    "expected": "reject",
+    "note": "Percent-encoded `..` decodes to a traversal segment after URL parsing."
+  },
+  {
+    "id": "url-double-encoded-dot-segment",
+    "target": "dashboard-endpoint",
+    "payload": "/api/%252e%252e/admin",
+    "expected": "reject",
+    "note": "A second decode layer turns `%252e%252e` into `..`; the guard must decode until stable."
+  },
+  {
+    "id": "url-backslash-traversal",
+    "target": "dashboard-endpoint",
+    "payload": "/api/..\\admin",
+    "expected": "reject",
+    "note": "Backslashes are path separators on Windows and are normalised by some proxies."
+  },
+  {
+    "id": "url-userinfo-credentials",
+    "target": "dashboard-endpoint",
+    "payload": "https://user:pass@evil.example/api/data",
+    "expected": "reject",
+    "note": "Userinfo in an absolute URL hides the real host and smuggles credentials."
+  },
+  {
+    "id": "url-control-character",
+    "target": "dashboard-endpoint",
+    "payload": "/api/test\u0000malicious",
+    "expected": "reject",
+    "note": "NUL bytes terminate C-string parsers and enable header/path smuggling."
+  },
+  {
+    "id": "url-uppercase-scheme",
+    "target": "dashboard-endpoint",
+    "payload": "JavaScript:alert(1)",
+    "expected": "reject",
+    "note": "Scheme matching must be case-insensitive; browsers accept mixed-case schemes."
+  },
+  {
+    "id": "url-leading-whitespace-scheme",
+    "target": "dashboard-endpoint",
+    "payload": "   javascript:alert(1)",
+    "expected": "reject",
+    "note": "Browsers trim leading whitespace before parsing the scheme."
+  },
+  {
+    "id": "url-leading-whitespace-protocol-relative",
+    "target": "dashboard-endpoint",
+    "payload": "  //evil.example/api",
+    "expected": "reject",
+    "note": "Trimming happens before the protocol-relative prefix check."
+  },
+  {
+    "id": "url-windows-device-path",
+    "target": "dashboard-endpoint",
+    "payload": "\\\\?\\C:\\Windows\\System32",
+    "expected": "reject",
+    "note": "Win32 device paths bypass normal path canonicalisation."
+  },
+  {
+    "id": "url-allows-internal-api",
+    "target": "dashboard-endpoint",
+    "payload": "/api/content/pages",
+    "expected": "accept",
+    "note": "Positive control: a plain internal API endpoint must stay usable."
+  },
+  {
+    "id": "url-allows-query-string",
+    "target": "dashboard-endpoint",
+    "payload": "/api/dashboard/system-info?type=cpu",
+    "expected": "accept",
+    "note": "Positive control: query parameters do not change the path contract."
+  },
+  {
+    "id": "xss-script-element",
+    "target": "xss-vector",
+    "payload": "<script>alert(1)</script>",
+    "expected": "reject",
+    "note": "The canonical stored-XSS vector."
+  },
+  {
+    "id": "xss-event-handler",
+    "target": "xss-vector",
+    "payload": "<img src=x onload=alert(1)>",
+    "expected": "reject",
+    "note": "Inline handlers execute without a script tag."
+  },
+  {
+    "id": "xss-javascript-href",
+    "target": "xss-vector",
+    "payload": "<a href=\"javascript:alert(1)\">click</a>",
+    "expected": "reject",
+    "note": "Scriptable href values are click-triggered XSS."
+  },
+  {
+    "id": "xss-uppercase-scheme",
+    "target": "xss-vector",
+    "payload": "JAVASCRIPT:alert(1)",
+    "expected": "reject",
+    "note": "URL schemes are case-insensitive; the triage must fold case."
+  },
+  {
+    "id": "xss-whitespace-in-scheme",
+    "target": "xss-vector",
+    "payload": "java\tscript:alert(1)",
+    "expected": "reject",
+    "note": "Browsers ignore embedded whitespace in `java\\tscript:`; the matcher must too."
+  },
+  {
+    "id": "xss-iframe-element",
+    "target": "xss-vector",
+    "payload": "<iframe src=\"https://evil.example\"></iframe>",
+    "expected": "reject",
+    "note": "Framing loads third-party content and is stripped by the sanitizer."
+  },
+  {
+    "id": "xss-allows-plain-text",
+    "target": "xss-vector",
+    "payload": "Hello world",
+    "expected": "accept",
+    "note": "Positive control: clean text must not be flagged."
+  },
+  {
+    "id": "xss-allows-safe-markup",
+    "target": "xss-vector",
+    "payload": "<p>Hello <strong>world</strong></p>",
+    "expected": "accept",
+    "note": "Positive control: allowlisted formatting tags are not vectors."
+  },
+  {
+    "id": "svg-script-element",
+    "target": "svg-markup",
+    "payload": "<svg><script>alert(1)</script></svg>",
+    "expected": "reject",
+    "note": "SVG can host executable script; the upload scrubber must remove it."
+  },
+  {
+    "id": "svg-event-handler",
+    "target": "svg-markup",
+    "payload": "<svg><image href=\"x\" onload=\"alert(1)\"/></svg>",
+    "expected": "reject",
+    "note": "SVG elements accept the same inline handlers as HTML."
+  },
+  {
+    "id": "svg-javascript-href",
+    "target": "svg-markup",
+    "payload": "<svg><a xlink:href=\"javascript:alert(1)\">x</a></svg>",
+    "expected": "reject",
+    "note": "xlink:href is the SVG spelling of href and accepts scriptable schemes."
+  },
+  {
+    "id": "svg-foreign-object",
+    "target": "svg-markup",
+    "payload": "<svg><foreignObject><body><img src=x onerror=alert(1)></body></foreignObject></svg>",
+    "expected": "reject",
+    "note": "foreignObject re-enters HTML parsing inside an SVG document."
+  },
+  {
+    "id": "svg-data-href",
+    "target": "svg-markup",
+    "payload": "<svg><image href=\"data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=\"/></svg>",
+    "expected": "reject",
+    "note": "A data: URL in an SVG asset can nest another unscrubbed document."
+  },
+  {
+    "id": "svg-allows-shapes",
+    "target": "svg-markup",
+    "payload": "<svg><rect width=\"10\" height=\"10\" fill=\"#0af\"/></svg>",
+    "expected": "accept",
+    "note": "Positive control: inert geometry must survive untouched."
+  },
+  {
+    "id": "proto-top-level",
+    "target": "prototype-keys",
+    "payload": "{\"__proto__\":{\"polluted\":true}}",
+    "expected": "reject",
+    "note": "An own `__proto__` key from JSON.parse can rewrite the prototype chain."
+  },
+  {
+    "id": "proto-constructor-top-level",
+    "target": "prototype-keys",
+    "payload": "{\"constructor\":{\"prototype\":{\"polluted\":true}}}",
+    "expected": "reject",
+    "note": "Traversal through `constructor.prototype` reaches Object.prototype."
+  },
+  {
+    "id": "proto-prototype-top-level",
+    "target": "prototype-keys",
+    "payload": "{\"prototype\":{\"polluted\":true}}",
+    "expected": "reject",
+    "note": "Merge helpers that recurse into `prototype` pollute every later object."
+  },
+  {
+    "id": "proto-nested-proto",
+    "target": "prototype-keys",
+    "payload": "{\"meta\":{\"__proto__\":{\"polluted\":true}}}",
+    "expected": "reject",
+    "note": "The guard must recurse: a nested payload is rebuilt, not only top-level keys."
+  },
+  {
+    "id": "proto-nested-constructor",
+    "target": "prototype-keys",
+    "payload": "{\"meta\":{\"constructor\":{\"prototype\":{\"polluted\":true}}}}",
+    "expected": "reject",
+    "note": "Deep constructor/prototype chains are the usual bypass for a shallow filter."
+  },
+  {
+    "id": "proto-allows-plain-object",
+    "target": "prototype-keys",
+    "payload": "{\"title\":\"Hello\",\"count\":1}",
+    "expected": "accept",
+    "note": "Positive control: ordinary documents must pass the prototype-key walk unchanged."
+  }
+]

@@ -6,7 +6,7 @@ order: 6
 icon: "mdi:shield-alert"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-11-01"
+updated: "2026-11-05"
 tags:
   - "security"
   - "csp"
@@ -104,15 +104,19 @@ Cross-Origin-Embedder-Policy: unsafe-none
 
 ### 4. Admin GUI Pages (`/(app)/*`)
 
-Admin GUI pages leverage SvelteKit cryptographic nonces for dynamic scripts:
+Admin GUI pages are rendered by SvelteKit with a **per-request nonce CSP** configured in `vite.config.ts` (`sveltekit({ csp: { mode: "nonce", … } })`). Every inline `<script>` SvelteKit emits carries the nonce, and the shell script in `src/app.html` opts in with `nonce="%sveltekit.nonce%"`:
 
 ```http
-Content-Security-Policy: script-src 'self' 'nonce-...'; style-src 'self' 'nonce-...'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self' 'strict-dynamic' 'wasm-unsafe-eval' 'nonce-…'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https: wss:; media-src 'self' data: blob: https:; frame-src 'self' data: blob: https:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
 ```
 
-- **Cryptographic Nonces**: Each HTML response generates a unique CSPRNG nonce via `globalThis.crypto.getRandomValues()`.
-- **Zero Trust Extensions**: Third-party browser extensions or injected DOM scripts cannot execute without matching the request nonce.
+- **Cryptographic Nonces**: SvelteKit mints a fresh 128-bit nonce per SSR request (`crypto.getRandomValues()`), so a nonce from one response cannot authorise a script in another.
+- **`'strict-dynamic'`**: host allowlists are ignored for script _loading_; only scripts SvelteKit minted (or scripts created by those) can execute. Injected inline handlers and DOM-injected `<script>` elements are blocked, which is what closes stored/reflected XSS without a brittle domain allowlist.
+- **No `'unsafe-eval'`**: JS `eval()` stays blocked. `'wasm-unsafe-eval'` is present only because the optional LiteRT inference worker compiles WebAssembly; it does not re-enable `eval()`.
+- **Styles stay inline-friendly**: `style-src 'unsafe-inline'` is deliberate — the admin kit writes `--admin-*` custom properties and the HTML shell uses a style attribute. Scripts never receive `'unsafe-inline'`; style injection is not a script-execution primitive.
+- **Framing**: `frame-ancestors 'none'` duplicates `X-Frame-Options: DENY`; `object-src`, `base-uri`, and `form-action` are locked to `'self'`/`'none'`.
 - **Cross-origin isolation**: page routes default to `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Opener-Policy: same-origin`. The one route-scoped exception is the email preview below.
+- **Verification**: `tests/unit/hooks/csp-headers.test.ts` asserts that `BASE_HEADERS` never clobbers SvelteKit's nonce policy and that API routes use the strict API policy; the built server can be checked with `curl -sD - http://127.0.0.1:4173/login -o /dev/null | grep -i content-security-policy`.
 
 ---
 
@@ -167,5 +171,6 @@ Permissions-Policy: geolocation=(), microphone=(), camera=(), display-capture=()
 CSP and header enforcement are continuously tested across the test suite:
 
 - `tests/unit/hooks/defense-in-depth.test.ts` — Validates header presence on all HTTP response codes (200, 401, 403, 404, 500).
+- `tests/unit/hooks/csp-headers.test.ts` — Pins the API/GraphQL policy shape and asserts SvelteKit's nonce CSP survives `applyAllSecurityHeaders`/`applySecurityHeaders` on page routes.
 - `tests/unit/hooks/handle-turbo-get-lane.test.ts` — Asserts security header parity in Turbo Cache hits.
 - `tests/unit/api/graphql-security.test.ts` — Asserts playground CSP gating in production vs development.

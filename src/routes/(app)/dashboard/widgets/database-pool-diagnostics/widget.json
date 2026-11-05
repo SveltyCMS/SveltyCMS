@@ -14,5 +14,6 @@
     "h": 3
   },
   "category": "monitoring",
-  "sveltycms": ">=0.0.8"
+  "sveltycms": ">=0.0.8",
+  "requiresAdmin": true
 }

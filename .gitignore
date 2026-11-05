@@ -84,6 +84,8 @@ tests/playwright-report/
 *e2e-output*.txt
 .vitest/
 coverage/
+# Mutation harness output (test:mutation --security-only)
+/.mutation/
 
 
 # Rust

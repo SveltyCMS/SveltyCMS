@@ -6,7 +6,7 @@ order: 7
 icon: "mdi:code-tags"
 author: "SveltyCMS Team"
 created: "2026-08-04"
-updated: "2026-08-04"
+updated: "2026-11-05"
 tags:
   - "dashboard"
   - "widgets"
@@ -208,11 +208,23 @@ Keep the `description` in sync with `widget.json` and `widgetMeta`. Paid/freemiu
 
 ### Key points
 
-- **Metadata module block**: `export const widgetMeta` at the top — drives the picker.
+- **Metadata module block**: `export const widgetMeta` at the top — keep it in sync with `widget.json` (the picker reads the manifest).
 - **BaseWidget import**: from `../../base-widget.svelte` (widgets live one level below the dashboard root).
-- **Props contract**: every widget accepts `label`, `theme`, `icon`, `widgetId`, `size`, `onSizeChange`, `onRemove` (plus optional `settings`).
+- **Props contract**: every widget accepts `label`, `theme`, `icon`, `widgetId`, `size`, `onSizeChange`, `onRemove` (plus optional `settings`). A per-tile scope also supplies persisted settings, tenant/user, license, and the RBAC decision — you do not need to forward those.
+- **Settings**: save widget-specific keys with `onSettingsChange` (or `sandbox.updateSettings`). The header configure modal (title / refresh rate / grid size) merges its own keys and preserves yours; a persisted `settings.pollInterval` overrides your `pollInterval` default after reload.
+- **Sandboxed storage**: use the `sandbox.storage` passed to the snippet (or `createWidgetStorage`) instead of direct `localStorage`; keys are tenant/user/widget-scoped and quota-capped.
 - **`onDataLoaded`**: hook for accumulating history for sparklines/trends.
-- **Accessibility**: `role="region"` + `aria-label`; keyboard-navigable interactive elements; no `{@html}`.
+- **No `any`**: define strict interfaces and discriminated unions for the payload and settings (the rest of the dashboard core follows the same rule).
+- **Accessibility**: `role="region"` + `aria-label`; keyboard-navigable interactive elements; no `{@html}` for untrusted data.
+
+### SDK helpers (`widget-sdk.ts`)
+
+`src/routes/(app)/dashboard/widget-sdk.ts` re-exports the runtime contracts and provides helpers for packages that need them outside `BaseWidget`:
+
+- `createWidgetSandbox(widgetId, component, tenantId, userId, options)` — build the `{ fetch, storage, notify, requestRefresh, updateSettings }` context manually.
+- `createWidgetStorage(widgetId, tenantId, userId)` — scoped storage with TTL and the 256 KB quota.
+- `isValidDashboardEndpoint(endpoint)` / `sandboxedWidgetFetch(endpoint)` — the same endpoint guard and guarded fetch used by `BaseWidget`.
+- `formatBytes`, `formatNumber`, `formatPercent`, `formatWidgetTime` — display helpers (time formatting is locale-aware through `@utils/format-date`).
 
 ## 5. Backing Data
 
@@ -223,7 +235,9 @@ Dashboard widgets read from the [Dashboard API](../../reference/api/dashboard.md
 - `GET /api/dashboard/cache-metrics`, `health`, `audit`, `logs`, `last5-content`, `last5media`, `online-user`, `system-messages`, `security`, `scim`
 - `GET /api/database/pool-diagnostics`
 
-All endpoints require `dashboard:read` (admins bypass via the fast-path). If your widget needs a new endpoint, add it to the dashboard namespace handler and gate it in `ENDPOINT_PERMISSIONS`.
+All endpoints require `dashboard:read` (the `system:dashboard` grant is an alias; admins bypass via the fast-path). If your widget needs a new endpoint, add it to the dashboard namespace handler and gate it in `ENDPOINT_PERMISSIONS`.
+
+If the widget itself must be restricted beyond the shared dashboard grant, declare `requiresPermission` or `requiresAdmin` in `widget.json`. The page server filters the picker, and an already-persisted tile re-checks the same requirement at runtime (an access-denied card replaces the endpoint call).
 
 ## 6. Verify Discovery
 
@@ -251,7 +265,19 @@ describe("request-rate widget metadata", () => {
 });
 ```
 
-Run: `bun run test:unit -- tests/unit/dashboard tests/unit/routes/dashboard-page-server.test.ts`
+```bash
+# 1. Validate widget naming and marketplace package structure
+bun run lint:widgets
+
+# 2. Dashboard shell + sandbox/storage/presets/contract suites
+bun run test:unit -- tests/unit/dashboard tests/unit/routes/dashboard-page-server.test.ts
+
+# 3. Shared BaseWidget interaction suite (fetch, cache, settings, close, resize)
+bun run test:unit:components
+
+# 4. Types and linting
+bun run lint
+```
 
 ## 8. Licensing (Premium Widgets)
 

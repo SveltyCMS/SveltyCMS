@@ -1,0 +1,57 @@
+# .github/workflows/scorecard.yml
+# OpenSSF Scorecard — supply-chain posture for the repository.
+#
+# The published score feeds `openssf_scorecard.latest_score` in
+# docs/security/external-validation.json. When a run first exists, record the
+# score, flip `status` to `tracked`, and point `report_url` at the public
+# Scorecard result. Until then the file honestly stays `pending`.
+#
+# This workflow is independent of ci.yml and the release workflow; it neither
+# gates a merge nor publishes a release.
+name: OpenSSF Scorecard
+
+on:
+  # Re-scan when a branch-protection rule changes (scorecard checks these).
+  branch_protection_rule:
+  # Weekly. The schedule uses the repository's default branch.
+  schedule:
+    - cron: "17 4 * * 1"
+  # Re-scan after changes land on main.
+  push:
+    branches: [main]
+
+# Least privilege for the job: SARIF upload, keyless OIDC for Scorecard, read
+# access to the repository contents.
+permissions:
+  security-events: write
+  id-token: write
+  contents: read
+
+concurrency:
+  group: scorecard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@v2.4.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publishes the result to the public OpenSSF API (requires a public
+          # repository and the id-token permission above).
+          publish_results: true
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif

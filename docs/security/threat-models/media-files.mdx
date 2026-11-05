@@ -1,0 +1,43 @@
+---
+path: "docs/security/threat-models/media-files.mdx"
+title: "Threat Model: Media & Files"
+description: "STRIDE review of media upload, storage, remote fetch, sanitisation, share links and file delivery."
+order: 73
+icon: "mdi:shield-search"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "threat-model"
+  - "media"
+---
+
+# Threat Model: Media & Files
+
+Scope: `src/routes/(app)/mediagallery/**`, `src/routes/files/**`,
+`src/routes/share/**`, `src/utils/media/**`, `src/services/media/**` and the
+media handlers (`media.ts`, `media-permissions.ts`, `media-transcode.ts`).
+
+## STRIDE
+
+| Threat                                                                        | Surface                                                                                 | Existing control (file reference)                                                                                                            | Residual risk                                                                                         |
+| :---------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| **Spoofing** — upload attributed to a foreign tenant                          | `src/routes/api/[...path]/handlers/media.ts`                                            | Media mutations call `hasMediaPermission()` with the resolved user; storage paths are tenant-prefixed.                                       | A misconfigured storage folder shared by two tenants is an operational error this code cannot detect. |
+| **Tampering** — path traversal through a upload or download path              | `src/routes/files/[...path]/+server.ts`                                                 | The file route runs a traversal guard, a tenant path gate and a signed-URL check before streaming or transforming.                           | Symlinks inside the media folder are outside the guard's control; operators should not create them.   |
+| **Tampering** — stored XSS through an SVG upload                              | `src/utils/media/media-service.server.ts`                                               | `sanitizeSvg()` is mandatory for SVG; `bufferAndSanitizeSvg()` rejects input above `MAX_SVG_BYTES` so a large file cannot skip sanitisation. | Non-SVG active formats are bounded by the MIME allowlist, not sanitised.                              |
+| **Information disclosure** — server-side request forgery through a remote URL | `src/utils/media/storage-adapters.ts`                                                   | Remote fetches call `validateEgressUrl()` and `safeFetch()` from `src/utils/egress-guard.ts`; redirects are re-validated.                    | The egress allowlist is configuration; an overly broad allowlist widens the reachable set.            |
+| **Information disclosure** — share link leaks a private asset                 | `src/routes/share/[token]/+page.server.ts`, `src/utils/media/share-link-hash.server.ts` | Share passwords are stored as hashes (`hashSharePassword()`/`verifySharePassword()`); the page compares `expiresAt` before rendering.        | Anyone holding the token can read the asset until expiry; tokens are bearer credentials by design.    |
+| **Denial of service** — image transform amplification                         | `src/routes/files/[...path]/+server.ts`                                                 | Transform dimensions snap to fixed steps, concurrent transforms are capped, and oversized sources fall back to streaming the original.       | CPU cost remains proportional to the number of distinct requested variants.                           |
+| **Elevation of privilege** — read-only user deletes an asset                  | `src/routes/api/[...path]/handlers/media.ts`                                            | Delete and bulk-delete paths require `media:delete`; upload/update paths require `media:write`.                                              | Plugin media adapters own their own authorization once invoked.                                       |
+
+## Assumptions
+
+- The media root resolves inside the deployment volume; absolute paths come from trusted settings, not request input.
+- Cloud storage adapters (S3/Cloudinary) delegate transform and delivery authorization to the CDN configuration.
+- Signed-URL verification keys are managed like other secrets and rotated through the settings surface.
+
+## Out of scope
+
+- CDN configuration and bucket policy, which are deployment responsibilities.
+- Client-side media-library rendering and drag-and-drop state.

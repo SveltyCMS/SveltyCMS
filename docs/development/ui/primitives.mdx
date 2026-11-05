@@ -16,10 +16,17 @@ tags:
 
 # Native controls
 
-Import the version-1 controls from the native UI barrel:
+Import the version-1 controls directly from their files:
 
 ```svelte
-import { Badge, Button, Checkbox, Input, Modal, Select, Textarea, Toggle } from '@components/ui';
+import Badge from '@components/ui/badge.svelte';
+import Button from '@components/ui/button.svelte';
+import Checkbox from '@components/ui/checkbox.svelte';
+import Input from '@components/ui/input.svelte';
+import Modal from '@components/ui/modal.svelte';
+import Select from '@components/ui/select.svelte';
+import Textarea from '@components/ui/textarea.svelte';
+import Toggle from '@components/ui/toggle.svelte';
 ```
 
 Source files are `src/components/ui/{name}.svelte`. Page chrome around them is [Page shells](./shells.mdx). The full export list is the [Native UI hub](./index.mdx).

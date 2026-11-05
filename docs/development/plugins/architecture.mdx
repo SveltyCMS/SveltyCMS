@@ -299,6 +299,23 @@ All plugin hooks execute within a sandbox (`src/plugins/sandbox.ts`) with **arch
 
 > **Dynamic Scaling**: The sandbox adapts limits based on the execution context. **Migrations** receive a higher query budget (up to 500 queries) and extended timeout (30s) since they provision infrastructure. **Hooks** retain the strict 100-query / 5s limits to prevent runtime performance degradation. This architecture-aware approach ensures migrations can complete complex schema provisioning while hooks remain fast and safe.
 
+### Dual-track execution (native vs. WebAssembly)
+
+First-party plugins ship as trusted JavaScript and execute on the native path (`src/plugins/sandbox.ts`) — no interpreter, no marshalling, ~0.01 ms per hook. Marketplace/third-party plugins may ship a `.wasm` module; those execute inside `WasmPluginPool` (`src/plugins/wasm/`):
+
+| Boundary             | Limit                                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Compilation**      | Module compiled once at activation (`WebAssembly.compile`), then reused                                       |
+| **Warm pool**        | 2 instances per plugin, pre-warmed so a hook run does not pay JIT cost                                        |
+| **Per-instance RAM** | 16 pages (1 MB) of linear memory, reset on trap or recycle                                                    |
+| **Global RAM cap**   | 128 MB across all pools; 64 instances maximum                                                                 |
+| **Watchdog**         | 50 ms default execution budget; a hung instance is terminated and replaced                                    |
+| **Recycling**        | Each instance is replaced after 500 executions to bound guest-allocator fragmentation                         |
+| **Host ABI**         | Pointer-bounded memory reads/writes; `__proto__`/`constructor`/`prototype` keys are rejected (`isSafeObject`) |
+| **Capabilities**     | Declared per manifest: `db:read`, `db:write:own`, `network:egress`, `crypto:hash`                             |
+
+The runner (`WasmPluginRunner`) exits on the first instruction when no WASM plugins are registered, so instances that never install a marketplace module pay nothing. Tests: `tests/unit/plugins/wasm-plugin-pool.test.ts`, `tests/unit/plugins/post-write-wasm-dual-track.test.ts`, `tests/unit/plugins/wasm-stress-load.test.ts`.
+
 ---
 
 ## Headless Delivery Boundaries

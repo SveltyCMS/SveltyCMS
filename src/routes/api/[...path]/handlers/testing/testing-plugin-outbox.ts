@@ -22,7 +22,8 @@ export async function handleTestingPluginOutboxRoutes(
       (params.recordData as Record<string, unknown>) ||
       (params.data as Record<string, unknown>) ||
       {};
-    const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+    const { PluginStorageAdapterImpl } =
+      await import("@src/plugins/storage/plugin-storage-adapter");
     const store = new PluginStorageAdapterImpl(initializedAdapter);
     const record = await store.createRecord(plugin, collection, data, {
       tenantId: tenantId ? String(tenantId) : undefined,
@@ -46,7 +47,8 @@ export async function handleTestingPluginOutboxRoutes(
     if (!plugin || !collection || !recordId) {
       throw new AppError("plugin, collection, recordId required", 400);
     }
-    const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+    const { PluginStorageAdapterImpl } =
+      await import("@src/plugins/storage/plugin-storage-adapter");
     const store = new PluginStorageAdapterImpl(initializedAdapter);
     const record = await store.getRecord(plugin, collection, recordId, {
       tenantId: tenantId ? String(tenantId) : undefined,
@@ -58,7 +60,8 @@ export async function handleTestingPluginOutboxRoutes(
     const plugin = String(params.plugin || "");
     const collection = String(params.collection || "");
     if (!plugin || !collection) throw new AppError("plugin and collection required", 400);
-    const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+    const { PluginStorageAdapterImpl } =
+      await import("@src/plugins/storage/plugin-storage-adapter");
     const store = new PluginStorageAdapterImpl(initializedAdapter);
     const page = await store.listRecords(plugin, collection, {
       tenantId: tenantId ? String(tenantId) : undefined,
@@ -76,7 +79,8 @@ export async function handleTestingPluginOutboxRoutes(
     if (!plugin || !collection || !recordId) {
       throw new AppError("plugin, collection, recordId required", 400);
     }
-    const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+    const { PluginStorageAdapterImpl } =
+      await import("@src/plugins/storage/plugin-storage-adapter");
     const store = new PluginStorageAdapterImpl(initializedAdapter);
     const ok = await store.deleteRecord(plugin, collection, recordId, {
       tenantId: tenantId ? String(tenantId) : undefined,
@@ -85,7 +89,7 @@ export async function handleTestingPluginOutboxRoutes(
   }
 
   if (action === "outbox-emit") {
-    const { outboxService } = await import("@src/services/outbox");
+    const { outboxService } = await import("@src/services/outbox/outbox-service");
     const result = await outboxService.emit(
       String(params.eventType || "entry:create"),
       String(params.aggregateType || "entry"),
@@ -108,13 +112,13 @@ export async function handleTestingPluginOutboxRoutes(
   }
 
   if (action === "outbox-process-batch") {
-    const { outboxService } = await import("@src/services/outbox");
+    const { outboxService } = await import("@src/services/outbox/outbox-service");
     const stats = await outboxService.processBatch(Number(params.batchSize) || 50);
     return rawResponse({ success: true, ...stats });
   }
 
   if (action === "outbox-pending-count") {
-    const { outboxService } = await import("@src/services/outbox");
+    const { outboxService } = await import("@src/services/outbox/outbox-service");
     const count = await outboxService.getPendingCount(
       params.tenantId ? String(params.tenantId) : undefined,
     );

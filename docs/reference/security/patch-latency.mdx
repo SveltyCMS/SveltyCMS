@@ -1,0 +1,70 @@
+---
+path: "docs/reference/security/patch-latency.mdx"
+title: "Patch Latency"
+description: "Release latency per severity, generated from the advisory ledger and compared against the fix SLA."
+order: 56
+icon: "mdi:chart-timeline-variant"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "advisories"
+  - "metrics"
+---
+
+# Patch Latency
+
+Every record in the [advisory ledger](../../security/advisories/readme.mdx)
+carries the date a report arrived and the date the fix shipped. This page turns
+those pairs into the one number a security process can be held to: how long a
+fix actually took.
+
+Latency is `released_at − received_at`, rounded to one decimal. It stops at
+release, not at publication — writing the advisory is not the part that
+protects an operator. Records that have not shipped are excluded from the
+latency figures and tracked separately against the same budget, so an advisory
+cannot disappear from the metric by staying open.
+
+## Latency by severity
+
+The table is generated; the records are the source. `Records` counts every
+advisory of that severity, `Released` the ones with a shipping fix, and the two
+latency columns use the nearest rank (the value at `ceil(p × n)`). Nearest rank
+does not interpolate between records, so the numbers stay meaningful when the
+ledger is small.
+
+<!-- BEGIN GENERATED:patch-latency -->
+
+| Severity | SLA (days) | Records | Released | Median latency (days) | P95 latency (days) |
+| :------- | ---------: | ------: | -------: | --------------------: | -----------------: |
+| critical |          7 |       0 |        0 |                     — |                  — |
+| high     |         30 |       0 |        0 |                     — |                  — |
+| medium   |         90 |       0 |        0 |                     — |                  — |
+| low      |        180 |       0 |        0 |                     — |                  — |
+
+<!-- END GENERATED:patch-latency -->
+
+Records with `provenance: "example"` are excluded from every count below, so the
+template records that ship with the ledger cannot produce a figure. As of
+2026-11-05 no advisory has been published: the table is empty by design and
+fills as real records reach `released`.
+
+A dash means that severity has no released advisory yet. The SLA column repeats
+the commitment from the [advisory process](./advisory-process.mdx): 7 days for
+`critical`, 30 for `high`, 90 for `medium`, and 180 for `low`.
+
+## Regenerating the table
+
+```sh
+bun run security:assurance:doc
+```
+
+The command validates every record first, then replaces only the region between
+the two generated-block comments — the prose above and below is untouched. It
+fails without writing if the markers are missing, so a hand-edited table cannot
+quietly drift from the ledger.
+
+The same script runs in CI with `--fail-on-breach`, which exits non-zero when a
+released record missed its severity SLA or an open record is already past it.
+The weekly schedule means an ageing advisory turns the gate red on its own.

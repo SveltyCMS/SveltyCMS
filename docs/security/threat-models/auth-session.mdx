@@ -1,0 +1,40 @@
+---
+path: "docs/security/threat-models/auth-session.mdx"
+title: "Threat Model: Authentication & Session"
+description: "STRIDE review of login, session lifecycle, MFA/SSO, rate limiting and authorization decisions."
+order: 71
+icon: "mdi:shield-search"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "threat-model"
+  - "authentication"
+---
+
+# Threat Model: Authentication & Session
+
+Scope: `src/routes/login/**`, the identity views under `src/routes/(app)/user/**`
+and `src/routes/(site)/account/**`, `src/databases/auth/**`, the auth-related hooks
+(`handle-authentication.ts`, `handle-authorization.ts`, `handle-token-resolution.ts`,
+`handle-rate-limit.ts`, `handle-waf-guard.ts`, `handle-security.ts`),
+`src/utils/rate-limit/**` and the auth/token/SCIM handlers.
+
+## STRIDE
+
+| Threat                                                            | Surface                                                                      | Existing control (file reference)                                                                                                                                                         | Residual risk                                                                                                   |
+| :---------------------------------------------------------------- | :--------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
+| **Spoofing** — credential stuffing against a known account        | `src/databases/auth/index.ts`                                                | `Auth.authenticate()` counts `failedAttempts` and locks the account for 15 minutes after 5 failures; password strength is enforced by `validatePasswordStrength()`.                       | Lockout state is stored per user row; a distributed attacker still consumes the same five attempts.             |
+| **Spoofing** — session cookie replayed across hosts               | `src/databases/auth/constants.ts`                                            | Production uses the `__Host-` cookie prefix with `Secure`; the cookie name is derived once per request.                                                                                   | Subdomain isolation depends on the browser enforcing `__Host-`; non-HTTPS development omits the prefix.         |
+| **Tampering** — session data altered client-side                  | `src/databases/auth/session-manager.ts`                                      | Sessions are server-side records; the client holds an opaque identifier.                                                                                                                  | A compromised Redis/store credential exposes session records directly.                                          |
+| **Repudiation** — privileged action without an actor trail        | `src/hooks/handle-audit-logging.ts`                                          | The audit hook records authenticated mutations in the server pipeline.                                                                                                                    | Failed logins are logged by the auth path, not by the audit hook; correlation depends on log shipping.          |
+| **Information disclosure** — MFA or step-up bypass                | `src/hooks/handle-authorization.ts`, `src/databases/auth/two-factor-auth.ts` | Role-mandated MFA is checked against session AMR; missing enrollment redirects to `/user?tab=security&mfa=required`; WebAuthn lives in `src/databases/auth/webauthn/webauthn-service.ts`. | Trusted-device bypass is an explicit product decision whose window is configuration, not code.                  |
+| **Denial of service** — login or token endpoint flooding          | `src/hooks/handle-rate-limit.ts`, `src/utils/rate-limit/**`                  | Token-bucket lanes key by client and tenant before the login handler runs.                                                                                                                | Single-process counters reset on restart unless the shared store is enabled.                                    |
+| **Elevation of privilege** — role resolution picks the wrong role | `src/databases/auth/permissions.ts`                                          | `hasPermissionWithRoles()` resolves role ids/names against the role records and honors the permission bitmask.                                                                            | Tenant-bound admins are intentionally not system admins; the distinction is enforced in route guards, not here. |
+
+## Assumptions
+
+- SSO protocols (`google-auth.ts`, `saml-auth.ts`, `sso-session.ts`) trust IdP metadata fetched over validated TLS; a compromised IdP is out of scope.
+- Back-channel logout currently walks only this process's session store.
+- `SESSION_COOKIE_NAME` and the secure-cookie predicate are the only cookie naming inputs; no handler writes its own session cookie.

@@ -1,0 +1,150 @@
+---
+path: "docs/security/advisories/readme.mdx"
+title: "Advisory Ledger"
+description: "One machine-checked JSON record per security advisory, from intake to published release."
+order: 60
+icon: "mdi:shield-bug"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "advisories"
+  - "ledger"
+---
+
+# Advisory Ledger
+
+`docs/security/advisories/` holds one JSON record per security advisory. The
+records are the source of truth for the release-latency table on
+[patch latency](../../reference/security/patch-latency.mdx) and for the SLA
+gate that runs on every pull request that touches them and once a week.
+
+The human process behind the records — intake, triage, the fix SLA, who signs
+a release — is described in the
+[security advisory process](../../reference/security/advisory-process.mdx).
+
+The two records currently in this folder (`SC-2026-900`, `SC-2026-901`) are
+synthetic examples that exercise the schema and both the released and open
+states. They carry `provenance: "example"`, which **excludes them from every
+published statistic** — the latency table on
+[patch latency](../../reference/security/patch-latency.mdx) therefore starts
+empty and only counts records marked `provenance: "published"`. The ids,
+versions and links in the examples use the reserved `example.invalid` domain
+and `CVE-0000-` / `GHSA-0000-` placeholders; never cite them.
+
+## Record format
+
+Every file is named `SC-YYYY-NNN.json` and is parsed against the Valibot schema
+in `scripts/security/advisory-ledger.ts`. Unknown fields are rejected, so a
+typo fails the gate instead of silently dropping data.
+
+| Field               | Type     | Required       | Notes                                                                     |
+| :------------------ | :------- | :------------- | :------------------------------------------------------------------------ |
+| `schema_version`    | string   | always         | `"1.0"`.                                                                  |
+| `id`                | string   | always         | `SC-YYYY-NNN`. Unique across the directory — duplicates fail the gate.    |
+| `title`             | string   | always         | Public-facing one-line title.                                             |
+| `summary`           | string   | always         | What the issue is, which path is affected, what the fix changes.          |
+| `severity`          | enum     | always         | `critical`, `high`, `medium`, or `low`.                                   |
+| `cvss.score`        | number   | always         | 0–10 with one decimal; must sit inside the band for `severity`.           |
+| `cvss.vector`       | string   | always         | CVSS v3.0, v3.1, or v4.0 vector.                                          |
+| `state`             | enum     | always         | `received`, `triaged`, `patched`, or `released`.                          |
+| `provenance`        | enum     | optional       | `published` (default) or `example`. `example` is excluded from all stats. |
+| `received_at`       | ISO 8601 | always         | When the report arrived. Starts the SLA clock.                            |
+| `triaged_at`        | ISO 8601 | triaged        | When severity and affected versions were confirmed.                       |
+| `patched_at`        | ISO 8601 | patched        | When the fix landed on the release branch.                                |
+| `released_at`       | ISO 8601 | released       | When the fixed version shipped. Ends the SLA clock.                       |
+| `published_at`      | ISO 8601 | released       | When the advisory became public.                                          |
+| `osv_id`            | string   | released       | GHSA id (or a CVE id when OSV indexes the CVE directly).                  |
+| `cve_id`            | string   | released (C/H) | `CVE-YYYY-NNNN`. Required for released `critical` and `high` advisories.  |
+| `fixed_version`     | string   | released       | First version that carries the fix.                                       |
+| `affected_versions` | string[] | always         | Ranges such as `">= 2.0.0, < 2.1.4"`. Empty means "not yet determined".   |
+| `regression_tests`  | string[] | patched        | Repo paths; at least one once the advisory is patched.                    |
+| `references`        | string[] | always         | Public URLs only — advisory, CVE record, upstream documentation.          |
+| `timeline_note`     | string   | optional       | Context that does not fit a timestamp.                                    |
+
+A released record looks like this:
+
+```json
+{
+  "schema_version": "1.0",
+  "id": "SC-2026-900",
+  "title": "[EXAMPLE] SSRF in remote media import",
+  "summary": "Synthetic record used by the tests. Ids, versions and links are placeholders.",
+  "severity": "high",
+  "cvss": { "score": 8.1, "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N" },
+  "state": "released",
+  "provenance": "example",
+  "received_at": "2026-10-02T09:12:00Z",
+  "triaged_at": "2026-10-02T15:40:00Z",
+  "patched_at": "2026-10-09T11:05:00Z",
+  "released_at": "2026-10-12T08:30:00Z",
+  "published_at": "2026-10-13T10:00:00Z",
+  "osv_id": "GHSA-0000-0000-0000",
+  "cve_id": "CVE-0000-00000",
+  "fixed_version": "0.0.0-example",
+  "affected_versions": ["< 0.0.0-example"],
+  "regression_tests": ["tests/unit/security/egress-guard.test.ts"],
+  "references": ["https://example.invalid/advisories/SC-2026-900"]
+}
+```
+
+## State machine
+
+```text
+received → triaged → patched → released
+```
+
+| State      | The record must carry                                                                                                    |
+| :--------- | :----------------------------------------------------------------------------------------------------------------------- |
+| `received` | `received_at`.                                                                                                           |
+| `triaged`  | `triaged_at`.                                                                                                            |
+| `patched`  | `patched_at` and at least one entry in `regression_tests`.                                                               |
+| `released` | `released_at`, `published_at`, `osv_id`, `fixed_version`, one regression test, and — for `critical` / `high` — `cve_id`. |
+
+The timeline may never run backwards: `received_at ≤ triaged_at ≤ patched_at ≤
+released_at ≤ published_at`. Equal timestamps are allowed, because a same-day
+triage and patch is normal for a small fix. A record only advances when the
+gate accepts the fields the new state requires, so an incomplete stage cannot
+be mistaken for a finished one.
+
+## Adding an advisory
+
+1. Copy the newest record and rename it to the next free `SC-YYYY-NNN`.
+2. Set `provenance` to `published` (or omit it — `published` is the default).
+   Never leave it as `example` on a real report.
+3. Fill the fields you can prove. Leave `triaged_at` and later empty until the
+   stage is real; the checker rejects a state whose fields are missing.
+4. Run the gate locally: `bun run security:assurance --only=advisories`.
+5. Regenerate the published table: `bun run security:assurance:doc`.
+6. Commit the record and the regenerated doc in the same change.
+
+If the fix is not shipped yet, stop at `patched` (or `triaged`). A record is
+not a press release: it is the evidence that the process ran.
+
+## Requesting a CVE
+
+GitHub is a CVE Numbering Authority (CNA). Open a draft security advisory in
+the repository's **Security → Advisories** tab, and use the advisory form to
+request a CVE. GitHub assigns the `CVE-YYYY-NNNN` id when the advisory is
+published; the GHSA id on the same advisory is what goes into `osv_id`, because
+OSV indexes GHSA records and links them to the CVE.
+
+Both ids come from the advisory itself, so a record below `released` may
+leave them out — the gate only demands them at release. Never guess an
+identifier: the gate checks the shape, a human checks the source.
+
+## What the gate enforces
+
+`bun run security:assurance --only=advisories` runs
+`scripts/security/check-advisories.ts --fail-on-breach`. The full aggregate
+(`bun run security:assurance`) is part of `bun run check` and the CI whitebox
+job, so it runs on every change; the nightly
+`.github/workflows/security-mutation.yml` run repeats it, so an advisory that
+ages past its SLA fails even when nobody opens a pull request.
+
+The gate fails the run (exit 1) when a record breaks the schema or the semantic
+rules, when two records share an id, when a released record took longer than
+the SLA for its severity, or when an open record is already past it. A missing
+directory or an unreadable file exits 2 — the gate cannot certify a ledger it
+could not read.

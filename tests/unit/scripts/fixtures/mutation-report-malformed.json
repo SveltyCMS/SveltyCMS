@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "generated_at": "2026-11-05T00:00:00.000Z",
+  "mode": "security",
+  "totals": { "total": 1, "killed": 0, "survived": 0, "invalid": 1, "aborted": 0 },
+  "mutations": [
+    {
+      "id": "stale-seam",
+      "file": "src/utils/security/input-sanitizer.ts",
+      "description": "fixture",
+      "tests": ["tests/unit/security/input-sanitization.test.ts"],
+      "status": "zombie",
+      "duration_ms": 0,
+      "detail": "unknown status"
+    }
+  ]
+}

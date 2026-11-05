@@ -28,6 +28,10 @@ export interface DashboardWidgetPickerInfo {
   name: string;
   /** Plugin id that must be enabled before this optional widget is offered. */
   requiresPlugin?: string;
+  /** RBAC permission required to add/view this widget. */
+  requiresPermission?: string;
+  /** When true, only administrators may add/view this widget. */
+  requiresAdmin?: boolean;
 }
 
 const DEFAULT_SIZE: WidgetSize = { w: 1, h: 1 };
@@ -81,6 +85,8 @@ export function manifestsToPickerList(
       license: manifest.license || "free",
       name: manifest.name,
       requiresPlugin: manifest.requiresPlugin,
+      requiresPermission: manifest.requiresPermission,
+      requiresAdmin: manifest.requiresAdmin,
     });
   }
   return out;

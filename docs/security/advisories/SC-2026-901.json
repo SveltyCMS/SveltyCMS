@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "id": "SC-2026-901",
+  "title": "[EXAMPLE] Login error reveals account existence",
+  "summary": "Synthetic example record used by the ledger tests and documentation. It is not a real advisory: the ids, versions and links are placeholders, and `provenance: example` keeps it out of every published statistic.",
+  "severity": "medium",
+  "cvss": {
+    "score": 5.3,
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+  },
+  "state": "triaged",
+  "provenance": "example",
+  "received_at": "2026-10-21T07:45:00Z",
+  "triaged_at": "2026-10-22T13:20:00Z",
+  "affected_versions": ["< 0.0.0-example"],
+  "regression_tests": [],
+  "references": ["https://example.invalid/advisories/SC-2026-901"],
+  "timeline_note": "Placeholder open record that demonstrates the triaged state. Do not cite."
+}

@@ -170,7 +170,12 @@ export async function encryptFieldValue(
     if (kemPublicKey && (await isMlKemAvailable())) {
       const plaintext = new TextEncoder().encode(JSON.stringify(value));
       const aad = buildAad(context, fieldName);
-      return hybridSeal(plaintext, { publicKey: kemPublicKey, aad });
+      try {
+        return await hybridSeal(plaintext, { publicKey: kemPublicKey, aad });
+      } finally {
+        // Ephemeral plaintext must not outlive the seal call in the V8 heap.
+        plaintext.fill(0);
+      }
     }
   }
   return encryptFieldValueSync(value, context, fieldName);
@@ -233,7 +238,12 @@ export function decryptFieldValueSync(
       logger.error("[FieldEncryption] Decrypt/AAD verification failed", { fieldName });
       return null;
     }
-    return JSON.parse(decrypted.toString("utf8"));
+    try {
+      return JSON.parse(decrypted.toString("utf8"));
+    } finally {
+      // The caller only needs the parsed JSON, not the decrypted bytes.
+      decrypted.fill(0);
+    }
   } catch (err) {
     if (err instanceof AppError) throw err;
     logger.error("[FieldEncryption] Decrypt failed", {
@@ -268,8 +278,11 @@ export async function decryptFieldValue(
     try {
       const aad = buildAad(context, fieldName);
       const plaintextBytes = await hybridOpen(stored, { privateKey: kemPrivateKey, aad });
-      const jsonStr = new TextDecoder().decode(plaintextBytes);
-      return JSON.parse(jsonStr);
+      try {
+        return JSON.parse(new TextDecoder().decode(plaintextBytes));
+      } finally {
+        plaintextBytes.fill(0);
+      }
     } catch (err) {
       logger.error("[FieldEncryption] Hybrid PQC decrypt failed", {
         fieldName,

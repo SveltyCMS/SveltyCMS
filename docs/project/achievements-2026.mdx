@@ -6,7 +6,7 @@ order: 100
 icon: "mdi:chart-box-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-01"
+updated: "2026-11-05"
 tags:
   - "achievements"
   - "log"
@@ -173,6 +173,33 @@ In March 2026, SveltyCMS implemented several enterprise-grade infrastructure opt
   - **Tab Strip Elevation & Breathing Room**: Added comfortable top breathing room over `<Tabs.List>` in Access Management cards to eliminate border crowding.
   - **Webhook Creation Modal Guidance**: Integrated `<HelpIcon>` + `<Tooltip>` explanations into all modal form fields (_Webhook Name_, _Payload URL_, _Secret Key_, and _Trigger Events_) with contextual HTTPS security indicators.
   - **System Monitor Card Cleanup**: Streamlined `/config/monitor` cards to remove redundant configuration links and embedded background queue telemetry directly.
+
+- **Dashboard Widget Sandbox & Operator Controls (November 2026):**
+  - **Endpoint guard**: widget requests are limited to same-origin `/api/...` paths; encoded traversal (`%2E%2E`, `%2f`, double-encoded `%252e`) and credential-bearing URLs are rejected before `fetch`, with a 15 s abort timeout, CSRF headers, and sanitized request headers.
+  - **Per-tile isolation**: sandbox storage is namespaced by `tenant:user:widget`, capped at 256 KB per widget instance with TTL expiry; the legacy flat `widget_cache_*` entries are still read for migration and are never written again. Each widget gets its own error boundary with Retry/Remove instead of taking down the grid.
+  - **Runtime RBAC**: `widget.json` may declare `requiresPermission`/`requiresAdmin`; the server filters the picker and persisted layouts re-check per tile, rendering an access-denied card instead of calling a forbidden endpoint. `database-pool-diagnostics`, `scim-status`, and `tenant-analytics` ship as admin-only.
+  - **Operator UX**: per-widget settings (title, refresh rate, grid size) persist without clobbering widget-specific settings; curated layout presets (Overview, Monitoring, Editorial, Governance, Minimal) with confirmation before replacing a non-empty grid; global refresh tracks real widget completion; compact/normal density toggle.
+  - Tests: `tests/unit/dashboard/dashboard-{sandbox,storage,presets,contract}.test.ts`, `tests/unit/components/dom/base-widget-interaction.test.ts`. Docs: [Dashboard widget development](../development/dashboard/index.mdx).
+
+- **Zero-Overhead Security Hardening (November 2026):**
+  - **DNS socket pinning**: `safeFetch` connects to the address `validateEgressUrl()` already checked, so a TTL-0 rebind between validation and connect cannot reach loopback or cloud metadata; redirect hops are re-validated. The pinned dispatcher is paired with undici's own `fetch` (Node's global `fetch` rejects a foreign dispatcher) and falls back to the guarded global path when `undici` is unavailable.
+  - **Revocation epoch**: global/tenant/user monotonic counters in `src/databases/auth/revocation-epoch.ts` invalidate sessions with one integer comparison; password change, 2FA reset, and admin lockout bump the epoch before the response. Process-local by design; cross-node effects still come from the persisted session row/Redis.
+  - **L1 flood gate**: `src/utils/rate-limit/l1-filter.ts` keeps a per-IP token bucket (200 burst / 200 per second, 10 000-entry LRU) that rejects volumetric floods in ~20–50 ns, before Redis, body parsing, or Argon2id.
+  - **AOT validation plans**: collection schemas compile once into a flat validator plan cached in a `WeakMap`; the write pipeline executes the plan instead of re-walking the schema and rejects unknown keys before an adapter sees them.
+  - **Nonce CSP**: `csp.mode: "nonce"` plus `'strict-dynamic'` in `vite.config.ts`, with `%sveltekit.nonce%` on the `app.html` bootstrap script. Verified on the built server: the header nonce matches every rendered `<script>` nonce.
+  - **Ephemeral key-material zeroing**: DEK/KEK, plaintext, scrypt-derived, and HMAC buffers are wiped in `finally` across `hybrid-kem`, `field-encryption`, `share-link-hash`, and `hmacSha256VerifyWithKeys`.
+  - **WASM plugin sandbox**: marketplace plugins execute in `WasmPluginPool` (128 MB ceiling, zeroed linear memory, 500-run recycling, pointer-bounded ABIs); first-party plugins keep the native JS path.
+  - Tests: `tests/unit/security/egress-guard.test.ts`, `tests/unit/auth/revocation-epoch.test.ts`, `tests/unit/rate-limit/l1-filter.test.ts`, `tests/unit/sdk/compiled-validation-plan.test.ts`, `tests/unit/hooks/csp-headers.test.ts`, `tests/unit/plugins/wasm-plugin-pool.test.ts`. Docs: [Security posture](../reference/security/security-posture.mdx), [CSP](../reference/security/content-security-policy.mdx).
+
+- **AI-Assisted Security Assurance Scaffolding (November 2026):** five evidence-producing pipelines, each documented and gated. None of them substitutes for the still-open external penetration test.
+  - **Advisory ledger** (`scripts/security/check-advisories.ts`): one Valibot-validated JSON record per advisory with a monotonic state machine (received → triaged → patched → released), duplicate-id rejection, OSV/CVE ids at release, and an SLA gate. The two shipped records are `provenance: "example"` and are excluded from every published figure.
+  - **Patch latency** (`docs/reference/security/patch-latency.mdx`): generated from the ledger, nearest-rank median/p95 per severity, breaches for released and open advisories. The table is empty by design until the first real advisory ships.
+  - **Test strength** (`scripts/security/check-test-strength.ts`, `test:mutation:security`): 12 security seams mutated across auth, security utilities, egress and the write pipeline, with per-area floors; 35 executable attack cases across URL, XSS, SVG and prototype-key targets run on every PR. No mutation score has been measured yet.
+  - **Threat-model drift** (`docs/security/threat-model.json`, `check-threat-model-drift.ts`): six STRIDE surfaces covering 58/58 server route files (100%); a handler change without a matching model update fails the gate, as does a review older than 12 months.
+  - **Executable invariants** (`tests/unit/security/invariants.test.ts`): no `@components/ui` barrel imports, no `Math.random()` in security/auth/media, a no-growth ratchet on `new Date().toISOString()`, and manifest coverage.
+  - **External validation** (`docs/security/external-validation.json`, `check-external-validation.ts`, `.github/workflows/scorecard.yml`): machine-readable status for pen test, bounty, Scorecard, SLSA and Sigstore, with freshness rules. All rows are `pending`; the gate fails on a stale completed report or a score below target.
+  - **Security case** (`docs/reference/security/security-case.mdx`): the umbrella evidence map, the AI-assisted security policy (AI drafts, a named human signs every fix), and the EU/UWG-compliant claim language.
+  - Tests: `tests/unit/scripts/{advisory-ledger,check-test-strength,threat-model-drift,external-validation}.test.ts`, `tests/unit/security/{red-team-corpus,invariants}.test.ts`.
 
 - **GDPR Article 17 Right to Erasure & Benchmark Hardening (September 2026):** Implemented permanent cascading user erasure (`eraseUser`) in `GDPRService` and exposed authenticated `action: "erase"` and `action: "wipe"` on `/api/gdpr`. Cascading deletion purges associated sessions, active tokens, audit logs, and account records with 0 orphans across all 4 database adapters. Migrated `tests/benchmarks/right-to-be-forgotten-audit.test.ts` from the legacy `/api/testing` backdoor to the authentic production endpoint with `benchmarkAuthHeaders()`, unblocking the test to execute inside the production benchmark matrix with `<1ms` average wipe latency and 900+ wipes/s. Tests: `tests/unit/api/gdpr.test.ts`, `tests/unit/services/gdpr-service.test.ts`, `tests/benchmarks/right-to-be-forgotten-audit.test.ts`. Docs: [ADR: Testing 2026](../tests/adr-testing-2026.mdx).
 

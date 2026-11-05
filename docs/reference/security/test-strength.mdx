@@ -1,0 +1,200 @@
+---
+path: "docs/reference/security/test-strength.mdx"
+title: "Test Strength & Red-Team Corpus"
+description: "How SveltyCMS measures whether security tests would actually catch a regression: mutation score floors per security area, plus the executable red-team corpus contract."
+order: 57
+icon: "mdi:test-tube"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "testing"
+  - "mutation"
+  - "red-team"
+---
+
+# Test Strength & Red-Team Corpus
+
+A green suite proves that the assertions we wrote still pass. It does not prove
+that anyone wrote an assertion for the behaviour a change just broke. Coverage
+has the same blind spot: a line can execute in a test while no `expect` observes
+its result.
+
+This page documents the two mechanisms that close that gap for the security
+surface:
+
+1. **Mutation score floors** — rewrite one security seam, run its unit suite, and
+   require that the suite fails. A mutation the suite does not notice is a
+   _survivor_: an unasserted guarantee.
+2. **An executable red-team corpus** — fixed attack payloads that must be
+   rejected (or explicitly accepted) by the real guards on every PR.
+
+> [!IMPORTANT]
+> **No mutation score has been published for this repository yet.** The floors
+> in `scripts/security/security-mutation-floors.json` are targets chosen from the
+> threat model, not measured baselines. The first `--security-only` run on CI will
+> produce the first report; until then treat every floor as a starting gate, not
+> as evidence of current strength.
+
+## Why mutation score instead of coverage
+
+| Signal          | Answers                                        | Blind spot                                                                     |
+| :-------------- | :--------------------------------------------- | :----------------------------------------------------------------------------- |
+| Line coverage   | Did the statement execute?                     | An executed branch may have its result discarded.                              |
+| Branch coverage | Did both outcomes execute?                     | Executing a branch is not observing it; a `return true` can be flipped freely. |
+| Mutation score  | Would a test notice if this guarantee changed? | Only as good as the mutation list — a seam nobody mutates stays unmeasured.    |
+
+The mutation runner (`scripts/test/mutate-core.ts`) is dependency-free by
+design: it applies one exact string replacement per seam, runs the mapped Vitest
+file(s), and restores the original bytes in `finally`. It refuses to touch a
+target that has uncommitted changes, so it can never clobber a concurrent edit.
+A `Survived` verdict means the suite passed **with the vulnerability
+re-introduced** — that is what this gate fails on.
+
+## Floors file
+
+`scripts/security/security-mutation-floors.json` is the policy:
+
+```json
+{
+  "version": 1,
+  "updated_at": "2026-11-05",
+  "default": 55,
+  "floors": {
+    "src/databases/auth/": 60,
+    "src/utils/security/": 65,
+    "src/utils/egress-guard.ts": 65,
+    "src/services/sdk/namespaces/collections/write-pipeline.ts": 55
+  }
+}
+```
+
+Rules the checker applies:
+
+- **Longest-prefix match wins.** `src/utils/egress-guard.ts` (a file) beats a
+  broader directory prefix for that exact file; `src/utils/security/**` uses the
+  `src/utils/security/` floor.
+- **Score = `killed / (killed + survived)`.** `invalid` mutations (a stale
+  `find` string that no longer occurs exactly once) and `aborted` mutations
+  (dirty or concurrently edited target) are excluded from the denominator —
+  they measure the harness, not the tests.
+- **The area is the gate; the file row is diagnostic.** A single weak file can
+  sit below the area floor while the aggregate still passes. The per-file table
+  exists to make that file visible, not to fail the build by itself.
+- **No data does not fail.** A configured area with no mutations in the report
+  prints `no-data` and passes; the mutator's own exit code still fails the job
+  when a mutation survives.
+
+## How to run it
+
+```sh
+# 1. Mutate the security surface (~12 seams today). Writes .mutation/report.json.
+bun run test:mutation:security
+
+# 2. Score the report against the floors (also part of `bun run security:assurance`).
+bun run security:assurance --only=test-strength --require-mutation
+
+# Useful variants
+bun run test:mutation --security-only --dry-run                 # list seams, write nothing
+bun run scripts/security/check-test-strength.ts --json          # detailed machine-readable output
+bun run security:assurance                                      # every assurance gate
+```
+
+`--allow-missing` exists for the PR gate: `bun run security:assurance` passes it
+when no mutation report has been produced yet, so the checker exits `0` with a
+notice instead of a false red. It is not a gate bypass — the nightly job runs
+`--require-mutation`, which removes the flag and fails when the report is absent.
+
+Exit codes:
+
+| Code | Meaning                                                                          |
+| :--- | :------------------------------------------------------------------------------- |
+| `0`  | Every scored area is at or above its floor (or the report is absent + allowed).  |
+| `1`  | At least one area is below its floor.                                            |
+| `2`  | Report missing without `--allow-missing`, or report/floors unreadable/malformed. |
+
+The mutator keeps its original exit contract (`0` all killed, `1` survivor,
+`2` usage error, `3` aborted). Its report is additive: `--no-report` restores the
+previous behaviour exactly, and `--report=<path>` selects another location.
+Write-path runs keep using the same default `.mutation/report.json`; the checker
+scores those files against the `default` floor unless an area matches.
+
+## Red-team corpus
+
+`tests/security-corpus/cases.json` is a durable list of attack payloads. It is
+**executable**, not documentation: each case names a guard in
+`tests/security-corpus/harness.ts` and the verdict that guard must reach.
+`tests/unit/security/red-team-corpus.test.ts` validates the JSON with Valibot
+(kebab-case id, non-empty note, `reject`/`accept`), checks that ids are unique
+and every target exists, then runs every payload against the real guard.
+
+`TARGETS` uses one convention: the predicate returns `true` when the input was
+**rejected** (unsafe). Long-established guards are wrapped, never reimplemented:
+
+| Target id            | Guard                                               | Why it is a security boundary                           |
+| :------------------- | :-------------------------------------------------- | :------------------------------------------------------ |
+| `dashboard-endpoint` | `isValidDashboardEndpoint` (`widget-sandbox.ts`)    | Widget fetch targets: schemes, traversal, credentials.  |
+| `xss-vector`         | `containsXssVector` (`security/input-sanitizer.ts`) | Stored-XSS triage before the database write.            |
+| `svg-markup`         | `sanitizeSvg` (`media/media-service.server.ts`)     | SVG uploads are HTML-like documents (script, handlers). |
+| `prototype-keys`     | `sanitizeObject` (`security/input-sanitizer.ts`)    | `__proto__`/`constructor`/`prototype` at any depth.     |
+
+Current corpus (2026-11-05): **35 cases** across the four targets.
+
+| Target id            |  Cases | Reject | Accept |
+| :------------------- | -----: | -----: | -----: |
+| `dashboard-endpoint` |     15 |     13 |      2 |
+| `xss-vector`         |      8 |      6 |      2 |
+| `svg-markup`         |      6 |      5 |      1 |
+| `prototype-keys`     |      6 |      5 |      1 |
+| **Total**            | **35** | **29** |  **6** |
+
+Accept cases are deliberate positive controls: a guard that rejects everything
+is not a guard, and the corpus should fail if a fix over-blocks legitimate input.
+
+### Adding a case
+
+1. **Propose.** Add an entry to `tests/security-corpus/cases.json`:
+
+   ```json
+   {
+     "id": "url-encoded-backslash-traversal",
+     "target": "dashboard-endpoint",
+     "payload": "/api/%5c..%5cadmin",
+     "expected": "reject",
+     "note": "Encoded backslashes decode to separators on Windows hosts."
+   }
+   ```
+
+   Use kebab-case, a unique id, and a note that explains the attack, not the
+   payload. An AI agent may propose payloads; it may not add a target that
+   silently returns a constant.
+
+2. **Run the corpus.** `bun x vitest run tests/unit/security/red-team-corpus.test.ts`
+
+3. **Accept.** A human reviews the diff. Once merged, the case is a permanent
+   regression: it runs on every PR that touches the security paths and can only
+   be removed by an explicit, reviewed deletion.
+
+If a new guard is needed, implement it as a pure function in `src/` first, add
+it to `TARGETS`, then reference it from the case. The harness must import
+cleanly under `vitest.config.ts` — no `$app/*` runtime state, no `window`, no
+network calls.
+
+## CI wiring
+
+- **Pull requests and local checks** run `bun run security:assurance` as part of
+  `bun run check` (CI whitebox `01-policy`). Without a mutation report the
+  floor check exits 0 with a notice; the corpus runs in the unit suite and in
+  `test:security`.
+- **Nightly and manual runs** (`.github/workflows/security-mutation.yml`)
+  execute `bun run test:mutation:security`, then
+  `bun run security:assurance --require-mutation`, and upload
+  `.mutation/report.json` as an artifact. A surviving mutation fails the job
+  even when the area floor still passes.
+
+## Related reading
+
+- `docs/reference/security/secrets-inventory.mdx` — bootstrap vs DB-driven secrets.
+- `docs/tests/adr-testing-2026.mdx` — test-tier policy, seeding, and no-soft-skip rules.
+- `docs/contributing/agent-reference.mdx` — documentation and test matrices.

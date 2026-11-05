@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "surfaces": [
+    {
+      "id": "api-dispatch",
+      "description": "HTTP API dispatch, endpoint permission mapping and request-lane hooks.",
+      "paths": [
+        "src/routes/api/**",
+        "src/hooks/handle-api-requests.ts",
+        "src/hooks/handle-request-classifier.ts",
+        "src/hooks/handle-turbo-get.ts",
+        "src/hooks/handle-turbo-pipeline.server.ts",
+        "src/hooks/handle-compression.ts",
+        "src/databases/auth/permission-catalog.ts"
+      ],
+      "model": "docs/security/threat-models/api-dispatch.mdx",
+      "reviewed_at": "2026-11-05",
+      "fingerprint": "2410c005e3f5f65e4d713f5d0d3b6c74f92c4a47230ca9a01328827d8303c985"
+    },
+    {
+      "id": "auth-session",
+      "description": "Authentication, session lifecycle, MFA/SSO and authorization decisions.",
+      "paths": [
+        "src/routes/login/**",
+        "src/routes/(app)/user/**",
+        "src/routes/(site)/account/**",
+        "src/databases/auth/**",
+        "src/hooks/handle-authentication.ts",
+        "src/hooks/handle-authorization.ts",
+        "src/hooks/handle-token-resolution.ts",
+        "src/hooks/handle-rate-limit.ts",
+        "src/hooks/handle-waf-guard.ts",
+        "src/hooks/handle-security.ts",
+        "src/utils/rate-limit/**",
+        "src/routes/api/[...path]/handlers/auth.ts",
+        "src/routes/api/[...path]/handlers/tokens.ts",
+        "src/routes/api/[...path]/handlers/scim.ts"
+      ],
+      "model": "docs/security/threat-models/auth-session.mdx",
+      "reviewed_at": "2026-11-05",
+      "fingerprint": "40486f08b44bf9c9e0be25282ec80b29ead65ae82f43a51b086a3418f5f3d277"
+    },
+    {
+      "id": "content-write",
+      "description": "Collection/content mutation routes, write lane and SDK collection namespace.",
+      "paths": [
+        "src/routes/(app)/[language]/**",
+        "src/routes/(site)/**",
+        "src/routes/api/[...path]/handlers/collections.ts",
+        "src/routes/api/[...path]/handlers/content.ts",
+        "src/routes/api/[...path]/handlers/content-sync.ts",
+        "src/routes/api/[...path]/handlers/content-transfer.ts",
+        "src/routes/api/[...path]/handlers/virtual-collections.ts",
+        "src/services/sdk/namespaces/collections/**",
+        "src/services/sdk/namespaces/collections-namespace.ts",
+        "src/services/content/**",
+        "src/hooks/handle-collection-write-lane.ts"
+      ],
+      "model": "docs/security/threat-models/content-write.mdx",
+      "reviewed_at": "2026-11-05",
+      "fingerprint": "263ef1d7b23b248061ec99d13df21a96d6f2f6db478fa1020ae8dd63f0a22d74"
+    },
+    {
+      "id": "media-files",
+      "description": "Media upload, storage, transformation, sharing and file delivery.",
+      "paths": [
+        "src/routes/(app)/mediagallery/**",
+        "src/routes/files/**",
+        "src/routes/share/**",
+        "src/utils/media/**",
+        "src/services/media/**",
+        "src/routes/api/[...path]/handlers/media.ts",
+        "src/routes/api/[...path]/handlers/media-permissions.ts",
+        "src/routes/api/[...path]/handlers/media-transcode.ts"
+      ],
+      "model": "docs/security/threat-models/media-files.mdx",
+      "reviewed_at": "2026-11-05",
+      "fingerprint": "44a2921754879fe5af28f12d7693b555bf8059ef136c0d882f4af38dda75b8d6"
+    },
+    {
+      "id": "admin-pages",
+      "description": "Admin UI page loads, page guards and the administration landing route.",
+      "paths": [
+        "src/routes/(app)/+layout.server.ts",
+        "src/routes/(app)/+layout.ts",
+        "src/routes/(app)/config/**",
+        "src/routes/(app)/dashboard/**",
+        "src/routes/(app)/plugin/**",
+        "src/routes/(admin)/**",
+        "src/utils/page-guards.server.ts"
+      ],
+      "model": "docs/security/threat-models/admin-pages.mdx",
+      "reviewed_at": "2026-11-05",
+      "fingerprint": "edc972e43284fd1242a5a8112c3c2814976c5200f831c333fede9643712f8153"
+    },
+    {
+      "id": "system-ops",
+      "description": "System hooks, setup/state gates, security headers, audit logging and test-only handlers.",
+      "paths": [
+        "src/hooks.server.ts",
+        "src/hooks.client.ts",
+        "src/hooks.ws.ts",
+        "src/hooks/handle-system-state.ts",
+        "src/hooks/handle-test-isolation.ts",
+        "src/hooks/handle-audit-logging.ts",
+        "src/hooks/handle-security-headers.ts",
+        "src/hooks/handle-redirects.ts",
+        "src/hooks/handle-user-preferences.ts",
+        "src/hooks/fast-lane.server.ts",
+        "src/hooks/lane-state-gate.ts",
+        "src/hooks/request-tenant.ts",
+        "src/hooks/response-compression-stash.ts",
+        "src/hooks/handle-collection-read-lane.ts",
+        "src/routes/+layout.server.ts",
+        "src/routes/+layout.ts",
+        "src/routes/setup/**",
+        "src/routes/email-previews/**",
+        "src/routes/indexnow.txt/**",
+        "src/routes/llms.txt/**",
+        "src/routes/robots.txt/**",
+        "src/routes/sitemap.xml/**",
+        "src/routes/sitemap-images.xml/**",
+        "src/routes/sitemap-news.xml/**",
+        "src/routes/api/[...path]/handlers/system/**",
+        "src/routes/api/[...path]/handlers/system.ts",
+        "src/routes/api/[...path]/handlers/testing/**",
+        "src/routes/api/[...path]/handlers/testing.ts",
+        "src/routes/api/[...path]/handlers/setup.ts",
+        "src/routes/api/[...path]/handlers/backups.ts",
+        "src/routes/api/[...path]/handlers/migrations.ts",
+        "src/utils/test-bypass.server.ts"
+      ],
+      "model": "docs/security/threat-models/system-ops.mdx",
+      "reviewed_at": "2026-11-05",
+      "fingerprint": "d75a7c6e867d2ecd660398ac08935d3afdd3160e5d0e35e43098ee11bfc57dad"
+    }
+  ]
+}
