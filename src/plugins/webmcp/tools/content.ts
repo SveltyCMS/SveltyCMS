@@ -36,7 +36,8 @@ export function registerContentTools(db?: IDBAdapter): void {
   // ── Get Collections (browser) ──────────────────────────────────
   modelContext.registerTool({
     name: "get_collections",
-    description: "Returns all content collections with their schemas and field definitions.",
+    description:
+      "Returns all content collections with their schemas, field definitions, and AI agent instructions.",
     parameters: { type: "object", properties: {}, required: [] },
     execute: async () => {
       try {
@@ -52,6 +53,63 @@ export function registerContentTools(db?: IDBAdapter): void {
           isError: true,
           content: [{ type: "text", text: err.message }],
         };
+      }
+    },
+  });
+
+  // ── Get Collection Schema & Agent Instructions (browser) ───────
+  modelContext.registerTool({
+    name: "get_collection_schema",
+    description:
+      "Get detailed schema, field definitions, and AI agent instructions for a specific collection.",
+    parameters: {
+      type: "object",
+      properties: {
+        collectionId: { type: "string", description: "The collection ID or name" },
+      },
+      required: ["collectionId"],
+    },
+    execute: async (params: any) => {
+      try {
+        const res = await fetch(`/api/collections/${params.collectionId}`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (err: unknown) {
+        return formatError("[WebMCP] get_collection_schema failed", err);
+      }
+    },
+  });
+
+  // ── Get Agent Instructions (browser) ───────────────────────────
+  modelContext.registerTool({
+    name: "get_agent_instructions",
+    description:
+      "Get prompt instructions and business guidelines for AI agents working with content schemas.",
+    parameters: {
+      type: "object",
+      properties: {
+        collectionId: { type: "string", description: "Optional collection ID or name" },
+      },
+      required: [],
+    },
+    execute: async (params: any) => {
+      try {
+        const url = params?.collectionId
+          ? `/api/collections/${params.collectionId}`
+          : "/api/collections";
+        const res = await fetch(url, { credentials: "include" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (err: unknown) {
+        return formatError("[WebMCP] get_agent_instructions failed", err);
       }
     },
   });
@@ -346,11 +404,93 @@ function registerServerTools(db: IDBAdapter): void {
         collections: (Array.isArray(collections) ? collections : []).map((c: any) => ({
           id: c._id,
           name: c.name,
-          fields: c.fields,
+          label: c.label,
+          description: c.description,
+          instructions: c.instructions || c.agentInstructions,
+          fields: (c.fields || []).map((f: any) => ({
+            name: f.name || f.label,
+            type: f.type || f.widget,
+            required: f.required,
+            instructions: f.instructions || f.agentInstructions,
+            ...f,
+          })),
         })),
       };
     } catch (err: any) {
       logger.error("[WebMCP] headless get_collections failed", { error: err });
+      return { error: err.message };
+    }
+  }
+
+  // get_collection_schema — server
+  async function getCollectionSchema(collectionId: string) {
+    try {
+      const result = await db.collection.getSchema(collectionId);
+      const schema =
+        result && typeof result === "object" && "success" in result && (result as any).success
+          ? (result as any).data
+          : result;
+      if (!schema) {
+        return { error: `Collection '${collectionId}' not found` };
+      }
+      return {
+        collectionId: schema._id || schema.name,
+        name: schema.name,
+        label: schema.label,
+        description: schema.description,
+        instructions: schema.instructions || schema.agentInstructions,
+        fields: schema.fields,
+        singleton: schema.singleton,
+        status: schema.status,
+      };
+    } catch (err: any) {
+      logger.error("[WebMCP] headless get_collection_schema failed", { collectionId, error: err });
+      return { error: err.message };
+    }
+  }
+
+  // get_agent_instructions — server
+  async function getAgentInstructions(collectionId?: string) {
+    try {
+      const result = await db.collection.listSchemas();
+      const collections =
+        result && typeof result === "object" && "success" in result && (result as any).success
+          ? ((result as any).data ?? [])
+          : [];
+      const list = Array.isArray(collections) ? collections : [];
+
+      if (collectionId) {
+        const target = list.find((c: any) => c._id === collectionId || c.name === collectionId);
+        if (!target) return { error: `Collection '${collectionId}' not found` };
+        return {
+          collection: target.name,
+          instructions:
+            target.instructions ||
+            target.agentInstructions ||
+            "No custom agent instructions declared for this collection.",
+          fieldInstructions: (target.fields || [])
+            .filter((f: any) => f.instructions || f.agentInstructions)
+            .map((f: any) => ({
+              field: f.name || f.label,
+              instructions: f.instructions || f.agentInstructions,
+            })),
+        };
+      }
+
+      return {
+        instructions: list.map((c: any) => ({
+          collection: c.name,
+          instructions: c.instructions || c.agentInstructions || null,
+          fieldInstructions: (c.fields || [])
+            .filter((f: any) => f.instructions || f.agentInstructions)
+            .map((f: any) => ({
+              field: f.name || f.label,
+              instructions: f.instructions || f.agentInstructions,
+            })),
+        })),
+      };
+    } catch (err: any) {
+      logger.error("[WebMCP] headless get_agent_instructions failed", { error: err });
       return { error: err.message };
     }
   }
@@ -407,8 +547,27 @@ function registerServerTools(db: IDBAdapter): void {
   // tools search-first (see tool-registry.ts).
   registerServerTool({
     name: "get_collections",
-    description: "List all content collections with their id, name and fields",
+    description:
+      "List all content collections with their schemas, fields, and AI agent instructions",
     handler: getCollections,
+  });
+  registerServerTool({
+    name: "get_collection_schema",
+    description:
+      "Get detailed schema, field definitions, validations, and AI agent instructions for a specific collection",
+    parameters: {
+      collectionId: "The collection id or name to fetch schema for",
+    },
+    handler: getCollectionSchema,
+  });
+  registerServerTool({
+    name: "get_agent_instructions",
+    description:
+      "Get natural-language prompt instructions and field rules for AI agents working with collections",
+    parameters: {
+      collectionId: "Optional collection id or name to get specific instructions for",
+    },
+    handler: getAgentInstructions,
   });
   registerServerTool({
     name: "list_entries",

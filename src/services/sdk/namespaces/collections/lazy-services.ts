@@ -33,7 +33,7 @@ export const getPubSubLazy = lazyModule(() =>
 );
 
 /** Outbox service + kill-switch check — used by coalesced outbox emission. */
-export const getOutboxLazy = lazyModule(() => import("@src/services/outbox"));
+export const getOutboxLazy = lazyModule(() => import("@src/services/outbox/outbox-service"));
 
 /** Token engine — used by collection list label/description token replacement. */
 export const getTokenEngineLazy = lazyModule(() => import("@src/services/token/engine"));

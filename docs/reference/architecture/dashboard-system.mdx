@@ -1,12 +1,12 @@
 ---
 path: "docs/reference/architecture/dashboard-system.mdx"
 title: "Dashboard System Architecture"
-description: "Comprehensive guide to the SveltyCMS dashboard system including widget architecture, customization, and audit log monitoring."
+description: "Comprehensive guide to the SveltyCMS dashboard system including widget architecture, sandboxed data access, RBAC, customization, and audit log monitoring."
 order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2025-10-17"
-updated: "2026-11-01"
+updated: "2026-11-05"
 tags:
   - "dashboard"
   - "widgets"
@@ -89,26 +89,31 @@ graph TD
 
 All dashboard widgets extend the `base-widget.svelte` component, which provides:
 
-- **Standardized Layout**: Consistent header, content area, and controls
-- **State Management**: Persistent widget configuration and data caching
-- **Auto-refresh**: Configurable polling intervals for live data
-- **Error Handling**: Graceful error states and retry mechanisms
-- **Accessibility**: Full keyboard navigation and screen reader support
+- **Standardized layout**: consistent header, content area, and controls
+- **Sandboxed fetching**: `sandboxedWidgetFetch` (same-origin `/api/...`, 15s timeout, CSRF headers, sanitized headers)
+- **Per-tile scope**: persisted settings, tenant/user storage scope, license, and the manifest RBAC decision without forwarding props through every package
+- **State management**: persistent widget configuration, isolated data caching, and tab/online-aware polling
+- **Self-service settings**: title, refresh rate, and grid size via the shared configure modal (merged, never replacing widget-specific settings)
+- **Error handling**: `WidgetHttpError` with 4xx no-retry, exponential backoff for 5xx/429, and a `<svelte:boundary>` Retry/Remove card per tile
+- **Accessibility**: keyboard-accessible header controls, resize handles, and screen-reader labels
 
 ### Widget Registration
 
 Each widget is a **self-contained package** in its own kebab-case folder: `widgets/<folder>/<component>.svelte` plus a `widget.json` manifest. Widgets use **dual discovery**:
 
 1. **Client** (`+page.svelte`) — Vite `import.meta.glob("./widgets/*/*.svelte")` builds the runtime registry for lazy-loaded rendering. The registry is keyed by the **package folder id**; each entry stores its entry filename (`index.svelte`) for the dynamic import.
-2. **Server** (`+page.server.ts`) — eager glob over `widgets/*/*.svelte` imports each file's `widgetMeta` for the widget picker.
+2. **Server** (`+page.server.ts`) — `getInstalledDashboardWidgets()` globs `widgets/*/widget.json` (`manifest-registry.ts`), filters by `sveltycms`, plugin state, and manifest RBAC, then maps entries via `manifestsToPickerList()`. The same load hydrates the saved layout from `system.preferences`.
 
 ```
-// Client registry in +page.svelte
+// Client lazy chunk map in +page.svelte
 const modules = import.meta.glob("./widgets/*/*.svelte");
 // → { "./widgets/system-health/index.svelte": () => import(...), … }
 
-// Server discovery in +page.server.ts
-const _widgetModules = import.meta.glob<{ widgetMeta?: … }>("./widgets/*/*.svelte", { eager: true });
+// Server discovery in widgets/manifest-registry.ts
+const widgetManifestModules = import.meta.glob<{ default: DashboardWidgetManifest }>(
+  "./*/widget.json",
+  { eager: true },
+);
 ```
 
 The **folder id** (not the filename) is the registry key persisted in `system-preferences`, so saved layouts survive entry renames. In dev, the Vite plugin watches `src/routes/(app)/dashboard/widgets/**` and full-reloads on package add/remove so new widgets appear in the picker without a manual restart. The `widget.json` manifest powers the marketplace catalog and telemetry via `manifest-registry.ts`.
@@ -119,7 +124,7 @@ The **folder id** (not the filename) is the registry key persisted in `system-pr
 
 ### Widget Metadata Schema
 
-Each widget exports metadata for dashboard integration:
+Each widget can export module-level metadata for local documentation, but **`widget.json` is the source of truth** for the picker, marketplace, and telemetry:
 
 ```
 export const widgetMeta = {
@@ -130,6 +135,8 @@ export const widgetMeta = {
   category: "monitoring" | "logs" | "content" | "static",
 };
 ```
+
+The manifest may additionally declare `requiresPlugin`, `requiresPermission`, and `requiresAdmin`. Denied packages are removed from the picker; an already-persisted tile is re-checked at runtime and renders an access-denied card instead of calling its endpoint.
 
 ---
 
@@ -281,9 +288,15 @@ Operational insights and system communication:
 
 The dashboard uses a 4-column responsive grid system:
 
-- **Desktop (>1200px)**: 4 columns, full widget functionality
-- **Tablet (768-1200px)**: 3 columns, condensed layouts
+- **Desktop (≥1024px)**: 4 columns, full widget functionality
+- **Tablet (768–1023px)**: 2 columns (`widget-container` spans both)
 - **Mobile (<768px)**: 1 column, stacked vertically
+
+Density is user-selectable: **Normal** uses 160px rows, **Compact** uses 120px rows. The choice persists in `localStorage` (`svelty_dashboard_density`) and feeds the resize math.
+
+### Layout presets
+
+The picker offers five curated presets (Overview, System Monitoring, Content & Editorial, Security & Governance, Minimal). A preset only includes installed packages the current user may access, and applying one to a non-empty dashboard asks for confirmation before replacing the current widgets. Presets generate normal `DashboardWidgetConfig` entries and persist through `system-preferences` like any manual layout.
 
 ### Drag & Drop System
 
@@ -519,7 +532,7 @@ The audit widget seamlessly integrates with:
 
 ## Dashboard API Endpoints
 
-The dashboard handler (`src/routes/api/[...path]/handlers/dashboard.ts`) exposes 16 RESTful sub-routes under `/api/dashboard/*`. All require session authentication and the `dashboard:read` permission (mapped in `ENDPOINT_PERMISSIONS`). Paths use kebab-case (`system-info`, `last5-content`, `online-user`, `commerce-orders`, `commerce-inventory`). Freemium commerce widgets also require an active 14-day trial or marketplace license (`403 LICENSE_REQUIRED` after expiry).
+The dashboard handler (`src/routes/api/[...path]/handlers/dashboard.ts`) exposes 16 RESTful sub-routes under `/api/dashboard/*`. All require session authentication and the `dashboard:read` permission (mapped in `ENDPOINT_PERMISSIONS`; the seeded `system:dashboard` grant is accepted as an alias). Paths use kebab-case (`system-info`, `last5-content`, `online-user`, `commerce-orders`, `commerce-inventory`). Freemium commerce widgets also require an active 14-day trial or marketplace license (`403 LICENSE_REQUIRED` after expiry).
 
 ### Authentication & Multi-tenancy
 
@@ -1017,10 +1030,13 @@ system-preferences: {
 
 ### Widget Security Model
 
-- **Permission-Based Rendering**: Widgets respect user role limitations
-- **Data Isolation**: Users can only access authorized data
-- **Secure Endpoints**: All widget APIs protected by authentication
-- **XSS Prevention**: All user content properly sanitized
+- **Server-side authority**: the client sandbox is a guardrail, not an authorization boundary — every `/api/dashboard/...` route still passes `ENDPOINT_PERMISSIONS` (`dashboard:read` or the `system:dashboard` alias) and its license gate.
+- **Endpoint validation**: widget endpoints and `sandbox.fetch` are limited to same-origin `/api/...`; encoded traversal, backslashes, control characters, credentials, and unsafe schemes are rejected before `fetch` runs.
+- **Request guardrails**: 15-second abort timeout, CSRF header injection, sanitized `host`/`cookie`/`authorization`/`origin` headers, and `cache: "no-store"`.
+- **Retry policy**: only 5xx and 429 are retried (exponential backoff); 403/404 never hammer the endpoint.
+- **Data isolation**: sandboxed storage is namespaced `svelty_wgt:{tenant}:{user}:{widget}:` and capped at 256 KB per widget instance; the legacy flat `widget_cache_*` key is still read for migration and is never written.
+- **RBAC**: `widget.json` may declare `requiresPermission` or `requiresAdmin`; the server filters the picker and persisted layouts re-check access per tile.
+- **XSS prevention**: all user content is sanitized; widgets should not use `{@html}` for untrusted data.
 
 ### Audit Trail Integration
 

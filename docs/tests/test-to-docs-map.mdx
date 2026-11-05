@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-11-01"
+updated: "2026-11-05"
 tags:
   - "tests"
   - "documentation"
@@ -84,6 +84,21 @@ tags:
 | `tests/unit/rate-limit/memory-store.test.ts`                            | `docs/reference/security/rate-limiting.mdx`                                                                                                                          |
 | `tests/unit/rate-limit/async-remote.test.ts`                            | `docs/reference/security/rate-limiting.mdx`                                                                                                                          |
 | `tests/unit/rate-limit/request-clock-slot-sums.test.ts`                 | `docs/reference/security/rate-limiting.mdx`                                                                                                                          |
+| `tests/unit/rate-limit/l1-filter.test.ts`                               | `docs/reference/security/rate-limiting.mdx` (§ Synchronous L1 pre-filter), `docs/reference/security/security-posture.mdx`                                            |
+| `tests/unit/auth/revocation-epoch.test.ts`                              | `docs/reference/security/authentication-system.mdx` (§ Revocation epoch), `docs/reference/security/security-posture.mdx`                                             |
+| `tests/unit/security/egress-guard.test.ts`                              | `docs/reference/security/security-posture.mdx` (§ DNS-pinned egress), `docs/reference/architecture/utils-system.mdx`                                                 |
+| `tests/unit/sdk/compiled-validation-plan.test.ts`                       | `docs/reference/security/security-posture.mdx` (§ Ahead-of-time validation plans), `docs/reference/architecture/content-system.mdx`                                  |
+| `tests/unit/hooks/csp-headers.test.ts`                                  | `docs/reference/security/content-security-policy.mdx` (§ Admin GUI pages)                                                                                            |
+| `tests/unit/scripts/security-assurance.test.ts`                         | `docs/reference/security/security-case.mdx` (§ Evidence map)                                                                                                         |
+| `tests/unit/scripts/advisory-ledger.test.ts`                            | `docs/reference/security/advisory-process.mdx`, `docs/reference/security/patch-latency.mdx`, `docs/security/advisories/readme.mdx`                                   |
+| `tests/unit/scripts/check-test-strength.test.ts`                        | `docs/reference/security/test-strength.mdx`                                                                                                                          |
+| `tests/unit/scripts/threat-model-drift.test.ts`                         | `docs/reference/security/threat-models.mdx`, `docs/security/threat-model.json`                                                                                       |
+| `tests/unit/scripts/external-validation.test.ts`                        | `docs/reference/security/security-case.mdx`, `docs/security/external-validation.json`                                                                                |
+| `tests/unit/security/red-team-corpus.test.ts`                           | `docs/reference/security/test-strength.mdx` (§ Executable corpus)                                                                                                    |
+| `tests/unit/security/invariants.test.ts`                                | `docs/reference/security/threat-models.mdx`, `docs/reference/security/security-case.mdx`                                                                             |
+| `tests/unit/plugins/wasm-plugin-pool.test.ts`                           | `docs/development/plugins/architecture.mdx` (§ Dual-track execution), `docs/reference/security/security-posture.mdx`                                                 |
+| `tests/unit/plugins/post-write-wasm-dual-track.test.ts`                 | `docs/development/plugins/architecture.mdx` (§ Dual-track execution)                                                                                                 |
+| `tests/unit/plugins/wasm-stress-load.test.ts`                           | `docs/development/plugins/architecture.mdx` (§ Dual-track execution)                                                                                                 |
 | `tests/unit/hooks/response-compression-stash.test.ts`                   | `docs/reference/architecture/server-hooks.mdx`, `docs/reference/architecture/cache-system.mdx`                                                                       |
 | `tests/unit/hooks/collection-write-lane.test.ts`                        | `docs/reference/database/write-path.mdx`, `docs/reference/database/performance-architecture.mdx`                                                                     |
 | `tests/unit/hooks/handle-turbo-get-lane.test.ts`                        | `docs/reference/architecture/cache-system.mdx`, `docs/reference/database/performance-architecture.mdx`                                                               |
@@ -137,6 +152,11 @@ tags:
 | `tests/unit/scripts/scan-secret-misuse.test.ts`                         | `docs/reference/security/secrets-inventory.mdx`                                                                                                                      |
 | `tests/unit/widgets/core/*.test.ts`                                     | `docs/tests/widget-test-coverage.mdx`                                                                                                                                |
 | `tests/unit/dashboard/dashboard-runtime.test.ts`                        | `docs/development/dashboard/architecture.mdx`, `docs/reference/api/dashboard.mdx`                                                                                    |
+| `tests/unit/dashboard/dashboard-sandbox.test.ts`                        | `docs/development/dashboard/index.mdx` (sandbox/RBAC contract), `docs/reference/architecture/dashboard-system.mdx` (security model)                                  |
+| `tests/unit/dashboard/dashboard-storage.test.ts`                        | `docs/development/dashboard/index.mdx` (storage scope + quota)                                                                                                       |
+| `tests/unit/dashboard/dashboard-presets.test.ts`                        | `docs/reference/architecture/dashboard-system.mdx` (layout presets)                                                                                                  |
+| `tests/unit/dashboard/dashboard-contract.test.ts`                       | `docs/development/dashboard/architecture.mdx` (widget.json schema)                                                                                                   |
+| `tests/unit/components/dom/base-widget-interaction.test.ts`             | `docs/development/dashboard/development.mdx`, `docs/development/dashboard/index.mdx`                                                                                 |
 | `tests/unit/routes/dashboard-page-server.test.ts`                       | `docs/development/dashboard/architecture.mdx`, `docs/development/dashboard/index.mdx`                                                                                |
 | `tests/unit/routes/access-management-page-server.test.ts`               | `docs/tests/routes/access-management.mdx`, `docs/guides/configuration/access-management.mdx`                                                                         |
 | `tests/unit/api/user.test.ts`                                           | `docs/tests/routes/access-management.mdx`, `docs/reference/security/tested-security-features.mdx`                                                                    |

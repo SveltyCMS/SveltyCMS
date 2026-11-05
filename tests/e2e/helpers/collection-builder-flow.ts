@@ -410,7 +410,10 @@ export async function createEntryWithNames(
 
   await page.getByRole("textbox", { name: "First Name" }).fill(firstName);
   await page.getByRole("textbox", { name: "Last Name" }).fill(lastName);
-  await page.getByRole("button", { name: /save/i }).first().click();
+  await page
+    .getByRole("button", { name: /^save$/i })
+    .first()
+    .click();
 }
 
 /** Seed a real collection (physical model + content node) via the testing API. */
@@ -461,13 +464,14 @@ export async function createEntryViaUi(page: Page, title: string): Promise<void>
   await titleBox.fill(title);
   await titleBox.blur();
 
-  const saveBtn = page.getByRole("button", { name: /save/i }).first();
+  const saveBtn = page.getByRole("button", { name: /^save$/i }).first();
   await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
 
   const writePromise = page.waitForResponse(
     (res) =>
       (res.request().method() === "POST" || res.request().method() === "PATCH") &&
-      /\/api\/collections\//.test(new URL(res.url()).pathname),
+      /\/api\/collections\//.test(new URL(res.url()).pathname) &&
+      !new URL(res.url()).pathname.endsWith("/drafts"),
     { timeout: 25_000 },
   );
   await saveBtn.click();

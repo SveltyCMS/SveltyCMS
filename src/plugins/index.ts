@@ -11,7 +11,8 @@ export * from "./define-plugin";
 // `node:module` via @utils/security/crypto) into the client bundle. Server code
 // imports them from their concrete paths (`@src/plugins/settings`).
 export * from "./settings-declaration";
-export * from "./storage";
+export * from "./storage/plugin-storage-adapter";
+export * from "./storage/types";
 
 import { pluginServerRegistry } from "./plugin-server-registry";
 import { pluginRegistry } from "./registry";

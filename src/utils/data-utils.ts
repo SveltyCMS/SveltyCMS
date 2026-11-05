@@ -36,6 +36,7 @@ export function deepCopy<T>(obj: T): T {
     const copy = {} as T;
     for (const key in obj) {
       if (Object.hasOwn(obj, key)) {
+        if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
         copy[key] = deepCopy(obj[key]);
       }
     }
@@ -56,7 +57,12 @@ export function copyDataWithFreshRowIds(data: unknown): unknown {
   }
 
   if (data && typeof data === "object") {
-    const obj = { ...data } as Record<string, unknown>;
+    const raw = data as Record<string, unknown>;
+    const obj: Record<string, unknown> = {};
+    for (const key of Object.keys(raw)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
+      obj[key] = raw[key];
+    }
 
     // Regenerate row IDs for this object
     for (const key of ROW_ID_FIELDS) {
@@ -67,6 +73,7 @@ export function copyDataWithFreshRowIds(data: unknown): unknown {
 
     // Recurse into all properties
     for (const [key, value] of Object.entries(obj)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
       if (
         Array.isArray(value) ||
         (value && typeof value === "object" && !(value instanceof Date))

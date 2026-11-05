@@ -260,6 +260,8 @@ const STATELESS_READ_ROUTES = new Set([
   "src/routes/llms.txt",
   "src/routes/robots.txt",
   "src/routes/sitemap.xml",
+  "src/routes/sitemap-images.xml",
+  "src/routes/sitemap-news.xml",
 ]);
 
 /** Page routes whose actions do not persist state (e.g. preview-only mail). */

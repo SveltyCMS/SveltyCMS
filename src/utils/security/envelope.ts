@@ -52,6 +52,8 @@ export function deriveKeyId(
   key: Buffer,
   createHashFn: typeof import("node:crypto").createHash,
 ): string {
+  // Key IDs are public identifiers derived from key bytes, not password hashes.
+  // codeql[js/insufficient-password-hash]
   return createHashFn("sha256").update(key).digest("hex").slice(0, 16);
 }
 

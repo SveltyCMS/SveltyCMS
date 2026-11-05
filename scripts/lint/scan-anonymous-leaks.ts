@@ -616,7 +616,7 @@ function resolveSpecifier(specifier: string, fromPath: string): string | null {
     if (!alias) return null;
     target = `${alias[1]}${specifier.slice(alias[0].length)}`;
   }
-  target = target.replace(/\.js$/, ".ts").replace(/\/index\.ts$/, "/index.ts");
+  target = target.replace(/\.js$/, ".ts");
   if (!target.endsWith(".ts")) target = `${target}.ts`;
   return target;
 }

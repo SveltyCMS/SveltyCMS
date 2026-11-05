@@ -46,6 +46,10 @@ export interface DashboardWidgetManifest {
   category?: DashboardWidgetCategory;
   /** When set, the picker omits this package unless that plugin is enabled. */
   requiresPlugin?: string;
+  /** RBAC permission required to add/view this widget (e.g. `dashboard:read`). */
+  requiresPermission?: string;
+  /** When true, only administrators may add/view this widget. */
+  requiresAdmin?: boolean;
 }
 
 // Compile-time discovery — Vite resolves this at build time.

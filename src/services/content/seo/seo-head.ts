@@ -102,6 +102,29 @@ export interface SeoHeadResult {
   autoJsonLd: string[];
 }
 
+export interface SeoArticleData {
+  headline?: string;
+  description?: string;
+  datePublished?: string;
+  dateModified?: string;
+  authorName?: string;
+  image?: string;
+  type?: "Article" | "BlogPosting" | "NewsArticle";
+}
+
+export interface SeoProductData {
+  name: string;
+  description?: string;
+  sku?: string;
+  price: number;
+  currency: string;
+  image?: string;
+  availability?: "InStock" | "OutOfStock" | "PreOrder";
+  url?: string;
+  ratingValue?: number;
+  reviewCount?: number;
+}
+
 export interface BuildSeoHeadOptions {
   /** Raw stored SEO widget value. */
   seo?: SeoWidgetStoredValue | null;
@@ -123,6 +146,10 @@ export interface BuildSeoHeadOptions {
   ogImageUrl?: string | null;
   /** Resolved absolute URL for the Twitter image (media id looked up beforehand). */
   twitterImageUrl?: string | null;
+  /** Structured data options for Article content types. */
+  article?: SeoArticleData;
+  /** Structured data options for Product / E-commerce pages. */
+  product?: SeoProductData;
 }
 
 /** Matches BCP-47-ish language tags (`en`, `de`, `pt-BR`, `zh-Hant`). */
@@ -319,6 +346,96 @@ function buildWebSiteJsonLd(origin: string, siteName: string | undefined): strin
   });
 }
 
+/** Builds Schema.org Article / BlogPosting structured data markup. */
+export function buildArticleJsonLd(
+  article: SeoArticleData,
+  origin: string,
+  pathname: string,
+  siteName?: string,
+): string | undefined {
+  const headline = article.headline?.trim();
+  if (!headline) return undefined;
+
+  const base = origin.replace(/\/+$/, "");
+  const canonical = `${base}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+
+  const payload: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": article.type || "Article",
+    headline,
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": canonical,
+    },
+  };
+
+  if (article.description?.trim()) payload.description = article.description.trim();
+  if (article.datePublished?.trim()) payload.datePublished = article.datePublished.trim();
+  if (article.dateModified?.trim()) payload.dateModified = article.dateModified.trim();
+  if (article.image?.trim()) payload.image = article.image.trim();
+
+  if (article.authorName?.trim()) {
+    payload.author = {
+      "@type": "Person",
+      name: article.authorName.trim(),
+    };
+  }
+
+  if (siteName?.trim()) {
+    payload.publisher = {
+      "@type": "Organization",
+      name: siteName.trim(),
+    };
+  }
+
+  return serializeJsonLd(payload);
+}
+
+/** Builds Schema.org Product structured data markup for e-commerce routes. */
+export function buildProductJsonLd(
+  product: SeoProductData,
+  origin: string,
+  pathname: string,
+): string | undefined {
+  const name = product.name?.trim();
+  if (!name) return undefined;
+
+  const base = origin.replace(/\/+$/, "");
+  const productUrl =
+    product.url?.trim() || `${base}${pathname.startsWith("/") ? pathname : `/${pathname}`}`;
+
+  const payload: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name,
+    offers: {
+      "@type": "Offer",
+      price: product.price,
+      priceCurrency: product.currency.toUpperCase(),
+      availability: `https://schema.org/${product.availability || "InStock"}`,
+      url: productUrl,
+    },
+  };
+
+  if (product.description?.trim()) payload.description = product.description.trim();
+  if (product.sku?.trim()) payload.sku = product.sku.trim();
+  if (product.image?.trim()) payload.image = product.image.trim();
+
+  if (
+    product.ratingValue !== undefined &&
+    product.reviewCount !== undefined &&
+    product.reviewCount > 0
+  ) {
+    payload.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: product.ratingValue,
+      reviewCount: product.reviewCount,
+    };
+  }
+
+  return serializeJsonLd(payload);
+}
+
 /**
  * Builds the document-head metadata for a page from the SEO widget's stored
  * data. Pure and deterministic — no IO, no environment access.
@@ -387,6 +504,16 @@ export function buildSeoHead(options: BuildSeoHeadOptions): SeoHeadResult {
   } else {
     const breadcrumbs = buildBreadcrumbJsonLd(origin, pathname);
     if (breadcrumbs) autoJsonLd.push(breadcrumbs);
+  }
+
+  if (options.article) {
+    const articleScript = buildArticleJsonLd(options.article, origin, pathname, siteName);
+    if (articleScript) autoJsonLd.push(articleScript);
+  }
+
+  if (options.product) {
+    const productScript = buildProductJsonLd(options.product, origin, pathname);
+    if (productScript) autoJsonLd.push(productScript);
   }
 
   return {

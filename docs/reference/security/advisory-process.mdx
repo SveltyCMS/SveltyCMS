@@ -1,0 +1,138 @@
+---
+path: "docs/reference/security/advisory-process.mdx"
+title: "Security Advisory Process"
+description: "How a security report becomes a published advisory: intake, CVSS severity, fix SLAs, the release flow, and who signs a fix."
+order: 55
+icon: "mdi:shield-bug-outline"
+author: "SveltyCMS Team"
+created: "2026-11-05"
+updated: "2026-11-05"
+tags:
+  - "security"
+  - "advisories"
+  - "process"
+---
+
+# Security Advisory Process
+
+This page describes what happens between a report arriving and an advisory
+being published. The measurable part of the process is a ledger of JSON
+records checked by a script; the judgement part is a named human reviewing and
+signing the fix.
+
+## Intake channels
+
+| Channel                                                                                  | How it reaches us                      |
+| :--------------------------------------------------------------------------------------- | :------------------------------------- |
+| `security@sveltycms.com`                                                                 | Monitored mailbox.                     |
+| [GitHub Security Advisories](https://github.com/SveltyCMS/SveltyCMS/security/advisories) | Private report form on the repository. |
+| [security.txt](https://sveltycms.com/.well-known/security.txt)                           | RFC 9116 contact metadata.             |
+
+Every report gets a ledger record, including the ones that turn out to be
+by-design. The 48-hour response clock starts when the report lands in one of
+these channels — not when someone happens to read it.
+
+## Severity and CVSS
+
+Severity is set from the CVSS v3.1 base score at triage, not from the
+reporter's label and not from how alarming the write-up sounds.
+
+| Severity   | CVSS base score | Typical shape                                                             |
+| :--------- | :-------------- | :------------------------------------------------------------------------ |
+| `critical` | 9.0 – 10.0      | Unauthenticated remote code execution, authentication bypass, data theft. |
+| `high`     | 7.0 – 8.9       | Authenticated privilege escalation, stored XSS with a reachable sink.     |
+| `medium`   | 4.0 – 6.9       | Information disclosure, denial of service, account enumeration.           |
+| `low`      | 0.1 – 3.9       | Hardening gap with a narrow precondition.                                 |
+
+The score and the severity live in the same record, and the checker rejects a
+pair that disagrees. That keeps the SLA honest: a `critical` record cannot be
+labelled `medium` to buy 83 extra days.
+
+## Fix SLA
+
+| Severity   | First response | Fix released within |
+| :--------- | :------------- | :------------------ |
+| `critical` | 48 hours       | 7 days              |
+| `high`     | 48 hours       | 30 days             |
+| `medium`   | 48 hours       | 90 days             |
+| `low`      | 48 hours       | 180 days            |
+
+The clock runs from `received_at` to `released_at`, which is the `latency`
+column in the ledger. The same numbers are enforced by the gate, so the table
+here and `SEVERITY_SLA_DAYS` in `scripts/security/advisory-ledger.ts` cannot
+drift apart.
+
+An advisory that is still open is measured the same way: `openAgeDays` against
+the same budget. An open `critical` record on day 8 fails the weekly gate even
+if nobody has opened a pull request.
+
+## Triage, patch, advisory, release
+
+1. **Triage (within 48 hours).** Reproduce the report, confirm the affected
+   versions, set the CVSS vector and severity, and write `triaged_at`. If the
+   report is not a vulnerability, close it with the reasoning in
+   `timeline_note`.
+2. **Patch.** Develop on a private branch, add a regression test that fails
+   before the fix and passes after it, and write `patched_at` when the fix
+   lands on the release branch.
+3. **Draft the advisory.** Write the summary and the affected ranges, request
+   a CVE through the GitHub advisory when the severity is `critical` or `high`,
+   and record `osv_id`, `cve_id`, and `fixed_version`.
+4. **Release.** Ship the fixed version, publish the advisory, and write
+   `released_at` and `published_at`.
+5. **Regenerate the table.** Run `bun run security:assurance:doc` and commit the
+   record with the regenerated [patch latency](./patch-latency.mdx) block.
+
+The record is evidence, not marketing. A record that reaches `released` must
+name a regression test, because an advisory without a test is a claim nobody
+can re-check.
+
+## What the machine enforces
+
+`scripts/security/check-advisories.ts` validates every record in
+[the ledger](../../security/advisories/readme.mdx). It runs as part of
+`bun run security:assurance` — which `bun run check` and the CI whitebox job
+execute on every change — and again in the nightly
+`.github/workflows/security-mutation.yml` run. It checks:
+
+- the schema (required fields, id shape, ISO 8601 timestamps, one-decimal CVSS);
+- the timeline (`received_at ≤ triaged_at ≤ patched_at ≤ released_at ≤ published_at`);
+- the state implications (a `released` record carries `osv_id`, `fixed_version`,
+  `published_at`, and a regression test; `critical` and `high` also carry a CVE);
+- CVSS score against severity;
+- duplicate ids;
+- the SLA, when invoked with `--fail-on-breach`.
+
+What it cannot check is whether the CVSS vector is an honest reading of the
+bug, whether the regression test actually exercises the sink, or whether the
+fix addresses the root cause. Those stay with the reviewer.
+
+## AI policy
+
+AI is allowed to do the drafting work: a first-pass triage note, a proposed
+CVSS vector, the advisory text, the regression test, and the patch itself.
+
+AI is not allowed to sign off. Every security fix has a **named human** who:
+
+- reproduces the issue against the tree that will be released;
+- confirms the severity and the affected version range;
+- reviews the diff and the regression test;
+- writes or approves the published advisory;
+- owns the record's timestamps.
+
+An advisory is never published from an unreviewed draft, and a record is never
+moved to `released` by an automation account. The gate can prove that a human
+filled the fields; the reviewer is accountable for whether they are true.
+
+## What this is not
+
+- **Not an audit.** The process covers reports that arrive; it does not prove
+  the absence of unreported issues.
+- **Not a certification.** No third party attests to the severity calls or the
+  fix quality.
+- **Not a compliance attestation.** The SLA numbers are our own commitment, not
+  a regulator's requirement.
+- **Not a promise about third-party code.** A vulnerable dependency is tracked
+  through the OSV and GitHub Advisory data that `bun run risk:audit` already
+  consumes; an advisory record is created when the issue reaches this
+  codebase's own release path.

@@ -27,15 +27,11 @@ const aiBuilder = vi.hoisted(() => ({
   checkQuota: vi.fn(),
 }));
 
-// Hermetic mock of the parallel services module — mirrors the full export set.
-vi.mock("@src/services/ai-builder", () => ({
+// Hermetic mock of the parallel services module — mirrors the collection-designer export set.
+vi.mock("@src/services/ai-builder/collection-designer", () => ({
   designCollection: aiBuilder.designCollection,
   refineCollection: aiBuilder.refineCollection,
   approveCollection: aiBuilder.approveCollection,
-  builderAiGateway: { checkQuota: aiBuilder.checkQuota },
-  BuilderAiGateway: class BuilderAiGateway {
-    static resetQuotasForTests(): void {}
-  },
 }));
 
 vi.mock("@utils/tenant", () => ({

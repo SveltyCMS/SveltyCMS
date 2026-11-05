@@ -22,7 +22,7 @@ Every `(app)` page is one `AdminPageShell` and one or more `AdminCard` blocks. T
 <script lang="ts">
   import AdminPageShell from '@components/admin-page-shell.svelte';
   import AdminCard from '@components/admin-card.svelte';
-  import { Button } from '@components/ui';
+  import Button from '@components/ui/button.svelte';
 </script>
 
 <AdminPageShell title="Webhooks" icon="mdi:webhook" description="Outbound events for this tenant.">
@@ -117,7 +117,7 @@ Set `variant` or `preset` only when the block is a status surface (a success sum
 | `variant` | `'primary' \| 'secondary' \| 'tertiary' \| 'success' \| 'warning' \| 'error' \| 'surface'` |
 | `preset`  | `'filled' \| 'tonal' \| 'outlined'`                                                        |
 
-That path renders `Card` from `@components/ui` and **does not** apply the inline `--admin-*` styles above. `class` is forwarded. Other attributes (`id`, `data-testid`, `role`) are forwarded only on the default token path. Put test ids on a token card, or on an element inside a preset card.
+That path renders `Card` from `@components/ui/card.svelte` and **does not** apply the inline `--admin-*` styles above. `class` is forwarded. Other attributes (`id`, `data-testid`, `role`) are forwarded only on the default token path. Put test ids on a token card, or on an element inside a preset card.
 
 `Card` itself also accepts `header` and `footer` snippets and a `color` override. Page sections stay on `AdminCard` so flat, bordered, and elevated themes keep working. Use `Card` directly for a small preset tile that is not a page section.
 
@@ -137,7 +137,8 @@ That path renders `Card` from `@components/ui` and **does not** apply the inline
 <script lang="ts">
   import AdminPageShell from '@components/admin-page-shell.svelte';
   import AdminCard from '@components/admin-card.svelte';
-  import { Button, Input } from '@components/ui';
+  import Button from '@components/ui/button.svelte';
+  import Input from '@components/ui/input.svelte';
 
   let name = $state('');
 </script>

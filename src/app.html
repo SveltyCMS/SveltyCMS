@@ -10,7 +10,8 @@
 <html lang="en" dir="ltr" class="dark">
   <head>
     <meta charset="utf-8" />
-    <script src="/theme-init.js"></script>
+    <!-- Nonce is minted per request by SvelteKit's nonce-mode CSP (vite.config.ts). -->
+    <script src="/theme-init.js" nonce="%sveltekit.nonce%"></script>
     <link rel="icon" href="%sveltekit.assets%/SveltyCMS_Logo.svg" />
     <link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5" />
 

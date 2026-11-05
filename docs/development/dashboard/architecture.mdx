@@ -1,12 +1,12 @@
 ---
 path: "docs/development/dashboard/architecture.mdx"
 title: "Dashboard Widget Architecture"
-description: "Technical deep-dive into dashboard widget packages — folder structure, widget.json manifest, dual registration, and licensing gates."
+description: "Technical deep-dive into dashboard widget packages — folder structure, widget.json manifest, dual registration, per-tile scope, RBAC, and licensing gates."
 order: 6
 icon: "mdi:widgets-outline"
 author: "SveltyCMS Team"
 created: "2026-08-04"
-updated: "2026-08-23"
+updated: "2026-11-05"
 tags:
   - "dashboard"
   - "widgets"
@@ -54,21 +54,23 @@ widgets/<kebab-folder>/
 }
 ```
 
-| Field            | Type                                              | Description                                          |
-| :--------------- | :------------------------------------------------ | :--------------------------------------------------- |
-| `id`             | `string`                                          | Kebab-case folder name (package id).                 |
-| `name`           | `string`                                          | Display name shown in the picker / marketplace.      |
-| `description`    | `string`                                          | Short description for cards and listings.            |
-| `icon`           | `string`                                          | Iconify icon id.                                     |
-| `version`        | `string`                                          | Semver package version.                              |
-| `type`           | `"dashboard-widget"`                              | Fixed type discriminator.                            |
-| `author`         | `string`                                          | Publisher name.                                      |
-| `license`        | `"free" \| "freemium" \| "paid"`                  | Monetization model.                                  |
-| `price`          | `number`                                          | EUR price (`0` for free).                            |
-| `component`      | `string`                                          | Entry filename without `.svelte` (always `"index"`). |
-| `defaultSize`    | `{ w: 1-4, h: 1-4 }`                              | Recommended grid size.                               |
-| `category`       | `"monitoring" \| "logs" \| "content" \| "static"` | Default fetch/cache/refresh behavior group.          |
-| `requiresPlugin` | `string` (optional)                               | Picker omits the package unless this plugin is on.   |
+| Field                | Type                                              | Description                                                              |
+| :------------------- | :------------------------------------------------ | :----------------------------------------------------------------------- |
+| `id`                 | `string`                                          | Kebab-case folder name (package id).                                     |
+| `name`               | `string`                                          | Display name shown in the picker / marketplace.                          |
+| `description`        | `string`                                          | Short description for cards and listings.                                |
+| `icon`               | `string`                                          | Iconify icon id.                                                         |
+| `version`            | `string`                                          | Semver package version.                                                  |
+| `type`               | `"dashboard-widget"`                              | Fixed type discriminator.                                                |
+| `author`             | `string`                                          | Publisher name.                                                          |
+| `license`            | `"free" \| "freemium" \| "paid"`                  | Monetization model.                                                      |
+| `price`              | `number`                                          | EUR price (`0` for free).                                                |
+| `component`          | `string`                                          | Entry filename without `.svelte` (always `"index"`).                     |
+| `defaultSize`        | `{ w: 1-4, h: 1-4 }`                              | Recommended grid size.                                                   |
+| `category`           | `"monitoring" \| "logs" \| "content" \| "static"` | Default fetch/cache/refresh behavior group.                              |
+| `requiresPlugin`     | `string` (optional)                               | Picker omits the package unless this plugin is on.                       |
+| `requiresPermission` | `string` (optional)                               | RBAC permission required to add/view the widget (e.g. `dashboard:read`). |
+| `requiresAdmin`      | `boolean` (optional)                              | Only administrators may add/view the widget.                             |
 
 The manifest **must** agree with the component's `widgetMeta` export (`name`, `icon`, `description`, `defaultSize`). `manifest-registry.ts` reads manifests at build time via `import.meta.glob("./*/widget.json", { eager: true })`.
 
@@ -82,7 +84,7 @@ Widgets are registered in two places, both compile-time — **Svelte modules are
 
 The **folder id is the stable key** — `widget.json.id` matches the folder, layouts persist that id, and the entry filename (`index.svelte`) is an implementation detail that can never break a saved layout. In dev, the Vite plugin (`sveltyCmsPlugin`) watches `src/routes/(app)/dashboard/widgets/**` and triggers a full reload on package add/remove — new widgets appear in the picker without a manual restart (same treatment as `src/widgets`).
 
-Polling widgets pause while `document.hidden` is true and refetch when the tab is visible again if the poll interval has elapsed. Widget fetches use `cache: "no-store"` instead of a `_=Date.now()` query string.
+Polling widgets pause while `document.hidden` is true or `navigator.onLine` is false, and refetch when the tab becomes visible again if the poll interval has elapsed. Package fetches go through `sandboxedWidgetFetch`: only same-origin `/api/...` paths, a 15-second abort timeout, CSRF headers, sanitized request headers, and `cache: "no-store"` instead of a `_=Date.now()` query string. Encoded traversal (`%2E%2E`, `%2f`, double-encoded `%252e`) is rejected before the request runs.
 
 ## 4. Base Widget Contract
 
@@ -96,13 +98,28 @@ All widgets compose `base-widget.svelte`, which provides fetch/poll/retry/cache/
   onSizeChange={onSizeChange}
   onCloseRequest={onRemove}
 >
-  {#snippet children({ data, error, isLoading, refresh })}
+  {#snippet children({ data, error, isLoading, refresh, sandbox })}
     <!-- render data -->
   {/snippet}
 </BaseWidget>
 ```
 
-The `children` snippet receives `{ data, updateWidgetState, getWidgetState, refresh, isLoading, error }`.
+### Per-tile runtime scope
+
+The page wraps each tile in `widget-scope.svelte`. `BaseWidget` reads from that context, so a package does **not** have to forward these props through its own signature:
+
+| Scope value           | Used for                                                                                                  |
+| :-------------------- | :-------------------------------------------------------------------------------------------------------- |
+| `settings`            | Persisted instance settings; `settings.pollInterval` overrides the package's `pollInterval` after reload. |
+| `tenantId` / `userId` | Namespacing the widget's isolated storage.                                                                |
+| `license`             | The freemium/paid badge in the header.                                                                    |
+| `accessAllowed`       | Manifest RBAC (`requiresPermission` / `requiresAdmin`) checked per tile.                                  |
+
+Header actions are standard across packages: refresh, expand (maximize dialog), configure (title / refresh rate / grid size), size menu, and remove. The children snippet receives `{ data, updateWidgetState, getWidgetState, refresh, isLoading, error, sandbox }`; `sandbox` exposes `fetch`, `storage`, `notify`, `requestRefresh`, and `updateSettings`.
+
+Core packages that currently declare `requiresAdmin`: `database-pool-diagnostics`, `scim-status`, and `tenant-analytics`.
+
+HTTP failures throw `WidgetHttpError`; 4xx responses are not retried, while 5xx/429 use exponential backoff. A render crash is isolated by the page's `<svelte:boundary>` and offers Retry/Remove instead of taking down the grid. Settings saves are merged into the persisted object, so widget-specific keys (`collectionId`, …) survive a title/refresh-rate edit.
 
 ## 5. Component Metadata (`widgetMeta`)
 

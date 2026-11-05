@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "updated_at": "2026-11-05",
+  "penetration_test": {
+    "status": "pending",
+    "date": null,
+    "provider": null,
+    "report_url": null,
+    "scope": "External penetration test of a running SveltyCMS deployment: authentication, authorization, REST API, file upload and media handling, SSO and WebAuthn ceremonies, and the admin UI."
+  },
+  "bug_bounty": {
+    "status": "pending",
+    "platform": null,
+    "url": null,
+    "scope_url": null
+  },
+  "openssf_scorecard": {
+    "status": "pending",
+    "target_score": 8,
+    "latest_score": null,
+    "report_url": null
+  },
+  "slsa": {
+    "status": "pending",
+    "level": null
+  },
+  "sigstore": {
+    "status": "pending",
+    "identity": null
+  },
+  "last_reviewed_at": "2026-11-05"
+}

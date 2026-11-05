@@ -13,9 +13,10 @@ import { displayText } from "@src/plugins/commerce/money";
 import { commerceLegalFor } from "@src/plugins/commerce/storefront.server";
 import { consumerCopy } from "@src/plugins/commerce/consumer-copy";
 import { lowestPriorPrice30Days } from "@src/plugins/commerce/vat";
+import { buildProductJsonLd } from "@src/services/content/seo/seo-head";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async ({ locals, params, url }) => {
   const tenantId = requireCommerceTenantId(locals.tenantId as string | null);
   const state = await pluginRegistry.getPluginState("commerce", String(tenantId));
   const enabled = state ? state.enabled : pluginRegistry.get("commerce")?.metadata?.enabled;
@@ -48,6 +49,21 @@ export const load: PageServerLoad = async ({ locals, params }) => {
   const prior = lowestPriorPrice30Days(price, history);
   const description =
     typeof row.description === "string" ? row.description : displayText(row.description);
+  const title = displayText(row.title) || "Untitled";
+
+  const productJsonLd = buildProductJsonLd(
+    {
+      name: title,
+      description,
+      sku: String(row.sku ?? ""),
+      price,
+      currency: legalState.legal.currency,
+      availability: "InStock",
+      url: `${url.origin}/shop/${params.slug}`,
+    },
+    url.origin,
+    `/shop/${params.slug}`,
+  );
 
   return {
     currency: legalState.legal.currency,
@@ -60,7 +76,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
     },
     product: {
       id: String(row._id ?? ""),
-      title: displayText(row.title) || "Untitled",
+      title,
       sku: String(row.sku ?? ""),
       price,
       summary: displayText(row.shortDescription),
@@ -68,5 +84,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
       priorPriceLabel:
         prior != null ? copy.priorPrice(prior.toFixed(2), legalState.legal.currency) : "",
     },
+    productJsonLd,
   };
 };

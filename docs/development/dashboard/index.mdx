@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2026-08-04"
-updated: "2026-08-23"
+updated: "2026-11-05"
 tags:
   - "dashboard"
   - "widgets"
@@ -72,11 +72,32 @@ Drop a new folder into `widgets/`, restart the dev server, and the widget appear
 
 ---
 
+## 🛡️ Runtime contract (sandbox, storage, settings)
+
+Every widget rendered by `BaseWidget` receives a per-tile scope (`widget-scope.svelte`) so packages never have to forward `settings`, tenant, or user props through their own signatures.
+
+| Concern             | Contract                                                                                                                                                                                                                                                                                                                       |
+| :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Endpoint safety** | `endpoint` / `sandbox.fetch` only allow same-origin `/api/...` paths. Encoded traversal (`%2E%2E`, `%2f`, double-encoded `%252e`) is rejected before `fetch` runs. Network calls use `sandboxedWidgetFetch` (15s timeout, CSRF headers, sanitized headers).                                                                    |
+| **Errors**          | HTTP failures throw `WidgetHttpError`; 4xx responses are **not** retried. One crashing widget is isolated by `<svelte:boundary>` and offers Retry/Remove.                                                                                                                                                                      |
+| **Storage**         | Use `sandbox.storage` (or `createWidgetStorage(id, tenantId, userId)`). Keys are scoped to `svelty_wgt:{tenant}:{user}:{widget}:` and capped at **256 KB per widget instance** with TTL expiry. The legacy flat `widget_cache_*` key is still read for migration, but new data is only written to the scoped key.              |
+| **Settings**        | The header gear opens `widget-settings-modal` (title, refresh rate, grid size). Saves send only `{ customLabel, pollInterval }`; the page merges them into the persisted settings, so widget-specific settings such as `collectionId` survive. A persisted `settings.pollInterval` overrides the package default after reload. |
+| **RBAC**            | `widget.json` may declare `requiresPermission` and/or `requiresAdmin`. The server filters the picker and existing layouts re-check at runtime (`checkWidgetAccess`) — an installed-but-forbidden widget renders an access-denied tile instead of calling its endpoint. `dashboard:read` and `system:dashboard` are aliases.    |
+| **Global refresh**  | `dashboardEvents.triggerRefreshAll()` fans out with 10–80 ms jitter and stays pending until every mounted widget reports completion (10s safety timeout).                                                                                                                                                                      |
+| **Layout presets**  | `DASHBOARD_PRESETS` (Overview, Monitoring, Editorial, Governance, Minimal) only include installed packages; replacing a non-empty dashboard asks for confirmation first.                                                                                                                                                       |
+
+> [!NOTE]
+> The widget sandbox is a **client-side guardrail**, not an authorization boundary. Every `/api/dashboard/...` route still enforces `dashboard:read` (or the `system:dashboard` alias), its license gate, and tenant scoping server-side. Treat `requiresPermission`/`requiresAdmin` as UI narrowing on top of that server check.
+
+---
+
 ## 🧪 Testing Policy
 
 - **Shell tests** (`tests/unit/routes/dashboard-page-server.test.ts`) assert the registry **shape**, never a fixed widget list — the catalog is install-specific.
 - **Runtime helpers** (`tests/unit/dashboard/dashboard-runtime.test.ts`) cover picker mapping, CMS-range filtering, layout unwrap, and hidden-tab poll gating.
 - **Widget defaults** are unit-tested in `tests/unit/dashboard/widget-defaults.test.ts`.
+- **Sandbox / storage / presets / contracts** are covered by `dashboard-sandbox.test.ts`, `dashboard-storage.test.ts`, `dashboard-presets.test.ts`, and `dashboard-contract.test.ts`.
+- **BaseWidget interactions** (fetch, cache, settings, close, resize) run in `tests/unit/components/dom/base-widget-interaction.test.ts` — use `bun run test:unit:components`.
 - **Per-widget tests** live in the widget's own folder (`widgets/<folder>/tests/`) — optional but encouraged for marketplace submissions.
 
 ---

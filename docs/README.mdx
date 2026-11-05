@@ -137,15 +137,15 @@ On [docs.sveltycms.com](https://docs.sveltycms.com) a page lives at `/docs/` plu
 
 | Piece         | What it is                                                             |
 | :------------ | :--------------------------------------------------------------------- |
-| **Admin**     | SvelteKit 3 (RC), Svelte 5 runes, Tailwind CSS v4                      |
+| **Admin**     | SvelteKit 3, Svelte 5 runes, Tailwind CSS v4                           |
 | **Content**   | Collections compiled from `config/collections/` by ContentSync         |
 | **Fields**    | Widgets: definition, input, and display                                |
 | **APIs**      | REST, GraphQL, and LocalCMS for in-process server calls                |
 | **Databases** | SQLite, PostgreSQL, MariaDB, MongoDB through adapters                  |
 | **Tenancy**   | `tenantId` on stored records                                           |
 | **Auth**      | Argon2id, optional TOTP, role permissions, account lockout             |
-| **Languages** | Paraglide for admin chrome; localized fields for content               |
-| **Container** | `ghcr.io/sveltycms/sveltycms` — SQLite by default, `amd64` and `arm64` |
+| **Languages** | Paraglide v3 for admin chrome; localized fields for content            |
+| **Container** | Self-built from the example Dockerfile; no prebuilt image is published |
 
 Measured throughput lives only in [Performance benchmarks](./project/benchmarks/index.mdx), with the run date and the command that produced it. A comparison with other CMSs, written against public sources, is in [Competitive comparison](./project/competitive-comparison.mdx).
 

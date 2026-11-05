@@ -266,9 +266,8 @@ export function handleApiError(err: unknown, event: RequestEvent) {
     ...(issues && { issues }),
   };
 
-  if (isDev && err instanceof Error) {
-    response.stack = err.stack;
-  }
+  // Stack traces stay in the server log (line 238) and are never serialised into
+  // an API response, in development or production.
 
   return staticJsonEnvelope(JSON.stringify(response), status);
 }

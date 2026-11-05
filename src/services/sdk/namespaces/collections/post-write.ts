@@ -18,11 +18,14 @@
 
 import { FastLRU } from "@utils/native-utils";
 import { logger } from "@utils/logger";
+import { isAppError, raise } from "@utils/error-handling";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { nowISODateString } from "@src/utils/date";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { pluginRegistry } from "@src/plugins/registry";
+import { wasmPluginRunner } from "@src/plugins/wasm/wasm-plugin-runner";
+import type { WasmHookFailurePolicy, WasmHostContext } from "@src/plugins/wasm/types";
 import type { PluginContext, PluginLifecycleHooks } from "@src/plugins/types";
 import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
@@ -86,6 +89,7 @@ function queuePubSubEntryUpdated(event: PendingPubSubEvent): void {
  */
 let _pendingInvalidationTasks = new Set<string>();
 let _pendingInvalidationDirty = new Set<string>();
+let _pendingStructuralInvalidations = new Set<string>();
 /**
  * Per-request-key set of the SPECIFIC document ids written during a coalesced
  * tick. Lets the flush clear only the touched docs (`doc:<coll>:<id>`) instead
@@ -159,6 +163,10 @@ function queueInvalidation(
   const schemaId = schema._id as string | undefined;
   const requestKey = `${tenantKey}:${schemaId ?? "*"}`;
 
+  if (!isPoint) {
+    _pendingStructuralInvalidations.add(requestKey);
+  }
+
   if (schemaId && (writtenId || writtenIds?.length)) {
     let ids = _pendingInvalidationIds.get(requestKey);
     if (!ids) {
@@ -176,14 +184,16 @@ function queueInvalidation(
   _pendingInvalidationTasks.add(requestKey);
 
   queueMicrotask(async () => {
+    const isStructural = _pendingStructuralInvalidations.has(requestKey);
+    _pendingStructuralInvalidations.delete(requestKey);
     const ids = _pendingInvalidationIds.get(requestKey);
     _pendingInvalidationIds.delete(requestKey);
     try {
       const rc = await getResponseCacheLazy();
       if (schemaId) {
-        const isPoint = ids && ids.size > 0;
+        const isPoint = !isStructural && ids !== undefined && ids.size > 0;
         const tagsToClear: string[] = [];
-        if (isPoint) {
+        if (isPoint && ids) {
           for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
           tagsToClear.push(`count:${schemaId}`);
           const physicalSchemaId = collectionTableName(schemaId);
@@ -201,12 +211,15 @@ function queueInvalidation(
           if (physicalSchemaId !== schemaId) {
             tagsToClear.push(`collection:${physicalSchemaId}`, `count:${physicalSchemaId}`);
           }
+          if (ids) {
+            for (const id of ids) tagsToClear.push(`doc:${schemaId}:${id}`);
+          }
         }
         void cacheService.clearByTags(tagsToClear, tenantKey).catch(() => {});
         rc.invalidateLocal(
           schemaId,
           tenantKey,
-          isPoint ? { entryIds: Array.from(ids) } : undefined,
+          isPoint && ids ? { entryIds: Array.from(ids) } : undefined,
         );
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
@@ -251,8 +264,7 @@ export function schedulePostWrite(
 
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
-  // Pass action === "update" so create/delete are structural while update is point-pruned.
-  queueInvalidation(schema, tenantId, true, id, undefined, action === "update");
+  queueInvalidation(schema, tenantId, true, id, undefined, false);
 
   if ((action === "create" || action === "update") && !options.skipReturning) {
     recordWriteAccess(tid || "global", schemaId, id);
@@ -374,8 +386,9 @@ async function triggerLifecycleHookAsync(
   let finalData = data;
 
   for (const entry of plugins) {
+    const isWasm = wasmPluginRunner.isWasmPlugin(entry.metadata.id);
     const hook = (entry.hooks as any)?.[hookName];
-    if (hook) {
+    if (hook || isWasm) {
       if (
         !(await pluginRegistry.isEnabledForCollection(
           entry.metadata.id,
@@ -390,23 +403,77 @@ async function triggerLifecycleHookAsync(
         entry.metadata.id,
         activeTenantId as string,
       );
-      const context: PluginContext = {
-        collectionSchema: schema,
-        dbAdapter,
-        language: (options as any).language || "en",
-        tenantId: activeTenantId as string,
-        user: effectiveUser as any,
-        settings,
-        pluginConfig: state?.settings || {},
-      };
 
       try {
-        if (hookName === "beforeSave") {
-          finalData = await (hook as any)(context, collectionId, finalData);
-        } else {
-          await (hook as any)(context, collectionId, finalData);
+        if (isWasm) {
+          const wasmHostContext: WasmHostContext = {
+            pluginId: entry.metadata.id,
+            tenantId: activeTenantId as string,
+            user: effectiveUser as any,
+            dbAdapter,
+            collectionSchema: schema,
+            pluginConfig: state?.settings || {},
+            capabilities: new Set(
+              (entry.metadata as any).capabilities || ["db:read", "db:write:own"],
+            ),
+            stats: {
+              queryCount: 0,
+              bytesWritten: 0,
+              startTimeMs: performance.now(),
+            },
+          };
+
+          const wasmResult = await wasmPluginRunner.executeHook(
+            entry.metadata.id,
+            hookName,
+            { collectionId, data: finalData },
+            wasmHostContext,
+          );
+
+          if (!wasmResult.success) {
+            const effectivePolicy: WasmHookFailurePolicy =
+              (entry.metadata as any).hookFailurePolicies?.[hookName] ??
+              (entry.metadata as any).defaultFailurePolicy ??
+              (hookName === "beforeSave" ? "fail-closed" : "fail-open");
+
+            if (effectivePolicy === "fail-closed") {
+              raise(
+                500,
+                `WASM plugin "${entry.metadata.id}" failed in hook "${hookName}": ${wasmResult.error || "Execution failed"}`,
+                "PLUGIN_HOOK_FAILED",
+              );
+            } else {
+              logger.warn(
+                `[LifecycleHook] WASM plugin "${entry.metadata.id}" hook "${hookName}" soft-failed (fail-open): ${wasmResult.error}`,
+              );
+            }
+          } else if (hookName === "beforeSave" && wasmResult.data !== undefined) {
+            const returned = (wasmResult.data as any)?.data ?? wasmResult.data;
+            if (returned && typeof returned === "object") {
+              finalData = returned;
+            }
+          }
+        } else if (hook) {
+          const context: PluginContext = {
+            collectionSchema: schema,
+            dbAdapter,
+            language: (options as any).language || "en",
+            tenantId: activeTenantId as string,
+            user: effectiveUser as any,
+            settings,
+            pluginConfig: state?.settings || {},
+          };
+
+          if (hookName === "beforeSave") {
+            finalData = await (hook as any)(context, collectionId, finalData);
+          } else {
+            await (hook as any)(context, collectionId, finalData);
+          }
         }
       } catch (err) {
+        if (isAppError(err) || (err as any)?.code === "PLUGIN_HOOK_FAILED") {
+          throw err;
+        }
         logger.error(`[PluginSystem] Error in ${entry.metadata.id} hook ${String(hookName)}:`, err);
       }
     }

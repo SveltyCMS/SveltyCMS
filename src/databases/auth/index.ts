@@ -47,6 +47,7 @@ import { isAdmin } from "./constants";
 import { computeUserPermMask, ADMIN_PERM_MASK } from "./permission-bitmask";
 import type { Permission, Role, Session, SessionStore, Token, User, ApiKey } from "./types";
 import { hasTenantBypass } from "@src/databases/system-tenant-scope";
+import { revokeUserSessions } from "./revocation-epoch";
 
 /**
  * The namespace guard reads `options.tenantId` (the last argument).
@@ -1209,6 +1210,9 @@ export class Auth {
     options?: BaseQueryOptions,
     currentSessionId?: DatabaseId,
   ): Promise<DatabaseId[]> {
+    // 0. Trigger in-memory revocation epoch for sub-microsecond invalidation
+    revokeUserSessions(userId.toString());
+
     // 1. Get all active sessions for this user so we can clean L0/L1 caches
     const { data: activeSessions } = await this.getActiveSessions(userId, options);
 
@@ -1219,6 +1223,14 @@ export class Auth {
       if (currentSessionId && session._id === currentSessionId) continue;
       await this.sessionStore.delete(session._id).catch(() => {});
       invalidatedIds.push(session._id);
+    }
+
+    // If currentSessionId was preserved, refresh its issuedAt epoch so it remains valid
+    if (
+      currentSessionId &&
+      typeof (this.sessionStore as any).refreshSessionIssuedAt === "function"
+    ) {
+      await (this.sessionStore as any).refreshSessionIssuedAt(currentSessionId, Date.now() + 1);
     }
 
     // 3. Delete all user sessions from the database (L2)

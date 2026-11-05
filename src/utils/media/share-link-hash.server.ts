@@ -49,12 +49,15 @@ const LEGACY_HASH_PATTERN = /^[0-9a-f]{64}$/i;
  */
 export function hashSharePassword(password: string): string {
   const salt = randomBytes(SCRYPT_SALT_BYTES);
-  const derived = scryptSync(
-    password,
-    Buffer.concat([salt, Buffer.from(getShareLinkPepper())]),
-    SCRYPT_KEY_LENGTH,
-  );
-  return `scrypt$${salt.toString("hex")}$${derived.toString("hex")}`;
+  const pepper = Buffer.from(getShareLinkPepper());
+  const derived = scryptSync(password, Buffer.concat([salt, pepper]), SCRYPT_KEY_LENGTH);
+  try {
+    return `scrypt$${salt.toString("hex")}$${derived.toString("hex")}`;
+  } finally {
+    // Ephemeral key material: never leave the derived digest or pepper in the heap.
+    derived.fill(0);
+    pepper.fill(0);
+  }
 }
 
 /**
@@ -67,25 +70,43 @@ export function verifySharePassword(password: string, storedHash: string): boole
   const current = SCRYPT_HASH_PATTERN.exec(storedHash);
   if (current) {
     const [, saltHex, hashHex] = current;
+    let pepper: Buffer | undefined;
+    let expected: Buffer | undefined;
+    let derived: Buffer | undefined;
     try {
-      const derived = scryptSync(
+      pepper = Buffer.from(getShareLinkPepper());
+      expected = Buffer.from(hashHex!, "hex");
+      derived = scryptSync(
         password,
-        Buffer.concat([Buffer.from(saltHex!, "hex"), Buffer.from(getShareLinkPepper())]),
+        Buffer.concat([Buffer.from(saltHex!, "hex"), pepper]),
         SCRYPT_KEY_LENGTH,
       );
-      return constantTimeBufferEqual(derived, Buffer.from(hashHex!, "hex"));
+      return constantTimeBufferEqual(derived, expected);
     } catch {
       return false;
+    } finally {
+      derived?.fill(0);
+      pepper?.fill(0);
+      expected?.fill(0);
     }
   }
 
   // Legacy format: one 64-char hex digest keyed with the old static salt.
   if (LEGACY_HASH_PATTERN.test(storedHash)) {
+    let pepper: Buffer | undefined;
+    let expected: Buffer | undefined;
+    let derived: Buffer | undefined;
     try {
-      const derived = scryptSync(password, getShareLinkPepper(), SCRYPT_KEY_LENGTH);
-      return constantTimeBufferEqual(derived, Buffer.from(storedHash, "hex"));
+      pepper = Buffer.from(getShareLinkPepper());
+      expected = Buffer.from(storedHash, "hex");
+      derived = scryptSync(password, pepper, SCRYPT_KEY_LENGTH);
+      return constantTimeBufferEqual(derived, expected);
     } catch {
       return false;
+    } finally {
+      derived?.fill(0);
+      pepper?.fill(0);
+      expected?.fill(0);
     }
   }
 

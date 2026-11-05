@@ -103,6 +103,25 @@ describe("collections post-write invalidation", () => {
     expect(getWorkflowServiceLazy).toHaveBeenCalledTimes(1);
   });
 
+  it("clears collection tag on schedulePostWrite create to prevent stale lists", async () => {
+    schedulePostWrite(
+      {} as never,
+      "create",
+      { _id: "Posts", name: "Posts" } as Schema,
+      "Posts",
+      "tenant-a" as DatabaseId,
+      "entry-new",
+      { title: "New Post" },
+      { _id: "user-1" },
+      {},
+    );
+    await flushInvalidation();
+
+    const tags = tagSetFromCalls(vi.mocked(cacheService.clearByTags).mock.calls);
+    expect(tags).toContain("collection:Posts");
+    expect(tags).toContain("doc:Posts:entry-new");
+  });
+
   it("clears collection + count tags, never schema/content_structure", async () => {
     invalidateCache({ _id: "Posts" } as any, "tenant-a" as any);
     await flushInvalidation();

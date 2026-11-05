@@ -148,24 +148,25 @@ The mapping targets spec **paths**, never `--grep` (a path cannot be combined wi
 
 ### Commands
 
-| Category  | Command                                                    | Purpose                                                                                                                 |
-| :-------- | :--------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
-| Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                                                 |
-| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile + **typecheck (`tsc` + `svelte-check`)**                           |
-|           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                                          |
-|           | `bun run typecheck`                                        | `svelte-kit sync` → `tsc --noEmit` → `svelte-check` (errors **and** warnings gated)                                     |
-| Tests     | `bun run test:unit`                                        | Vitest unit suite (~60s)                                                                                                |
-|           | `bun run test:unit:components`                             | Client-build Svelte 5 component interaction tests (jsdom, ~14s)                                                         |
-|           | `bun run test:coverage`                                    | Unit suite + enforced P0 coverage floors (72/72/60/70)                                                                  |
-|           | `bun run test:security`                                    | Hooks/authz/media/GraphQL security regressions + scanners                                                               |
-|           | `bun run test:doctor`                                      | Unit + SQLite integration + gate map                                                                                    |
-|           | `bun run test:integration`                                 | Build + SQLite integration (harness)                                                                                    |
-|           | `bun run test:parity`                                      | Contract suites on every reachable local engine (`--docker`, `--only`, `--require-all`)                                 |
-|           | `bun run test:tenant`                                      | Tenant lint (`--full` on dirty trees) + tenant unit suite                                                               |
-|           | `bun run test:e2e`                                         | Playwright (CI-parity; `-- --grep` for one shard)                                                                       |
-|           | `bun run flake:budget`                                     | Fail when retried-pass count/rate exceeds the E2E flake budget                                                          |
-| Git       | `bun run git commit` / `bun run git push` / `bun run gate` | Hardened commit / pre-push gate (blocks `--no-verify`); `push --release` bumps + commits the version after a green gate |
-| CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB ×4/E2E/bench are CI-only — mirror each CI job via the table above                           |
+| Category  | Command                                                    | Purpose                                                                                                                                      |
+| :-------- | :--------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
+| Dev       | `bun run dev` / `build` / `preview`                        | Dev server / prod build / preview :4173                                                                                                      |
+| Quality   | `bun run check`                                            | Format + lint + dead-class + design-token + lockfile + **security assurance** + **typecheck (`tsc` + `svelte-check`)**                       |
+|           | `bun run format` / `lint`                                  | oxfmt / oxlint                                                                                                                               |
+|           | `bun run typecheck`                                        | `svelte-kit sync` → `tsc --noEmit` → `svelte-check` (errors **and** warnings gated)                                                          |
+|           | `bun run security:assurance`                               | One gate for advisory SLA + threat-model drift + mutation floors + external-validation freshness (`--only=`, `--require-mutation`, `--json`) |
+| Tests     | `bun run test:unit`                                        | Vitest unit suite (~60s)                                                                                                                     |
+|           | `bun run test:unit:components`                             | Client-build Svelte 5 component interaction tests (jsdom, ~14s)                                                                              |
+|           | `bun run test:coverage`                                    | Unit suite + enforced P0 coverage floors (72/72/60/70)                                                                                       |
+|           | `bun run test:security`                                    | Hooks/authz/media/GraphQL security regressions + scanners                                                                                    |
+|           | `bun run test:doctor`                                      | Unit + SQLite integration + gate map                                                                                                         |
+|           | `bun run test:integration`                                 | Build + SQLite integration (harness)                                                                                                         |
+|           | `bun run test:parity`                                      | Contract suites on every reachable local engine (`--docker`, `--only`, `--require-all`)                                                      |
+|           | `bun run test:tenant`                                      | Tenant lint (`--full` on dirty trees) + tenant unit suite                                                                                    |
+|           | `bun run test:e2e`                                         | Playwright (CI-parity; `-- --grep` for one shard)                                                                                            |
+|           | `bun run flake:budget`                                     | Fail when retried-pass count/rate exceeds the E2E flake budget                                                                               |
+| Git       | `bun run git commit` / `bun run git push` / `bun run gate` | Hardened commit / pre-push gate (blocks `--no-verify`); `push --release` bumps + commits the version after a green gate                      |
+| CI parity | `bun run test:doctor` then `bun run gate`                  | Local green before push; DB ×4/E2E/bench are CI-only — mirror each CI job via the table above                                                |
 
 Pipeline: pre-commit = test-db-safety → format/lint/**typecheck** → risk audit → unit → **component interactions** → SBOM sync; pre-push = build (4 adapters) → **DB parity when `src/databases/` changed** → E2E smoke. No double-running the unit suite on pre-push. CI red on a green local tree ⇒ re-check the parity table (harness build, `lint:tenant --full`, JIT warm-up, all-4-DB contract, flake budget) before touching product code.
 

@@ -436,7 +436,7 @@ export async function handleAiBuilderRoutes(
       throw new AppError("prompt is required", 400, "BAD_REQUEST");
     }
 
-    const { designCollection } = await import("@src/services/ai-builder");
+    const { designCollection } = await import("@src/services/ai-builder/collection-designer");
     // Quota is consumed exactly once inside designCollection() — do not pre-consume here.
     const result = await designCollection(
       {
@@ -460,7 +460,7 @@ export async function handleAiBuilderRoutes(
       throw new AppError("previousProposal is required", 400, "BAD_REQUEST");
     }
 
-    const { refineCollection } = await import("@src/services/ai-builder");
+    const { refineCollection } = await import("@src/services/ai-builder/collection-designer");
     // Quota is consumed exactly once inside refineCollection() — do not pre-consume here.
     const result = await refineCollection(
       {
@@ -480,7 +480,7 @@ export async function handleAiBuilderRoutes(
       throw new AppError("proposal is required", 400, "BAD_REQUEST");
     }
 
-    const { approveCollection } = await import("@src/services/ai-builder");
+    const { approveCollection } = await import("@src/services/ai-builder/collection-designer");
     const result = await approveCollection({
       proposal: body.proposal,
       tenantId,

@@ -152,13 +152,13 @@ bun run dev    # Bun's runtime works fine after npm install
 
 ### Docker container won't start or stays unhealthy
 
-**Symptoms**: Container exits immediately, `docker run` never reports `healthy`, or the image can't be pulled.
+**Symptoms**: Container exits immediately, `docker run` never reports `healthy`, or the build fails.
 
 **Fix**:
 
-1. Verify the image exists and is reachable:
+1. SveltyCMS has no published image — build it from the multi-stage `Dockerfile` in [Production deployment](./guides/deployment/production-deployment.mdx#docker):
    ```bash
-   docker pull ghcr.io/sveltycms/sveltycms:latest
+   docker build -t sveltycms .
    ```
 2. Check startup logs:
    ```bash

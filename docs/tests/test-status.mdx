@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:chart-box"
 author: "SveltyCMS Team"
 created: "2025-11-08"
-updated: "2026-10-24"
+updated: "2026-11-05"
 tags:
   - "testing"
   - "status"
@@ -383,15 +383,15 @@ Details: [git-workflow.mdx](./git-workflow.mdx)
 | **Product** | Profile update: `command` remote + email fallback when session `user_id` stale after re-seed; plain-text toasts for assertions |
 | **Docs**    | [routes/user.mdx](./routes/user.mdx) · [e2e-coverage-matrix §3](./e2e-coverage-matrix.mdx)                                     |
 
-### `/dashboard` — shell + licensing (2026-08-04)
+### `/dashboard` — shell, licensing + runtime hardening (2026-11-05)
 
-|                 |                                                                                                          |
-| --------------- | -------------------------------------------------------------------------------------------------------- |
-| **Status**      | **Shell 100%** (widget catalog is install-specific — never fixed list) + **server-side license gates**   |
-| **E2E**         | `dashboard.spec.ts` — empty/grid, add/search/reset, **pointer + keyboard reorder**, toolbar, plugin slot |
-| **Unit**        | page.server permissions, `widget-defaults` categories, **`dashboard-license-gate` (map + 403 paths)**    |
-| **Integration** | `dashboard.test.ts` health/metrics/logs/… APIs widgets consume (premium endpoints pass during trial)     |
-| **Docs**        | [routes/dashboard.mdx](./routes/dashboard.mdx)                                                           |
+|                 |                                                                                                                                   |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Status**      | **Shell 100%** (widget catalog is install-specific — never fixed list) + **server-side license gates** + **sandbox/RBAC/storage** |
+| **E2E**         | `dashboard.spec.ts` — empty/grid, add/search/reset, **pointer + keyboard reorder**, toolbar, plugin slot                          |
+| **Unit**        | page.server permissions, `widget-defaults`, license gate, **sandbox/storage/presets/contract**, **BaseWidget interaction**        |
+| **Integration** | `dashboard.test.ts` health/metrics/logs/… APIs widgets consume (premium endpoints pass during trial)                              |
+| **Docs**        | [routes/dashboard.mdx](./routes/dashboard.mdx) · [development/dashboard/index.mdx](../development/dashboard/index.mdx)            |
 
 ### `/mediagallery` (2026-07-18)
 

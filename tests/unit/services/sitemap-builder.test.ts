@@ -9,7 +9,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  buildImageSitemapXml,
   buildLlmsTxt,
+  buildNewsSitemapXml,
   buildRobotsTxt,
   buildSitemapXml,
   entryIsIndexable,
@@ -339,5 +341,105 @@ describe("buildLlmsTxt", () => {
       sections: [{ heading: "Empty", links: [] }],
     });
     expect(txt).toBe("# ACME\n");
+  });
+});
+
+describe("buildImageSitemapXml", () => {
+  it("generates Google image sitemap with proper image:loc and image:title", () => {
+    const xml = buildImageSitemapXml({
+      origin: ORIGIN,
+      defaultLang: "en",
+      siteStarterEnabled: true,
+      entries: [
+        {
+          collection: "pages",
+          slug: "gallery",
+          image: "/media/photo1.jpg",
+          title: "Photo 1",
+        },
+        {
+          collection: "pages",
+          slug: "article",
+          seo: {
+            ogImage: "https://example.com/media/og.png",
+            title: "Article Title",
+          },
+        },
+      ],
+    });
+
+    expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+    expect(xml).toContain("<loc>https://example.com/gallery</loc>");
+    expect(xml).toContain("<image:loc>https://example.com/media/photo1.jpg</image:loc>");
+    expect(xml).toContain("<image:title>Photo 1</image:title>");
+    expect(xml).toContain("<loc>https://example.com/article</loc>");
+    expect(xml).toContain("<image:loc>https://example.com/media/og.png</image:loc>");
+  });
+
+  it("skips entries without images or noindex entries", () => {
+    const xml = buildImageSitemapXml({
+      origin: ORIGIN,
+      defaultLang: "en",
+      siteStarterEnabled: true,
+      entries: [
+        { collection: "pages", slug: "no-images" },
+        {
+          collection: "pages",
+          slug: "hidden",
+          image: "/media/secret.png",
+          seo: { en: { robotsMeta: "noindex" } },
+        },
+      ],
+    });
+
+    expect(xml).not.toContain("no-images");
+    expect(xml).not.toContain("hidden");
+    expect(xml).not.toContain("<url>");
+  });
+});
+
+describe("buildNewsSitemapXml", () => {
+  it("emits news sitemap with Google news namespace and recent articles", () => {
+    const recentDate = new Date(Date.now() - 3600 * 1000).toISOString();
+    const xml = buildNewsSitemapXml({
+      origin: ORIGIN,
+      defaultLang: "en",
+      publicationName: "Daily Svelty",
+      siteStarterEnabled: true,
+      entries: [
+        {
+          collection: "posts",
+          slug: "breaking-news",
+          title: "Major Announcement",
+          publishedAt: recentDate,
+        },
+      ],
+    });
+
+    expect(xml).toContain('xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"');
+    expect(xml).toContain("<news:name>Daily Svelty</news:name>");
+    expect(xml).toContain("<news:language>en</news:language>");
+    expect(xml).toContain(`<news:publication_date>${recentDate}</news:publication_date>`);
+    expect(xml).toContain("<news:title>Major Announcement</news:title>");
+  });
+
+  it("excludes articles older than maxAgeHours (default 48h)", () => {
+    const oldDate = new Date(Date.now() - 50 * 3600 * 1000).toISOString();
+    const xml = buildNewsSitemapXml({
+      origin: ORIGIN,
+      defaultLang: "en",
+      publicationName: "Daily Svelty",
+      entries: [
+        {
+          collection: "posts",
+          slug: "old-news",
+          title: "Past News",
+          publishedAt: oldDate,
+        },
+      ],
+    });
+
+    expect(xml).not.toContain("old-news");
+    expect(xml).not.toContain("<news:news>");
   });
 });

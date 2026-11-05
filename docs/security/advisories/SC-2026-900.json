@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "id": "SC-2026-900",
+  "title": "[EXAMPLE] SSRF in remote media import",
+  "summary": "Synthetic example record used by the ledger tests and documentation. It is not a real advisory: the ids, versions and links are placeholders, and `provenance: example` keeps it out of every published statistic.",
+  "severity": "high",
+  "cvss": {
+    "score": 8.1,
+    "vector": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N"
+  },
+  "state": "released",
+  "provenance": "example",
+  "received_at": "2026-10-02T09:12:00Z",
+  "triaged_at": "2026-10-02T15:40:00Z",
+  "patched_at": "2026-10-09T11:05:00Z",
+  "released_at": "2026-10-12T08:30:00Z",
+  "published_at": "2026-10-13T10:00:00Z",
+  "osv_id": "GHSA-0000-0000-0000",
+  "cve_id": "CVE-0000-00000",
+  "fixed_version": "0.0.0-example",
+  "affected_versions": ["< 0.0.0-example"],
+  "regression_tests": ["tests/unit/security/egress-guard.test.ts"],
+  "references": ["https://example.invalid/advisories/SC-2026-900"],
+  "timeline_note": "Placeholder timeline that shows a released record within the high-severity SLA. Do not cite."
+}

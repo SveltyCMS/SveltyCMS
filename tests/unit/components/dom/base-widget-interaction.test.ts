@@ -164,6 +164,8 @@ describe("BaseWidget (client interaction)", () => {
     const mockData = { totalUsers: 42, activeUsers: 30 };
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
+      status: 200,
+      headers: new Headers({ "content-type": "application/json" }),
       json: async () => mockData,
     }) as any;
 
@@ -177,7 +179,10 @@ describe("BaseWidget (client interaction)", () => {
 
     try {
       await vi.waitFor(() => expect(onDataLoaded).toHaveBeenCalledWith(mockData));
-      expect(globalThis.fetch).toHaveBeenCalledWith("/api/stats", { cache: "no-store" });
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/stats",
+        expect.objectContaining({ cache: "no-store" }),
+      );
 
       const pre = target.querySelector("pre");
       expect(pre).toBeInTheDocument();

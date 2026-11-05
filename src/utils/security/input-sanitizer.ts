@@ -123,16 +123,17 @@ export function sanitizeString(input: string): string {
 
   let cleaned = input;
 
-  // 1. Strip script/iframe/object/embed tags (including content)
-  // codeql[js/incomplete-multi-character-sanitization]: defense-in-depth blocklist; the render path
-  // re-sanitizes with parser-based sanitize-html.ts (see file header rationale).
+  // 1. Strip script/iframe/object/embed tags (including content).
+  // RISK ACCEPTED (CodeQL js/incomplete-multi-character-sanitization): this is a
+  // regex denylist, not a parser. Execution is contained by the CSP
+  // (script-src 'nonce' 'strict-dynamic', no 'unsafe-inline') on page and media
+  // responses; a tree-based sanitizer is tracked in docs/project/roadmap-2026.mdx.
   cleaned = cleaned.replace(SCRIPT_TAG_RE, "");
   cleaned = cleaned.replace(IFRAME_TAG_RE, "");
   cleaned = cleaned.replace(OBJECT_TAG_RE, "");
   cleaned = cleaned.replace(EMBED_TAG_RE, "");
 
   // 2. Strip event handlers (onclick, onload, onerror, etc.)
-  // codeql[js/incomplete-multi-character-sanitization]: intentional blocklist (see above).
   cleaned = cleaned.replace(EVENT_HANDLER_RE, "");
 
   // 3. Strip javascript: URLs in href attributes
@@ -142,7 +143,6 @@ export function sanitizeString(input: string): string {
   cleaned = cleaned.replace(DATA_JS_URL_RE, 'src=""');
 
   // 5. Strip dangerous tags (keep safe ones)
-  // codeql[js/incomplete-multi-character-sanitization]: intentional blocklist (see above).
   cleaned = cleaned.replace(DANGEROUS_TAGS_RE, "");
 
   return cleaned;
@@ -186,17 +186,19 @@ export function sanitizeObject<T>(obj: T, depth = 0): T {
   const raw = obj as Record<string, unknown>;
   for (const key in raw) {
     if (Object.hasOwn(raw, key)) {
+      if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
       result[key] = sanitizeObject(raw[key], depth + 1);
     }
   }
   return result as T;
 }
 
-/** Shallow pre-check: does any own value (or nested string) contain an XSS vector? */
+/** Shallow pre-check: does any own value (or nested string) contain an XSS vector or prototype key? */
 function objectNeedsSanitize(obj: object): boolean {
   const raw = obj as Record<string, unknown>;
   for (const key in raw) {
     if (!Object.hasOwn(raw, key)) continue;
+    if (key === "__proto__" || key === "constructor" || key === "prototype") return true;
     const value = raw[key];
     if (typeof value === "string") {
       if (containsXssVector(value)) return true;

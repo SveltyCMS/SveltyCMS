@@ -163,6 +163,8 @@ function cloneInternal(value: unknown, depth: number): unknown {
   }
   const out: Record<string, unknown> = {};
   for (const key in value) {
+    if (!Object.hasOwn(value, key)) continue;
+    if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
     const v = (value as Record<string, unknown>)[key];
     if (typeof v === "function") return JSON.parse(JSON.stringify(value));
     out[key] = cloneInternal(v, depth + 1);

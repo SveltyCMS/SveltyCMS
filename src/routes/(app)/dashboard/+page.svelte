@@ -54,17 +54,36 @@
 	import Loader from '@components/ui/loader.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Tooltip from '@components/ui/tooltip.svelte';
+	import Modal from '@components/ui/modal.svelte';
+	import WidgetScope from './widget-scope.svelte';
 	import {
+		button_cancel,
 		button_Collections,
+		button_retry,
 		dashboard_add_first_widget,
 		dashboard_add_widget,
 		dashboard_ai_connecting,
 		dashboard_ai_generating_title,
 		dashboard_ai_toggle,
+		dashboard_apply_preset,
+		dashboard_category_all,
+		dashboard_category_content,
+		dashboard_category_logs,
+		dashboard_category_monitoring,
+		dashboard_category_static,
+		dashboard_density_compact,
+		dashboard_density_normal,
+		dashboard_density_toggle,
 		dashboard_empty_desc,
 		dashboard_empty_title,
 		dashboard_grid_aria,
+		dashboard_layout_presets,
+		dashboard_license_all,
 		dashboard_no_widgets,
+		dashboard_preset_replace_body,
+		dashboard_preset_replace_title,
+		dashboard_presets_hint,
+		dashboard_refresh_all,
 		dashboard_remove_widget,
 		dashboard_reset_widgets,
 		dashboard_search_widgets,
@@ -78,6 +97,9 @@
 		widget_license_paid
 	} from '@src/paraglide/messages';
 	import { page } from '$app/state';
+	import { dashboardEvents } from './widget-events.svelte';
+	import { DASHBOARD_PRESETS, buildPresetWidgets } from './widget-presets';
+	import type { DashboardWidgetCategory, DashboardWidgetLicense } from './widget-contract';
 
 	const { data }: { data: PageData } = $props();
 
@@ -86,7 +108,8 @@
 		description: string;
 		folder: string;
 		icon: string;
-		license: string;
+		license: DashboardWidgetLicense;
+		category?: DashboardWidgetCategory;
 		name: string;
 		widgetMeta: WidgetMeta;
 	}
@@ -118,6 +141,7 @@
 				description: widget.description || '',
 				icon: widget.icon,
 				license: widget.license || 'free',
+				category: widget.category || 'monitoring',
 				widgetMeta: {
 					component: widget.componentName,
 					defaultSize: widget.defaultSize || { w: 1, h: 1 },
@@ -134,11 +158,77 @@
 
 	let mainContainerEl: HTMLElement | null = $state(null);
 	let dropdownOpen = $state(false);
+	let presetsOpen = $state(false);
 	let searchQuery = $state('');
 	let licenseFilter = $state<'all' | 'free' | 'freemium' | 'paid'>('all');
+	let categoryFilter = $state<string>('all');
+	let liveAnnouncement = $state<string>('');
+	let presetConfirmOpen = $state(false);
+	let pendingPresetId = $state<string | null>(null);
+	const pendingPreset = $derived(
+		DASHBOARD_PRESETS.find((preset) => preset.id === pendingPresetId) ?? null
+	);
+
+	function announce(msg: string) {
+		liveAnnouncement = '';
+		setTimeout(() => {
+			liveAnnouncement = msg;
+		}, 50);
+	}
+
+	function applyPreset(presetId: string) {
+		const preset = DASHBOARD_PRESETS.find((p) => p.id === presetId);
+		if (!preset) return;
+		const installedNames = new Set(Object.keys(widgetRegistry));
+		const newWidgets = buildPresetWidgets(preset, installedNames);
+		systemPreferences.updateWidgets(newWidgets);
+		for (const w of newWidgets) {
+			void loadWidgetComponent(w.id, w.component);
+		}
+		presetsOpen = false;
+		presetConfirmOpen = false;
+		pendingPresetId = null;
+		announce(`Applied ${preset.name} layout`);
+	}
+
+	/** One-click for an empty dashboard; confirm before replacing existing widgets. */
+	function requestPreset(presetId: string) {
+		if (!DASHBOARD_PRESETS.some((preset) => preset.id === presetId)) return;
+		if (currentPreferences.length === 0) {
+			applyPreset(presetId);
+			return;
+		}
+		pendingPresetId = presetId;
+		presetConfirmOpen = true;
+	}
 	const widgetRegistry = $derived(
 		pickerListToRegistry((data.availableWidgets ?? []) as DashboardWidgetPickerInfo[])
 	);
+
+	const categoryOptions = $derived.by(() => {
+		const categories = new Set<string>();
+		for (const info of Object.values(widgetRegistry)) {
+			if (info.category) categories.add(info.category);
+		}
+		return ['all', ...[...categories].sort((a, b) => a.localeCompare(b))];
+	});
+
+	function categoryLabel(category: string): string {
+		switch (category) {
+			case 'all':
+				return dashboard_category_all();
+			case 'monitoring':
+				return dashboard_category_monitoring();
+			case 'content':
+				return dashboard_category_content();
+			case 'logs':
+				return dashboard_category_logs();
+			case 'static':
+				return dashboard_category_static();
+			default:
+				return category.charAt(0).toUpperCase() + category.slice(1);
+		}
+	}
 
 	// --- Hot-collections quick links (behavioral learner) ---
 	const HOT_COLLECTIONS_CHIP_LIMIT = 8;
@@ -414,6 +504,9 @@
 			if (licenseFilter !== 'all' && widgetLicense !== licenseFilter) {
 				return false;
 			}
+			if (categoryFilter !== 'all' && info?.category !== categoryFilter) {
+				return false;
+			}
 			const query = searchQuery.toLowerCase();
 			return (
 				folder.toLowerCase().includes(query) || (info?.name ?? '').toLowerCase().includes(query)
@@ -577,6 +670,7 @@
 		}));
 
 		systemPreferences.updateWidgets(updatedWidgets);
+		announce(`Moved ${widget.label || widget.component} to position ${indicator.targetIndex + 1}`);
 	}
 	function handleDragStart(
 		event: MouseEvent | TouchEvent | PointerEvent,
@@ -714,6 +808,9 @@
 			}));
 
 			systemPreferences.updateWidgets(updatedWidgets);
+			announce(
+				`Moved ${item.label || item.component} to position ${targetIndex + 1} of ${currentWidgets.length}`
+			);
 
 			setTimeout(() => {
 				const el = document.querySelector(
@@ -725,15 +822,37 @@
 	}
 
 	onMount(() => {
+		dashboardEvents.init();
 		if (browser && Array.isArray(data.initialPreferences)) {
 			systemPreferences.hydrate(data.initialPreferences);
 		} else if (!systemPreferences.hydratedFromServer) {
 			void systemPreferences.loadPreferences();
 		}
 		ensureWidgetOrder();
-		// Optional widgets: import Svelte only when a tile is on the layout (observer / add).
+
+		const handleClickAway = (e: MouseEvent) => {
+			const target = e.target as HTMLElement | null;
+			if (
+				dropdownOpen &&
+				target &&
+				!target.closest('.widget-dropdown') &&
+				!target.closest('[data-testid="dashboard-add-widget"]')
+			) {
+				dropdownOpen = false;
+			}
+			if (
+				presetsOpen &&
+				target &&
+				!target.closest('.presets-dropdown') &&
+				!target.closest('[data-testid="dashboard-presets-btn"]')
+			) {
+				presetsOpen = false;
+			}
+		};
+		document.addEventListener('click', handleClickAway);
 
 		return () => {
+			document.removeEventListener('click', handleClickAway);
 			widgetObservers.forEach((observer) => observer.disconnect());
 			widgetObservers.clear();
 		};
@@ -753,26 +872,65 @@
 		<p class="text-sm">
 			{dashboard_widget_failed_load({ component: item.component })}
 		</p>
-		<Button variant="error" onclick={() => removeWidget(item.id)} size="sm" class="mt-4"
-			>{dashboard_remove_widget()}</Button
-		>
+		<div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+			<Button
+				variant="outline"
+				size="sm"
+				onclick={() => {
+					loadedWidgets.delete(item.id);
+					inflightWidgetLoads.delete(item.id);
+					void loadWidgetComponent(item.id, item.component);
+				}}
+			>
+				{button_retry()}
+			</Button>
+			<Button variant="error" onclick={() => removeWidget(item.id)} size="sm">
+				{dashboard_remove_widget()}
+			</Button>
+		</div>
 	</AdminCard>
 {/snippet}
 
 {#snippet widgetTile(Widget: Component, item: DashboardWidgetConfig)}
 	{@const widgetInfo = widgetRegistry[item.component]}
-	<Widget
+	{@const requirement = data.widgetRequirements?.[item.component]}
+	<WidgetScope
 		config={item}
-		label={item.label}
-		icon={item.icon}
-		widgetId={item.id}
-		size={item.size}
-		license={widgetInfo?.license ?? 'free'}
-		onRemove={() => removeWidget(item.id)}
-		onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
-		theme={currentTheme}
-		currentUser={data.pageData?.user}
-	/>
+		tenantId={data.tenantId}
+		userId={data.pageData?.user?.id}
+		isAdmin={data.pageData?.isAdmin}
+		role={data.pageData?.user?.role}
+		permissions={data.pageData?.user?.permissions}
+		requiresPermission={requirement?.requiresPermission}
+		requiresAdmin={requirement?.requiresAdmin}
+		license={widgetInfo?.license}
+	>
+		<Widget
+			config={item}
+			label={item.label}
+			icon={item.icon}
+			widgetId={item.id}
+			size={item.size}
+			license={widgetInfo?.license ?? 'free'}
+			settings={item.settings || {}}
+			onRemove={() => removeWidget(item.id)}
+			onSizeChange={(newSize: WidgetSize) => resizeWidget(item.id, newSize)}
+			onSettingsChange={(newSettings: Record<string, unknown>) => {
+				const customLabel =
+					typeof newSettings.customLabel === 'string' ? newSettings.customLabel : item.label;
+				// Read the latest copy: the size may have been persisted by the same save.
+				const latest = currentPreferences.find((w) => w.id === item.id) ?? item;
+				const mergedSettings = { ...(latest.settings ?? {}), ...newSettings };
+				systemPreferences.updateWidget({
+					...latest,
+					settings: mergedSettings,
+					label: customLabel
+				});
+			}}
+			theme={currentTheme}
+			currentUser={data.pageData?.user}
+		/>
+	</WidgetScope>
 {/snippet}
 
 <AdminPageShell
@@ -783,6 +941,101 @@
 >
 	{#snippet actions()}
 		<div class="flex items-center gap-2" data-testid="dashboard-toolbar">
+			<!-- Presets Menu -->
+			<div class="relative">
+				<Tooltip title={dashboard_layout_presets()} positioning={{ placement: 'bottom' }}>
+					<Button
+						variant="outline"
+						onclick={() => (presetsOpen = !presetsOpen)}
+						aria-label={dashboard_layout_presets()}
+						aria-haspopup="true"
+						aria-expanded={presetsOpen}
+						data-testid="dashboard-presets-btn"
+						class="w-10 p-0! min-w-0"
+					>
+						<iconify-icon icon="mdi:palette-swatch-outline" width={20}></iconify-icon>
+					</Button>
+				</Tooltip>
+				{#if presetsOpen}
+					<div
+						class="presets-dropdown absolute inset-e-0 z-30 mt-2 w-72 rounded-(--admin-radius-card) border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-1.5 shadow-2xl dark:border-surface-500/40 dark:bg-surface-900"
+						role="menu"
+					>
+						<div
+							class="px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wider text-(--admin-text-muted)"
+						>
+							{dashboard_layout_presets()}
+						</div>
+						{#each DASHBOARD_PRESETS as preset (preset.id)}
+							<button
+								type="button"
+								class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-start text-xs transition-colors hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
+								onclick={() => requestPreset(preset.id)}
+								role="menuitem"
+							>
+								<iconify-icon
+									icon={preset.icon}
+									width={20}
+									class="mt-0.5 shrink-0 text-tertiary-500 dark:text-primary-500"
+								></iconify-icon>
+								<div class="min-w-0 flex-1">
+									<div class="font-semibold text-(--admin-text-body)">{preset.name}</div>
+									<div class="truncate text-[11px] text-(--admin-text-muted)">
+										{preset.description}
+									</div>
+								</div>
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Refresh All -->
+			<Tooltip title={dashboard_refresh_all()} positioning={{ placement: 'bottom' }}>
+				<Button
+					variant="outline"
+					onclick={() => dashboardEvents.triggerRefreshAll()}
+					aria-label={dashboard_refresh_all()}
+					data-testid="dashboard-refresh-all"
+					class="w-10 p-0! min-w-0"
+					disabled={dashboardEvents.isRefreshingAll}
+				>
+					<iconify-icon
+						icon="mdi:refresh"
+						width={20}
+						class={dashboardEvents.isRefreshingAll
+							? 'animate-spin text-tertiary-500 dark:text-primary-500'
+							: ''}
+					></iconify-icon>
+				</Button>
+			</Tooltip>
+
+			<!-- Density Toggle -->
+			<Tooltip
+				title={dashboardEvents.density === 'compact'
+					? dashboard_density_normal()
+					: dashboard_density_compact()}
+				positioning={{ placement: 'bottom' }}
+			>
+				<Button
+					variant="outline"
+					onclick={() =>
+						dashboardEvents.setDensity(
+							dashboardEvents.density === 'compact' ? 'normal' : 'compact'
+						)}
+					aria-label={dashboard_density_toggle()}
+					data-testid="dashboard-density-toggle"
+					class="w-10 p-0! min-w-0"
+				>
+					<iconify-icon
+						icon={dashboardEvents.density === 'compact'
+							? 'mdi:view-compact-outline'
+							: 'mdi:view-agenda-outline'}
+						width={20}
+					></iconify-icon>
+				</Button>
+			</Tooltip>
+
 			<Tooltip title={dashboard_ai_toggle()} positioning={{ placement: 'bottom' }}>
 				<Button
 					variant="outline"
@@ -798,6 +1051,7 @@
 					></iconify-icon>
 				</Button>
 			</Tooltip>
+
 			{#if currentPreferences.length > 0}
 				<Tooltip title={dashboard_reset_widgets()} positioning={{ placement: 'bottom' }}>
 					<Button
@@ -811,6 +1065,7 @@
 					</Button>
 				</Tooltip>
 			{/if}
+
 			<div class="relative">
 				{#if availableWidgets.length > 0}
 					<Button
@@ -841,15 +1096,36 @@
 								class="w-full"
 							/>
 						</div>
-						<div class="flex items-center gap-1 border-b border-surface-500/20 px-2 py-1.5 text-xs">
-							{#each [{ id: 'all', label: 'All' }, { id: 'free', label: 'Free' }, { id: 'freemium', label: 'Freemium' }, { id: 'paid', label: 'Paid' }] as tab (tab.id)}
+						<!-- Categories Filter Bar -->
+						<div
+							class="flex items-center gap-1 border-b border-surface-500/20 px-2 py-1.5 text-xs overflow-x-auto"
+							role="group"
+						>
+							{#each categoryOptions as cat (cat)}
 								<button
 									type="button"
+									aria-pressed={categoryFilter === cat}
+									class="shrink-0 rounded px-2 py-0.5 text-xs font-medium transition-colors {categoryFilter ===
+									cat
+										? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400 font-semibold'
+										: 'text-(--admin-text-muted) hover:bg-surface-500/10'}"
+									onclick={() => (categoryFilter = cat)}
+								>
+									{categoryLabel(cat)}
+								</button>
+							{/each}
+						</div>
+						<!-- License Filter Bar -->
+						<div class="flex items-center gap-1 border-b border-surface-500/20 px-2 py-1.5 text-xs">
+							{#each [{ id: 'all', label: dashboard_license_all() }, { id: 'free', label: widget_license_free() }, { id: 'freemium', label: widget_license_freemium() }, { id: 'paid', label: widget_license_paid() }] as tab (tab.id)}
+								<button
+									type="button"
+									aria-pressed={licenseFilter === tab.id}
 									class="rounded px-2 py-0.5 text-xs font-medium transition-colors {licenseFilter ===
 									tab.id
 										? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400 font-semibold'
 										: 'text-(--admin-text-muted) hover:bg-surface-500/10'}"
-									onclick={() => (licenseFilter = tab.id as any)}
+									onclick={() => (licenseFilter = tab.id as typeof licenseFilter)}
 								>
 									{tab.label}
 								</button>
@@ -883,7 +1159,7 @@
 											<span class="truncate font-medium">{widgetInfo?.name || widgetName}</span>
 											{#if widgetInfo?.license === 'freemium'}
 												<Badge
-													variant="warning"
+													variant="secondary"
 													size="sm"
 													class="text-[9px] px-1.5 py-0 leading-tight"
 													>{widget_license_freemium()}</Badge
@@ -899,7 +1175,7 @@
 												<Badge
 													variant="surface"
 													size="sm"
-													class="text-[9px] px-1.5 py-0 leading-tight text-(--admin-text-muted)"
+													class="text-[9px] px-1.5 py-0 leading-tight"
 													>{widget_license_free()}</Badge
 												>
 											{/if}
@@ -971,6 +1247,7 @@
 					role="list"
 					data-testid="dashboard-widget-grid"
 					aria-label={dashboard_grid_aria()}
+					style:--dashboard-row-height={dashboardEvents.density === 'compact' ? '120px' : '160px'}
 				>
 					{#if gridDropIndicator}
 						<div
@@ -1002,7 +1279,8 @@
 							style:grid-column="span {item.size.w}"
 							style:grid-row="span {item.size.h}"
 							style:touch-action="manipulation"
-							style:min-height="{item.size.h * 160}px"
+							style:min-height="{item.size.h *
+								(dashboardEvents.density === 'compact' ? 120 : 160)}px"
 							style:height="100%"
 							style:overflow="hidden"
 							animate:flip={{ duration: motionDuration(150) }}
@@ -1012,8 +1290,23 @@
 							use:setupWidgetObserver={[item.id, item.component, FirstScreenWidget !== null]}
 						>
 							<svelte:boundary>
-								{#snippet failed(_error)}
-									{@render widgetLoadError(item)}
+								{#snippet failed(_error, reset)}
+									<AdminCard class="flex h-full flex-col items-center justify-center p-4">
+										<iconify-icon icon="mdi:alert-circle" width={48} class="mb-2 text-error-500"
+										></iconify-icon>
+										<h3 class="h4 mb-2">{dashboard_widget_load_error()}</h3>
+										<p class="text-sm">
+											{dashboard_widget_failed_load({ component: item.component })}
+										</p>
+										<div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+											<Button variant="outline" size="sm" onclick={() => reset()}>
+												{button_retry()}
+											</Button>
+											<Button variant="error" size="sm" onclick={() => removeWidget(item.id)}>
+												{dashboard_remove_widget()}
+											</Button>
+										</div>
+									</AdminCard>
 								{/snippet}
 								{#if WidgetComponent === null && !FirstScreenWidget}
 									{@render widgetLoadError(item)}
@@ -1042,10 +1335,10 @@
 				</div>
 			{:else}
 				<div
-					class="mx-auto flex h-[60vh] w-full flex-col items-center justify-center text-center"
+					class="mx-auto flex min-h-[60vh] w-full flex-col items-center justify-center text-center px-4 py-12"
 					data-testid="dashboard-empty-state"
 				>
-					<div class="flex flex-col items-center px-10 py-12">
+					<div class="flex max-w-lg flex-col items-center">
 						<iconify-icon
 							icon="mdi:view-dashboard"
 							width={80}
@@ -1062,20 +1355,81 @@
 							onclick={() => (dropdownOpen = true)}
 							aria-label={dashboard_add_first_widget()}
 							data-testid="dashboard-add-first-widget"
-							class="rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
+							class="mb-8 rounded-full bg-tertiary-500 px-6 py-3 text-lg font-semibold text-white shadow-lg dark:bg-primary-500"
 						>
 							<iconify-icon icon="mdi:plus" width={22} class="me-2"></iconify-icon>
 							{dashboard_add_widget()}
 						</Button>
+
+						<!-- Quick Preset Template Cards -->
+						<div class="w-full border-t border-(--admin-border-default) pt-6">
+							<span
+								class="mb-3 block text-xs font-semibold uppercase tracking-wider text-(--admin-text-muted)"
+							>
+								{dashboard_presets_hint()}
+							</span>
+							<div class="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+								{#each DASHBOARD_PRESETS.slice(0, 3) as preset (preset.id)}
+									<button
+										type="button"
+										class="flex flex-col items-center rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-3 text-center transition-all hover:border-tertiary-500/50 hover:shadow-md dark:hover:border-primary-500/50"
+										onclick={() => requestPreset(preset.id)}
+									>
+										<iconify-icon
+											icon={preset.icon}
+											width={28}
+											class="mb-1.5 text-tertiary-500 dark:text-primary-500"
+										></iconify-icon>
+										<span class="text-xs font-bold text-(--admin-text-body)">{preset.name}</span>
+										<span class="mt-0.5 line-clamp-2 text-[10px] text-(--admin-text-muted)"
+											>{preset.description}</span
+										>
+									</button>
+								{/each}
+							</div>
+						</div>
 					</div>
 				</div>
 			{/if}
+
+			<!-- Screen reader live announcement region -->
+			<div class="sr-only" aria-live="polite" aria-atomic="true">
+				{liveAnnouncement}
+			</div>
 
 			<section class="w-full px-4 mb-8" data-testid="dashboard-plugin-slot">
 				<Slot name="dashboard" /><AdminZone zone="dashboard" />
 			</section>
 		</section>
 	</div>
+
+	<!-- Preset replacement confirmation (kept outside the grid so it never remounts a tile) -->
+	<Modal
+		bind:open={presetConfirmOpen}
+		title={dashboard_preset_replace_title()}
+		size="sm"
+		color="surface"
+		onclose={() => (pendingPresetId = null)}
+	>
+		<p class="text-sm text-(--admin-text-body)">
+			{dashboard_preset_replace_body()}
+		</p>
+		{#if pendingPreset}
+			<p class="mt-2 text-xs text-(--admin-text-muted)">
+				{pendingPreset.name} — {pendingPreset.description}
+			</p>
+		{/if}
+		{#snippet footer()}
+			<div class="flex items-center justify-end gap-2">
+				<Button variant="ghost" onclick={() => (presetConfirmOpen = false)}
+					>{button_cancel()}</Button
+				>
+				<Button variant="primary" onclick={() => pendingPreset && applyPreset(pendingPreset.id)}>
+					{dashboard_apply_preset()}
+				</Button>
+			</div>
+		{/snippet}
+	</Modal>
 </AdminPageShell>
 
 <style>
@@ -1083,7 +1437,7 @@
 		position: relative;
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		grid-auto-rows: 160px;
+		grid-auto-rows: var(--dashboard-row-height, 160px);
 		grid-auto-flow: row dense;
 		gap: 1rem;
 	}

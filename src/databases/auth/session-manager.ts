@@ -23,6 +23,7 @@ import { isoDateStringToDate, nowISODateString, dateToISODateString } from "@uti
 import { logger } from "@utils/logger";
 import type { SessionStore, SessionMetadata, SessionData } from "./types";
 import { toSafeSessionUser } from "./session-user";
+import { isSessionRevoked } from "./revocation-epoch";
 
 // Redis client interface to avoid direct dependency on a specific Redis library
 interface RedisLike {
@@ -44,6 +45,7 @@ class InMemorySessionManager implements SessionStore {
       mfaVerifiedAt?: ISODateString;
       permMask?: bigint;
       permRev?: number;
+      issuedAtMs: number;
     }
   > = new Map();
   private static readonly MAX_SESSIONS = 10000;
@@ -55,6 +57,13 @@ class InMemorySessionManager implements SessionStore {
     }
 
     if (Date.now() > session.expiresAtMs) {
+      this.sessions.delete(sessionId);
+      return null;
+    }
+
+    if (
+      isSessionRevoked(session.issuedAtMs, session.user._id, (session.user as any).tenantId ?? null)
+    ) {
       this.sessions.delete(sessionId);
       return null;
     }
@@ -73,12 +82,20 @@ class InMemorySessionManager implements SessionStore {
       return null;
     }
 
+    if (
+      isSessionRevoked(session.issuedAtMs, session.user._id, (session.user as any).tenantId ?? null)
+    ) {
+      this.sessions.delete(sessionId);
+      return null;
+    }
+
     return {
       user: session.user,
       amr: session.amr,
       mfaVerifiedAt: session.mfaVerifiedAt,
       permMask: session.permMask,
       permRev: session.permRev,
+      issuedAtMs: session.issuedAtMs,
     };
   }
 
@@ -106,6 +123,7 @@ class InMemorySessionManager implements SessionStore {
           ? metadata.permMask
           : BigInt(metadata.permMask)
         : undefined;
+    const issuedAtMs = metadata?.issuedAtMs ?? Date.now();
 
     this.sessions.set(sessionId, {
       user: toSafeSessionUser(user),
@@ -114,7 +132,18 @@ class InMemorySessionManager implements SessionStore {
       mfaVerifiedAt: metadata?.mfaVerifiedAt,
       permMask,
       permRev: metadata?.permRev,
+      issuedAtMs,
     });
+  }
+
+  async refreshSessionIssuedAt(
+    sessionId: string,
+    newIssuedAtMs: number = Date.now(),
+  ): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.issuedAtMs = newIssuedAtMs;
+    }
   }
 
   async updateSessionAmr(
@@ -211,6 +240,16 @@ class RedisSessionManager implements SessionStore {
             await this.redisClient.del(sessionId);
             return null;
           }
+          const issuedAtMs =
+            typeof parsed.issuedAtMs === "number"
+              ? parsed.issuedAtMs
+              : typeof parsed.expiresAt === "number"
+                ? parsed.expiresAt - 30 * 24 * 60 * 60 * 1000
+                : Date.now();
+          if (isSessionRevoked(issuedAtMs, parsed.user?._id, parsed.user?.tenantId ?? null)) {
+            await this.redisClient.del(sessionId);
+            return null;
+          }
           return parsed.user;
         }
       }
@@ -235,12 +274,23 @@ class RedisSessionManager implements SessionStore {
             await this.redisClient.del(sessionId);
             return null;
           }
+          const issuedAtMs =
+            typeof parsed.issuedAtMs === "number"
+              ? parsed.issuedAtMs
+              : typeof parsed.expiresAt === "number"
+                ? parsed.expiresAt - 30 * 24 * 60 * 60 * 1000
+                : Date.now();
+          if (isSessionRevoked(issuedAtMs, parsed.user?._id, parsed.user?.tenantId ?? null)) {
+            await this.redisClient.del(sessionId);
+            return null;
+          }
           return {
             user: parsed.user,
             amr: parsed.amr,
             mfaVerifiedAt: parsed.mfaVerifiedAt,
             permMask: parsed.permMask ? BigInt(parsed.permMask) : undefined,
             permRev: parsed.permRev,
+            issuedAtMs,
           };
         }
       }
@@ -265,6 +315,7 @@ class RedisSessionManager implements SessionStore {
           ? "0x" + metadata.permMask.toString(16)
           : String(metadata.permMask)
         : undefined;
+    const issuedAtMs = metadata?.issuedAtMs ?? Date.now();
 
     // Defense-in-depth: never retain credential material in Redis either.
     const sessionData = {
@@ -274,6 +325,7 @@ class RedisSessionManager implements SessionStore {
       mfaVerifiedAt: metadata?.mfaVerifiedAt,
       permMask: permMaskStr,
       permRev: metadata?.permRev,
+      issuedAtMs,
     };
 
     try {
@@ -318,6 +370,29 @@ class RedisSessionManager implements SessionStore {
     }
 
     await this.fallbackManager.updateSessionAmr(sessionId, amr, mfaVerifiedAt);
+  }
+
+  async refreshSessionIssuedAt(
+    sessionId: string,
+    newIssuedAtMs: number = Date.now(),
+  ): Promise<void> {
+    try {
+      if (this.redisClient) {
+        const raw = await this.redisClient.get(sessionId);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          parsed.issuedAtMs = newIssuedAtMs;
+          const ttlSeconds = Math.floor((new Date(parsed.expiresAt).getTime() - Date.now()) / 1000);
+          if (ttlSeconds > 0) {
+            await this.redisClient.setex(sessionId, ttlSeconds, JSON.stringify(parsed));
+          }
+        }
+      }
+    } catch (err: any) {
+      logger.warn(`Redis refreshSessionIssuedAt failed: ${err.message}`);
+    }
+
+    await this.fallbackManager.refreshSessionIssuedAt(sessionId, newIssuedAtMs);
   }
 
   async delete(sessionId: string): Promise<void> {

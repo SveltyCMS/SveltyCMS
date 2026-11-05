@@ -23,6 +23,7 @@ import { getHotCollections } from "@src/services/intelligence/behavioral-learner
 import { rethrow } from "@utils/error-handling";
 import type { Actions, PageServerLoad } from "./$types";
 import { getInstalledDashboardWidgets } from "./widgets/manifest-registry";
+import { checkWidgetAccess } from "./widget-sandbox";
 import {
   filterPickerByPlugins,
   manifestsToPickerList,
@@ -97,18 +98,43 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
     sortWidgetsByHotCollections(manifestsToPickerList(getInstalledDashboardWidgets()), hotIds),
     pluginStates,
   );
-  logger.trace(`Discovered ${picker.length} optional dashboard widgets (widget.json)`);
+
+  // Defense in depth: the endpoint map already requires `dashboard:read`, but a
+  // manifest may narrow its widget to a permission or to admins. Filter the
+  // picker so a denied widget is never offered, and return the full requirement
+  // map so already-persisted layouts can show an access-denied tile instead of
+  // hammering a 403 endpoint.
+  const widgetRequirements = Object.fromEntries(
+    getInstalledDashboardWidgets().map((widget) => [
+      widget.id,
+      {
+        requiresPermission: widget.requiresPermission,
+        requiresAdmin: widget.requiresAdmin,
+      },
+    ]),
+  );
+  const gateUser = {
+    role: user.role,
+    isAdmin: isAdminUser,
+    permissions: locals.permissions ?? [],
+  };
+  const allowedPicker = picker.filter((widget) =>
+    checkWidgetAccess(gateUser, widget.requiresPermission, widget.requiresAdmin),
+  );
+  logger.trace(`Discovered ${allowedPicker.length} optional dashboard widgets (widget.json)`);
 
   const initialPreferences = await loadUserDashboardLayout(userId, locals.tenantId);
 
   return {
     pageData: {
-      user: { id: userId, ...rest },
+      user: { ...rest, id: userId, permissions: locals.permissions ?? [] },
       isAdmin: isAdminUser,
     },
-    availableWidgets: picker,
+    availableWidgets: allowedPicker,
     initialPreferences,
     hotCollections,
+    tenantId: tenant,
+    widgetRequirements,
   };
 };
 

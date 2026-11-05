@@ -893,7 +893,8 @@ export class PluginStorageNamespace extends BaseNamespace {
 
   private async _getAdapter() {
     if (!this._adapter) {
-      const { PluginStorageAdapterImpl } = await import("@src/plugins/storage");
+      const { PluginStorageAdapterImpl } =
+        await import("@src/plugins/storage/plugin-storage-adapter");
       this._adapter = new PluginStorageAdapterImpl(this._dbAdapter);
     }
     return this._adapter;

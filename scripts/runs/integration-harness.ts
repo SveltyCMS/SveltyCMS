@@ -18,6 +18,7 @@
  */
 
 import { execSync, spawn, type ChildProcess } from "node:child_process";
+import { randomInt } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -270,7 +271,7 @@ export function buildIntegrationServerEnv(
  * the test env through `buildIntegrationServerEnv`).
  */
 function defaultIntegrationPort(): string {
-  return String(4173 + Math.floor(Math.random() * 500));
+  return String(4173 + randomInt(0, 500));
 }
 
 export function createIntegrationContext(

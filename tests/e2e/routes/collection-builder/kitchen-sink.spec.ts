@@ -98,7 +98,8 @@ async function expectWriteOk(page: Page, method: "POST" | "PATCH", actionName: s
     .waitForResponse(
       (res) =>
         res.request().method() === method &&
-        /\/api\/collections\//.test(new URL(res.url()).pathname),
+        /\/api\/collections\//.test(new URL(res.url()).pathname) &&
+        !new URL(res.url()).pathname.endsWith("/drafts"),
       { timeout: 25_000 },
     )
     .catch(() => null);
@@ -251,7 +252,7 @@ test.describe("Kitchen Sink Master Collection — Editorial Lifecycle", () => {
     }
 
     // 5. Save the composite entry
-    const saveBtn = page.getByRole("button", { name: /save/i }).first();
+    const saveBtn = page.getByRole("button", { name: /^save$/i }).first();
     await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
 
     const writePromise = expectWriteOk(page, "POST", "Create Kitchen Sink Entry");

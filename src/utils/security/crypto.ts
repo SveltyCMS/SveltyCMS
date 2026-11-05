@@ -227,8 +227,9 @@ export function resolveStaticAesKey(
     cryptoMod.hkdfSync("sha256", raw, AES256_HKDF_SALT, info, ENCRYPTION_CONFIG.keyLength),
   );
   const fallbacks: Buffer[] = [
-    // slop:suppress — dual-read of pre-HKDF env-key envelopes (SHA-256(raw))
-    // codeql[js/insufficient-password-hash]: AES env-key compatibility digest, not a login password hash (Argon2id)
+    // slop:suppress — dual-read of pre-HKDF env-key envelopes (SHA-256(raw)).
+    // AES env-key compatibility digest, not a login password hash (Argon2id).
+    // codeql[js/insufficient-password-hash]
     cryptoMod.createHash("sha256").update(raw, "utf8").digest(),
   ];
   // slop:suppress — lenient base64 matches the pre-HKDF `Buffer.from(raw, "base64")`
@@ -298,12 +299,24 @@ export function hmacSha256VerifyWithKeys(
   },
 ): boolean {
   const sig = Buffer.from(params.signatureB64url);
-  for (const key of params.keys) {
-    const expected = cryptoMod.createHmac("sha256", key).update(params.payload).digest("base64url");
-    const expectedBuf = Buffer.from(expected);
-    if (sig.length === expectedBuf.length && cryptoMod.timingSafeEqual(sig, expectedBuf)) {
-      return true;
+  try {
+    for (const key of params.keys) {
+      const expected = cryptoMod
+        .createHmac("sha256", key)
+        .update(params.payload)
+        .digest("base64url");
+      const expectedBuf = Buffer.from(expected);
+      try {
+        if (sig.length === expectedBuf.length && cryptoMod.timingSafeEqual(sig, expectedBuf)) {
+          return true;
+        }
+      } finally {
+        // Signature material is ephemeral — do not leave it for the next GC cycle.
+        expectedBuf.fill(0);
+      }
     }
+    return false;
+  } finally {
+    sig.fill(0);
   }
-  return false;
 }

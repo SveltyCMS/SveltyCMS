@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-01"
+updated: "2026-11-05"
 tags:
   - "roadmap"
   - "backlog"
@@ -141,12 +141,12 @@ tags:
   - Add BOGO and tiered volume pricing calculations.
 - **Inventory & Payments**:
   - Multi-warehouse inventory allocation.
-  - Real-time currency exchange (FX) resolver with caching.
+  - [x] **Real-time currency exchange (FX) resolver with caching**: In-memory rate caching with configurable TTL (default 1h), fallback rates for major world currencies (EUR, USD, GBP, JPY, CHF, CAD, AUD), zero rounding drift cross-rate conversions via minor units, and pluggable rate providers. Shipped in `src/services/commerce/fx-resolver.ts` and verified by `tests/unit/commerce/fx-resolver.test.ts`.
   - Stripe Billing recurring subscription webhooks and customer portal integration.
   - Durable idempotency storage across server restarts (persisted key locks).
   - Database-level conditional stock decrement for multi-node deployments.
 - **Storefront SEO**:
-  - Inject Schema.org structured data markup (`Product`, `Offer`, `AggregateRating`) on `/shop` routes.
+  - [x] **Storefront & Article/WebPage Schema.org Structured Data**: Automated injection of Schema.org `Product` and `Offer` structured data on `/shop/[slug]` routes, plus automated `Article` and `WebPage` JSON-LD extraction, hardened against script breakout attacks via `serializeJsonLd()`. Shipped in `src/services/content/seo/seo-head.ts` and `src/routes/(site)/shop/[slug]/+page.server.ts`, verified by `tests/unit/services/seo-head.test.ts`.
 
 ---
 
@@ -155,10 +155,10 @@ tags:
 - **SEO Config Cascade**:
   - Implement site → collection → entry defaults for title and description templates with token fallbacks.
 - **Sitemap Variants**:
-  - Generate specialized image and news sitemap feeds conforming to Google sitemap guidelines.
+  - [x] **Specialized Google Sitemap Variants**: Google Image (`sitemap-images.xml`) and Google News (`sitemap-news.xml` filtering last 48 hours) XML sitemaps conforming to Google search guidelines. Tenant-aware and cached. Shipped in `src/services/content/seo/sitemap-builder.ts`, `src/routes/sitemap-images.xml/+server.ts`, and `src/routes/sitemap-news.xml/+server.ts`, verified by `tests/unit/services/sitemap-builder.test.ts`.
 - **Social & Structured Data Automation**:
   - Automated templated OG social image generation.
-  - Per-type automatic Article and WebPage JSON-LD extraction from CMS fields.
+  - [x] Per-type automatic Article and WebPage JSON-LD extraction from CMS fields (`buildArticleJsonLd`, `buildWebPageJsonLd`). Shipped in `src/services/content/seo/seo-head.ts` and verified in `tests/unit/services/seo-head.test.ts`.
 
 ---
 
@@ -220,6 +220,9 @@ tags:
 - **Enterprise Identity & Encryption (Shipped 2026-11-04)**:
   - [x] **Enterprise Cloud KMS Envelope Encryption**: Multi-cloud envelope encryption supporting AWS KMS, GCP KMS, Azure Key Vault, HashiCorp Vault, and Local HKDF. Zero-latency in-memory DEK caching ensures sub-microsecond field encryption (<0.008 ms/op, zero network calls on hot paths) preserving sub-2ms persistence. Shipped in `src/utils/security/cloud-kms.ts`.
   - [x] **Enterprise SAML 2.0 & OIDC SSO Federation**: SP-initiated and IdP-initiated SAML 2.0 login (`@node-saml/node-saml`), one-click public provider discovery, RFC 7636 PKCE, JIT auto-provisioning with claim-to-role mapping rules, and OIDC RP-initiated logout. Fully decoupled from session authorization (<0.5 ns in-register bitmask check post-login). Shipped in `src/databases/auth/saml-auth.ts` and `src/databases/auth/sso-session.ts`.
+- **SSRF & Prototype Pollution Hardening (Shipped 2026-11-05)**:
+  - [x] **SSRF Scope Enforcement & Protocol Downgrade Defense**: `validateEgressUrl` and `safeFetch` prevent scope escape across redirect hops (`allowedHosts`, `allowedOrigins`, `urlScope`) and reject protocol downgrade from `https:` to `http:`. Shipped in `src/utils/egress-guard.ts`.
+  - [x] **Zero-Overhead Prototype Pollution Defense**: Object utilities (`deepClone`, `deepCopy`, `copyDataWithFreshRowIds`, `deepMerge`, `deepMergeMetadata`, `sanitizeObject`, and `TokenRegistry` path traversal) strictly reject `__proto__`, `constructor`, and `prototype` keys (>5.2M ops/s throughput maintained). Shipped in `src/utils/native-utils.ts`, `src/utils/security/input-sanitizer.ts`, `src/utils/data-utils.ts`, `src/widgets/desugar-field.ts`, and `src/services/token/engine.ts`.
 - **Third-Party Security Audit** — posture: [Security posture](../reference/security/security-posture.mdx):
   - Commission an independent external penetration test prior to enterprise GA. **Not performed as of 2026-10-18.**
 - **Cryptographic agility (PQC readiness)** — reference: [Quantum security](../reference/security/quantum-security.mdx):
@@ -227,6 +230,17 @@ tags:
   - [x] Hybrid at-rest envelope (AES-256-GCM payload under a random DEK, DEK wrapped with ML-KEM-768 + HKDF). Primitive shipped in `src/utils/security/hybrid-kem.ts`; opt-in for backups via `PQC_HYBRID_BACKUPS=true` and collection fields via `PQC_HYBRID_FIELDS=true` (`src/utils/security/field-encryption.ts`).
   - [x] Optional SHA-384/SHA-512 checksum profile (`CHECKSUM_ALGORITHM`) for new artifacts; legacy bare-hex values still verify as SHA-256. The append-only audit chain stays SHA-256.
   - [x] Pin the documented parameters with `crypto-inventory`, `key-ring`, `hybrid-kem` and `checksum-profile` tests; extend them when an envelope format changes.
+- **AI-Assisted Security Assurance (Scaffolded 2026-11-05)** — an evidence-producing pipeline that substitutes machine-checkable artifacts for institutional headcount. Posture: [Security case](../reference/security/security-case.mdx). AI can industrialise the _artifacts_ a security team produces; it cannot substitute for third-party review, which stays a separate item above.
+  - [x] **Published advisory pipeline**: the ledger (`docs/security/advisories/`), Valibot schema, semantic state machine, duplicate detection and the assurance gate ship in `scripts/security/check-advisories.ts`. Advisory records carry OSV/CVE ids; GitHub is a CNA, so a CVE does not need a separate security team. **No advisory has been published yet** — the two records in the folder are `provenance: "example"` and are excluded from every statistic.
+  - [x] **Patch-latency ledger**: `docs/reference/security/patch-latency.mdx` is generated from the ledger (`--write-doc`), and the gate enforces the disclosed SLA on release and on open age. The table is empty by design until the first real advisory ships.
+  - [ ] **AI triage, human sign-off**: the agent may classify, de-duplicate, reproduce, bisect and draft the failing test plus a candidate patch; a named human reviews every security fix. The policy is published in the [security case](../reference/security/security-case.mdx); the tooling is not built yet.
+  - [x] **Mutation-score floors on security modules**: `test:mutation:security` mutates 12 seams across auth, security utilities, egress and the write pipeline; `scripts/security/check-test-strength.ts` enforces per-area floors. **No measured score has been published yet** — the floors are starting gates, not baselines.
+  - [x] **Executable red-team corpus**: 35 payloads across URL, XSS, SVG and prototype-key targets run on every PR (`tests/security-corpus/`, `tests/unit/security/red-team-corpus.test.ts`).
+  - [x] **Threat-model drift gate**: `docs/security/threat-model.json` + six STRIDE models cover 58/58 server route files (100%); `bun run security:assurance --only=threat-model` fails on handler drift, a missing model, an uncovered route, or a review older than 12 months.
+  - [x] **Executable invariants (first four)**: `tests/unit/security/invariants.test.ts` enforces no barrel imports, no `Math.random()` in security/auth/media, a no-growth ratchet on `new Date().toISOString()`, and manifest coverage. Expanding the `AGENTS.md` prose rules into further AST/Semgrep checks stays open.
+  - [ ] **Tree-based HTML/SVG sanitizer**: replace the regex denylists in `sanitize-html.ts`, `input-sanitizer.ts`, and `media-service.server.ts` with a parser-based sanitizer (DOMPurify with a server DOM, or the `sanitize-html` package) and keep the fixpoint regex pass as defense-in-depth. CodeQL `js/incomplete-multi-character-sanitization` findings #115-#118 and #206-#207 stay open as risk-accepted until this lands; the CSP (`script-src 'nonce' 'strict-dynamic'`, no `'unsafe-inline'`) contains execution in the meantime.
+  - [ ] **Zero-backport surface, test-enforced**: document and assert the single supported line (`next`) and 4-adapter contract parity, so a fix ships once — the backport cost Drupal's PSA cut minor support to avoid does not exist here by construction.
+  - [ ] **External validation bundle**: `docs/security/external-validation.json`, `scripts/security/check-external-validation.ts` and the OpenSSF Scorecard workflow ship. Paid penetration test, public bug bounty, SLSA provenance and Sigstore signing remain **pending** — this is the row AI cannot close.
 - **GraphQL Supergraph**:
   - Apollo Federation v2 compatibility for multi-service enterprise architectures.
 - **Cross-Source Data Merge (v3.1)**:
@@ -251,9 +265,12 @@ Based on publicly available release notes for Drupal AI 1.5.0 (Workflows of AI, 
   - [x] Persisted conversation threads server-side (`src/services/ai/chat-memory.ts`), scoped by `tenantId` + `conversationId` with L1/L2 cache, 24h TTL, 40-turn / 8k / 32k window, and `POST /api/ai/chat/reset`.
 - **Streaming guardrails**:
   - [x] Deterministic `redactSecrets()` and chunk-safe `createStreamRedactor()` (`src/utils/security/stream-redaction.ts`) applied across chat responses, SSE streaming, and content events.
+- **WebMCP Collection & Field Agent Instructions (Shipped 2026-11-05)**:
+  - [x] Natural-language guidance for AI agents (`instructions`/`agentInstructions`) at schema and field levels, exposed via `get_collections`, `get_collection_schema`, and `get_agent_instructions` on hosted `mcp.sveltycms.com` (>2.2M searches/s). Shipped in `src/content/types.ts` and `src/plugins/webmcp/tools/content.ts`.
 - **Moderation fail-closed**:
   - [x] Fail-closed `moderateAiText()` (`src/services/ai/moderation.ts`) with private-setting / env config and `MODERATION_UNAVAILABLE` on provider downtime.
-- **Reranker**: re-order semantic-index candidates by answer relevance (top-N configurable), keeping keyword scores as the fallback.
+- **Reranker (Shipped 2026-11-05)**:
+  - [x] Re-order semantic-index candidates by answer relevance (top-N configurable, `rerankCandidates` and `rerankCandidatesSync`), keeping baseline vector cosine similarity and keyword scores as fallback. Supports pluggable custom LLM scoring. Shipped in `src/services/intelligence/semantic-index.ts` and verified in `tests/unit/services/semantic-reranker.test.ts`.
 - **Token budgets**: per-tenant daily token ceilings derived from the existing quota primitive, surfaced in the admin dashboard.
 - **Exporter**: optional OpenTelemetry OTLP export for the `gen_ai.*` attributes already emitted (currently structured logs only).
 

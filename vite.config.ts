@@ -277,6 +277,116 @@ function testBackdoorStripperPlugin(): Plugin {
   };
 }
 
+/**
+ * Compile-time import rewriter for `@components/ui`.
+ * Automatically transforms barrel imports:
+ *   `import { Button, Modal, DatePicker } from "@components/ui";`
+ * into direct concrete component imports:
+ *   `import Button from "@components/ui/button.svelte";`
+ *   `import Modal from "@components/ui/modal.svelte";`
+ *   `import DatePicker from "@components/ui/date-picker.svelte";`
+ * Eliminating the 44-component module graph cascade on dev cold starts and Vitest.
+ */
+function uiComponentImportRewriterPlugin(): Plugin {
+  const UI_COMPONENTS = new Set([
+    "Accordion",
+    "AccordionItem",
+    "Alert",
+    "Avatar",
+    "BackToTop",
+    "Badge",
+    "Breadcrumb",
+    "Button",
+    "Card",
+    "Checkbox",
+    "Collapsible",
+    "Combobox",
+    "DatePicker",
+    "Drawer",
+    "Dropdown",
+    "FileUpload",
+    "FloatingInput",
+    "Image",
+    "Input",
+    "Loader",
+    "Marquee",
+    "Modal",
+    "Popover",
+    "Portal",
+    "Progress",
+    "QrCode",
+    "RadioGroup",
+    "RadioItem",
+    "Rating",
+    "SegmentedControl",
+    "Select",
+    "Slider",
+    "StatusBadge",
+    "Stepper",
+    "StickyActions",
+    "Table",
+    "Tabs",
+    "Tags",
+    "Textarea",
+    "Toast",
+    "Toggle",
+    "Tooltip",
+    "TreeView",
+    "UpgradePrompt",
+  ]);
+
+  const toKebab = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").toLowerCase();
+
+  return {
+    name: "ui-component-import-rewriter",
+    enforce: "pre",
+    transform(code, id) {
+      if (!code.includes("@components/ui") && !code.includes("./src/components/ui")) return null;
+      if (!id.endsWith(".svelte") && !id.endsWith(".ts") && !id.endsWith(".js")) return null;
+      if (
+        id.includes("/src/components/ui/index.ts") ||
+        id.includes("\\src\\components\\ui\\index.ts")
+      ) {
+        return null;
+      }
+
+      const importRegex =
+        /import\s*\{([^}]+)\}\s*from\s*["'](@components\/ui|\.\/src\/components\/ui)["'];?/g;
+      if (!importRegex.test(code)) return null;
+
+      const transformed = code.replace(importRegex, (_match, specifiersStr: string) => {
+        const specifiers = specifiersStr
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const rewritten: string[] = [];
+        const unhandled: string[] = [];
+
+        for (const spec of specifiers) {
+          const parts = spec.split(/\s+as\s+/);
+          const importedName = parts[0]!.trim();
+          const localName = (parts[1] || parts[0])!.trim();
+
+          if (UI_COMPONENTS.has(importedName)) {
+            const fileName = `${toKebab(importedName)}.svelte`;
+            rewritten.push(`import ${localName} from "@components/ui/${fileName}";`);
+          } else {
+            unhandled.push(spec);
+          }
+        }
+
+        if (unhandled.length > 0) {
+          rewritten.push(`import { ${unhandled.join(", ")} } from "@components/ui";`);
+        }
+
+        return rewritten.join("\n");
+      });
+
+      return { code: transformed, map: null };
+    },
+  };
+}
+
 /** Virtual fallback when config/private.ts is missing (CI, fresh clones) */
 function privateConfigFallbackPlugin(): Plugin {
   const VID = "@config/private",
@@ -1528,6 +1638,7 @@ export default defineConfig(() => {
       privateConfigFallbackPlugin(),
       stubServerModulesPlugin(),
       browserShimsPlugin(),
+      uiComponentImportRewriterPlugin(),
       sveltekit({
         preprocess: [vitePreprocess()],
         compilerOptions: { runes: true },
@@ -1546,6 +1657,33 @@ export default defineConfig(() => {
         // Bench/integration matrices bind 4173 + random offset; trust loopback port range.
         csrf: {
           trustedOrigins: TRUSTED_ORIGINS,
+        },
+        // ── Zero-overhead XSS mitigation ───────────────────────────────────
+        // A fresh 128-bit nonce per SSR request (SvelteKit appends it to every
+        // inline <script> it renders) plus `strict-dynamic`: a script can only
+        // run if SvelteKit minted it or a trusted script created it. Injected
+        // inline handlers and `eval()` are blocked without a domain allowlist.
+        // `style-src` keeps `'unsafe-inline'` because the admin kit styles
+        // (`--admin-*` custom properties) and the HTML shell use style
+        // attributes; `script-src` never does. `wasm-unsafe-eval` is required by
+        // the optional LiteRT/WASM pipeline and does not enable JS `eval`.
+        csp: {
+          mode: "nonce",
+          directives: {
+            "default-src": ["self"],
+            "script-src": ["self", "strict-dynamic", "wasm-unsafe-eval"],
+            "style-src": ["self", "unsafe-inline"],
+            "img-src": ["self", "data:", "blob:", "https:"],
+            "font-src": ["self", "data:", "https:"],
+            "connect-src": ["self", "https:", "wss:"],
+            "media-src": ["self", "data:", "blob:", "https:"],
+            "frame-src": ["self", "data:", "blob:", "https:"],
+            "worker-src": ["self", "blob:"],
+            "object-src": ["none"],
+            "base-uri": ["self"],
+            "form-action": ["self"],
+            "frame-ancestors": ["none"],
+          },
         },
       }),
       // ── Optional: dev-only inspector inject/patch (Vite 8 client path) ──
@@ -1583,6 +1721,7 @@ export default defineConfig(() => {
     // ABSOLUTE targets — relative entries would duplicate modules.
     resolve: {
       alias: RESOLVED_ALIASES,
+      extensions: [".ts", ".js", ".json"],
     },
     server: {
       // The dev origin is pinned in several places (ORIGIN, CORS allowlist, E2E
@@ -1598,6 +1737,13 @@ export default defineConfig(() => {
           "**/config/private*.ts",
           "**/.compiledCollections/**",
           "**/tests/**",
+          "**/tests/e2e/.auth/**",
+          "**/docs/**",
+          "**/docker/**",
+          "**/*.db*",
+          "**/test-media/**",
+          "**/.vitest/**",
+          "**/.zed/**",
           "**/logs/**",
           "**/mediaFolder/**",
           "**/src/content/types.ts",

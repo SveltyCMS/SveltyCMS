@@ -1042,7 +1042,7 @@ curl http://127.0.0.1:3000/api/health
 
 ---
 
-## Optional: Containerization with Docker & Docker Compose
+## Optional: Containerization with Docker & Docker Compose {#docker}
 
 SveltyCMS runs natively on Node.js or Bun (ideal for Plesk Passenger, PM2, or systemd services). If you prefer deploying via Docker containers, you can create a standard multi-stage `Dockerfile` and launch it with `docker-compose.example.yml`.
 
@@ -1052,7 +1052,7 @@ Create a `Dockerfile` in your project root:
 
 ```dockerfile
 # Multi-stage build for SveltyCMS
-FROM oven/bun:1.2-alpine AS builder
+FROM oven/bun:1.4-alpine AS builder
 WORKDIR /app
 
 COPY package.json bun.lock ./

@@ -1,4 +1,5 @@
 {
+  "file_scan_inclusions": ["src/paraglide/**", "..."],
   "languages": {
     "CSS": {
       "language_servers": ["tailwindcss-intellisense-css", "!vscode-css-language-server", "..."]

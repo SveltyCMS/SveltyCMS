@@ -108,6 +108,15 @@ export function checkNodeRuntime(
 }
 
 function main(): number {
+  if (
+    process.env.SKIP_NODE_RUNTIME_CHECK === "true" ||
+    process.env.SKIP_NODE_RUNTIME_CHECK === "1" ||
+    process.env.SKIP_NODE_CHECK === "1"
+  ) {
+    console.log("ℹ Node runtime check skipped via SKIP_NODE_RUNTIME_CHECK.");
+    return 0;
+  }
+
   let enginesNode: string | undefined;
   try {
     const packageJsonPath = fileURLToPath(new URL("../../package.json", import.meta.url));

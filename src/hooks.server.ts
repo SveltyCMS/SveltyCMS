@@ -54,7 +54,7 @@ import { runWithContext, runWithTrace, getTrace, traceSpan } from "@utils/contex
 // automationService.init() crashed the boot). Static imports participate in
 // the kit runtime's chunk graph, which initializes them correctly.
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
-import { automationService } from "@src/services/background/automation";
+import { automationService } from "@src/services/background/automation/automation-service";
 import { watchdog } from "@src/services/system/watchdog";
 import { telemetryService } from "@src/services/observability/telemetry-service";
 import { startScheduler } from "@src/services/scheduler";
@@ -64,7 +64,7 @@ import {
   DEFAULT_MAX_WAL_BYTES,
   type WalCheckpointResult,
 } from "@src/services/background/wal-checkpoint.server";
-import { outboxService } from "@src/services/outbox";
+import { outboxService } from "@src/services/outbox/outbox-service";
 // ESM shims for CJS packages that still read __filename / __dirname at runtime
 if (typeof (globalThis as any).__filename === "undefined") {
   (globalThis as any).__filename = fileURLToPath(import.meta.url);

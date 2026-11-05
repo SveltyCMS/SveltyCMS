@@ -18,7 +18,6 @@
 import {
   payloadTouchesCollectionFieldPreparation,
   prepareCollectionFields,
-  validateNumberFieldPlans,
   type CollectionFieldPrepFlags,
 } from "@src/content/content-utils";
 import { applySchemaHookPipeline, type SchemaHookPipelineOptions } from "@src/content/schema-hooks";
@@ -118,6 +117,92 @@ function fieldValidationError(messages: string[]): AppError {
 const prepFlagsCache = new WeakMap<object, CollectionFieldPrepFlags>();
 const numberFieldValidatorCache = new WeakMap<object, (doc: Record<string, unknown>) => string[]>();
 const hookPipelineOptionsCache = new WeakMap<object, SchemaHookPipelineOptions>();
+
+const MAX_SAFE_SQL_INT = 2_147_483_647;
+const MIN_SAFE_SQL_INT = -2_147_483_648;
+
+export type CompiledValidationPlan = (
+  doc: Record<string, unknown>,
+  options?: { skipFieldValidators?: boolean },
+) => string[] | null;
+
+const validationPlanCache = new WeakMap<object, CompiledValidationPlan>();
+
+export function getOrCompileValidationPlan(
+  schema: Schema,
+  hot: SchemaHotFlags,
+): CompiledValidationPlan {
+  let plan = validationPlanCache.get(schema as object);
+  if (plan) return plan;
+
+  const fieldValidators =
+    hot._hasFieldValidators && hot._fieldValidators ? hot._fieldValidators : [];
+  const numberFields = hot._hasNumberFields && hot._numberFields ? hot._numberFields : [];
+
+  if (fieldValidators.length === 0 && numberFields.length === 0) {
+    plan = () => null;
+    validationPlanCache.set(schema as object, plan);
+    return plan;
+  }
+
+  plan = (
+    doc: Record<string, unknown>,
+    options?: { skipFieldValidators?: boolean },
+  ): string[] | null => {
+    let errors: string[] | null = null;
+
+    // 1. Valibot field validators
+    if (!options?.skipFieldValidators && fieldValidators.length > 0) {
+      for (let i = 0; i < fieldValidators.length; i++) {
+        const v = fieldValidators[i];
+        if (!Object.hasOwn(doc, v.key)) continue;
+        const parsed = safeParse(v.schema as Parameters<typeof safeParse>[0], doc[v.key]);
+        if (!parsed.success) {
+          (errors ??= []).push(`${v.name}: ${parsed.issues[0]?.message ?? "Invalid value"}`);
+        }
+      }
+    }
+
+    // 2. Numeric range & SQL safe integer bounds
+    if (numberFields.length > 0) {
+      for (let i = 0; i < numberFields.length; i++) {
+        const field = numberFields[i];
+        const value = doc[field.db_fieldName];
+        if (value === undefined || value === null) continue;
+
+        const num = Number(value);
+        if (!Number.isFinite(num)) {
+          (errors ??= []).push(
+            `Field "${field.db_fieldName}": value "${value}" is not a valid number`,
+          );
+          continue;
+        }
+
+        if (field.min !== undefined && num < field.min) {
+          (errors ??= []).push(
+            `Field "${field.db_fieldName}": ${num} is below minimum allowed value (${field.min})`,
+          );
+        }
+        if (field.max !== undefined && num > field.max) {
+          (errors ??= []).push(
+            `Field "${field.db_fieldName}": ${num} exceeds maximum allowed value (${field.max})`,
+          );
+        }
+
+        if (num > MAX_SAFE_SQL_INT || num < MIN_SAFE_SQL_INT) {
+          (errors ??= []).push(
+            `Field "${field.db_fieldName}": ${num} is outside the safe integer range for the database (${MIN_SAFE_SQL_INT} to ${MAX_SAFE_SQL_INT})`,
+          );
+        }
+      }
+    }
+
+    return errors;
+  };
+
+  validationPlanCache.set(schema as object, plan);
+  return plan;
+}
 
 /**
  * Pre-compiled set of allowed keys for strict or pruned schemas.
@@ -259,23 +344,13 @@ export function prepareWritePayload(
     }
   }
 
-  // Server-side widget validation: the same Valibot schemas the client uses.
-  // Only fields present in the payload are checked (partial updates stay
-  // partial), and system writes bypass this gate (imports/scheduler/sync).
-  if (!system && !opts.skipValidation && hot._hasFieldValidators && hot._fieldValidators?.length) {
-    const errors: string[] = [];
-    for (const validator of hot._fieldValidators) {
-      if (!Object.hasOwn(entryData, validator.key)) continue;
-      const parsed = safeParse(
-        validator.schema as Parameters<typeof safeParse>[0],
-        entryData[validator.key],
-      );
-      if (!parsed.success) {
-        errors.push(`${validator.name}: ${parsed.issues[0]?.message ?? "Invalid value"}`);
-      }
-    }
-    if (errors.length > 0) {
-      throw fieldValidationError(errors);
+  // Server-side validation via AOT Compiled Validation Plan (Valibot schemas + numeric bounds).
+  // Compiled once per schema in WeakMap with zero array allocation on the valid hot path.
+  const validationPlan = getOrCompileValidationPlan(schema, hot);
+  if (!system && !opts.skipValidation) {
+    const validationErrors = validationPlan(entryData);
+    if (validationErrors && validationErrors.length > 0) {
+      throw fieldValidationError(validationErrors);
     }
   }
 
@@ -299,7 +374,7 @@ export function prepareWritePayload(
         : undefined;
     if (hot._hasNumberFields && hot._numberFields && !validate) {
       validate = (doc: Record<string, unknown>) =>
-        validateNumberFieldPlans(doc, hot._numberFields!);
+        validationPlan(doc, { skipFieldValidators: true }) ?? [];
       numberFieldValidatorCache.set(schema as object, validate);
     }
     let pipelineOptions = hookPipelineOptionsCache.get(schema as object);
@@ -334,8 +409,8 @@ export function prepareWritePayload(
   }
 
   if (hot._hasNumberFields && hot._numberFields) {
-    const rangeErrors = validateNumberFieldPlans(entryData, hot._numberFields);
-    if (rangeErrors.length > 0) {
+    const rangeErrors = validationPlan(entryData, { skipFieldValidators: true });
+    if (rangeErrors && rangeErrors.length > 0) {
       throw fieldValidationError(rangeErrors);
     }
   }

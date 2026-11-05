@@ -6,7 +6,7 @@ order: 16
 icon: "mdi:view-dashboard"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-08-19"
+updated: "2026-11-05"
 tags:
   - "testing"
   - "e2e"
@@ -22,14 +22,18 @@ tags:
 
 ## Architecture (brief)
 
-| Piece                                 | Role                                                                                 |
-| ------------------------------------- | ------------------------------------------------------------------------------------ |
-| `+page.server.ts`                     | Auth, `dashboard:read` gate, compile-time widget discovery (`import.meta.glob`)      |
-| `+page.svelte`                        | Toolbar, add/search/reset, grid, DnD reorder, lazy load, AI generative mode          |
-| `base-widget.svelte`                  | Shared fetch/poll/cache/refresh chrome for individual widgets                        |
-| `dashboard-preferences.svelte.ts`     | Persist layout to `/api/system-preferences`                                          |
-| `widgets/<folder>/<component>.svelte` | **Per-install catalog** — package folders, each exports `widgetMeta` + `widget.json` |
-| `Slot name="dashboard"`               | Plugin injection zone                                                                |
+| Piece                                 | Role                                                                                         |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `+page.server.ts`                     | Auth, dashboard-permission gate, `widget.json` discovery, plugin + RBAC picker filter        |
+| `+page.svelte`                        | Toolbar, add/search/category/license filters, grid, DnD reorder, lazy load, presets, AI mode |
+| `base-widget.svelte`                  | Sandboxed fetch/poll/cache/settings/refresh chrome for individual widgets                    |
+| `widget-scope.svelte`                 | Per-tile context: settings, tenant/user, license, RBAC decision                              |
+| `widget-sandbox.ts`                   | Endpoint validation, CSRF/timeout guard, `WidgetHttpError`                                   |
+| `widget-storage.ts`                   | Tenant/user/widget-scoped storage with TTL + 256 KB quota                                    |
+| `widget-presets.ts`                   | Curated layout presets (installed packages only)                                             |
+| `dashboard-preferences.svelte.ts`     | Persist layout to `/api/system-preferences`                                                  |
+| `widgets/<folder>/<component>.svelte` | **Per-install catalog** — package folders, each exports `widgetMeta` + `widget.json`         |
+| `Slot name="dashboard"`               | Plugin injection zone                                                                        |
 
 ---
 
@@ -51,7 +55,11 @@ tags:
 | --------------------------------- | ---- | ------------------------------------------- |
 | Add Widget button / menu          | —    | ✅ opens menu when catalog has free widgets |
 | Widget search                     | —    | ✅ nonsense query → “No widgets found”      |
+| Category + license filters        | —    | install-specific; server filters by RBAC    |
 | Reset all                         | —    | ✅ after add → empty state                  |
+| Refresh all                       | —    | waits for every mounted widget to settle    |
+| Density toggle                    | —    | normal 160px / compact 120px rows           |
+| Layout presets                    | —    | confirm before replacing a non-empty grid   |
 | AI toggle present                 | —    | ✅ does not require live MCP                |
 | Pointer drag-reorder (≥2 widgets) | —    | ✅ header-band mouse drag                   |
 | Keyboard Ctrl+Arrow reorder       | —    | ✅ accessibility path                       |
@@ -104,6 +112,17 @@ Premium endpoints return `200` during the install-wide 14-day trial; the gate on
 - [x] Replace skipped “not implemented” E2E with real shell suite
 - [x] Pointer drag-reorder + keyboard Ctrl+Arrow E2E (widget-agnostic, ≥2 widgets)
 
+## Widget runtime hardening (2026-11-05)
+
+- [x] Same-origin `/api/...` endpoint guard with encoded-traversal rejection, 15s timeout, CSRF headers, sanitized headers
+- [x] 4xx → no retry; 5xx/429 → exponential backoff (`WidgetHttpError`)
+- [x] Per-instance storage namespaced by tenant/user/widget, 256 KB total quota, TTL, per-instance memory fallback
+- [x] Manifest RBAC (`requiresPermission` / `requiresAdmin`): server picker filter **and** runtime access-denied tile
+- [x] Settings saves merge into persisted settings; `settings.pollInterval` survives reload
+- [x] `<svelte:boundary>` Retry/Remove + widget-chunk load Retry
+- [x] Global refresh waits for real widget completion (10s safety timeout)
+- [x] Layout presets, category/license filters, density toggle, maximize dialog; new UI strings localized in all 8 locales
+
 ---
 
 ## Associated files
@@ -117,6 +136,12 @@ Premium endpoints return `200` during the install-wide 14-day trial; the gate on
 - [widget-defaults.test.ts](../../../tests/unit/dashboard/widget-defaults.test.ts)
 - [dashboard-page-server.test.ts](../../../tests/unit/routes/dashboard-page-server.test.ts)
 - [dashboard-license-gate.test.ts](../../../tests/unit/api/dashboard-license-gate.test.ts)
+- [dashboard-runtime.test.ts](../../../tests/unit/dashboard/dashboard-runtime.test.ts)
+- [dashboard-sandbox.test.ts](../../../tests/unit/dashboard/dashboard-sandbox.test.ts)
+- [dashboard-storage.test.ts](../../../tests/unit/dashboard/dashboard-storage.test.ts)
+- [dashboard-presets.test.ts](../../../tests/unit/dashboard/dashboard-presets.test.ts)
+- [dashboard-contract.test.ts](../../../tests/unit/dashboard/dashboard-contract.test.ts)
+- [base-widget-interaction.test.ts](../../../tests/unit/components/dom/base-widget-interaction.test.ts) (component suite)
 
 ### Integration
 
@@ -128,6 +153,7 @@ Premium endpoints return `200` during the install-wide 14-day trial; the gate on
 
 ```bash
 bun run test:unit -- tests/unit/dashboard tests/unit/routes/dashboard-page-server.test.ts
+bun run test:unit:components -- tests/unit/components/dom/base-widget-interaction.test.ts
 bun x playwright test tests/e2e/routes/dashboard
 ```
 

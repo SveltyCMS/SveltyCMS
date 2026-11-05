@@ -107,6 +107,24 @@ Across all scenarios, AES-256-GCM encryption introduces less than **18.3 µs** o
 
 Use hashing or a separate searchable token if you must look up a secret. Do not combine `encrypt: true` with `unique: true`.
 
+## Key-material hygiene
+
+Envelope decryption and derivation create short-lived plaintext buffers. They are
+zeroed in a `finally` block as soon as the caller has the value it needs, so a
+crash dump or heap snapshot taken after the operation does not contain the
+plaintext field, DEK, or HMAC state:
+
+- `hybridSeal` / `hybridOpen` already zero the DEK and wrapped KEK (`src/utils/security/hybrid-kem.ts`); `encryptFieldValue` / `decryptFieldValue` zero the encoded plaintext buffer after the envelope is produced or parsed.
+- `decryptFieldValueSync` zeroes the decrypted AES-GCM `Buffer` after `JSON.parse`.
+- `hashSharePassword` / `verifySharePassword` zero the scrypt-derived digest, pepper, and expected-hash buffers.
+- `hmacSha256VerifyWithKeys` zeroes the parsed signature and each HMAC candidate.
+
+JS strings cannot be wiped in place: a secret that only ever exists as a string
+remains in the V8 heap until GC. The zeroing above covers every path where the
+code already holds a `Buffer`/`Uint8Array`, which is the only place the wipe is
+meaningful. There is no measurable cost — `fill(0)` on a 32-byte buffer is a
+sub-microsecond operation.
+
 ## Key rotation
 
 Rotating `ENCRYPTION_KEY` orphans existing envelopes (same as TOTP secrets and plugin settings). Plan a re-encrypt maintenance window: read with the old key, write with the new key. See [Secrets Inventory](./secrets-inventory.mdx).

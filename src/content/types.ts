@@ -298,6 +298,8 @@ export interface MinimalSchema {
   name?: ContentTypes | string;
   fields: FieldDefinition[];
   hooks?: SchemaHooks;
+  instructions?: string;
+  agentInstructions?: string;
   [key: string]: any;
 }
 
@@ -399,6 +401,13 @@ export interface Schema {
   formEnabled?: boolean;
   /** Unified Data Hub: virtual enrichment previews in entry editor sidebar */
   federationEnrichments?: FederationEnrichment[];
+  /**
+   * Natural language guidance for AI agents (and human editors) working with this collection.
+   * Explains business context, field relationships, and authoring guidelines.
+   */
+  instructions?: string;
+  /** Synonym / alias for AI agent instructions */
+  agentInstructions?: string;
 }
 
 export interface MinimalContentNode {

@@ -304,6 +304,8 @@ function extractScriptBodies(content: string): {
 } {
   const stripped = content.replace(/```[\s\S]*?```/g, blankOut);
   const bodies: { body: string; start: number }[] = [];
+  // Detection only: this extracts <script> bodies to scan them; it is not a sanitizer.
+  // codeql[js/bad-html-filtering-regexp]
   for (const m of stripped.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
     bodies.push({ body: m[1], start: m.index! + m[0].indexOf(">") + 1 });
   }
@@ -517,6 +519,8 @@ async function scanSvelteFile(
         !hasAccessibleName &&
         (tagName === "a" || tagName === "button" || tagName === "textarea")
       ) {
+        // Detection only: strips tags to inspect visible text for the a11y lint.
+        // codeql[js/incomplete-multi-character-sanitization]
         const visible = (rest.split(closeTagRe)[0] ?? "").replace(/<[^>]*>/g, "");
         if (/[a-zA-Z0-9\u00C0-\u017F]/.test(visible)) hasAccessibleName = true;
       }

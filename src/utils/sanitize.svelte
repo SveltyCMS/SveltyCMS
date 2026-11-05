@@ -32,6 +32,7 @@
 	// ── Module-scope sanitizer instance (lazy-init) ──
 	let DOMPurify: any;
 	let addHook: any;
+	let hookAdded = false;
 	let sanitized = $state('');
 
 	// ── Profiles (shared between SSR and client) ──
@@ -116,7 +117,37 @@
 			DOMPurify = createDOMPurify(window);
 		}
 
-		addHook = DOMPurify.addHook;
+		addHook = DOMPurify?.addHook;
+
+		// URL validation hook registered once upon initialization (client and server)
+		if (addHook && !hookAdded) {
+			hookAdded = true;
+			addHook('afterSanitizeAttributes', (node: any) => {
+				if (node.tagName === 'A' && node.hasAttribute('href')) {
+					const href = node.getAttribute('href');
+					const isProtocolRelative = href ? href.startsWith('//') || href.startsWith('/\\') : false;
+					if (
+						href &&
+						(!href.match(/^(https?:|mailto:|\/|#)/) || isProtocolRelative) &&
+						!href.startsWith('data:')
+					) {
+						node.removeAttribute('href');
+					} else if (href?.match(/^https?:/)) {
+						node.setAttribute('rel', 'noopener noreferrer');
+						if (node.getAttribute('target') !== '_blank') {
+							node.removeAttribute('target');
+						}
+					}
+				}
+				if (node.tagName === 'IMG' && node.hasAttribute('src')) {
+					const src = node.getAttribute('src');
+					const isProtocolRelative = src ? src.startsWith('//') || src.startsWith('/\\') : false;
+					if (src && (!src.match(/^(https?:|data:|\/)/) || isProtocolRelative)) {
+						node.removeAttribute('src');
+					}
+				}
+			});
+		}
 	}
 
 	// ── Sanitization logic ──
@@ -132,30 +163,6 @@
 			ALLOWED_ATTR: PROFILES[profile].ALLOWED_ATTR,
 			ALLOW_DATA_ATTR: PROFILES[profile].ALLOW_DATA_ATTR
 		};
-
-		// URL validation hook (client-side only — hooks require DOM)
-		if (addHook) {
-			addHook('afterSanitizeAttributes', (node: any) => {
-				if (node.tagName === 'A' && node.hasAttribute('href')) {
-					const href = node.getAttribute('href');
-					if (href && !href.match(/^(https?:|mailto:|\/|#)/) && !href.startsWith('data:')) {
-						node.removeAttribute('href');
-					}
-					if (href?.match(/^https?:/)) {
-						node.setAttribute('rel', 'noopener noreferrer');
-						if (node.getAttribute('target') !== '_blank') {
-							node.removeAttribute('target');
-						}
-					}
-				}
-				if (node.tagName === 'IMG' && node.hasAttribute('src')) {
-					const src = node.getAttribute('src');
-					if (src && !src.match(/^(https?:|data:|\/)/)) {
-						node.removeAttribute('src');
-					}
-				}
-			});
-		}
 
 		sanitized = DOMPurify.sanitize(html, config);
 	}

@@ -31,6 +31,15 @@ import type {
 
 const ALLOWED_USER_FIELDS = ["_id", "email", "username", "role", "avatar", "language", "name"];
 
+/** 🛡️ Safely traverse dot-separated paths while forbidding prototype pollution access */
+function safePathResolve(target: unknown, parts: string[]): unknown {
+  return parts.reduce((curr: any, key: string) => {
+    if (curr === null || curr === undefined) return undefined;
+    if (key === "__proto__" || key === "constructor" || key === "prototype") return undefined;
+    return curr[key];
+  }, target);
+}
+
 class TokenRegistryService {
   private readonly resolvers = new Map<string, (ctx: TokenContext) => unknown>();
   private readonly cache = new Map<
@@ -67,7 +76,7 @@ class TokenRegistryService {
         if (!settings && this.siteResolver) {
           settings = await this.siteResolver();
         }
-        return parts.slice(1).reduce((curr: any, key) => curr?.[key], settings);
+        return safePathResolve(settings, parts.slice(1));
       } catch (e) {
         logger.error(`Failed to resolve site token ${tokenKey}:`, e);
         return undefined;
@@ -86,7 +95,7 @@ class TokenRegistryService {
       }
     }
 
-    return tokenKey.split(".").reduce((curr: any, key) => curr?.[key], ctx);
+    return safePathResolve(ctx, tokenKey.split("."));
   }
 
   clearCache() {

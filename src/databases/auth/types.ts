@@ -144,6 +144,7 @@ export interface SessionMetadata {
   mfaVerifiedAt?: ISODateString;
   permMask?: string | bigint;
   permRev?: number;
+  issuedAtMs?: number;
 }
 
 export interface SessionData {
@@ -152,6 +153,7 @@ export interface SessionData {
   mfaVerifiedAt?: ISODateString;
   permMask?: bigint;
   permRev?: number;
+  issuedAtMs?: number;
 }
 
 // Token Interface
@@ -218,6 +220,7 @@ export interface SessionStore {
     amr: string[],
     mfaVerifiedAt?: ISODateString,
   ): Promise<void>;
+  refreshSessionIssuedAt?(sessionId: DatabaseId, newIssuedAtMs?: number): Promise<void>;
   validateWithDB(
     sessionId: DatabaseId,
     dbValidationFn: (sessionId: DatabaseId) => Promise<User | null>,

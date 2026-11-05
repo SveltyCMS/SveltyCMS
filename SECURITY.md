@@ -20,6 +20,22 @@ SveltyCMS is built with defense in depth: a fail-closed API permission map, a li
 📋 **Security.txt**: [static/.well-known/security.txt](./static/.well-known/security.txt)  
 🇪🇺 **EU Directive 2006/114/EC Compliant**: All competitive comparisons use verifiable public data.
 
+## Advisory and evidence
+
+- **Security case (dated evidence map)**: [docs/reference/security/security-case.mdx](./docs/reference/security/security-case.mdx)
+- **Advisory process**: [docs/reference/security/advisory-process.mdx](./docs/reference/security/advisory-process.mdx)
+- **Patch latency**: [docs/reference/security/patch-latency.mdx](./docs/reference/security/patch-latency.mdx)
+
+As of 2026-11-05, an external penetration test **has not been performed**. The machine-readable record in [`docs/security/external-validation.json`](./docs/security/external-validation.json) shows `pending` for the penetration test, bug bounty, OpenSSF Scorecard, SLSA, and Sigstore. Internal scanner and regression results are self-assessments, not an audit.
+
+### AI-assisted security
+
+- AI tools may draft triage notes, regression tests, threat models, and advisory text.
+- A named human maintainer reviews and signs every security fix before merge.
+- Model output is untrusted input and is reviewed like any external contribution.
+- No secrets, credentials, or customer data are sent to models.
+- Self-assessments are labelled; model output is not presented as independent validation.
+
 ## Supported Versions
 
 Only the latest release on the `next` branch is supported.  

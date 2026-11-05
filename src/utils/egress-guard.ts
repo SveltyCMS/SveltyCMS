@@ -13,12 +13,132 @@
  */
 
 import dns from "node:dns/promises";
+import { lookup as dnsCallbackLookup } from "node:dns";
 import net from "node:net";
 import { logger } from "@utils/logger";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 const DEFAULT_MAX_REDIRECTS = 5;
+const PINNED_DNS_TTL_MS = 15_000;
+
+interface DnsPinEntry {
+  address: string;
+  family: number;
+  expiresAt: number;
+}
+
+const dnsPinCache = new Map<string, DnsPinEntry>();
+
+/**
+ * Pins a pre-resolved safe IP for a hostname to prevent DNS rebinding TOCTOU attacks
+ * and eliminate secondary DNS lookup latency during outbound HTTP connections.
+ */
+export function pinDnsResolution(hostname: string, address: string, family = 4): void {
+  const now = Date.now();
+  dnsPinCache.set(hostname.toLowerCase(), {
+    address,
+    family,
+    expiresAt: now + PINNED_DNS_TTL_MS,
+  });
+  if (dnsPinCache.size > 1000) {
+    for (const [key, entry] of dnsPinCache) {
+      if (entry.expiresAt <= now) dnsPinCache.delete(key);
+    }
+    if (dnsPinCache.size > 1000) {
+      const oldest = dnsPinCache.keys().next().value;
+      if (oldest) dnsPinCache.delete(oldest);
+    }
+  }
+}
+
+export function getPinnedDnsResolution(hostname: string): DnsPinEntry | null {
+  const hit = dnsPinCache.get(hostname.toLowerCase());
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    dnsPinCache.delete(hostname.toLowerCase());
+    return null;
+  }
+  return hit;
+}
+
+let pinnedFetchPromise: Promise<PinnedFetch | undefined> | null = null;
+
+interface PinnedFetch {
+  dispatcher: unknown;
+  fetch: typeof globalThis.fetch;
+}
+
+/**
+ * Node's built-in `fetch` uses its own bundled undici instance, which rejects a
+ * dispatcher created by the npm `undici` package (`invalid onRequestStart method`).
+ * Pair the pinned Agent with the matching undici `fetch`; on Bun (or when the
+ * optional dependency is absent) fall back to the global fetch without pinning.
+ */
+async function getPinnedFetch(): Promise<PinnedFetch | undefined> {
+  if (
+    typeof process === "undefined" ||
+    (process as { versions?: { bun?: string } }).versions?.bun
+  ) {
+    return undefined;
+  }
+  if (!pinnedFetchPromise) {
+    pinnedFetchPromise = (async () => {
+      try {
+        const { Agent, fetch: undiciFetch } = await import("undici");
+        const dispatcher = new Agent({
+          connect: {
+            lookup: ((
+              hostname: string,
+              opts: { all?: boolean } | undefined,
+              cb: (
+                err: Error | null,
+                address: string | Array<{ address: string; family: number }>,
+                family?: number,
+              ) => void,
+            ) => {
+              const pinned = getPinnedDnsResolution(hostname);
+              if (pinned) {
+                if (opts?.all) {
+                  cb(null, [{ address: pinned.address, family: pinned.family }], 0);
+                } else {
+                  cb(null, pinned.address, pinned.family);
+                }
+                return;
+              }
+              dnsCallbackLookup(
+                hostname,
+                opts as never,
+                (
+                  err: NodeJS.ErrnoException | null,
+                  address: string | Array<{ address: string; family: number }>,
+                  family?: number,
+                ) => {
+                  if (err) {
+                    cb(err, "", 4);
+                    return;
+                  }
+                  cb(null, address, family);
+                },
+              );
+            }) as never,
+          },
+        });
+        return {
+          dispatcher,
+          fetch: undiciFetch as unknown as typeof globalThis.fetch,
+        };
+      } catch (err) {
+        logger.warn(
+          "[EgressGuard] DNS pinning disabled: the optional `undici` package is unavailable or incompatible.",
+          err,
+        );
+        return undefined;
+      }
+    })();
+  }
+  return pinnedFetchPromise;
+}
 
 const BLOCKED_IP_RANGES = [
   /^127\./, // Loopback
@@ -95,6 +215,23 @@ export interface EgressOptions {
   maxRedirects?: number;
   timeoutMs?: number;
   maxSizeBytes?: number;
+  /** Allowed hostnames (exact string or RegExp) or a Set of allowed hostnames */
+  allowedHosts?: (string | RegExp)[] | Set<string>;
+  /** Allowed origin strings (e.g. 'https://api.example.com') or a Set of allowed origins */
+  allowedOrigins?: string[] | Set<string>;
+  /** Custom scope filter predicate receiving the parsed URL */
+  urlScope?: (url: URL) => boolean;
+  /**
+   * Whether to forbid protocol downgrade (e.g. https: -> http:) on redirects.
+   * Defaults to true.
+   */
+  disallowProtocolDowngrade?: boolean;
+  /**
+   * Test seam: replace the network implementation. When set, the pinned DNS
+   * dispatcher is bypassed (unit tests stub this instead of opening sockets).
+   * @internal
+   */
+  fetchImpl?: typeof fetch;
 }
 
 export interface EgressResult {
@@ -154,6 +291,10 @@ function isBlockedIP(ip: string, allowPrivate: boolean): boolean {
  * SSRF and DNS Rebinding attacks.
  */
 export async function validateEgressUrl(url: string, options: EgressOptions = {}): Promise<URL> {
+  if (typeof url === "string" && (url.trim().startsWith("//") || url.trim().startsWith("/\\"))) {
+    throw new EgressError(`Protocol-relative URL forbidden: ${url}`);
+  }
+
   let parsed: URL;
 
   try {
@@ -190,15 +331,49 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
     throw new EgressError(`Blocked internal host: ${hostname}`);
   }
 
-  // If it's already an IP, check it directly
+  // Scope constraints: allowedOrigins, allowedHosts, urlScope
+  if (options.allowedOrigins) {
+    const originMatched =
+      options.allowedOrigins instanceof Set
+        ? options.allowedOrigins.has(parsed.origin)
+        : options.allowedOrigins.includes(parsed.origin);
+    if (!originMatched) {
+      throw new EgressError(`Origin not in allowedOrigins list: ${parsed.origin}`);
+    }
+  }
+
+  if (options.allowedHosts) {
+    let hostMatched = false;
+    if (options.allowedHosts instanceof Set) {
+      hostMatched = options.allowedHosts.has(hostname);
+    } else {
+      hostMatched = options.allowedHosts.some((pattern) => {
+        if (typeof pattern === "string") return pattern.toLowerCase() === hostname;
+        return pattern.test(hostname);
+      });
+    }
+    if (!hostMatched) {
+      throw new EgressError(`Hostname not in allowedHosts list: ${hostname}`);
+    }
+  }
+
+  if (options.urlScope && !options.urlScope(parsed)) {
+    throw new EgressError(`URL does not satisfy urlScope predicate: ${parsed.href}`);
+  }
+
+  // If it's already an IP, check it directly and pin the literal so the
+  // connector cannot re-resolve anything else for this request.
   if (net.isIP(hostname)) {
     if (isBlockedIP(hostname, allowPrivate)) {
       throw new EgressError(`Blocked private IP: ${hostname}`);
     }
+    pinDnsResolution(hostname, hostname, net.isIPv6(hostname) ? 6 : 4);
     return parsed;
   }
 
   // DNS resolution to prevent SSRF via malicious domains (e.g., safe.com → 127.0.0.1)
+  let safeAddress: string | null = null;
+  let safeFamily = 4;
   try {
     const addresses = await dns.lookup(hostname, { all: true });
     for (const addr of addresses) {
@@ -207,10 +382,18 @@ export async function validateEgressUrl(url: string, options: EgressOptions = {}
           `Hostname resolves to blocked private IP (${addr.address}): ${hostname}`,
         );
       }
+      if (!safeAddress) {
+        safeAddress = addr.address;
+        safeFamily = addr.family || 4;
+      }
     }
   } catch (err: unknown) {
     if (err instanceof EgressError) throw err;
     throw new EgressError(`DNS resolution failed for host: ${hostname}`);
+  }
+
+  if (safeAddress) {
+    pinDnsResolution(hostname, safeAddress, safeFamily);
   }
 
   return parsed;
@@ -229,8 +412,25 @@ export async function safeFetch(
     maxRedirects = DEFAULT_MAX_REDIRECTS,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     maxSizeBytes = DEFAULT_MAX_SIZE_BYTES,
+    allowedHosts,
+    allowedOrigins,
+    urlScope,
+    disallowProtocolDowngrade = true,
+    fetchImpl,
     ...fetchOptions
   } = options;
+
+  const egressOpts: EgressOptions = {
+    allowHttp,
+    allowPrivate,
+    maxRedirects,
+    timeoutMs,
+    maxSizeBytes,
+    allowedHosts,
+    allowedOrigins,
+    urlScope,
+    disallowProtocolDowngrade,
+  };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -239,17 +439,35 @@ export async function safeFetch(
     let currentUrl = initialUrl;
     let redirectsCount = 0;
     let response: Response | null = null;
+    let initialProtocol: string | null = null;
 
     let redirecting = true;
-    // Manual redirect loop: re-validate each hop against SSRF rules
+    // Manual redirect loop: re-validate each hop against SSRF rules & scopes
     do {
-      const validatedUrl = await validateEgressUrl(currentUrl, { allowHttp, allowPrivate });
+      const validatedUrl = await validateEgressUrl(currentUrl, egressOpts);
 
-      response = await fetch(validatedUrl.toString(), {
+      if (!initialProtocol) {
+        initialProtocol = validatedUrl.protocol;
+      } else if (
+        disallowProtocolDowngrade &&
+        initialProtocol === "https:" &&
+        validatedUrl.protocol === "http:"
+      ) {
+        throw new EgressError("Redirect protocol downgrade forbidden: https: -> http:");
+      }
+
+      const pinned = fetchImpl ? undefined : await getPinnedFetch();
+      const fetchToUse = fetchImpl ?? pinned?.fetch ?? fetch;
+      const fetchInit: RequestInit & { dispatcher?: unknown } = {
         ...fetchOptions,
         signal: controller.signal,
         redirect: "manual",
-      });
+      };
+      if (pinned) {
+        fetchInit.dispatcher = pinned.dispatcher;
+      }
+
+      response = await fetchToUse(validatedUrl.toString(), fetchInit as RequestInit);
 
       const isRedirect = [301, 302, 303, 307, 308].includes(response.status);
       if (isRedirect) {

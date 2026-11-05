@@ -277,6 +277,9 @@ jobs:
               bun run check:seams
               bun run version:verify
               echo "::endgroup::"
+              echo "::group::security assurance (ledger, threat model, test strength, external validation)"
+              bun run security:assurance
+              echo "::endgroup::"
               echo "::group::typecheck (tsc + svelte-check)"
               bun run typecheck
               echo "::endgroup::"

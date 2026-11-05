@@ -2,7 +2,7 @@
   <img width="200" alt="SveltyCMS logo" src="https://raw.githubusercontent.com/SveltyCMS/SveltyCMS/main/static/SveltyCMS.png">
 </p>
 
-<h1 align="center"><strong>SveltyCMS - Headless CMS with Sveltekit Power</strong></h1>
+<h1 align="center"><strong>SveltyCMS - Headless CMS with SvelteKit Power</strong></h1>
 <p align="center"><strong><a href="https://SveltyCMS.com">SveltyCMS.com</a></strong> <img src="https://img.shields.io/github/package-json/v/SveltyCMS/SveltyCMS?color=blue&style=flat-square&label=" alt="Version" style="vertical-align: middle;"></p>
 <p align="center"><strong>(Still in Development — your support is appreciated!)</strong></p>
 
@@ -22,7 +22,7 @@
 </div>
 
 <div align="center">
-  <a href="https://kit.svelte.dev"><img src="https://img.shields.io/badge/SvelteKit-V3%20RC-FF3E00?logo=svelte" alt="SvelteKit"></a>
+  <a href="https://kit.svelte.dev"><img src="https://img.shields.io/badge/SvelteKit-V3-FF3E00?logo=svelte" alt="SvelteKit"></a>
   <a href="https://voidzero.dev"><img src="https://img.shields.io/badge/Toolchain-Vite%2B-646CFF?logo=vite" alt="Vite+"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript" alt="TypeScript"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js" alt="Node.js"></a>
@@ -35,17 +35,17 @@
   <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
 </p>
 
-<h2 align="center">A powerful Enterprise Headless CMS with Sveltekit Power</h2>
+<h2 align="center">A powerful Enterprise Headless CMS with SvelteKit Power</h2>
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend</strong></h3>
 
-This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 3 / Svelte 5](https://svelte.dev) framework (on the SvelteKit 3 release-candidate — see [svelte.dev/blog/sveltekit-3-release-candidate](https://svelte.dev/blog/sveltekit-3-release-candidate)). Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://orm.drizzle.team/)).
+This SveltyCMS headless CMS provides a powerful backend based on a modern [SvelteKit 3 / Svelte 5](https://svelte.dev) framework. Being designed to be database agnostic, we fully support **MongoDB**, **PostgreSQL**, **SQLite**, and **MariaDB/MySQL** (via [Drizzle ORM](https://orm.drizzle.team/)).
 
 You can define Content Collections in two ways: in code or via the GUI-based collection builder. Full TypeScript support and a rich widget library make it straightforward to build custom data structures.
 
 All widget fields support localization, validation using [Valibot](https://valibot.dev), and access control.
 
-System localization uses [Inlang Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), a lightweight, type-safe i18n library. **English and German ship by default.** Additional admin UI languages can be added in Setup (writes `project.inlang/settings.json` and runs machine translate) or by hand — see [System Languages](./docs/guides/configuration/system-languages.mdx).
+System localization uses [Inlang Paraglide JS v3](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), a lightweight, type-safe i18n library. **English and German ship by default.** Additional admin UI languages can be added in Setup (writes `project.inlang/settings.json` and runs machine translate) or by hand — see [System Languages](./docs/guides/configuration/system-languages.mdx).
 
 We use the latest [tailwindcss v4](https://tailwindcss.com), so the CMS can be quickly optimized to your personal needs.
 
@@ -86,20 +86,14 @@ Most CMS architectures treat security as an expensive middleware tax: every requ
 
 Get up and running fast:
 
-> 🐳 **Prefer a container?** No Node/Bun needed — the official image defaults to SQLite:
->
-> ```bash
-> docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest
-> ```
->
-> Open http://localhost:4173 — the Setup Wizard runs on first start.
+> 🐳 **Prefer a container?** SveltyCMS does not publish a prebuilt image. Build one from the multi-stage `Dockerfile` in [Production deployment](./docs/guides/deployment/production-deployment.mdx#docker), or use the example `docker-compose.example.yml` in the repository root.
 
 1. **Clone and install**
 
 ```bash
 git clone https://github.com/SveltyCMS/SveltyCMS.git
 cd SveltyCMS
-bun install  # or npm install --legacy-peer-deps / pnpm install
+bun install  # or npm install / pnpm install
 ```
 
 2. **Start dev server** (guided installer auto-launches)
@@ -176,7 +170,7 @@ bun build/index.js
 <summary><b>npm</b></summary>
 
 ```bash
-# Install all dependencies (use --legacy-peer-deps for SvelteKit 3 RC peer resolution)
+# Install all dependencies (add --legacy-peer-deps only if npm reports peer conflicts)
 npm install --legacy-peer-deps
 
 # Development (CLI installer launches automatically if needed)
@@ -236,7 +230,7 @@ We use the unified **Vite+ (VoidZero)** toolchain and support dual-target execut
 - **Production Build**: `bun run build` (or `npm run build`)
 - **Production Server (Node.js)**: `npm run start:node` or `node index.cjs` (standard production server powered by Node 24 V8 engine)
 - **Production Server (Bun)**: `bun run start:bun` (native high-throughput `Bun.serve` runtime) or `bun index.cjs` (the shared `node:http` entry on the Bun runtime)
-- **Container**: `docker run -d -p 4173:4173 -v svelty_data:/app/config ghcr.io/sveltycms/sveltycms:latest` (official multi-arch image, SQLite default)
+- **Container (self-built)**: no prebuilt image is published. Use the multi-stage `Dockerfile` and the compose example in [Production deployment](./docs/guides/deployment/production-deployment.mdx#docker).
 - **Preview**: `bun run preview` (runs on `localhost:4173`)
 - **Linting**: `bun run check` (oxfmt + oxlint — project-wide checks in <50ms)
 
@@ -346,19 +340,19 @@ Self-measured suites under `tests/benchmarks/` with per-DB MDX reports. **Not** 
 
 | Area                           | Notes                                                                                                                              |
 | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **4 database adapters**        | SQLite (embedded), PostgreSQL / MariaDB / MongoDB (Docker local)                                                                   |
+| **4 database adapters**        | SQLite (embedded), PostgreSQL / MariaDB / MongoDB (local containers)                                                               |
 | **Optional Redis L2**          | Cache variants in the matrix runner                                                                                                |
 | **List / count product layer** | `findPage` vs legacy list+count; count estimate vs exact; L1 count cache hits (~0.024 ms **for count only**, not full list bodies) |
 | **Reports**                    | `docs/project/benchmarks/benchmark_<db>.mdx`                                                                                       |
 
 ### Order-of-magnitude results (self-measured; re-run to refresh)
 
-| Layer                                        | Typical self-measured class                |
-| -------------------------------------------- | ------------------------------------------ |
-| SQLite adapter FIND ONE                      | ~0.05–0.08 ms                              |
-| Networked adapter FIND/INSERT (local Docker) | ~0.5–2+ ms (RTT-bound)                     |
-| `findPage` vs dual `findMany`+`count`        | ~1.6–5.7× on that path (2026-08-04 matrix) |
-| L1 count cache hit                           | ~0.024–0.029 ms (all four engines)         |
+| Layer                                           | Typical self-measured class                |
+| ----------------------------------------------- | ------------------------------------------ |
+| SQLite adapter FIND ONE                         | ~0.05–0.08 ms                              |
+| Networked adapter FIND/INSERT (local container) | ~0.5–2+ ms (RTT-bound)                     |
+| `findPage` vs dual `findMany`+`count`           | ~1.6–5.7× on that path (2026-08-04 matrix) |
+| L1 count cache hit                              | ~0.024–0.029 ms (all four engines)         |
 
 Methodology and EU-safe competitive framing: [benchmarks](./docs/project/benchmarks/index.mdx) · [performance architecture](./docs/reference/database/performance-architecture.mdx) · [two-plane core](./docs/reference/architecture/two-plane-core.mdx) · [achievements log](./docs/project/achievements-2026.mdx).
 
@@ -462,8 +456,7 @@ next:  feat: add media gallery    ─┐
                                  (feat → minor, breaking → major, else patch)
                               ├─ git tag vX.Y.Z (from the bumped package.json)
                               ├─ GitHub Release with auto-generated notes
-                              ├─ npm publish → npmjs.com (best-effort)
-                              └─ Docker image → ghcr.io/sveltycms/sveltycms
+                              └─ npm publish → npmjs.com (best-effort)
 ```
 
 - **`next` branch**: Active development — all features and fixes land here. No releases.

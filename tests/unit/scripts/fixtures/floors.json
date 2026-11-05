@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "updated_at": "2026-11-05",
+  "default": 55,
+  "floors": {
+    "src/utils/": 40,
+    "src/databases/auth/": 60,
+    "src/utils/security/": 65,
+    "src/utils/egress-guard.ts": 65,
+    "src/services/sdk/namespaces/collections/write-pipeline.ts": 55,
+    "src/unreported/": 90
+  }
+}
