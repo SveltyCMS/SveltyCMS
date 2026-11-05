@@ -70,12 +70,15 @@ async function seedCollectionFixture(page: Page, prefix: string): Promise<Collec
   return { id, name: id };
 }
 
-/** Wait for the next collections write (POST create / PATCH update) and assert it succeeded. */
-async function expectWriteOk(page: Page, method: "POST" | "PATCH", action: string) {
+/** Wait for the next collections write (POST create / PATCH update / DELETE removal) and assert it succeeded. */
+async function expectWriteOk(page: Page, method: "POST" | "PATCH" | "DELETE", action: string) {
   const response = await page
     .waitForResponse(
       (res) =>
-        res.request().method() === method &&
+        (method === "DELETE"
+          ? res.request().method() === "DELETE" ||
+            (res.request().method() === "POST" && new URL(res.url()).pathname.endsWith("/batch"))
+          : res.request().method() === method) &&
         /\/api\/collections\//.test(new URL(res.url()).pathname) &&
         !new URL(res.url()).pathname.endsWith("/drafts"),
       { timeout: 25_000 },
@@ -276,11 +279,13 @@ test.describe("Collection entries (edit / delete / search / error boundary)", ()
     // The menu item only ARMS the action — the main split button executes it
     // (which opens the confirm dialog).
     await page.getByTestId("entry-list-action-delete").first().click();
+    const deleteWrite = expectWriteOk(page, "DELETE", 'Delete "Delete Me"');
     await confirmModal(page);
+    await deleteWrite;
 
     // Delete is restorable by default, so the truthful toast reads "moved to the Trash";
     // keep the assertion on intent (a success toast that names what happened), not on one wording.
-    await expect(page.getByText(/moved to the trash|deleted|archived/i).first()).toBeVisible({
+    await expect(page.getByText(/moved to the trash|deleted successfully/i).first()).toBeVisible({
       timeout: 25_000,
     });
 
