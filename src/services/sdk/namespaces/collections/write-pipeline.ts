@@ -19,7 +19,7 @@ import {
   payloadTouchesCollectionFieldPreparation,
   prepareCollectionFields,
   type CollectionFieldPrepFlags,
-} from "@src/content/content-utils";
+} from "@src/content/content-write-prep.server";
 import { applySchemaHookPipeline, type SchemaHookPipelineOptions } from "@src/content/schema-hooks";
 import { modifyRequest, type EntryData } from "@utils/modify-request";
 import { AppError } from "@utils/error-handling";

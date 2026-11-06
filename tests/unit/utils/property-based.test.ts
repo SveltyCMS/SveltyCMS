@@ -22,7 +22,8 @@
 
 import { describe, it, expect } from "vitest";
 import fc from "fast-check";
-import { sanitizeHtml, stripHtml } from "@utils/sanitize-html";
+import { sanitizeHtml } from "@utils/sanitize-html.server";
+import { stripHtml } from "@utils/sanitize-html";
 
 // ---------------------------------------------------------------------------
 // sanitize-html properties

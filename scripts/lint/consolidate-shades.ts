@@ -260,7 +260,7 @@ if (CHECK) {
       `[check] ${changes.length} tokens violate the status-shade contract across ${filesChanged} files:`,
     );
     console.log(changes.join("\n"));
-    console.log("Run `bun run scripts/consolidate-shades.ts` to apply the fixes.");
+    console.log("Run `bun run scripts/lint/consolidate-shades.ts` to apply the fixes.");
   }
 
   if (textTextViolations.length > 0) {

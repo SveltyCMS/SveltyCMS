@@ -159,7 +159,7 @@ Rules:
 
 ### Deliberate exceptions
 
-- **Filled `warning` surfaces use dark text** (`{hue}-900`/`-950`), not white — white-on-amber fails WCAG AA (restart-required banner, highlighted search terms).
+- **Filled `warning` surfaces use dark text**, never white — white-on-amber fails WCAG AA (restart-required banner, highlighted search terms). Wash components (`bg-warning-500/10`) use `text-warning-700`/`-800` as before; **solid** fills (`preset-filled-warning-*`) use `text-surface-950`, because the `warning-950` step is not dark enough on this ramp: measured 4.72:1 for `warning-950` on `warning-500` versus 9.05:1 for `surface-950`, and 3.62:1 versus 6.94:1 on `warning-600`.
 - **Light text on dark status surfaces** (`text-{hue}-50`/`-100` on `bg-{hue}-900/*`) stays paired — error toasts, dark modal tinting.
 - **Decorative brand hues** (`indigo`, `purple`, `pink`, `violet`, `teal`, `cyan`) are allowed for seasonal effects, preset swatches, FloatingNav spokes and non-theme data viz — never for status semantics.
 - `{hue}-900` / `-950` solid fills and `{hue}-900/10` remain valid dark-surface accents; `{hue}-400` solid is allowed for small status dots on dark surfaces.

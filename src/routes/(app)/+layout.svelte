@@ -684,7 +684,9 @@ This layout provides the administrative shell, including sidebars and header con
 								aria-label={applayout_page_actions()}
 								aria-live="polite"
 							>
-								<div class="flex items-center justify-end gap-2 px-4 py-2 max-md:pe-20">
+								<div
+									class="flex items-center justify-end gap-2 px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] max-md:pe-20"
+								>
 									{@render ui.stickyActionContent()}
 								</div>
 							</div>

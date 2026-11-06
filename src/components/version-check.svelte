@@ -140,7 +140,7 @@ refreshed by one mechanism: the hourly interval below.
 	/** Informational fill for `VersionStatus.badgeColor`; the rendered badge uses `variant`. */
 	const SEVERITY_FILL: Record<Severity, string> = {
 		success: 'bg-primary-500 text-white',
-		warning: 'bg-warning-500 text-white',
+		warning: 'bg-warning-500 text-surface-950',
 		critical: 'bg-surface-500 text-white',
 		info: 'bg-surface-500 text-white',
 		unknown: 'bg-surface-500 text-white'
@@ -196,18 +196,29 @@ refreshed by one mechanism: the hourly interval below.
 		lastChecked: state.lastChecked
 	});
 
-	// Get appropriate ARIA label
+	// Get appropriate ARIA label. WCAG 2.5.3 (label-content-name-mismatch): the
+	// accessible name must CONTAIN the visible text, so it is prefixed with the
+	// exact string the pill/badge paints instead of restating the version alone.
+	const visibleVersionLabel = $derived.by(() => {
+		if (effectiveTransparent) return `Ver. ${pkg}`;
+		if (compact) return `v.${pkg}`;
+		if (githubVersion && githubVersion !== pkg && !isLoading) {
+			return `Ver. ${pkg} → ${githubVersion}`;
+		}
+		return `Ver. ${pkg}`;
+	});
+
 	const statusAriaLabel = $derived.by(() => {
 		if (isSetupRoute) {
-			return `Application version ${pkg}`;
+			return `${visibleVersionLabel}: application version ${pkg}`;
 		}
 		if (isLoading) {
-			return 'Checking application version';
+			return `${visibleVersionLabel}: checking application version`;
 		}
 		if (state.error) {
-			return `Version ${pkg}. ${state.error}`;
+			return `${visibleVersionLabel}: version check failed — ${state.error}`;
 		}
-		return `Application version ${pkg}. ${versionStatusMessage}`;
+		return `${visibleVersionLabel}: ${versionStatusMessage}`;
 	});
 
 	/** Maps one API payload onto the single state object. */
@@ -349,8 +360,8 @@ refreshed by one mechanism: the hourly interval below.
 				variant={severityStyle.badge}
 				size="md"
 				class={compact
-					? 'inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500'
-					: 'inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary-500'}
+					? 'inline-flex items-center gap-1 text-xs font-medium hover:opacity-80 focus:opacity-80 px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500'
+					: 'inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-80 focus:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary-500'}
 				aria-label={statusAriaLabel}
 				aria-live="polite"
 			>
@@ -361,7 +372,7 @@ refreshed by one mechanism: the hourly interval below.
 					{:else}
 						Ver. {pkg}
 						{#if githubVersion && githubVersion !== pkg && !isLoading}
-							<span class="opacity-70">→ {githubVersion}</span>
+							<span>→ {githubVersion}</span>
 						{/if}
 					{/if}
 				</span>

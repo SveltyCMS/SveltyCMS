@@ -177,7 +177,7 @@
 								>
 							</div>
 							<div class="flex items-center gap-2 text-end">
-								<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums"
+								<span class="font-semibold text-(--admin-text-body) tabular-nums"
 									>{scim.activeUsers} {widget_scim_active_users()}</span
 								>
 								{#if scim.syncedToday > 0}
@@ -227,9 +227,7 @@
 							<div
 								class="rounded-xl bg-surface-500/10 px-3 py-2 text-center dark:bg-surface-800/50 border border-(--admin-border-default)"
 							>
-								<div
-									class="text-2xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
-								>
+								<div class="text-2xl font-bold tabular-nums text-(--admin-text-body)">
 									{scim.activeUsers}
 								</div>
 								<div
@@ -242,9 +240,7 @@
 							<div
 								class="rounded-xl bg-surface-500/10 px-3 py-2 dark:bg-surface-800/50 border border-(--admin-border-default) flex flex-col justify-between items-center relative overflow-hidden"
 							>
-								<div
-									class="text-2xl font-bold tabular-nums text-(--admin-text-body) dark:text-white"
-								>
+								<div class="text-2xl font-bold tabular-nums text-(--admin-text-body)">
 									{scim.syncedToday}
 								</div>
 								<div

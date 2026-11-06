@@ -199,7 +199,7 @@
 						<!-- Compact single-row layout -->
 						<div class="grid grid-cols-3 gap-2">
 							<div
-								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
+								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-(--admin-border-default)"
 							>
 								<div
 									class="text-[10px] font-semibold text-(--admin-text-muted) uppercase tracking-wider"
@@ -211,7 +211,7 @@
 								</div>
 							</div>
 							<div
-								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
+								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-(--admin-border-default)"
 							>
 								<div
 									class="text-[10px] font-semibold text-(--admin-text-muted) uppercase tracking-wider"
@@ -223,7 +223,7 @@
 								</div>
 							</div>
 							<div
-								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-gray-800"
+								class="rounded bg-surface-500/10 dark:bg-surface-800 p-2.5 shadow-xs text-center border border-transparent dark:border-(--admin-border-default)"
 							>
 								<div
 									class="text-[10px] font-semibold text-(--admin-text-muted) uppercase tracking-wider"
@@ -239,7 +239,7 @@
 						<!-- Key Health Indicators -->
 						<div class="grid grid-cols-2 gap-3">
 							<div
-								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800 flex justify-between items-end"
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-(--admin-border-default) flex justify-between items-end"
 							>
 								<div>
 									<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
@@ -274,7 +274,7 @@
 							</div>
 
 							<div
-								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-(--admin-border-default)"
 							>
 								<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
 									{widget_perf_cache_hit_rate()}
@@ -288,7 +288,7 @@
 							</div>
 
 							<div
-								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-(--admin-border-default)"
 							>
 								<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
 									{widget_perf_auth_success()}
@@ -302,7 +302,7 @@
 							</div>
 
 							<div
-								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-gray-800"
+								class="rounded-2xl bg-surface-500/10 p-4 dark:bg-surface-800 shadow-xs border border-transparent dark:border-(--admin-border-default)"
 							>
 								<div class="text-xs font-semibold text-(--admin-text-muted) mb-1">
 									{widget_perf_active_sessions()}
@@ -326,16 +326,15 @@
 									{widget_perf_requests()}
 								</h4>
 								<div
-									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800"
+									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-(--admin-border-default)"
 								>
 									<span class="text-(--admin-text-muted)">{widget_perf_total()}</span>
-									<span
-										class="font-mono font-semibold tabular-nums text-gray-900 dark:text-gray-100"
+									<span class="font-mono font-semibold tabular-nums text-(--admin-text-body)"
 										>{formatNumber(metrics.requests.total)}</span
 									>
 								</div>
 								<div
-									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-gray-800"
+									class="flex justify-between items-center bg-surface-500/10 dark:bg-surface-800 rounded px-4 py-2.5 border border-transparent dark:border-(--admin-border-default)"
 								>
 									<span class="text-(--admin-text-muted)">{widget_perf_errors()}</span>
 									<span class="font-mono font-semibold tabular-nums text-error-500"
@@ -353,11 +352,11 @@
 										{widget_perf_system()}
 									</h4>
 									<div
-										class="rounded bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-gray-800"
+										class="rounded bg-surface-500/10 dark:bg-surface-800 p-4 space-y-3 border border-transparent dark:border-(--admin-border-default)"
 									>
 										<div class="flex justify-between">
 											<span class="text-(--admin-text-muted)">{widget_perf_memory_used()}</span>
-											<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums">
+											<span class="font-mono text-(--admin-text-body) tabular-nums">
 												{formatMemory(metrics.system.memory.used)}
 												<span class="text-xs text-(--admin-text-muted)"
 													>/ {formatMemory(metrics.system.memory.total)}</span
@@ -366,16 +365,16 @@
 										</div>
 										<div class="flex justify-between">
 											<span class="text-(--admin-text-muted)">{widget_perf_uptime()}</span>
-											<span class="font-mono text-gray-900 dark:text-gray-100 tabular-nums"
+											<span class="font-mono text-(--admin-text-body) tabular-nums"
 												>{formatUptime(metrics.system.uptime)}</span
 											>
 										</div>
 										{#if size.w >= 2}
 											<div
-												class="flex justify-between border-t border-gray-200 dark:border-gray-700/60 pt-2.5 mt-1"
+												class="flex justify-between border-t border-(--admin-border-default) pt-2.5 mt-1"
 											>
 												<span class="text-(--admin-text-muted)">{widget_perf_node()}</span>
-												<span class="font-mono text-xs text-gray-700 dark:text-gray-300"
+												<span class="font-mono text-xs text-(--admin-text-muted)"
 													>{metrics.system.nodeVersion}</span
 												>
 											</div>
@@ -388,7 +387,7 @@
 						<!-- Last Reset timestamp row -->
 						{#if metrics.lastReset}
 							<div
-								class="flex justify-between items-center text-[10px] text-(--admin-text-muted) pt-2 border-t border-gray-150 dark:border-gray-850 px-1"
+								class="flex justify-between items-center text-[10px] text-(--admin-text-muted) pt-2 border-t border-(--admin-border-default) px-1"
 							>
 								<span>{widget_perf_tracked_since()}</span>
 								<span class="font-mono font-medium"

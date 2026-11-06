@@ -104,7 +104,7 @@
 				<Input
 					bind:value={newTodoText}
 					placeholder={widget_todo_placeholder()}
-					inputClass="w-full px-3 py-1.5 rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900 text-xs text-(--admin-text-body) dark:text-white"
+					inputClass="w-full px-3 py-1.5 rounded-xl border border-(--admin-border-default) bg-surface-500/10 dark:bg-surface-900 text-xs text-(--admin-text-body)"
 					aria-label={widget_todo_new_task()}
 				/>
 				<Button type="submit" variant="primary" size="sm" class="shrink-0">

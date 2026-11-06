@@ -148,7 +148,7 @@ A lightweight renderer for the DateRange widget. Formats a `{ start, end }` valu
 	 */
 	const contextClasses = $derived.by(() => {
 		const baseClasses =
-			'ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
+			'ms-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
 		const contextMap = {
 			Current: 'bg-primary-500/10 text-primary-600 dark:bg-primary-900 dark:text-primary-400',
 			Past: 'bg-gray-100 text-(--admin-text-body) dark:bg-gray-700 dark:text-gray-300',

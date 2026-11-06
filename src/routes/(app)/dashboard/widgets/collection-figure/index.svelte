@@ -45,6 +45,7 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	import { buildCollectionDrilldownHref } from '@utils/dashboard-drilldown';
 	import type {
@@ -138,6 +139,30 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 	let customTitle = $state(untrack(() => config?.label || label || 'Collection Metric'));
 	let colorAccent = $state(initialSettings.color || 'tertiary');
 
+	const collectionOptions = $derived(
+		sources.map((src) => ({ value: src.id, label: src.label || src.name }))
+	);
+	const measureOptions = $derived([
+		{ value: 'count', label: widget_figure_count_records() },
+		{ value: 'sum', label: widget_figure_sum() },
+		{ value: 'avg', label: widget_figure_average() },
+		{ value: 'min', label: widget_figure_minimum() },
+		{ value: 'max', label: widget_figure_maximum() }
+	]);
+	const periodOptions = $derived([
+		{ value: 'all', label: widget_figure_all_time() },
+		{ value: 'today', label: widget_figure_today() },
+		{ value: 'week', label: widget_figure_this_week() },
+		{ value: 'month', label: widget_figure_this_month() },
+		{ value: 'year', label: widget_figure_this_year() },
+		{ value: 'last30', label: widget_figure_last_30_days() },
+		{ value: 'last12m', label: widget_figure_last_12_months() }
+	]);
+	const compareOptions = $derived([
+		{ value: 'previous', label: widget_figure_prev_period_pct() },
+		{ value: 'none', label: widget_figure_none() }
+	]);
+
 	// Synchronize when config changes externally
 	$effect(() => {
 		if (config?.settings) {
@@ -217,6 +242,15 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 	// Active collection meta
 	const activeSource = $derived(
 		sources.find((s) => s.id === selectedCollection || s.name === selectedCollection)
+	);
+
+	const numberFieldOptions = $derived(
+		activeSource && activeSource.numberFields.length > 0
+			? activeSource.numberFields.map((field) => ({
+					value: field.name,
+					label: field.label || field.name
+				}))
+			: [{ value: '', label: widget_figure_no_number_fields() }]
 	);
 
 	// Construct dynamic analytics API endpoint
@@ -479,70 +513,34 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 
 			<!-- Collection Source -->
 			<div>
-				<label
-					for="metric-collection-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-				>
-					{widget_figure_collection_label()}
-				</label>
-				<select
+				<Select
 					id="metric-collection-{widgetId}"
+					label={widget_figure_collection_label()}
+					placeholder={widget_figure_loading_collections()}
 					bind:value={selectedCollection}
-					class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-				>
-					{#if sources.length === 0}
-						<option value="">{widget_figure_loading_collections()}</option>
-					{:else}
-						{#each sources as src (src.id)}
-							<option value={src.id}>{src.label || src.name}</option>
-						{/each}
-					{/if}
-				</select>
+					options={collectionOptions}
+				/>
 			</div>
 
 			<!-- Aggregation Measure -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label
-						for="metric-measure-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_figure_measure()}
-					</label>
-					<select
+					<Select
 						id="metric-measure-{widgetId}"
+						label={widget_figure_measure()}
 						bind:value={selectedMeasure}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="count">{widget_figure_count_records()}</option>
-						<option value="sum">{widget_figure_sum()}</option>
-						<option value="avg">{widget_figure_average()}</option>
-						<option value="min">{widget_figure_minimum()}</option>
-						<option value="max">{widget_figure_maximum()}</option>
-					</select>
+						options={measureOptions}
+					/>
 				</div>
 
 				{#if selectedMeasure !== 'count'}
 					<div>
-						<label
-							for="metric-field-{widgetId}"
-							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-						>
-							{widget_figure_number_field()}
-						</label>
-						<select
+						<Select
 							id="metric-field-{widgetId}"
+							label={widget_figure_number_field()}
 							bind:value={selectedField}
-							class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-						>
-							{#if activeSource && activeSource.numberFields.length > 0}
-								{#each activeSource.numberFields as f (f.name)}
-									<option value={f.name}>{f.label || f.name}</option>
-								{/each}
-							{:else}
-								<option value="">{widget_figure_no_number_fields()}</option>
-							{/if}
-						</select>
+							options={numberFieldOptions}
+						/>
 					</div>
 				{/if}
 			</div>
@@ -550,42 +548,21 @@ goal progress, and micro SVG sparklines for any collection in the CMS.
 			<!-- Period & Comparison -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label
-						for="metric-period-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_figure_time_period()}
-					</label>
-					<select
+					<Select
 						id="metric-period-{widgetId}"
+						label={widget_figure_time_period()}
 						bind:value={selectedPeriod}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="all">{widget_figure_all_time()}</option>
-						<option value="today">{widget_figure_today()}</option>
-						<option value="week">{widget_figure_this_week()}</option>
-						<option value="month">{widget_figure_this_month()}</option>
-						<option value="year">{widget_figure_this_year()}</option>
-						<option value="last30">{widget_figure_last_30_days()}</option>
-						<option value="last12m">{widget_figure_last_12_months()}</option>
-					</select>
+						options={periodOptions}
+					/>
 				</div>
 
 				<div>
-					<label
-						for="metric-compare-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_figure_comparison()}
-					</label>
-					<select
+					<Select
 						id="metric-compare-{widgetId}"
+						label={widget_figure_comparison()}
 						bind:value={compareMode}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="previous">{widget_figure_prev_period_pct()}</option>
-						<option value="none">{widget_figure_none()}</option>
-					</select>
+						options={compareOptions}
+					/>
 				</div>
 			</div>
 

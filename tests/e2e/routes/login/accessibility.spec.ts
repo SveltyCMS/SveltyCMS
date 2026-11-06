@@ -62,7 +62,7 @@ const SURFACE_TEXT_CLASS = /text-surface-500/;
  * slightly between requests (theme token resolution / transition), so a hex-pair
  * exemption is unstable; identify the element by its accessible name instead.
  */
-const BRAND_VERSION_BADGE = /aria-label="Application version|v\.\d+\.\d+\.\d+/;
+const BRAND_VERSION_BADGE = /aria-label="(?:Ver\.|v\.)\s?\d+\.\d+\.\d+/;
 
 /**
  * Owner-accepted color pairs — the stable signal when axe truncates a node's

@@ -2,10 +2,11 @@
  * @file tests/unit/media/processing/svg-sanitization.test.ts
  * @description Unit tests for SVG sanitization (XSS/XXE defense).
  *
- * The `sanitizeSvg` function is an iterative scrubber that strips:
- * - Dangerous tags (script, foreignObject, iframe, object, embed)
+ * The `sanitizeSvg` function is a parser-based allowlist scrubber
+ * (`sanitizeSvgMarkup`) that strips:
+ * - Dangerous tags (script, foreignObject, iframe, object, embed, style, animate/set)
  * - Inline event handlers (on* attributes)
- * - javascript:/data: protocol handlers
+ * - javascript:/data: href and xlink:href values (the attribute is removed)
  * - CDATA sections, XML processing instructions, DOCTYPE declarations
  */
 
@@ -21,21 +22,21 @@ describe("sanitizeSvg — script injection", () => {
     expect(sanitizeSvg('<svg><script src="evil.js"/></svg>')).toBe("<svg></svg>");
   });
 
-  it("strips nested script tags — removes the matched <script> pair", () => {
-    // The iterative regex removes the inner <script>...</script> pair.
-    // A dangling <script> without a closing tag is less dangerous (no execution)
-    // but the regex requires open+close pairs.
+  it("neutralizes nested script tag reconstruction", () => {
     const input = "<svg><scr<script>ipt>alert(1)</scr</script>ipt></svg>";
     const result = sanitizeSvg(input);
-    // First pass strips the inner <script>alert(1)</scr</script> pair
-    // leaving <sgv><script></svg> (dangling open tag, no close — won't execute)
-    expect(result).not.toContain("alert");
+    // The parser sees one bogus `<scr<script>` tag; the residue is escaped text,
+    // never a live `<script>` element.
+    expect(result).not.toContain("<script");
     expect(result).toContain("<svg");
   });
 
   it("strips <foreignObject> tags", () => {
     const input = '<svg><foreignObject><div onclick="x()">click</div></foreignObject></svg>';
-    expect(sanitizeSvg(input)).toBe("<svg></svg>");
+    const result = sanitizeSvg(input);
+    expect(result).not.toContain("foreignObject");
+    expect(result).not.toContain("onclick");
+    expect(result).toContain("<svg");
   });
 
   it("strips <iframe> tags", () => {
@@ -75,28 +76,29 @@ describe("sanitizeSvg — event handler removal", () => {
 });
 
 describe("sanitizeSvg — protocol handler blocking", () => {
-  it("blocks javascript: in href", () => {
+  it("drops javascript: in href", () => {
     const result = sanitizeSvg('<svg><a href="javascript:alert(1)">click</a></svg>');
-    expect(result).toContain('#blocked"');
     expect(result).not.toContain("javascript:");
+    expect(result).not.toContain("href=");
   });
 
-  it("blocks javascript: in xlink:href", () => {
+  it("drops javascript: in xlink:href", () => {
     const result = sanitizeSvg('<svg><a xlink:href="javascript:alert(1)">click</a></svg>');
-    expect(result).toContain('#blocked"');
+    expect(result).not.toContain("javascript:");
+    expect(result).not.toContain("xlink:href");
   });
 
-  it("blocks data: in href", () => {
+  it("drops data: in href", () => {
     const result = sanitizeSvg(
       '<svg><a href="data:text/html,<script>alert(1)</script>">click</a></svg>',
     );
-    expect(result).toContain('#blocked"');
     expect(result).not.toContain("data:");
+    expect(result).not.toContain("<script");
   });
 
-  it("blocks javascript: in single-quoted href", () => {
-    const result = sanitizeSvg("<svg><a href='javascript:evil()'>click</a></svg>");
-    expect(result).toContain("#blocked'");
+  it("keeps same-document href references", () => {
+    const result = sanitizeSvg('<svg><use href="#icon"/></svg>');
+    expect(result).toContain('href="#icon"');
   });
 });
 

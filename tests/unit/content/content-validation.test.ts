@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { prepareCollectionFields } from "@src/content/content-utils";
+import { prepareCollectionFields } from "@src/content/content-write-prep.server";
 
 // ─────────────────────────────────────────────────────────────
 // maxLength constraints

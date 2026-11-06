@@ -269,388 +269,401 @@
 		shift every tile up by its height. Intro-only keeps the grid rows stable.
 	-->
 	{#if filteredFiles.length === 0}
-		<div
-			class="col-span-full flex min-h-full flex-col items-center justify-center gap-3 py-16 text-center"
-			in:adminFade={{ duration: 200 }}
-			data-testid="media-grid-empty"
-		>
-			<iconify-icon icon="mdi:cloud-upload-outline" width="48" class="text-(--admin-text-muted)"
-			></iconify-icon>
-			<div class="space-y-1">
-				<h3 class="text-base font-semibold">{mediagallery_no_media()}</h3>
-				<p class="max-w-xs text-sm text-(--admin-text-muted)">
-					{mediagallery_drop_files()}
-				</p>
-			</div>
+		<!-- The grid requires row children (axe `aria-required-children`); the row is
+		     `display: contents` so the gridcell still owns the full-width grid area. -->
+		<div role="row" class="contents">
+			<div
+				role="gridcell"
+				class="col-span-full flex min-h-full flex-col items-center justify-center gap-3 py-16 text-center"
+				in:adminFade={{ duration: 200 }}
+				data-testid="media-grid-empty"
+			>
+				<iconify-icon icon="mdi:cloud-upload-outline" width="48" class="text-(--admin-text-muted)"
+				></iconify-icon>
+				<div class="space-y-1">
+					<h3 class="text-base font-semibold">{mediagallery_no_media()}</h3>
+					<p class="max-w-xs text-sm text-(--admin-text-muted)">
+						{mediagallery_drop_files()}
+					</p>
+				</div>
 
-			<Button variant="tertiary" onclick={() => fileUploadInput?.click()}>
-				<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
-				<span>{mediagallery_upload_first()}</span>
-			</Button>
-			<input
-				aria-label={mediagallery_filter_media_aria()}
-				type="file"
-				multiple
-				class="hidden"
-				bind:this={fileUploadInput}
-				onchange={(e) => {
-					const input = e.target as HTMLInputElement;
-					if (input.files?.length) {
-						const event = new CustomEvent('externalUpload', {
-							detail: { files: input.files }
-						});
-						document.dispatchEvent(event);
-					}
-				}}
-				accept="image/*,video/*,audio/*,application/pdf"
-			/>
+				<Button variant="tertiary" onclick={() => fileUploadInput?.click()}>
+					<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
+					<span>{mediagallery_upload_first()}</span>
+				</Button>
+				<input
+					aria-label={mediagallery_filter_media_aria()}
+					type="file"
+					multiple
+					class="hidden"
+					bind:this={fileUploadInput}
+					onchange={(e) => {
+						const input = e.target as HTMLInputElement;
+						if (input.files?.length) {
+							const event = new CustomEvent('externalUpload', {
+								detail: { files: input.files }
+							});
+							document.dispatchEvent(event);
+						}
+					}}
+					accept="image/*,video/*,audio/*,application/pdf"
+				/>
+			</div>
 		</div>
 	{:else}
 		{#each visibleFiles as file (file._id || file.filename)}
 			{@const fileId = file._id?.toString() || file.filename}
 
-			<div
-				class="group relative flex h-full flex-col focus-within:outline-none cursor-grab active:cursor-grabbing
+			<!-- Row wrapper (display: contents) keeps the gridcell as the grid item while
+			     satisfying the grid's required row → gridcell ownership. -->
+			<div role="row" class="contents">
+				<div
+					class="group relative flex h-full flex-col focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--admin-focus-ring) cursor-grab active:cursor-grabbing
           {selectedFiles.has(fileId) ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
-				role="gridcell"
-				tabindex="-1"
-				aria-selected={selectedFiles.has(fileId)}
-				use:liftAndCarry={{
-					container: MEDIA_DRAG_CONTAINER,
-					dragData: {
-						ids: resolveMediaDragIds(fileId, selectedFiles),
-						preview: {
-							filename: file.filename,
-							url: file.type === 'image' ? mediaDisplayUrl(file, previewSize) : undefined,
-							type: file.type
-						}
-					},
-					interactive: ['[data-no-drag]'],
-					attributes: { draggingClass: 'opacity-50' }
-				}}
-				ondragstart={suppressNativeDragGhost}
-				title={mediagallery_drag_to_folder()}
-				data-testid="media-item"
-				data-media-id={fileId}
-				in:adminFade={{ duration: motionDuration(120) }}
-				ontouchstart={(e) => {
-					e.stopPropagation();
-					touchActiveId = fileId;
-				}}
-			>
-				{#if selectedFiles.has(fileId)}
-					<div
-						class="absolute inset-y-0 inset-s-0 z-10 w-0.5 bg-primary-500"
-						aria-hidden="true"
-					></div>
-				{/if}
+					role="gridcell"
+					tabindex="-1"
+					aria-selected={selectedFiles.has(fileId)}
+					use:liftAndCarry={{
+						container: MEDIA_DRAG_CONTAINER,
+						dragData: {
+							ids: resolveMediaDragIds(fileId, selectedFiles),
+							preview: {
+								filename: file.filename,
+								url: file.type === 'image' ? mediaDisplayUrl(file, previewSize) : undefined,
+								type: file.type
+							}
+						},
+						interactive: ['[data-no-drag]'],
+						attributes: { draggingClass: 'opacity-50' }
+					}}
+					ondragstart={suppressNativeDragGhost}
+					title={mediagallery_drag_to_folder()}
+					data-testid="media-item"
+					data-media-id={fileId}
+					in:adminFade={{ duration: motionDuration(120) }}
+					ontouchstart={(e) => {
+						e.stopPropagation();
+						touchActiveId = fileId;
+					}}
+				>
+					{#if selectedFiles.has(fileId)}
+						<div
+							class="absolute inset-y-0 inset-s-0 z-10 w-0.5 bg-primary-500"
+							aria-hidden="true"
+						></div>
+					{/if}
 
-				{#if isSelectionMode || selectedFiles.has(fileId)}
+					{#if isSelectionMode || selectedFiles.has(fileId)}
+						<div
+							class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
+							data-no-drag
+							in:adminFade={{ duration: motionDuration(120) }}
+							role="presentation"
+							onclick={(e) => e.stopPropagation()}
+							onkeydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+							}}
+						>
+							<Checkbox
+								checked={selectedFiles.has(fileId)}
+								onchange={() => toggleSelection(file)}
+								label="Select {file.filename}"
+								hideLabel
+								size="sm"
+							/>
+						</div>
+					{/if}
+
 					<div
-						class="absolute inset-s-1.5 top-1.5 z-20 sm:inset-s-2 sm:top-2"
-						data-no-drag
-						in:adminFade={{ duration: motionDuration(120) }}
-						role="presentation"
-						onclick={(e) => e.stopPropagation()}
-						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
-						}}
+						class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg"
 					>
-						<Checkbox
-							checked={selectedFiles.has(fileId)}
-							onchange={() => toggleSelection(file)}
-							label="Select {file.filename}"
-							hideLabel
-							size="sm"
-						/>
-					</div>
-				{/if}
-
-				<div class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg">
-					<!--
+						<!--
             Use a div (not <button>) so HTML5 drag can start from the thumbnail.
             Native buttons cancel dragstart in Chromium when nested under a draggable parent.
           -->
-					<div
-						role="button"
-						tabindex="0"
-						class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
-						onclick={() => handleItemClick(file)}
-						onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
-						aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
-					>
-						{#if file.type === 'image' && !failedImages.has(fileId)}
-							<div
-								class="h-full w-full transition-colors duration-500"
-								style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
-							>
-								{#if file.metadata?.placeholder}
+						<div
+							role="button"
+							tabindex="0"
+							class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
+							onclick={() => handleItemClick(file)}
+							onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
+							aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
+						>
+							{#if file.type === 'image' && !failedImages.has(fileId)}
+								<div
+									class="h-full w-full transition-colors duration-500"
+									style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
+								>
+									{#if file.metadata?.placeholder}
+										<img
+											src={file.metadata.placeholder as string}
+											alt=""
+											class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
+											aria-hidden="true"
+											draggable="false"
+											crossorigin="anonymous"
+										/>
+									{/if}
+
 									<img
-										src={file.metadata.placeholder as string}
+										src={mediaDisplayUrl(file, previewSize)}
 										alt=""
-										class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
-										aria-hidden="true"
+										class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02] pointer-events-none"
+										style:object-position={file.metadata?.focalPoint
+											? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
+											: 'center'}
+										loading="lazy"
+										decoding="async"
 										draggable="false"
 										crossorigin="anonymous"
+										onerror={() => failedImages.add(fileId)}
+										onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
 									/>
-								{/if}
+								</div>
+							{:else}
+								<div class="flex h-full w-full items-center justify-center bg-(--admin-bg-card)/80">
+									<iconify-icon
+										icon={file.type === 'image' ? 'mdi:image-off-outline' : getFileIcon(file)}
+										width={36}
+										class="text-(--admin-text-muted)"
+									></iconify-icon>
+								</div>
+							{/if}
 
-								<img
-									src={mediaDisplayUrl(file, previewSize)}
-									alt=""
-									class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02] pointer-events-none"
-									style:object-position={file.metadata?.focalPoint
-										? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
-										: 'center'}
-									loading="lazy"
-									decoding="async"
-									draggable="false"
-									crossorigin="anonymous"
-									onerror={() => failedImages.add(fileId)}
-									onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
-								/>
+							<div
+								class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
+								fileId
+									? 'opacity-100'
+									: 'opacity-0'}"
+							>
+								<p
+									dir="auto"
+									class="truncate text-[11px] font-medium leading-tight text-white"
+									title={file.filename}
+								>
+									{file.filename}
+								</p>
 							</div>
-						{:else}
-							<div class="flex h-full w-full items-center justify-center bg-(--admin-bg-card)/80">
-								<iconify-icon
-									icon={file.type === 'image' ? 'mdi:image-off-outline' : getFileIcon(file)}
-									width={36}
-									class="text-(--admin-text-muted)"
-								></iconify-icon>
-							</div>
-						{/if}
+						</div>
 
 						<div
-							class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
+							class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
 							fileId
 								? 'opacity-100'
 								: 'opacity-0'}"
+							data-no-drag
+							data-testid="media-grid-actions"
 						>
-							<p
-								dir="auto"
-								class="truncate text-[11px] font-medium leading-tight text-white"
-								title={file.filename}
+							<MediaGridActionTooltip
+								theme="light"
+								ariaLabel="Details for {file.filename}"
+								class="{actionBtnClass} hidden sm:flex"
+								onclick={(e) => {
+									e.stopPropagation();
+									onOpenFileDetails(file);
+								}}
 							>
-								{file.filename}
-							</p>
+								{#snippet children()}
+									<span
+										class="font-serif text-sm font-semibold italic leading-none text-primary-500"
+										>i</span
+									>
+								{/snippet}
+								{#snippet content()}
+									<div class="flex flex-col text-[11px] text-(--admin-text-muted) min-w-60">
+										<div
+											class="border-b border-(--admin-border-default) pb-2 mb-0 text-center text-[13px]"
+										>
+											{mediagallery_file_name_label()}
+											{file.filename}
+										</div>
+										<table class="w-full text-start border-collapse mt-2">
+											<thead>
+												<tr
+													class="border-b border-(--admin-border-default) text-tertiary-500 dark:text-primary-500"
+												>
+													<th
+														class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-start"
+														>{mediagallery_size()}</th
+													>
+													<th
+														class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-center"
+														>{mediagallery_Pixel()}</th
+													>
+													<th class="font-bold py-1 px-2 text-end" colspan="2"
+														>{mediagallery_size()}</th
+													>
+												</tr>
+											</thead>
+											<tbody class="text-(--admin-text-muted)">
+												<tr class="border-b border-(--admin-border-default)">
+													<td
+														class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
+														>{mediagallery_original()}</td
+													>
+													<td class="py-1 px-2 text-center border-e border-(--admin-border-default)"
+														>{getDimensionsLabel(file) || '-'}</td
+													>
+													<td class="py-1 px-2 text-end tabular-nums" colspan="2"
+														>{formatBytes((file as MediaImage).size)}</td
+													>
+												</tr>
+												{#if file.thumbnails}
+													{@const hasWebp = hasWebpVariants(file.thumbnails)}
+													{@const primaryLabel = primaryFormatLabel(file.thumbnails)}
+													<tr class="border-b border-(--admin-border-default)">
+														<td
+															class="py-1 px-2 font-bold text-(--admin-text-muted) border-e border-(--admin-border-default) text-start"
+															colspan="4"
+														>
+															{mediagallery_resized_variants()}
+															{primaryLabel}{#if hasWebp}
+																+ WebP{/if}
+														</td>
+													</tr>
+													{#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
+														{@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
+														{@const thumb = file.thumbnails[sizeKey]!}
+														<tr class="border-b border-(--admin-border-default) last:border-0">
+															<td
+																class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
+																>{sizeKey}</td
+															>
+															<td
+																class="py-1 px-2 text-center border-e border-(--admin-border-default)"
+															>
+																{thumb.width}x{thumb.height}
+															</td>
+															{#if hasWebp}
+																<td
+																	class="py-1 px-2 text-end tabular-nums border-e border-(--admin-border-default)"
+																>
+																	{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+																</td>
+																<td class="py-1 px-2 text-end tabular-nums">
+																	{#if webpKey}
+																		{formatBytes((file.thumbnails[webpKey] as any).size)}
+																	{:else}
+																		<span
+																			class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
+																			>—</span
+																		>
+																	{/if}
+																</td>
+															{:else}
+																<td class="py-1 px-2 text-end tabular-nums">
+																	{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+																</td>
+															{/if}
+														</tr>
+													{/each}
+												{/if}
+											</tbody>
+										</table>
+									</div>
+								{/snippet}
+							</MediaGridActionTooltip>
+
+							<MediaGridActionTooltip
+								title={button_edit()}
+								ariaLabel="Edit {file.filename}"
+								class={actionBtnClass}
+								data-testid="media-edit-button"
+								onclick={(e) => {
+									e.stopPropagation();
+									onEditImage(file as MediaImage);
+								}}
+							>
+								{#snippet children()}
+									<iconify-icon icon="mdi:pencil" width={15} class="text-surface-300"
+									></iconify-icon>
+								{/snippet}
+							</MediaGridActionTooltip>
+
+							{#if file.type === 'image'}
+								<MediaGridActionTooltip
+									title={builder_tag_input_label()}
+									ariaLabel="Tags for {file.filename}"
+									class={actionBtnClass}
+									onclick={(e) => {
+										e.stopPropagation();
+										openTagEditor(file as MediaImage);
+									}}
+								>
+									{#snippet children()}
+										<iconify-icon
+											icon={(file as MediaImage).metadata?.tags?.length ||
+											(file as MediaImage).metadata?.aiTags?.length
+												? 'mdi:tag'
+												: 'mdi:tag-outline'}
+											width={15}
+											class="text-surface-300"
+										></iconify-icon>
+									{/snippet}
+								</MediaGridActionTooltip>
+							{/if}
+
+							<MediaGridActionTooltip
+								title={mediagallery_copy_url()}
+								ariaLabel={mediagallery_copy_url_aria({ name: file.filename })}
+								class={actionBtnClass}
+								data-testid="media-copy-url"
+								onclick={async (e) => {
+									e.stopPropagation();
+									const raw = file.url || mediaDisplayUrl(file);
+									if (!raw) {
+										toast.error(mediagallery_copy_url_missing());
+										return;
+									}
+									try {
+										const absolute = raw.startsWith('http')
+											? raw
+											: new URL(raw, window.location.origin).toString();
+										await navigator.clipboard.writeText(absolute);
+										toast.success(mediagallery_copy_url_success());
+									} catch (error) {
+										logger.warn('Clipboard write failed', error);
+										toast.error(mediagallery_copy_url_failed());
+									}
+								}}
+							>
+								{#snippet children()}
+									<iconify-icon icon="mdi:link-variant" width={15} class="text-surface-300"
+									></iconify-icon>
+								{/snippet}
+							</MediaGridActionTooltip>
+
+							<MediaGridActionTooltip
+								title="Delete"
+								ariaLabel="Delete {file.filename}"
+								class={actionBtnClass}
+								onclick={(e) => {
+									e.stopPropagation();
+									ondeleteImage(file);
+								}}
+							>
+								{#snippet children()}
+									<iconify-icon icon="mdi:trash-can-outline" width={15} class="text-error-500"
+									></iconify-icon>
+								{/snippet}
+							</MediaGridActionTooltip>
 						</div>
 					</div>
 
 					<div
-						class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
-						fileId
-							? 'opacity-100'
-							: 'opacity-0'}"
-						data-no-drag
-						data-testid="media-grid-actions"
+						class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-500/30 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-500/40"
 					>
-						<MediaGridActionTooltip
-							theme="light"
-							ariaLabel="Details for {file.filename}"
-							class="{actionBtnClass} hidden sm:flex"
-							onclick={(e) => {
-								e.stopPropagation();
-								onOpenFileDetails(file);
-							}}
+						<span
+							class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
 						>
-							{#snippet children()}
-								<span class="font-serif text-sm font-semibold italic leading-none text-primary-500"
-									>i</span
-								>
-							{/snippet}
-							{#snippet content()}
-								<div class="flex flex-col text-[11px] text-(--admin-text-muted) min-w-60">
-									<div
-										class="border-b border-(--admin-border-default) pb-2 mb-0 text-center text-[13px]"
-									>
-										{mediagallery_file_name_label()}
-										{file.filename}
-									</div>
-									<table class="w-full text-start border-collapse mt-2">
-										<thead>
-											<tr
-												class="border-b border-(--admin-border-default) text-tertiary-500 dark:text-primary-500"
-											>
-												<th
-													class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-start"
-													>{mediagallery_size()}</th
-												>
-												<th
-													class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-center"
-													>{mediagallery_Pixel()}</th
-												>
-												<th class="font-bold py-1 px-2 text-end" colspan="2"
-													>{mediagallery_size()}</th
-												>
-											</tr>
-										</thead>
-										<tbody class="text-(--admin-text-muted)">
-											<tr class="border-b border-(--admin-border-default)">
-												<td
-													class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
-													>{mediagallery_original()}</td
-												>
-												<td class="py-1 px-2 text-center border-e border-(--admin-border-default)"
-													>{getDimensionsLabel(file) || '-'}</td
-												>
-												<td class="py-1 px-2 text-end tabular-nums" colspan="2"
-													>{formatBytes((file as MediaImage).size)}</td
-												>
-											</tr>
-											{#if file.thumbnails}
-												{@const hasWebp = hasWebpVariants(file.thumbnails)}
-												{@const primaryLabel = primaryFormatLabel(file.thumbnails)}
-												<tr class="border-b border-(--admin-border-default)">
-													<td
-														class="py-1 px-2 font-bold text-(--admin-text-muted) border-e border-(--admin-border-default) text-start"
-														colspan="4"
-													>
-														{mediagallery_resized_variants()}
-														{primaryLabel}{#if hasWebp}
-															+ WebP{/if}
-													</td>
-												</tr>
-												{#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
-													{@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
-													{@const thumb = file.thumbnails[sizeKey]!}
-													<tr class="border-b border-(--admin-border-default) last:border-0">
-														<td
-															class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
-															>{sizeKey}</td
-														>
-														<td
-															class="py-1 px-2 text-center border-e border-(--admin-border-default)"
-														>
-															{thumb.width}x{thumb.height}
-														</td>
-														{#if hasWebp}
-															<td
-																class="py-1 px-2 text-end tabular-nums border-e border-(--admin-border-default)"
-															>
-																{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
-															</td>
-															<td class="py-1 px-2 text-end tabular-nums">
-																{#if webpKey}
-																	{formatBytes((file.thumbnails[webpKey] as any).size)}
-																{:else}
-																	<span
-																		class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
-																		>—</span
-																	>
-																{/if}
-															</td>
-														{:else}
-															<td class="py-1 px-2 text-end tabular-nums">
-																{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
-															</td>
-														{/if}
-													</tr>
-												{/each}
-											{/if}
-										</tbody>
-									</table>
-								</div>
-							{/snippet}
-						</MediaGridActionTooltip>
-
-						<MediaGridActionTooltip
-							title={button_edit()}
-							ariaLabel="Edit {file.filename}"
-							class={actionBtnClass}
-							data-testid="media-edit-button"
-							onclick={(e) => {
-								e.stopPropagation();
-								onEditImage(file as MediaImage);
-							}}
+							{formatMimeType((file as MediaImage).mimeType)}
+						</span>
+						<span
+							class="shrink-0 font-mono text-[10px] tabular-nums text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
 						>
-							{#snippet children()}
-								<iconify-icon icon="mdi:pencil" width={15} class="text-surface-300"></iconify-icon>
-							{/snippet}
-						</MediaGridActionTooltip>
-
-						{#if file.type === 'image'}
-							<MediaGridActionTooltip
-								title={builder_tag_input_label()}
-								ariaLabel="Tags for {file.filename}"
-								class={actionBtnClass}
-								onclick={(e) => {
-									e.stopPropagation();
-									openTagEditor(file as MediaImage);
-								}}
-							>
-								{#snippet children()}
-									<iconify-icon
-										icon={(file as MediaImage).metadata?.tags?.length ||
-										(file as MediaImage).metadata?.aiTags?.length
-											? 'mdi:tag'
-											: 'mdi:tag-outline'}
-										width={15}
-										class="text-surface-300"
-									></iconify-icon>
-								{/snippet}
-							</MediaGridActionTooltip>
-						{/if}
-
-						<MediaGridActionTooltip
-							title={mediagallery_copy_url()}
-							ariaLabel={mediagallery_copy_url_aria({ name: file.filename })}
-							class={actionBtnClass}
-							data-testid="media-copy-url"
-							onclick={async (e) => {
-								e.stopPropagation();
-								const raw = file.url || mediaDisplayUrl(file);
-								if (!raw) {
-									toast.error(mediagallery_copy_url_missing());
-									return;
-								}
-								try {
-									const absolute = raw.startsWith('http')
-										? raw
-										: new URL(raw, window.location.origin).toString();
-									await navigator.clipboard.writeText(absolute);
-									toast.success(mediagallery_copy_url_success());
-								} catch (error) {
-									logger.warn('Clipboard write failed', error);
-									toast.error(mediagallery_copy_url_failed());
-								}
-							}}
-						>
-							{#snippet children()}
-								<iconify-icon icon="mdi:link-variant" width={15} class="text-surface-300"
-								></iconify-icon>
-							{/snippet}
-						</MediaGridActionTooltip>
-
-						<MediaGridActionTooltip
-							title="Delete"
-							ariaLabel="Delete {file.filename}"
-							class={actionBtnClass}
-							onclick={(e) => {
-								e.stopPropagation();
-								ondeleteImage(file);
-							}}
-						>
-							{#snippet children()}
-								<iconify-icon icon="mdi:trash-can-outline" width={15} class="text-error-500"
-								></iconify-icon>
-							{/snippet}
-						</MediaGridActionTooltip>
+							{formatBytes((file as MediaImage).size)}
+						</span>
 					</div>
-				</div>
-
-				<div
-					class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-500/30 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-500/40"
-				>
-					<span
-						class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
-					>
-						{formatMimeType((file as MediaImage).mimeType)}
-					</span>
-					<span
-						class="shrink-0 font-mono text-[10px] tabular-nums text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
-					>
-						{formatBytes((file as MediaImage).size)}
-					</span>
 				</div>
 			</div>
 		{/each}

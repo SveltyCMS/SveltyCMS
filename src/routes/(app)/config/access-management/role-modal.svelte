@@ -215,8 +215,8 @@
 				</div>
 			</div>
 
-			<div
-				class="card h-48 overflow-y-auto p-2 border border-(--admin-border-default) bg-surface-500/30 dark:bg-surface-900/20"
+			<AdminCard
+				class="h-48 overflow-y-auto border border-(--admin-border-default) bg-surface-500/30! p-2 dark:bg-surface-900/20!"
 			>
 				{#each filteredPermissions as perm (perm._id)}
 					<div class="p-1 hover:bg-surface-500/40 dark:hover:bg-surface-900/20 rounded">
@@ -229,7 +229,7 @@
 				{:else}
 					<div class="text-center p-4 opacity-50 text-sm">{access_role_no_permissions()}</div>
 				{/each}
-			</div>
+			</AdminCard>
 		</div>
 	</form>
 

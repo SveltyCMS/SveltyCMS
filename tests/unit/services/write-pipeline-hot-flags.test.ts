@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { payloadTouchesCollectionFieldPreparation } from "@src/content/content-utils";
+import { payloadTouchesCollectionFieldPreparation } from "@src/content/content-write-prep.server";
 import {
   prepareWritePayload,
   writeTouchesActiveWidgets,

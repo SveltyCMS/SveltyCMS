@@ -14,6 +14,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
+	import Checkbox from '@components/ui/checkbox.svelte';
 	import { formatDateTime } from '@utils/format-date';
 	// Type guards for template and logic
 	function isToken(row: User | Token): row is Token {
@@ -130,7 +131,6 @@
 		useradmin_fetch_failed,
 		useradmin_fetching_data,
 		useradmin_filter_users_aria,
-		useradmin_input,
 		useradmin_invitations,
 		useradmin_invite_user,
 		useradmin_invite_user_body,
@@ -846,24 +846,24 @@
 		aria-label={useradmin_filter_users_aria()}
 		data-testid="user-facets"
 	>
-		<button
-			type="button"
+		<Button
+			variant={activeFacet === 'all' ? 'primary' : 'ghost'}
+			size="sm"
+			rounded
+			aria-pressed={activeFacet === 'all'}
 			onclick={() => selectFacet('all')}
-			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-			'all'
-				? 'bg-primary-500 text-white'
-				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+			class="font-medium!"
 		>
 			<span>{useradmin_all()}</span>
 			<span class="opacity-70">({systemUserCount})</span>
-		</button>
-		<button
-			type="button"
+		</Button>
+		<Button
+			variant={activeFacet === 'admin' ? 'primary' : 'ghost'}
+			size="sm"
+			rounded
+			aria-pressed={activeFacet === 'admin'}
 			onclick={() => selectFacet('admin')}
-			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-			'admin'
-				? 'bg-primary-500 text-white'
-				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+			class="font-medium!"
 		>
 			<iconify-icon
 				icon="mdi:shield-crown-outline"
@@ -871,40 +871,40 @@
 				class="text-tertiary-500 dark:text-primary-400"
 			></iconify-icon>
 			<span>{useradmin_admins()}</span>
-		</button>
-		<button
-			type="button"
+		</Button>
+		<Button
+			variant={activeFacet === 'user' ? 'primary' : 'ghost'}
+			size="sm"
+			rounded
+			aria-pressed={activeFacet === 'user'}
 			onclick={() => selectFacet('user')}
-			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-			'user'
-				? 'bg-primary-500 text-white'
-				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+			class="font-medium!"
 		>
 			<iconify-icon icon="mdi:account-outline" width="14"></iconify-icon>
 			<span>{useradmin_users()}</span>
-		</button>
-		<button
-			type="button"
+		</Button>
+		<Button
+			variant={activeFacet === 'active' ? 'primary' : 'ghost'}
+			size="sm"
+			rounded
+			aria-pressed={activeFacet === 'active'}
 			onclick={() => selectFacet('active')}
-			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-			'active'
-				? 'bg-primary-500 text-white'
-				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+			class="font-medium!"
 		>
 			<span class="size-1.5 rounded-full bg-success-500"></span>
 			<span>{useradmin_active()}</span>
-		</button>
-		<button
-			type="button"
+		</Button>
+		<Button
+			variant={activeFacet === 'blocked' ? 'primary' : 'ghost'}
+			size="sm"
+			rounded
+			aria-pressed={activeFacet === 'blocked'}
 			onclick={() => selectFacet('blocked')}
-			class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors {activeFacet ===
-			'blocked'
-				? 'bg-primary-500 text-white'
-				: 'bg-surface-500/10 text-(--admin-text-muted) hover:bg-surface-500/20 dark:text-(--admin-text-muted)'}"
+			class="font-medium!"
 		>
 			<span class="size-1.5 rounded-full bg-error-500"></span>
 			<span>{useradmin_blocked()}</span>
-		</button>
+		</Button>
 	</div>
 {/snippet}
 
@@ -986,15 +986,12 @@
 	{#if columnShow && (tableData?.length || filterShow)}
 		<div class={SMART_TABLE_COLUMN_MANAGER}>
 			<div class="my-2 flex w-full items-center justify-center gap-1">
-				<label class="me-2">
-					<input
-						type="checkbox"
-						bind:checked={selectAllColumns}
-						onclick={handleCheckboxChange}
-						aria-label={useradmin_input()}
-					/>
-					{entrylist_all()}
-				</label>
+				<Checkbox
+					class="me-2"
+					bind:checked={selectAllColumns}
+					onchange={() => handleCheckboxChange()}
+					label={entrylist_all()}
+				/>
 
 				{#each displayTableHeaders as header (header.id)}
 					<Button
@@ -1114,20 +1111,24 @@
 							<td class={SMART_TABLE_TD} style={smartTable.getColumnWidthStyle(String(header.key))}>
 								{#if header.key === 'blocked'}
 									{#if showUserList}
-										<button
+										<Button
+											variant="transparent"
+											size="sm"
 											type="button"
 											onclick={() => isUser(row) && toggleUserBlocked(row)}
 											aria-label={row.blocked
 												? useradmin_click_unblock_user()
 												: useradmin_click_block_user()}
-											class="cursor-pointer rounded focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:outline-none"
+											class="h-auto! p-0!"
 										>
 											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
 												{row.blocked ? useradmin_blocked() : useradmin_active()}
 											</Badge>
-										</button>
+										</Button>
 									{:else}
-										<button
+										<Button
+											variant="transparent"
+											size="sm"
 											type="button"
 											onclick={(event: MouseEvent) => {
 												event.stopPropagation();
@@ -1136,12 +1137,12 @@
 											aria-label={row.blocked
 												? useradmin_click_unblock_token()
 												: useradmin_click_block_token()}
-											class="cursor-pointer rounded focus-visible:ring-2 focus-visible:ring-primary-500/40 focus-visible:outline-none"
+											class="h-auto! p-0!"
 										>
 											<Badge preset="tonal" color={row.blocked ? 'error' : 'success'} size="sm">
 												{row.blocked ? useradmin_blocked() : useradmin_active()}
 											</Badge>
-										</button>
+										</Button>
 									{/if}
 								{:else if showUserList && header.key === 'avatar'}
 									<!-- Centred under its header like every other column -->

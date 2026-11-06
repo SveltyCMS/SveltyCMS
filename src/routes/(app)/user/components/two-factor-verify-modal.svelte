@@ -3,11 +3,7 @@
 @component
 **Two-Factor Authentication Verification Modal**
 
-This modal			class="input text-center font-mono tracking-wider"
-			class:text-2xl={!useBackupCode}
-			class:text-lg={useBackupCode}
-			maxlength={useBackupCode ? 10 : 6}
-			autocomplete="off"les verification of 2FA codes for various operations like disabling 2FA.
+This modal provides verification of 2FA codes for various operations like disabling 2FA.
 
 @example
 <TwoFactorVerifyModal title="Verify 2FA" description="Enter your code..." />
@@ -26,6 +22,7 @@ This modal			class="input text-center font-mono tracking-wider"
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import {
 		button_cancel,
 		twofa_backup_code_placeholder,
@@ -156,18 +153,17 @@ This modal			class="input text-center font-mono tracking-wider"
 	<!-- Code Input -->
 	<div class="mb-6">
 		<div class="relative">
-			<input
+			<Input
 				aria-label={user2faverify_input()}
 				type="text"
 				bind:value={code}
 				oninput={handleInput}
 				onkeydown={handleKeydown}
 				placeholder={useBackupCode ? twofa_backup_code_placeholder() : twofa_code_placeholder()}
-				class={'input text-center font-mono tracking-wider ' +
-					(useBackupCode ? 'text-lg' : 'text-2xl') +
-					(error ? ' border-error-500 focus:border-error-500' : '')}
+				class={'text-center font-mono tracking-wider ' + (useBackupCode ? 'text-lg' : 'text-2xl')}
 				maxlength={useBackupCode ? 10 : 6}
 				autocomplete="off"
+				{error}
 			/>
 
 			<!-- Character counter for backup codes -->
@@ -175,21 +171,19 @@ This modal			class="input text-center font-mono tracking-wider"
 				<div class="mt-1 text-center text-xs text-(--admin-text-muted)">{code.length}/10</div>
 			{/if}
 		</div>
-
-		{#if error}
-			<p class="mt-2 text-center text-sm text-error-500">{error}</p>
-		{/if}
 	</div>
 
 	<!-- Toggle Code Type -->
 	<div class="mb-6 text-center">
-		<button
+		<Button
+			variant="transparent"
+			type="button"
 			aria-label={user2faverify_verify_code()}
 			onclick={toggleCodeType}
-			class="text-sm text-tertiary-500 underline hover:text-tertiary-600 dark:text-primary-600"
+			class="h-auto! p-0! text-sm text-tertiary-500 underline hover:text-tertiary-600 dark:text-primary-600"
 		>
 			{useBackupCode ? twofa_use_authenticator() : twofa_use_backup_code()}
-		</button>
+		</Button>
 	</div>
 
 	<!-- Action Buttons -->

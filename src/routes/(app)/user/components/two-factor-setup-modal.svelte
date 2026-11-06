@@ -23,7 +23,9 @@ This modal displays the QR code for setting up 2FA and handles verification.
 -->
 
 <script lang="ts">
+	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	// Utils
 	import { logger } from '@utils/logger';
@@ -172,12 +174,11 @@ This modal displays the QR code for setting up 2FA and handles verification.
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-(--admin-bg-card)';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded';
 </script>
 
-<div class="modal-example-form {cBase}">
+<AdminCard class="modal-example-form w-modal space-y-4 p-4 shadow-xl">
 	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
 		{title ?? user2fasetup_title_missing()}
 	</header>
@@ -232,24 +233,19 @@ This modal displays the QR code for setting up 2FA and handles verification.
 						{twofa_verify_setup_description()}
 					</label>
 					<div class="relative">
-						<input
+						<Input
 							aria-label={user2fasetup_verification_code()}
 							id="verification-code"
 							type="text"
 							bind:value={verificationCode}
 							oninput={handleInput}
 							placeholder={twofa_code_placeholder()}
-							class="input w-full text-center font-mono text-2xl tracking-widest"
-							maxlength="6"
+							class="text-center font-mono text-2xl tracking-widest"
+							maxlength={6}
 							autocomplete="off"
-							class:border-error-500={error}
-							class:focus\:border-error-500={error}
+							{error}
 						/>
 					</div>
-
-					{#if error}
-						<p class="mt-2 text-sm text-error-500">{error}</p>
-					{/if}
 				</div>
 			</div>
 		</form>
@@ -348,4 +344,4 @@ This modal displays the QR code for setting up 2FA and handles verification.
 			</Button>
 		{/if}
 	</footer>
-</div>
+</AdminCard>

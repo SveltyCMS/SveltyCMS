@@ -526,7 +526,7 @@ Features:
 		<div class="flex min-w-0 flex-1 flex-col gap-0.5">
 			<h2
 				id="widget-title-{widgetId || customLabel}"
-				class="font-display flex items-center gap-2 truncate text-sm font-semibold tracking-tight"
+				class="font-display flex min-w-0 items-center gap-2 text-sm font-semibold tracking-tight"
 			>
 				<iconify-icon
 					icon={icon || 'mdi:view-grid'}
@@ -535,7 +535,7 @@ Features:
 						? 'text-tertiary-500 shrink-0'
 						: 'text-tertiary-500 dark:text-primary-500 shrink-0'}
 				></iconify-icon>
-				<span class="truncate">{customLabel}</span>
+				<span class="min-w-0 truncate" title={customLabel}>{customLabel}</span>
 				{#if license === 'freemium'}
 					<Badge variant="secondary" size="sm" class="text-[9px] px-1.5 py-0 leading-tight shrink-0"
 						>{widget_license_freemium()}</Badge

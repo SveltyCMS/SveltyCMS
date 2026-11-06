@@ -967,11 +967,11 @@
 							{dashboard_layout_presets()}
 						</div>
 						{#each DASHBOARD_PRESETS as preset (preset.id)}
-							<button
-								type="button"
-								class="flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-start text-xs transition-colors hover:bg-surface-500/10 focus-visible:ring-2 focus-visible:ring-primary-500"
-								onclick={() => requestPreset(preset.id)}
+							<Button
+								variant="ghost"
 								role="menuitem"
+								class="h-auto! w-full items-start justify-start gap-2.5 px-2.5! py-2! text-start text-xs! font-normal!"
+								onclick={() => requestPreset(preset.id)}
 							>
 								<iconify-icon
 									icon={preset.icon}
@@ -984,7 +984,7 @@
 										{preset.description}
 									</div>
 								</div>
-							</button>
+							</Button>
 						{/each}
 					</div>
 				{/if}
@@ -1061,7 +1061,7 @@
 						data-testid="dashboard-reset-widgets"
 						class="w-10 p-0! min-w-0"
 					>
-						<iconify-icon icon="mdi:refresh" width={20}></iconify-icon>
+						<iconify-icon icon="mdi:delete-sweep-outline" width={20}></iconify-icon>
 					</Button>
 				</Tooltip>
 			{/if}
@@ -1102,33 +1102,31 @@
 							role="group"
 						>
 							{#each categoryOptions as cat (cat)}
-								<button
-									type="button"
+								<Button
+									variant="transparent"
 									aria-pressed={categoryFilter === cat}
-									class="shrink-0 rounded px-2 py-0.5 text-xs font-medium transition-colors {categoryFilter ===
-									cat
-										? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400 font-semibold'
+									class="h-auto! shrink-0 px-2! py-0.5! text-xs! font-medium {categoryFilter === cat
+										? 'bg-tertiary-500/20! text-tertiary-600 dark:bg-primary-500/20! dark:text-primary-400 font-semibold'
 										: 'text-(--admin-text-muted) hover:bg-surface-500/10'}"
 									onclick={() => (categoryFilter = cat)}
 								>
 									{categoryLabel(cat)}
-								</button>
+								</Button>
 							{/each}
 						</div>
 						<!-- License Filter Bar -->
 						<div class="flex items-center gap-1 border-b border-surface-500/20 px-2 py-1.5 text-xs">
 							{#each [{ id: 'all', label: dashboard_license_all() }, { id: 'free', label: widget_license_free() }, { id: 'freemium', label: widget_license_freemium() }, { id: 'paid', label: widget_license_paid() }] as tab (tab.id)}
-								<button
-									type="button"
+								<Button
+									variant="transparent"
 									aria-pressed={licenseFilter === tab.id}
-									class="rounded px-2 py-0.5 text-xs font-medium transition-colors {licenseFilter ===
-									tab.id
-										? 'bg-tertiary-500/20 text-tertiary-600 dark:bg-primary-500/20 dark:text-primary-400 font-semibold'
+									class="h-auto! px-2! py-0.5! text-xs! font-medium {licenseFilter === tab.id
+										? 'bg-tertiary-500/20! text-tertiary-600 dark:bg-primary-500/20! dark:text-primary-400 font-semibold'
 										: 'text-(--admin-text-muted) hover:bg-surface-500/10'}"
 									onclick={() => (licenseFilter = tab.id as typeof licenseFilter)}
 								>
 									{tab.label}
-								</button>
+								</Button>
 							{/each}
 						</div>
 						<div class="max-h-64 overflow-y-auto py-1">
@@ -1370,9 +1368,9 @@
 							</span>
 							<div class="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
 								{#each DASHBOARD_PRESETS.slice(0, 3) as preset (preset.id)}
-									<button
-										type="button"
-										class="flex flex-col items-center rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card,var(--color-surface-50)) p-3 text-center transition-all hover:border-tertiary-500/50 hover:shadow-md dark:hover:border-primary-500/50"
+									<Button
+										variant="transparent"
+										class="h-auto! w-full flex-col items-center gap-1! rounded-xl border border-(--admin-border-default) bg-(--admin-bg-card)! p-3! text-center font-normal! transition-all hover:border-tertiary-500/50 hover:shadow-md dark:hover:border-primary-500/50"
 										onclick={() => requestPreset(preset.id)}
 									>
 										<iconify-icon
@@ -1384,7 +1382,7 @@
 										<span class="mt-0.5 line-clamp-2 text-[10px] text-(--admin-text-muted)"
 											>{preset.description}</span
 										>
-									</button>
+									</Button>
 								{/each}
 							</div>
 						</div>

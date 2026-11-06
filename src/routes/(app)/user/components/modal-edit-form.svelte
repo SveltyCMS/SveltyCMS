@@ -300,7 +300,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			disabled={isGivenData && user_id !== user?._id}
 			autocomplete="username"
 			icon="mdi:user-circle"
-			textColor="text-tertiary-500 dark:text-white"
+			textColor="text-tertiary-500 dark:text-primary-500"
 			invalid={!!editForm.errors.username?.length}
 			errorMessage={editForm.errors.username?.[0]}
 		/>
@@ -316,7 +316,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 			disabled
 			autocomplete="email"
 			icon="mdi:email"
-			textColor="text-tertiary-500 dark:text-white"
+			textColor="text-tertiary-500 dark:text-primary-500"
 			invalid={!!editForm.errors.email?.length}
 			errorMessage={editForm.errors.email?.[0]}
 		/>
@@ -357,8 +357,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 					icon="mdi:key"
 					textColor={isCurrentPasswordValidated
 						? 'text-tertiary-500 dark:text-primary-500'
-						: 'text-tertiary-500 dark:text-white'}
-					passwordIconColor="text-tertiary-500 dark:text-white"
+						: 'text-tertiary-500 dark:text-primary-500'}
+					passwordIconColor="text-tertiary-500 dark:text-primary-500"
 					invalid={!!editForm.errors.currentPassword?.length}
 					errorMessage={editForm.errors.currentPassword?.[0]}
 				/>
@@ -379,8 +379,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 					onkeydown={() => (editForm.errors.password = [])}
 					autocomplete="new-password"
 					icon="mdi:password"
-					textColor="text-tertiary-500 dark:text-white"
-					passwordIconColor="text-tertiary-500 dark:text-white"
+					textColor="text-tertiary-500 dark:text-primary-500"
+					passwordIconColor="text-tertiary-500 dark:text-primary-500"
 					invalid={!!editForm.errors.password?.length}
 					errorMessage={editForm.errors.password?.[0]}
 					disabled={isOwnProfile && !isCurrentPasswordValidated}
@@ -402,8 +402,8 @@ Efficiently manages user data updates with validation, role selection, and delet
 					onkeydown={() => (editForm.errors.confirmPassword = [])}
 					autocomplete="new-password"
 					icon="mdi:password"
-					textColor="text-tertiary-500 dark:text-white"
-					passwordIconColor="text-tertiary-500 dark:text-white"
+					textColor="text-tertiary-500 dark:text-primary-500"
+					passwordIconColor="text-tertiary-500 dark:text-primary-500"
 					invalid={!!editForm.errors.confirmPassword?.length}
 					errorMessage={editForm.errors.confirmPassword?.[0]}
 					disabled={isOwnProfile && !isCurrentPasswordValidated}
@@ -438,7 +438,7 @@ Efficiently manages user data updates with validation, role selection, and delet
 									aria-checked={editForm.data.role === r._id}
 									tabindex={editForm.data.role === r._id ? 0 : -1}
 									class={editForm.data.role === r._id
-										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white'
+										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-surface-950'
 										: 'border-surface-500/30 text-(--admin-text-muted) opacity-70'}
 									onclick={() => (editForm.data.role = r._id)}
 									onkeydown={(e: KeyboardEvent) => {

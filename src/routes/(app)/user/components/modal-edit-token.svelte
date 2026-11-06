@@ -22,9 +22,11 @@ It handles token creation, updates, and deletion with proper validation and erro
 -->
 
 <script lang="ts">
+	import AdminCard from '@components/admin-card.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Select from '@components/ui/select.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
+	import Input from '@components/ui/input.svelte';
 	// ParaglideJS
 	import {
 		button_cancel,
@@ -300,9 +302,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 
 <div class="modal-example-form space-y-4 text-(--admin-text-body) p-4">
 	{#if createdToken}
-		<div
-			class="card p-6 space-y-4 bg-success-500/10 border border-success-500/30 rounded-lg shadow-lg"
-		>
+		<AdminCard class="space-y-4 border-success-500/30! bg-success-500/10! p-6 shadow-lg!">
 			<h3 class="text-xl font-bold text-success-600 dark:text-success-400">
 				{usertoken_invitation_created()}
 			</h3>
@@ -311,16 +311,17 @@ It handles token creation, updates, and deletion with proper validation and erro
 			</p>
 
 			<div class="flex flex-col gap-4">
-				<label class="label">
+				<div class="flex flex-col gap-1">
 					<span class="text-xs uppercase font-bold opacity-60">{usertoken_invitation_link()}</span>
 					<div class="flex gap-2 mt-1">
-						<input
-							aria-label={usertoken_token_name_aria()}
-							type="text"
-							readonly
-							value={invitationLink}
-							class="input flex-1"
-						/>
+						<div class="flex-1">
+							<Input
+								aria-label={usertoken_token_name_aria()}
+								type="text"
+								readonly
+								value={invitationLink}
+							/>
+						</div>
 						<Button
 							variant="primary"
 							type="button"
@@ -331,18 +332,19 @@ It handles token creation, updates, and deletion with proper validation and erro
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
 						</Button>
 					</div>
-				</label>
+				</div>
 
-				<label class="label">
+				<div class="flex flex-col gap-1">
 					<span class="text-xs uppercase font-bold opacity-60">{usertoken_raw_token()}</span>
 					<div class="flex gap-2 mt-1">
-						<input
-							aria-label={usertoken_token_value_aria()}
-							type="text"
-							readonly
-							value={createdToken}
-							class="input flex-1"
-						/>
+						<div class="flex-1">
+							<Input
+								aria-label={usertoken_token_value_aria()}
+								type="text"
+								readonly
+								value={createdToken}
+							/>
+						</div>
 						<Button
 							variant="outline"
 							type="button"
@@ -353,7 +355,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 							<iconify-icon icon="mdi:content-copy" width="20"></iconify-icon>
 						</Button>
 					</div>
-				</label>
+				</div>
 			</div>
 
 			<div class="flex justify-end pt-4">
@@ -364,7 +366,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 					class="px-8">{usertoken_close()}</Button
 				>
 			</div>
-		</div>
+		</AdminCard>
 	{:else}
 		<form class="modal-form grid grid-cols-1 gap-4" onsubmit={onFormSubmit} id="token-form">
 			<!-- Email field -->
@@ -377,7 +379,7 @@ It handles token creation, updates, and deletion with proper validation and erro
 				required
 				autocomplete="email"
 				icon="mdi:email"
-				textColor="text-tertiary-500 dark:text-white"
+				textColor="text-tertiary-500 dark:text-primary-500"
 				invalid={!!tokenForm.errors.email?.length}
 				errorMessage={tokenForm.errors.email?.[0]}
 			/>
@@ -397,11 +399,9 @@ It handles token creation, updates, and deletion with proper validation and erro
 						{#if roles && roles.length > 0}
 							{#each roles as r (r._id)}
 								<Button
-									variant="outline"
+									variant={tokenForm.data.role === r._id ? 'primary' : 'outline'}
 									type="button"
-									class={tokenForm.data.role === r._id
-										? 'bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white'
-										: 'border-surface-500/30 text-(--admin-text-muted) opacity-70'}
+									aria-pressed={tokenForm.data.role === r._id}
 									onclick={() => (tokenForm.data.role = r._id)}
 								>
 									{#if tokenForm.data.role === r._id}

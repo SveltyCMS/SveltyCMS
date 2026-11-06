@@ -1427,6 +1427,7 @@ Handles all field types and validation automatically
 								<!-- Select Input -->
 							{:else if field.type === 'select' && field.options}
 								<Select
+									id={field.key}
 									bind:value={values[field.key] as string}
 									options={field.options.map((option) => ({
 										value: String(option.value),

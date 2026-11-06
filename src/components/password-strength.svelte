@@ -109,7 +109,7 @@ Visual password strength indicator with match validation and accessibility featu
 	const COLOR_CLASSES: Record<number, string> = {
 		0: 'bg-gray-300 text-(--admin-text-body) dark:bg-gray-600 dark:text-gray-300',
 		1: 'bg-error-500 text-white',
-		2: 'bg-warning-500 text-white',
+		2: 'bg-warning-500 text-surface-950',
 		3: 'bg-warning-500 text-(--admin-text-body)',
 		4: 'bg-success-600 text-white',
 		5: 'bg-success-500 text-white'

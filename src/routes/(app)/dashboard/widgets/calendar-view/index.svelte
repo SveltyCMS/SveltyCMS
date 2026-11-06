@@ -93,7 +93,7 @@
 		<div class="flex flex-col h-full gap-2">
 			<!-- Month navigation bar -->
 			<div class="flex items-center justify-between pb-1">
-				<span class="text-xs font-bold text-(--admin-text-body) dark:text-white px-1">
+				<span class="text-xs font-bold text-(--admin-text-body) px-1">
 					{monthName}
 					{currentYear}
 				</span>

@@ -236,14 +236,16 @@ Features:
 				<p class="text-xs text-(--admin-text-muted)">{userpasskey_description()}</p>
 			</div>
 		</div>
-		<button
+		<Button
+			variant="ghost"
 			type="button"
+			size="sm"
 			onclick={() => modalState.close()}
 			aria-label={userpasskey_close_dialog()}
-			class="rounded-lg p-1.5 text-(--admin-text-muted) hover:bg-surface-500/10 hover:text-(--admin-text-muted) dark:hover:text-(--admin-text-muted)"
+			class="h-auto! p-1.5! text-(--admin-text-muted)"
 		>
 			<iconify-icon icon="mdi:close" width={20} aria-hidden="true"></iconify-icon>
-		</button>
+		</Button>
 	</div>
 
 	<!-- Passkey list -->

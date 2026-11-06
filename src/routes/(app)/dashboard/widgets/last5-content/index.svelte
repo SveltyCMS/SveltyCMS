@@ -74,7 +74,7 @@
 				return 'bg-warning-500';
 			case 'archived':
 			case 'archive':
-				return 'bg-gray-500';
+				return 'bg-surface-500';
 			default:
 				return 'bg-zinc-400';
 		}
@@ -132,14 +132,14 @@
 							<a
 								href={`/${contentLanguage.value}/${item.collection}?edit=${item.id}`}
 								data-sveltekit-preload-data="hover"
-								class="group flex items-start gap-3 rounded px-3 py-2.5 transition-all hover:bg-gray-50 dark:hover:bg-gray-800/60 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-tertiary-500 border border-transparent hover:border-gray-100 dark:hover:border-gray-800"
+								class="group flex items-start gap-3 rounded px-3 py-2.5 transition-all hover:bg-surface-500/10 dark:hover:bg-surface-700/60 active:scale-[0.985] outline-hidden focus-visible:ring-2 focus-visible:ring-tertiary-500 border border-transparent hover:border-(--admin-border-default)"
 							>
 								<!-- Status Circle Dot -->
 								<div class="mt-1 shrink-0">
 									<div
 										class="h-2.5 w-2.5 rounded-full {getStatusColor(
 											item.status
-										)} ring-2 ring-white dark:ring-gray-900"
+										)} ring-2 ring-(--admin-bg-card)"
 										title={`${widget_last5_status()}: ${getStatusLabel(item.status)}`}
 									></div>
 								</div>
@@ -147,7 +147,7 @@
 								<!-- Content Metadata -->
 								<div class="min-w-0 flex-1">
 									<div
-										class="font-medium text-sm text-gray-900 dark:text-gray-100 truncate group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors"
+										class="font-medium text-sm text-(--admin-text-body) truncate group-hover:text-tertiary-600 dark:group-hover:text-tertiary-400 transition-colors"
 									>
 										{resolveTitle(item.title, contentLanguage.value)}
 									</div>
@@ -155,7 +155,7 @@
 										class="text-xs text-(--admin-text-muted) dark:text-(--admin-text-muted) mt-0.5 flex items-center gap-1.5"
 									>
 										<span
-											class="font-mono text-[10px] bg-gray-100 dark:bg-gray-800 px-1 py-0.2 rounded-sm text-gray-600 dark:text-(--admin-text-muted)"
+											class="font-mono text-[10px] bg-(--admin-bg-chip) px-1 py-0.2 rounded-sm text-(--admin-text-muted) dark:text-(--admin-text-muted)"
 											>{item.collection}</span
 										>
 										<span class="opacity-40">•</span>
@@ -179,10 +179,10 @@
 			</div>
 		{:else}
 			<div class="flex h-full flex-col items-center justify-center py-6 text-center" role="status">
-				<div class="text-4xl text-gray-300 dark:text-gray-600 mb-2">
+				<div class="text-4xl text-(--admin-text-muted) mb-2">
 					<iconify-icon icon="mdi:file-remove-outline" width={32}></iconify-icon>
 				</div>
-				<div class="text-xs font-semibold text-gray-600 dark:text-(--admin-text-muted)">
+				<div class="text-xs font-semibold text-(--admin-text-muted)">
 					{widget_last5_no_content()}
 				</div>
 				<div class="text-[10px] text-(--admin-text-muted) dark:text-(--admin-text-muted) mt-0.5">

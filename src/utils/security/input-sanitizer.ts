@@ -1,38 +1,26 @@
 /**
  * @file src/utils/security/input-sanitizer.ts
- * @description Lightweight input sanitization for string/markup fields.
+ * @description Input triage + parser-based sanitization for string/markup fields.
  *
- * Strips stored XSS vectors from mutation payloads before they reach
- * the database. Runs as part of the middleware pipeline.
+ * Strips stored XSS vectors from mutation payloads before they reach the
+ * database. Runs as part of the middleware pipeline.
  *
  * Features:
- * - Strips <script>, <iframe>, <object>, <embed> tags and event handlers
- * - Removes javascript: URLs and data: URIs in dangerous contexts
- * - Preserves safe HTML tags (b, i, em, strong, a, p, br, ul, ol, li)
+ * - Parser-based sanitization (`sanitize-html`) with an explicit tag/attribute allowlist
+ * - Entity-aware triage (`&#106;avascript:`, `javascript&colon;`, `<scr&#105;pt>`)
+ * - Keeps the O(1) fast gate for strings without markup, schemes or handlers
+ * - Preserves allowlisted formatting tags (b, i, em, strong, a, p, br, ul, ol, li, …)
  * - Validates href/src attributes against allowlisted protocols
- * - Handles nested and encoded attack vectors
  */
 
-// Regex patterns for XSS vector detection
-// Closing tags allow `</script foo="bar">` (js/bad-tag-filter / HTML parse errors).
-const SCRIPT_TAG_RE = /<script[\s>][\s\S]*?<\/script\b[^>]*>/gi;
-const IFRAME_TAG_RE = /<iframe[\s>][\s\S]*?<\/iframe\b[^>]*>/gi;
-const OBJECT_TAG_RE = /<object[\s>][\s\S]*?<\/object\b[^>]*>/gi;
-const EMBED_TAG_RE = /<embed[\s>][\s\S]*?<\/embed\b[^>]*>/gi;
-const EVENT_HANDLER_RE = /\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi;
-const JAVASCRIPT_URL_RE = /href\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*')/gi;
-const DATA_JS_URL_RE =
-  /src\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*'|"data:text\/html[^"]*")/gi;
-const DANGEROUS_TAGS_RE =
-  /<\/?(?:script|iframe|object|embed|meta|link|style|base|form|input|button|textarea|select|option|optgroup|datalist|keygen|output|progress|meter)\b[^>]*>/gi;
+import { sanitizeHtml, HTML_ALLOWED_TAGS } from "@src/utils/sanitize-html.server";
+import { decodeHtmlEntities } from "@src/utils/sanitize-html";
 
 // ── Fast-path matchers (module scope = compiled once, zero per-call cost) ──
-// Triage gate: none of the dangerous classes above can match a string that
-// contains none of these three characters — '<' (every tag pattern), ':'
-// (every scriptable URL scheme) or '=' (every event handler / attribute URL).
-// A failed gate therefore proves every sanitizer regex would fail, so the
-// string can be returned untouched without any scan or lowercase copy.
-const XSS_VECTOR_GATE_RE = /[<:=]/;
+// Triage gate: without '<' (tags), ':' (scriptable URL scheme), '=' (handler /
+// URL attribute) or an encoded-entity prefix (`&#…`, `&colon;`) no vector class
+// can match. A failed gate returns the string untouched without a parser call.
+const XSS_VECTOR_GATE_RE = /[<:=]|&#|&colon;/i;
 // All scriptable URL schemes, tolerant of whitespace injection (`java\tscript:`).
 const XSS_URL_SCHEME_RE =
   /j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t\s*:|v\s*b\s*s\s*c\s*r\s*i\s*p\s*t\s*:|d\s*a\s*t\s*a\s*:/;
@@ -40,112 +28,24 @@ const XSS_URL_SCHEME_RE =
 // `"onerror=…`), `/` (self-closing), `>` or string start. Case-insensitive.
 const XSS_EVENT_HANDLER_RE = /(?:^|[\s"'>/])on\w+\s*=/i;
 
-// Allowlisted safe HTML tags to preserve (reference for future allowlist-based sanitizer)
-export const SAFE_TAGS = new Set([
-  "a",
-  "abbr",
-  "address",
-  "article",
-  "b",
-  "blockquote",
-  "br",
-  "caption",
-  "cite",
-  "code",
-  "col",
-  "colgroup",
-  "dd",
-  "del",
-  "details",
-  "dfn",
-  "div",
-  "dl",
-  "dt",
-  "em",
-  "figcaption",
-  "figure",
-  "footer",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "header",
-  "hr",
-  "i",
-  "img",
-  "ins",
-  "kbd",
-  "li",
-  "mark",
-  "nav",
-  "ol",
-  "p",
-  "pre",
-  "q",
-  "s",
-  "samp",
-  "section",
-  "small",
-  "span",
-  "strong",
-  "sub",
-  "summary",
-  "sup",
-  "table",
-  "tbody",
-  "td",
-  "tfoot",
-  "th",
-  "thead",
-  "time",
-  "tr",
-  "u",
-  "ul",
-  "var",
-]);
+/** Allowlisted safe HTML tags to preserve (mirrors the parser allowlist). */
+export const SAFE_TAGS = new Set<string>(HTML_ALLOWED_TAGS);
 
 /**
  * Sanitize a single string value against XSS vectors.
- * Strips dangerous tags and event handlers while preserving safe HTML.
+ *
+ * Triage gate first (clean prose never reaches the parser), then the
+ * parser-based allowlist. Unknown tags are dropped while their text content is
+ * kept; `script`/`style` content is removed entirely.
  */
 export function sanitizeString(input: string): string {
   if (!input || typeof input !== "string") return input;
 
-  // Fast triage: without '<', ':' or '=' none of the seven strip patterns
-  // below can match, so the input is returned as-is — the clean-text hot path
-  // avoids all sequential full-string scans. Large payloads are NOT skipped:
-  // a >100KB clean-text field short-circuits here in a single test, while a
-  // large payload containing markup/URL/handler characters still goes through
-  // the linear strip below instead of being returned unsanitized.
+  // Fast triage: without '<', ':', '=' or an encoded-entity prefix no vector
+  // class can match, so clean text (including >100KB payloads) returns as-is.
   if (!XSS_VECTOR_GATE_RE.test(input)) return input;
 
-  let cleaned = input;
-
-  // 1. Strip script/iframe/object/embed tags (including content).
-  // RISK ACCEPTED (CodeQL js/incomplete-multi-character-sanitization): this is a
-  // regex denylist, not a parser. Execution is contained by the CSP
-  // (script-src 'nonce' 'strict-dynamic', no 'unsafe-inline') on page and media
-  // responses; a tree-based sanitizer is tracked in docs/project/roadmap-2026.mdx.
-  cleaned = cleaned.replace(SCRIPT_TAG_RE, "");
-  cleaned = cleaned.replace(IFRAME_TAG_RE, "");
-  cleaned = cleaned.replace(OBJECT_TAG_RE, "");
-  cleaned = cleaned.replace(EMBED_TAG_RE, "");
-
-  // 2. Strip event handlers (onclick, onload, onerror, etc.)
-  cleaned = cleaned.replace(EVENT_HANDLER_RE, "");
-
-  // 3. Strip javascript: URLs in href attributes
-  cleaned = cleaned.replace(JAVASCRIPT_URL_RE, 'href=""');
-
-  // 4. Strip javascript: and data:text/html URLs in src attributes
-  cleaned = cleaned.replace(DATA_JS_URL_RE, 'src=""');
-
-  // 5. Strip dangerous tags (keep safe ones)
-  cleaned = cleaned.replace(DANGEROUS_TAGS_RE, "");
-
-  return cleaned;
+  return sanitizeHtml(input);
 }
 
 /**
@@ -219,32 +119,35 @@ function objectNeedsSanitize(obj: object): boolean {
  * Check if a string contains potential XSS vectors (fast pre-check).
  * Runs before full sanitization — a false negative here SKIPS sanitizeString,
  * so this must be a superset of the dangerous classes, never a subset.
- * Covers all three scriptable URL schemes and ANY `on…=` event handler
- * (consistent with EVENT_HANDLER_RE), plus encoded forms (`&#106;avascript:`,
- * `java\tscript:`) via case/whitespace-tolerant pattern.
+ * Covers all three scriptable URL schemes and ANY `on…=` event handler, plus
+ * entity-encoded forms (`&#106;avascript:`, `javascript&colon;`, `<scr&#105;pt>`)
+ * that the parser would decode — the gate must never be narrower than the
+ * parser it guards.
  */
 export function containsXssVector(input: string): boolean {
   if (!input || typeof input !== "string") return false;
-  // Fast triage: without '<', ':' or '=' no vector class can match — this
-  // keeps the clean-text hot path allocation-free (previously every call
-  // paid for a full lowercase copy).
+  // Fast triage: without '<', ':', '=' or an encoded-entity prefix no vector
+  // class can match — this keeps the clean-text hot path allocation-free.
   if (!XSS_VECTOR_GATE_RE.test(input)) return false;
-  // ASCII-exact short-circuits on the ORIGINAL string: `<script`/`<iframe`
+  // Browsers (and sanitize-html) decode numeric entities and `&colon;` inside
+  // tag names and attribute values, so triage must see the decoded form.
+  const decoded = input.includes("&") ? decodeHtmlEntities(input) : input;
+  // ASCII-exact short-circuits on the decoded string: `<script`/`<iframe`
   // are the most common vectors and lowercase in practice; uppercase forms
   // fall through to the lowercase check below, which stays the source of
   // truth. Same for `on…=` handlers — the match region is pure ASCII and
   // ASCII case folding is total under /i, so a hit here is guaranteed to
   // hit on the lowercase copy too.
-  if (input.includes("<script") || input.includes("<iframe")) return true;
-  if (XSS_EVENT_HANDLER_RE.test(input)) return true;
+  if (decoded.includes("<script") || decoded.includes("<iframe")) return true;
+  if (XSS_EVENT_HANDLER_RE.test(decoded)) return true;
   // ASCII-exact URL-scheme short-circuit: the common lowercase
   // `javascript:`/`data:` forms skip the lowercase copy entirely. Uppercase
   // and whitespace-injected variants fall through to the folded check below,
   // which stays the source of truth.
-  if (input.includes("javascript:") || input.includes("data:")) return true;
-  // The lowercase copy is now only paid by the case/whitespace-folded URL
-  // scheme class (`j\u00e1vascript:`-style injections need the fold to match).
-  const lower = input.toLowerCase();
+  if (decoded.includes("javascript:") || decoded.includes("data:")) return true;
+  // The lowercase copy is only paid by the case/whitespace-folded URL scheme
+  // class (`java\tscript:`-style injections need the fold to match).
+  const lower = decoded.toLowerCase();
   return (
     lower.includes("<script") ||
     lower.includes("<iframe") ||

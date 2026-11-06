@@ -46,12 +46,21 @@ describe("sanitizeString", () => {
 
   test("removes javascript: URLs in href", () => {
     const result = sanitizeString('<a href="javascript:alert(1)">link</a>');
-    expect(result).toBe('<a href="">link</a>');
+    expect(result).toBe("<a>link</a>");
   });
 
   test("removes javascript: URLs in src", () => {
     const result = sanitizeString('<img src="javascript:alert(1)" />');
-    expect(result).toBe('<img src="" />');
+    expect(result).toBe("<img />");
+  });
+
+  test("removes entity-encoded javascript: URLs", () => {
+    expect(sanitizeString('<a href="&#106;avascript:alert(1)">link</a>')).toBe("<a>link</a>");
+    expect(sanitizeString('<a href="javascript&colon;alert(1)">link</a>')).toBe("<a>link</a>");
+  });
+
+  test("does not let non-allowlisted tags survive", () => {
+    expect(sanitizeString('<custom-element onclick="x()">t</custom-element>')).toBe("t");
   });
 
   test("preserves safe HTML tags", () => {

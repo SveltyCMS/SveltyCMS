@@ -1,6 +1,4 @@
 /**
- * slop:suppress — RegExp patterns interpolate tag names from a hardcoded
- * DANGEROUS_TAGS constant array (not user input).
  * @file src/utils/media/media-service.server.ts
  * @description Standard media service for SveltyCMS.
  *
@@ -52,7 +50,7 @@ import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
 import type { SharpOverlayOptions } from "./sharp-loader.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
-import { HANDLER_NAME_PATTERN } from "@src/utils/sanitize-html";
+import { sanitizeSvgMarkup } from "@src/utils/sanitize-html.server";
 import { scheduleVariantJob } from "./variant-job-scheduler.server";
 import { collectReferencedHashes, isRasterImage } from "./media-lifecycle.server";
 
@@ -110,69 +108,17 @@ function guardNumeric(value: number, fallback: number): number {
 /* -------------------------------------------------------------------------- */
 
 /**
- * 🛡️ Lightweight SVG sanitizer — strips dangerous elements and attributes
- * without requiring a DOM parser (zero additional runtime deps).
+ * 🛡️ SVG sanitizer — parser-based allowlist (`sanitizeSvgMarkup`).
  *
- * Strips: script, foreignObject, iframe, object, embed tags (with content)
- * Strips: all on* event handlers, javascript:/data: URIs in href/xlink:href
- * Strips: CDATA blocks, XML processing instructions, DOCTYPE declarations
+ * The htmlparser2 tree walk drops `script`, `foreignObject`, `iframe`, `object`,
+ * `embed`, `style`, `animate`/`set`, every `on*` handler, and any
+ * `href`/`xlink:href` whose value is not a same-document `#…` reference.
+ * `viewBox` and camelCase SVG element names survive the round-trip.
  *
  * Defense-in-depth: the RichText/Sanitize display pipeline also applies DOMPurify client-side
  */
-
-/**
- * SVG event handlers — shared curated handler list from sanitize-html.ts, plus
- * the post-quote injection position (`<image href="x"onload="…"/>`).
- * slop:suppress — handler names come from the hardcoded shared constant.
- */
-const SVG_HANDLER_RE = new RegExp(
-  `(?:\\s|(?<=<[a-z][a-z0-9]*)\\/|(?<=>)\\/|(?<=["'])\\/?)(${HANDLER_NAME_PATTERN})\\s*=\\s*(?:'[^']*'|"[^"]*"|[^\\s>]+)`,
-  "gi",
-);
-
-const SVG_DANGEROUS_PAIR_RE = /<(script|foreignObject|iframe|object|embed)[/\s>][\s\S]*?<\/\1>/gi;
-const SVG_DANGEROUS_SELF_CLOSING_RE = /<(?:script|foreignObject|iframe|object|embed)[^>]*?\/>/gi;
-
 export function sanitizeSvg(svg: string): string {
-  let cleaned = svg;
-  let previous = "";
-
-  // Iterative scrubbing — prevents XML label-nesting bypass attacks
-  // (same defense as sanitize-html.ts)
-  while (cleaned !== previous) {
-    previous = cleaned;
-
-    // 1. Strip dangerous tags (with their content, including self-closing variants).
-    //    `/` right after the tag name covers the no-space bypass `<script/src=…>`;
-    //    the self-closing pass handles `<script/>` exactly (`[^>]*?/>`).
-    // RISK ACCEPTED (CodeQL js/incomplete-multi-character-sanitization): regex
-    // denylist, not a parser. Execution is contained by the CSP on media
-    // responses; a tree-based SVG sanitizer is tracked in the roadmap.
-    cleaned = cleaned.replace(SVG_DANGEROUS_PAIR_RE, "");
-    cleaned = cleaned.replace(SVG_DANGEROUS_SELF_CLOSING_RE, "");
-
-    // 2. Strip inline event handlers — inside loop for defense-in-depth.
-    //    Iterative scrubber re-scans until fixpoint; DANGEROUS_TAGS and handler
-    //    patterns come from hardcoded constants.
-    cleaned = cleaned.replace(SVG_HANDLER_RE, "");
-  }
-
-  // 3. Strip javascript: and data: protocols in href/xlink:href attributes
-  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*javascript\s*:/gi, '$1="#blocked"');
-  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*'\s*javascript\s*:/gi, "$1='#blocked'");
-  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*"\s*data\s*:/gi, '$1="#blocked"');
-  cleaned = cleaned.replace(/(href|xlink:href)\s*=\s*'\s*data\s*:/gi, "$1='#blocked'");
-
-  // 4. Strip CDATA-wrapped scripts (potential XSS vectors)
-  cleaned = cleaned.replace(/<!\[CDATA\[[\s\S]*?\]\]>/gi, "");
-
-  // 5. Strip XML processing instructions (potential XXE vectors)
-  cleaned = cleaned.replace(/<\?[\s\S]*?\?>/gi, "");
-
-  // 6. Strip DOCTYPE declarations (external entity injection)
-  cleaned = cleaned.replace(/<!DOCTYPE[^>]*>/gi, "");
-
-  return cleaned;
+  return sanitizeSvgMarkup(svg);
 }
 
 function isSvgFile(mimeType: string, filename: string): boolean {

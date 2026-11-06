@@ -61,7 +61,7 @@ dismiss button, action button, shrink timer bar, and pause-on-hover.
 	const styles = {
 		success: 'preset-filled-success-500 text-white shadow-success-500/20',
 		error: 'preset-filled-error-500 text-white shadow-error-500/20',
-		warning: 'preset-filled-warning-500 text-white shadow-warning-500/20',
+		warning: 'preset-filled-warning-500 text-surface-950 shadow-warning-500/20',
 		info: 'preset-filled-info-500 text-white shadow-info-500/20',
 		loading: 'preset-filled-surface-500 text-white shadow-surface-500/20'
 	};

@@ -6,6 +6,7 @@
 
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
+	import AdminCard from '@components/admin-card.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { modalState } from '@utils/modal.svelte';
 	import { showConfirm } from '@utils/modal.svelte';
@@ -119,8 +120,8 @@
 
 	<div class="grid grid-cols-1 gap-4 focus:outline-none">
 		<!-- Export Data -->
-		<div
-			class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-(--admin-border-default) hover:border-tertiary-500 dark:hover:border-primary-500/50 transition-colors"
+		<AdminCard
+			class="border-(--admin-border-default) bg-surface-500/10! p-5 transition-colors hover:border-tertiary-500! dark:bg-surface-900/20! dark:hover:border-primary-500/50!"
 		>
 			<div class="flex items-start gap-4">
 				<div class="p-3 rounded bg-secondary-500/10 text-secondary-500">
@@ -137,12 +138,12 @@
 					</Button>
 				</div>
 			</div>
-		</div>
+		</AdminCard>
 
 		<!-- Anonymize/Delete Account -->
 		{#if (totalUsers ?? 1) > 1 || !isAdmin}
-			<div
-				class="card p-5 bg-surface-500/10 dark:bg-surface-900/20 border border-(--admin-border-default) hover:border-error-500/50 transition-colors"
+			<AdminCard
+				class="border-(--admin-border-default) bg-surface-500/10! p-5 transition-colors hover:border-error-500/50! dark:bg-surface-900/20!"
 			>
 				<div class="flex items-start gap-4">
 					<div class="p-3 rounded bg-error-500/10 text-error-500">
@@ -159,7 +160,7 @@
 						</Button>
 					</div>
 				</div>
-			</div>
+			</AdminCard>
 		{/if}
 	</div>
 

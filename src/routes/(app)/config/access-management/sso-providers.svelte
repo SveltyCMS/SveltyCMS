@@ -404,18 +404,20 @@
 				>
 				<div class="flex flex-wrap gap-2">
 					{#each PRESET_PROVIDERS as preset (preset.id)}
-						<button
+						<Button
+							variant="transparent"
 							type="button"
+							size="sm"
 							onclick={() => applyPreset(preset)}
-							class="px-3 py-1.5 rounded text-xs font-medium border flex items-center gap-1.5 transition-colors {formId ===
-							preset.id
-								? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-500 dark:text-primary-500'
-								: 'border-surface-500/30 hover:bg-surface-500/10 text-(--admin-text-muted)'}"
+							aria-pressed={formId === preset.id}
+							class="border! font-medium! {formId === preset.id
+								? 'border-tertiary-500 bg-tertiary-500/10! text-tertiary-500 dark:text-primary-500'
+								: 'border-surface-500/30 text-(--admin-text-muted) hover:bg-surface-500/10!'}"
 							aria-label={`Apply ${preset.name} preset`}
 						>
 							<iconify-icon icon={preset.icon} width={16} aria-hidden="true"></iconify-icon>
 							<span>{preset.name}</span>
-						</button>
+						</Button>
 					{/each}
 				</div>
 			</div>

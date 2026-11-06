@@ -814,7 +814,7 @@
 
 	<!-- Test Connection Button -->
 	<div class="space-y-3">
-		<Button variant="tertiary" type="submit" disabled={!isFormValid || isTesting} class="w-full">
+		<Button variant="primary" type="submit" disabled={!isFormValid || isTesting} class="w-full">
 			<iconify-icon icon="mdi:email" class="me-2 text-xl"></iconify-icon>
 			{isTesting ? setup_email_testing() : setup_email_test_button()}
 		</Button>
