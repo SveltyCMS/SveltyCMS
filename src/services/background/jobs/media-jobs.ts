@@ -10,6 +10,7 @@ import {
   getFile,
   captureVideoThumbnail,
   generatePdfThumbnail,
+  generateCsvThumbnail,
 } from "@src/utils/media/media-storage.server";
 import path from "node:path";
 import type { DatabaseId } from "@src/databases/db-interface";
@@ -71,6 +72,23 @@ export async function processMediaHandler(payload: { fileId: string; basePath?: 
     } else if (mimeType === "application/pdf") {
       logger.debug(`[MediaJob] Generating PDF thumbnail for ${media.filename}`);
       const thumbBuffer = await generatePdfThumbnail(buffer);
+      if (thumbBuffer) {
+        thumbnails = await saveResizedImages(
+          thumbBuffer,
+          media.hash,
+          `${baseName}-thumb`,
+          "jpg",
+          basePath,
+        );
+      }
+    } else if (
+      media.filename.toLowerCase().endsWith(".csv") ||
+      media.filename.toLowerCase().endsWith(".tsv") ||
+      mimeType === "text/csv" ||
+      mimeType === "text/tab-separated-values"
+    ) {
+      logger.debug(`[MediaJob] Generating spreadsheet thumbnail for ${media.filename}`);
+      const thumbBuffer = await generateCsvThumbnail(buffer);
       if (thumbBuffer) {
         thumbnails = await saveResizedImages(
           thumbBuffer,

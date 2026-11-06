@@ -371,57 +371,197 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
 }
 
 /**
- * Generates a thumbnail from the first page of a PDF using ImageMagick
+ * Generates a thumbnail from the first page of a PDF.
+ *
+ * Uses PDFium compiled to WebAssembly (`@hyzyla/pdfium/inline`), so previews do
+ * not depend on ImageMagick/Ghostscript/Poppler being installed on the host.
+ * The library is initialised once per process and reused; the render is capped
+ * to the first page at ~108 DPI (scale 1.5), then the ladder downsizes it.
  */
+let pdfiumLibraryPromise: Promise<import("@hyzyla/pdfium").PDFiumLibrary> | undefined;
+
+function getPdfiumLibrary(): Promise<import("@hyzyla/pdfium").PDFiumLibrary> {
+  pdfiumLibraryPromise ??= import("@hyzyla/pdfium/inline").then(({ PDFiumLibrary }) =>
+    PDFiumLibrary.init({ disableBase64Warning: true }),
+  );
+  return pdfiumLibraryPromise;
+}
+
 export async function generatePdfThumbnail(buffer: Buffer): Promise<Buffer | null> {
+  if (buffer.length === 0) return null;
   if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
     logger.error("PDF buffer too large for thumbnail generation", { size: buffer.length });
     return null;
   }
 
-  const tempInput = path.join(os.tmpdir(), `pdf-input-${generateUUID()}.pdf`);
-  const tempOutput = path.join(os.tmpdir(), `pdf-output-${generateUUID()}.jpg`);
+  let document: import("@hyzyla/pdfium").PDFiumDocument | undefined;
   try {
-    await writeFile(tempInput, buffer);
-    // Use ImageMagick (magick) to extract the first page [0] at 150 DPI
-    // -background white -flatten handles transparency
-    await spawnAsync("magick", [
-      "-density",
-      "150",
-      `${tempInput}[0]`,
-      "-background",
-      "white",
-      "-flatten",
-      "-alpha",
-      "remove",
-      "-quality",
-      "90",
-      tempOutput,
-    ]);
-    return await readFile(tempOutput);
-  } catch (err) {
-    const isMagickMissing =
-      err instanceof Error &&
-      (err.message.includes("not found") || err.message.includes("not recognized"));
-    if (isMagickMissing) {
-      logger.warn(
-        'PDF thumbnail generation skipped: "magick" command not found. Install ImageMagick and Ghostscript to enable PDF previews.',
-      );
-    } else {
-      logger.error("Error generating PDF thumbnail", { error: err });
+    const library = await getPdfiumLibrary();
+    document = await library.loadDocument(new Uint8Array(buffer));
+    const page = document.getPage(0);
+    try {
+      const image = await page.render({
+        // A4 at scale 2 ≈ 1190 px wide — enough for the `md` (900) ladder step.
+        scale: 2,
+        render: async (options) => {
+          const sharp = await getSharp();
+          return sharp(options.data, {
+            raw: { width: options.width, height: options.height, channels: 4 },
+          })
+            .flatten({ background: "#ffffff" })
+            .jpeg({ quality: 88 })
+            .toBuffer();
+        },
+      });
+      return Buffer.from(image.data);
+    } finally {
+      page.close();
     }
+  } catch (err) {
+    logger.warn("[Media] PDF preview generation failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return null;
   } finally {
-    try {
-      await unlink(tempInput);
-    } catch {
-      /* ignore */
+    document?.destroy();
+  }
+}
+
+/** Rows/columns/bytes kept from a delimited text file for its preview tile. */
+const CSV_PREVIEW_MAX_BYTES = 256 * 1024;
+const CSV_PREVIEW_MAX_ROWS = 10;
+const CSV_PREVIEW_MAX_COLS = 6;
+const CSV_PREVIEW_WIDTH = 1200;
+const CSV_PREVIEW_ROW_HEIGHT = 52;
+
+/** Count delimiter occurrences outside quotes — enough to pick `,` vs `;` vs tab. */
+function countDelimiter(line: string, delimiter: string): number {
+  let count = 0;
+  let quoted = false;
+  for (const ch of line) {
+    if (ch === '"') quoted = !quoted;
+    else if (!quoted && ch === delimiter) count++;
+  }
+  return count;
+}
+
+/** Minimal RFC-4180 reader for a preview (quotes, escaped quotes, CRLF). */
+function readDelimitedPreview(text: string, delimiter: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let quoted = false;
+
+  const pushRow = () => {
+    row.push(cell);
+    if (row.some((value) => value.trim().length > 0)) rows.push(row);
+    row = [];
+    cell = "";
+  };
+
+  for (let i = 0; i < text.length && rows.length < CSV_PREVIEW_MAX_ROWS; i++) {
+    const ch = text[i]!;
+    if (quoted) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          quoted = false;
+        }
+      } else {
+        cell += ch;
+      }
+      continue;
     }
-    try {
-      await unlink(tempOutput);
-    } catch {
-      /* ignore */
+    if (ch === '"') {
+      quoted = true;
+    } else if (ch === delimiter) {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      pushRow();
+    } else {
+      cell += ch;
     }
+  }
+  if (rows.length < CSV_PREVIEW_MAX_ROWS && (cell.length > 0 || row.length > 0)) pushRow();
+
+  return rows.map((r) => r.slice(0, CSV_PREVIEW_MAX_COLS));
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function truncateCell(value: string, maxChars: number): string {
+  const singleLine = value.replace(/\s+/g, " ").trim();
+  return singleLine.length > maxChars ? `${singleLine.slice(0, maxChars - 1)}…` : singleLine;
+}
+
+/**
+ * Render the first rows of a CSV/TSV as a spreadsheet-style preview image.
+ *
+ * Deliberately dependency-free: a small SVG table is rasterised with the
+ * already-loaded sharp, so every host gets a preview without a document
+ * converter. The output is a normal image buffer that the ladder resizes.
+ */
+export async function generateCsvThumbnail(buffer: Buffer): Promise<Buffer | null> {
+  if (buffer.length === 0) return null;
+  const text = buffer
+    .subarray(0, CSV_PREVIEW_MAX_BYTES)
+    .toString("utf8")
+    .replace(/^\uFEFF/, "");
+  if (!text.trim() || text.includes("\u0000")) return null;
+
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? "";
+  const delimiter = ([",", ";", "\t"] as const).reduce((best, candidate) =>
+    countDelimiter(firstLine, candidate) > countDelimiter(firstLine, best) ? candidate : best,
+  );
+  const rows = readDelimitedPreview(text, delimiter);
+  if (rows.length === 0) return null;
+
+  const columns = Math.max(...rows.map((row) => row.length), 1);
+  const rowNumberGutter = 36;
+  const gridWidth = CSV_PREVIEW_WIDTH - 40 - rowNumberGutter;
+  const columnWidth = gridWidth / columns;
+  const height = 24 + rows.length * CSV_PREVIEW_ROW_HEIGHT + 24;
+  const fontSize = 14;
+  const maxChars = Math.max(6, Math.floor(columnWidth / (fontSize * 0.62)));
+  const fontFamily = "'Cascadia Mono','Consolas','DejaVu Sans Mono','Menlo',monospace";
+
+  const body = rows
+    .map((row, rowIndex) => {
+      const y = 24 + rowIndex * CSV_PREVIEW_ROW_HEIGHT;
+      const header = rowIndex === 0;
+      const cells = Array.from({ length: columns }, (_, columnIndex) => {
+        const x = 20 + rowNumberGutter + columnIndex * columnWidth;
+        const value = escapeXml(truncateCell(row[columnIndex] ?? "", maxChars));
+        return `<text x="${x + 8}" y="${y + 31}" font-family="${fontFamily}" font-size="${fontSize}" fill="${header ? "#0f172a" : "#334155"}" font-weight="${header ? 600 : 400}">${value}</text>`;
+      }).join("");
+      return (
+        `<rect x="${20 + rowNumberGutter}" y="${y}" width="${gridWidth}" height="${CSV_PREVIEW_ROW_HEIGHT}" fill="${header ? "#e2e8f0" : "#ffffff"}" stroke="#cbd5e1" stroke-width="1"/>` +
+        `<text x="${20 + rowNumberGutter - 8}" y="${y + 31}" text-anchor="end" font-family="${fontFamily}" font-size="12" fill="#94a3b8">${rowIndex + 1}</text>` +
+        cells
+      );
+    })
+    .join("");
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${CSV_PREVIEW_WIDTH}" height="${height}" viewBox="0 0 ${CSV_PREVIEW_WIDTH} ${height}"><rect width="100%" height="100%" fill="#f8fafc"/>${body}</svg>`;
+
+  try {
+    const sharp = await getSharp();
+    return await sharp(Buffer.from(svg)).png().toBuffer();
+  } catch (err) {
+    logger.warn("[Media] CSV preview generation failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
   }
 }
 

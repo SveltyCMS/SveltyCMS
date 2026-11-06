@@ -13,7 +13,14 @@ import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
 import { nowISODateString } from "@src/utils/date";
 import { AppError, raise } from "@utils/error-handling";
-import { fileExists, getFile, saveFile, saveResizedImages } from "./media-storage.server";
+import {
+  fileExists,
+  getFile,
+  saveFile,
+  saveResizedImages,
+  generateCsvThumbnail,
+  generatePdfThumbnail,
+} from "./media-storage.server";
 import {
   processImageWithPresets,
   MAX_OUTPUT_DIMENSION,
@@ -862,6 +869,70 @@ export class MediaService {
     };
   }
 
+  /** True when an existing document row has no generated preview yet (pre-pipeline upload). */
+  private needsDocumentPreview(record: DbMediaItem, filename: string, mimeType: string): boolean {
+    const lower = filename.toLowerCase();
+    const isDocument =
+      mimeType === "application/pdf" ||
+      mimeType === "text/csv" ||
+      mimeType === "text/tab-separated-values" ||
+      lower.endsWith(".pdf") ||
+      lower.endsWith(".csv") ||
+      lower.endsWith(".tsv");
+    if (!isDocument) return false;
+    const thumbnails = (record as unknown as EnrichableRecord).thumbnails ?? {};
+    return Object.keys(thumbnails).length === 0;
+  }
+
+  /**
+   * Build the first-page/table preview for a non-image document (PDF, CSV/TSV).
+   *
+   * Images already get their ladder from `buildDerivativeSet`; documents have no
+   * pixels to resize, so this renders one preview buffer and runs it through the
+   * same ladder. Failure is non-fatal: the tile falls back to its file icon.
+   */
+  private async buildDocumentPreview(
+    buffer: Buffer,
+    hash: string,
+    filename: string,
+    mimeType: string,
+    tenantId?: DatabaseId | null,
+  ): Promise<{ metadata: Record<string, unknown>; thumbnails: Record<string, unknown> }> {
+    const lower = filename.toLowerCase();
+    const isPdf = mimeType === "application/pdf" || lower.endsWith(".pdf");
+    const isDelimitedText =
+      lower.endsWith(".csv") ||
+      lower.endsWith(".tsv") ||
+      mimeType === "text/csv" ||
+      mimeType === "application/csv" ||
+      mimeType === "text/tab-separated-values";
+    if (!isPdf && !isDelimitedText) return { metadata: {}, thumbnails: {} };
+
+    try {
+      const preview = isPdf
+        ? await generatePdfThumbnail(buffer)
+        : await generateCsvThumbnail(buffer);
+      if (!preview) return { metadata: {}, thumbnails: {} };
+
+      const dotIdx = filename.lastIndexOf(".");
+      const baseName = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
+      const thumbnails = await saveResizedImages(
+        preview,
+        hash,
+        `${baseName}-thumb`,
+        "jpg",
+        tenantId || "global",
+      );
+      return { metadata: {}, thumbnails };
+    } catch (err) {
+      logger.warn("[Media] Document preview skipped", {
+        file: filename,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return { metadata: {}, thumbnails: {} };
+    }
+  }
+
   /**
    * Read the source dimensions and write the operator's SIZES ladder for a raster upload.
    * Non-images and SVG return empty maps (SVG is never rasterised). Failure is logged and
@@ -1005,7 +1076,12 @@ export class MediaService {
         });
         const staleRecord = existing.success && existing.data ? existing.data : undefined;
         const missing = staleRecord ? await this.findMissingStoredFile(staleRecord) : null;
-        if (staleRecord && !missing) {
+        // A byte-identical document uploaded before the preview pipeline landed would
+        // otherwise dedupe to its row forever and never gain a thumbnail.
+        const needsPreview = staleRecord
+          ? this.needsDocumentPreview(staleRecord, file.name, effectiveType)
+          : false;
+        if (staleRecord && !missing && !needsPreview) {
           // A same-name re-upload short-circuits inside `ensureOriginalOnDisk` (file already
           // there) — that is what keeps the `size-mtime` ETag, and therefore client
           // re-downloads, stable. A different filename still gets its own copy so the
@@ -1014,9 +1090,10 @@ export class MediaService {
           return await this.adoptExistingRecord(staleRecord, relPath, folderId, tenantId);
         }
         if (staleRecord) {
-          logger.warn("[Media] Dedupe hit has files missing from storage — repairing", {
+          logger.warn("[Media] Dedupe hit needs repair", {
             hash: hash.slice(0, 12),
-            missing,
+            missing: missing ?? "none",
+            documentPreview: needsPreview,
           });
         }
 
@@ -1028,6 +1105,17 @@ export class MediaService {
         // (~60-100ms on a 1080p upload) must not block the response.
         const { metadata: imageMetadata, thumbnails: imageThumbnails } =
           await this.buildDerivativeSet(buffer, hash, file.name, effectiveType, tenantId);
+        // Documents have no source pixels — render a first-page/table preview once
+        // and run it through the same ladder. Images get empty maps here.
+        const documentPreview = await this.buildDocumentPreview(
+          buffer,
+          hash,
+          file.name,
+          effectiveType,
+          tenantId,
+        );
+        const previewMetadata = { ...imageMetadata, ...documentPreview.metadata };
+        const previewThumbnails = { ...imageThumbnails, ...documentPreview.thumbnails };
 
         // Repair path: the row for these bytes exists, only its files did not. Re-derive
         // them onto that row instead of inserting a second row for identical content.
@@ -1036,8 +1124,8 @@ export class MediaService {
             staleRecord,
             relPath,
             folderId,
-            imageMetadata,
-            imageThumbnails,
+            previewMetadata,
+            previewThumbnails,
             tenantId,
           );
           this.generateVariantsForStreamedFile(
@@ -1064,13 +1152,13 @@ export class MediaService {
             createdBy: _userId as DatabaseId,
             updatedBy: _userId as DatabaseId,
             metadata: {
-              ...imageMetadata,
+              ...previewMetadata,
               processingStatus:
                 effectiveType.startsWith("image/") && !isSvgFile(effectiveType, file.name)
                   ? MediaProcessingStatus.Processing
                   : MediaProcessingStatus.Ready,
             },
-            thumbnails: imageThumbnails,
+            thumbnails: previewThumbnails,
             access: _access,
             folderId,
             tenantId: tenantId,

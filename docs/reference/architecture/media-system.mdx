@@ -231,7 +231,7 @@ SveltyCMS employs a high-performance ingestion and delivery pipeline designed fo
 - **Derivative ladder (SIZES)**: `saveResized()` (`media-storage.server.ts`) writes one output per configured `SIZES` step into `{tenantId}/{size}/<name>-<hash>.<ext>` — **JPEG by default**, see [Derivative output format](#derivative-output-format) for the setting, the opt-ins and the measured cost. Two invariants hold: a step **wider than the decoded source is dropped** (plus `withoutEnlargement` at the encoder), so a 400 px icon produces the 200 px step only, and **each resolved path is written once** — a source that is already WebP no longer encodes its own primary twice. The `thumbnails` map records the encoder's real output dimensions; steps that were clamped away are simply absent, which `mediaUrl`/`mediaDisplayUrl` fall back from. Measured 2026-09-22: a 400 px source went from 8 files / 16,984 B to 2 files / 600 B.
 - **Responsive variants (deferred coalescer)**: after the record exists, deferred jobs derive `thumbnail`/`card`/`default` presets under `{tenantId}/{hash}/variants/{preset}-{width}.{format}` through a single-flight FIFO coalescer (`variant-job-scheduler.server.ts`, bounded by `SVELTY_VARIANT_JOBS`, default 2). Concurrent uploads of identical bytes share a single preset pipeline run, and bulk imports queue in waves to protect memory and CPU. Every upload lands with `metadata.processingStatus: "processing"`; the job flips it to `ready` (or `failed`, with `processingError`) in the media document. Full consolidation of this pass into the SIZES ladder is tracked in [2026 Roadmap](../../project/roadmap-2026.mdx).
 - **AI-Native Tagging [WIP]**: A conceptual background task that hooks into local Ollama (`llava`) for privacy-first image analysis.
-- **Document Thumbnails**: Automated extraction of PDF first-pages (requires `imagemagick`).
+- **Document Thumbnails**: PDF first pages are rendered with bundled PDFium (WebAssembly) — no ImageMagick/Ghostscript install is required. CSV/TSV files render their first rows as a spreadsheet-style preview. Both are generated during the buffered upload path, written through the normal `SIZES` ladder, and used by the gallery grid/table; a byte-identical re-upload backfills a row uploaded before this pipeline existed.
 
 ### Phase III: Storage & Deduplication
 
@@ -610,7 +610,7 @@ if (isMediaOfType(item, MediaType.Video)) item.duration; // MediaVideo
 const draft: NewMedia<MediaImage> = { ... };  // no _id, hash, url, createdBy
 const patch: MediaPatch = { alt: "photo" };   // PATCH-safe fields only
 
-// Exhaustiveness — add a new media type and every switch fails to compile
+// Exhaustiveness — a new media type turns every affected switch into a compile error
 switch (item.type) {
   case MediaType.Image:    return item.width;
   case MediaType.RemoteVideo: return item.provider;

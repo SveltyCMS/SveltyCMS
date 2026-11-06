@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:d7c76564-ccd1-49cd-acf7-994a879547a2",
+  "serialNumber": "urn:uuid:6a0e86b5-b277-4407-9b84-5424e31bfae5",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-06T08:38:59.863Z",
+    "timestamp": "2026-11-06T16:02:32.194Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -1173,6 +1173,19 @@
         {
           "alg": "SHA-512",
           "content": "sha512-kqe6SXPi91qe5Ql3tB4mnD8SGXhplv5E0SpBG7JDzxDPYfxbDSVuxz/RKn0uAVLw4URkSy2P84LiMd88YxCJBQ=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "@hyzyla/pdfium",
+      "version": "3.0.0",
+      "purl": "pkg:npm/@hyzyla/pdfium@3.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-Hw7/Pc/y2f8ZYVNXxAvDiLAV0qJT4+e5HMwbMghra/s2RKXuuWYdR/8ohoD4YwQfTL5UzSNlTtP1LJHip7LiEQ=="
         }
       ]
     },

@@ -30,7 +30,7 @@
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
-	import { mediaDisplayUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaThumbnailUrl } from '@utils/media/media-utils';
 	import {
 		type MediaBase,
 		type MediaImage,
@@ -366,6 +366,7 @@
 				{@const fileId = file._id?.toString() || file.filename}
 				{@const processing = processingStatusOf(file)}
 				{@const inUse = publishedMediaIds.has(fileId)}
+				{@const documentPreview = file.type === 'image' ? '' : mediaThumbnailUrl(file, 'thumbnail')}
 
 				<div
 					class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
@@ -420,11 +421,13 @@
 						<div
 							class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded"
 						>
-							{#if file.type === 'image' && !failedImages.has(fileId)}
+							{#if (documentPreview || file.type === 'image') && !failedImages.has(fileId)}
 								<img
-									src={mediaDisplayUrl(file, 'thumbnail')}
+									src={documentPreview || mediaDisplayUrl(file, 'thumbnail')}
 									alt=""
-									class="pointer-events-none h-full w-full object-cover"
+									class="pointer-events-none h-full w-full {documentPreview
+										? 'object-contain bg-white'
+										: 'object-cover'}"
 									loading="lazy"
 									decoding="async"
 									draggable="false"
@@ -618,6 +621,8 @@
 					{@const fileId = file._id?.toString() || file.filename}
 					{@const processing = processingStatusOf(file)}
 					{@const inUse = publishedMediaIds.has(fileId)}
+					{@const documentPreview =
+						file.type === 'image' ? '' : mediaThumbnailUrl(file, 'thumbnail')}
 
 					<tr
 						class="group cursor-grab align-middle active:cursor-grabbing
@@ -669,11 +674,13 @@
 							<div
 								class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12"
 							>
-								{#if file.type === 'image' && !failedImages.has(fileId)}
+								{#if (documentPreview || file.type === 'image') && !failedImages.has(fileId)}
 									<img
-										src={mediaDisplayUrl(file, 'thumbnail')}
+										src={documentPreview || mediaDisplayUrl(file, 'thumbnail')}
 										alt=""
-										class="pointer-events-none h-full w-full object-cover"
+										class="pointer-events-none h-full w-full {documentPreview
+											? 'object-contain bg-white'
+											: 'object-cover'}"
 										loading="lazy"
 										decoding="async"
 										draggable="false"

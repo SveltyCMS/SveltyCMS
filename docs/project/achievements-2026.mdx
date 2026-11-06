@@ -2191,6 +2191,14 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **One opt-in shell mode.** `AdminPageShell` gained `flushContent`, which drops `pt-4`/`pb-2` and the `space-y` rhythm while keeping the `px-2` card inset. `/mediagallery` sets it; the other five `fullHeight` routes (collection builder, extensions, queue, workflows, email previews) keep the previous spacing. The breadcrumb/toolbar bands now sit directly under `PageTitle` and the card reaches the bottom edge at both 1280×900 and 420×900.
 - **Pinned by** `tests/e2e/routes/mediagallery/mediagallery.spec.ts` (grid/table, toolbar, bulk and filter flows); the gap fix itself was verified with a temporary Playwright geometry probe at 1280×900 and 420×900 (both bands 0px), then the probe was removed.
 
+#### Document previews — PDF first page and CSV table (2026-11-06)
+
+- **PDF tiles show the first page.** `generatePdfThumbnail()` now renders with bundled PDFium (WebAssembly, `@hyzyla/pdfium/inline`) instead of shelling out to ImageMagick/Ghostscript. The library initialises once per process, renders page 1 at ~1190 px wide, flattens to white and writes a JPEG; a malformed or encrypted PDF falls back to the file icon without failing the upload.
+- **CSV/TSV tiles show their first rows.** `generateCsvThumbnail()` parses up to 10 rows × 6 columns (quotes, escaped quotes, CRLF; `,`/`;`/tab detected from the header) and rasterises a spreadsheet-style SVG through the existing sharp instance — no document converter involved.
+- **One ladder, both views.** Both previews run through `saveResizedImages()`, so `thumbnail`/`sm`/`md`/`lg` follow the configured `SIZES` and the upload response carries them like any image derivative. `mediaThumbnailUrl()` (thumbnail-only, never the original document URL) feeds the grid and table tiles, which render documents with `object-contain` instead of the generic file icon.
+- **Pre-pipeline rows backfill on re-upload.** The dedupe check now also treats a PDF/CSV row with no thumbnails as needing repair, so uploading the same bytes regenerates the preview onto the existing row instead of returning it unchanged.
+- **Pinned by** `tests/unit/media/document-previews.test.ts` (real Sharp + PDFium, including a malformed-PDF fallback) and the gallery E2E upload test for `.csv` + `.pdf` tiles.
+
 #### Image editor — preview/bake parity (2026-11-06)
 
 - **Geometry matches the canvas.** The bake now extracts the source crop first, then flips, then rotates — the same order the canvas draws (`translate × scale(flip) × rotate`). Because Sharp always flips before rotating, a single flip negates the rotation angle (`Fx∘R(θ) = R(−θ)∘Fx`) so 90°/free rotation and flip-with-crop produce the same orientation as the preview. Rotated PNG/WebP/AVIF keep transparent corners; JPEG is filled white.

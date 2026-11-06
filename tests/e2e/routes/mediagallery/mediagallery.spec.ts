@@ -15,6 +15,33 @@ import {
   uploadUniqueImage,
 } from "../../helpers/media";
 
+/** Minimal single-page PDF with a correct cross-reference table. */
+function makeMinimalPdf(): Buffer {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>",
+    "",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ];
+  const stream = "BT /F1 24 Tf 20 100 Td (Preview) Tj ET";
+  objects[3] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [0];
+  for (let index = 0; index < objects.length; index++) {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
+  }
+  const xrefStart = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (let index = 1; index <= objects.length; index++) {
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`;
+  return Buffer.from(pdf, "latin1");
+}
+
 test.describe("Media Gallery", () => {
   test.beforeEach(async ({ page }) => {
     await openMediaGallery(page);
@@ -125,6 +152,44 @@ test.describe("Media Gallery", () => {
       await expect(page.getByTestId("media-gallery-content")).toHaveAttribute("data-view", "grid");
     } finally {
       for (const item of seeded.items) await deleteMediaRow(page, item._id);
+    }
+  });
+
+  test("uploads CSV and PDF assets with document previews", async ({ page }) => {
+    const stamp = Date.now().toString(36);
+    const csvName = `e2e-preview-${stamp}.csv`;
+    const pdfName = `e2e-preview-${stamp}.pdf`;
+    const csv = Buffer.from("name;amount;date\nAcme;1234.50;2026-01-02\nBeta;99.00;2026-02-03\n");
+
+    const upload = async (name: string, mimeType: string, buffer: Buffer) => {
+      const responsePromise = page.waitForResponse(
+        (res) =>
+          res.request().method() === "POST" &&
+          (res.url().includes("?/upload") || res.url().includes("/api/media")),
+        { timeout: 30_000 },
+      );
+      await page.getByTestId("media-upload-input").setInputFiles({ name, mimeType, buffer });
+      const response = await responsePromise;
+      expect(response.ok(), `${mimeType} upload: ${response.status()}`).toBe(true);
+
+      const card = page.getByTestId("media-item").filter({ hasText: name }).first();
+      await expect(card).toBeVisible({ timeout: 25_000 });
+      return { card, id: await card.getAttribute("data-media-id") };
+    };
+
+    const csvRow = await upload(csvName, "text/csv", csv);
+    const pdfRow = await upload(pdfName, "application/pdf", makeMinimalPdf());
+    try {
+      for (const row of [csvRow, pdfRow]) {
+        // The tile renders a generated preview image instead of the generic
+        // file icon, and the URL is a real rendition — not the document itself.
+        const preview = row.card.locator("img").first();
+        await expect(preview).toBeVisible({ timeout: 15_000 });
+        await expect(preview).toHaveAttribute("src", /\/files\/.+\/(thumbnail|sm|md)\//);
+      }
+    } finally {
+      await deleteMediaRow(page, csvRow.id ?? undefined);
+      await deleteMediaRow(page, pdfRow.id ?? undefined);
     }
   });
 

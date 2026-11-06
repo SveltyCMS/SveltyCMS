@@ -45,7 +45,7 @@
 		type MediaImage,
 		normalizeProcessingStatus
 	} from '@utils/media/media-models';
-	import { mediaDisplayUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaThumbnailUrl } from '@utils/media/media-utils';
 	import { adminFade, motionDuration } from '@utils/admin-transitions';
 	import {
 		MEDIA_DRAG_CONTAINER,
@@ -434,6 +434,7 @@
 			{@const fileId = file._id?.toString() || file.filename}
 			{@const processing = processingStatusOf(file)}
 			{@const inUse = publishedMediaIds.has(fileId)}
+			{@const documentPreview = file.type === 'image' ? '' : mediaThumbnailUrl(file, previewSize)}
 
 			<!-- Row wrapper (display: contents) keeps the gridcell as the grid item while
 			     satisfying the grid's required row → gridcell ownership. -->
@@ -517,13 +518,16 @@
 								onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
 								aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
 							>
-								{#if file.type === 'image' && !failedImages.has(fileId)}
+								{#if (documentPreview || file.type === 'image') && !failedImages.has(fileId)}
 									<div
-										class="h-full w-full transition-colors duration-500"
-										style:background-color={(file.metadata?.dominantColor as string) ||
-											'transparent'}
+										class="h-full w-full transition-colors duration-500 {documentPreview
+											? 'bg-white'
+											: ''}"
+										style:background-color={documentPreview
+											? undefined
+											: (file.metadata?.dominantColor as string) || 'transparent'}
 									>
-										{#if file.metadata?.placeholder}
+										{#if !documentPreview && file.metadata?.placeholder}
 											<img
 												src={file.metadata.placeholder as string}
 												alt=""
@@ -535,9 +539,11 @@
 										{/if}
 
 										<img
-											src={mediaDisplayUrl(file, previewSize)}
+											src={documentPreview || mediaDisplayUrl(file, previewSize)}
 											alt=""
-											class="relative h-full w-full object-cover pointer-events-none"
+											class="relative h-full w-full pointer-events-none {documentPreview
+												? 'object-contain'
+												: 'object-cover'}"
 											style:object-position={file.metadata?.focalPoint
 												? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
 												: 'center'}

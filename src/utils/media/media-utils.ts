@@ -297,6 +297,16 @@ export type MediaDisplayItem = {
 
 const DISPLAY_SIZE_FALLBACK = ["thumbnail", "sm", "md"] as const;
 
+/** Prefix a relative `/files/...` URL with the configured media server, when set. */
+function withMediaServer(raw: string): string {
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (publicEnv.MEDIASERVER_URL) {
+    const cleanUrl = raw.replace(/^\/files\//, "");
+    return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/files/${cleanUrl}`;
+  }
+  return raw;
+}
+
 /**
  * Gallery/list preview URL. Prefers a stored thumbnail over the original so
  * a 60-tile grid does not decode 60 full-resolution files.
@@ -310,13 +320,24 @@ export function mediaDisplayUrl(item: MediaDisplayItem, preferredSize?: string):
     item.url ?? undefined,
   ];
   const raw = candidates.find((url): url is string => typeof url === "string" && url.length > 0);
-  if (!raw) return "";
-  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
-  if (publicEnv.MEDIASERVER_URL) {
-    const cleanUrl = raw.replace(/^\/files\//, "");
-    return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/files/${cleanUrl}`;
-  }
-  return raw;
+  return raw ? withMediaServer(raw) : "";
+}
+
+/**
+ * Thumbnail-only preview URL for non-image documents (PDF, CSV, …).
+ *
+ * Unlike {@link mediaDisplayUrl} this never falls back to `item.url`: that URL
+ * is the document itself, and pointing an `<img>` at it would render a broken
+ * image instead of the file icon.
+ */
+export function mediaThumbnailUrl(item: MediaDisplayItem, preferredSize?: string): string {
+  const thumbs = item.thumbnails;
+  const candidates: Array<string | undefined> = [
+    preferredSize ? thumbs?.[preferredSize]?.url : undefined,
+    ...DISPLAY_SIZE_FALLBACK.map((key) => thumbs?.[key]?.url),
+  ];
+  const raw = candidates.find((url): url is string => typeof url === "string" && url.length > 0);
+  return raw ? withMediaServer(raw) : "";
 }
 
 // ─── Validation ────────────────────────────────────────────────────────────
