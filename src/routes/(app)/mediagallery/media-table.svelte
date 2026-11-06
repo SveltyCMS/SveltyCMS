@@ -76,6 +76,8 @@
 		onLoadMore?: () => void;
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
+		/** Opens the quick focal-point modal (images only). */
+		onSetFocalPoint?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
 		onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
 		/** True when a search/filter is narrowing the folder — drives the filtered-empty state. */
@@ -95,6 +97,7 @@
 		onLoadMore = () => {},
 		ondeleteImage = () => {},
 		onEditImage = () => {},
+		onSetFocalPoint = () => {},
 		onUpdateImage = () => {},
 		onOpenFileDetails = () => {},
 		hasActiveFilters = false,
@@ -111,7 +114,9 @@
 		try {
 			return createSmartTable({
 				mode: 'client',
-				pageSize: 10,
+				// 25 rows ≈ the grid's continuous feel; 10 made the table feel like a
+				// separate, much smaller view of the same folder.
+				pageSize: 25,
 				layoutKey: 'media-gallery-table',
 				getRowId: (row) => {
 					const r = row as unknown as MediaBase | MediaImage;
@@ -128,7 +133,7 @@
 				pinned: { start: [], center: [], end: [], ordered: [] },
 				density: 'normal' as const,
 				sort: { sortedBy: '', isSorted: 0 },
-				pagination: { currentPage: 1, pageSize: 10, totalItems: 0, pagesCount: 1 },
+				pagination: { currentPage: 1, pageSize: 25, totalItems: 0, pagesCount: 1 },
 				selectedIds: new Set<string>(),
 				selectedCount: 0,
 				hasSelections: false,
@@ -489,6 +494,7 @@
 							{file}
 							onDetails={() => onOpenFileDetails(file)}
 							onEdit={() => onEditImage(file as MediaImage)}
+							onFocal={() => onSetFocalPoint(file as MediaImage)}
 							onTags={() => openTagEditor(file as MediaImage)}
 							onDelete={() => ondeleteImage(file)}
 						/>
@@ -742,6 +748,7 @@
 								{file}
 								onDetails={() => onOpenFileDetails(file)}
 								onEdit={() => onEditImage(file as MediaImage)}
+								onFocal={() => onSetFocalPoint(file as MediaImage)}
 								onTags={() => openTagEditor(file as MediaImage)}
 								onDelete={() => ondeleteImage(file)}
 							/>

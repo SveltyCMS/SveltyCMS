@@ -293,6 +293,53 @@ test.describe("Media Gallery", () => {
     }
   });
 
+  test("quick focal point action saves metadata from the grid", async ({ page }) => {
+    const row = await uploadUniqueImage(page, `e2e-focal-${Date.now().toString(36)}.png`);
+    const mediaId = String(row._id);
+    try {
+      const item = page.locator(`[data-media-id="${mediaId}"]`);
+      await expect(item).toBeVisible({ timeout: 20_000 });
+      await item.hover();
+
+      const actions = item.getByTestId("media-grid-actions").first();
+      await expect(actions).toBeVisible({ timeout: 5_000 });
+      await actions.getByTestId("media-focal-button").click();
+
+      const modal = page
+        .getByRole("dialog")
+        .filter({ hasText: /set focal point/i })
+        .first();
+      await expect(modal).toBeVisible({ timeout: 5_000 });
+
+      // Keyboard steps are deterministic: two right + one down from the 50/50 default.
+      const slider = modal.getByRole("slider", { name: /focal point position/i });
+      await slider.focus();
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowRight");
+      await page.keyboard.press("ArrowDown");
+
+      const patch = page.waitForResponse(
+        (res) => res.url().includes(`/api/media/${mediaId}`) && res.request().method() === "PATCH",
+        { timeout: 15_000 },
+      );
+      await modal.getByRole("button", { name: /^save$/i }).click();
+      expect((await patch).status()).toBe(200);
+
+      // Outcome: the persisted metadata moved, not just a toast.
+      await expect(async () => {
+        const res = await page.request.get(`/api/media/${mediaId}`);
+        const body = (await res.json()) as {
+          data?: { metadata?: { focalPoint?: { x: number; y: number } } };
+        };
+        const focal = body.data?.metadata?.focalPoint;
+        expect(focal?.x).toBeGreaterThan(50);
+        expect(focal?.y).toBeGreaterThan(50);
+      }).toPass({ timeout: 15_000 });
+    } finally {
+      await deleteMediaRow(page, mediaId);
+    }
+  });
+
   test("create folder via New Folder prompt", async ({ page }) => {
     const folderName = `e2e-test-folder-${Date.now().toString(36)}`;
     let folderId = "";

@@ -50,14 +50,15 @@
 		button_cancel
 	} from '@src/paraglide/messages';
 	import { slide } from 'svelte/transition';
-	import { refreshAll, goto } from '$app/navigation';
+	import { refreshAll, goto, replaceState } from '$app/navigation';
+	import { browser } from '$app/env';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import MediaGrid from './media-grid.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
-	import { mediaUrl } from '@utils/media/media-utils';
+	import { mediaUrl, updateMediaMetadata } from '@utils/media/media-utils';
 	import {
 		IMAGE_EDITOR_MODAL_CLASSES,
 		IMAGE_EDITOR_MODAL_SIZE
@@ -131,9 +132,40 @@
 		}
 	);
 	let isLoadingMore = $state(false);
-	let globalSearchValue = $state('');
-	let selectedMediaType = $state<'All' | MediaTypeEnum>('All');
-	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>('all');
+
+	// Filters seed from the URL so a shared link restores the whole view, not just
+	// `jsonPath`. `replaceState` keeps the URL in step without re-running the load.
+	const initialParams = untrack(() => page.url.searchParams);
+	function mediaTypeFromParam(value: string | null): 'All' | MediaTypeEnum {
+		return value && (Object.values(MediaTypeEnum) as string[]).includes(value)
+			? (value as MediaTypeEnum)
+			: 'All';
+	}
+	function statusFromParam(value: string | null): 'all' | 'processing' | 'ready' | 'failed' {
+		return value === 'processing' || value === 'ready' || value === 'failed' ? value : 'all';
+	}
+	function sortFromParams(sort: string | null, dir: string | null): string {
+		const ascending = dir === 'asc';
+		switch (sort) {
+			case 'filename':
+				return ascending ? 'name-asc' : 'name-desc';
+			case 'size':
+				return ascending ? 'size-asc' : 'size-desc';
+			case 'createdAt':
+			case 'updatedAt':
+				return ascending ? 'oldest' : 'newest';
+			default:
+				return 'newest';
+		}
+	}
+
+	let globalSearchValue = $state(initialParams.get('q') ?? initialParams.get('search') ?? '');
+	let selectedMediaType = $state<'All' | MediaTypeEnum>(
+		mediaTypeFromParam(initialParams.get('type'))
+	);
+	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>(
+		statusFromParam(initialParams.get('status'))
+	);
 	let view = $state<'grid' | 'table'>('grid');
 	let gridSize = $state<'tiny' | 'small' | 'medium' | 'large'>('small');
 	/** Grid density is one cycling control; the four-letter segmented row was redundant chrome. */
@@ -157,13 +189,63 @@
 	let uploadCancel: (() => void) | null = $state(null);
 	let isBulkDownloading = $state(false);
 	let showBatchProcessor = $state(false);
+	let focalFile = $state<MediaImage | null>(null);
+	let showFocalModal = $state(false);
 	let showAdvancedSearch = $state(false);
 	let searchCriteria = $state<SearchCriteria | null>(null);
 	// Seed from server ?jsonPath= for shareable filtered views
 	// svelte-ignore state_referenced_locally — data is from $props(), initial seed only
 	let jsonPathFilter = $state((data as { jsonPathFilter?: string }).jsonPathFilter ?? '');
-	let sortBy = $state('newest');
+	let sortBy = $state(sortFromParams(initialParams.get('sort'), initialParams.get('dir')));
 	let mobileFiltersExpanded = $state(false);
+
+	/** Client sort value → the adapter's `sort`/`dir` query contract. */
+	const MEDIA_SORT_PARAMS: Record<
+		string,
+		{ sort: 'updatedAt' | 'filename' | 'size'; dir: 'asc' | 'desc' }
+	> = {
+		newest: { sort: 'updatedAt', dir: 'desc' },
+		oldest: { sort: 'updatedAt', dir: 'asc' },
+		'name-asc': { sort: 'filename', dir: 'asc' },
+		'name-desc': { sort: 'filename', dir: 'desc' },
+		'size-desc': { sort: 'size', dir: 'desc' },
+		'size-asc': { sort: 'size', dir: 'asc' }
+	};
+
+	/** Last query the effect wrote — avoids a replaceState per unchanged render. */
+	let lastSyncedQuery: string | null = null;
+
+	$effect(() => {
+		if (!browser) return;
+
+		const q = globalSearchValue.trim();
+		const jsonPath = jsonPathFilter.trim();
+		const sort = MEDIA_SORT_PARAMS[sortBy] ?? MEDIA_SORT_PARAMS.newest!;
+		const next: Record<string, string | null> = {
+			q: q || null,
+			// `?search=` is the legacy alias the loader also accepts; normalise to `q`.
+			search: null,
+			type: selectedMediaType === 'All' ? null : selectedMediaType,
+			status: selectedProcessingStatus === 'all' ? null : selectedProcessingStatus,
+			jsonPath: jsonPath || null,
+			sort: sortBy === 'newest' ? null : sort.sort,
+			dir: sortBy === 'newest' ? null : sort.dir
+		};
+
+		const params = new URLSearchParams(window.location.search);
+		for (const [key, value] of Object.entries(next)) {
+			if (value) params.set(key, value);
+			else params.delete(key);
+		}
+
+		const query = params.toString();
+		if (query === lastSyncedQuery) return;
+		lastSyncedQuery = query;
+
+		const url = new URL(window.location.href);
+		url.search = query;
+		void replaceState(url, page.state);
+	});
 
 	/** Drives the "no matches" state instead of the first-run empty gallery. */
 	const hasActiveFilters = $derived(
@@ -230,7 +312,7 @@
 			},
 			search: globalSearchValue,
 			sort: { sortedBy: sortBy, isSorted: 1 as const },
-			pageSize: 10
+			pageSize: 25
 		};
 	}
 
@@ -347,6 +429,13 @@
 	);
 
 	// Derived
+	/** The batch engine (Sharp) only processes images; the panel explains the rest. */
+	const selectedImageIds = $derived(
+		files
+			.filter((file) => file.type === 'image' && selectedFiles.has(mediaFileKey(file)))
+			.map(mediaFileKey)
+	);
+
 	const filteredFiles = $derived.by(() => {
 		let result = files.filter((file) => {
 			if (globalSearchValue) {
@@ -725,9 +814,15 @@
 	}
 
 	async function handleBulkDelete(filesToDelete: (MediaBase | MediaImage)[]) {
+		const referenced = filesToDelete.filter((file) =>
+			publishedMediaIds.has(mediaFileKey(file))
+		).length;
 		showConfirm({
 			title: `Delete ${filesToDelete.length} files?`,
-			body: 'This action cannot be undone.',
+			body:
+				referenced > 0
+					? `${referenced} of these assets ${referenced === 1 ? 'is' : 'are'} referenced by published content — deleting will break those references. This action cannot be undone.`
+					: 'This action cannot be undone.',
 			onConfirm: async () => {
 				// Per-file outcomes: an HTTP or action error must never be announced as
 				// "complete" nor hide the asset — the row still exists on the server.
@@ -810,12 +905,26 @@
 			const result = await handle.promise;
 			if (result.aborted) {
 				toast.info('Upload cancelled');
-			} else if (result.success) {
-				const n = result.files?.length || list.length;
-				toast.success(n > 1 ? `${n} files uploaded successfully` : 'Media uploaded successfully');
-				await reloadMediaFromFirstPage();
 			} else {
-				toast.error(result.message || 'Upload failed');
+				// Sequential uploads continue past a rejected file now, so the outcome
+				// list is the honest count — never "uploaded" for the whole batch.
+				const outcomes = result.files ?? [];
+				const uploaded = outcomes.filter((outcome) => outcome.success).length;
+				const reported = outcomes.length || list.length;
+
+				if (result.success) {
+					toast.success(
+						reported > 1 ? `${reported} files uploaded successfully` : 'Media uploaded successfully'
+					);
+					await reloadMediaFromFirstPage();
+				} else if (uploaded > 0) {
+					toast.warning(
+						`${uploaded} of ${reported} files uploaded — ${result.message || 'some files failed'}`
+					);
+					await reloadMediaFromFirstPage();
+				} else {
+					toast.error(result.message || 'Upload failed');
+				}
 			}
 		} catch (err) {
 			logger.error('Upload failed', err);
@@ -957,10 +1066,36 @@
 		}
 	}
 
+	/** Grid/table crosshair action → quick focal-point modal. */
+	function handleSetFocalPoint(file: MediaImage) {
+		focalFile = file;
+		showFocalModal = true;
+	}
+
+	async function handleFocalSave(focalPoint: { x: number; y: number }) {
+		const target = focalFile;
+		if (!target?._id) return;
+		try {
+			await updateMediaMetadata(String(target._id), { focalPoint });
+			// Optimistic tile update so the new object-position applies immediately;
+			// `refreshAll` reconciles the rest of the metadata.
+			handleUpdateImage({ ...target, metadata: { ...target.metadata, focalPoint } });
+			toast.success('Focal point saved');
+			focalFile = null;
+			await refreshAll();
+		} catch (err) {
+			logger.error('Focal point save failed', err);
+			toast.error('Could not save the focal point');
+		}
+	}
+
 	async function handleDeleteImage(file: MediaBase | MediaImage) {
+		const referenced = publishedMediaIds.has(mediaFileKey(file));
 		showConfirm({
 			title: `Delete "${file.filename}"?`,
-			body: 'This action cannot be undone.',
+			body: referenced
+				? 'This asset is referenced by published content — deleting it will break those references. This action cannot be undone.'
+				: 'This action cannot be undone.',
 			onConfirm: async () => {
 				const formData = new FormData();
 				formData.append('imageData', JSON.stringify(file));
@@ -1027,6 +1162,7 @@
 				onclick={() => fileUploadInput?.click()}
 				disabled={isUploading}
 				aria-busy={isUploading}
+				aria-label={mediagallery_upload()}
 				class="h-9 gap-1.5 px-2 sm:px-3"
 			>
 				<iconify-icon
@@ -1034,7 +1170,19 @@
 					width="18"
 					class={isUploading ? 'animate-spin' : ''}
 				></iconify-icon>
-				<span class="hidden sm:inline">{isUploading ? `Uploading…` : 'Upload'}</span>
+				<span class="hidden sm:inline">{isUploading ? `Uploading…` : 'Quick upload'}</span>
+			</Button>
+
+			<Button
+				size="sm"
+				variant="surface"
+				href={`/mediagallery/upload-media${data.currentFolder?._id ? `?folderId=${data.currentFolder._id}` : ''}`}
+				aria-label="Open the staged upload queue"
+				title="Stage several files in a queue before uploading"
+				class="h-9 gap-1.5 px-2 sm:px-3"
+			>
+				<iconify-icon icon="mdi:upload-multiple" width="18"></iconify-icon>
+				<span class="hidden sm:inline">Queue</span>
 			</Button>
 
 			<input
@@ -1579,6 +1727,7 @@
 						{isLoadingMore}
 						onLoadMore={loadMoreMedia}
 						onEditImage={handleEditImage}
+						onSetFocalPoint={handleSetFocalPoint}
 						onOpenFileDetails={handleOpenFileDetails}
 						ondeleteImage={handleDeleteImage}
 						onUpdateImage={handleUpdateImage}
@@ -1605,6 +1754,7 @@
 						{isLoadingMore}
 						onLoadMore={loadMoreMedia}
 						onEditImage={handleEditImage}
+						onSetFocalPoint={handleSetFocalPoint}
 						onOpenFileDetails={handleOpenFileDetails}
 						ondeleteImage={handleDeleteImage}
 						onUpdateImage={handleUpdateImage}
@@ -1618,7 +1768,22 @@
 
 	{#if showBatchProcessor && assetStats.selected > 0}
 		{#await import('./batch-processor.svelte') then mod}
-			<mod.default selectedIds={selectedFiles} onClose={() => (showBatchProcessor = false)} />
+			<mod.default
+				selectedIds={selectedFiles}
+				imageIds={selectedImageIds}
+				onClose={() => (showBatchProcessor = false)}
+			/>
+		{/await}
+	{/if}
+
+	{#if showFocalModal && focalFile}
+		{#await import('./focal-quick-modal.svelte') then mod}
+			<mod.default
+				media={focalFile}
+				bind:show={showFocalModal}
+				onClose={() => (focalFile = null)}
+				onSave={handleFocalSave}
+			/>
 		{/await}
 	{/if}
 

@@ -2164,6 +2164,14 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **Details modal keeps its frame.** The media details dialog was sized by the active tab (fit-content up to the cap), so Info/Versions/Usage/Share jumped width and height when switched. At `md+` the card now has a fixed `min(88vw, 56rem) × min(85dvh, 42rem)` frame and the tab panel scrolls inside it. A missing storage blob renders a “Preview unavailable” state with a jump to **Versions → Upload new version** instead of a broken-image glyph, and the Share tab’s expiration select and password input share the same control height.
 - **One filter source of truth.** The unused legacy `mediagallery/filter.svelte` strip was deleted — the page toolbar owns search/type/status/sort.
 
+#### Media gallery polish — batch pre-flight, focal quick action, URL state (2026-11-06)
+
+- **Batch processor states its scope before running.** The panel now receives the selected rows that are images: non-image selections are counted (“N non-image assets will be skipped”), the run button counts images instead of all assets, and an image-less selection disables it with a reason. `batch-processing.spec.ts` asserts the POST body carries only the image id.
+- **Focal point is one click from either view.** A crosshair action on image tiles and a **Set Focal Point** item in the table row menu open `focal-quick-modal.svelte`; saving PATCHes `metadata.focalPoint`, updates the tile's `object-position` optimistically and revalidates. Pinned end-to-end (keyboard nudge → save → stored metadata) in `mediagallery.spec.ts`.
+- **Destructive confirmations name published references.** Single and bulk delete confirmations state how many of the selected assets are referenced by published content, using the same `publishedMediaIds` set as the **In use** badge.
+- **Shareable filter state.** `?q=`, `?type=`, `?status=`, `?sort=`/`?dir=` and `?jsonPath=` seed the page and stay in the URL through `replaceState` (no reload while typing); the six client sort labels map onto the adapter's `sort`/`dir` contract so a shared link is sorted server-side on first paint.
+- **Smaller fits.** The drag badge reads `N file(s)` instead of `+N`; the table’s default page size is 25 (was 10, against a continuous grid); the toolbar names the inline path **Quick upload** and links to the staged **Queue** for the current folder.
+
 #### Deliberately not claimed
 
 - **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).

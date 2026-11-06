@@ -23,6 +23,7 @@
 		mediagallery_drag_to_folder,
 		mediagallery_drop_files,
 		mediagallery_filter_media_aria,
+		mediagallery_focal_title,
 		mediagallery_loading_more,
 		mediagallery_media_grid_aria,
 		mediagallery_name,
@@ -73,6 +74,8 @@
 		onLoadMore?: () => void;
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
 		onEditImage?: (file: MediaImage) => void;
+		/** Opens the quick focal-point modal (images only). */
+		onSetFocalPoint?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
 		onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
 		/** True when a search/filter is narrowing the folder — drives the filtered-empty state. */
@@ -92,6 +95,7 @@
 		onLoadMore = () => {},
 		ondeleteImage = () => {},
 		onEditImage = () => {},
+		onSetFocalPoint = () => {},
 		onUpdateImage = () => {},
 		onOpenFileDetails = () => {},
 		hasActiveFilters = false,
@@ -435,7 +439,7 @@
 			     satisfying the grid's required row → gridcell ownership. -->
 			<div role="row" class="contents">
 				<div
-					class="group relative flex h-full flex-col focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--admin-focus-ring) cursor-grab active:cursor-grabbing
+					class="border border-surface-500 group relative flex h-full flex-col focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--admin-focus-ring) cursor-grab active:cursor-grabbing
           {selectedFiles.has(fileId) ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
 					role="gridcell"
 					tabindex="-1"
@@ -497,7 +501,7 @@
 						<div class="pointer-events-none absolute bottom-9 inset-s-2 z-20 flex flex-wrap gap-1">
 							{#if processing === 'processing'}
 								<span
-									class="inline-flex items-center gap-1 rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950 shadow-sm"
+									class="inline-flex items-center gap-1 rounded-full text-center bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950 shadow-sm"
 								>
 									<iconify-icon icon="mdi:progress-clock" width="11" aria-hidden="true"
 									></iconify-icon>
@@ -505,7 +509,7 @@
 								</span>
 							{:else if processing === 'failed'}
 								<span
-									class="inline-flex items-center gap-1 rounded-full bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm"
+									class="inline-flex items-center gap-1 rounded-full text-center bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm"
 								>
 									<iconify-icon icon="mdi:alert-circle-outline" width="11" aria-hidden="true"
 									></iconify-icon>
@@ -514,7 +518,7 @@
 							{/if}
 							{#if inUse}
 								<span
-									class="inline-flex items-center gap-1 rounded-full bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm dark:bg-primary-500"
+									class="inline-flex items-center gap-1 rounded-full text-center bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm dark:bg-primary-500"
 								>
 									<iconify-icon icon="mdi:link-variant" width="11" aria-hidden="true"
 									></iconify-icon>
@@ -599,7 +603,7 @@
 						</Tooltip>
 
 						<div
-							class="absolute inset-e-1 top-3 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
+							class="absolute inset-e-1 top-1 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
 							fileId
 								? 'opacity-100'
 								: 'opacity-0'}"
@@ -624,7 +628,7 @@
 								{#snippet content()}
 									<div class="flex flex-col text-[11px] text-(--admin-text-muted) min-w-60">
 										<div
-											class="mb-0 border-b border-(--admin-border-default) pb-2 text-center text-[13px] font-semibold wrap-break-word"
+											class="mb-0 border-b border-(--admin-border-default) pb-2 text-center text-tertiary-500 dark:text-primary-500 text-[13px] font-semibold wrap-break-word"
 											dir="auto"
 										>
 											{file.filename}
@@ -735,6 +739,21 @@
 
 							{#if file.type === 'image'}
 								<MediaGridActionTooltip
+									title={mediagallery_focal_title()}
+									ariaLabel={mediagallery_focal_title()}
+									class={actionBtnClass}
+									data-testid="media-focal-button"
+									onclick={(e) => {
+										e.stopPropagation();
+										onSetFocalPoint(file as MediaImage);
+									}}
+								>
+									{#snippet children()}
+										<iconify-icon icon="mdi:crosshairs-gps" width={15}></iconify-icon>
+									{/snippet}
+								</MediaGridActionTooltip>
+
+								<MediaGridActionTooltip
 									title={builder_tag_input_label()}
 									ariaLabel="Tags for {file.filename}"
 									class={actionBtnClass}
@@ -804,7 +823,7 @@
 						</div>
 					</div>
 
-					<div class="mt-1 flex items-baseline justify-between gap-2">
+					<div class="my-1 flex items-baseline justify-between gap-2">
 						<Badge preset="tonal">{formatMimeType((file as MediaImage).mimeType)}</Badge>
 
 						<Badge preset="tonal">{formatBytes((file as MediaImage).size)}</Badge>

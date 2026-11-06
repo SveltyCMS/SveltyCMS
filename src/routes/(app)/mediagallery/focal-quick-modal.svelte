@@ -1,5 +1,5 @@
 <!--
-@file src/routes/(app)/mediagallery/FocalQuickModal.svelte
+@file src/routes/(app)/mediagallery/focal-quick-modal.svelte
 @component
 **Quick Focal Point Adjustment Modal**
 
@@ -8,10 +8,10 @@ without opening the full image editor. Features a draggable crosshair
 and rule-of-thirds grid overlay.
 
 @example
-<FocalQuickModal 
-	media={selectedImage} 
-	bind:show={showModal} 
-	onSave={handleFocalSave} 
+<FocalQuickModal
+	media={selectedImage}
+	bind:show={showModal}
+	onSave={handleFocalSave}
 />
 -->
 

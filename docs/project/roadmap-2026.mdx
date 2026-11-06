@@ -138,10 +138,12 @@ tags:
   - [x] **Shift+click range selection** in grid and table, anchored to the last checkbox/selection.
   - [x] **Copy URL in the table row menu**, with viewport-aware flip; the unused legacy `filter.svelte` was deleted (one filter source of truth).
   - [x] **Bulk “Move to folder…”** in the selection bar via `moveIdsToFolder` (breadcrumb drag, sidebar drop and the bulk picker all share the same optimistic-removal path).
-  - [ ] **URL-synced filters** (`?q=`, `?type=`, `?status=`, `?sort=`) so gallery views are shareable; `jsonPath` is already URL-seeded.
+  - [x] **URL-synced filters** (`?q=`, `?type=`, `?status=`, `?sort=`/`?dir=`) so gallery views are shareable: the page seeds every filter from the URL, then `replaceState` keeps it in step without re-running the load; the client sort values map onto the adapter's `sort`/`dir` contract, and `jsonPath` joined the same sync.
   - [ ] **Virtualized grid** (~20–40 cells in the DOM) before folders exceed a few hundred items; keep the sentinel for server pages.
-  - [ ] **Table/grid action parity**: focal-point quick action, download, and identical destructive safeguards in both views.
-  - [ ] **Batch depth**: format/quality, fit modes, no-upscale, per-asset progress, failed-file list, and an image-only pre-flight with skipped counts.
+  - [x] **Focal-point quick action** in both views: the grid crosshair button and the table row menu open `focal-quick-modal.svelte`, save via `PATCH /api/media/:id`, update the tile optimistically and refresh. Pinned by `tests/e2e/routes/mediagallery/mediagallery.spec.ts`.
+  - [ ] **Table/grid action parity**: per-row download and identical destructive safeguards in both views (delete confirmations already share the page handlers).
+  - [x] **Batch pre-flight**: the panel receives the selected image ids, states “N non-image assets will be skipped”, counts images on the run button and disables it when the selection holds none; the request body is pinned to image ids only.
+  - [ ] **Batch depth**: format/quality, fit modes, no-upscale, per-asset progress and a failed-file list.
   - [ ] **Import from URLs** UI wired to `saveRemoteMediaUrls` (success/failure list, not a generic toast).
   - [ ] **Folder operations**: counts in sidebar/breadcrumbs, inline rename/delete/move, folder drag-reparent.
   - [ ] **Side-panel details** alongside the modal; multi-select metadata editor (tags/alt/copyright); edited-image version history.

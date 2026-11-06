@@ -1,7 +1,7 @@
 <!--
 @file src/routes/(app)/mediagallery/media-table-row-menu.svelte
 @component
-Per-row action menu for media gallery table view — mirrors grid actions (details, edit, tags, delete).
+Per-row action menu for media gallery table view — mirrors grid actions (details, edit, focal point, tags, delete).
 -->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
@@ -16,6 +16,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 		mediagallery_copy_url_failed,
 		mediagallery_copy_url_missing,
 		mediagallery_copy_url_success,
+		mediagallery_focal_title,
 		mp_details
 	} from '@src/paraglide/messages';
 	import { logger } from '@utils/logger';
@@ -26,12 +27,14 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 		file,
 		onDetails,
 		onEdit,
+		onFocal,
 		onTags,
 		onDelete
 	}: {
 		file: MediaBase | MediaImage;
 		onDetails: () => void;
 		onEdit: () => void;
+		onFocal: () => void;
 		onTags: () => void;
 		onDelete: () => void;
 	} = $props();
@@ -187,6 +190,21 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				</Button>
 
 				{#if isImage}
+					<Button
+						type="button"
+						variant="transparent"
+						role="menuitem"
+						class={menuItemClass}
+						onclick={() => closeAndRun(onFocal)}
+					>
+						<iconify-icon
+							icon="mdi:crosshairs-gps"
+							width="16"
+							class="shrink-0 text-(--admin-text-muted)"
+						></iconify-icon>
+						<span>{mediagallery_focal_title()}</span>
+					</Button>
+
 					<Button
 						type="button"
 						variant="transparent"

@@ -238,7 +238,8 @@ Mount once per page that hosts media drag sources.
 					style:transform="translateY(-50%)"
 				>
 					<Badge variant="warning" size="sm" rounded={false} class="normal-case tracking-normal">
-						{snapCount > 1 ? `+${snapCount - 1}` : '1 file'}
+						{snapCount}
+						{snapCount === 1 ? 'file' : 'files'}
 					</Badge>
 				</div>
 			{/if}

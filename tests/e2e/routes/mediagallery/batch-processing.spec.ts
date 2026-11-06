@@ -12,6 +12,8 @@ import { expect, test, type Page } from "../../fixtures";
 import sharp from "sharp";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent, seedCookieConsent } from "../../helpers/cookie-consent";
+import { seedMediaWithMetadata } from "../../helpers/api";
+import { deleteMediaRow } from "../../helpers/media";
 
 const ACTION_TIMEOUT = 25_000;
 const API_TIMEOUT = 60_000;
@@ -222,6 +224,71 @@ test.describe("Media gallery — batch processing", () => {
       });
     } finally {
       await deleteMedia(page, assets);
+    }
+  });
+
+  test("skips non-image selections before calling the batch API", async ({ page }) => {
+    const stamp = Date.now().toString(36);
+    let assets: UploadedAsset[] = [];
+    let seededIds: string[] = [];
+
+    try {
+      await openGallery(page);
+      assets = await uploadImages(page, "e2e-batch-mixed", 1);
+
+      // Two document rows give the helper its ≥2 contract; both are non-images.
+      const seeded = await seedMediaWithMetadata(page, {
+        items: [0, 1].map((index) => ({
+          filename: `e2e-batch-doc-${stamp}-${index}.pdf`,
+          originalFilename: `e2e-batch-doc-${stamp}-${index}.pdf`,
+          hash: `e2ebatchdoc${stamp}${index}`,
+          path: `global/e2e-batch-doc-${stamp}-${index}.pdf`,
+          size: 256,
+          mimeType: "application/pdf",
+          metadata: {},
+        })),
+      });
+      seededIds = seeded.items.map((item) => item._id);
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      await selectAssets(page, [
+        ...assets,
+        ...seeded.items.map((item) => ({ id: item._id, name: item.filename })),
+      ]);
+
+      await page.getByTestId("media-bulk-batch-process").click();
+      const panel = page.getByTestId("batch-processor");
+      await expect(panel).toBeVisible({ timeout: ACTION_TIMEOUT });
+
+      // The pre-flight names the skipped documents and the run button counts images only.
+      await expect(panel.getByTestId("batch-skipped-note")).toContainText(
+        /2 non-image assets will be skipped/i,
+      );
+      await expect(panel.getByTestId("batch-run")).toContainText(/Run\s*1\s*image/i);
+
+      const batchRequest = page.waitForRequest(
+        (req) => req.url().includes("/api/media/batch-process") && req.method() === "POST",
+        { timeout: API_TIMEOUT },
+      );
+      const batchResponse = page.waitForResponse(
+        (res) =>
+          res.url().includes("/api/media/batch-process") && res.request().method() === "POST",
+        { timeout: API_TIMEOUT },
+      );
+      await panel.getByTestId("batch-run").click();
+
+      const request = await batchRequest;
+      const body = JSON.parse(request.postData() ?? "{}") as { ids?: string[] };
+      expect(body.ids).toEqual([assets[0]!.id]);
+
+      const response = await batchResponse;
+      expect(response.status(), await response.text()).toBe(200);
+      await expect(page.getByText(/Processed 1 asset/i)).toBeVisible({ timeout: ACTION_TIMEOUT });
+    } finally {
+      await deleteMedia(page, assets);
+      for (const id of seededIds) await deleteMediaRow(page, id);
     }
   });
 });
