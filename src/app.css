@@ -299,7 +299,7 @@
   @apply bg-success-500 text-white;
 }
 @utility preset-filled-warning-500 {
-  @apply bg-warning-500 text-white;
+  @apply bg-warning-500 text-surface-950;
 }
 @utility preset-filled-error-500 {
   @apply bg-error-500 text-white;
@@ -320,7 +320,7 @@
   @apply bg-success-600 text-white;
 }
 @utility preset-filled-warning-600 {
-  @apply bg-warning-600 text-white;
+  @apply bg-warning-600 text-surface-950;
 }
 @utility preset-filled-error-600 {
   @apply bg-error-600 text-white;

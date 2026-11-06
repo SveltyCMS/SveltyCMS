@@ -153,7 +153,7 @@ presets, and progressive corner-shape angled corners.
 
 	const classes = $derived(
 		cn(
-			'badge inline-flex items-center font-bold uppercase tracking-wider transition-all duration-200',
+			'badge inline-flex items-center font-bold uppercase tracking-wider transition-opacity duration-200',
 			getPresetClass(),
 			sizeClasses[size],
 			shape === 'angle' ? 'corner-angle' : rounded ? 'rounded-full' : '',

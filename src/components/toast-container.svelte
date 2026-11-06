@@ -98,14 +98,14 @@
 			? {
 					success: 'bg-success-600 text-white border-success-500',
 					error: 'bg-error-600 text-white border-error-500',
-					warning: 'bg-warning-500 text-white border-warning-500',
+					warning: 'bg-warning-500 text-surface-950 border-warning-500',
 					info: 'bg-tertiary-600 text-white border-tertiary-500',
 					loading: 'bg-surface-700 text-white border-surface-500'
 				}
 			: {
 					success: 'bg-primary-500 text-white',
 					error: 'bg-error-500 text-white',
-					warning: 'bg-warning-500 text-white',
+					warning: 'bg-warning-500 text-surface-950',
 					// The theme has no `info` ramp; tertiary keeps info distinct from warning.
 					info: 'bg-tertiary-500 text-white',
 					loading: 'bg-slate-500 text-white'

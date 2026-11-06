@@ -140,7 +140,7 @@ refreshed by one mechanism: the hourly interval below.
 	/** Informational fill for `VersionStatus.badgeColor`; the rendered badge uses `variant`. */
 	const SEVERITY_FILL: Record<Severity, string> = {
 		success: 'bg-primary-500 text-white',
-		warning: 'bg-warning-500 text-white',
+		warning: 'bg-warning-500 text-surface-950',
 		critical: 'bg-surface-500 text-white',
 		info: 'bg-surface-500 text-white',
 		unknown: 'bg-surface-500 text-white'
@@ -360,8 +360,8 @@ refreshed by one mechanism: the hourly interval below.
 				variant={severityStyle.badge}
 				size="md"
 				class={compact
-					? 'inline-flex items-center gap-1 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500'
-					: 'inline-flex items-center gap-1.5 text-xs font-medium transition-colors hover:opacity-80 focus:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary-500'}
+					? 'inline-flex items-center gap-1 text-xs font-medium hover:opacity-80 focus:opacity-80 px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-primary-500'
+					: 'inline-flex items-center gap-1.5 text-xs font-medium hover:opacity-80 focus:opacity-80 focus:outline-none focus:ring-2 focus:ring-primary-500'}
 				aria-label={statusAriaLabel}
 				aria-live="polite"
 			>
@@ -372,7 +372,7 @@ refreshed by one mechanism: the hourly interval below.
 					{:else}
 						Ver. {pkg}
 						{#if githubVersion && githubVersion !== pkg && !isLoading}
-							<span class="opacity-70">→ {githubVersion}</span>
+							<span>→ {githubVersion}</span>
 						{/if}
 					{/if}
 				</span>
