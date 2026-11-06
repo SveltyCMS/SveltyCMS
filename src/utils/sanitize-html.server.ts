@@ -213,11 +213,16 @@ const SVG_OPTIONS: SanitizeOptions = {
 /**
  * Sanitize authored rich text against the HTML allowlist.
  *
+ * Accepts `unknown`: persisted rows can hold legacy or malformed shapes (a
+ * localized `{ title, content }` object rather than HTML). Throwing here would
+ * turn a data problem into a 500 on the site root, so non-strings sanitize to
+ * the empty string instead.
+ *
  * Plain text (no `<`) is returned untouched without parsing — the write path
  * calls this for every richtext/markdown field, and most values are prose.
  */
-export function sanitizeHtml(html: string): string {
-  if (!html) return "";
+export function sanitizeHtml(html: unknown): string {
+  if (typeof html !== "string" || !html) return "";
   if (!html.includes("<")) return html;
   return sanitize(html, HTML_OPTIONS);
 }
@@ -228,9 +233,10 @@ export function sanitizeHtml(html: string): string {
  * XML documents are parsed as HTML (the browser then re-parses the stored bytes
  * as XML/`image/svg+xml`), so the allowlist — not the serialization — is the
  * security boundary. Self-closing elements may be expanded to open/close pairs.
+ * Non-string input sanitizes to the empty string (see `sanitizeHtml`).
  */
-export function sanitizeSvgMarkup(svg: string): string {
-  if (!svg) return "";
+export function sanitizeSvgMarkup(svg: unknown): string {
+  if (typeof svg !== "string" || !svg) return "";
   if (!svg.includes("<")) return svg;
   return sanitize(svg, SVG_OPTIONS);
 }

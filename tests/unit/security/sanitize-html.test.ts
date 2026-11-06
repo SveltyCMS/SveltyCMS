@@ -17,6 +17,23 @@ import { describe, it, expect } from "vitest";
 import { sanitizeHtml, sanitizeSvgMarkup } from "@src/utils/sanitize-html.server";
 import { stripHtml, decodeHtmlEntities } from "@src/utils/sanitize-html";
 
+describe("sanitizeHtml — non-string input", () => {
+  it("returns empty string for null, undefined and non-strings", () => {
+    // Persisted rows can hold a localized `{ title, content }` object instead of
+    // HTML. The render-side boundary must not throw on it (that was a 500 on `/`).
+    expect(sanitizeHtml(undefined)).toBe("");
+    expect(sanitizeHtml(null)).toBe("");
+    expect(sanitizeHtml(42)).toBe("");
+    expect(sanitizeHtml({ en: { title: "", content: "" } })).toBe("");
+    expect(sanitizeHtml(["<p>x</p>"])).toBe("");
+  });
+
+  it("sanitizeSvgMarkup mirrors the guard", () => {
+    expect(sanitizeSvgMarkup(undefined)).toBe("");
+    expect(sanitizeSvgMarkup({ svg: "<svg/>" })).toBe("");
+  });
+});
+
 describe("sanitizeHtml — dangerous tags", () => {
   it("strips paired dangerous tags with their content", () => {
     expect(sanitizeHtml("<script>alert(1)</script>")).toBe("");
