@@ -41,7 +41,10 @@ test.describe("Media Gallery", () => {
     // A narrowed view can reset itself — it must not pretend the folder is empty.
     await empty.getByRole("button", { name: /reset filters/i }).click();
     await expect(search).toHaveValue("");
-    await expect(empty).not.toContainText(/no assets match your filters/i);
+    // Reset either restores rows (a folder with assets) or the unfiltered empty
+    // state. The filtered-empty copy must not linger in either case — and the
+    // element itself may unmount, so assert on the copy, not the container.
+    await expect.poll(async () => page.getByText(/no assets match your filters/i).count()).toBe(0);
 
     await search.clear();
     await expect(page.getByTestId("media-grid")).toBeVisible();

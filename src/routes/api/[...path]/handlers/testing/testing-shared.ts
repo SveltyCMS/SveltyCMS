@@ -180,8 +180,12 @@ export async function invalidateAllCaches(tenantId: DatabaseId) {
  * Wipe the media folder and recreate it empty.
  */
 export async function wipeMediaFolder() {
-  const { getPublicSettingSync } = await loadSettingsServiceModule();
-  const mediaRoot = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
+  // Resolve through the adapter helper so a harness `MEDIA_FOLDER` (E2E/
+  // benchmarks) wins over the persisted dev setting. Reading the DB setting
+  // directly wiped `./mediaFolder` — the developer's real library — whenever a
+  // test run isolated its uploads to another root.
+  const { resolveConfiguredMediaFolder } = await import("@utils/media/storage-adapters");
+  const mediaRoot = resolveConfiguredMediaFolder() || "mediaFolder";
   const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
   if (fs.existsSync(fullMediaRoot)) {
     try {

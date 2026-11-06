@@ -51,7 +51,7 @@ import {
   filenameFromStagingKey,
   verifyDirectUploadToken,
 } from "@utils/media/direct-upload.server";
-import { getStorageAdapter } from "@utils/media/storage-adapters";
+import { getStorageAdapter, resolveConfiguredMediaFolder } from "@utils/media/storage-adapters";
 import { resolveRemoteAssetMime } from "@utils/media/slim-sniffer.server";
 import {
   appendTusChunk,
@@ -1157,7 +1157,7 @@ export async function handleMediaShareDownload(
   }
 
   const storageType = getPublicSettingSync("MEDIA_STORAGE_TYPE") || "local";
-  const mediaFolder = getPublicSettingSync("MEDIA_FOLDER") || "mediaFolder";
+  const mediaFolder = resolveConfiguredMediaFolder() || "mediaFolder";
   const cloudUrl =
     getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 

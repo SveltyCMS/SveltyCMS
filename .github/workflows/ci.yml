@@ -734,6 +734,7 @@ jobs:
       DB_NAME: e2e_auth_test
       DB_USER: ""
       DB_PASSWORD: ""
+      MEDIA_FOLDER: tests/e2e/.media
       PASSWORD_MIN_LENGTH: 8
       TEST_MODE: "true"
       SKIP_TEST_CLEANUP: "true"
@@ -795,7 +796,7 @@ jobs:
 
       - name: Initialize and Start Preview Server
         run: |
-          mkdir -p config config/database config/test-database tests/e2e/.auth logs mediaFolder config/collections
+          mkdir -p config config/database config/test-database tests/e2e/.auth tests/e2e/.media logs mediaFolder config/collections
 
           cat > config/private.test.ts <<EOF
           export const privateEnv = {
@@ -999,6 +1000,7 @@ jobs:
           DB_NAME: e2e_auth_test
           DB_USER: ""
           DB_PASSWORD: ""
+          MEDIA_FOLDER: tests/e2e/.media
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"
@@ -1158,6 +1160,7 @@ jobs:
           DB_NAME: e2e_auth_test
           DB_USER: ""
           DB_PASSWORD: ""
+          MEDIA_FOLDER: tests/e2e/.media
           PASSWORD_MIN_LENGTH: 8
           TEST_MODE: "true"
           SKIP_TEST_CLEANUP: "true"

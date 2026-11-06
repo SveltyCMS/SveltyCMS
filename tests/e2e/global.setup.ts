@@ -13,6 +13,7 @@
 import { mkdirSync, existsSync, writeFileSync, unlinkSync, rmSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { E2E_MEDIA_FOLDER } from "./harness-paths";
 
 export default async function globalSetup() {
   console.log("[Global Setup] Starting...");
@@ -79,8 +80,11 @@ export default async function globalSetup() {
       }
     }
 
-    // Clean media folder (keep directory but remove files)
-    const mediaFolder = join(process.cwd(), "mediaFolder");
+    // Clean the harness-owned media folder (keep the directory, remove files).
+    // MUST NOT be the dev `mediaFolder`: the testing API and the dev server share
+    // this checkout, so wiping that directory deleted the developer's uploads
+    // while their DB rows survived (broken gallery tiles / editor loads).
+    const mediaFolder = E2E_MEDIA_FOLDER;
     if (existsSync(mediaFolder)) {
       try {
         const files = readdirSync(mediaFolder);
@@ -106,7 +110,7 @@ export default async function globalSetup() {
     join(process.cwd(), "config", "collections"),
     join(process.cwd(), "tests", "e2e", ".auth"),
     join(process.cwd(), "logs"),
-    join(process.cwd(), "mediaFolder"),
+    E2E_MEDIA_FOLDER,
   ];
 
   for (const dir of requiredDirs) {

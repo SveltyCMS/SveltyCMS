@@ -22,6 +22,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ensureIntegrationBuild } from "./integration-harness.ts";
+import { E2E_MEDIA_FOLDER } from "../../tests/e2e/harness-paths.ts";
 
 // import.meta.dirname needs Node ≥20.11/Bun — fall back for older runtimes.
 const __dirname =
@@ -29,6 +30,11 @@ const __dirname =
     ? import.meta.dirname
     : dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "../..");
+
+// Test uploads live in the harness-owned root. `tests/e2e/global.setup.ts` empties
+// that root before every run; pointing it at the developer's `mediaFolder` deleted
+// their local media while the dev DB rows survived.
+process.env.MEDIA_FOLDER = E2E_MEDIA_FOLDER;
 
 /**
  * Resolve the shared test API secret exactly like playwright.config.ts and
@@ -236,6 +242,7 @@ async function startDevServer(): Promise<ChildProcess> {
         ...process.env,
         TEST_MODE: process.env.TEST_MODE || "true",
         TEST_API_SECRET: resolveTestSecret(),
+        MEDIA_FOLDER: E2E_MEDIA_FOLDER,
         // The login E2E drives the in-page reset form, which only renders while the server may
         // return the reset link (off by default since the B1 fix). Harness opt-in, like a dev's.
         ALLOW_PASSWORD_RESET_LINK_IN_RESPONSE: "true",
@@ -287,6 +294,7 @@ async function startPreviewServer(): Promise<ChildProcess> {
     // contract is verified locally exactly like CI (setup-wizard.spec.ts).
     STRICT_SETUP_CHECK: "true",
     TEST_API_SECRET: resolveTestSecret(),
+    MEDIA_FOLDER: E2E_MEDIA_FOLDER,
     SKIP_TEST_CLEANUP: "true",
     // Harness opt-in for the in-page reset form (see startDevServer above): the link is only
     // returned when the service opts in, and the built preview server publishes no NODE_ENV.

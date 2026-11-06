@@ -84,6 +84,8 @@ This ADR locks **how** admin/product routes are tested and structured so UI refa
 login → seed (if needed) → UI journey → assert outcome → cleanup (finally)
 ```
 
+**Media isolation.** The harness owns `tests/e2e/.media` (`E2E_MEDIA_FOLDER`) and points `MEDIA_FOLDER` at it for the server, `globalSetup` and every worker. `global.setup.ts` empties that root before each run — never the developer's `mediaFolder`, whose rows live in the dev database and survive the wipe (the old behaviour left broken tiles and an editor stuck on “Failed to load image after 3 attempts”).
+
 | Prefer                                | Avoid                           |
 | ------------------------------------- | ------------------------------- |
 | Create → reload → value still present | Asserting 12 decorative testids |
@@ -232,6 +234,7 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 | Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                                                                   |
 | Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                                                                  |
 | E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                                                                      |
+| E2E media root         | `tests/e2e/.media` — `E2E_MEDIA_FOLDER`; `global.setup.ts` empties it, never the dev `mediaFolder`                                                              |
 | Confirm helper         | `tests/e2e/helpers/confirm-modal.ts`                                                                                                                            |
 | Checkbox helper        | `tests/e2e/helpers/checkbox.ts` — clicks `label[for]` for sr-only inputs                                                                                        |
 | Gate unit tests        | `tests/unit/utils/testing-api-gate.test.ts`                                                                                                                     |
