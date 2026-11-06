@@ -137,7 +137,10 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 								x: Math.max(0, Math.round(nextCrop.x)),
 								y: Math.max(0, Math.round(nextCrop.y)),
 								width: Math.max(MIN_IMAGE_CROP, Math.round(nextCrop.width)),
-								height: Math.max(MIN_IMAGE_CROP, Math.round(nextCrop.height))
+								height: Math.max(MIN_IMAGE_CROP, Math.round(nextCrop.height)),
+								// The numeric inputs + drag handles do not know the shape selector —
+								// dropping it here turned every circle crop back into a rectangle.
+								shape: cropShape === 'circular' ? 'circle' : 'rect'
 							};
 							normalizeImageCrop();
 							if (canvasSize.width > 0) {
@@ -350,7 +353,9 @@ handles resize the frame in screen space. Image-space crop syncs on release.
 			x: Math.round(x),
 			y: Math.round(y),
 			width: Math.round(width),
-			height: Math.round(height)
+			height: Math.round(height),
+			// Preserve the selected shape through every normalize/drag/nudge path.
+			shape: crop.shape
 		};
 	}
 

@@ -2181,6 +2181,15 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **One upload allowlist.** `MEDIA_UPLOAD_ACCEPT` is derived from the server’s `ALLOWED_UPLOAD_MIME`, and both the gallery picker and the queue inputs use it — replacing the broader `image/*,video/*,audio/*,application/pdf` and a hand-written list that still offered office documents the server rejects.
 - **One redirect.** `LocalUpload` no longer navigates itself; the page owns the single `goto` back to the browsed folder. The optimization step also names its progress (“Optimizing 2/5: …”) instead of sitting at 0%.
 
+#### Image editor — preview/bake parity (2026-11-06)
+
+- **Geometry matches the canvas.** The bake now extracts the source crop first, then flips, then rotates — the same order the canvas draws (`translate × scale(flip) × rotate`). Because Sharp always flips before rotating, a single flip negates the rotation angle (`Fx∘R(θ) = R(−θ)∘Fx`) so 90°/free rotation and flip-with-crop produce the same orientation as the preview. Rotated PNG/WebP/AVIF keep transparent corners; JPEG is filled white.
+- **Circle crops stay circular.** The alpha mask (true circle, `r = min(w,h)/2`) is applied before rotation, and the crop tool no longer drops `shape` on drag/numeric normalize — it used to save as a rectangle every time.
+- **All eleven fine-tune sliders bake.** Exposure, highlights, shadows, clarity, vibrance, tint, and sharpness were ignored by the server; they now use the preview's approximations (multiplicative brightness/saturation factors, contrast contributions, hue rotation, and sharpen/blur for detail). Contrast switched to the CSS-compatible linear transform.
+- **Entry fields can edit their images.** Every image card in the MediaUpload widget has an edit action that opens the editor and writes the manipulated response back into the cached DTO, so the field preview updates without re-saving the entry.
+- **Editor chrome uses the shared tooltip.** The top toolbar (compare, undo/redo, zoom, close, save) and the tool rail replaced native `title` attributes with `@components/ui/tooltip.svelte`.
+- **Pinned by** `tests/unit/services/media-manipulation-parity.test.ts` (11 real-Sharp pixel tests: clockwise rotation, rotate-then-flip order, source-space crop, circle alpha, and every formerly ignored slider changing the output) plus the existing image-editor and media-widget E2E specs.
+
 #### Deliberately not claimed
 
 - **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).

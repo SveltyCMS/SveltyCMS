@@ -269,6 +269,14 @@ export interface FilterOptions {
   grayscale?: number;
   sepia?: number;
   temperature?: number;
+  /** Fine-tune sliders — mapped with the same approximations as the canvas preview. */
+  exposure?: number;
+  highlights?: number;
+  shadows?: number;
+  clarity?: number;
+  vibrance?: number;
+  tint?: number;
+  sharpness?: number;
 }
 
 export interface BlurRegion {
@@ -1510,71 +1518,85 @@ export class MediaService {
 
     const storedFocal = focalPoint ? normalizeFocalPercent(focalPoint) : undefined;
 
-    // 3. Build Sharp pipeline — order matters: geometry first, then colour, then composites
-    let pipeline = sharp(originalBuffer, { limitInputPixels: MAX_INPUT_PIXELS, failOn: "none" });
-
-    // — Geometry —
-    if (rotation) pipeline = pipeline.rotate(rotation);
-    if (flipH) pipeline = pipeline.flop();
-    if (flipV) pipeline = pipeline.flip();
-
-    // After rotation the canvas dimensions may swap — calculate mathematically for standard orthogonal angles,
-    // completely avoiding an intermediate buffer encode and 10-50MB RAM allocation.
-    let postRotW = imgW;
-    let postRotH = imgH;
-    if (rotation) {
-      const normRot = ((rotation % 360) + 360) % 360;
-      if (normRot === 90 || normRot === 270) {
-        postRotW = imgH;
-        postRotH = imgW;
-      } else if (normRot === 0 || normRot === 180) {
-        postRotW = imgW;
-        postRotH = imgH;
-      } else {
-        const rad = (normRot * Math.PI) / 180;
-        postRotW = Math.round(Math.abs(imgW * Math.cos(rad)) + Math.abs(imgH * Math.sin(rad)));
-        postRotH = Math.round(Math.abs(imgW * Math.sin(rad)) + Math.abs(imgH * Math.cos(rad)));
-      }
-    }
-
-    // Clamp crop to the post-rotation canvas so Sharp never gets an out-of-bounds extract
-    const cropX =
+    // 3. Geometry — mirror the editor preview exactly: the canvas draws the
+    //    SOURCE crop inside the flip/rotate transform, so crop first, then flip,
+    //    then rotate. (The old order rotated first and extracted afterwards in
+    //    rotated-canvas coordinates, which is why a crop preview never matched.)
+    const cropRect =
       crop && crop.width > 0 && crop.height > 0
-        ? Math.min(Math.max(0, Math.round(crop.x)), postRotW - 1)
-        : 0;
-    const cropY =
-      crop && crop.width > 0 && crop.height > 0
-        ? Math.min(Math.max(0, Math.round(crop.y)), postRotH - 1)
-        : 0;
+        ? (() => {
+            const x = Math.min(Math.max(0, Math.round(crop.x)), imgW - 1);
+            const y = Math.min(Math.max(0, Math.round(crop.y)), imgH - 1);
+            return {
+              x,
+              y,
+              width: Math.min(Math.max(1, Math.round(crop.width)), imgW - x),
+              height: Math.min(Math.max(1, Math.round(crop.height)), imgH - y),
+            };
+          })()
+        : null;
 
-    // Working dimensions after crop (used to clamp/size all composites)
-    const workW =
-      crop && crop.width > 0 ? Math.min(Math.round(crop.width), postRotW - cropX) : postRotW;
-    const workH =
-      crop && crop.height > 0 ? Math.min(Math.round(crop.height), postRotH - cropY) : postRotH;
+    const cropX = cropRect?.x ?? 0;
+    const cropY = cropRect?.y ?? 0;
+    const workW = cropRect?.width ?? imgW;
+    const workH = cropRect?.height ?? imgH;
 
-    if (crop && crop.width > 0 && crop.height > 0) {
-      pipeline = pipeline.extract({
-        left: cropX,
-        top: cropY,
-        width: workW,
-        height: workH,
+    const ext = (existing.filename.split(".").pop() ?? "jpg").toLowerCase();
+    const isCircle = crop?.shape === "circle";
+    const preservesAlpha = isCircle || ext === "png" || ext === "webp" || ext === "avif";
+
+    // Crop + circle mask must run as their own stage: Sharp always applies
+    // `composite` after `rotate`, so a crop-sized mask cannot share the main
+    // chain once the canvas grows.
+    let preparedBuffer = originalBuffer;
+    if (cropRect) {
+      let cropped = sharp(originalBuffer, {
+        limitInputPixels: MAX_INPUT_PIXELS,
+        failOn: "none",
+      }).extract({
+        left: cropRect.x,
+        top: cropRect.y,
+        width: cropRect.width,
+        height: cropRect.height,
       });
 
-      if (crop.shape === "circle") {
-        // Build circular alpha mask via SVG — rasterized natively in C by libvips with zero JS loop or huge pixel buffer allocations
-        const cx = workW / 2;
-        const cy = workH / 2;
-        const rx = workW / 2;
-        const ry = workH / 2;
+      if (isCircle) {
+        // True circle even if the crop drifted slightly off-square.
+        const radius = Math.min(cropRect.width, cropRect.height) / 2;
         const circleSvg = Buffer.from(
-          `<svg width="${workW}" height="${workH}"><ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="#ffffff"/></svg>`,
+          `<svg width="${cropRect.width}" height="${cropRect.height}"><circle cx="${cropRect.width / 2}" cy="${cropRect.height / 2}" r="${radius}" fill="#ffffff"/></svg>`,
         );
-        pipeline = pipeline.ensureAlpha().composite([{ input: circleSvg, blend: "dest-in" }]);
+        cropped = cropped.ensureAlpha().composite([{ input: circleSvg, blend: "dest-in" }]);
       }
+
+      // Lossless intermediate keeps JPEG source quality through stage 2.
+      preparedBuffer = await cropped.png({ compressionLevel: 8 }).toBuffer();
+    }
+
+    // Sharp applies flips BEFORE rotation regardless of call order; the canvas
+    // preview rotates first, then flips. Negating the angle for a single flip
+    // makes the pipelines equivalent (Fx∘R(θ) = R(−θ)∘Fx).
+    const effectiveRotation = (rotation ?? 0) * (flipH !== flipV ? -1 : 1);
+
+    let pipeline = sharp(preparedBuffer, {
+      limitInputPixels: MAX_INPUT_PIXELS,
+      failOn: "none",
+    });
+    if (flipH) pipeline = pipeline.flop();
+    if (flipV) pipeline = pipeline.flip();
+    if (rotation) {
+      pipeline = pipeline.rotate(effectiveRotation, {
+        // Canvas shows transparency; JPEG has no alpha, so fill white.
+        background: preservesAlpha
+          ? { r: 0, g: 0, b: 0, alpha: 0 }
+          : { r: 255, g: 255, b: 255, alpha: 1 },
+      });
     }
 
     // — Colour filters —
+    // Every slider the editor exposes must survive the round-trip. The preview
+    // approximates the photographic controls with CSS filter primitives; the
+    // factors below mirror those formulas exactly so preview == saved.
     if (filters) {
       const {
         brightness = 0,
@@ -1583,43 +1605,114 @@ export class MediaService {
         grayscale = 0,
         sepia = 0,
         temperature = 0,
+        exposure = 0,
+        highlights = 0,
+        shadows = 0,
+        clarity = 0,
+        vibrance = 0,
+        tint = 0,
+        sharpness = 0,
       } = filters;
 
-      // Brightness + saturation via modulate
-      if (brightness !== 0 || saturation !== 0) {
+      let brightnessFactor = 1 + brightness / 100;
+      let saturationFactor = 1 + saturation / 100;
+      let contrastFactor = 1 + contrast / 100;
+      let hueShift = 0;
+
+      if (exposure !== 0) brightnessFactor *= 1 + (exposure * 1.2) / 100;
+      if (vibrance !== 0) saturationFactor *= 1 + (vibrance * 0.7) / 100;
+
+      // Clarity — contrast/saturation/brightness lift (same constants as the canvas).
+      if (clarity !== 0) {
+        if (clarity > 0) {
+          contrastFactor *= 1 + (clarity * 0.42) / 100;
+          saturationFactor *= 1 + (clarity * 0.18) / 100;
+          brightnessFactor *= 1 - (clarity * 0.05) / 100;
+        } else {
+          const softness = Math.abs(clarity);
+          contrastFactor *= 1 - (softness * 0.26) / 100;
+          brightnessFactor *= 1 + (softness * 0.1) / 100;
+          saturationFactor *= 1 - (softness * 0.08) / 100;
+        }
+      }
+
+      if (highlights !== 0) {
+        if (highlights > 0) {
+          brightnessFactor *= 1 + (highlights * 0.25) / 100;
+          contrastFactor *= 1 - (highlights * 0.08) / 100;
+        } else {
+          const lift = Math.abs(highlights);
+          contrastFactor *= 1 + (lift * 0.12) / 100;
+          brightnessFactor *= 1 - (lift * 0.08) / 100;
+        }
+      }
+
+      if (shadows !== 0) {
+        if (shadows > 0) {
+          brightnessFactor *= 1 + (shadows * 0.2) / 100;
+          contrastFactor *= 1 - (shadows * 0.05) / 100;
+        } else {
+          const depth = Math.abs(shadows);
+          brightnessFactor *= 1 - (depth * 0.18) / 100;
+          contrastFactor *= 1 + (depth * 0.1) / 100;
+        }
+      }
+
+      // Temperature (CSS approximation): warm = partial sepia + slight cool hue
+      // rotation, cool = hue rotation only.
+      let temperatureSepia = 0;
+      if (temperature > 0) {
+        temperatureSepia = Math.min(1, (temperature * 0.3) / 100);
+        hueShift -= temperature * 0.2;
+      } else if (temperature < 0) {
+        hueShift += Math.abs(temperature) * 0.3;
+      }
+
+      // Tint (green/magenta) is a hue rotation in the preview.
+      if (tint !== 0) hueShift += tint * 1.5;
+
+      const brightnessValue = Math.max(0, brightnessFactor);
+      const saturationValue = Math.max(0, saturationFactor);
+      if (brightnessValue !== 1 || saturationValue !== 1 || hueShift !== 0) {
         pipeline = pipeline.modulate({
-          brightness: Math.max(0, 1 + brightness / 100),
-          saturation: Math.max(0, 1 + saturation / 100),
+          brightness: brightnessValue,
+          saturation: saturationValue,
+          ...(hueShift !== 0 ? { hue: hueShift } : {}),
         });
       }
 
-      // Contrast via linear transform
-      if (contrast !== 0) {
-        const f = (259 * (contrast + 255)) / (255 * (259 - contrast));
-        pipeline = pipeline.linear(f, -(128 * f) + 128);
+      // CSS `contrast(x%)` is a linear transform around mid-grey.
+      const contrastValue = Math.max(0, contrastFactor);
+      if (contrastValue !== 1) {
+        pipeline = pipeline.linear(contrastValue, 128 * (1 - contrastValue));
       }
 
       // Grayscale (full desaturate)
       if (grayscale > 0) pipeline = pipeline.grayscale();
 
-      // Sepia via colour matrix blend — partial sepia based on strength (0–100)
-      if (sepia > 0) {
-        const s = Math.min(sepia, 100) / 100;
-        pipeline = pipeline.recomb([
+      const sepiaMatrix = (
+        strength: number,
+      ): [[number, number, number], [number, number, number], [number, number, number]] => {
+        const s = Math.min(1, Math.max(0, strength));
+        return [
           [0.393 * s + 1 * (1 - s), 0.769 * s, 0.189 * s],
           [0.349 * s, 0.686 * s + 1 * (1 - s), 0.168 * s],
           [0.272 * s, 0.534 * s, 0.131 * s + 1 * (1 - s)],
-        ]);
-      }
+        ];
+      };
 
-      // Temperature: warm (+) boosts red/reduces blue, cool (-) the reverse
-      if (temperature !== 0) {
-        const t = temperature / 100;
-        pipeline = pipeline.recomb([
-          [1 + t * 0.2, 0, 0],
-          [0, 1, 0],
-          [0, 0, 1 - t * 0.2],
-        ]);
+      // Sepia slider (batch presets) + the warm half of the temperature slider.
+      const sepiaStrength = Math.min(1, sepia / 100) + temperatureSepia;
+      if (sepiaStrength > 0) pipeline = pipeline.recomb(sepiaMatrix(sepiaStrength));
+
+      // Detail: the preview runs a 3×3 unsharp mask where positive strength
+      // sharpens and negative softens. Sharp's convolution is the closest native
+      // equivalent; the sigma range keeps the visual radius comparable.
+      const detailStrength = sharpness / 72 + clarity / 92;
+      if (detailStrength > 0) {
+        pipeline = pipeline.sharpen({ sigma: 0.5 + Math.min(1, detailStrength) * 1.5 });
+      } else if (detailStrength < 0) {
+        pipeline = pipeline.blur(0.3 + Math.min(1, Math.abs(detailStrength)) * 1.7);
       }
     }
 
@@ -1749,13 +1842,19 @@ export class MediaService {
     if (composites.length > 0) pipeline = pipeline.composite(composites);
 
     // 5. Encode — circular crop forces PNG (needs alpha channel); otherwise preserve original format
-    const ext = (existing.filename.split(".").pop() ?? "jpg").toLowerCase();
-    const isCircle = crop?.shape === "circle";
     const encoded = await encodeManipulatedOutput(pipeline, ext, isCircle);
 
     let outputBuffer: Buffer = encoded;
     let outputW = workW;
     let outputH = workH;
+
+    // Rotation grows the canvas (auto-sized bounding box), so the mathematical
+    // crop size no longer describes the output — read the real dimensions.
+    if (rotation || cropRect) {
+      const encodedMeta = await sharp(encoded, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
+      outputW = encodedMeta.width ?? outputW;
+      outputH = encodedMeta.height ?? outputH;
+    }
 
     // 5a. Explicit resize (editor/batch). A second encode is deliberate: Sharp
     // applies `resize` before `composite` regardless of chain order, so resizing

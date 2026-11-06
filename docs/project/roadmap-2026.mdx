@@ -151,6 +151,7 @@ tags:
   - [ ] **AI tagging / alt-text suggestions** (privacy-aware, opt-in); shareable read-only gallery links.
   - [ ] **Discoverability**: first-run coach mark for drag-to-folder/selection, “show processing” default, one-time drag hint.
   - [ ] **Gallery state store**: selection/filters/view in one runes store so grid, table, modals and bulk actions share a single source of truth.
+  - [ ] **Image editor overlay geometry**: watermark and annotation preview layers (and their server composites) still use unrotated source coordinates, while blur regions rotate with the image. Align every overlay to the main crop/flip/rotate transform.
 
 ---
 

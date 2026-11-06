@@ -9,6 +9,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 	import { fade } from 'svelte/transition';
 	import { imageEditorStore } from '@components/image-editor/image-editor-store.svelte';
 	import Slot from '@src/components/system/slot.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 
 	let {
 		onsave,
@@ -45,46 +46,49 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 	<div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-center w-full min-h-(--editor-control-h)">
 		<div class="flex gap-1.5 items-center justify-self-start">
 			<Slot name="image_editor_tool" inline />
-			<button
-				type="button"
-				class="editor-toolbar-solo-btn inline-flex items-center justify-center size-(--editor-control-h) cursor-pointer bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated)"
-				class:editor-toolbar-solo-btn-active={isComparing}
-				onclick={toggleCompare}
-				title="Compare before / after (\)"
-				aria-pressed={isComparing}
-				aria-label="Toggle compare mode"
-				aria-keyshortcuts="\\"
-			>
-				<iconify-icon icon="mdi:compare-horizontal" width="18" aria-hidden="true"></iconify-icon>
-			</button>
+			<Tooltip title="Compare before / after (\)" positioning={{ placement: 'bottom' }}>
+				<button
+					type="button"
+					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-(--editor-control-h) cursor-pointer bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated)"
+					class:editor-toolbar-solo-btn-active={isComparing}
+					onclick={toggleCompare}
+					aria-pressed={isComparing}
+					aria-label="Toggle compare mode"
+					aria-keyshortcuts="\\"
+				>
+					<iconify-icon icon="mdi:compare-horizontal" width="18" aria-hidden="true"></iconify-icon>
+				</button>
+			</Tooltip>
 		</div>
 
 		<div class="flex gap-1.5 items-center justify-self-center">
 			<div
 				class="inline-flex gap-0.5 items-center px-0.75 py-0.5 rounded-full border border-(--editor-chrome-border) bg-(--editor-chrome-elevated)"
 			>
-				<button
-					type="button"
-					class="inline-flex items-center justify-center size-(--editor-control-h) p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) disabled:cursor-not-allowed disabled:opacity-28"
-					onclick={() => imageEditorStore.handleUndo()}
-					disabled={!canUndo}
-					title="Undo (Mod+Z)"
-					aria-label="Undo last change"
-					aria-keyshortcuts="Mod+Z"
-				>
-					<iconify-icon icon="mdi:undo" width="18" aria-hidden="true"></iconify-icon>
-				</button>
-				<button
-					type="button"
-					class="inline-flex items-center justify-center size-(--editor-control-h) p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) disabled:cursor-not-allowed disabled:opacity-28"
-					onclick={() => imageEditorStore.handleRedo()}
-					disabled={!canRedo}
-					title="Redo (Mod+Shift+Z)"
-					aria-label="Redo last undone change"
-					aria-keyshortcuts="Mod+Shift+Z"
-				>
-					<iconify-icon icon="mdi:redo" width="18" aria-hidden="true"></iconify-icon>
-				</button>
+				<Tooltip title="Undo (Mod+Z)" positioning={{ placement: 'bottom' }}>
+					<button
+						type="button"
+						class="inline-flex items-center justify-center size-(--editor-control-h) p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) disabled:cursor-not-allowed disabled:opacity-28"
+						onclick={() => imageEditorStore.handleUndo()}
+						disabled={!canUndo}
+						aria-label="Undo last change"
+						aria-keyshortcuts="Mod+Z"
+					>
+						<iconify-icon icon="mdi:undo" width="18" aria-hidden="true"></iconify-icon>
+					</button>
+				</Tooltip>
+				<Tooltip title="Redo (Mod+Shift+Z)" positioning={{ placement: 'bottom' }}>
+					<button
+						type="button"
+						class="inline-flex items-center justify-center size-(--editor-control-h) p-0 text-(--editor-chrome-text) cursor-pointer bg-transparent border-none rounded-full transition-[background,color,opacity] duration-150 hover:not-disabled:text-(--editor-chrome-text-hover) hover:not-disabled:bg-(--editor-chrome-elevated) disabled:cursor-not-allowed disabled:opacity-28"
+						onclick={() => imageEditorStore.handleRedo()}
+						disabled={!canRedo}
+						aria-label="Redo last undone change"
+						aria-keyshortcuts="Mod+Shift+Z"
+					>
+						<iconify-icon icon="mdi:redo" width="18" aria-hidden="true"></iconify-icon>
+					</button>
+				</Tooltip>
 
 				<div
 					class="editor-toolbar-divider shrink-0 w-px h-5 mx-0.5 bg-(--editor-chrome-border)"
@@ -97,74 +101,86 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 					role="group"
 					aria-label="Zoom controls"
 				>
-					<button
-						type="button"
-						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-active) hover:bg-(--editor-chrome-elevated) hover:rounded-full"
-						onclick={onZoomOut}
-						title="Zoom out (-)"
-						aria-label="Zoom out"
-						aria-keyshortcuts="-"
-					>
-						<iconify-icon icon="mdi:minus" width="15" aria-hidden="true"></iconify-icon>
-					</button>
-					<button
-						type="button"
-						class="zoom-pill-value min-w-12 px-1 text-xs font-medium tabular-nums text-center cursor-pointer bg-transparent border-none border-x border-(--editor-chrome-border-subtle) text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated) hover:rounded"
-						onclick={onZoomReset}
+					<Tooltip title="Zoom out (-)" positioning={{ placement: 'bottom' }} triggerClass="h-full">
+						<button
+							type="button"
+							class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-active) hover:bg-(--editor-chrome-elevated) hover:rounded-full"
+							onclick={onZoomOut}
+							aria-label="Zoom out"
+							aria-keyshortcuts="-"
+						>
+							<iconify-icon icon="mdi:minus" width="15" aria-hidden="true"></iconify-icon>
+						</button>
+					</Tooltip>
+					<Tooltip
 						title="Fit image (Mod+0). Actual size is Mod+1"
-						aria-label="Fit image in view"
-						aria-keyshortcuts="Mod+0"
+						positioning={{ placement: 'bottom' }}
+						triggerClass="h-full"
 					>
-						{zoomPercent}%
-					</button>
-					<button
-						type="button"
-						class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-active) hover:bg-(--editor-chrome-elevated) hover:rounded-full"
-						onclick={onZoomIn}
-						title="Zoom in (+)"
-						aria-label="Zoom in"
-						aria-keyshortcuts="+"
-					>
-						<iconify-icon icon="mdi:plus" width="15" aria-hidden="true"></iconify-icon>
-					</button>
+						<button
+							type="button"
+							class="zoom-pill-value min-w-12 px-1 text-xs font-medium tabular-nums text-center cursor-pointer bg-transparent border-none border-x border-(--editor-chrome-border-subtle) text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated) hover:rounded"
+							onclick={onZoomReset}
+							aria-label="Fit image in view"
+							aria-keyshortcuts="Mod+0"
+						>
+							{zoomPercent}%
+						</button>
+					</Tooltip>
+					<Tooltip title="Zoom in (+)" positioning={{ placement: 'bottom' }} triggerClass="h-full">
+						<button
+							type="button"
+							class="zoom-pill-btn inline-flex items-center justify-center w-7 h-full cursor-pointer bg-transparent border-none transition-[background,color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-active) hover:bg-(--editor-chrome-elevated) hover:rounded-full"
+							onclick={onZoomIn}
+							aria-label="Zoom in"
+							aria-keyshortcuts="+"
+						>
+							<iconify-icon icon="mdi:plus" width="15" aria-hidden="true"></iconify-icon>
+						</button>
+					</Tooltip>
 				</div>
 			</div>
 		</div>
 
 		<div class="flex gap-2 items-center justify-self-end">
 			{#if onclose}
-				<button
-					type="button"
-					class="editor-toolbar-solo-btn inline-flex items-center justify-center size-(--editor-control-h) cursor-pointer bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated)"
-					onclick={onclose}
-					title="Close editor (Esc)"
-					aria-label="Close image editor"
-					aria-keyshortcuts="Escape"
-				>
-					<iconify-icon icon="mdi:close" width="20" aria-hidden="true"></iconify-icon>
-				</button>
+				<Tooltip title="Close editor (Esc)" positioning={{ placement: 'bottom' }}>
+					<button
+						type="button"
+						class="editor-toolbar-solo-btn inline-flex items-center justify-center size-(--editor-control-h) cursor-pointer bg-(--editor-chrome-elevated) border border-(--editor-chrome-border) rounded-(--editor-radius-control) transition-[background,color,border-color] duration-150 text-(--editor-chrome-text) hover:text-(--editor-chrome-text-hover) hover:bg-(--editor-chrome-elevated)"
+						onclick={onclose}
+						aria-label="Close image editor"
+						aria-keyshortcuts="Escape"
+					>
+						<iconify-icon icon="mdi:close" width="20" aria-hidden="true"></iconify-icon>
+					</button>
+				</Tooltip>
 			{/if}
 
-			<button
-				type="button"
-				class="inline-flex gap-1.5 items-center justify-center min-w-20 h-(--editor-control-h) px-4 text-[13px] font-semibold tracking-[0.01em] cursor-pointer rounded-(--editor-radius-control) shadow-xs transition-[background,color,transform,opacity] duration-150 active:not-disabled:scale-[0.98] disabled:cursor-not-allowed {isDirty
-					? 'bg-(--editor-accent) text-white hover:bg-(--editor-accent-hover)'
-					: 'bg-(--editor-chrome-elevated) text-(--editor-chrome-text) border border-(--editor-chrome-border) opacity-50'}"
-				onclick={onsave}
-				disabled={isSaving || !isDirty}
+			<Tooltip
 				title={isDirty ? 'Save changes (Mod+S)' : 'No changes to save'}
-				aria-label="Save edited image"
-				aria-keyshortcuts="Mod+S"
+				positioning={{ placement: 'bottom' }}
 			>
-				{#if isSaving}
-					<iconify-icon icon="mdi:loading" width="16" class="animate-spin" aria-hidden="true"
-					></iconify-icon>
-				{:else}
-					<iconify-icon icon="mdi:content-save-outline" width="16" aria-hidden="true"
-					></iconify-icon>
-				{/if}
-				<span>Save</span>
-			</button>
+				<button
+					type="button"
+					class="inline-flex gap-1.5 items-center justify-center min-w-20 h-(--editor-control-h) px-4 text-[13px] font-semibold tracking-[0.01em] cursor-pointer rounded-(--editor-radius-control) shadow-xs transition-[background,color,transform,opacity] duration-150 active:not-disabled:scale-[0.98] disabled:cursor-not-allowed {isDirty
+						? 'bg-(--editor-accent) text-white hover:bg-(--editor-accent-hover)'
+						: 'bg-(--editor-chrome-elevated) text-(--editor-chrome-text) border border-(--editor-chrome-border) opacity-50'}"
+					onclick={onsave}
+					disabled={isSaving || !isDirty}
+					aria-label="Save edited image"
+					aria-keyshortcuts="Mod+S"
+				>
+					{#if isSaving}
+						<iconify-icon icon="mdi:loading" width="16" class="animate-spin" aria-hidden="true"
+						></iconify-icon>
+					{:else}
+						<iconify-icon icon="mdi:content-save-outline" width="16" aria-hidden="true"
+						></iconify-icon>
+					{/if}
+					<span>Save</span>
+				</button>
+			</Tooltip>
 		</div>
 	</div>
 
