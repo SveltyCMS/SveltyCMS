@@ -136,7 +136,9 @@ APIs for configuration promotion, content transfer, migrations, importers, backu
 
 ## 🎮 In-App Developer & API Playground {#developer-playground}
 
-SveltyCMS provides an integrated **Developer & API Playground** located at `/config/api` (accessible to administrators and users with the `developer` role).
+SveltyCMS provides an integrated **Developer & API Playground** located at `/config/api` (accessible to administrators and users with the `developer` role). It is reached from **Config → API Playground**; there is no separate GraphQL menu entry.
+
+**Direct links:** `/config/api?tab=rest` (REST/OpenAPI), `/config/api?tab=graphql` (GraphQL console), `/config/api?tab=codegen` (code generator), and `/config/api?tab=builder` (visual query builder, the default). The GraphQL tab also links its raw endpoint, `/api/graphql` (graphql-yoga), for external clients.
 
 ### Key Capabilities
 
@@ -147,7 +149,7 @@ SveltyCMS provides an integrated **Developer & API Playground** located at `/con
 
 2. **GraphQL IDE**:
    - Interactive query, mutation, and subscription editor.
-   - Built-in schema introspection against `/api/graphql`.
+   - Built-in schema introspection against `/api/graphql` (the graphql-yoga endpoint; the endpoint URL in the panel is a link).
    - Variables panel with JSON validation.
 
 3. **Multi-Language Code Generator**:

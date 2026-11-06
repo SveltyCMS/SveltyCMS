@@ -63,6 +63,9 @@
 	} from '@src/paraglide/messages';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/env';
 
 	import VisualQueryBuilder from './visual-query-builder.svelte';
 
@@ -79,7 +82,25 @@
 	let { data }: Props = $props();
 
 	type Tab = 'builder' | 'rest' | 'graphql' | 'codegen';
-	let activeTab = $state<Tab>('builder');
+
+	const VALID_TABS: ReadonlySet<string> = new Set(['builder', 'rest', 'graphql', 'codegen']);
+
+	/** `?tab=graphql` opens the GraphQL console directly instead of the query builder. */
+	function resolveTabFromUrl(): Tab {
+		const raw = page.url.searchParams.get('tab');
+		return raw && VALID_TABS.has(raw) ? (raw as Tab) : 'builder';
+	}
+
+	let activeTab = $state<Tab>(resolveTabFromUrl());
+
+	function syncTabToUrl(tab: Tab): void {
+		if (!browser) return;
+		const url = new URL(page.url.href);
+		if (url.searchParams.get('tab') === tab) return;
+		if (tab === 'builder') url.searchParams.delete('tab');
+		else url.searchParams.set('tab', tab);
+		void goto(`${url.pathname}${url.search}`, { replace: true, reset: false });
+	}
 
 	/** Shared card chrome — mirrors the `/user` account panels. */
 	const cardClass = 'p-5 sm:p-6';
@@ -326,6 +347,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			testId="api-tabs"
 			onTabChange={(id) => {
 				activeTab = id as Tab;
+				syncTabToUrl(activeTab);
 			}}
 		/>
 	</div>
@@ -509,7 +531,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
 						{api_gql_query()}
 					</h3>
-					<span class="font-mono text-xs text-surface-500">{data.graphqlEndpoint}</span>
+					<a
+						href={data.graphqlEndpoint}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="inline-flex items-center gap-1 font-mono text-xs text-tertiary-500 underline underline-offset-2 dark:text-primary-500"
+					>
+						{data.graphqlEndpoint}
+						<iconify-icon icon="mdi:open-in-new" width="12" aria-hidden="true"></iconify-icon>
+					</a>
 				</div>
 
 				<div class="space-y-4">
