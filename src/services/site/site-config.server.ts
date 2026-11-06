@@ -26,8 +26,13 @@ export const CMS_RESERVED_PREFIXES = [
 const ADMIN_LANGUAGE_ROUTE = /^\/[a-z]{2}(?:-[a-zA-Z]+)?(?:\/|$)/;
 
 export function isSiteStarterEnabled(): boolean {
-  const value = getPublicSettingSync("SITE_STARTER_ENABLED");
-  return value !== false;
+  const value: unknown = getPublicSettingSync("SITE_STARTER_ENABLED");
+  // Opt-in. The starter seeds a public marketing homepage at `/`, so an
+  // install that never asked for it (blank / content / commerce presets) must
+  // fall through to `/login` instead of rendering that page.
+  // Accept the raw string too: the cache normally holds a parsed boolean, but
+  // rows written before the schema parse are stored as `"true"`.
+  return value === true || value === "true";
 }
 
 export function isSiteStarterPublicPath(pathname: string): boolean {

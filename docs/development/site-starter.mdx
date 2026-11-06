@@ -21,10 +21,10 @@ tags:
 SveltyCMS is **headless** — you can always build public sites with Astro, Next.js, Vue, or any stack that consumes the REST/GraphQL APIs. For most teams, the **recommended path** is the **in-repo SvelteKit frontend** at `routes/(site)` together with **[Svedit](https://github.com/michael/svedit)** for visual frontpage design.
 
 > [!TIP]
-> **Website Starter** is the default setup preset. It seeds a `pages` collection, enables public routes, and publishes a homepage with a Svedit layout — ready to edit in Live Preview after setup.
+> **Website Starter** is an **opt-in setup preset**. It seeds a `pages` collection, enables public routes, and publishes a homepage with a Svedit layout — ready to edit in Live Preview after setup. Installations created with any other preset stay headless: `/` redirects to `/login`.
 
 > [!NOTE]
-> Disable the site starter for pure headless deployments with `SITE_STARTER_ENABLED: false` in public settings.
+> `SITE_STARTER_ENABLED` defaults to **`false`**. The Website Starter preset sets it to `true`; enable it manually for existing headless installs.
 
 ---
 
@@ -32,7 +32,7 @@ SveltyCMS is **headless** — you can always build public sites with Astro, Next
 
 | Layer               | Location                                                                      | Role                                                               |
 | ------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| **Setup preset**    | Website Starter (default)                                                     | Seeds `pages` collection + published `home` entry                  |
+| **Setup preset**    | Website Starter (opt-in)                                                      | Seeds `pages` collection + published `home` entry                  |
 | **Page content**    | `pages.content`                                                               | Svedit document JSON (primary layout)                              |
 | **Public routes**   | `src/routes/(site)/`                                                          | SvelteKit SSR homepage and catch-all pages                         |
 | **Svedit renderer** | `src/components/site/svedit/`                                                 | Block components (hero, paragraph, CTA)                            |
@@ -111,7 +111,7 @@ Extend the schema with new node types (features grid, testimonials, …) and reg
 
 ### `SITE_STARTER_ENABLED`
 
-Public setting (default: `true`). Set to `false` to redirect anonymous `/` visitors to `/login` while keeping CMS and APIs unchanged.
+Public setting (default: `false`). Set to `true` to serve the public starter at `/`; otherwise anonymous visitors are redirected to `/login` and the CMS is unchanged. The Website Starter preset sets this to `true` automatically.
 
 ### Reserved routes
 

@@ -75,7 +75,7 @@
       ],
       "model": "docs/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "961f93629b2af56fdad5ded99e0f90379b5d2eea0352a07961a2f4598f48b9a4"
+      "fingerprint": "9df19753edaa41901b4552fe623d776808e153e365bcc5502f8388b2296ea9f0"
     },
     {
       "id": "admin-pages",
@@ -114,7 +114,7 @@
         "src/routes/+layout.server.ts",
         "src/routes/+layout.ts",
         "src/routes/setup/**",
-        "src/routes/email-previews/**",
+        "src/routes/(app)/email-previews/**",
         "src/routes/indexnow.txt/**",
         "src/routes/llms.txt/**",
         "src/routes/robots.txt/**",
@@ -132,7 +132,7 @@
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "21172c63dc723cba8eeb8fb049571d3cebf0a2951027e830fb1f1ae5e6a96604"
+      "fingerprint": "20d998fa587575eb2003f883650efc5e29545c02987347e747bdea2f2977a18f"
     }
   ]
 }

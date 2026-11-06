@@ -1502,8 +1502,9 @@ export const defaultPublicSettings: Array<{
   },
   {
     key: "SITE_STARTER_ENABLED",
-    value: true,
-    description: "Enable optional in-repo SvelteKit site starter at / (disable for pure headless)",
+    value: false,
+    description:
+      "Enable the optional in-repo SvelteKit site starter at / (the Website Starter preset turns this on; leave off for pure headless)",
   },
   {
     key: "TIMEZONE",
