@@ -60,8 +60,8 @@ The dashboard handler provides 10 endpoints powering 16 UI widgets:
 
 | Endpoint                         | Widgets Using It                       |
 | -------------------------------- | -------------------------------------- |
-| `/api/dashboard/stats`           | Unified Metrics, Database Pool         |
-| `/api/dashboard/health`          | System Health, Database Pool           |
+| `/api/dashboard/stats`           | Unified Metrics                        |
+| `/api/dashboard/health`          | System Health                          |
 | `/api/dashboard/metrics`         | Unified Metrics, Performance, Security |
 | `/api/dashboard/system-info`     | CPU, Memory, Disk widgets              |
 | `/api/dashboard/logs`            | Audit Log, Activity Logs               |
@@ -70,6 +70,9 @@ The dashboard handler provides 10 endpoints powering 16 UI widgets:
 | `/api/dashboard/last5media`      | Last 5 Media                           |
 | `/api/dashboard/online-user`     | Online Users                           |
 | `/api/dashboard/system-messages` | System Messages                        |
+| `/api/database/pool-diagnostics` | Database Pool Diagnostics              |
+
+The pool widget previously requested `/api/dashboard/database-pool`, which the handler does not serve (404); it now reads `/api/database/pool-diagnostics` through a pure mapper (`widgets/database-pool-diagnostics/pool-diagnostics.ts`).
 
 ---
 

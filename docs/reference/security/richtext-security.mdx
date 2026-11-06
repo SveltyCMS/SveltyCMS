@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:shield-lock"
 author: "SveltyCMS Team"
 created: "2025-11-14"
-updated: "2026-06-10"
+updated: "2026-11-06"
 tags:
   - "widgets"
   - "security"
@@ -150,7 +150,25 @@ if (!youtubePattern.test(youtube_url)) {
 
 **Fix**: Added an explicit protocol allowlist: `protocols: ["http", "https", "mailto", "tel"]`.
 
-**Protection**: `javascript:`/`data:` URI blocking at editor level, defense-in-depth with `sanitize-html.ts` server-side and DOMPurify client-side.
+**Protection**: `javascript:`/`data:` URI blocking at editor level, defense-in-depth with the parser-based server sanitizer (`sanitize-html.server.ts`) and DOMPurify client-side.
+
+---
+
+### 7. Server-Side Parser Sanitizer ✅
+
+**Files**: `src/utils/sanitize-html.server.ts`, `src/utils/sanitize-html.ts`
+
+**Vulnerability**: the earlier server sanitizer was a chain of regex denylists. Multi-character sanitization with regexes is order-dependent and re-entrant: removing `<scr<script>ipt>` can reassemble `<script>`, and a payload split across nested tags survives when only the inner match is removed. CodeQL correctly reports these as `js/incomplete-multi-character-sanitization`.
+
+**Fix**: server-side HTML and SVG sanitization is now **parser-based and allowlist-only**:
+
+- `sanitizeHtml()` and `sanitizeSvgMarkup()` are built on `sanitize-html` and live in `sanitize-html.server.ts`. The module is server-only, so the parser never enters the browser bundle (verified against `build/client/**`).
+- Non-allowlisted tags are stripped and their text kept; `style` attributes are dropped; URL-bearing attributes (`href`, `src`, …) are dropped entirely when the scheme is not allowlisted (no `#blocked` placeholder that could itself be re-parsed).
+- The browser-shared module exports only string helpers (`stripHtml`, `decodeHtmlEntities`) plus `safeHref()`.
+- `safeHref()` validates authored link targets before they reach an `href` attribute: it decodes numeric entities (including control characters) and then requires an `http`, `https`, `mailto` or `tel` scheme, or a relative path. `java&#115;cript:` and `java&#9;script:` are rejected rather than passed to the browser.
+- The write path sanitizes persisted values (`content-write-prep.server.ts`); the read path sanitizes again in `localizeSitePage()`, which is the trust boundary for the renderer's `{@html}` sink. Authored CTA links are checked with `safeHref()` in `page-renderer.svelte`.
+
+**Tests**: `tests/unit/security/sanitize-html.test.ts`, `tests/unit/security/sanitize-svg.test.ts`, `tests/unit/utils/sanitize-html.test.ts`, `tests/security-corpus/` (red-team corpus).
 
 ---
 
