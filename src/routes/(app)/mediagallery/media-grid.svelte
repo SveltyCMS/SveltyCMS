@@ -25,6 +25,7 @@
 		mediagallery_filter_media_aria,
 		mediagallery_loading_more,
 		mediagallery_media_grid_aria,
+		mediagallery_name,
 		mediagallery_no_media,
 		mediagallery_original,
 		mediagallery_preview_drag_aria,
@@ -232,10 +233,12 @@
 	 * Derive the primary thumbnail format label from the first thumbnail's mimeType.
 	 * Handles: webp, avif, jpeg, png, gif, etc.
 	 */
-	function primaryFormatLabel(thumbnails: Record<string, any>): string {
+	function primaryFormatLabel(thumbnails: Record<string, any>, fallbackMimeType = ''): string {
 		const keys = deriveSizeKeys(thumbnails);
-		if (!keys.length) return 'Size';
-		const mime = (thumbnails[keys[0]] as any)?.mimeType || '';
+		const mime =
+			(keys.length ? ((thumbnails[keys[0]] as any)?.mimeType as string | undefined) : undefined) ||
+			fallbackMimeType;
+		if (!mime) return '';
 		if (mime === 'image/webp') return 'WebP';
 		if (mime === 'image/avif') return 'AVIF';
 		if (mime === 'image/jpeg') return 'JPEG';
@@ -243,16 +246,16 @@
 		if (mime === 'image/gif') return 'GIF';
 		// Extract clean label from mime
 		const fmt = mime.split('/').pop();
-		return fmt ? fmt.toUpperCase() : 'Size';
+		return fmt ? fmt.toUpperCase() : '';
 	}
 
 	const actionBtnClass =
-		'flex h-8 w-8 min-w-0 shrink-0 items-center justify-center rounded-full bg-black/45 p-0! shadow-sm backdrop-blur-sm transition-colors hover:bg-black/60';
+		'group/action flex h-8 w-8 min-w-0 shrink-0 items-center justify-center rounded-full border border-white/10 bg-black/55 p-0! text-white/80 shadow-sm backdrop-blur-sm transition-colors hover:bg-black/75 hover:text-white';
 </script>
 
 <div
 	bind:this={scrollRoot}
-	class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden p-2 sm:gap-x-3 sm:gap-y-4 sm:px-3 sm:py-3"
+	class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden p-2 sm:gap-x-3 sm:gap-y-4 sm:px-3 sm:pt-2 sm:pb-3"
 	style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
 	role="grid"
 	tabindex="-1"
@@ -287,7 +290,7 @@
 					</p>
 				</div>
 
-				<Button variant="tertiary" onclick={() => fileUploadInput?.click()}>
+				<Button variant="primary" onclick={() => fileUploadInput?.click()}>
 					<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
 					<span>{mediagallery_upload_first()}</span>
 				</Button>
@@ -374,7 +377,7 @@
 					{/if}
 
 					<div
-						class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg"
+						class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg ring-1 ring-inset ring-surface-500/20 dark:ring-surface-500/30"
 					>
 						<!--
             Use a div (not <button>) so HTML5 drag can start from the thumbnail.
@@ -466,7 +469,7 @@
 							>
 								{#snippet children()}
 									<span
-										class="font-serif text-sm font-semibold italic leading-none text-primary-500"
+										class="font-serif text-sm font-semibold italic leading-none text-primary-500 transition-colors group-hover/action:text-white"
 										>i</span
 									>
 								{/snippet}
@@ -485,7 +488,7 @@
 												>
 													<th
 														class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-start"
-														>{mediagallery_size()}</th
+														>{mediagallery_name()}</th
 													>
 													<th
 														class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-center"
@@ -511,15 +514,17 @@
 												</tr>
 												{#if file.thumbnails}
 													{@const hasWebp = hasWebpVariants(file.thumbnails)}
-													{@const primaryLabel = primaryFormatLabel(file.thumbnails)}
+													{@const primaryLabel = primaryFormatLabel(
+														file.thumbnails,
+														(file as MediaImage).mimeType
+													)}
 													<tr class="border-b border-(--admin-border-default)">
 														<td
 															class="py-1 px-2 font-bold text-(--admin-text-muted) border-e border-(--admin-border-default) text-start"
 															colspan="4"
 														>
-															{mediagallery_resized_variants()}
-															{primaryLabel}{#if hasWebp}
-																+ WebP{/if}
+															{mediagallery_resized_variants()}{#if primaryLabel}{primaryLabel}{#if hasWebp}
+																	+ WebP{/if}{/if}
 														</td>
 													</tr>
 													{#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
@@ -576,8 +581,7 @@
 								}}
 							>
 								{#snippet children()}
-									<iconify-icon icon="mdi:pencil" width={15} class="text-surface-300"
-									></iconify-icon>
+									<iconify-icon icon="mdi:pencil" width={15}></iconify-icon>
 								{/snippet}
 							</MediaGridActionTooltip>
 
@@ -598,7 +602,6 @@
 												? 'mdi:tag'
 												: 'mdi:tag-outline'}
 											width={15}
-											class="text-surface-300"
 										></iconify-icon>
 									{/snippet}
 								</MediaGridActionTooltip>
@@ -629,8 +632,7 @@
 								}}
 							>
 								{#snippet children()}
-									<iconify-icon icon="mdi:link-variant" width={15} class="text-surface-300"
-									></iconify-icon>
+									<iconify-icon icon="mdi:link-variant" width={15}></iconify-icon>
 								{/snippet}
 							</MediaGridActionTooltip>
 
@@ -644,7 +646,10 @@
 								}}
 							>
 								{#snippet children()}
-									<iconify-icon icon="mdi:trash-can-outline" width={15} class="text-error-500"
+									<iconify-icon
+										icon="mdi:trash-can-outline"
+										width={15}
+										class="text-error-400 transition-colors group-hover/action:text-white"
 									></iconify-icon>
 								{/snippet}
 							</MediaGridActionTooltip>

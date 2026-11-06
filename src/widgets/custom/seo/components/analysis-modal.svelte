@@ -58,7 +58,7 @@ Displays detailed SEO analysis results in a modal overlay.
 
 	<!-- Modal -->
 	<div
-		class="fixed inset-s-1/2 top-1/2 z-1000 -translate-x-1/2 -translate-y-1/2 shadow-xl"
+		class="fixed inset-0 z-1000 m-auto h-fit w-fit shadow-xl"
 		transition:scale={{ duration: 200, start: 0.95 }}
 		role="dialog"
 		aria-modal="true"

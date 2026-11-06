@@ -248,7 +248,7 @@
 	}
 </script>
 
-<AdminCard class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3" data-testid="media-table">
+<AdminCard class="flex min-h-0 w-full flex-1 flex-col" data-testid="media-table">
 	<SmartTableShell
 		empty={filteredFiles.length === 0}
 		emptyTitle="No media found"

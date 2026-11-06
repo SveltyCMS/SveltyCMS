@@ -229,7 +229,7 @@ Shared multi-step progress used by Setup Wizard and Collection Builder.
 					></div>
 				{:else if orientation === 'horizontal' && variant === 'setup'}
 					<div
-						class="pointer-events-none absolute inset-s-1/2 top-4 -z-10 h-0.5 w-full -translate-y-1/2 sm:top-5 {lineCompletedClass(
+						class="pointer-events-none absolute start-1/2 top-4 -z-10 h-0.5 w-full -translate-y-1/2 sm:top-5 {lineCompletedClass(
 							i
 						)}"
 						aria-hidden="true"

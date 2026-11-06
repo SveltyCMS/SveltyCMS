@@ -268,7 +268,7 @@ It provides the following functionality:
 		<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 			<div class="flex items-center gap-2">
 				<Button
-					variant="tertiary"
+					variant="primary"
 					onclick={() => openModal(null, '')}
 					leadingIcon="mdi:plus-circle-outline"
 					data-testid="access-create-role"

@@ -165,7 +165,7 @@ It provides functionality to:
 				<Button variant="outline" onclick={cancelChanges}>{button_cancel()}</Button>
 
 				<!-- Save -->
-				<Button variant="tertiary" onclick={saveAdminRole} disabled={isSaving}>
+				<Button variant="primary" onclick={saveAdminRole} disabled={isSaving}>
 					{#if isSaving}
 						{access_saving()}
 					{:else}

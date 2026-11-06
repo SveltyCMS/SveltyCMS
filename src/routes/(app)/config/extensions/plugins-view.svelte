@@ -95,11 +95,11 @@
 										<iconify-icon icon="mdi:alert-circle" width="18" class="text-warning-500"
 										></iconify-icon>
 										<div
-											class="absolute bottom-full inset-s-1/2 mb-2 hidden w-48 -translate-x-1/2 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
+											class="absolute inset-x-0 bottom-full mx-auto mb-2 hidden w-48 rounded bg-surface-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:block group-hover:opacity-100"
 										>
 											{plugins_missing_config()}
 											<div
-												class="absolute -bottom-1 inset-s-1/2 -ms-1 h-2 w-2 rotate-45 bg-surface-900"
+												class="absolute inset-x-0 -bottom-1 mx-auto h-2 w-2 rotate-45 bg-surface-900"
 											></div>
 										</div>
 									</div>

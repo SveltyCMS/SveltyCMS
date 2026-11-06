@@ -299,7 +299,7 @@ and proper ARIA dialog semantics. Opens on-demand from Media Gallery or MediaUpl
 		<!-- Error Banner with ARIA live announcement -->
 		{#if error}
 			<div
-				class="absolute top-20 inset-s-1/2 -translate-x-1/2 z-50 max-w-md w-full px-4"
+				class="absolute inset-x-0 top-20 z-50 mx-auto max-w-md w-full px-4"
 				role="alert"
 				aria-live="assertive"
 			>

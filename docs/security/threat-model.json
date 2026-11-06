@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "4a0c8a8410d2ecb9fbfe351502367ba07b8148cbb05f05f986bc85f4c699be2c"
+      "fingerprint": "d36e0418fba1fab2950c09db3c985f8e0a31cbf6551c9047a6dd031fd3f4ea56"
     },
     {
       "id": "content-write",
@@ -75,7 +75,7 @@
       ],
       "model": "docs/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "9df19753edaa41901b4552fe623d776808e153e365bcc5502f8388b2296ea9f0"
+      "fingerprint": "c4432d2aa97c607a875f8ee4d04b40c54658f3c675ec3ebda218f3d1c1df2b3c"
     },
     {
       "id": "admin-pages",
@@ -91,7 +91,7 @@
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "ea3f53bc58a1cd785f2df7a9629462b94146487888338dc762ab17aec3d34aa5"
+      "fingerprint": "2e0f72ce0363d9148e1c62ffa0205481cb2136bcc009f16b6482d74e03bd94cc"
     },
     {
       "id": "system-ops",

@@ -353,7 +353,8 @@
 								rounded={true}
 								class="w-10 h-10 p-0 flex items-center justify-center text-white border-surface-600! hover:bg-surface-800"
 							>
-								<iconify-icon icon="ri:arrow-left-line" width={24}></iconify-icon>
+								<iconify-icon icon="ri:arrow-left-line" width={24} class="rtl:scale-x-[-1]"
+								></iconify-icon>
 							</Button>
 						</SystemTooltip>
 					</div>
@@ -615,8 +616,9 @@
 	}
 	.hover:hover {
 		width: calc(var(--width) + 10%);
-		border-top-left-radius: 5% 50%;
-		border-bottom-left-radius: 5% 50%;
+		/* Start edge = the seam with the Sign In lane in both directions */
+		border-start-start-radius: 5% 50%;
+		border-end-start-radius: 5% 50%;
 	}
 
 	:global(.wiggle) {

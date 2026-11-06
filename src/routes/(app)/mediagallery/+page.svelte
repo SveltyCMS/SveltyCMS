@@ -1113,7 +1113,7 @@
 		-->
 		<div class="shrink-0" data-testid="media-gallery-breadcrumbs">
 			<nav
-				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1.5 text-sm text-(--admin-text-muted) sm:gap-2.5 sm:py-2 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
+				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1 text-sm text-(--admin-text-muted) sm:gap-2.5 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
 				aria-label={mediagallery_folder_drop_path()}
 			>
 				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
@@ -1144,7 +1144,7 @@
 						<!-- Current folder: not a link, but still a droppable so the drag is
 							 told "already here" with the same error ring the sidebar uses. -->
 						<span
-							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-(--admin-text-muted) sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
+							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 font-medium text-(--admin-text-body) sm:max-w-[16rem] sm:px-1.5 sm:py-1 dark:text-surface-100"
 							aria-current="page"
 							data-media-drop-target={dropKey}
 							data-testid={`media-breadcrumb-${dropKey}`}
@@ -1210,7 +1210,7 @@
 		<!-- Toolbar -->
 		<div class="shrink-0" data-testid="media-gallery-toolbar">
 			<!-- Mobile toolbar: search + expand button, then collapsible filters -->
-			<div class="flex flex-col gap-1.5 py-2 sm:hidden">
+			<div class="flex flex-col gap-1.5 py-1 sm:hidden">
 				<div class="flex items-center gap-2">
 					<div class="relative min-w-0 flex-1">
 						<iconify-icon
@@ -1356,7 +1356,7 @@
 			     without it the fixed controls squeezed it to ~24px and the
 			     absolutely positioned advanced-search button rendered under the
 			     left sidebar (pointer events hit the aside instead of the button). -->
-			<div class="hidden flex-wrap items-center gap-2 py-2 sm:flex">
+			<div class="hidden flex-wrap items-center gap-2 py-1 sm:flex">
 				<div class="relative min-w-40 flex-1">
 					<iconify-icon
 						icon="mdi:magnify"
@@ -1498,10 +1498,7 @@
 			data-view={view}
 		>
 			{#if view === 'grid'}
-				<AdminCard
-					class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
-					data-testid="media-grid-card"
-				>
+				<AdminCard class="flex min-h-0 w-full flex-1 flex-col" data-testid="media-grid-card">
 					<MediaGrid
 						{filteredFiles}
 						{gridSize}
@@ -1545,7 +1542,7 @@
 		</div>
 	</div>
 
-	<Slot name="media_gallery" />
+	<Slot name="media_gallery" inline />
 
 	{#if showBatchProcessor && assetStats.selected > 0}
 		{#await import('./batch-processor.svelte') then mod}

@@ -279,13 +279,13 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<div class="pointer-events-none fixed inset-0 z-50 flex justify-center"></div>
 
 			<p
-				class="absolute -top-28 inset-s-1/2 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500"
+				class="absolute inset-x-0 -top-28 z-20 mx-auto w-fit -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-error-500"
 			>
 				{login_new_year()}
 			</p>
 
 			<p
-				class="absolute inset-s-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-5xl font-bold text-error-500"
+				class="absolute inset-x-0 top-28 z-20 mx-auto w-fit -translate-y-1/2 whitespace-nowrap text-5xl font-bold text-error-500"
 			>
 				{currentDate.getFullYear()}
 			</p>
@@ -293,7 +293,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isValentine}
 			<!-- Valentine's Day -->
-			<div class="absolute -top-28 inset-s-1/2 -translate-x-1/2 -translate-y-1/2">
+			<div class="absolute inset-x-0 -top-28 mx-auto w-fit -translate-y-1/2">
 				<iconify-icon
 					icon="mdi:heart"
 					width="40"
@@ -307,7 +307,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			</div>
 
 			<p
-				class="absolute inset-s-1/2 top-28 z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-pink-500"
+				class="absolute inset-x-0 top-28 z-20 mx-auto w-fit -translate-y-1/2 whitespace-nowrap text-4xl font-bold text-pink-500"
 			>
 				Happy Valentine's Day
 			</p>
@@ -315,7 +315,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isEaster}
 			<!-- Easter -->
-			<div class="absolute -top-24 inset-s-1/2 -translate-x-1/2 -translate-y-1/2">
+			<div class="absolute inset-x-0 -top-24 mx-auto w-fit -translate-y-1/2">
 				<iconify-icon
 					icon="mdi:egg-easter"
 					width="40"
@@ -341,7 +341,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isMayDay}
 			<!-- May Day -->
-			<div class="absolute -top-24 inset-s-1/2 -translate-x-1/2 -translate-y-1/2">
+			<div class="absolute inset-x-0 -top-24 mx-auto w-fit -translate-y-1/2">
 				<iconify-icon icon="noto:tulip" width="60" class="absolute -inset-s-4 -top-11.25 rotate-12"
 				></iconify-icon>
 				<iconify-icon
@@ -359,7 +359,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 			<img
 				src="/seasons/Halloween.avif"
 				alt="Spider"
-				class="absolute -bottom-50 inset-s-1/2 -translate-x-1/2 -translate-y-1/2"
+				class="absolute inset-x-0 -bottom-50 mx-auto w-fit -translate-y-1/2"
 			/>
 		{/if}
 
@@ -376,7 +376,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	{#if seasonRegion === 'East_Asia'}
 		{#if isChineseNewYear}
 			<!-- Chinese New Year -->
-			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
+			<div class="absolute inset-x-0 -top-12.5 mx-auto w-fit justify-center">
 				<iconify-icon
 					icon="noto:lantern"
 					width="40"
@@ -394,7 +394,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isCherryBlossom}
 			<!-- Cherry Blossom Season -->
-			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
+			<div class="absolute inset-x-0 -top-12.5 mx-auto w-fit justify-center">
 				<iconify-icon
 					icon="noto:cherry-blossom"
 					width="40"
@@ -415,7 +415,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isDragonBoatFestival}
 			<!-- Dragon Boat Festival -->
-			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
+			<div class="absolute inset-x-0 -top-12.5 mx-auto w-fit justify-center">
 				<iconify-icon icon="noto:dragon" width="100" class="absolute inset-s-0 -top-8.75 rotate-12"
 				></iconify-icon>
 			</div>
@@ -423,7 +423,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isMidAutumnFestival}
 			<!-- Mid-Autumn Festival -->
-			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
+			<div class="absolute inset-x-0 -top-12.5 mx-auto w-fit justify-center">
 				<iconify-icon icon="noto:full-moon" width="80" class="absolute -inset-s-25 -top-2.5"
 				></iconify-icon>
 				<iconify-icon icon="noto:moon-cake" width="60" class="absolute -inset-e-30 top-55"
@@ -435,7 +435,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 	{#if seasonRegion === 'South_Asia'}
 		{#if isDiwali}
 			<!-- Diwali -->
-			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
+			<div class="absolute inset-x-0 -top-12.5 mx-auto w-fit justify-center">
 				<iconify-icon icon="noto:diya-lamp" width="70" class="absolute inset-s-30 top-47.5"
 				></iconify-icon>
 				<iconify-icon
@@ -480,7 +480,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 				></div>
 			</div>
 
-			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
+			<div class="absolute inset-x-0 -top-12.5 mx-auto w-fit justify-center">
 				<iconify-icon
 					icon="noto:balloon"
 					width="40"
@@ -511,7 +511,7 @@ Supports regional celebrations for Western Europe, East Asia, and South Asia, wi
 
 		{#if isNavratri}
 			<!-- Navratri -->
-			<div class="absolute inset-s-1/2 -top-12.5 -translate-x-1/2 justify-center">
+			<div class="absolute inset-x-0 -top-12.5 mx-auto w-fit justify-center">
 				<iconify-icon icon="noto:prayer-beads" width="40" class="absolute -inset-s-25 top-7.5"
 				></iconify-icon>
 				<iconify-icon icon="token-branded:starl" width="40" class="absolute -inset-e-15 -top-5"

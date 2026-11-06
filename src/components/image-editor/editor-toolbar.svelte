@@ -170,7 +170,7 @@ Three-zone grid: compare (start), undo/redo + zoom (center), Done (end).
 
 	{#if imageEditorStore.state.error}
 		<div
-			class="editor-toolbar-error absolute inset-s-1/2 top-[calc(100%+0.375rem)] z-50 flex gap-2 items-center px-3 py-[0.4rem] text-[13px] font-medium text-white whitespace-nowrap bg-error-500 rounded-full shadow-lg -translate-x-1/2"
+			class="editor-toolbar-error absolute inset-x-0 top-[calc(100%+0.375rem)] z-50 mx-auto flex w-fit gap-2 items-center px-3 py-[0.4rem] text-[13px] font-medium text-white whitespace-nowrap bg-error-500 rounded-full shadow-lg"
 			transition:fade={{ duration: 200 }}
 			role="alert"
 		>

@@ -197,7 +197,7 @@
 					{#each heatmapDataTitle as { word, color }, i (i)}
 						<span class="relative inline-block me-1">
 							<span
-								class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
+								class="absolute inset-0 m-auto rounded-full blur-md"
 								style="background-color: {color}; width: 120%; height: 120%; z-index: 0;"
 							></span>
 							<span class="relative z-10">{word}</span>
@@ -220,7 +220,7 @@
 					{#each heatmapDataDesc as { word, color }, i (i)}
 						<span class="relative inline-block me-1">
 							<span
-								class="absolute inset-s-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-md"
+								class="absolute inset-0 m-auto rounded-full blur-md"
 								style="background-color: {color}; width: 140%; height: 140%; z-index: 0;"
 							></span>
 							<span class="relative z-10">{word}</span>

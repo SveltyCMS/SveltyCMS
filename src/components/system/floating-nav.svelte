@@ -535,7 +535,7 @@ Home button and Settings available.
 			<div
 				transition:fade
 				aria-hidden="true"
-				class="absolute inset-s-1/2 top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
+				class="absolute top-1/4 z-9999998 -translate-x-1/2 -translate-y-1/2 animate-[showEndPoints_0.2s_0.2s_forwards] rounded-full border bg-tertiary-500/40"
 				class:opacity-60={isMinimalMenu && spokeEndpoints.length === 0}
 				style="top:{center.y}px;
 			       left:{center.x}px;

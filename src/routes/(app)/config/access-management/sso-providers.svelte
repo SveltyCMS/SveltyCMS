@@ -360,7 +360,7 @@
 			</p>
 		</div>
 		<Button
-			variant="tertiary"
+			variant="primary"
 			onclick={openAddModal}
 			aria-label={sso_add_aria()}
 			class="shadow-xs shrink-0"
@@ -768,7 +768,7 @@
 					{button_cancel()}
 				</Button>
 				<Button
-					variant="tertiary"
+					variant="primary"
 					onclick={saveCurrentProvider}
 					loading={isSaving}
 					aria-label={sso_save_aria()}

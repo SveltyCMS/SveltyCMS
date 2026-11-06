@@ -77,8 +77,8 @@
 		action="?/OAuth"
 		onsubmit={handleSubmit}
 	>
-		<!-- CSS Logo: the component positions itself absolutely (login splash); keep it in flow here -->
-		<div class="flex justify-center [&>div]:static [&>div]:translate-none">
+		<!-- CSS Logo -->
+		<div class="flex justify-center">
 			<SveltyCMSLogoFull />
 		</div>
 

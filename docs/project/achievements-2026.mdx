@@ -2146,6 +2146,13 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 
 - **`/config/sync` is self-explaining.** The page used a third tab dialect (hand-rolled boxed strip) and opened with one sentence a new user could not act on. It now uses the shared `Tabs` component (Sync / Data & Backups / Debug), states the database↔`config/sync/` model up front with the `drush cex` → review → `drush cim` mapping, explains the drift vocabulary and each safety mode, and separates configuration from content and full database backups. Outer padding dropped from `p-6` to `p-2`.
 
+#### UI audit fixes — RTL, media gallery, primary accents (2026-11-06)
+
+- **RTL centring was applied twice.** A logical `inset-inline-start: 50%` resolves to `right` under `dir="rtl"` while `-translate-x-1/2` stays physical, so a centred element landed one full width off-centre and composed layers drifted apart (the login splash rendered its white disc, rings and wordmark as separate clusters). Centred layers now use physical insets (`left-1/2`, `inset-0 m-auto`) or flex centring: login splash/chooser and its version pill, the logo component, sign-in/up icons, seasonal overlays, toasts, stepper, image-editor overlays, video/SEO dialogs and plugin tooltips. The login lane hover arcs use logical corner radii and back arrows mirror with `rtl:scale-x-[-1]`.
+- **Media gallery fills the viewport.** The grid/table card is a margin-free `flex-1` child, the empty injected `media_gallery` slot no longer reserves `space-y` space, and the breadcrumb/toolbar rows were tightened. The tile thumbnail carries an inset surface ring so its bounds read against the card in light mode.
+- **The variant table explains itself.** Its first column is **Name** (it lists variant keys, not sizes), and the group label falls back to the file MIME when individual renditions carry none — previously a missing rendition `mimeType` rendered the literal fallback **Size** after the localized dash.
+- **Primary actions use one accent.** Create Role, Save Changes, Add SSO provider, Save provider and the empty-state Upload First File now use `variant="primary"`; the filled badge in advanced search dropped a redundant `dark:text-white`.
+
 #### Deliberately not claimed
 
 - **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).

@@ -572,7 +572,7 @@ Structure optimized for LLM integration and AI-powered search.
 					<strong class="text-tertiary-500 dark:text-primary-500">{mediagallery_tip()}</strong>
 					{mediagallery_press()}
 					<kbd
-						class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-tertiary-500 text-white dark:bg-primary-500 dark:text-white"
+						class="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold bg-tertiary-500 text-white dark:bg-primary-500"
 						>{mediagallery_ctrl_enter()}</kbd
 					>
 					{mediagallery_to_search()}
