@@ -54,6 +54,7 @@
 
 	import type { WidgetSize } from '@src/content/types';
 	import { formatTime } from '@utils/format-date';
+	import Input from '@components/ui/input.svelte';
 
 	interface OnlineUser {
 		id: string;
@@ -117,7 +118,7 @@
 			case 'editor':
 				return 'bg-tertiary-500/10 text-tertiary-600 dark:bg-tertiary-900/20 dark:text-tertiary-400';
 			case 'viewer':
-				return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-(--admin-text-muted)';
+				return 'bg-surface-500/10 text-(--admin-text-muted)';
 			default:
 				return 'bg-surface-500/10 text-(--admin-text-muted) dark:bg-surface-700 dark:text-(--admin-text-muted)';
 		}
@@ -131,6 +132,10 @@
 		return m > 0 ? `${h}h ${m}m` : `${h}h`;
 	}
 </script>
+
+{#snippet searchIcon()}
+	<iconify-icon icon="mdi:magnify" width="16"></iconify-icon>
+{/snippet}
 
 {#if licenseStatus && !licenseStatus.active && !licenseStatus.hasLicense}
 	<BaseWidget {label} {theme} {icon} {widgetId} {size} {onSizeChange} onCloseRequest={onRemove}>
@@ -254,19 +259,14 @@
 
 					<!-- Search (only when >3 users) -->
 					{#if totalOnline > 3}
-						<div class="relative mb-3">
-							<input
-								aria-label={widget_useronline_search_aria()}
+						<div class="mb-3">
+							<Input
 								type="text"
 								bind:value={searchTerm}
+								aria-label={widget_useronline_search_aria()}
 								placeholder={widget_useronline_filter_ph()}
-								class="w-full rounded border border-surface-500/30 bg-surface-500/10 py-1.5 pe-9 ps-3 text-sm text-surface-800 placeholder-surface-400 transition-colors focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-400 dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200 dark:placeholder-surface-500"
+								post={searchIcon}
 							/>
-							<iconify-icon
-								icon="mdi:magnify"
-								width="16"
-								class="absolute inset-e-3 top-1/2 -translate-y-1/2 text-(--admin-text-muted)"
-							></iconify-icon>
 						</div>
 					{/if}
 

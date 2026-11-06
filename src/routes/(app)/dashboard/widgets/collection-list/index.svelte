@@ -44,6 +44,7 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	import { buildCollectionDrilldownHref } from '@utils/dashboard-drilldown';
 	import type {
@@ -105,10 +106,24 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 	let itemLimit = $state(initialSettings.limit || 5);
 	let customTitle = $state(untrack(() => config?.label || label || 'Collection List'));
 
+	const directionOptions = $derived([
+		{ value: 'desc', label: widget_list_newest_first() },
+		{ value: 'asc', label: widget_list_oldest_first() }
+	]);
+	const limitOptions = [
+		{ value: '3', label: '3' },
+		{ value: '5', label: '5' },
+		{ value: '10', label: '10' }
+	];
+
 	// Settings modal & source introspection state
 	let showSettingsModal = $state(false);
 	let sources = $state<CollectionSourceInfo[]>([]);
 	let sourcesLoading = $state(false);
+
+	const collectionOptions = $derived(
+		sources.map((src) => ({ value: src.id, label: src.label || src.name }))
+	);
 
 	// Synchronize when config changes externally
 	$effect(() => {
@@ -378,82 +393,45 @@ status pills, relative timestamps, and one-click drill-down into the entry edito
 
 			<!-- Collection Source -->
 			<div>
-				<label
-					for="list-collection-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-				>
-					{widget_list_collection_label()}
-				</label>
-				<select
+				<Select
 					id="list-collection-{widgetId}"
+					label={widget_list_collection_label()}
+					placeholder={widget_list_loading_collections()}
 					bind:value={selectedCollection}
-					class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-				>
-					{#if sources.length === 0}
-						<option value="">{widget_list_loading_collections()}</option>
-					{:else}
-						{#each sources as src (src.id)}
-							<option value={src.id}>{src.label || src.name}</option>
-						{/each}
-					{/if}
-				</select>
+					options={collectionOptions}
+				/>
 			</div>
 
 			<!-- Sorting -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label
-						for="list-sort-field-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_list_sort_field()}
-					</label>
-					<select
+					<Select
 						id="list-sort-field-{widgetId}"
+						label={widget_list_sort_field()}
 						bind:value={sortField}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						{#each sortFieldOptions as option (option.value)}
-							<option value={option.value}>{option.label}</option>
-						{/each}
-					</select>
+						options={sortFieldOptions}
+					/>
 				</div>
 
 				<div>
-					<label
-						for="list-sort-direction-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_list_direction()}
-					</label>
-					<select
+					<Select
 						id="list-sort-direction-{widgetId}"
+						label={widget_list_direction()}
 						bind:value={sortDirection}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="desc">{widget_list_newest_first()}</option>
-						<option value="asc">{widget_list_oldest_first()}</option>
-					</select>
+						options={directionOptions}
+					/>
 				</div>
 			</div>
 
 			<!-- Item limit -->
 			<div>
-				<label
-					for="list-limit-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-				>
-					{widget_list_items_to_display()}
-				</label>
-				<select
+				<Select
 					id="list-limit-{widgetId}"
-					bind:value={itemLimit}
-					class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-				>
-					<option value={3}>3</option>
-					<option value={5}>5</option>
-					<option value={10}>10</option>
-				</select>
+					label={widget_list_items_to_display()}
+					value={String(itemLimit)}
+					options={limitOptions}
+					onchange={(value) => (itemLimit = Number(value) || 3)}
+				/>
 			</div>
 
 			<!-- Modal Actions -->

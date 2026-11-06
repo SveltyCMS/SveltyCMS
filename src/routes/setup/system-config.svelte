@@ -666,6 +666,7 @@ Features:
 						bind:value={systemSettings.defaultContentLanguage}
 						options={contentLanguageOptions}
 						placeholder={setup_select_content_language()}
+						ariaLabel={setup_label_default_content_language?.() || 'Default Content Language'}
 						error={displayErrors.defaultContentLanguage}
 						onchange={() => handleBlur('defaultContentLanguage')}
 					/>

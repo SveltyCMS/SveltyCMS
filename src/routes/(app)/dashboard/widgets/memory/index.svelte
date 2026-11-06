@@ -162,13 +162,13 @@
 							>
 						</div>
 						<div class="flex items-center gap-2 text-end">
-							<span class="font-semibold text-gray-700 dark:text-gray-300 tabular-nums"
+							<span class="font-semibold text-(--admin-text-body) tabular-nums"
 								>{mem.usedGB.toFixed(1)} / {mem.totalGB.toFixed(0)} GB</span
 							>
 							{#if mem.swapPercent !== null}
 								<span class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
 									>| {dashboard_memory_swap()}
-									<span class="font-semibold text-gray-600 dark:text-(--admin-text-muted)"
+									<span class="font-semibold text-(--admin-text-muted)"
 										>{mem.swapPercent.toFixed(0)}%</span
 									></span
 								>
@@ -300,9 +300,7 @@
 								<div
 									class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
 								>
-									<span
-										class="text-3xl font-semibold tabular-nums text-(--admin-text-body) dark:text-white"
-									>
+									<span class="text-3xl font-semibold tabular-nums text-(--admin-text-body)">
 										{mem.percent.toFixed(0)}
 									</span>
 									<span
@@ -413,7 +411,7 @@
 					class="h-8 w-8 animate-spin rounded-full border-2 border-success-500 border-t-transparent"
 				></div>
 				<div class="text-center">
-					<div class="text-sm font-medium {theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}">
+					<div class="text-sm font-medium text-(--admin-text-body)">
 						{dashboard_memory_loading()}
 					</div>
 					<div

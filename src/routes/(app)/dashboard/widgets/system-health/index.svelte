@@ -262,7 +262,7 @@
 								onclick={reinitializeSystem}
 								class="h-auto! border-warning-500/30 px-3! py-1.5! text-xs! text-warning-600 dark:text-warning-400 hover:bg-warning-500/10"
 							>
-								<iconify-icon icon="mdi:refresh" width={16}></iconify-icon>
+								<iconify-icon icon="mdi:restart" width={16}></iconify-icon>
 								{dashboard_health_reinitialize()}
 							</Button>
 						</div>

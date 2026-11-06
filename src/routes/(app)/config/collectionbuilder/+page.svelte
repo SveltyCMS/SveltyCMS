@@ -41,7 +41,7 @@ None (TreeView has its own keyboard navigation)
 	import { hasDuplicateSiblingName } from '@src/content';
 	import { getDescendantIds } from './collectionbuilder-utils';
 	import { rethrow } from '@utils/error-handling';
-	import { sanitizeHtml } from '@utils/sanitize-html';
+	import { stripHtml } from '@utils/sanitize-html';
 	import {
 		button_save,
 		builder_clear_category_aria,
@@ -847,10 +847,8 @@ None (TreeView has its own keyboard navigation)
 			</div>
 
 			<p class="text-center" role="note">
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html sanitizeHtml(builder_note_instant())}<br />
-				<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-				{@html sanitizeHtml(builder_note_layout())}
+				{stripHtml(builder_note_instant())}<br />
+				{stripHtml(builder_note_layout())}
 			</p>
 
 			<div data-testid="collection-builder-board">

@@ -282,10 +282,7 @@
 			</div>
 
 			{#if description}
-				<span
-					class="mt-0.5 text-xs font-medium {compact ? '' : 'opacity-50'}"
-					style="color: var(--admin-text-muted)">{description}</span
-				>
+				<span class="mt-0.5 text-xs font-medium text-(--admin-text-muted)">{description}</span>
 			{/if}
 		</div>
 	</div>

@@ -139,14 +139,14 @@
 				aria-labelledby={refreshLabelId}
 			>
 				{#each REFRESH_OPTIONS as opt (opt.value)}
-					<button
-						type="button"
+					<Button
+						variant="transparent"
 						role="radio"
 						aria-checked={editPollInterval === opt.value}
-						class="flex items-center justify-between rounded-lg border px-3 py-2 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500 {editPollInterval ===
+						class="h-auto! justify-between! gap-0! border px-3! py-2! text-xs! font-medium focus-visible:ring-tertiary-500! dark:focus-visible:ring-primary-500! {editPollInterval ===
 						opt.value
-							? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-600 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 font-semibold'
-							: 'border-(--admin-border-default) bg-surface-500/10 text-(--admin-text-body) hover:bg-surface-500/10'}"
+							? 'border-tertiary-500 bg-tertiary-500/10! text-tertiary-600 dark:border-primary-500 dark:bg-primary-900/20! dark:text-primary-400 font-semibold'
+							: 'border-(--admin-border-default) bg-surface-500/10! text-(--admin-text-body) hover:bg-surface-500/10'}"
 						onclick={() => (editPollInterval = opt.value)}
 					>
 						<span>{opt.label()}</span>
@@ -157,7 +157,7 @@
 								class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
 						{/if}
-					</button>
+					</Button>
 				{/each}
 			</div>
 		</div>
@@ -177,13 +177,13 @@
 			>
 				{#each SIZE_PRESETS as preset (preset.label)}
 					{@const isSelected = editSize.w === preset.size.w && editSize.h === preset.size.h}
-					<button
-						type="button"
+					<Button
+						variant="transparent"
 						role="radio"
 						aria-checked={isSelected}
-						class="flex items-center justify-between rounded-lg border px-3 py-2 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-tertiary-500 dark:focus-visible:ring-primary-500 {isSelected
-							? 'border-tertiary-500 bg-tertiary-500/10 text-tertiary-600 dark:border-primary-500 dark:bg-primary-900/20 dark:text-primary-400 font-semibold'
-							: 'border-(--admin-border-default) bg-surface-500/10 text-(--admin-text-body) hover:bg-surface-500/10'}"
+						class="h-auto! justify-between! gap-0! border px-3! py-2! text-xs! font-medium focus-visible:ring-tertiary-500! dark:focus-visible:ring-primary-500! {isSelected
+							? 'border-tertiary-500 bg-tertiary-500/10! text-tertiary-600 dark:border-primary-500 dark:bg-primary-900/20! dark:text-primary-400 font-semibold'
+							: 'border-(--admin-border-default) bg-surface-500/10! text-(--admin-text-body) hover:bg-surface-500/10'}"
 						onclick={() => (editSize = { ...preset.size })}
 					>
 						<span>{preset.label}</span>
@@ -194,7 +194,7 @@
 								class="text-tertiary-500 dark:text-primary-500"
 							></iconify-icon>
 						{/if}
-					</button>
+					</Button>
 				{/each}
 			</div>
 		</div>

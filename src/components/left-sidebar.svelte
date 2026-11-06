@@ -620,7 +620,9 @@ Route-driven sidebar content (no dual collapsible section headers):
 						data-sveltekit-preload-data="hover"
 						data-testid="nav-user-profile"
 						onclick={handleUserClick}
-						aria-label="User Profile"
+						aria-label={user?.username
+							? `${applayout_userprofile()}: ${user.username}`
+							: 'User Profile'}
 						class={isSidebarFull
 							? 'flex w-full flex-col items-center justify-center p-1 text-center'
 							: 'flex h-12 w-12 items-center justify-center rounded-full hover:bg-surface-500/20'}
@@ -677,7 +679,7 @@ Route-driven sidebar content (no dual collapsible section headers):
 								<Button
 									variant="ghost"
 									rounded
-									aria-label={applayout_select_language()}
+									aria-label={`${applayout_select_language()}: ${languageTag}`}
 									data-testid="language-selector-trigger"
 									class="mb-3 flex items-center justify-center uppercase bg-(--admin-bg-chip) text-surface-900 dark:text-white hover:bg-surface-300 dark:hover:bg-surface-600 {isSidebarFull
 										? 'h-12 w-12 text-xs font-bold'

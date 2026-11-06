@@ -335,7 +335,6 @@
 						type="button"
 						onclick={save}
 						disabled={!isFormValid || !canWrite}
-						aria-label="Save"
 						title={!isFormValid ? 'Fix validation errors before saving' : 'Save changes'}
 						class="w-full gap-2"
 					>

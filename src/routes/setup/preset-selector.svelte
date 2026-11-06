@@ -270,7 +270,11 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 	</div>
 
 	<!-- Dot indicators -->
-	<div class="flex gap-1.5 justify-center py-0.5" aria-hidden="true">
+	<div
+		class="flex gap-1.5 justify-center py-0.5"
+		role="group"
+		aria-label="Blueprint carousel position"
+	>
 		{#each presets as preset, i (preset.id)}
 			<Button
 				type="button"
@@ -280,6 +284,7 @@ Default value is 'blank' — headless-first with no pre-seeded collections.
 					? 'w-4.5! rounded-[3px]! bg-tertiary-500! dark:bg-primary-500! '
 					: ''}"
 				aria-label={`Select preset ${preset.title || i + 1}`}
+				aria-current={visibleIndex === i ? 'true' : undefined}
 				onclick={() => {
 					select(preset.id);
 					scrollEl?.scrollTo({ left: i * 288, behavior: 'smooth' });

@@ -66,6 +66,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	// Svelte core
 	import { onDestroy, onMount, untrack, tick } from 'svelte';
 	import { adminFade } from '@utils/admin-transitions';
+	import Button from '@components/ui/button.svelte';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -469,26 +470,28 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 		role="group"
 	>
 		<!-- Main Action Button -->
-		<button
+		<Button
+			variant="transparent"
 			type="button"
 			onclick={() => handleAction(listboxValue)}
 			disabled={isDisabled || disabledMap[listboxValue]}
 			aria-label={usermultibutton_execute_action({ action: actionConfig[listboxValue].label })}
 			title={usermultibutton_execute_action({ action: actionConfig[listboxValue].label })}
-			class="flex h-10 items-center justify-center gap-1.5 border-e font-semibold transition-all duration-200 max-sm:rounded-s-full max-sm:rounded-e-none max-sm:px-3 max-sm:text-xs sm:min-w-30 sm:gap-2 sm:rounded-s-full sm:rounded-e-none sm:px-6 sm:font-bold {actionConfig[
+			class="max-sm:gap-1.5 max-sm:rounded-s-full max-sm:rounded-e-none max-sm:px-3 max-sm:text-xs max-sm:font-semibold sm:min-w-30 sm:rounded-s-full sm:rounded-e-none sm:px-6 {actionConfig[
 				listboxValue
 			].buttonClass} {isDisabled || disabledMap[listboxValue]
 				? 'pointer-events-none max-sm:border-(--admin-border-default)! max-sm:bg-none! max-sm:bg-transparent! max-sm:text-surface-600! max-sm:opacity-100! max-sm:grayscale-0! sm:border-white/20 sm:text-white sm:opacity-50 sm:grayscale dark:max-sm:text-surface-400!'
-				: 'border-white/25 text-white active:scale-95'}"
+				: 'border-e border-white/25 text-white active:scale-95'}"
 		>
 			<iconify-icon icon={actionConfig[listboxValue].iconValue} width="18"></iconify-icon>
 			<span class="uppercase max-sm:tracking-normal sm:tracking-wider"
 				>{actionConfig[listboxValue].label}</span
 			>
-		</button>
+		</Button>
 
 		<!-- Dropdown Toggle -->
-		<button
+		<Button
+			variant="transparent"
 			type="button"
 			data-testid="user-bulk-actions-menu"
 			onclick={(e) => {
@@ -500,18 +503,18 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 			aria-expanded={isDropdownOpen}
 			aria-label={usermultibutton_toggle_menu()}
 			title={usermultibutton_select_action()}
-			class="flex h-10 items-center justify-center transition-all duration-200 max-sm:w-8 max-sm:rounded-e-full max-sm:rounded-s-none max-sm:shadow-none! sm:w-10 sm:rounded-e-md sm:text-white sm:shadow-inner {!isDisabled
+			class="max-sm:w-8 max-sm:rounded-e-full max-sm:rounded-s-none max-sm:p-0! max-sm:shadow-none! sm:w-10 sm:rounded-e-md sm:p-0! sm:text-white sm:shadow-inner {!isDisabled
 				? actionConfig[listboxValue].buttonClass +
 					' max-sm:text-white sm:bg-none! sm:bg-surface-800 sm:hover:bg-surface-700 active:scale-95 cursor-pointer'
 				: 'pointer-events-none max-sm:bg-transparent! max-sm:text-surface-600! max-sm:opacity-100! dark:max-sm:text-surface-400! sm:opacity-50'}"
 		>
 			<iconify-icon icon="mdi:chevron-down" width={20}></iconify-icon>
-		</button>
+		</Button>
 
 		<!-- Dropdown Menu -->
 		{#if isDropdownOpen}
 			<div
-				class="absolute top-full z-50 mt-2 w-56 overflow-hidden rounded-(--admin-radius-card) bg-surface-800 shadow-2xl ring-1 ring-black/20 backdrop-blur-md max-sm:inset-s-0 max-sm:origin-top-left sm:inset-e-0 sm:origin-top-right"
+				class="absolute top-full z-50 mt-2 w-56 overflow-hidden rounded-(--admin-radius-card) border border-(--admin-border-default) bg-(--admin-bg-overlay) shadow-2xl backdrop-blur-md max-sm:inset-s-0 max-sm:origin-top-left sm:inset-e-0 sm:origin-top-right"
 				role="menu"
 				transition:adminFade={{ duration: 150 }}
 				onkeydown={handleDropdownKeydown}
@@ -522,7 +525,8 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 						{const config = actionConfig[action]}
 						{const disabled = disabledMap[action]}
 						<li role="none">
-							<button
+							<Button
+								variant="transparent"
 								type="button"
 								onclick={(e) => {
 									e.preventDefault();
@@ -532,7 +536,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 								{disabled}
 								aria-label={usermultibutton_select_action_aria({ action: config.label })}
 								role="menuitem"
-								class="group/item relative flex w-full items-center gap-3 px-4 py-3 text-start text-white transition-all duration-200 hover:bg-white/5 {disabled
+								class="group/item relative h-auto! w-full justify-start! gap-3 px-4! py-3! text-start text-(--admin-text-body) hover:bg-surface-500/10 {disabled
 									? 'opacity-20 cursor-not-allowed grayscale'
 									: ''}"
 							>
@@ -545,7 +549,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 
 								<!-- Icon -->
 								<div
-									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-surface-700/50 transition-transform {!disabled
+									class="relative z-10 flex h-8 w-8 items-center justify-center rounded-full bg-(--admin-bg-chip) transition-transform {!disabled
 										? 'group-hover/item:scale-110'
 										: ''}"
 								>
@@ -563,7 +567,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 										class="relative z-10 text-tertiary-500 dark:text-primary-500"
 									></iconify-icon>
 								{/if}
-							</button>
+							</Button>
 						</li>
 					{/each}
 				</ul>

@@ -24,6 +24,7 @@ It provides the following functionality:
 	// Components
 	import AdminCard from '@components/admin-card.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
+	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
@@ -322,17 +323,17 @@ It provides the following functionality:
 				aria-label="Filter permissions by category"
 			>
 				{#each allCategories as category (category)}
-					<button
+					<Button
+						variant={selectedCategory === category ? 'primary' : 'ghost'}
+						size="sm"
+						rounded
 						type="button"
-						class="px-2.5 py-1 text-xs rounded-full transition-colors whitespace-nowrap cursor-pointer {selectedCategory ===
-						category
-							? 'bg-primary-500 text-white font-semibold shadow-xs'
-							: 'bg-surface-500/10 text-surface-400 hover:bg-surface-500/20 hover:text-surface-300'}"
+						class="whitespace-nowrap font-medium!"
 						onclick={() => (selectedCategory = category)}
 						aria-pressed={selectedCategory === category}
 					>
 						{category}
-					</button>
+					</Button>
 				{/each}
 			</div>
 		{/if}
@@ -371,8 +372,10 @@ It provides the following functionality:
 								title={access_permissions_sort_name_title()}
 								positioning={{ placement: 'top' }}
 							>
-								<button
-									class="inline-flex items-center gap-1 text-xs font-semibold tracking-wider uppercase transition-colors {sortBy ===
+								<Button
+									variant="transparent"
+									type="button"
+									class="h-auto! gap-1! p-0! text-xs! font-semibold tracking-wider! uppercase transition-colors {sortBy ===
 										'name' && sortOrder !== 0
 										? 'text-primary-500 dark:text-primary-400'
 										: 'text-tertiary-500 hover:text-surface-500 dark:text-primary-500'}"
@@ -390,7 +393,7 @@ It provides the following functionality:
 											aria-hidden="true"
 										></iconify-icon>
 									{/if}
-								</button>
+								</Button>
 							</SystemTooltip>
 						</th>
 						<th
@@ -405,8 +408,10 @@ It provides the following functionality:
 								title={access_permissions_sort_action_title()}
 								positioning={{ placement: 'top' }}
 							>
-								<button
-									class="mx-auto inline-flex items-center gap-1 text-xs font-semibold tracking-wider uppercase transition-colors {sortBy ===
+								<Button
+									variant="transparent"
+									type="button"
+									class="mx-auto h-auto! gap-1! p-0! text-xs! font-semibold tracking-wider! uppercase transition-colors {sortBy ===
 										'action' && sortOrder !== 0
 										? 'text-primary-500 dark:text-primary-400'
 										: 'text-tertiary-500 hover:text-surface-500 dark:text-primary-500'}"
@@ -424,7 +429,7 @@ It provides the following functionality:
 											aria-hidden="true"
 										></iconify-icon>
 									{/if}
-								</button>
+								</Button>
 							</SystemTooltip>
 						</th>
 
@@ -455,14 +460,17 @@ It provides the following functionality:
 													onchange={(value) => toggleAllForRole(role._id, value)}
 												/>
 											</span>
-											<button
-												class="flex items-center justify-center p-0.5 rounded-sm border border-(--admin-border-default) hover:bg-(--admin-bg-chip) text-(--admin-text-muted) hover:text-tertiary-500 dark:hover:text-tertiary-500 dark:text-primary-600 transition-colors"
+											<Button
+												variant="ghost"
+												size="sm"
+												type="button"
+												class="h-6! w-6! border border-(--admin-border-default) p-0! text-(--admin-text-muted)"
 												onclick={() => toggleAllForRole(role._id, true)}
 												title={access_permissions_assign_all_title()}
 												aria-label={`Assign ${role.name} to all filtered permissions`}
 											>
 												<iconify-icon icon="mdi:check-all" width="12"></iconify-icon>
-											</button>
+											</Button>
 										</div>
 									</div>
 								</th>

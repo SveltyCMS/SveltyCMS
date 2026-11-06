@@ -297,7 +297,7 @@
 										y="48"
 										dominant-baseline="central"
 										text-anchor="middle"
-										class="text-[19px] font-semibold fill-current text-(--admin-text-body) dark:text-white"
+										class="text-[19px] font-semibold fill-current text-(--admin-text-body)"
 									>
 										{disk.percent.toFixed(0)}%
 									</text>

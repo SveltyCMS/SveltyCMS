@@ -775,7 +775,7 @@ This page dynamically switches between List views and Field editors based on the
 	<!-- Auto-save indicator -->
 	{#if isSavingDraft}
 		<div
-			class="fixed inset-e-4-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg"
+			class="fixed inset-e-4 top-20 z-50 flex items-center gap-2 rounded bg-warning-500 px-4 py-2 text-white shadow-lg"
 		>
 			<div
 				class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"

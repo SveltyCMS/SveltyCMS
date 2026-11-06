@@ -686,17 +686,21 @@
 									? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
 									: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
 							>
-								<button
+								<Button
+									variant="transparent"
 									type="button"
-									class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-(--admin-text-muted) hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+									size="sm"
+									class="column-drag-handle h-8! w-8! cursor-grab p-0! text-(--admin-text-muted) hover:text-primary-500 active:cursor-grabbing dark:hover:text-primary-400"
 									aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
 									title={common_drag_reorder()}
 								>
 									<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
-								</button>
+								</Button>
 
-								<button
+								<Button
+									variant="transparent"
 									type="button"
+									size="sm"
 									onclick={() => {
 										displayTableHeaders = displayTableHeaders.map((h: TableHeader) =>
 											h.id === header.id ? { ...h, visible: !h.visible } : h
@@ -704,7 +708,7 @@
 										selectAllColumns = displayTableHeaders.every((h: TableHeader) => h.visible);
 									}}
 									aria-label={`Toggle visibility of ${header.label} column`}
-									class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
+									class="h-auto! gap-1.5! py-1! ps-0! pe-2.5! text-xs! font-medium!"
 								>
 									{#if header.visible}
 										<iconify-icon icon="fa:check" width={14} class="text-success-500"
@@ -717,7 +721,7 @@
 										></iconify-icon>
 									{/if}
 									<span class="capitalize">{header.label}</span>
-								</button>
+								</Button>
 							</div>
 						{/each}
 					</section>
@@ -777,8 +781,10 @@
 										: 'descending'
 									: 'none'}
 							>
-								<button
-									class="flex w-full items-center justify-center text-center font-bold text-tertiary-500 dark:text-primary-500"
+								<Button
+									variant="transparent"
+									type="button"
+									class="h-auto! w-full justify-center! p-0! text-xs! font-bold text-tertiary-500 dark:text-primary-500"
 									onclick={() => smartTable.setSort(header.key)}
 									aria-label={`Sort by ${header.label}`}
 								>
@@ -793,7 +799,7 @@
 											aria-hidden="true"
 										></iconify-icon>
 									{/if}
-								</button>
+								</Button>
 								<ColumnResizeHandle columnKey={header.key} onResize={smartTable.setColumnWidth} />
 							</th>
 						{/each}

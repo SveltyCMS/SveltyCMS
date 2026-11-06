@@ -96,7 +96,7 @@ Features:
 			{#if currentStep < totalSteps - 1}
 				<SystemTooltip title={button_next()} positioning={{ placement: 'top', gutter: 8 }}>
 					<Button
-						variant="tertiary"
+						variant="primary"
 						onclick={() => onnext()}
 						disabled={!canProceed || isLoading}
 						aria-disabled={!canProceed || isLoading}
@@ -127,7 +127,7 @@ Features:
 					positioning={{ placement: 'top', gutter: 8 }}
 				>
 					<Button
-						variant="tertiary"
+						variant="primary"
 						onclick={() => oncomplete()}
 						disabled={isLoading}
 						aria-disabled={isLoading}

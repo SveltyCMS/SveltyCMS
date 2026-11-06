@@ -196,18 +196,29 @@ refreshed by one mechanism: the hourly interval below.
 		lastChecked: state.lastChecked
 	});
 
-	// Get appropriate ARIA label
+	// Get appropriate ARIA label. WCAG 2.5.3 (label-content-name-mismatch): the
+	// accessible name must CONTAIN the visible text, so it is prefixed with the
+	// exact string the pill/badge paints instead of restating the version alone.
+	const visibleVersionLabel = $derived.by(() => {
+		if (effectiveTransparent) return `Ver. ${pkg}`;
+		if (compact) return `v.${pkg}`;
+		if (githubVersion && githubVersion !== pkg && !isLoading) {
+			return `Ver. ${pkg} → ${githubVersion}`;
+		}
+		return `Ver. ${pkg}`;
+	});
+
 	const statusAriaLabel = $derived.by(() => {
 		if (isSetupRoute) {
-			return `Application version ${pkg}`;
+			return `${visibleVersionLabel}: application version ${pkg}`;
 		}
 		if (isLoading) {
-			return 'Checking application version';
+			return `${visibleVersionLabel}: checking application version`;
 		}
 		if (state.error) {
-			return `Version ${pkg}. ${state.error}`;
+			return `${visibleVersionLabel}: version check failed — ${state.error}`;
 		}
-		return `Application version ${pkg}. ${versionStatusMessage}`;
+		return `${visibleVersionLabel}: ${versionStatusMessage}`;
 	});
 
 	/** Maps one API payload onto the single state object. */

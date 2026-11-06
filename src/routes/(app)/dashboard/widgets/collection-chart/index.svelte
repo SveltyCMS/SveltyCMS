@@ -44,6 +44,7 @@ Supports time-series binning and categorical distributions with live drill-down.
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import Modal from '@components/ui/modal.svelte';
 	import Input from '@components/ui/input.svelte';
+	import Select from '@components/ui/select.svelte';
 	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	import { buildCollectionDrilldownHref, isFilterableBucket } from '@utils/dashboard-drilldown';
 	import type {
@@ -138,6 +139,45 @@ Supports time-series binning and categorical distributions with live drill-down.
 	let timeGranularity = $state(initialSettings.timeGranularity || 'day'); // 'day' | 'week' | 'month' | 'year'
 	let selectedMeasure = $state(initialSettings.measure || 'count'); // 'count' | 'sum' | 'avg'
 	let selectedMetricField = $state(initialSettings.metricField || '');
+
+	const collectionOptions = $derived(
+		sources.map((src) => ({ value: src.id, label: src.label || src.name }))
+	);
+	const chartTypeOptions = $derived([
+		{ value: 'column', label: widget_chart_column_style() },
+		{ value: 'bar', label: widget_chart_bar_style() },
+		{ value: 'area', label: widget_chart_area_style() }
+	]);
+	const accentOptions = $derived([
+		{ value: 'primary', label: widget_chart_color_primary() },
+		{ value: 'tertiary', label: widget_chart_color_tertiary() },
+		{ value: 'secondary', label: widget_chart_color_secondary() },
+		{ value: 'success', label: widget_chart_color_success() },
+		{ value: 'warning', label: widget_chart_color_warning() }
+	]);
+	const groupByOptions = $derived([
+		{ value: 'time', label: widget_chart_time_period_bins() },
+		{ value: 'field', label: widget_chart_categorical_field() }
+	]);
+	const granularityOptions = $derived([
+		{ value: 'day', label: widget_chart_by_day() },
+		{ value: 'week', label: widget_chart_by_week() },
+		{ value: 'month', label: widget_chart_by_month() },
+		{ value: 'year', label: widget_chart_by_year() }
+	]);
+	const measureOptions = $derived([
+		{ value: 'count', label: widget_chart_count_records() },
+		{ value: 'sum', label: widget_chart_sum_field() },
+		{ value: 'avg', label: widget_chart_avg_field() }
+	]);
+	const periodOptions = $derived([
+		{ value: 'last30', label: widget_chart_last_30_days() },
+		{ value: 'month', label: widget_chart_this_month() },
+		{ value: 'week', label: widget_chart_this_week() },
+		{ value: 'year', label: widget_chart_this_year() },
+		{ value: 'last12m', label: widget_chart_last_12_months() },
+		{ value: 'all', label: widget_chart_all_time() }
+	]);
 	let selectedPeriod = $state(initialSettings.period || 'last30');
 	let itemLimit = $state(initialSettings.limit || 8);
 	let customTitle = $state(untrack(() => config?.label || label || 'Collection Chart'));
@@ -223,6 +263,15 @@ Supports time-series binning and categorical distributions with live drill-down.
 
 	const activeSource = $derived(
 		sources.find((s) => s.id === selectedCollection || s.name === selectedCollection)
+	);
+
+	const categoryFieldOptions = $derived(
+		activeSource && activeSource.categoryFields.length > 0
+			? activeSource.categoryFields.map((field) => ({
+					value: field.name,
+					label: field.label || field.name
+				}))
+			: [{ value: 'status', label: collection_status() }]
 	);
 
 	// Construct dynamic chart API endpoint
@@ -560,127 +609,64 @@ Supports time-series binning and categorical distributions with live drill-down.
 
 			<!-- Collection Source -->
 			<div>
-				<label
-					for="chart-collection-{widgetId}"
-					class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-				>
-					{widget_chart_collection_label()}
-				</label>
-				<select
+				<Select
 					id="chart-collection-{widgetId}"
+					label={widget_chart_collection_label()}
+					placeholder={widget_chart_loading_collections()}
 					bind:value={selectedCollection}
-					class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-				>
-					{#if sources.length === 0}
-						<option value="">{widget_chart_loading_collections()}</option>
-					{:else}
-						{#each sources as src (src.id)}
-							<option value={src.id}>{src.label || src.name}</option>
-						{/each}
-					{/if}
-				</select>
+					options={collectionOptions}
+				/>
 			</div>
 
 			<!-- Chart Type & Accent Color -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label
-						for="chart-type-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_chart_style()}
-					</label>
-					<select
+					<Select
 						id="chart-type-{widgetId}"
+						label={widget_chart_style()}
 						bind:value={chartType}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="column">{widget_chart_column_style()}</option>
-						<option value="bar">{widget_chart_bar_style()}</option>
-						<option value="area">{widget_chart_area_style()}</option>
-					</select>
+						options={chartTypeOptions}
+					/>
 				</div>
 
 				<div>
-					<label
-						for="chart-accent-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_chart_accent_color()}
-					</label>
-					<select
+					<Select
 						id="chart-accent-{widgetId}"
+						label={widget_chart_accent_color()}
 						bind:value={colorAccent}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="primary">{widget_chart_color_primary()}</option>
-						<option value="tertiary">{widget_chart_color_tertiary()}</option>
-						<option value="secondary">{widget_chart_color_secondary()}</option>
-						<option value="success">{widget_chart_color_success()}</option>
-						<option value="warning">{widget_chart_color_warning()}</option>
-					</select>
+						options={accentOptions}
+					/>
 				</div>
 			</div>
 
 			<!-- Grouping Mode -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label
-						for="chart-group-by-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_chart_group_by()}
-					</label>
-					<select
+					<Select
 						id="chart-group-by-{widgetId}"
+						label={widget_chart_group_by()}
 						bind:value={groupByMode}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="time">{widget_chart_time_period_bins()}</option>
-						<option value="field">{widget_chart_categorical_field()}</option>
-					</select>
+						options={groupByOptions}
+					/>
 				</div>
 
 				{#if groupByMode === 'time'}
 					<div>
-						<label
-							for="chart-granularity-{widgetId}"
-							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-						>
-							{widget_chart_time_granularity()}
-						</label>
-						<select
+						<Select
 							id="chart-granularity-{widgetId}"
+							label={widget_chart_time_granularity()}
 							bind:value={timeGranularity}
-							class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-						>
-							<option value="day">{widget_chart_by_day()}</option>
-							<option value="week">{widget_chart_by_week()}</option>
-							<option value="month">{widget_chart_by_month()}</option>
-							<option value="year">{widget_chart_by_year()}</option>
-						</select>
+							options={granularityOptions}
+						/>
 					</div>
 				{:else}
 					<div>
-						<label
-							for="chart-group-field-{widgetId}"
-							class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-						>
-							{widget_chart_category_field()}
-						</label>
-						<select
+						<Select
 							id="chart-group-field-{widgetId}"
+							label={widget_chart_category_field()}
 							bind:value={selectedGroupField}
-							class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-						>
-							{#if activeSource && activeSource.categoryFields.length > 0}
-								{#each activeSource.categoryFields as f (f.name)}
-									<option value={f.name}>{f.label || f.name}</option>
-								{/each}
-							{:else}
-								<option value="status">{collection_status()}</option>
-							{/if}
-						</select>
+							options={categoryFieldOptions}
+						/>
 					</div>
 				{/if}
 			</div>
@@ -688,42 +674,21 @@ Supports time-series binning and categorical distributions with live drill-down.
 			<!-- Measure & Time Period -->
 			<div class="grid grid-cols-2 gap-3">
 				<div>
-					<label
-						for="chart-measure-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_chart_measure()}
-					</label>
-					<select
+					<Select
 						id="chart-measure-{widgetId}"
+						label={widget_chart_measure()}
 						bind:value={selectedMeasure}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="count">{widget_chart_count_records()}</option>
-						<option value="sum">{widget_chart_sum_field()}</option>
-						<option value="avg">{widget_chart_avg_field()}</option>
-					</select>
+						options={measureOptions}
+					/>
 				</div>
 
 				<div>
-					<label
-						for="chart-period-{widgetId}"
-						class="mb-1 block text-xs font-semibold text-(--admin-text-muted)"
-					>
-						{widget_chart_filter_period()}
-					</label>
-					<select
+					<Select
 						id="chart-period-{widgetId}"
+						label={widget_chart_filter_period()}
 						bind:value={selectedPeriod}
-						class="w-full rounded border border-(--admin-border-subtle) bg-(--admin-input-bg) px-3 py-2 text-sm text-(--admin-text-body) focus:ring-2 focus:ring-primary-500"
-					>
-						<option value="last30">{widget_chart_last_30_days()}</option>
-						<option value="month">{widget_chart_this_month()}</option>
-						<option value="week">{widget_chart_this_week()}</option>
-						<option value="year">{widget_chart_this_year()}</option>
-						<option value="last12m">{widget_chart_last_12_months()}</option>
-						<option value="all">{widget_chart_all_time()}</option>
-					</select>
+						options={periodOptions}
+					/>
 				</div>
 			</div>
 

@@ -1,9 +1,17 @@
 <!--
-@file src\routes\(app)\dashboard\widgets\database-pool-diagnostics.svelte
+@file src/routes/(app)/dashboard/widgets/database-pool-diagnostics/index.svelte
 @component
 **Database Pool Diagnostics Widget**
-* Displays real-time connection pool statistics and health recommendations.
-	 * Shows metrics from DatabaseResilience system.
+
+Displays real-time connection pool statistics and health recommendations from the
+DatabaseResilience system, sourced from `/api/database/pool-diagnostics`.
+
+### Features:
+- health status badge (healthy / degraded / critical)
+- total / active / idle / waiting connection counters
+- pool utilization bar with threshold colours
+- adapter recommendations list
+- freemium upgrade banner when no license is active
 -->
 
 <script lang="ts" module>
@@ -31,8 +39,8 @@
 	const isLicensed = $derived(Boolean(licenseStatus?.hasLicense));
 
 	import type { WidgetSize } from '@src/content/types';
-	import type { ConnectionPoolDiagnostics } from '@src/databases/database-resilience';
 	import BaseWidget from '../../base-widget.svelte';
+	import { extractPoolDiagnostics } from './pool-diagnostics';
 	import {
 		widget_dbpool_total,
 		widget_dbpool_active,
@@ -67,7 +75,7 @@
 		switch (healthStatus) {
 			case 'healthy':
 				return 'bg-success-500/10 text-success-600 dark:bg-success-900/20 dark:text-success-400';
-			case 'warning':
+			case 'degraded':
 				return 'bg-warning-500/10 text-warning-600 dark:bg-warning-900/20 dark:text-warning-400';
 			case 'critical':
 				return 'bg-error-500/10 text-error-600 dark:bg-error-900/20 dark:text-error-400';
@@ -102,7 +110,7 @@
 <BaseWidget
 	{label}
 	{theme}
-	endpoint="/api/dashboard/database-pool"
+	endpoint="/api/database/pool-diagnostics"
 	pollInterval={5000}
 	{icon}
 	{widgetId}
@@ -111,7 +119,7 @@
 	onCloseRequest={onRemove}
 >
 	{#snippet children({ data })}
-		{@const diagnostics = data as ConnectionPoolDiagnostics | null}
+		{@const diagnostics = extractPoolDiagnostics(data)}
 
 		{#if !diagnostics}
 			<div class="flex h-full items-center justify-center">
@@ -137,7 +145,7 @@
 					<div class="mb-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 						{widget_dbpool_total()}
 					</div>
-					<div class="text-2xl font-bold text-(--admin-text-body) dark:text-white">
+					<div class="text-2xl font-bold text-(--admin-text-body)">
 						{diagnostics.totalConnections}
 					</div>
 				</div>
@@ -147,7 +155,7 @@
 					<div class="mb-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 						{widget_dbpool_active()}
 					</div>
-					<div class="text-2xl font-bold text-(--admin-text-body) dark:text-white">
+					<div class="text-2xl font-bold text-(--admin-text-body)">
 						{diagnostics.activeConnections}
 					</div>
 				</div>
@@ -157,7 +165,7 @@
 					<div class="mb-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 						{widget_dbpool_idle()}
 					</div>
-					<div class="text-2xl font-bold text-(--admin-text-body) dark:text-white">
+					<div class="text-2xl font-bold text-(--admin-text-body)">
 						{diagnostics.idleConnections}
 					</div>
 				</div>
@@ -170,7 +178,7 @@
 					<div
 						class="text-2xl font-bold {diagnostics.waitingRequests > 0
 							? 'text-warning-600'
-							: 'text-(--admin-text-body) dark:text-white'}"
+							: 'text-(--admin-text-body)'}"
 					>
 						{diagnostics.waitingRequests}
 					</div>

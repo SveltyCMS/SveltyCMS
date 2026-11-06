@@ -16,6 +16,7 @@
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import Avatar from '@components/ui/avatar.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
@@ -241,7 +242,6 @@
 	} from '@src/paraglide/messages';
 	import { normalizeAvatarUrl } from '@utils/avatar';
 	import { onMount, untrack } from 'svelte';
-	import { fade } from 'svelte/transition';
 	import { refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import { formatDateTime } from '@utils/format-date';
@@ -832,8 +832,7 @@
 	}
 
 	/** One help mark for every label on this page: 14px circle, color of the word beside it. */
-	const helpBtnClass =
-		'inline-flex size-3.5 shrink-0 items-center justify-center self-center border-0 bg-transparent p-0 leading-none shadow-none [appearance:none] text-current [&_iconify-icon]:!size-3.5';
+	const helpBtnClass = 'size-3.5! text-current [&_iconify-icon]:size-3.5';
 
 	const roleDisplay = $derived.by(() => {
 		const r = String(user.role).toLowerCase();
@@ -1023,11 +1022,7 @@
 	showBackButton={true}
 	backUrl="/config"
 >
-	<div
-		in:fade={{ duration: 250 }}
-		class="flex w-full min-w-0 flex-col gap-2"
-		data-testid="user-account-page"
-	>
+	<div class="flex w-full min-w-0 flex-col gap-2" data-testid="user-account-page">
 		<!-- Tabs directly under PageTitle -->
 		<Tabs
 			tabs={accountTabs}
@@ -1051,13 +1046,15 @@
 						<!-- Left: centered avatar + badges; edit pen is its own control (hit area outside circle) -->
 						<div class="flex flex-col items-center gap-3">
 							<div class="relative mx-auto size-28 shrink-0">
-								<button
+								<Button
+									variant="transparent"
 									type="button"
 									onclick={modalEditAvatar}
 									aria-label={userpage_editavatar()}
 									title={userpage_editavatar()}
 									data-testid="edit-avatar-btn"
-									class="size-full rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+									rounded
+									class="h-full! w-full! p-0!"
 								>
 									<Avatar
 										src={normalizeAvatarUrl(user.avatar)}
@@ -1065,15 +1062,18 @@
 										size="size-28"
 										class="size-full rounded-full border-2 border-surface-500/30 shadow-md pointer-events-none dark:border-surface-600"
 									/>
-								</button>
+								</Button>
 								<!-- Pencil outside circle hit area — positioned shell + SystemTooltip + real button -->
 								<div class="absolute -inset-e-1 -top-1 z-20">
 									<SystemTooltip
 										title={helpTitle('avatar')}
 										positioning={{ placement: 'top', gutter: 8 }}
 									>
-										<button
+										<Button
+											variant="primary"
 											type="button"
+											size="sm"
+											rounded
 											onclick={(e) => {
 												e.preventDefault();
 												e.stopPropagation();
@@ -1082,11 +1082,11 @@
 											aria-label={userpage_editavatar()}
 											title={userpage_editavatar()}
 											data-testid="edit-avatar-pencil-btn"
-											class="flex size-8 items-center justify-center rounded-full bg-tertiary-500 text-white shadow-md ring-2 ring-surface-50 transition-transform hover:scale-105 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:bg-primary-500 dark:ring-surface-900"
+											class="size-8 p-0! shadow-md ring-2 ring-surface-50 dark:ring-surface-900"
 										>
 											<iconify-icon icon="bi:pencil-fill" width={13} aria-hidden="true"
 											></iconify-icon>
-										</button>
+										</Button>
 									</SystemTooltip>
 								</div>
 							</div>
@@ -1105,15 +1105,11 @@
 										></iconify-icon>
 										<span class="min-w-0 flex-1 truncate text-start">{roleDisplay.name}</span>
 										<SystemTooltip title={helpTitle('role')} triggerClass="shrink-0">
-											<button
-												type="button"
-												tabindex="-1"
-												aria-label={userpage_help_role_aria()}
+											<HelpIcon
+												ariaLabel={userpage_help_role_aria()}
+												tabindex={0}
 												class={helpBtnClass}
-											>
-												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-												></iconify-icon>
-											</button>
+											/>
 										</SystemTooltip>
 									</span>
 								</span>
@@ -1126,15 +1122,11 @@
 											>ID: {String(user._id).slice(0, 12)}…</span
 										>
 										<SystemTooltip title={helpTitle('id')} triggerClass="shrink-0">
-											<button
-												type="button"
-												tabindex="-1"
-												aria-label={userpage_help_id_aria()}
+											<HelpIcon
+												ariaLabel={userpage_help_id_aria()}
+												tabindex={0}
 												class={helpBtnClass}
-											>
-												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-												></iconify-icon>
-											</button>
+											/>
 										</SystemTooltip>
 									</span>
 								</span>
@@ -1148,30 +1140,27 @@
 												{String(user.tenantId).slice(0, 12)}…</span
 											>
 											<SystemTooltip title={helpTitle('tenant')} triggerClass="shrink-0">
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_tenant_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_tenant_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</span>
 									</span>
 								{/if}
 								{#if is2FAEnabledGlobal}
-									<button
+									<Button
+										variant={user.is2FAEnabled ? 'success' : 'warning'}
 										type="button"
+										size="sm"
+										rounded
 										onclick={open2FAModal}
 										data-testid="identity-2fa-badge-btn"
 										aria-label={user.is2FAEnabled
 											? userpage_2fa_manage_aria()
 											: userpage_2fa_setup_aria()}
-										class="flex h-9 w-full cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-bold uppercase tracking-wide text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 {user.is2FAEnabled
-											? 'bg-primary-600 dark:bg-primary-500'
-											: 'bg-warning-600 dark:bg-warning-500'}"
+										class="h-9! w-full text-xs! uppercase tracking-wide"
 									>
 										<iconify-icon
 											icon={user.is2FAEnabled ? 'mdi:shield-check' : 'mdi:shield-alert-outline'}
@@ -1179,7 +1168,7 @@
 											aria-hidden="true"
 										></iconify-icon>
 										{user.is2FAEnabled ? userpage_2fa_on() : userpage_2fa_off()}
-									</button>
+									</Button>
 								{/if}
 							</div>
 						</div>
@@ -1200,15 +1189,11 @@
 								>
 									{username()}
 									<SystemTooltip title={helpTitle('username')}>
-										<button
-											type="button"
-											tabindex="-1"
-											aria-label={userpage_help_username_aria()}
+										<HelpIcon
+											ariaLabel={userpage_help_username_aria()}
+											tabindex={0}
 											class={helpBtnClass}
-										>
-											<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-											></iconify-icon>
-										</button>
+										/>
 									</SystemTooltip>
 								</div>
 								<p
@@ -1233,15 +1218,11 @@
 								>
 									{email()}
 									<SystemTooltip title={helpTitle('email')}>
-										<button
-											type="button"
-											tabindex="-1"
-											aria-label={userpage_help_email_aria()}
+										<HelpIcon
+											ariaLabel={userpage_help_email_aria()}
+											tabindex={0}
 											class={helpBtnClass}
-										>
-											<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-											></iconify-icon>
-										</button>
+										/>
 									</SystemTooltip>
 								</div>
 								<p
@@ -1268,15 +1249,11 @@
 								>
 									{form_password()}
 									<SystemTooltip title={helpTitle('password')}>
-										<button
-											type="button"
-											tabindex="-1"
-											aria-label={userpage_help_password_aria()}
+										<HelpIcon
+											ariaLabel={userpage_help_password_aria()}
+											tabindex={0}
 											class={helpBtnClass}
-										>
-											<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-											></iconify-icon>
-										</button>
+										/>
 									</SystemTooltip>
 								</div>
 								<p
@@ -1364,18 +1341,11 @@
 											>
 												{twofa_title()}
 												<SystemTooltip title={helpTitle('2fa')}>
-													<button
-														type="button"
-														tabindex="-1"
-														aria-label={userpage_help_2fa_aria()}
+													<HelpIcon
+														ariaLabel={userpage_help_2fa_aria()}
+														tabindex={0}
 														class={helpBtnClass}
-													>
-														<iconify-icon
-															icon="mdi:help-circle-outline"
-															width={14}
-															aria-hidden="true"
-														></iconify-icon>
-													</button>
+													/>
 												</SystemTooltip>
 											</p>
 											<p
@@ -1413,15 +1383,11 @@
 										<p class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 											{userpage_passkeys_biometrics_title()}
 											<SystemTooltip title={helpTitle('passkeys')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_passkeys_biometrics_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_passkeys_biometrics_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</p>
 										<p
@@ -1464,15 +1430,11 @@
 										>
 											{adminarea_activesession()}
 											<SystemTooltip title={helpTitle('sessions')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_sessions_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_sessions_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</div>
 									</div>
@@ -1665,15 +1627,11 @@
 										>
 											{userpage_passkeys()}
 											<SystemTooltip title={helpTitle('passkeys')} triggerClass="ms-auto shrink-0">
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_passkeys_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_passkeys_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</div>
 										<p class="text-xs text-(--admin-text-muted)">{userpage_passkey_hint()}</p>
@@ -1702,15 +1660,11 @@
 										>
 											{userpage_magic_link()}
 											<SystemTooltip title={helpTitle('magic')} triggerClass="ms-auto shrink-0">
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_magic_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_magic_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</div>
 										<p class="text-xs text-(--admin-text-muted)">{userpage_magic_hint()}</p>
@@ -1739,15 +1693,11 @@
 										>
 											{userpage_oauth_login()}
 											<SystemTooltip title={helpTitle('oauth')} triggerClass="ms-auto shrink-0">
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_oauth_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_oauth_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</div>
 										<p class="text-xs text-(--admin-text-muted)">
@@ -1778,15 +1728,11 @@
 										>
 											{system_permission()}
 											<SystemTooltip title={helpTitle('permissions')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_permissions_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_permissions_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</div>
 									</div>
@@ -1842,15 +1788,11 @@
 									<div class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 										{userpage_workspace_appearance()}
 										<SystemTooltip title={helpTitle('appearance')}>
-											<button
-												type="button"
-												tabindex="-1"
-												aria-label={userpage_help_appearance_aria()}
+											<HelpIcon
+												ariaLabel={userpage_help_appearance_aria()}
+												tabindex={0}
 												class={helpBtnClass}
-											>
-												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-												></iconify-icon>
-											</button>
+											/>
 										</SystemTooltip>
 									</div>
 								</div>
@@ -1864,15 +1806,11 @@
 												>{userpage_density()}</span
 											>
 											<SystemTooltip title={helpTitle('density')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_density_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_density_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</div>
 										<Select
@@ -1892,15 +1830,11 @@
 												>{userpage_card_style()}</span
 											>
 											<SystemTooltip title={helpTitle('card-style')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_card_style_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_card_style_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</div>
 										<Select
@@ -1920,15 +1854,11 @@
 										>
 											{userpage_reduced_motion()}
 											<SystemTooltip title={helpTitle('reduced-motion')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_reduced_motion_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_reduced_motion_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</span>
 										<Toggle bind:value={myReducedMotion} ariaLabel={userpage_reduced_motion()} />
@@ -1939,15 +1869,11 @@
 										>
 											{userpage_high_contrast()}
 											<SystemTooltip title={helpTitle('high-contrast')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_high_contrast_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_high_contrast_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</span>
 										<Toggle bind:value={myHighContrast} ariaLabel={userpage_high_contrast()} />
@@ -1993,15 +1919,11 @@
 									<div class="flex items-center gap-1 uppercase">
 										{userpage_collaboration()}
 										<SystemTooltip title={helpTitle('collaboration')}>
-											<button
-												type="button"
-												tabindex="-1"
-												aria-label={userpage_help_collaboration_aria()}
+											<HelpIcon
+												ariaLabel={userpage_help_collaboration_aria()}
+												tabindex={0}
 												class={helpBtnClass}
-											>
-												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-												></iconify-icon>
-											</button>
+											/>
 										</SystemTooltip>
 									</div>
 								</div>
@@ -2013,15 +1935,11 @@
 										<span class="flex min-w-0 items-center gap-1 0">
 											{userpage_rtc_editing()}
 											<SystemTooltip title={helpTitle('rtc-enabled')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_rtc_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_rtc_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</span>
 										<Checkbox
@@ -2036,15 +1954,11 @@
 										<span class="flex min-w-0 items-center gap-1">
 											{userpage_sound_notifications()}
 											<SystemTooltip title={helpTitle('rtc-sound')}>
-												<button
-													type="button"
-													tabindex="-1"
-													aria-label={userpage_help_rtc_sound_aria()}
+												<HelpIcon
+													ariaLabel={userpage_help_rtc_sound_aria()}
+													tabindex={0}
 													class={helpBtnClass}
-												>
-													<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-													></iconify-icon>
-												</button>
+												/>
 											</SystemTooltip>
 										</span>
 										<Checkbox
@@ -2076,24 +1990,21 @@
 									<div class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
 										{userpage_privacy_data_title()}
 										<SystemTooltip title={helpTitle('privacy')}>
-											<button
-												type="button"
-												tabindex="-1"
-												aria-label={userpage_help_privacy_aria()}
+											<HelpIcon
+												ariaLabel={userpage_help_privacy_aria()}
+												tabindex={0}
 												class={helpBtnClass}
-											>
-												<iconify-icon icon="mdi:help-circle-outline" width={14} aria-hidden="true"
-												></iconify-icon>
-											</button>
+											/>
 										</SystemTooltip>
 									</div>
 								</div>
-								<button
+								<Button
+									variant="transparent"
 									type="button"
 									onclick={modalPrivacyData}
 									data-testid="privacy-data-btn"
 									aria-label={userpage_privacy_open_aria()}
-									class="flex w-full items-center gap-3 rounded-lg border border-surface-500/30 p-3 text-start transition-colors hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-800/50"
+									class="h-auto! w-full justify-start! gap-3 border border-surface-500/30 p-3! font-normal! text-start hover:bg-surface-500/10 dark:border-surface-500/40 dark:hover:bg-surface-800/50"
 								>
 									<div class="min-w-0 flex-1">
 										<p class="text-sm font-medium text-(--admin-text-body)">
@@ -2109,7 +2020,7 @@
 										width={18}
 										aria-hidden="true"
 									></iconify-icon>
-								</button>
+								</Button>
 							</div>
 
 							<div class="pt-2" data-testid="slot-user_preferences" data-zone="user_preferences">

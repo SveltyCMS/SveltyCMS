@@ -42,6 +42,7 @@
 	import type { WidgetSize } from '@src/content/types';
 	import BaseWidget from '../../base-widget.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Input from '@components/ui/input.svelte';
 	import { formatTime } from '@utils/format-date';
 	import {
 		widget_logs_level,
@@ -159,6 +160,10 @@
 	}
 </script>
 
+{#snippet searchIcon()}
+	<iconify-icon icon="mdi:magnify" width="14"></iconify-icon>
+{/snippet}
+
 <BaseWidget
 	{label}
 	{theme}
@@ -182,34 +187,23 @@
 				</div>
 
 				<div class="relative flex-1 min-w-30">
-					<input
-						aria-label={widget_logs_search_label()}
+					<Input
 						type="text"
 						bind:value={searchTerm}
+						aria-label={widget_logs_search_label()}
 						placeholder={widget_logs_search_ph()}
-						class="w-full rounded border border-surface-500/30 bg-surface-500/10 py-1.5 ps-8 pe-3 text-xs text-surface-700 placeholder-surface-400 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
+						pre={searchIcon}
 					/>
-					<iconify-icon
-						icon="mdi:magnify"
-						width="14"
-						class="absolute inset-s-2.5 top-1/2 -translate-y-1/2 text-(--admin-text-muted)"
-					></iconify-icon>
 				</div>
 
 				{#if isLicensed}
-					<input
-						aria-label={widget_logs_date_from()}
-						type="date"
-						bind:value={startDate}
-						class="rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
-					/>
+					<div class="w-36 shrink-0">
+						<Input type="date" bind:value={startDate} aria-label={widget_logs_date_from()} />
+					</div>
 					<span class="text-xs text-(--admin-text-muted)">–</span>
-					<input
-						aria-label={widget_logs_date_to()}
-						type="date"
-						bind:value={endDate}
-						class="rounded border border-surface-500/30 bg-surface-500/10 px-2 py-1.5 text-xs text-surface-700 focus:border-primary-500 focus:outline-none dark:border-surface-500/40 dark:bg-surface-800 dark:text-surface-200"
-					/>
+					<div class="w-36 shrink-0">
+						<Input type="date" bind:value={endDate} aria-label={widget_logs_date_to()} />
+					</div>
 				{/if}
 			</div>
 		{/if}

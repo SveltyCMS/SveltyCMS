@@ -759,7 +759,7 @@ Provides DB type, host, port, name, user, password inputs, validation display, t
 
 		{#if !unsupportedDbSelected}
 			<Button
-				variant="tertiary"
+				variant="primary"
 				type="submit"
 				disabled={isLoading}
 				aria-label={isLoading

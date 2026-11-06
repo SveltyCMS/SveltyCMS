@@ -244,7 +244,7 @@ and full ARIA accessibility. Supports progressive corner-shape angled corners.
 	class={cn(
 		'btn relative inline-flex items-center justify-center font-bold tracking-tight transition-all duration-200',
 		'active:scale-[0.98] hover:brightness-110 active:brightness-95',
-		'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-surface-500 dark:focus-visible:ring-surface-300',
+		'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--admin-focus-ring)',
 		variantClass,
 		sizeClass,
 		shape === 'angle' ? 'corner-angle' : rounded ? 'rounded-full' : '',

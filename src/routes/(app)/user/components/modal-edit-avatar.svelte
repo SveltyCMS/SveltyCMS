@@ -478,7 +478,7 @@ Efficiently handles avatar uploads with validation, deletion, and real-time prev
 				variant="tertiary"
 				onclick={onFormSubmit}
 				disabled={!files.length || isUploading}
-				class="dark:bg-primary-500 dark:text-white"
+				class="dark:bg-primary-500 dark:text-surface-950"
 			>
 				{#if isUploading}
 					<div class="me-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
