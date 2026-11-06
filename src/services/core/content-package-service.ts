@@ -40,6 +40,7 @@ import { createChecksum } from "@utils/security/checksum";
 import { generateUUID } from "@utils/native-utils";
 import { jobQueue } from "@src/services/background/jobs/job-queue-service";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
 let eventBusModulePromise:
@@ -435,7 +436,7 @@ export class ContentPackageService {
 
     const depth = Math.min(options.relationDepth ?? 1, MAX_RELATION_DEPTH);
     const tenantId = options.tenantId ?? "global";
-    const now = new Date().toISOString();
+    const now = nowISODateString();
     const collections: Record<string, string> = {};
     const relationMap: Record<string, Record<string, string>> = {};
     const mediaMap: Record<string, { url: string; alt?: string; mimeType?: string }> = {};

@@ -196,12 +196,16 @@ export function startSystemMonitor(): void {
 
   try {
     collectSnapshot();
-  } catch {}
+  } catch (error) {
+    logger.debug("[system-monitor] suppressed error", error);
+  }
 
   _interval = setInterval(() => {
     try {
       collectSnapshot();
-    } catch {}
+    } catch (error) {
+      logger.debug("[system-monitor] suppressed error", error);
+    }
   }, SAMPLE_INTERVAL_MS);
   if (typeof (_interval as any)?.unref === "function") {
     (_interval as any).unref();

@@ -199,11 +199,11 @@ export function getImportGuidance(
 
   let recommendation = "";
   if (isVeryLarge) {
-    recommendation = `⚠️ Very large import detected (${entryCount.toLocaleString()} entries, ${(fileSizeBytes / 1024 / 1024).toFixed(1)}MB). Strongly recommend CLI for best performance:\n\n  bun run migrate import --file=<path> --format=${format} --collection=<target>\n\nCLI uses database-native bulk operations (PostgreSQL COPY, MongoDB insertMany) achieving 50-100x speed vs UI mode.`;
+    recommendation = `⚠️ Very large import detected (${entryCount.toLocaleString("en-US")} entries, ${(fileSizeBytes / 1024 / 1024).toFixed(1)}MB). Strongly recommend CLI for best performance:\n\n  bun run migrate import --file=<path> --format=${format} --collection=<target>\n\nCLI uses database-native bulk operations (PostgreSQL COPY, MongoDB insertMany) achieving 50-100x speed vs UI mode.`;
   } else if (isLarge) {
-    recommendation = `💡 Large import detected (${entryCount.toLocaleString()} entries). UI mode works but CLI is faster for this size. Consider using CLI if this is a production migration.`;
+    recommendation = `💡 Large import detected (${entryCount.toLocaleString("en-US")} entries). UI mode works but CLI is faster for this size. Consider using CLI if this is a production migration.`;
   } else {
-    recommendation = `✅ ${entryCount.toLocaleString()} entries — well within UI mode limits. Import should complete in ~${estimatedTimeSec}s.`;
+    recommendation = `✅ ${entryCount.toLocaleString("en-US")} entries — well within UI mode limits. Import should complete in ~${estimatedTimeSec}s.`;
   }
 
   return {

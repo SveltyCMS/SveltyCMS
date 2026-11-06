@@ -10,7 +10,7 @@
  * - save workflow definition
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, unwrapList, type ApiResponse } from "@utils/api";
 import type { WorkflowDefinition } from "@src/types/workflow-types";
 
 export interface WorkflowCollectionOption {
@@ -24,24 +24,14 @@ export interface WorkflowRoleOption {
   name?: string;
 }
 
-function unwrapArray<T>(result: ApiResponse<unknown>): T[] {
-  if (!result.success) return [];
-  const raw = (result as { data?: unknown }).data ?? result;
-  if (Array.isArray(raw)) return raw as T[];
-  if (raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)) {
-    return (raw as { data: T[] }).data;
-  }
-  return [];
-}
-
 export async function listWorkflowCollections(): Promise<WorkflowCollectionOption[]> {
   const result = await fetchApi<WorkflowCollectionOption[]>("/api/collections");
-  return unwrapArray<WorkflowCollectionOption>(result);
+  return unwrapList<WorkflowCollectionOption>(result);
 }
 
 export async function listWorkflowRoles(): Promise<WorkflowRoleOption[]> {
   const result = await fetchApi<WorkflowRoleOption[]>("/api/user/roles");
-  return unwrapArray<WorkflowRoleOption>(result);
+  return unwrapList<WorkflowRoleOption>(result);
 }
 
 export async function loadWorkflow(

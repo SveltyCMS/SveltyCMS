@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "56abe37a069bdcb1685c4080245024f7e6f4654361973c6674d770beb272b6e8"
+      "fingerprint": "03e28c33151b39e7ccc01569b442757ac2c3c78481bd69b957ec7676bc2dda26"
     },
     {
       "id": "auth-session",
@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "d36e0418fba1fab2950c09db3c985f8e0a31cbf6551c9047a6dd031fd3f4ea56"
+      "fingerprint": "44f79f0b1fa22d9c4baaf827759a33e57030fc81ff0d4f424b9f030d77ca0c2b"
     },
     {
       "id": "content-write",
@@ -58,7 +58,7 @@
       ],
       "model": "docs/security/threat-models/content-write.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "9202deb4596d77d997734af2281a9392b16f25c8f03888ac1cd788388b34e7c7"
+      "fingerprint": "6508bea71482db5a8da84e7c2c6a259cce49926fe03ffd89efe2a359ba09b84d"
     },
     {
       "id": "media-files",
@@ -75,7 +75,7 @@
       ],
       "model": "docs/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "6fb8634fcd664bb464d41ad72e70967a9e6604635e316da2f1b218a2909a5401"
+      "fingerprint": "df9053ba886c982d5bcf5aa5c9646a76c0aa62cb599d21d38f9ff7e05d31c6b3"
     },
     {
       "id": "admin-pages",
@@ -91,7 +91,7 @@
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "2e0f72ce0363d9148e1c62ffa0205481cb2136bcc009f16b6482d74e03bd94cc"
+      "fingerprint": "46047ed9276f77eb8740b96804cecf4a65e05d91196400e305d03cfa62aedb62"
     },
     {
       "id": "system-ops",
@@ -132,7 +132,7 @@
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-06",
-      "fingerprint": "4003f67c63e9b186b5c538f068f75f1b13d100943ce746599d42bdf441be3cdf"
+      "fingerprint": "14f6697bb89992ff0a46639e386974080407c546884611b4c6c6d0d63301760e"
     }
   ]
 }

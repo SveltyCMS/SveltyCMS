@@ -43,6 +43,7 @@ import { successResponse } from "./base";
 import { generateUUID } from "@utils/native-utils";
 import type { DatabaseId } from "@src/content/types";
 import type { LocalCMS } from "@src/services/sdk";
+import { nowISODateString } from "@utils/date";
 
 /**
  * Handle configuration promotion routes under `/api/config/*`.
@@ -269,7 +270,7 @@ export async function handleConfigRoutes(
     return successResponse(event, {
       success: true,
       message: "Configuration applied successfully.",
-      appliedAt: new Date().toISOString(),
+      appliedAt: nowISODateString(),
       operationsApplied: stored.plan.operations.length,
     });
   }

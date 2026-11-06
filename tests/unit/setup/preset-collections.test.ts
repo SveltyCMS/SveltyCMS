@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import path from "node:path";
 import {
+  assertHarnessCollectionsWritable,
   collectionPresetToSchema,
   generateCollectionFileContent,
   getWizardPresetSchemas,
@@ -217,6 +219,18 @@ describe("preset-collections.server", () => {
     expect(isMockScanCollection("benchmark_authors")).toBe(false);
   });
 
+  it("refuses the live collections dir from an automated harness", () => {
+    expect(() => assertHarnessCollectionsWritable(path.resolve("config/collections"))).toThrow(
+      /LiveDataGuard/,
+    );
+    expect(() =>
+      assertHarnessCollectionsWritable(path.resolve("config/collections/nested")),
+    ).toThrow(/LiveDataGuard/);
+    expect(() =>
+      assertHarnessCollectionsWritable(path.resolve("config/test-collections")),
+    ).not.toThrow();
+  });
+
   it("purge removes benchmark test workspaces", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
@@ -248,6 +262,37 @@ describe("preset-collections.server", () => {
       // Hermetic: never leave benchmark artifacts in the repo, even on failure.
       await fs.rm(sourceDir, { recursive: true, force: true }).catch(() => {});
       await fs.rm(compiledDir, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  it("full wipe targets the active collections dir, never the live one", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const liveDir = path.resolve("config/collections");
+    const testDir = path.resolve("config/test-collections");
+    const liveMarker = path.join(liveDir, "live-marker-collection.ts");
+    const testMarker = path.join(testDir, "test-marker-collection.ts");
+    const exists = (target: string) =>
+      fs
+        .access(target)
+        .then(() => true)
+        .catch(() => false);
+
+    try {
+      await fs.mkdir(liveDir, { recursive: true });
+      await fs.mkdir(testDir, { recursive: true });
+      await fs.writeFile(liveMarker, "export default {};", "utf-8");
+      await fs.writeFile(testMarker, "export default {};", "utf-8");
+
+      await purgeBenchmarkCollectionArtifacts({ wipeAllSource: true });
+
+      // A setup completion (including the E2E wizard) must never delete the
+      // developer's live collection files.
+      expect(await exists(liveMarker)).toBe(true);
+      expect(await exists(testMarker)).toBe(false);
+    } finally {
+      await fs.rm(liveMarker, { force: true }).catch(() => {});
+      await fs.rm(testMarker, { force: true }).catch(() => {});
     }
   });
 });

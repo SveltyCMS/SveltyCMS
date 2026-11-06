@@ -711,6 +711,10 @@ async function run() {
         // Deployment-tuned rate ceilings for load-testing (bucket machinery stays active)
         RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "200000",
         SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
+        // A local load generator must not trip the volumetric L1 flood bucket
+        // (production default: 200 req/s per IP). The adaptive limiter still runs.
+        RATE_LIMIT_L1_CAPACITY: process.env.RATE_LIMIT_L1_CAPACITY || "1000000",
+        RATE_LIMIT_L1_REFILL_PER_SEC: process.env.RATE_LIMIT_L1_REFILL_PER_SEC || "1000000",
         // Always point media at sandbox (ci-fresh wizard may leave mediaFolder missing)
         MEDIA_FOLDER: mediaFolderRel,
         ...(profile === "local" ? { BENCHMARK_LOCAL_SANDBOX: "1" } : {}),

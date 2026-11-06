@@ -224,7 +224,8 @@ function queueInvalidation(
       } else {
         void rc.invalidateAll(tenantKey).catch(() => {});
       }
-    } catch {
+    } catch (error) {
+      logger.debug("[post-write] suppressed error", error);
     } finally {
       if (ids) releaseIdSet(ids);
       _pendingInvalidationTasks.delete(requestKey);
@@ -561,7 +562,9 @@ async function enqueueOutboxBatch(batch: PendingOutboxItem[]): Promise<void> {
     _outboxRef = { isOutboxDisabled: mod.isOutboxDisabled, outboxService: mod.outboxService };
     if (mod.isOutboxDisabled()) return;
     for (let i = 0; i < batch.length; i++) enqueueOne(batch[i]);
-  } catch {}
+  } catch (error) {
+    logger.debug("[post-write] suppressed error", error);
+  }
 }
 
 /** Shared frozen empty tx-options — every caller only spreads it, never mutates. */

@@ -89,7 +89,7 @@ bulk actions, and predictive preloading.
 	// Utils
 	// Utils
 	import { getEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/api';
-	import { formatDisplayDate } from '@utils/date';
+	import { formatDisplayDate, nowISODateString } from '@utils/date';
 	import {
 		bulkEditEntries,
 		cloneEntries,
@@ -1195,7 +1195,7 @@ bulk actions, and predictive preloading.
 		const a = document.createElement('a');
 		const collectionName = currentCollection?.name || 'collection';
 		a.href = url;
-		a.download = `${collectionName}-export-${new Date().toISOString().slice(0, 10)}.csv`;
+		a.download = `${collectionName}-export-${nowISODateString().slice(0, 10)}.csv`;
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);

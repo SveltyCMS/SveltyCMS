@@ -60,7 +60,7 @@ Operations are the **actions** that execute when a trigger fires. They run seque
 
 | Operation        | Icon                   | Description                                               |
 | :--------------- | :--------------------- | :-------------------------------------------------------- |
-| **Send Webhook** | `mdi:webhook`          | HTTP POST/PUT/PATCH with HMAC-SHA256 signing              |
+| **Send Webhook** | `mdi:webhook`          | Durable queued delivery with HMAC-SHA256 signing          |
 | **Send Email**   | `mdi:email-outline`    | HTML email with token-based dynamic content               |
 | **Log Message**  | `mdi:text-box-outline` | Write to the server log at info/warn/error level          |
 | **Set Field**    | `mdi:form-textbox`     | Modify an entry field value (e.g., set `reviewed = true`) |
@@ -229,6 +229,22 @@ graph TD
     F --> F1 & F2 & F3 & F4 & F5
 ```
 
+### Webhook deliveries are durable jobs
+
+A `webhook` operation does not call `fetch` inline. It enqueues a `webhook-delivery` job (the same job type as `/config/webhooks`) with the rendered body, method, custom headers and HMAC secret, so:
+
+- retry, backoff and the dead-letter path are shared with admin-configured webhooks;
+- every attempt appears in **Config → Webhooks → Delivery logs** as `Automation: <flow name>`;
+- the operation reports success once the job is **enqueued**. A failed HTTP attempt is visible in the logs (and retryable) instead of aborting the remaining operations.
+
+### Why two event buses
+
+`src/services/background/automation/event-bus.ts` is deliberately separate from `@utils/event-bus`:
+
+- `@utils/event-bus` is the **SSE/multi-instance backplane**. Every emission also reaches its `*` wildcard, which `/api/content/events` forwards to browser clients.
+- The automation bus carries typed `AutomationEvent` payloads — which can include entry data — to flow executors only. Routing them through the shared bus would expose them to every SSE subscriber and change the wildcard payload contract.
+- Both are process singletons and server-only. Merge them only together with a dedicated non-SSE channel.
+
 ### Sequence of Execution
 
 ```
@@ -252,13 +268,15 @@ sequenceDiagram
 
 ### Key Files
 
-| File                                                       | Purpose                                     |
-| :--------------------------------------------------------- | :------------------------------------------ |
-| `src/services/background/automation/types.ts`              | Type definitions, event/operation metadata  |
-| `src/services/background/automation/event-bus.ts`          | Singleton event bus with wildcard listeners |
-| `src/services/background/automation/automation-service.ts` | CRUD + execution engine                     |
-| `src/routes/api/[...path]/handlers/system.ts`              | REST API endpoints (handleAutomationRoutes) |
-| `src/routes/(app)/config/automations/`                     | GUI pages (list + editor)                   |
+| File                                                       | Purpose                                                     |
+| :--------------------------------------------------------- | :---------------------------------------------------------- |
+| `src/services/background/automation/types.ts`              | Type definitions, event/operation metadata                  |
+| `src/services/background/automation/event-bus.ts`          | Typed automation bus (deliberately not the SSE bus)         |
+| `src/services/background/webhook-service.ts`               | Webhook CRUD, queue dispatch and delivery logs              |
+| `src/services/background/jobs/webhook-jobs.ts`             | HMAC signing, egress-guarded delivery, retry classification |
+| `src/services/background/automation/automation-service.ts` | CRUD + execution engine                                     |
+| `src/routes/api/[...path]/handlers/system.ts`              | REST API endpoints (handleAutomationRoutes)                 |
+| `src/routes/(app)/config/automations/`                     | GUI pages (list + editor)                                   |
 
 ---
 

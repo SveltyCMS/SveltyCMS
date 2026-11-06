@@ -9,6 +9,7 @@
  */
 
 import { automationService } from "@src/services/background/automation/automation-service";
+import { webhookService } from "@src/services/background/webhook-service";
 import { TokenRegistry } from "@src/services/token/engine";
 import * as TokenEngine from "@src/services/token/engine";
 
@@ -202,6 +203,51 @@ describe("AutomationService", () => {
         tenantId: "tenant-1",
       });
       expect(executeSpy).not.toHaveBeenCalled();
+    });
+
+    it("queues webhook operations on the durable delivery queue", async () => {
+      const dispatchSpy = vi.spyOn(webhookService, "dispatchDelivery").mockResolvedValue(undefined);
+      const flow = {
+        id: "flow-webhook",
+        name: "Hook Flow",
+        tenantId: "tenant-1",
+        operations: [
+          {
+            id: "op-hook",
+            type: "webhook",
+            config: {
+              url: "https://example.com/hook",
+              method: "PUT",
+              secret: "hmac-secret",
+              headers: { "X-Test": "1" },
+              body: '{"ok":true}',
+            },
+          },
+        ],
+      } as any;
+      const payload = {
+        event: "entry:publish",
+        tenantId: "tenant-1",
+        timestamp: new Date().toISOString(),
+        data: {},
+      } as any;
+
+      const result = await automationService.executeFlow(flow, payload);
+
+      expect(result.status).toBe("success");
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "automation:flow-webhook",
+          name: "Automation: Hook Flow",
+          url: "https://example.com/hook",
+          secret: "hmac-secret",
+          headers: { "X-Test": "1" },
+          tenantId: "tenant-1",
+        }),
+        "entry:publish",
+        payload,
+        { body: '{"ok":true}', method: "PUT", allowHttp: false },
+      );
     });
 
     it("should stop chain on condition failure", async () => {

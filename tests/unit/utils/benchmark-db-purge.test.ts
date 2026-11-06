@@ -8,6 +8,7 @@ import {
   collectionTableToId,
   isStaleCollectionContentNode,
   purgeBenchmarkDatabaseArtifacts,
+  resolveActiveDatabaseDir,
   resolveBenchmarkDbScope,
   shouldPurgeDatabaseCollection,
 } from "@utils/benchmark-db-purge";
@@ -42,6 +43,23 @@ describe("benchmark-db-purge", () => {
       isStaleCollectionContentNode("/collection/mock collection 0", "mock collection 0", "user"),
     ).toBe(true);
     expect(isStaleCollectionContentNode("/collection/posts", "posts", "user")).toBe(false);
+  });
+
+  it("defaults the purge to the test database under an automated harness", () => {
+    // Live data must be unreachable by default: a harness reads/writes only
+    // config/test-database; manual/dev runs keep config/database.
+    expect(resolveActiveDatabaseDir({} as NodeJS.ProcessEnv)).toBe(
+      path.join(process.cwd(), "config", "database"),
+    );
+    expect(resolveActiveDatabaseDir({ VITEST: "1" } as NodeJS.ProcessEnv)).toBe(
+      path.join(process.cwd(), "config", "test-database"),
+    );
+    expect(resolveActiveDatabaseDir({ TEST_MODE: "true" } as NodeJS.ProcessEnv)).toBe(
+      path.join(process.cwd(), "config", "test-database"),
+    );
+    expect(resolveActiveDatabaseDir({ PLAYWRIGHT_TEST: "true" } as NodeJS.ProcessEnv)).toBe(
+      path.join(process.cwd(), "config", "test-database"),
+    );
   });
 
   it("purges mock tables and nodes from a temp sqlite database", async () => {

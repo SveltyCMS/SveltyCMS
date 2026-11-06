@@ -19,6 +19,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 
 /** Manifest of one written snapshot. */
 export interface CpuProfilerSnapshot {
@@ -105,7 +106,7 @@ async function writeSnapshot(
   const { join } = await import("node:path");
   mkdirSync(dir, { recursive: true });
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const stamp = nowISODateString().replace(/[:.]/g, "-");
   const name = `cpu-${stamp}-${String(profilerState().seq++).padStart(3, "0")}.cpuprofile`;
   const file = join(dir, name);
   const json = JSON.stringify(profile);

@@ -92,6 +92,7 @@ import {
   signPending2faToken,
   verifyPending2faToken,
 } from "@src/utils/server/pending-2fa-token.server";
+import { nowISODateString } from "@utils/date";
 
 /** Dedicated limiter for the 2FA challenge endpoint — TOTP brute-force defense. */
 const twoFaLimiter = new RateLimiter({
@@ -198,7 +199,9 @@ export const verify2FA = command(
     if (process.env.TEST_MODE !== "true" && (await twoFaLimiter.isLimited(event))) {
       try {
         event.setHeaders({ "Retry-After": "60" });
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
       return { success: false, message: "Too many requests. Try again in a minute." };
     }
 
@@ -257,7 +260,7 @@ export const verify2FA = command(
       userAgent: ua,
       ipAddress: ip,
       amr: ["pwd", "mfa"],
-      mfaVerifiedAt: new Date().toISOString() as ISODateString,
+      mfaVerifiedAt: nowISODateString() as ISODateString,
     });
 
     const sc = auth.createSessionCookie(session._id, isSecureConnection(event));
@@ -266,14 +269,18 @@ export const verify2FA = command(
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     try {
       const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(session._id, user, event.locals.tenantId ?? user.tenantId ?? null, [
         "pwd",
         "mfa",
       ]);
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
 
     // Set trusted-device cookie if token was generated
     if (trustDevice && twoFaResult.trustedDeviceToken) {
@@ -287,7 +294,9 @@ export const verify2FA = command(
           path,
         });
         logger.debug("Trusted device cookie set", { userId });
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
     }
 
     auth
@@ -295,7 +304,7 @@ export const verify2FA = command(
         userId as any,
         {
           lastAuthMethod: "security",
-          lastActiveAt: new Date().toISOString() as ISODateString,
+          lastActiveAt: nowISODateString() as ISODateString,
         },
         withSystemScope("bootstrap"),
       )
@@ -450,7 +459,9 @@ async function signInInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -520,7 +531,9 @@ async function signInInternal(event: RequestEvent, input: any) {
             roleMfaRequired = true;
           }
         }
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
 
       // Plugin can force 2FA even if user doesn't have it enabled, or role mandates it
       const requires2FA = user.is2FAEnabled || authHookResult?.requires2FA || roleMfaRequired;
@@ -592,7 +605,9 @@ async function signInInternal(event: RequestEvent, input: any) {
         // Also force setup state to COMPLETE so handleAuthentication doesn't short-circuit
         const { invalidateSetupCache } = await import("@src/utils/server/setup-check");
         invalidateSetupCache(false, true);
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth.remote] suppressed error", error);
+      }
     } else {
       await verifyDummyPassword(p);
     }
@@ -611,11 +626,15 @@ async function signInInternal(event: RequestEvent, input: any) {
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     try {
       const { primeSessionMemoryCache } = await loadHandleAuthenticationModule();
       primeSessionMemoryCache(s._id, user, event.locals.tenantId ?? user.tenantId ?? null);
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
   }
 
   auth
@@ -623,7 +642,7 @@ async function signInInternal(event: RequestEvent, input: any) {
       user._id,
       {
         lastAuthMethod: isToken ? "token" : "security",
-        lastActiveAt: new Date().toISOString(),
+        lastActiveAt: nowISODateString(),
       },
       withSystemScope("bootstrap"),
     )
@@ -686,7 +705,9 @@ async function signUpInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -758,7 +779,7 @@ async function signUpInternal(event: RequestEvent, input: any) {
       tenantId: tid as DatabaseId,
       isRegistered: true,
       lastAuthMethod: "security",
-      lastActiveAt: new Date().toISOString() as ISODateString,
+      lastActiveAt: nowISODateString() as ISODateString,
     },
     {
       expires: new Date(Date.now() + 86400000).toISOString() as ISODateString,
@@ -775,7 +796,9 @@ async function signUpInternal(event: RequestEvent, input: any) {
         ...(sc.attributes as Record<string, unknown>),
         path: "/",
       });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
   }
 
   invalidateUserCountCache();
@@ -820,7 +843,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -888,7 +913,9 @@ async function forgotPWInternal(event: RequestEvent, input: any) {
       // 🛡️ TIMING DEFENSE (CWE-208): prevent email enumeration via response timing
       await verifyDummyPassword("dummy-password");
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[auth.remote] suppressed error", error);
+  }
 
   return {
     success: true,
@@ -908,7 +935,9 @@ async function resetPWInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;
@@ -971,7 +1000,9 @@ async function requestMagicLinkInternal(event: RequestEvent, input: any) {
   if (process.env.TEST_MODE !== "true" && (await limiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[auth.remote] suppressed error", error);
+    }
     return { success: false, message: "Too many requests." };
   }
   await dbInitPromise;

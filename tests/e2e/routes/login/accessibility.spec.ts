@@ -25,12 +25,14 @@ async function revealSignInForm(page: Page): Promise<void> {
     if (await email.isVisible().catch(() => false)) return;
     const icon = page.getByTestId("signin-icon");
     if (await icon.isVisible().catch(() => false)) {
+      // force-allow: the animated splash layer intercepts the icon before the form is revealed
       await icon.click({ force: true });
     } else {
       const fallback = page
         .locator('div[role="button"]:has-text("SIGN IN"), p:has-text("Sign In")')
         .first();
       if (await fallback.isVisible().catch(() => false)) {
+        // force-allow: same splash/fallback overlay as the icon path
         await fallback.click({ force: true });
       }
     }

@@ -901,7 +901,9 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
         parsedBody = JSON.parse(bodyText);
         query = parsedBody?.query || "";
         variables = parsedBody?.variables || {};
-      } catch {}
+      } catch (error) {
+        logger.debug("[+server] suppressed error", error);
+      }
     }
 
     if (parsedBody?.extensions?.persistedQuery?.sha256Hash) {
@@ -917,7 +919,9 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
     if (varsParam) {
       try {
         variables = JSON.parse(varsParam);
-      } catch {}
+      } catch (error) {
+        logger.debug("[+server] suppressed error", error);
+      }
     }
 
     const extensionsParam = url.searchParams.get("extensions");
@@ -926,7 +930,9 @@ async function handleRequest(event: RequestEvent): Promise<Response> {
         const ext = JSON.parse(extensionsParam);
         if (ext?.persistedQuery?.sha256Hash) apqHash = String(ext.persistedQuery.sha256Hash);
         else if (ext?.persistedQuery?.hash) apqHash = String(ext.persistedQuery.hash);
-      } catch {}
+      } catch (error) {
+        logger.debug("[+server] suppressed error", error);
+      }
     }
     if (!apqHash) {
       apqHash = url.searchParams.get("hash") || url.searchParams.get("sha256Hash") || null;

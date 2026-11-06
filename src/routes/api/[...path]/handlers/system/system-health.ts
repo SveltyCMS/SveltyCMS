@@ -8,6 +8,7 @@ import { getHardwareProfile, hardwareDiagnostics } from "@utils/hardware-profile
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
+import { nowISODateString } from "@utils/date";
 
 let lastHealthReport = "";
 let lastHealthTime = 0;
@@ -83,7 +84,7 @@ export async function handleHealthRoutes(
     ready,
     database: isUp ? "connected" : "disconnected",
     latency: 0, // Simplified for high-frequency checks
-    serverTime: new Date().toISOString(),
+    serverTime: nowISODateString(),
     uptime: process.uptime(),
     dbType: process.env.DB_TYPE || "unknown",
     resilience: {

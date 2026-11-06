@@ -36,6 +36,7 @@
 		dashboard_cpu_fetching,
 		dashboard_cpu_now
 	} from '@src/paraglide/messages';
+	import { nowISODateString } from '@utils/date';
 
 	const {
 		label = 'CPU Usage',
@@ -253,7 +254,7 @@
 					<!-- Tooltip (Only in rich layout) -->
 					{#if size.h !== 1 && activeIndex !== null && points[activeIndex]}
 						{@const val = displayUsage[activeIndex] ?? cpu.current}
-						{@const rawTime = cpu.timestamps[activeIndex] || new Date().toISOString()}
+						{@const rawTime = cpu.timestamps[activeIndex] || nowISODateString()}
 						{@const time = formatTime(rawTime, {
 							hour: '2-digit',
 							minute: '2-digit'

@@ -12,6 +12,7 @@
  * ### Features:
  * - O(1) in-memory aggregation keyed by `${tenantId}|${keyId}`
  * - 10s flush interval; the timer is `.unref()`'d so it never keeps the process alive
+ * - state + timer live on `globalThis` so HMR does not strand batches behind a dead timer
  * - single aggregated write per key (total count + latest ip/timestamp)
  * - best-effort by design: flush failures are logged and dropped, never surfaced
  * - `flushNow()` for tests and graceful shutdown flushing (shutdown not wired here)
@@ -46,8 +47,25 @@ function usageKey(keyId: string, tenantId: string | null | undefined): string {
   return `${tenantId === undefined ? "?" : tenantId === null ? "null" : tenantId}|${keyId}`;
 }
 
-let pendingUsage = new Map<string, ApiKeyUsageEntry>();
-let flushInFlight: Promise<void> | null = null;
+interface ApiKeyUsageState {
+  pending: Map<string, ApiKeyUsageEntry>;
+  flushInFlight: Promise<void> | null;
+  timer: ReturnType<typeof setInterval> | null;
+}
+
+/**
+ * Process-wide state: HMR re-evaluates this module, and a fresh map + timer per
+ * reload would strand the previous batch behind an unreferenced interval.
+ */
+const STATE_KEY = "__sveltycmsApiKeyUsageState";
+const globalScope = globalThis as typeof globalThis & {
+  [STATE_KEY]?: ApiKeyUsageState;
+};
+const state = (globalScope[STATE_KEY] ??= {
+  pending: new Map<string, ApiKeyUsageEntry>(),
+  flushInFlight: null,
+  timer: null,
+});
 
 /**
  * Records a single authenticated API-key request in memory (O(1), no I/O).
@@ -59,13 +77,13 @@ export function recordApiKeyUsage(
   tenantId: string | null | undefined,
 ): void {
   const compositeKey = usageKey(keyId, tenantId);
-  const existing = pendingUsage.get(compositeKey);
+  const existing = state.pending.get(compositeKey);
   if (existing) {
     existing.count += 1;
     existing.ip = ip; // latest wins
     existing.ts = Date.now();
   } else {
-    pendingUsage.set(compositeKey, { keyId, count: 1, ip, ts: Date.now(), tenantId });
+    state.pending.set(compositeKey, { keyId, count: 1, ip, ts: Date.now(), tenantId });
   }
 }
 
@@ -76,19 +94,19 @@ export function recordApiKeyUsage(
  * a failure must never fail or slow down a request.
  */
 export function flushNow(): Promise<void> {
-  if (!flushInFlight) {
-    flushInFlight = drainPendingUsage().finally(() => {
-      flushInFlight = null;
+  if (!state.flushInFlight) {
+    state.flushInFlight = drainPendingUsage().finally(() => {
+      state.flushInFlight = null;
     });
   }
-  return flushInFlight;
+  return state.flushInFlight;
 }
 
 async function drainPendingUsage(): Promise<void> {
-  if (pendingUsage.size === 0) return;
+  if (state.pending.size === 0) return;
   // Swap first: usage recorded while the flush runs lands in the next batch.
-  const batch = pendingUsage;
-  pendingUsage = new Map<string, ApiKeyUsageEntry>();
+  const batch = state.pending;
+  state.pending = new Map<string, ApiKeyUsageEntry>();
 
   const flushes: Promise<void>[] = [];
   for (const entry of batch.values()) {
@@ -126,11 +144,13 @@ async function flushSingleEntry(entry: ApiKeyUsageEntry): Promise<void> {
 
 /** Clears pending usage records without flushing (tests). */
 export function resetApiKeyUsageAccumulator(): void {
-  pendingUsage.clear();
+  state.pending.clear();
 }
 
-const flushTimer = setInterval(() => {
-  void flushNow();
-}, API_KEY_USAGE_FLUSH_INTERVAL_MS);
-// Do not keep the process alive purely for usage flushing (Node/worker runtimes).
-void flushTimer.unref?.();
+if (!state.timer) {
+  state.timer = setInterval(() => {
+    void flushNow();
+  }, API_KEY_USAGE_FLUSH_INTERVAL_MS);
+  // Do not keep the process alive purely for usage flushing (Node/worker runtimes).
+  (state.timer as { unref?: () => void }).unref?.();
+}

@@ -20,6 +20,7 @@ import type { DatabaseId } from "@src/content/types";
 import { successResponse, rawResponse } from "./base";
 import { collectionTableName } from "@src/databases/core/collection-name";
 import { toTrashItem } from "@utils/trash-item";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the config service — one module-registry lookup instead of one per call. */
 let configServiceModulePromise:
@@ -362,7 +363,7 @@ async function handleDebug(event: RequestEvent, tenantId: DatabaseId, user: any)
   if (!event.locals.isAdmin) raise(403, "Access denied");
 
   return successResponse(event, {
-    timestamp: new Date().toISOString(),
+    timestamp: nowISODateString(),
     env: process.env.NODE_ENV,
     version: "0.5.0",
     uptime: process.uptime(),

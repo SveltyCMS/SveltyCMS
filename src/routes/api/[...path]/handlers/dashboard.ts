@@ -34,6 +34,7 @@ import {
   type AnalyticsPeriod,
   type MetricMeasure,
 } from "@src/services/analytics/collection-analytics-service";
+import { nowISODateString } from "@utils/date";
 
 export const DASHBOARD_ENDPOINT_LICENSE: Readonly<Record<string, string>> = {
   audit: "audit-log",
@@ -173,7 +174,7 @@ export async function handleDashboardRoutes(
             storageUsed: "0 MB",
             healthStatus: "healthy",
             uptime: process.uptime(),
-            timestamp: new Date().toISOString(),
+            timestamp: nowISODateString(),
           };
           cacheService.set(cacheKey, statsPayload, 5000, tenantId);
           return statsPayload;
@@ -214,7 +215,9 @@ export async function handleDashboardRoutes(
               const avgSize = totalStorageBytes / mediaItems.length;
               totalStorageBytes = Math.round(avgSize * mediaCount);
             }
-          } catch {}
+          } catch (error) {
+            logger.debug("[dashboard] suppressed error", error);
+          }
 
           const contentEntryCount = await countCollectionEntries(
             (collection) => cms.db.crud.count(collection, {}, { tenantId }),
@@ -233,7 +236,9 @@ export async function handleDashboardRoutes(
                 (log: any) => log.timestamp >= oneDayAgo,
               ).length;
             }
-          } catch {}
+          } catch (error) {
+            logger.debug("[dashboard] suppressed error", error);
+          }
 
           const units = ["B", "KB", "MB", "GB", "TB"];
           const unitIdx =
@@ -264,7 +269,7 @@ export async function handleDashboardRoutes(
             recentRequests: {
               last24h: recentRequestCount,
             },
-            timestamp: new Date().toISOString(),
+            timestamp: nowISODateString(),
           };
           cacheService.set(cacheKey, payload, 5000, tenantId);
           return payload;
@@ -504,7 +509,9 @@ export async function handleDashboardRoutes(
                   const display = u.username || u.email || String(userId);
                   authorMap.set(userId, display);
                 }
-              } catch {}
+              } catch (error) {
+                logger.debug("[dashboard] suppressed error", error);
+              }
             }),
           );
         }
@@ -676,7 +683,7 @@ export async function handleDashboardRoutes(
                   title: "System Healthy",
                   message: "All services are operating normally.",
                   level: "info",
-                  timestamp: new Date().toISOString(),
+                  timestamp: nowISODateString(),
                   type: "info",
                 },
               ],
@@ -824,7 +831,9 @@ export async function handleDashboardRoutes(
           if (filterStr) {
             try {
               filter = JSON.parse(filterStr);
-            } catch {}
+            } catch (error) {
+              logger.debug("[dashboard] suppressed error", error);
+            }
           }
 
           const cacheKey = `dashboard:analytics:metric:${tenantId || "global"}:${collectionId}:${measure}:${field || ""}:${period}:${dateField || ""}:${startDate || ""}:${endDate || ""}:${compare}:${goal || ""}:${filterStr || ""}`;
@@ -870,7 +879,9 @@ export async function handleDashboardRoutes(
           if (filterStr) {
             try {
               filter = JSON.parse(filterStr);
-            } catch {}
+            } catch (error) {
+              logger.debug("[dashboard] suppressed error", error);
+            }
           }
 
           const cacheKey = `dashboard:analytics:chart:${tenantId || "global"}:${collectionId}:${groupBy}:${groupField || ""}:${timeGranularity}:${measure}:${metricField || ""}:${period}:${dateField || ""}:${limit}:${filterStr || ""}`;
@@ -914,7 +925,9 @@ export async function handleDashboardRoutes(
           if (filterStr) {
             try {
               filter = JSON.parse(filterStr);
-            } catch {}
+            } catch (error) {
+              logger.debug("[dashboard] suppressed error", error);
+            }
           }
 
           const cacheKey = `dashboard:analytics:list:${tenantId || "global"}:${collectionId}:${limit}:${sortField || ""}:${sortDirection}:${fieldsStr || ""}:${filterStr || ""}`;
@@ -995,7 +1008,9 @@ async function getBlockedIpsCount(_tenantId: string | null): Promise<number> {
       const keys = Array.from(l1.keys() as Iterable<string>);
       return keys.filter((k) => k.includes("svelty:sec:block:")).length;
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[dashboard] suppressed error", error);
+  }
   return 0;
 }
 
@@ -1023,7 +1038,9 @@ async function getThrottledIpsCount(_tenantId: string | null): Promise<number> {
       const keys = Array.from(l1.keys() as Iterable<string>);
       return keys.filter((k) => k.includes("svelty:sec:throttle:")).length;
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[dashboard] suppressed error", error);
+  }
   return 0;
 }
 

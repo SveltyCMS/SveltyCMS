@@ -58,15 +58,33 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 	function updateMenuPosition() {
 		if (!triggerEl) return;
 		const rect = triggerEl.getBoundingClientRect();
+		// Anchor to the whole row (or tile in the tiny grid), not the trigger: the
+		// trigger sits inside the row, so flipping above it would still cover the
+		// row's SIZE cell.
+		const anchorEl =
+			triggerEl.closest('tr') ?? triggerEl.closest('[data-testid="media-item"]') ?? triggerEl;
+		const anchor = anchorEl.getBoundingClientRect();
 		const menuWidth = 176;
 		const rtl = document.documentElement.dir === 'rtl';
 		const preferredLeft = rtl ? rect.left : rect.right - menuWidth;
 		const left = Math.min(Math.max(8, preferredLeft), window.innerWidth - menuWidth - 8);
-		const menuHeight = menuEl?.offsetHeight ?? 220;
-		const below = rect.bottom + 4;
-		const top =
-			below + menuHeight > window.innerHeight ? Math.max(8, rect.top - menuHeight - 4) : below;
-		menuStyle = `top:${top}px;left:${left}px;`;
+
+		// The first pass runs before the portal mounts; the next-frame measure below
+		// replaces the estimate with the real height.
+		const measured = menuEl?.offsetHeight ?? 220;
+		const gutter = 4;
+		const margin = 8;
+		const spaceBelow = window.innerHeight - anchor.bottom - gutter - margin;
+		const spaceAbove = anchor.top - gutter - margin;
+		const openBelow = spaceBelow >= measured || spaceBelow >= spaceAbove;
+		const available = Math.max(96, openBelow ? spaceBelow : spaceAbove);
+		const top = openBelow
+			? anchor.bottom + gutter
+			: Math.max(margin, anchor.top - gutter - measured);
+
+		// Cap the height to the chosen side so the menu scrolls instead of painting
+		// over its own row (the reported SIZE-cell overlap).
+		menuStyle = `top:${top}px;left:${left}px;max-height:${available}px;`;
 	}
 
 	async function copyUrl() {
@@ -94,6 +112,11 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 		if (open) {
 			await tick();
 			updateMenuPosition();
+			// The Portal mounts on the next frame; measure the real height then and
+			// clamp the menu so it can never hang below the viewport.
+			if (typeof requestAnimationFrame === 'function') {
+				requestAnimationFrame(updateMenuPosition);
+			}
 		}
 	}
 
@@ -160,7 +183,7 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 				role="menu"
 				tabindex="-1"
 				aria-label={mediagallery_actions_for({ name: file.filename })}
-				class="fixed z-200 w-44 min-w-44 rounded-(--admin-radius-card) border border-surface-500/30 bg-surface-500/10 p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
+				class="fixed z-200 max-h-[calc(100dvh-1rem)] w-44 min-w-44 overflow-y-auto rounded-(--admin-radius-card) border border-surface-500/30 bg-surface-500/10 p-1 shadow-xl dark:border-surface-500/40 dark:bg-surface-900"
 				style={menuStyle}
 				onclick={(e) => e.stopPropagation()}
 				onkeydown={(e) => e.stopPropagation()}

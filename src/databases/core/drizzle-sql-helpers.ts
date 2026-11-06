@@ -36,6 +36,7 @@ import {
 import type { FindOptions } from "../db-interface";
 import { acquireConditionsArray, applyTenantFilter, safeDate } from "./relational-utils";
 import { normalizeSortDirection } from "./page-utils";
+import { logger } from "@utils/logger";
 
 /**
  * Universal Drizzle write executor across SQLite (.run()), LibSQL (.run()), and PostgreSQL/MariaDB (thenable).
@@ -935,7 +936,9 @@ export function getColumnHelper(
         cols = resolvedCols as any;
         tableColumnsCache.set(table, cols!);
       }
-    } catch {}
+    } catch (error) {
+      logger.debug("[drizzle-sql-helpers] suppressed error", error);
+    }
   }
 
   if (cols && Object.hasOwn(cols, name)) {
@@ -1458,7 +1461,9 @@ export function getPhysicalSelection(
       tableSelectionCache.set(table, columns);
       return selection;
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[drizzle-sql-helpers] suppressed error", error);
+  }
 
   if (isSystem) {
     const cachedSel = selectionCache.get(systemName);

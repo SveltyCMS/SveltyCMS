@@ -21,11 +21,12 @@
 	import Tabs from '@components/ui/tabs.svelte';
 	import Image from '@components/ui/image.svelte';
 	import Modal from '@components/ui/modal.svelte';
+	import DocumentPreview from '@components/media/document-preview.svelte';
 	import { fade } from 'svelte/transition';
 	import { tick } from 'svelte';
 	import { formatBytes } from '@utils/file';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { mediaDisplayUrl, mediaUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaThumbnailUrl, mediaUrl } from '@utils/media/media-utils';
 	import { debounce } from '@utils/debounce';
 	import { refreshAll } from '$app/navigation';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
@@ -65,6 +66,25 @@
 	const previewKey = $derived(`${file?._id ?? ''}:${previewAsset?.url ?? ''}`);
 	let failedPreviewKey = $state<string | null>(null);
 	const previewUnavailable = $derived(failedPreviewKey === previewKey || !previewAsset?.url);
+
+	/**
+	 * Document viewer payload (PDF / CSV / Office). URLs resolve here so the child stays
+	 * free of media-model types; `thumbnailUrl` comes from `mediaThumbnailUrl()` and
+	 * therefore never falls back to the original — an `<img>` pointed at a .docx is a
+	 * broken image, not a preview.
+	 */
+	const documentPreview = $derived(
+		file
+			? {
+					fileId: typeof file._id === 'string' ? file._id : '',
+					filename: typeof file.filename === 'string' ? file.filename : 'Document',
+					mimeType: typeof file.mimeType === 'string' ? file.mimeType : undefined,
+					url: mediaUrl(file),
+					thumbnailUrl: mediaThumbnailUrl(file, 'md') || mediaThumbnailUrl(file, 'thumbnail'),
+					mimeLabel: formatMime(file.mimeType)
+				}
+			: undefined
+	);
 
 	/** Focal point framing — applies to the derivative preview exactly as to the original. */
 	const previewObjectPosition = $derived(
@@ -679,17 +699,8 @@
 				</div>
 				<audio src={mediaUrl(file)} controls class="w-full"></audio>
 			</div>
-		{:else}
-			<div class="flex flex-col items-center gap-3 py-6">
-				<div
-					class="rounded-xl border border-surface-500/30 bg-surface-500/10 p-6 text-surface-500 dark:border-surface-500/40 dark:bg-surface-800"
-				>
-					<iconify-icon icon="mdi:file-document-outline" width="48"></iconify-icon>
-				</div>
-				<span class="font-mono text-xs uppercase tracking-wide text-(--admin-text-muted)"
-					>{formatMime(file.mimeType)}</span
-				>
-			</div>
+		{:else if documentPreview}
+			<DocumentPreview {...documentPreview} />
 		{/if}
 
 		<div class="mt-3 flex w-full flex-col items-stretch gap-2 sm:mt-4 sm:items-center">

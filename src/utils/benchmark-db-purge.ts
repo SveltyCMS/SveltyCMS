@@ -15,9 +15,22 @@ import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { isBenchmarkArtifact, normalizeCollectionId } from "@utils/benchmark-runtime";
 import { isMockScanCollection } from "@src/routes/setup/preset-collections.server";
+import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { logger } from "@utils/logger";
 
 export const DEFAULT_DATABASE_DIR = path.resolve(process.cwd(), "config", "database");
+
+/**
+ * Database directory for the current process. Automated harnesses use the
+ * isolated `config/test-database/` so a setup/benchmark purge can never drop a
+ * table or `content_nodes` row from the developer's live database.
+ */
+export function resolveActiveDatabaseDir(env: NodeJS.ProcessEnv = process.env): string {
+  return path.resolve(
+    process.cwd(),
+    isAutomatedTestHarness(env) ? "config/test-database" : "config/database",
+  );
+}
 
 export type BenchmarkDbScope = "user" | "benchmark-shared" | "test-ephemeral";
 
@@ -96,7 +109,7 @@ export async function purgeBenchmarkDatabaseArtifacts(options?: {
   databaseDir?: string;
   dbPaths?: string[];
 }): Promise<PurgeBenchmarkDatabaseResult> {
-  const databaseDir = options?.databaseDir ?? DEFAULT_DATABASE_DIR;
+  const databaseDir = options?.databaseDir ?? resolveActiveDatabaseDir();
   const result: PurgeBenchmarkDatabaseResult = {
     databasesProcessed: 0,
     tablesDropped: 0,

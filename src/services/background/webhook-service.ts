@@ -157,6 +157,26 @@ export class WebhookService {
   }
 
   /**
+   * Queue one delivery to a specific webhook (no configured-webhook lookup).
+   * Automation flows use this so their deliveries share the durable
+   * `webhook-delivery` job, retry/backoff and the logs page with
+   * admin-configured webhooks.
+   */
+  public async dispatchDelivery(
+    webhook: Webhook,
+    event: string,
+    payload: unknown,
+    options: { body?: string; method?: string; allowHttp?: boolean } = {},
+  ): Promise<void> {
+    if (isBenchmarkExternalServicesDisabled()) {
+      logger.debug(`[Webhook] Skipped delivery ${event} (benchmark mode)`);
+      return;
+    }
+    const tid = webhook.tenantId || "global";
+    await jobQueue.dispatch("webhook-delivery", { webhook, event, payload, ...options }, tid);
+  }
+
+  /**
    * Internal dispatch – finds matching webhooks and queues them
    */
   private async _dispatch(event: WebhookEvent, payload: unknown, tenantId?: string): Promise<void> {
@@ -174,7 +194,7 @@ export class WebhookService {
     logger.debug(`Queueing ${event} for ${matchingHooks.length} webhooks (tenant: ${tid})`);
 
     for (const webhook of matchingHooks) {
-      await jobQueue.dispatch("webhook-delivery", { webhook, event, payload }, tid);
+      await this.dispatchDelivery(webhook, event, payload);
     }
   }
 

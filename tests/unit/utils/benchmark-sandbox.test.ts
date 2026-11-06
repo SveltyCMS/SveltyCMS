@@ -61,6 +61,19 @@ describe("benchmark-sandbox", () => {
     );
   });
 
+  it("redirects compiled collections to the harness root outside benchmarks", () => {
+    vi.stubEnv("BENCHMARK", "");
+    const harnessRoot = path.join(ROOT, ".compiledCollections", "test-collections");
+
+    expect(sandbox.resolveCompiledCollectionsPath(null)).toBe(harnessRoot);
+    expect(sandbox.resolveCompiledCollectionsPath("global")).toBe(harnessRoot);
+    expect(sandbox.resolveCompiledCollectionsPath("iso-tenant-a")).toBe(
+      path.join(harnessRoot, "iso-tenant-a"),
+    );
+    // The live root must remain the answer for a normal dev/prod process.
+    expect(sandbox.resolveCompiledCollectionsPath(undefined)).toBe(harnessRoot);
+  });
+
   it("blocks writes to live manifest path during local benchmark", () => {
     vi.spyOn(fs, "existsSync").mockImplementation((p) => {
       const target = typeof p === "string" ? p : p.toString();

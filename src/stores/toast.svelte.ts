@@ -542,7 +542,9 @@ class ToastStore {
       logger.error("[ToastStore] Hydration failed:", e);
       try {
         storage.removeItem(STORAGE_KEY);
-      } catch {}
+      } catch (error) {
+        logger.debug("[toast.svelte] suppressed error", error);
+      }
     }
   }
 

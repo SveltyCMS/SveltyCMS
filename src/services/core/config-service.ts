@@ -12,12 +12,14 @@ import path from "node:path";
 import { dbAdapter } from "@src/databases/db";
 import type { Role } from "@src/databases/auth/types";
 import type { Widget, Theme } from "@src/databases/db-interface";
+import type { DatabaseId } from "@src/content/types";
 import { createChecksum } from "@utils/security/checksum";
 import { decodePreferenceValue } from "@utils/preference-value";
 import { assertLiveDataWriteAllowed, resolveConfigSyncRoot } from "@utils/benchmark-sandbox";
 import { getSchemaPath } from "@src/content/first-collection";
 import { lazyModule } from "@utils/lazy-module";
 import { logger } from "@utils/logger";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
 const loadHandleTurboGetModule = lazyModule(() => import("@src/hooks/handle-turbo-get"));
@@ -217,7 +219,7 @@ export class ConfigService {
       cmsVersion: "0.0.7",
       adapter: dbAdapter?.type ?? "unknown",
       tenantId: tenantId || "global",
-      createdAt: new Date().toISOString(),
+      createdAt: nowISODateString(),
       resources: resourceCounts,
     };
     exportPromises.push(
@@ -447,14 +449,14 @@ export class ConfigService {
   }
 
   /** Upserts a single entity into the database based on its resource type. */
-  private async upsertEntity(item: ConfigEntity, tenantId?: string) {
+  private async upsertEntity(item: ConfigEntity, tenantId?: string | null) {
     const adapter = dbAdapter!;
     try {
       switch (item.type) {
         case "collection": {
           // Collection schemas are stored as content_nodes with nodeType="collection"
           // and the schema definition in the collectionDef JSON column.
-          const now = new Date().toISOString();
+          const now = nowISODateString();
           const schema = item.entity as Record<string, unknown>;
           await adapter.crud.upsert(
             "content_nodes",
@@ -474,7 +476,7 @@ export class ConfigService {
               createdAt: now,
               updatedAt: now,
             } as any,
-            tenantId as any,
+            { tenantId: tenantId as DatabaseId | null },
           );
           logger.debug(`Imported collection: ${item.name}`);
           break;
@@ -557,7 +559,7 @@ export class ConfigService {
               "webhooks",
               { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
               { ...item.entity, ...(tenantId && { tenantId }) } as any,
-              tenantId as any,
+              { tenantId: tenantId as DatabaseId | null },
             );
             logger.debug(`Imported webhook: ${item.name}`);
           } catch (err) {
@@ -573,7 +575,7 @@ export class ConfigService {
               "automations",
               { name: item.name, ...(tenantId && { tenantId }) } as Record<string, unknown>,
               { ...item.entity, ...(tenantId && { tenantId }) } as any,
-              tenantId as any,
+              { tenantId: tenantId as DatabaseId | null },
             );
             logger.debug(`Imported automation: ${item.name}`);
           } catch (err) {
@@ -591,12 +593,14 @@ export class ConfigService {
   }
 
   /** Deletes a single entity from the database based on its resource type. */
-  private async deleteEntity(item: ConfigEntity, tenantId?: string) {
+  private async deleteEntity(item: ConfigEntity, tenantId?: string | null) {
     const adapter = dbAdapter!;
     try {
       switch (item.type) {
         case "collection": {
-          await adapter.crud.delete("collections", item.uuid as any, tenantId as any);
+          await adapter.crud.delete("collections", item.uuid as any, {
+            tenantId: tenantId as DatabaseId | null,
+          });
           logger.debug(`Deleted collection: ${item.name}`);
           break;
         }
@@ -648,14 +652,18 @@ export class ConfigService {
         }
 
         case "webhook": {
-          await adapter.crud.delete("webhooks", item.uuid as any, tenantId as any);
+          await adapter.crud.delete("webhooks", item.uuid as any, {
+            tenantId: tenantId as DatabaseId | null,
+          });
           logger.debug(`Deleted webhook: ${item.name}`);
           break;
         }
 
         case "automation":
         case "workflow": {
-          await adapter.crud.delete("automations", item.uuid as any, tenantId as any);
+          await adapter.crud.delete("automations", item.uuid as any, {
+            tenantId: tenantId as DatabaseId | null,
+          });
           logger.debug(`Deleted automation: ${item.name}`);
           break;
         }

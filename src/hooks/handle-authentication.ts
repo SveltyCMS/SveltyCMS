@@ -171,6 +171,7 @@ import {
   bindRequestDbAdapter,
   runWithTenantAdapter,
 } from "@src/databases/tenant-adapter";
+import { nowISODateString } from "@utils/date";
 
 let sessionManagerPromise: Promise<typeof import("@src/databases/auth/session-manager")> | null =
   null;
@@ -711,8 +712,7 @@ async function getUserFromSession(
           const safeUser = toSafeSessionUser(user);
           const amr: string[] = rawSession.amr ?? (rawSession.has2fa ? ["pwd", "mfa"] : ["pwd"]);
           const mfaVerifiedAt: string | undefined =
-            rawSession.mfaVerifiedAt ??
-            (amr.includes("mfa") ? new Date().toISOString() : undefined);
+            rawSession.mfaVerifiedAt ?? (amr.includes("mfa") ? nowISODateString() : undefined);
           const sessionData: SessionCacheEntry = {
             user: safeUser,
             timestamp: now,

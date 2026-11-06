@@ -360,6 +360,12 @@ jobs:
       - name: Mutation harness
         if: matrix.task == '04-unit'
         run: set -o pipefail; bun run test:mutation 2>&1 | tee /tmp/unit-mutation.log
+      # The harness writes .mutation/report.json; score it in the same job so the
+      # per-area floors (auth, security utils, egress, write pipeline) are gated
+      # on every PR instead of only in the nightly security workflow.
+      - name: Mutation score floors
+        if: matrix.task == '04-unit'
+        run: bun run security:assurance --only=test-strength --require-mutation
       - name: Run Task
         if: matrix.task != '04-unit'
         run: ${{ matrix.run }}

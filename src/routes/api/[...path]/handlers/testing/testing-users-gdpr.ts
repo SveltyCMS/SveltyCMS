@@ -7,6 +7,7 @@ import { AppError } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { loadSettingsServiceModule, rawResponse, type TestingContext } from "./testing-shared";
+import { nowISODateString } from "@utils/date";
 
 export async function handleTestingUserGdprRoutes(
   ctx: TestingContext,
@@ -146,7 +147,7 @@ export async function handleTestingUserGdprRoutes(
   if (action === "emit-ping") {
     const payload = {
       type: "ping",
-      timestamp: new Date().toISOString(),
+      timestamp: nowISODateString(),
       tenantId: tenantId || "default",
     };
 

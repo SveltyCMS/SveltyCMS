@@ -48,6 +48,7 @@
 		PageBlueprint
 	} from './types';
 	import { deepClone, generateUUID } from '@utils/native-utils';
+	import { logger } from '@utils/logger';
 
 	interface Props {
 		collectionName?: string;
@@ -555,7 +556,9 @@
 												const parsed = JSON.parse((e.target as HTMLTextAreaElement).value);
 												blocks[index].data = parsed;
 												commitChanges();
-											} catch {}
+											} catch (error) {
+												logger.debug('[input] suppressed error', error);
+											}
 										}}
 									/>
 								</div>

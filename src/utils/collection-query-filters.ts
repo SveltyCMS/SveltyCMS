@@ -349,11 +349,15 @@ export function parseCollectionListQuery(
   collection: Schema | null | undefined,
   defaults: { pageSize?: number; sortField?: string; sortDirection?: "asc" | "desc" } = {},
 ): ParsedCollectionQuery {
-  const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
-  const pageSize = Math.max(
-    1,
-    Math.min(500, Number(searchParams.get("pageSize") ?? defaults.pageSize ?? 10) || 10),
-  );
+  // Page and pageSize are counts: clamp AND truncate. A fractional `pageSize=1.5`
+  // would otherwise reach the adapter as a non-integer limit, and `page=Infinity`
+  // survives `Math.max(1, …)` without the finite guard.
+  const rawPage = Number(searchParams.get("page") ?? 1);
+  const page = Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : 1;
+  const rawPageSize = Number(searchParams.get("pageSize") ?? defaults.pageSize ?? 10);
+  const pageSize = Number.isFinite(rawPageSize)
+    ? Math.max(1, Math.min(500, Math.floor(rawPageSize)))
+    : 10;
   const search = (searchParams.get("search") || "").trim();
   const rawFilters = parseUrlFilterParams(searchParams);
   const allowed = getAllowedFilterFieldIds(collection);
@@ -429,7 +433,9 @@ export function parseSortDescriptors(
       const trimmed = part.trim();
       if (!trimmed) continue;
       const [rawField, rawDir] = trimmed.split(":");
-      const aliased = SORT_FIELD_ALIASES[rawField] || rawField;
+      const aliased = Object.hasOwn(SORT_FIELD_ALIASES, rawField)
+        ? SORT_FIELD_ALIASES[rawField]
+        : rawField;
       if (!allowed.has(aliased)) continue;
       const direction: "asc" | "desc" =
         rawDir === "desc" || rawField.startsWith("-") ? "desc" : "asc";
@@ -438,7 +444,9 @@ export function parseSortDescriptors(
     return out.length > 0 ? out : [{ field: fallbackField, direction: fallbackDir }];
   }
 
-  const aliasedSort = SORT_FIELD_ALIASES[rawSort] || rawSort;
+  const aliasedSort = Object.hasOwn(SORT_FIELD_ALIASES, rawSort)
+    ? SORT_FIELD_ALIASES[rawSort]
+    : rawSort;
   const sortField = allowed.has(aliasedSort) ? aliasedSort : fallbackField;
   const sortOrderRaw = (rawOrder || fallbackDir).toLowerCase();
   const direction: "asc" | "desc" = sortOrderRaw === "asc" ? "asc" : "desc";

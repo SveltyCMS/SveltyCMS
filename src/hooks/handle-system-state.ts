@@ -140,7 +140,9 @@ function isTrustedHost(event: RequestEvent, setupComplete: boolean): boolean {
   if (origin) {
     try {
       if (host === new URL(origin).host) return true;
-    } catch {}
+    } catch (error) {
+      logger.debug("[handle-system-state] suppressed error", error);
+    }
   }
   const trusted = dev ? process.env.HOST_DEV : process.env.HOST_PROD;
   return !trusted || host === trusted;

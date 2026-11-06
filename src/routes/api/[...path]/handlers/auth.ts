@@ -86,6 +86,7 @@ import { verifyPending2faToken } from "@src/utils/server/pending-2fa-token.serve
 import { getClientIp } from "@utils/hook-utils";
 import { buildDeviceFingerprint, getTrustedDeviceCookieConfig } from "@src/databases/auth/totp";
 import { recordListQuery } from "@utils/list-query-metrics";
+import { nowISODateString } from "@utils/date";
 
 const SSO_SECRET_MASK = "••••••••";
 
@@ -398,7 +399,9 @@ export async function handleLogin(
     if (process.env.TEST_MODE !== "true" && (await apiLoginLimiter.isLimited(event))) {
       try {
         event.setHeaders({ "Retry-After": "60" });
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth] suppressed error", error);
+      }
       throw new AppError(
         "Too many login attempts. Please try again later.",
         429,
@@ -430,7 +433,9 @@ export async function handleLogin(
       try {
         await cms.auth.logout(result.session._id).catch(() => {});
         invalidateSessionCache(result.session._id, tenantId);
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth] suppressed error", error);
+      }
     }
     return rawResponse(
       event,
@@ -850,7 +855,7 @@ export async function handleOidcLoginCallback(
           provider: stored.providerId,
           tenantId: tenantId ? String(tenantId) : undefined,
           idTokenHint: exchanged.idToken,
-          createdAt: new Date().toISOString(),
+          createdAt: nowISODateString(),
         },
         tenantId,
       );
@@ -1420,7 +1425,9 @@ export async function handle2FARoutes(
       if (process.env.TEST_MODE !== "true" && (await twoFaLimiter.isLimited(event))) {
         try {
           event.setHeaders({ "Retry-After": "60" });
-        } catch {}
+        } catch (error) {
+          logger.debug("[auth] suppressed error", error);
+        }
         throw new AppError("Too many requests. Try again in a minute.", 429);
       }
       if (isMultiTenantEnabled() && !tenantId) {
@@ -1448,7 +1455,7 @@ export async function handle2FARoutes(
       const freshUser = userResult?.success ? userResult.data : null;
       if (!freshUser) throw new AppError("User not found", 404);
 
-      const mfaVerifiedAt = new Date().toISOString() as ISODateString;
+      const mfaVerifiedAt = nowISODateString() as ISODateString;
       const sessionResult = await cms.db.auth.createSession({
         user_id: userId as DatabaseId,
         tenantId,
@@ -1475,7 +1482,9 @@ export async function handle2FARoutes(
             sameSite,
             path,
           });
-        } catch {}
+        } catch (error) {
+          logger.debug("[auth] suppressed error", error);
+        }
       }
 
       return successResponse(event, {

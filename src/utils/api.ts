@@ -31,6 +31,21 @@ export interface ApiResponse<T = unknown> {
   success: boolean;
 }
 
+/**
+ * Normalizes a list payload from the envelopes the API actually returns:
+ * `{ success, data: T[] }`, a bare array, or `{ success, data: { data: T[] } }`.
+ * Returns `[]` for a failed response or an unrecognized shape.
+ */
+export function unwrapList<T>(result: ApiResponse<unknown>): T[] {
+  if (!result.success) return [];
+  const raw = result.data ?? result;
+  if (Array.isArray(raw)) return raw as T[];
+  if (raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)) {
+    return (raw as { data: T[] }).data;
+  }
+  return [];
+}
+
 export interface RevisionMeta {
   _id: string;
   revision_at: ISODateString;

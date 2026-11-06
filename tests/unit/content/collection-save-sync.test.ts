@@ -28,7 +28,7 @@ async function withTempProject(
   // config/test-collections — the temp project must mirror that layout or
   // compile()/drift detection find zero sources.
   const userCollections = path.join(root, "config", "test-collections");
-  const compiledCollections = path.join(root, ".compiledCollections");
+  const compiledCollections = path.join(root, ".compiledCollections", "test-collections");
   await fs.mkdir(userCollections, { recursive: true });
   await fs.mkdir(compiledCollections, { recursive: true });
 

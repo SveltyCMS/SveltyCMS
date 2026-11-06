@@ -51,7 +51,26 @@ interface StoredExport {
   tenantId: string;
 }
 
-const exportStore = new Map<string, StoredExport>();
+interface ExportStoreState {
+  store: Map<string, StoredExport>;
+  sweep: ReturnType<typeof setInterval> | null;
+}
+
+/**
+ * The store and its sweep timer live on `globalThis`: Vite re-evaluates this
+ * handler module on HMR, and a fresh timer per reload would close over the
+ * previous module's map and keep it alive forever (the same leak class as the
+ * duplicated job-queue pollers). One state object = one sweep per process.
+ */
+const EXPORT_STORE_KEY = "__sveltycmsContentExportStore";
+const globalScope = globalThis as typeof globalThis & {
+  [EXPORT_STORE_KEY]?: ExportStoreState;
+};
+const exportState = (globalScope[EXPORT_STORE_KEY] ??= {
+  store: new Map<string, StoredExport>(),
+  sweep: null,
+});
+const exportStore = exportState.store;
 
 function assertExportAccess(
   stored: StoredExport,
@@ -68,17 +87,21 @@ function assertExportAccess(
 }
 
 /** Periodic cleanup of expired exports (runs every 5 minutes). */
-setInterval(
-  () => {
-    const now = Date.now();
-    for (const [id, entry] of exportStore) {
-      if (now - entry.createdAt > EXPORT_STORE_TTL) {
-        exportStore.delete(id);
+if (!exportState.sweep) {
+  exportState.sweep = setInterval(
+    () => {
+      const now = Date.now();
+      for (const [id, entry] of exportStore) {
+        if (now - entry.createdAt > EXPORT_STORE_TTL) {
+          exportStore.delete(id);
+        }
       }
-    }
-  },
-  5 * 60 * 1000,
-);
+    },
+    5 * 60 * 1000,
+  );
+  // Never keep the process alive (or the test runner) for expiry sweeps.
+  (exportState.sweep as { unref?: () => void }).unref?.();
+}
 
 // ---------------------------------------------------------------------------
 // Content Export Routes

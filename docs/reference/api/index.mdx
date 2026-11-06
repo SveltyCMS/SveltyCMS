@@ -21,7 +21,7 @@ tags:
 
 # API Reference
 
-SveltyCMS provides a comprehensive programmatic surface for building custom frontends, automating workflows, and synchronizing external data. Built on an architecture supporting unified OpenAPI specifications, it enables maximum flexibility for any setup — from simple headless blogs to enterprise-grade multi-tenant platforms.
+SveltyCMS provides a comprehensive programmatic surface for building custom frontends, automating workflows, and synchronizing external data. Built on an architecture supporting a curated OpenAPI specification (the documented subset; every namespace remains available), it enables maximum flexibility for any setup — from simple headless blogs to enterprise-grade multi-tenant platforms.
 
 ---
 
@@ -143,7 +143,7 @@ SveltyCMS provides an integrated **Developer & API Playground** located at `/con
 ### Key Capabilities
 
 1. **REST API Explorer**:
-   - Live synchronization with the unified OpenAPI 3.1 specification (`/api/openapi.json`).
+   - Live synchronization with the curated OpenAPI 3.1 specification (`/api/openapi.json`) — auth, users, system, media, search, tokens, collections, webhooks, workflows and automations. Endpoints outside the documented subset remain available and are enforced by the endpoint-permission map.
    - Dynamic path, method, and parameter selectors with schema auto-completion.
    - Live execution against the active server with formatted JSON output, status codes, and latency metrics.
 

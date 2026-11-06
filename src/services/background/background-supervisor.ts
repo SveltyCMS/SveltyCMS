@@ -222,7 +222,9 @@ export class BackgroundSupervisor {
             logger.warn("[Supervisor] Worker did not stop within 5s; sending SIGKILL");
             child.kill("SIGKILL");
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[background-supervisor] suppressed error", error);
+        }
         finish();
       }, 5_000);
 

@@ -6,14 +6,17 @@
  * - Resizing (sharp)
  * - Avatar processing
  * - Video thumbnail capturing (ffmpeg)
- * - PDF thumbnail generation (imagemagick)
+ * - PDF thumbnail generation (bundled PDFium)
+ * - CSV/TSV spreadsheet previews (sharp)
+ * - Office document previews via an optional LibreOffice binary
  * - Bounded LRU for storage existence probes
  */
 
 import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
-import { writeFile, readFile, unlink } from "node:fs/promises";
+import { writeFile, readFile, unlink, mkdtemp, rm } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
@@ -29,25 +32,54 @@ import { nowISODateString } from "@src/utils/date";
 
 /**
  * Helper to run a process and wait for completion.
+ *
+ * `timeoutMs` kills the child and rejects, so a hung external converter can
+ * never pin an upload request or a job worker indefinitely.
  */
-function spawnAsync(command: string, args: string[]): Promise<void> {
+function spawnAsync(
+  command: string,
+  args: string[],
+  options: { timeoutMs?: number } = {},
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args);
     let stderr = "";
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    };
+
+    if (options.timeoutMs) {
+      timer = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          /* process already gone */
+        }
+        finish(new Error(`${command} timed out after ${options.timeoutMs}ms`));
+      }, options.timeoutMs);
+      (timer as { unref?: () => void }).unref?.();
+    }
 
     child.stderr?.on("data", (data) => {
       stderr += data.toString();
     });
 
     child.on("error", (err) => {
-      reject(err);
+      finish(err);
     });
 
     child.on("exit", (code) => {
       if (code === 0) {
-        resolve();
+        finish();
       } else {
-        reject(new Error(`${command} exited with code ${code}: ${stderr.slice(-200)}`));
+        finish(new Error(`${command} exited with code ${code}: ${stderr.slice(-200)}`));
       }
     });
   });
@@ -562,6 +594,235 @@ export async function generateCsvThumbnail(buffer: Buffer): Promise<Buffer | nul
       error: err instanceof Error ? err.message : String(err),
     });
     return null;
+  }
+}
+
+// ─── Document previews (PDF, delimited text, Office) ─────────────────────────
+
+/** Document families the gallery can render as a tile preview. */
+export type DocumentPreviewKind = "pdf" | "delimited" | "office";
+
+const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"]);
+
+const OFFICE_MIME_TYPES = new Set([
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.oasis.opendocument.text",
+  "application/vnd.oasis.opendocument.spreadsheet",
+  "application/vnd.oasis.opendocument.presentation",
+]);
+
+/** Hard budget for one LibreOffice conversion — a hung `soffice` must not pin a worker. */
+const OFFICE_CONVERT_TIMEOUT_MS = 30_000;
+
+/** `libreoffice` is only tried when `soffice` is absent from PATH. */
+const OFFICE_CONVERTERS = ["soffice", "libreoffice"] as const;
+
+let officePreviewWarningLogged = false;
+
+/** Warn once per process: a host without a converter must not log per upload. */
+function warnOfficePreviewOnce(message: string, details: Record<string, unknown>): void {
+  if (officePreviewWarningLogged) return;
+  officePreviewWarningLogged = true;
+  logger.warn(message, details);
+}
+
+/**
+ * Classify a document for preview generation.
+ *
+ * Extension and MIME are both checked because uploads can arrive with a generic
+ * `application/octet-stream` type (remote imports, CLI backfills) or without an
+ * extension. Returns `null` for images, audio, video and anything unsupported.
+ */
+export function detectDocumentPreviewKind(
+  filename: string,
+  mimeType: string,
+): DocumentPreviewKind | null {
+  const lower = (filename || "").toLowerCase();
+  const ext = path.extname(lower);
+  const mime = (mimeType || "").split(";")[0]!.trim().toLowerCase();
+
+  if (mime === "application/pdf" || ext === ".pdf") return "pdf";
+  if (
+    ext === ".csv" ||
+    ext === ".tsv" ||
+    mime === "text/csv" ||
+    mime === "application/csv" ||
+    mime === "text/tab-separated-values"
+  ) {
+    return "delimited";
+  }
+  if (OFFICE_EXTENSIONS.has(ext) || OFFICE_MIME_TYPES.has(mime)) return "office";
+  return null;
+}
+
+/**
+ * One converter invocation. `missing` separates "not installed" (try the next
+ * candidate) from "installed but failed" (stop and warn).
+ */
+type OfficeConversionAttempt =
+  | { ok: true; pdf: Buffer }
+  | { ok: false; missing: boolean; error?: string };
+
+async function runOfficeConverter(
+  command: string,
+  tempDir: string,
+  inputPath: string,
+): Promise<OfficeConversionAttempt> {
+  try {
+    await spawnAsync(
+      command,
+      [
+        "--headless",
+        "--norestore",
+        `-env:UserInstallation=${pathToFileURL(path.join(tempDir, "profile")).href}`,
+        "--convert-to",
+        "pdf",
+        "--outdir",
+        tempDir,
+        inputPath,
+      ],
+      { timeoutMs: OFFICE_CONVERT_TIMEOUT_MS },
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      missing: (err as NodeJS.ErrnoException).code === "ENOENT",
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  try {
+    return { ok: true, pdf: await readFile(path.join(tempDir, "source.pdf")) };
+  } catch {
+    // The binary returned success without writing the PDF (broken install).
+    return { ok: false, missing: false, error: "converter produced no PDF" };
+  }
+}
+
+/**
+ * Convert an Office document to PDF with a headless LibreOffice instance.
+ *
+ * The converter is optional: a missing binary or a failed conversion returns
+ * `null` and the operator is warned once per process (never once per upload).
+ * Each run gets its own throw-away user profile so concurrent jobs cannot
+ * attach to a sibling `soffice` instance and exit without writing the PDF.
+ */
+async function convertOfficeDocumentToPdf(
+  buffer: Buffer,
+  filename: string,
+): Promise<Buffer | null> {
+  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
+    logger.error("Office buffer too large for preview conversion", { size: buffer.length });
+    return null;
+  }
+
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "sveltycms-office-"));
+  const ext = path.extname(filename).toLowerCase() || ".bin";
+  const inputPath = path.join(tempDir, `source${ext}`);
+
+  try {
+    await writeFile(inputPath, buffer);
+
+    // `soffice` first; only a genuinely absent binary falls back to `libreoffice`
+    // (a broken install should not be invoked twice under a second name).
+    let attempt = await runOfficeConverter(OFFICE_CONVERTERS[0], tempDir, inputPath);
+    if (!attempt.ok && attempt.missing) {
+      attempt = await runOfficeConverter(OFFICE_CONVERTERS[1], tempDir, inputPath);
+    }
+
+    if (attempt.ok) return attempt.pdf;
+
+    warnOfficePreviewOnce(
+      attempt.missing
+        ? "[Media] LibreOffice (soffice/libreoffice) not found — Office document previews disabled"
+        : "[Media] Office document conversion failed",
+      { file: filename, error: attempt.error },
+    );
+    return null;
+  } catch (err) {
+    warnOfficePreviewOnce("[Media] Office preview could not be prepared", {
+      file: filename,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  } finally {
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+export interface DocumentPreviewResult {
+  metadata: Record<string, unknown>;
+  thumbnails: Record<string, ResizedImage>;
+}
+
+/**
+ * Render a document preview buffer without persisting any derivative files.
+ *
+ * Used by the backfill CLI's dry run; {@link buildDocumentPreview} wraps this and
+ * writes the ladder. Returns `null` when the document is unsupported, malformed,
+ * or the optional Office converter is unavailable.
+ */
+export async function renderDocumentPreview(
+  buffer: Buffer,
+  filename: string,
+  mimeType: string,
+): Promise<Buffer | null> {
+  const kind = detectDocumentPreviewKind(filename, mimeType);
+  if (!kind || buffer.length === 0) return null;
+
+  try {
+    if (kind === "pdf") return await generatePdfThumbnail(buffer);
+    if (kind === "delimited") return await generateCsvThumbnail(buffer);
+    const pdf = await convertOfficeDocumentToPdf(buffer, filename);
+    return pdf ? await generatePdfThumbnail(pdf) : null;
+  } catch (err) {
+    logger.warn("[Media] Document preview skipped", {
+      file: filename,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+/**
+ * Build the gallery preview for a non-image document (PDF, CSV/TSV, Office).
+ *
+ * Documents have no source pixels to resize, so one preview buffer is rendered
+ * (PDF page 1, spreadsheet rows, or page 1 of a LibreOffice-converted document)
+ * and run through the normal `SIZES` ladder. Failure is always non-fatal: an
+ * empty result means the tile falls back to its file icon and the upload still
+ * succeeds. Shared by the upload pipeline (`MediaService`) and the
+ * `process-media` job, so both produce identical derivatives.
+ */
+export async function buildDocumentPreview(
+  buffer: Buffer,
+  hash: string,
+  filename: string,
+  mimeType: string,
+  tenantId?: string | null,
+): Promise<DocumentPreviewResult> {
+  const preview = await renderDocumentPreview(buffer, filename, mimeType);
+  if (!preview) return { metadata: {}, thumbnails: {} };
+
+  try {
+    const dotIdx = filename.lastIndexOf(".");
+    const baseName = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
+    const thumbnails = await saveResizedImages(
+      preview,
+      hash,
+      `${baseName}-thumb`,
+      "jpg",
+      tenantId || "global",
+    );
+    return { metadata: {}, thumbnails };
+  } catch (err) {
+    logger.warn("[Media] Document preview skipped", {
+      file: filename,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { metadata: {}, thumbnails: {} };
   }
 }
 

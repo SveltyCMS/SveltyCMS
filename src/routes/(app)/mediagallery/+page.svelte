@@ -92,6 +92,7 @@
 	import { matchesJsonPathFilter } from '@utils/json-path-filter';
 	import { SvelteSet } from 'svelte/reactivity';
 	import Button from '@components/ui/button.svelte';
+	import Breadcrumb from '@components/ui/breadcrumb.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
@@ -577,6 +578,16 @@
 		return crumbs;
 	});
 
+	// The primitive owns the list semantics and separators; `data` carries the
+	// folder id into the custom crumb snippet so drop targets stay identical.
+	const breadcrumbItems = $derived(
+		breadcrumbs.map((crumb) => ({
+			label: crumb.name,
+			href: crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery',
+			data: { folderId: crumb.folderId }
+		}))
+	);
+
 	const assetStats = $derived.by(() => ({
 		total: files.length,
 		filtered: filteredFiles.length,
@@ -596,6 +607,12 @@
 	/** Key used for drop highlight / compare (`root` for media gallery root) */
 	function crumbDropKey(folderId: string | null): string {
 		return folderId ?? 'root';
+	}
+
+	/** Recover the folder id from a crumb's opaque `data` payload (null = media root). */
+	function crumbFolderId(item: { data?: Record<string, unknown> }): string | null {
+		const folderId = item.data?.folderId;
+		return typeof folderId === 'string' ? folderId : null;
 	}
 
 	function isCurrentCrumb(folderId: string | null): boolean {
@@ -1327,14 +1344,16 @@
 			(error ring) rather than being inert, so the gesture always gets feedback.
 		-->
 		<div class="shrink-0" data-testid="media-gallery-breadcrumbs">
-			<nav
-				class="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1 text-sm text-(--admin-text-muted) sm:gap-2.5 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
-				aria-label={mediagallery_folder_drop_path()}
+			<Breadcrumb
+				items={breadcrumbItems}
+				ariaLabel={mediagallery_folder_drop_path()}
+				navClass="flex min-w-0 items-center gap-1 overflow-x-auto border-b border-surface-500/30 py-1 text-sm text-(--admin-text-muted) sm:gap-2.5 dark:border-surface-500/40 dark:text-(--admin-text-muted)"
+				listClass="flex w-max shrink-0 items-center gap-1 text-sm sm:gap-2.5"
 			>
-				{#each breadcrumbs as crumb, i (crumb.folderId ?? 'root')}
-					{@const isLast = i === breadcrumbs.length - 1}
-					{@const dropKey = crumbDropKey(crumb.folderId)}
-					{@const sameFolder = isCurrentCrumb(crumb.folderId)}
+				{#snippet crumb({ item, isLast })}
+					{@const folderId = crumbFolderId(item)}
+					{@const dropKey = crumbDropKey(folderId)}
+					{@const sameFolder = isCurrentCrumb(folderId)}
 					{@const isDropTarget = breadcrumbDropEnabled && dndState.targetContainer === dropKey}
 					{@const dropOptions = {
 						container: dropKey,
@@ -1342,18 +1361,9 @@
 						attributes: { dragOverClass: sameFolder ? MEDIA_DROP_SAME : MEDIA_DROP_OK },
 						callbacks: {
 							onDrop: (state: DragDropState<MediaDragData>) =>
-								handleBreadcrumbDrop(state, crumb.folderId, crumb.name)
+								handleBreadcrumbDrop(state, folderId, item.label)
 						}
 					}}
-
-					{#if i > 0}
-						<iconify-icon
-							icon="mdi:chevron-right"
-							width="16"
-							class="shrink-0 text-(--admin-text-muted)"
-							aria-hidden="true"
-						></iconify-icon>
-					{/if}
 
 					{#if isLast}
 						<!-- Current folder: not a link, but still a droppable so the drag is
@@ -1363,7 +1373,7 @@
 							aria-current="page"
 							data-media-drop-target={dropKey}
 							data-testid={`media-breadcrumb-${dropKey}`}
-							title={sameFolder && breadcrumbDropEnabled ? 'Already in this folder' : crumb.name}
+							title={sameFolder && breadcrumbDropEnabled ? 'Already in this folder' : item.label}
 							use:droppable={dropOptions}
 						>
 							{#if isDropTarget}
@@ -1374,11 +1384,11 @@
 									aria-hidden="true"
 								></iconify-icon>
 							{/if}
-							<span class="truncate">{crumb.name}</span>
+							<span class="truncate">{item.label}</span>
 						</span>
 					{:else}
 						<a
-							href={crumb.folderId ? `/mediagallery?folderId=${crumb.folderId}` : '/mediagallery'}
+							href={item.href ?? '/mediagallery'}
 							class="inline-flex max-w-48 shrink-0 items-center gap-1 truncate rounded-md px-2 py-2 text-sm font-medium transition-colors sm:max-w-[16rem] sm:px-1.5 sm:py-1 sm:text-base
 								{selectedFiles.size > 0
 								? 'bg-surface-500/10 text-surface-800 hover:bg-primary-500/10 hover:text-primary-600 dark:bg-surface-800 dark:text-surface-100 dark:hover:text-primary-400'
@@ -1387,13 +1397,13 @@
 							data-media-drop-target={dropKey}
 							data-testid={`media-breadcrumb-${dropKey}`}
 							aria-label={selectedFiles.size > 0
-								? `Move ${selectedFiles.size} selected to ${crumb.name}`
-								: `Open folder ${crumb.name}`}
+								? `Move ${selectedFiles.size} selected to ${item.label}`
+								: `Open folder ${item.label}`}
 							title={selectedFiles.size > 0
-								? `Move selection to ${crumb.name}`
+								? `Move selection to ${item.label}`
 								: `Drop media here (or open) — same as sidebar`}
 							use:droppable={dropOptions}
-							onclick={(e) => handleBreadcrumbActivate(e, crumb.folderId, crumb.name, isLast)}
+							onclick={(e) => handleBreadcrumbActivate(e, folderId, item.label, isLast)}
 						>
 							{#if isDropTarget || selectedFiles.size > 0}
 								<iconify-icon
@@ -1403,11 +1413,11 @@
 									aria-hidden="true"
 								></iconify-icon>
 							{/if}
-							<span class="truncate">{crumb.name}</span>
+							<span class="truncate">{item.label}</span>
 						</a>
 					{/if}
-				{/each}
-			</nav>
+				{/snippet}
+			</Breadcrumb>
 
 			{#if selectedFiles.size > 0}
 				<p class="pb-2 text-[11px] leading-tight text-(--admin-text-muted)" role="status">

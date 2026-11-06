@@ -21,6 +21,7 @@ import { logger } from "@utils/logger";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { building, dev } from "$app/env";
 import pkg from "../../../package.json";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
 let settingsServiceModulePromise:
@@ -458,7 +459,7 @@ export class TelemetryService {
 
   async diagnoseConnection() {
     const results: Record<string, any> = {
-      timestamp: new Date().toISOString(),
+      timestamp: nowISODateString(),
       endpoint:
         env.TELEMETRY_ENDPOINT ||
         process.env.TELEMETRY_ENDPOINT ||

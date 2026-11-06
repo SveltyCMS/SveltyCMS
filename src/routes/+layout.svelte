@@ -536,7 +536,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 <!-- Progressive Session Timeout Warning Overlay/Banners -->
 {#if sessionPhase === 'warning'}
 	<div
-		class="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] inset-e-4 z-50 flex max-w-[min(24rem,calc(100vw_-_2rem))] items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-500/10 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
+		class="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] inset-e-4 z-50 flex max-w-[min(24rem,calc(100vw-2rem))] items-center justify-between gap-4 rounded border border-warning-500/30 bg-surface-500/10 p-4 shadow-xl backdrop-blur-md dark:bg-surface-800/80 text-surface-900 dark:text-surface-100"
 		role="status"
 		aria-live="polite"
 	>

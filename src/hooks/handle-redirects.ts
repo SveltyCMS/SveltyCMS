@@ -354,7 +354,9 @@ export const handleRedirects: Handle = async ({ event, resolve }) => {
               headers: { "Content-Type": "text/plain", "X-Robots-Tag": "none" },
             });
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[handle-redirects] suppressed error", error);
+        }
       }
     } else if (!isAllowedRoot) {
       record404();

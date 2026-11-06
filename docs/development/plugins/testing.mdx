@@ -1,0 +1,315 @@
+---
+path: "docs/development/plugins/testing.mdx"
+title: "Plugin Testing Guide"
+description: "Conformance testing for marketplace plugins: manifest, lifecycle, UI slots, permissions, settings, migrations, tenancy, API contracts, and failure paths."
+order: 11
+icon: "mdi:test-tube"
+author: "SveltyCMS Team"
+created: "2026-11-06"
+updated: "2026-11-06"
+tags:
+  - "plugins"
+  - "testing"
+  - "marketplace"
+  - "quality"
+  - "guide"
+---
+
+# Plugin Testing Guide
+
+This guide is for plugin authors preparing a **marketplace listing**. It lists what to verify before submitting a package, how to run the checks with the test commands that exist in this repository, and how to size a CI matrix that covers the CMS versions, database engines, and tenancy modes your listing claims to support.
+
+> [!NOTE]
+> **Status (2026-11-06):** this page describes checks you can run with the current suites. A dedicated `@sveltycms/plugin-testkit` is the recommended next step, but it is **not published**; nothing below depends on it.
+
+## What to test
+
+| Area                 | What a passing test proves                                                                            | Primary layer      |
+| :------------------- | :---------------------------------------------------------------------------------------------------- | :----------------- |
+| Manifest             | `plugin.json` is complete, consistent with the package folder, and safe to publish                    | Unit               |
+| Lifecycle            | Register, enable, disable, upgrade, and uninstall transitions leave the installation in a known state | Unit + integration |
+| UI slots             | Slots render in the declared zones and respect role visibility                                        | Component (jsdom)  |
+| Permissions & airgap | Capabilities, route gates, and draft-by-default mutations hold on the server                          | Unit + integration |
+| Settings             | Schema, defaults, validation, and secret handling match the declaration                               | Unit               |
+| Migrations           | Migrations are ordered, idempotent, tenant-scoped, and re-runnable                                    | Integration        |
+| Tenancy              | Per-tenant state does not leak across tenants                                                         | Unit + integration |
+| REST / GraphQL       | Published contracts keep their status codes, envelopes, and authorization rules                       | Integration        |
+| Failure paths        | DB outages, missing licenses, and invalid configuration return actionable errors                      | Unit + integration |
+
+## 1. Manifest (`plugin.json`)
+
+The marketplace catalog and the in-app catalog read `plugin.json`. Treat it as a contract, not metadata.
+
+Verify:
+
+- `id` matches the plugin directory name and stays stable across releases.
+- `version` is valid SemVer and is incremented whenever hooks, migrations, routes, slots, or settings change.
+- `name`, `description`, `author`, `type`, `license`, `category`, and `icon` are present and consistent with the listing.
+- `capabilities` describes the listing surface; the runtime capabilities in `metadata.capabilities` use the `PluginCapability` union (`db:read`, `network:fetch`, `ui:slot`, …) and match what the code actually uses.
+- The file contains no secrets, absolute paths, or environment-specific values.
+- `license` and `price` match the commercial model described in [Plugin Marketplace & Monetization](./marketplace.mdx).
+
+A manifest test belongs under `tests/unit/plugins/<plugin-id>/` so the default unit include picks it up:
+
+```typescript
+// tests/unit/plugins/my-plugin/manifest.test.ts
+import { describe, expect, it } from "vitest";
+import manifest from "../../../src/plugins/my-plugin/plugin.json";
+
+describe("plugin manifest", () => {
+  it("matches the package directory and SemVer", () => {
+    expect(manifest.id).toBe("my-plugin");
+    expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(manifest.type).toBe("plugin");
+  });
+});
+```
+
+Run it with:
+
+```bash
+bun run test:unit -- tests/unit/plugins/my-plugin/
+```
+
+## 2. Lifecycle transitions
+
+The current core registers discovered plugins at boot and activates only the enabled ones. Enabling a plugin lazily merges its server module, structured parts, and pending migrations through `pluginRegistry.togglePlugin(pluginId, enabled, tenantId, userId?, dbAdapter?)`; the activation path is documented as idempotent, so repeated enables must not duplicate hooks, routes, or settings.
+
+Test each transition:
+
+| Transition | What to assert                                                                                                                                                                                                                     |
+| :--------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install    | The package is discovered from `src/plugins/<id>/`, appears in **Config → Extensions**, and stays inert when `enabled: false`.                                                                                                     |
+| Enable     | Server hooks, routes, parts, and pending migrations become active for the tenant; enabling twice adds no duplicates. UI slots register at boot, so they gate themselves on plugin state when they must stay hidden while disabled. |
+| Disable    | Hooks stop resolving and plugin routes return 403 `PLUGIN_DISABLED` for that tenant; settings and plugin state remain stored for a later re-enable.                                                                                |
+| Upgrade    | A version bump runs pending migrations in `version` order; existing tenant data survives the upgrade.                                                                                                                              |
+| Uninstall  | Your documented cleanup removes the package and that tenant's plugin state and settings; a reinstall starts from a known state.                                                                                                    |
+
+There is no plugin-registry `uninstall()` hook in the current core (2026-11-06). Test the cleanup path your package documents — usually package removal plus deletion of the tenant's `pluginStates` and `plugin_settings` records — and state in the listing who performs it.
+
+Minimal lifecycle test:
+
+```typescript
+import { describe, expect, it } from "vitest";
+import { pluginRegistry } from "@src/plugins";
+import { myPlugin } from "../../../src/plugins/my-plugin";
+
+describe("plugin lifecycle", () => {
+  it("enables idempotently for a tenant", async () => {
+    await pluginRegistry.register(myPlugin);
+
+    expect(await pluginRegistry.togglePlugin("my-plugin", true, "tenant-a")).toBe(true);
+    expect(await pluginRegistry.togglePlugin("my-plugin", true, "tenant-a")).toBe(true);
+  });
+});
+```
+
+## 3. UI slots and RBAC
+
+Slots declare an `id`, a `zone`, a lazy `component`, optional `permissions`, and an optional `condition`. The supported zones include `dashboard`, `config_grid`, `plugin_workspace`, `collection_builder`, `media_gallery`, `entry_edit`, `user_profile`, `global-toolbar`, and the other members of `InjectionZone` in `src/plugins/types.ts`.
+
+Test:
+
+- The slot renders in the declared zone for a user who holds the required permission.
+- A slot that belongs to a disabled plugin stays hidden: the registry is populated at boot, so the slot's own `condition` or data path must check the tenant's plugin state.
+- A user without the permission does not see the slot **and** the backing server action still rejects the request. Hiding a button is not authorization.
+- `condition` is treated as presentation logic; it must not be the only guard on a privileged action.
+- Slot `id` values are unique across your package and stable across releases.
+- Lazy component loading fails gracefully (an error boundary or an empty state) when the chunk cannot be loaded.
+
+Component interaction tests must live under `tests/unit/components/dom/**/*.test.ts`, which is the include path for `vitest.dom.config.ts`:
+
+```bash
+bun run test:unit:components
+```
+
+## 4. Permissions and the draft airgap
+
+Two separate layers must be tested:
+
+1. **Runtime capabilities.** `metadata.capabilities` is enforced by the RBAC dispatcher. Requesting `db:write` without declaring it must be rejected.
+2. **Route capabilities.** Every `{ type: "route" }` part requires `requiredCapabilities` at compile time: `[]` means authenticated only, `"public"` is an explicit unauthenticated opt-out, and a string array requires those capabilities. Test a 401, a 403, and a success for each protected route.
+
+The **draft-by-default airgap** applies to external mutations: plugin hooks that write content must leave the entry in `draft` status, and a plugin must not be able to publish content without human review. Test that:
+
+- An inbound webhook or API mutation produces a draft entry.
+- A payload that tries to set `status: "publish"` is rejected or downgraded.
+- Publish transitions remain an explicit administrator action.
+
+```bash
+bun run test:unit
+bun run test:security
+```
+
+`bun run test:security` re-runs the core hooks/authz/media/GraphQL regression suites. Use it after touching shared authentication or RBAC code; it is a regression gate for the core, not a substitute for plugin-specific unit tests.
+
+## 5. Settings schema and defaults
+
+A plugin declares settings through the `settings` part (`SettingsPart`) using the narrow field types `string`, `text`, `number`, `boolean`, and `secret`. Core stores values per tenant in `plugin_settings`, renders the form, and injects the values into server code.
+
+Test:
+
+- Each declared field accepts valid values and rejects wrong types, out-of-range numbers, and values outside an enumerated `list`.
+- Omitted values resolve to the declared `default`; a field with `required: true` blocks the save with an actionable message.
+- `secret` fields are never returned to the client and never accept a client-supplied default.
+- Submitting a blank or masked secret preserves the stored value instead of erasing it.
+- Secrets are encrypted at rest (AES-256-GCM) and decrypted only through the server-side settings service (`getDecryptedSettings`), not the masked `getPluginSettings` path.
+- Settings written for tenant A are not visible to tenant B.
+
+Import the service from its concrete path (`@src/plugins/settings`); it is intentionally not re-exported from the browser-reachable plugin barrel.
+
+## 6. Database migrations
+
+`PluginMigration` declares `id`, `pluginId`, `version`, `description`, and an `up` function; `down` is optional and is **not invoked by the current registry** (2026-11-06). The registry sorts pending migrations by `version` and records each applied `migrationId` per tenant, so the same migration set is tracked separately for every tenant.
+
+Test:
+
+- **Idempotency:** running `pluginRegistry.runMigrations(pluginId, dbAdapter, tenantId)` twice applies the migration once and leaves the schema unchanged on the second call.
+- **Ordering:** migrations apply in ascending `version`, including when a package adds a migration between existing versions.
+- **Upgrade path:** start from the previous published version, seed representative data, then run the new migration set; existing rows remain readable.
+- **Rollback/re-run:** if you ship a `down`, call it directly in a test and prove the schema and data return to the pre-migration state; then run `up` again. Document that rollback is an author-provided operation because core does not execute `down`.
+- **Tenant scope:** a migration record written for tenant A does not mark the migration as applied for tenant B.
+- **Preconditions:** a missing collection or an incompatible existing table returns a failure result instead of leaving a half-applied schema.
+
+```bash
+bun run test:integration
+bun run test:parity
+```
+
+## 7. Per-tenant state and multi-tenant safety
+
+Plugin state lives in tenant-scoped records: `pluginStates` holds the enabled flag and optional settings per tenant, `plugin_settings` holds the settings document per tenant, and migration records carry a `tenantId`. The settings service cache key is `${tenantId}:${pluginId}`.
+
+Test with two tenants in the same database:
+
+- Enabling the plugin for tenant A does not enable it for tenant B.
+- Settings saved by tenant A are invisible to tenant B, including secrets.
+- Migrations apply once per tenant.
+- Every query and cache key includes `tenantId`; a request-supplied tenant identifier is never trusted over the session-derived one.
+- If a migration uses a raw Mongo upsert, `$setOnInsert` includes `tenantId` (a missing tenant field in an upsert can create a shared document).
+- `getAllPluginStates(tenantId)` returns records for that tenant only.
+
+Tenant isolation is a product requirement, not a plugin feature. A listing that supports single-tenant installations must still pass the same suite with `MULTI_TENANT=true`, because the same code runs in both modes.
+
+## 8. REST and GraphQL contracts
+
+**REST.** Routes registered through `{ type: "route" }` are matched by method and path, including literal `:param` segments. Test:
+
+- The happy path returns the documented status code and the `{ success, data }` envelope.
+- Missing authentication returns 401; missing capability returns 403; invalid input returns a 4xx with a stable error code.
+- Non-GET routes enforce CSRF the same way core routes do.
+- Public routes (`requiredCapabilities: "public"`) do not leak tenant data and still validate input.
+- Parameterized routes reject extra or missing segments rather than falling through to another handler.
+
+**GraphQL.** Core GraphQL is generated from registered collection schemas. If your plugin contributes a `{ type: "schema" }` part, test the generated query and field for that collection, including authorization and tenant scoping. There is no plugin-specific GraphQL registration part in the current core (2026-11-06); document any custom GraphQL surface as an external contract and keep the REST route as the supported integration point.
+
+**Headless virtual slots.** If you publish virtual slot definitions, assert that the JSON schema matches the payload returned by the endpoint and that the endpoint is reachable with the documented authentication.
+
+## 9. Failure paths
+
+| Failure                 | Expected behavior                                                                                                                           | How to test                                                     |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------- |
+| Database unavailable    | The adapter returns a typed failure; the plugin logs it and returns an actionable error without a partial write.                            | Inject a failing adapter stub at the boundary.                  |
+| Missing/expired license | `checkExtensionLicense("plugin", "<id>")` reports `active: false`; the server returns 403 `LICENSE_REQUIRED`; the UI shows `UpgradePrompt`. | Force an expired trial or an unlicensed state in a unit test.   |
+| Marketplace unreachable | With a configured key the license check fails open; without a key after the trial it fails closed.                                          | Stub the verification request and assert both branches.         |
+| Invalid configuration   | Enable fails closed with a message that names the field; the plugin does not crash the boot or leave a half-registered state.               | Submit invalid settings and a malformed manifest in unit tests. |
+| Hook error / timeout    | The sandbox contains the error; the surrounding save path stays consistent and the error is logged.                                         | Throw from a hook and assert the caller receives a failure.     |
+
+License gating must be enforced server-side. A hidden slot or a disabled button is not a substitute for a rejected request.
+
+## 10. Local conformance checklist
+
+Use this checklist before submitting a listing. Every item maps to a test you own.
+
+- [ ] `plugin.json` parses, matches the folder id, and uses SemVer.
+- [ ] Runtime capabilities match the declared listing capabilities.
+- [ ] Register → enable → disable → re-enable keeps state and adds no duplicate hooks or routes.
+- [ ] Upgrade from the previous published version preserves data and applies pending migrations in order.
+- [ ] Migrations are idempotent, tenant-scoped, and re-runnable; `down` is tested if shipped.
+- [ ] Settings defaults apply; invalid values are rejected; secrets are encrypted, masked, and preserved on blank submit.
+- [ ] Slots render for permitted roles and server actions reject unauthorized requests.
+- [ ] External mutations stay in `draft`; publish requires an explicit administrator action.
+- [ ] Tenant A cannot read tenant B's state, settings, or migration records.
+- [ ] REST happy path, 401, 403, validation error, CSRF, and tenant isolation are covered.
+- [ ] Generated GraphQL for contributed schemas is covered (if applicable).
+- [ ] DB outage, missing license, and invalid configuration return actionable errors.
+- [ ] Uninstall/reinstall leaves no stale tenant state.
+
+| Check group                                                   | Command                                                |
+| :------------------------------------------------------------ | :----------------------------------------------------- |
+| Manifest, lifecycle, settings, failure                        | `bun run test:unit -- tests/unit/plugins/<plugin-id>/` |
+| UI slots and interaction                                      | `bun run test:unit:components`                         |
+| Migrations, REST, tenancy on SQLite                           | `bun run test:integration`                             |
+| All reachable database engines                                | `bun run test:parity`                                  |
+| Browser journey                                               | `bun run test:e2e -- --grep="<plugin journey>"`        |
+| Coverage report (use `COVERAGE_ALL=1` to include plugin code) | `bun run test:coverage`                                |
+| Core security regressions                                     | `bun run test:security`                                |
+
+`bun run test:parity` skips engines it cannot reach. On a release gate, add `-- --require-all` so an unavailable adapter fails the run instead of passing as a skip.
+
+### Run the in-repo conformance audit
+
+First-party plugins that ship in this repository can be checked against the manifest, entry-point, capability, and slot-zone contracts without writing a test file:
+
+```bash
+bun run marketplace:conformance
+bun run marketplace:conformance -- --json
+bun run marketplace:conformance -- --verbose
+```
+
+The audit scans `src/plugins/*` (skipping the internal `storage` and `wasm` support directories) and exits `1` when a plugin:
+
+- has no `plugin.json` and no `definePlugin({ metadata })` entry-point metadata;
+- is missing `id`, a display name/description, or a parseable `cmsVersionRange`;
+- declares a version that is not strict SemVer;
+- exports no recognisable plugin factory or default from `index.ts`;
+- declares a runtime capability outside the `PluginCapability` union;
+- registers a UI slot in a zone outside the `InjectionZone` union, or reuses a slot id inside one plugin;
+- has an `id` that does not match its folder, or shares an id with another plugin.
+
+`--check` is the default and exits `1` on any failure. `--json` emits the machine-readable report for CI and tooling; `--verbose` prints every check per plugin. For first-party plugins, an omitted `cmsVersionRange` resolves to `>=<host package version>` because the plugin ships with the CMS. A portable `plugin.json` must declare the range explicitly.
+
+What it does **not** cover: lifecycle transitions, migrations, tenant isolation, REST/GraphQL contracts, runtime capability _usage_, or third-party packages. Those remain in the suites above and in the CI matrix; a published package still needs `@sveltycms/plugin-testkit` once it exists.
+
+If a real plugin cannot satisfy a check, add a narrow exception to `ALLOWLIST` in `scripts/marketplace/conformance.ts` with the plugin id, the check id, a reason, and a follow-up. Do not weaken the shared check; the audit reports the allowlisted entry on every run.
+
+## 11. CI matrix
+
+A listing that claims support for several CMS minors, four adapters, and both tenancy modes needs a matrix that actually exercises those claims.
+
+| Axis        | Values                                       | Why                                                     |
+| :---------- | :------------------------------------------- | :------------------------------------------------------ |
+| CMS version | Current minor plus the two preceding minors  | Catches API and plugin-interface drift during upgrades. |
+| DB adapter  | `sqlite`, `postgresql`, `mariadb`, `mongodb` | Adapters share a contract but not an implementation.    |
+| Tenancy     | `MULTI_TENANT=false` and `MULTI_TENANT=true` | Isolation bugs appear in both directions.               |
+
+A complete 3 × 4 × 2 integration matrix is 24 jobs. A practical split:
+
+| Layer             | Single-tenant                   | Multi-tenant                                  |
+| :---------------- | :------------------------------ | :-------------------------------------------- |
+| Unit + components | One job per CMS minor           | One job per minor with a two-tenant fixture   |
+| Integration       | 3 minors × 4 adapters = 12 jobs | 12 jobs with tenant-scoped fixtures           |
+| E2E               | One smoke journey per minor     | Isolation journey gated behind `MULTI_TENANT` |
+
+Run the full matrix on release tags. For pull requests, the current minor × four adapters × both tenancy modes (8 integration jobs) keeps feedback bounded while still covering every adapter and the isolation contract. Record the exact CMS versions in the listing; do not claim a range you have not run.
+
+## 12. Recommended next step: `@sveltycms/plugin-testkit`
+
+A dedicated package would remove most of the boilerplate above. The recommended scope for `@sveltycms/plugin-testkit` is:
+
+- A manifest validator that checks `plugin.json` against the catalog contract.
+- A lifecycle harness with an in-memory or SQLite adapter, covering register, enable, disable, upgrade, and cleanup.
+- Tenant fixtures that create two isolated tenants and assert cross-tenant reads fail.
+- A migration runner that proves idempotency and optional `down` behavior.
+- Contract assertions for REST envelopes, route capabilities, and generated GraphQL.
+- A CI template for the 3 × 4 × 2 matrix in section 11.
+
+This package does not exist yet (2026-11-06). Until it is published, the checklist and commands in this guide are the supported path; do not add a dependency on the testkit to a marketplace listing.
+
+## Related
+
+- [Plugin Development Guide](./development.mdx) — plugin interface, hooks, slots, migrations, and security boundaries
+- [Plugin Marketplace & Monetization](./marketplace.mdx) — package format, install lifecycle, and license gating
+- [Plugin Architecture](./architecture.mdx) — slots, admin pages, and sandbox design
+- [Benchmark & Test Collection Isolation](../../tests/benchmark-isolation.mdx) — keeping test fixtures away from live data
+- [ADR: Testing 2026](../../tests/adr-testing-2026.mdx) — pyramid, seed-first E2E, and soft-skip policy

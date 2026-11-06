@@ -13,6 +13,7 @@ import { logger } from "@utils/logger";
 import type { PluginContext, PluginEntryData } from "../types";
 import { getMultipleCachedResults } from "./service";
 import { migrations } from "./migrations";
+import { nowISODateString } from "@utils/date";
 
 export { migrations };
 
@@ -70,7 +71,7 @@ export async function ssrHook(
           cls: result.cls,
           fetchedAt: result.fetchedAt ? new Date(result.fetchedAt).toISOString() : null,
         },
-        updatedAt: (result.updatedAt ? String(result.updatedAt) : new Date().toISOString()) as any,
+        updatedAt: (result.updatedAt ? String(result.updatedAt) : nowISODateString()) as any,
       });
     }
 

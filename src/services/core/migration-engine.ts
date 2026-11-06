@@ -28,6 +28,7 @@ import { generateUUID } from "@utils/native-utils";
 import { compareSchemas, type SchemaChange } from "@utils/schema/comparison";
 import { withMigrationLock } from "@src/databases/migration-lock";
 import { declaredFieldRenames } from "@src/databases/core/collection-module";
+import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the event bus — one module-registry lookup instead of one per call. */
 let eventBusModulePromise:
@@ -349,7 +350,7 @@ async function updateMigrationStatus(
       await dbAdapter.crud.update("migration_ledger", record._id, {
         status,
         errorMessage: errorMessage ?? null,
-        appliedAt: status === "applied" ? new Date().toISOString() : undefined,
+        appliedAt: status === "applied" ? nowISODateString() : undefined,
       } as any);
     }
   } catch (err) {
@@ -515,7 +516,7 @@ export class MigrationEngine {
     const checksum = await computeChecksum(plan.changes);
     const version = await getNextVersion(plan.collectionId);
     const migrationId = generateUUID();
-    const now = new Date().toISOString();
+    const now = nowISODateString();
 
     const record: MigrationRecord = {
       migrationId,

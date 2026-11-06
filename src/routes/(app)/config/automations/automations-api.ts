@@ -8,16 +8,6 @@
 import { fetchApi, type ApiResponse } from "@utils/api";
 import type { AutomationFlow } from "@src/services/background/automation/types";
 
-export function unwrapFlowList(result: ApiResponse<unknown>): AutomationFlow[] {
-  if (!result.success) return [];
-  const raw = (result as { data?: unknown }).data ?? result;
-  if (Array.isArray(raw)) return raw as AutomationFlow[];
-  if (raw && typeof raw === "object" && Array.isArray((raw as { data?: unknown }).data)) {
-    return (raw as { data: AutomationFlow[] }).data;
-  }
-  return [];
-}
-
 export async function listAutomations(): Promise<ApiResponse<AutomationFlow[]>> {
   return fetchApi<AutomationFlow[]>("/api/automations");
 }

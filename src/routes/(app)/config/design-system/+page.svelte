@@ -164,6 +164,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 		importThemePreset as apiImportThemePreset,
 		updateUserThemePrefs as apiUpdateUserThemePrefs
 	} from './appearance-api';
+	import { nowISODateString } from '@utils/date';
 
 	const layoutVisibilityOptions = [
 		{ value: '', label: 'Use theme default' },
@@ -891,7 +892,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 		);
 		const a = document.createElement('a');
 		a.href = URL.createObjectURL(blob);
-		a.download = `sveltycms-theme-${new Date().toISOString().slice(0, 10)}.json`;
+		a.download = `sveltycms-theme-${nowISODateString().slice(0, 10)}.json`;
 		a.click();
 		toast.success('Exported');
 	}

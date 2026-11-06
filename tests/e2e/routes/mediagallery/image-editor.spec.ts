@@ -8,8 +8,12 @@ import { test, expect, type Page } from "../../fixtures";
 import sharp from "sharp";
 import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { dismissCookieConsent } from "../../helpers/cookie-consent";
+import { deleteMediaRow } from "../../helpers/media";
 
 const ACTION_TIMEOUT = 25_000;
+
+/** Every row this file created, removed even when an assertion fails mid-test. */
+const uploadedIds = new Set<string>();
 
 // The editor previously assumed dark chrome; run the suite in light mode so
 // white-on-white regressions fail here instead of in the field.
@@ -53,8 +57,15 @@ async function uploadTestImage(page: Page): Promise<string> {
     .toBuffer();
   await uploadInput.setInputFiles({ name: filename, mimeType: "image/png", buffer });
 
-  await expect(mediaCell(page, filename)).toBeVisible({ timeout: ACTION_TIMEOUT });
-  await mediaCell(page, filename).scrollIntoViewIfNeeded();
+  const cell = mediaCell(page, filename);
+  await expect(cell).toBeVisible({ timeout: ACTION_TIMEOUT });
+  await cell.scrollIntoViewIfNeeded();
+
+  // Track the row immediately: the editor tests leave the page in several
+  // states, so cleanup must not depend on the test reaching its end.
+  const id = await cell.getAttribute("data-media-id");
+  expect(id, "uploaded image must expose a data-media-id").toBeTruthy();
+  uploadedIds.add(id!);
   return filename;
 }
 
@@ -90,6 +101,12 @@ async function waitForEditorReady(page: Page) {
 
 test.describe("Image Editor", () => {
   test.setTimeout(120_000);
+
+  test.afterEach(async ({ page }) => {
+    const ids = [...uploadedIds];
+    uploadedIds.clear();
+    for (const id of ids) await deleteMediaRow(page, id);
+  });
 
   test("opens editor modal after upload", async ({ page }) => {
     const filename = await uploadTestImage(page);
@@ -159,6 +176,13 @@ test.describe("Image Editor", () => {
     const posted = res.request().postDataJSON() as Record<string, unknown>;
     expect(posted).toHaveProperty("manipulations");
     expect(Object.keys(posted)).toEqual(["manipulations"]);
+
+    // The default save behaviour is "new", so the save creates a second row.
+    // Track it too, otherwise a saved edit survives the run it belonged to.
+    const saved = (await res.json().catch(() => null)) as {
+      data?: { _id?: string };
+    } | null;
+    if (saved?.data?._id) uploadedIds.add(String(saved.data._id));
 
     await expect(page.getByText(/image processed and saved/i)).toBeVisible({
       timeout: ACTION_TIMEOUT,

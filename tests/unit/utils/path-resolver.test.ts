@@ -23,6 +23,12 @@ describe("path-resolver", () => {
       expect(paths.collections).toBe(path.join(CWD, "config", "collections"));
     });
 
+    it("getCollections() resolves the isolated tree under an automated harness", () => {
+      // The live getter above must never be used for test writes; the dynamic
+      // getter is the one test/setup code is required to call.
+      expect(paths.getCollections()).toBe(path.join(CWD, "config", "test-collections"));
+    });
+
     it("compiledCollections resolves to .compiledCollections", () => {
       expect(paths.compiledCollections).toBe(path.join(CWD, ".compiledCollections"));
     });

@@ -260,6 +260,25 @@
 			}
 		},
 		{
+			// Restores the pre-c14a3e6e1 direct entry: the Yoga landing page at
+			// `/api/graphql` (GraphiQL) opens in its own tab, independent of the
+			// in-app console on /config/api.
+			id: 'graphql',
+			href: '/api/graphql',
+			label: 'GraphQL',
+			icon: 'teenyicons:graphql-solid',
+			iconColor: 'text-warning-600',
+			target: '_blank',
+			permission: {
+				contextId: 'api:graphql',
+				name: 'GraphQL',
+				description: 'Access GraphQL API',
+				requiredRole: 'developer',
+				action: 'access',
+				contextType: 'system'
+			}
+		},
+		{
 			id: 'dashboard',
 			href: '/dashboard',
 			label: 'Dashboard',

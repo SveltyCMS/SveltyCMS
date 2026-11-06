@@ -1,10 +1,10 @@
 ---
 path: "docs/tests/benchmark-isolation.mdx"
 title: "Benchmark & Test Collection Isolation"
-description: "Filesystem and GraphQL boundaries between user live collection data and benchmark/test fixtures."
+description: "Filesystem, database and GraphQL boundaries between user live data and benchmark/test fixtures."
 author: "SveltyCMS Team"
 created: "2026-06-23"
-updated: "2026-06-29"
+updated: "2026-11-06"
 tags:
   - "testing"
   - "benchmarks"
@@ -19,16 +19,36 @@ SveltyCMS separates **user live collection data** from **benchmark and test fixt
 > [!IMPORTANT]
 > **Source of truth:** `src/utils/benchmark-paths.ts` and `src/routes/setup/preset-collections.server.ts` (`purgeBenchmarkCollectionArtifacts()` → `src/utils/benchmark-db-purge.ts`). Matrix lifecycle: `scripts/benchmark-matrix/index.ts`.
 
+## Live user data is read-only for tests and benchmarks
+
+Automated work — unit, integration, E2E, benchmarks, probes and any setup/collection seeding they trigger — must **never** read, write, rewrite, purge or delete the developer's live state. This is a non-negotiable rule in [AGENTS.md §4](../../AGENTS.md).
+
+| Live (harness must not touch)    | Harness-owned path                                       |
+| :------------------------------- | :------------------------------------------------------- |
+| `config/private.ts`              | `config/private.test.ts`                                 |
+| `config/collections/**`          | `config/test-collections/**` (+ tenant test trees)       |
+| `config/database/**`             | `config/test-database/**`                                |
+| `.compiledCollections/**` (root) | `.compiledCollections/test-collections/**`               |
+| `config/sync/**`                 | `test-config-sync/**` (local benchmark sandbox)          |
+| `mediaFolder/**`, `media/**`     | `tests/e2e/.media/**`, `test-media/benchmark-sandbox/**` |
+
+Resolve paths through the test-aware getters — `paths.getCollections()`, `getCollectionsPath()`, `resolveSqlitePath()`, `resolveActiveDatabaseDir()`, `resolvePrivateConfigFileName()` — never the static live constants (`paths.collections`, `DEFAULT_DATABASE_DIR`, `paths.privateConfigLive`) in code reachable from a test.
+
+A purge must target the **same directory the caller is about to write**. `tests/unit/setup/preset-collections.test.ts` pins that a marker file in `config/collections` survives a full setup wipe (`wipeAllSource: true`), and `tests/unit/utils/benchmark-db-purge.test.ts` pins the test-aware database default. The incident that produced the rule: an E2E setup-wizard run wrote presets to `config/test-collections/` but purged live `config/collections/`, deleting the developer's `pages.ts` schema (the `collection_pages` rows survived without their collection).
+
 ## Path Contract
 
-| Purpose                       | TypeScript source                      | Compiled output                          |
-| :---------------------------- | :------------------------------------- | :--------------------------------------- |
-| **User live data**            | `config/collections/*.ts` (root only)  | `.compiledCollections/*.js` (root only)  |
-| **Benchmark / test fixtures** | `config/collections/test/<workspace>/` | `.compiledCollections/test/<workspace>/` |
+| Purpose                       | TypeScript source                     | Compiled output                            |
+| :---------------------------- | :------------------------------------ | :----------------------------------------- |
+| **User live collections**     | `config/collections/*.ts` (root only) | `.compiledCollections/*.js` (root only)    |
+| **Benchmark / test fixtures** | `config/test-collections/**`          | `.compiledCollections/test-collections/**` |
+| **Test database**             | `config/test-database/**`             | n/a                                        |
+| **Live database**             | `config/database/**`                  | n/a                                        |
+| **Bootstrap config**          | `config/private.test.ts` (harness)    | Live equivalent: `config/private.ts`       |
 
 ### Workspaces
 
-Benchmark modules use named workspaces under `test/`:
+Benchmark modules use named workspaces under `config/test-collections/`:
 
 | Workspace     | Test file                                                      | Purpose                                |
 | :------------ | :------------------------------------------------------------- | :------------------------------------- |
@@ -54,9 +74,11 @@ import {
 
 ### 1. Physical (disk)
 
-- **Bootstrap** (`engine.server.ts`): `bench_*`, `mock_*`, and `test_*` slugs regenerate under `config/collections/test/`, not the root.
-- **Benchmark filesystem tests** write only under `.compiledCollections/test/<workspace>/`.
-- **Setup wizard** (`writePresetCollectionFiles` with `replaceAll: true`): purges stale/benchmark debris before writing blog presets (`posts.ts`, `authors.ts`, `categories.ts`).
+- **Bootstrap** (`engine.server.ts`): `bench_*`, `mock_*`, and `test_*` slugs regenerate under `config/test-collections/`, not the root.
+- **Compiled output** resolves through `resolveCompiledCollectionsPath()`: under any automated harness it lands under `.compiledCollections/test-collections/` (tenant output nests one level); the live root and its `.compilation-manifest.json` are never written by a test.
+- **Benchmark filesystem tests** write only under `.compiledCollections/test-collections/<workspace>/`.
+- **Setup wizard** (`writePresetCollectionFiles` with `replaceAll: true`): purges the **active** collections directory (`getCollectionsPath()`; `config/test-collections/` under a harness) before writing the preset files. It never purges the live root from a test.
+- **Post-run cleanup** (`scripts/runs/run-e2e.ts`): a successful E2E run removes `config/test-collections`, `.compiledCollections/test-collections`, `config/test-database`, `config/private.test.ts` and `tests/e2e/.media` after the server has stopped. `KEEP_E2E_ARTIFACTS=1` opts out for debugging. Failed runs keep their artifacts.
 
 ### 2. Compile & runtime scan
 
@@ -102,10 +124,9 @@ bun run scripts/benchmark-matrix/index.ts --db=sqlite --only=relational --no-bui
 
 `purgeBenchmarkCollectionArtifacts()` in `preset-collections.server.ts`:
 
-1. Wipes entire `config/collections/test/` and `.compiledCollections/test/`
-2. Removes legacy root dirs (`nested/`, `batch_bench/`)
-3. Deletes benchmark artifacts at root (`bench_*`, `Mock Collection *`, `BenchmarkStable.ts`, etc.)
-4. Optional `wipeAllSource: true` on setup completion — full root wipe before preset install
+1. Removes the benchmark **compiled** workspace (`.compiledCollections/test-collections/`) and legacy compiled dirs.
+2. Scans the **active collections directory** (`options.collectionsDir`, default `paths.getCollections()` — test-aware): `wipeAll=false` removes root benchmark artifacts; `wipeAllSource=true` removes every `.ts`/`.js` in that directory before the caller writes presets.
+3. Runs `purgeBenchmarkDatabaseArtifacts()`, which defaults to the **active database directory** (`resolveActiveDatabaseDir()` → `config/test-database/` under a harness; `config/database/` for manual/dev runs) and only drops `mock_*`/`bench_*` tables and matching `content_nodes` rows.
 
 `isBenchmarkArtifact(fileName)` — filesystem debris patterns.  
 `isMockScanCollection(id, name)` — GraphQL exclusion for scan/stress mocks.
@@ -158,6 +179,9 @@ Standalone `bun test tests/benchmarks/*` sets `BENCHMARK=true` (but **never** `T
 
 If an older benchmark run left `Mock Collection *.js` or `bench_*` files at the **root** of `config/collections/` or `.compiledCollections/`:
 
+> [!WARNING]
+> These are **manual operator** commands. Never run them from a test/benchmark process — under a harness the purge defaults to the isolated test directories, and that is intentional.
+
 ```bash
 # Purge filesystem + SQLite debris; preserves user files like posts.ts / authors.ts
 bun -e "import { purgeBenchmarkCollectionArtifacts } from './src/routes/setup/preset-collections.server.ts'; console.log('Removed:', await purgeBenchmarkCollectionArtifacts())"
@@ -166,7 +190,7 @@ bun -e "import { purgeBenchmarkCollectionArtifacts } from './src/routes/setup/pr
 bun -e 'import path from "node:path"; import { readdirSync } from "node:fs"; import { Database } from "bun:sqlite"; const dir = path.resolve("config/database"); const isDb = (n) => n.endsWith(".db") || n.endsWith(".sqlite"); for (const f of readdirSync(dir).filter(isDb)) { const db = new Database(path.join(dir, f), { readonly: true }); console.log(f, db.query("SELECT name FROM sqlite_master WHERE type = ? AND name LIKE ?").all("table", "collection_%").map((r) => r.name)); }'
 ```
 
-`purgeBenchmarkCollectionArtifacts()` also runs `purgeBenchmarkDatabaseArtifacts()` — drops stale `collection_*` tables and `content_nodes` rows (mock scan debris always; benchmark presets only on user/healing DBs, not `benchmark_shared.sqlite`).
+`purgeBenchmarkCollectionArtifacts()` also runs `purgeBenchmarkDatabaseArtifacts()` — drops stale `collection_*` tables and `content_nodes` rows from the **active** database directory (mock scan debris always; benchmark presets only on user/healing DBs, not `benchmark_shared.sqlite`).
 
 Or complete setup with the blog preset (`replaceAll: true`) — that wipes stale root files before writing the three preset collections.
 
@@ -174,13 +198,17 @@ After cleanup, regenerate types if needed: `bun x svelte-kit sync`.
 
 ## Resolved gaps
 
-| Item                              | Status                                                                    |
-| :-------------------------------- | :------------------------------------------------------------------------ |
-| `compile.ts` benchmark filter     | Done — skips `test/` + `isBenchmarkArtifact` when `!isBenchmarkRuntime()` |
-| `mock_collection_*` detection     | Done — `isBenchmarkArtifact` + `isMockScanCollection`                     |
-| Artifact purge call sites         | Done — `purgeBenchmarkCollectionArtifacts()` is the only matcher          |
-| Env var split GraphQL vs scanners | Done — `isBenchmarkRuntime()` everywhere                                  |
-| Docs outdated claims              | Updated — this file + `docs/tests/index.mdx`                              |
+| Item                                     | Status                                                                                                                                                                                                                                                                               |
+| :--------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `compile.ts` benchmark filter            | Done — skips `test/` + `isBenchmarkArtifact` when `!isBenchmarkRuntime()`                                                                                                                                                                                                            |
+| `mock_collection_*` detection            | Done — `isBenchmarkArtifact` + `isMockScanCollection`                                                                                                                                                                                                                                |
+| Artifact purge call sites                | Done — `purgeBenchmarkCollectionArtifacts()` is the only matcher                                                                                                                                                                                                                     |
+| Setup-wizard purge live-data leak        | Done — purge targets `options.collectionsDir` / `paths.getCollections()`, never `paths.collections`; pinned by `tests/unit/setup/preset-collections.test.ts`                                                                                                                         |
+| DB purge live-data default               | Done — `resolveActiveDatabaseDir()` routes harnesses to `config/test-database/`; pinned by `tests/unit/utils/benchmark-db-purge.test.ts`                                                                                                                                             |
+| Compiled output live-data leak           | Done — `resolveCompiledCollectionsPath()` routes harnesses to `.compiledCollections/test-collections/`; legacy test-tenant dirs swept by `cleanupTestArtifacts()`; pinned by `tests/unit/utils/benchmark-sandbox.test.ts` + `tests/unit/scripts/integration-harness-cleanup.test.ts` |
+| Env var split GraphQL vs scanners        | Done — `isBenchmarkRuntime()` everywhere                                                                                                                                                                                                                                             |
+| Destructive recovery on transient errors | Gated — `bun run lint:transient-classification` fails a collection/config delete inside a catch handler unless `ENOENT`/`isTransient`/`rethrow`/`throw` is present; `lint:live-paths` bans static live constants outside the resolvers.                                              |
+| Docs outdated claims                     | Updated — this file + `docs/tests/index.mdx`                                                                                                                                                                                                                                         |
 
 ## Troubleshooting
 

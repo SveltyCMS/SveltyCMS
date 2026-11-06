@@ -17,7 +17,7 @@ tags:
 
 # OpenAPI Specification Reference
 
-SveltyCMS dynamically generates the **fastest unified OpenAPI 3.1.0** specification in its class. This document acts as the machine-readable "source of truth" for your entire API surface, served through the high-performance unified dispatcher to allow **maximum flexibility** for complex, multi-client setups.
+SveltyCMS dynamically generates a **curated OpenAPI 3.1.0** document for the admin and public API surface. It is the machine-readable contract for the **documented subset** — not a complete enumeration of every dispatcher namespace.
 
 ---
 
@@ -34,7 +34,9 @@ SveltyCMS dynamically generates the **fastest unified OpenAPI 3.1.0** specificat
 
 ## 1. The Goal
 
-Enable **Automated SDK Generation** and **Contract-First Development**. By providing a standard OpenAPI spec, SveltyCMS allows developers to generate type-safe clients for any programming language (TypeScript, Python, Go, Rust, etc.) without manually writing HTTP wrappers. The specification is served via the **Unified Dispatcher**, ensuring perfect parity between documentation and implementation.
+Enable **Automated SDK Generation** and **Contract-First Development** for the documented surfaces. The specification is served via the **Unified Dispatcher**, and paths are added by the same service that owns their shapes, so the documented subset cannot drift. Namespaces that are not listed remain available: every `/api` request is enforced by the fail-closed `ENDPOINT_PERMISSIONS` map (`src/routes/api/[...path]/+server.ts`).
+
+**Coverage (2026-11-06):** auth, users, system, media, search, tokens, collections (dynamic per schema), webhooks (CRUD, test, delivery logs, retry), workflows (definition read/save/transition/delete) and automations (CRUD, test, logs).
 
 ---
 
@@ -72,6 +74,22 @@ The spec includes standard security schemes for the **Unified Gatekeeper**:
 - **BearerAuth**: JWT-based session tokens.
 - **ApiKeyAuth**: Programmatic access via `x-api-key` header.
 - **TestSecretAuth**: Secure bypass for CI/automated testing via `x-test-secret`.
+
+---
+
+### Coverage inventory (`x-sveltycms`)
+
+The document is a **curated** set of paths, so it also publishes the complete namespace inventory as a vendor extension:
+
+```json
+"x-sveltycms": {
+  "endpointPermissions": { "webhooks": "config:webhooks", "collections": "method-dependent" },
+  "documentedNamespaces": ["auth", "automations", "collections", "media", "search", "system", "token", "user", "webhooks", "workflows"],
+  "undocumentedNamespaces": ["ai", "backups", "commerce", "…"]
+}
+```
+
+`endpointPermissions` comes from the same fail-closed map the dispatcher uses (`src/routes/api/[...path]/endpoint-permissions.ts`), so SDK maintainers can see every available namespace even when no schema is published for it. `tests/unit/services/api-spec-service.test.ts` asserts that documented + undocumented equals the full map.
 
 ---
 

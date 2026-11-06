@@ -513,7 +513,9 @@ function _populateTurboAuth(event: RequestEvent, user: any, roles: Role[]): void
       event.locals.sessionBoundIp,
       event.locals.sessionBoundUserAgent,
     );
-  } catch {}
+  } catch (error) {
+    logger.debug("[handle-authorization] suppressed error", error);
+  }
 }
 
 export async function invalidateUserCountCache(tenantId?: string | null): Promise<void> {

@@ -31,6 +31,7 @@
 		userprivacy_export_title,
 		userprivacy_title
 	} from '@src/paraglide/messages';
+	import { nowISODateString } from '@utils/date';
 
 	// Props
 	interface Props {
@@ -60,7 +61,7 @@
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = `sveltycms-data-export-${user.username}-${new Date().toISOString().split('T')[0]}.json`;
+				a.download = `sveltycms-data-export-${user.username}-${nowISODateString().split('T')[0]}.json`;
 				a.click();
 				URL.revokeObjectURL(url);
 				toast.success(userprivacy_export_started());

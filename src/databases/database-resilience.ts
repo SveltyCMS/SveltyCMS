@@ -14,6 +14,7 @@ import { getSystemState, updateServiceHealth } from "@src/stores/system/state.sv
 import { logger } from "@utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import type { DatabaseError } from "./db-interface";
+import { nowISODateString } from "@utils/date";
 
 // Type definitions
 export interface RetryConfig {
@@ -632,7 +633,7 @@ export async function notifyAdminsOfDatabaseFailure(
           databaseStatus: systemState.services.database.status,
           databaseMessage: systemState.services.database.message,
         },
-        timestamp: new Date().toISOString(),
+        timestamp: nowISODateString(),
         hostLink: publicEnv.HOST_PROD || "http://localhost:5173",
       },
     };

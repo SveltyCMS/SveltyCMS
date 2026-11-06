@@ -62,6 +62,7 @@ class SetupWizardPage {
         this.page.getByRole("button", { name: /continue/i }).first(),
       ]);
       if (button) {
+        // force-allow: welcome popup transition overlaps the primary button
         await button.click({ force: true });
         await expect(welcomePopup).toBeHidden({ timeout: 10000 });
       }
@@ -70,6 +71,7 @@ class SetupWizardPage {
     // 2. Cookie Banner
     const cookieBtn = this.page.getByRole("button", { name: /accept all/i }).first();
     if (await cookieBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // force-allow: cookie banner transition overlaps the accept button
       await cookieBtn.click({ force: true });
     }
   }
@@ -157,6 +159,7 @@ class SetupWizardPage {
       .first();
 
     if (await yesButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      // force-allow: step-2 confirmation overlay
       await yesButton.click({ force: true });
     }
   }
@@ -322,6 +325,7 @@ test.describe("Setup Wizard: Navigation & State", () => {
     await expect(page.locator("#admin-username")).toBeVisible();
 
     await wizard.dismissModals();
+    // force-allow: wizard step overlay during database selection
     await page.locator('button[aria-label^="Database"]:visible').first().click({ force: true });
     await expect(page.locator("#db-type")).toBeVisible();
   });
@@ -337,6 +341,7 @@ test.describe("Setup Wizard: Navigation & State", () => {
     // The label comes from paraglide ("Reset Data"); CSS attribute selectors are
     // case-sensitive, so match the accessible name case-insensitively.
     const resetBtn = page.getByRole("button", { name: /reset data/i }).first();
+    // force-allow: reset trigger sits under the sticky wizard footer
     await resetBtn.click({ force: true });
     // Portal-rendered confirm dialog has a render gap (see AGENTS.md pitfall #13) — wait
     // for its primary action to be visible, otherwise the reset never runs and the dirty
@@ -373,6 +378,7 @@ test.describe("Setup Wizard: Uncaught Error Contract", () => {
     // awaits the setup-hints request), so the DOM is complete before the throw. Wait
     // for the page to go quiet instead of asserting on a selector that passes either way.
     await page.waitForLoadState("networkidle");
+    // wait-allow: setup persistence is armed from an async onMount continuation
     await page.waitForTimeout(250);
 
     const { pageErrors, consoleErrors } = getZeroErrorContext(page);

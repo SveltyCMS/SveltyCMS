@@ -12,6 +12,7 @@ import type { User } from "@src/databases/auth/types";
 import { logger } from "@utils/logger";
 import { replaceTokens } from "./engine";
 import type { TokenContext } from "./types";
+import { nowISODateString } from "@utils/date";
 
 // Recursively processes tokens in an object or array
 export async function processTokensInResponse(
@@ -76,7 +77,7 @@ export async function processTokensInResponse(
         user,
         locale,
         system: context.system || {
-          now: new Date().toISOString() as import("@databases/db-interface").ISODateString,
+          now: nowISODateString() as import("@databases/db-interface").ISODateString,
         },
       };
 

@@ -32,7 +32,7 @@ export async function deleteMediaRow(page: Page, id?: string): Promise<void> {
 }
 
 /** Unique PNG per test — avoids the content-hash dedupe that shared fixtures hit. */
-export async function uniquePng(filename: string) {
+export async function uniquePng(filename: string, size = 24) {
   // CSPRNG rather than Math.random(): the security scanners flag weak
   // randomness anywhere in the tree, and the cost is irrelevant in tests.
   const bytes = new Uint8Array(1);
@@ -40,8 +40,8 @@ export async function uniquePng(filename: string) {
   const seed = (bytes[0]! % 200) + 20;
   const buffer = await sharp({
     create: {
-      width: 24,
-      height: 24,
+      width: size,
+      height: size,
       channels: 3,
       background: { r: seed, g: (seed * 7) % 255, b: (seed * 13) % 255 },
     },
@@ -68,8 +68,12 @@ export async function openUploadMediaPage(page: Page): Promise<void> {
 }
 
 /** Upload through the real toolbar input and resolve once the card renders. */
-export async function uploadUniqueImage(page: Page, filename: string): Promise<MediaRow> {
-  const file = await uniquePng(filename);
+export async function uploadUniqueImage(
+  page: Page,
+  filename: string,
+  size = 24,
+): Promise<MediaRow> {
+  const file = await uniquePng(filename, size);
   const uploadResponse = page.waitForResponse(
     (res) =>
       res.request().method() === "POST" &&

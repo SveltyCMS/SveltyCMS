@@ -55,6 +55,19 @@ describe("Prototype Pollution Defense", () => {
     expect(Object.hasOwn(sanitized.nested, "constructor")).toBe(false);
   });
 
+  it("sanitizeObject drops a lone constructor key (zero-copy fast path)", () => {
+    // No sibling `prototype` key: only the objectNeedsSanitize key check can
+    // force the rebuild pass that removes `constructor`.
+    const payload = JSON.parse('{"title": "Safe", "meta": {"constructor": "shadow"}}');
+    const sanitized = sanitizeObject(payload) as {
+      title: string;
+      meta: Record<string, unknown>;
+    };
+
+    expect(sanitized.title).toBe("Safe");
+    expect(Object.hasOwn(sanitized.meta, "constructor")).toBe(false);
+  });
+
   it("deepCopy rejects prototype pollution keys", () => {
     const maliciousPayload = JSON.parse(
       '{"key": "val", "__proto__": {"polluted": "yes"}, "prototype": {"hack": "true"}}',

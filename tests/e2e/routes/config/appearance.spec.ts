@@ -118,7 +118,7 @@ test.describe.serial("Design System — My Overrides", () => {
     const clearBtn = page.getByTestId("appearance-clear-overrides");
     await expect(clearBtn).toBeVisible({ timeout: 10_000 });
     await clearBtn.scrollIntoViewIfNeeded();
-    // force: sticky shells / toasts can intercept normal click in CI
+    // force-allow: sticky shells / toasts can intercept normal click in CI
     await clearBtn.click({ force: true });
     await expect(
       page.getByText(/overrides cleared|theme defaults|using active theme/i),

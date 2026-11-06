@@ -913,7 +913,9 @@ export class CacheService {
           cachedEntry = typeof l2Val === "string" ? JSON.parse(l2Val) : l2Val;
           this.l1.set(fullKey, cachedEntry, { ttl: staleTtl * 2 });
         }
-      } catch {}
+      } catch (error) {
+        logger.debug("[cache-service] suppressed error", error);
+      }
     }
 
     const isSwrEntry = (e: unknown): e is { value: unknown; storedAt: number } =>
@@ -940,7 +942,9 @@ export class CacheService {
               this.l1.set(fullKey, entry, { ttl: staleTtl * 2 });
               this.writeSwrEntryToL2(fullKey, entry, tags, tenantId, l2TtlSeconds);
             }
-          } catch {}
+          } catch (error) {
+            logger.debug("[cache-service] suppressed error", error);
+          }
         });
         return cachedEntry.value as T;
       }
@@ -1364,14 +1368,18 @@ export class CacheService {
       try {
         await this.subscriber.unsubscribe();
         await this.subscriber.destroy();
-      } catch {}
+      } catch (error) {
+        logger.debug("[cache-service] suppressed error", error);
+      }
       this.subscriber = null;
     }
 
     if (this.l2) {
       try {
         await this.l2.destroy();
-      } catch {}
+      } catch (error) {
+        logger.debug("[cache-service] suppressed error", error);
+      }
       this.l2 = null;
     }
   }

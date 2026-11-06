@@ -146,7 +146,7 @@ const BLOCKED_IP_RANGES = [
   /^172\.(1[6-9]|2\d|3[01])\./, // Private Class B
   /^192\.168\./, // Private Class C
   /^169\.254\./, // Link-local
-  /^100\.(6[4-9]|[7-9]\d|1[0-2][0-7])\./, // CGNAT / shared address space (100.64.0.0/10)
+  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT / shared address space (100.64.0.0/10)
   /^0\.0\.0\.0/, // Unspecified
   /^::1$/, // IPv6 loopback
   /^fe80:/i, // IPv6 link-local
@@ -166,7 +166,7 @@ const ALWAYS_BLOCKED_HOSTS = new Set(["metadata.google.internal", "169.254.169.2
 const ALWAYS_BLOCKED_IP_RANGES = [
   /^169\.254\./, // Link-local (includes the 169.254.169.254 metadata endpoint)
   /^fe80:/i, // IPv6 link-local
-  /^100\.(6[4-9]|[7-9]\d|1[0-2][0-7])\./, // CGNAT / shared address space
+  /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT / shared address space
   /^0\.0\.0\.0/, // Unspecified
 ];
 

@@ -28,6 +28,7 @@ import { assertTenantContext, safeQuery } from "@src/utils/security/safe-query";
 import { logger } from "@utils/logger";
 import type { Model, QueryFilter as MongoQueryFilter } from "mongoose";
 import { contentStructureSchema, draftSchema, revisionSchema } from "./schema";
+import { nowISODateString } from "@utils/date";
 
 /** Autosave history kept per (contentId, authorId); older versions are pruned. */
 export const DRAFT_RETENTION_LIMIT = 20;
@@ -491,11 +492,11 @@ export class MongoContentModule
               $set: {
                 ...node,
                 parentId: normalizedParentId,
-                updatedAt: new Date().toISOString() as any,
+                updatedAt: nowISODateString() as any,
               },
               $setOnInsert: {
                 _id: generateId(),
-                createdAt: new Date().toISOString() as any,
+                createdAt: nowISODateString() as any,
                 ...(node.tenantId != null ? { tenantId: node.tenantId } : {}),
               },
             },
@@ -590,7 +591,7 @@ export class MongoContentModule
           }) as MongoQueryFilter<ContentNode>;
 
           const setOnInsert: Record<string, unknown> = {
-            createdAt: new Date().toISOString() as any,
+            createdAt: nowISODateString() as any,
           };
           if (targetId) {
             setOnInsert._id = targetId;
@@ -609,7 +610,7 @@ export class MongoContentModule
               update: {
                 $set: {
                   ...normalizedChanges,
-                  updatedAt: new Date().toISOString() as any,
+                  updatedAt: nowISODateString() as any,
                 },
                 $setOnInsert: setOnInsert,
               },

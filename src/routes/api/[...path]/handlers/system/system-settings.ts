@@ -8,6 +8,7 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse } from "../base";
+import { requireAdminUser } from "./system-shared";
 import { settingsGroups } from "@src/routes/(app)/config/system-settings/settings-groups";
 import { handleWebhookRoutes } from "./system-webhooks";
 
@@ -20,14 +21,11 @@ export async function handleSettingsRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request, locals } = event;
-  const { user } = locals;
+  const { request } = event;
 
-  // 🛡️ SECURITY: Admin verification for settings mutations
+  // 🛡️ SECURITY: Admin verification for settings mutations (401 before 403).
   if (!["GET", "OPTIONS"].includes(request.method)) {
-    if (!user || (!user.isAdmin && user.role !== "admin")) {
-      throw new AppError("Admin access required for settings management", 403, "FORBIDDEN");
-    }
+    requireAdminUser(event, "Admin access required for settings management");
   }
 
   const action = segments[1];

@@ -70,6 +70,14 @@ void initRateLimiter();
 const DEFAULT_WINDOW_MS = 60_000;
 const MAX_TRACKED_BUCKETS = 10000;
 
+/**
+ * Harness-only L1 flood ceiling. Production keeps the 200 req/s default; the
+ * benchmark matrix raises it so a local load generator is not mistaken for a
+ * DDoS. The adaptive/Redis limiter still runs and still enforces its own cap.
+ */
+const L1_CAPACITY = Number(process.env.RATE_LIMIT_L1_CAPACITY) || undefined;
+const L1_REFILL_PER_SEC = Number(process.env.RATE_LIMIT_L1_REFILL_PER_SEC) || undefined;
+
 type RateLimitLane = "commerce" | "default";
 
 const COMMERCE_PREFIX = "/api/commerce";
@@ -406,7 +414,10 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // ⚡ L1 PRE-FILTER: Synchronous zero-allocation token bucket to drop volumetric DDoS floods
   // (>200 req/s) before executing costly adaptive calculations or async Redis checks.
-  const l1Check = checkL1PreFilter(clientIp, now);
+  const l1Check = checkL1PreFilter(clientIp, now, {
+    capacity: L1_CAPACITY,
+    refillPerSec: L1_REFILL_PER_SEC,
+  });
   if (!l1Check.allowed) {
     logger.warn(`[RateLimit] ${clientIp} exceeded L1 pre-filter flood threshold`, {
       pathname,
@@ -744,7 +755,9 @@ export class RateLimiter {
             sameSite: "lax",
             secure: event.url.protocol === "https:",
           });
-        } catch {}
+        } catch (error) {
+          logger.debug("[handle-rate-limit] suppressed error", error);
+        }
       }
       const key = hashClientKeySync(`cookie:${this._cookieRule.name}:${cookieVal}`);
       const res = checkMemoryTokenBucket(

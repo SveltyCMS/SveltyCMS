@@ -17,8 +17,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { successResponse } from "../base";
+import { requireAdminUser } from "./system-shared";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
-import { isAdmin } from "@src/databases/auth/constants";
 import {
   array,
   maxLength,
@@ -358,10 +358,7 @@ export async function handleAiRoutes(
   }
 
   if (action === "translate-collection" && request.method === "POST") {
-    const { user } = locals;
-    if (!user || (!user.isAdmin && user.role !== "admin")) {
-      throw new AppError("Admin access required for bulk translation", 403, "FORBIDDEN");
-    }
+    requireAdminUser(event, "Admin access required for bulk translation");
     const { collectionName, targetLanguages, sourceLanguage } = body;
     if (!collectionName || !targetLanguages?.length) {
       throw new AppError("collectionName and targetLanguages[] are required", 400);
@@ -403,21 +400,15 @@ export async function handleAiBuilderRoutes(
   tenantId: DatabaseId,
   segments: string[],
 ) {
-  const { request, locals } = event;
+  const { request } = event;
 
   if (isMultiTenantEnabled() && !tenantId) {
     throw new AppError("Tenant ID required", 400, "TENANT_REQUIRED");
   }
 
-  // 🛡️ SECURITY: AI builder is an admin-only design surface.
+  // 🛡️ SECURITY: AI builder is an admin-only design surface (401 before 403).
   // Defense-in-depth: handler-level check independent of the middleware pipeline.
-  const { user } = locals;
-  if (!user) {
-    throw new AppError("Authentication required", 401, "UNAUTHORIZED");
-  }
-  if (!isAdmin(user)) {
-    throw new AppError("Admin access required for AI builder", 403, "FORBIDDEN");
-  }
+  const user = requireAdminUser(event, "Admin access required for AI builder");
 
   if (request.method !== "POST") {
     throw new AppError(

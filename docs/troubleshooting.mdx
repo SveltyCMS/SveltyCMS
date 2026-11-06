@@ -6,7 +6,7 @@ order: 2
 icon: "mdi:wrench"
 author: "SveltyCMS Team"
 created: "2025-10-05"
-updated: "2026-10-29"
+updated: "2026-11-06"
 tags:
   - "troubleshooting"
   - "debugging"
@@ -199,6 +199,29 @@ bun run dev    # Bun's runtime works fine after npm install
 ### Collection Builder field not saving
 
 **Fix**: Ensure `db_fieldName` values are unique within a collection — duplicate names are rejected. Check the browser console for validation errors.
+
+---
+
+## 🔁 Dev Server & HMR
+
+### "Vite module runner has been closed" repeats while the scanner recompiles
+
+**Symptoms**: the dev terminal repeats some of these in a burst:
+
+```text
+[Loader] Failed to load pages.js {"error":"Vite module runner has been closed."}
+[Scanner] Broken compiled schema, triggering recompilation {"path":"...\\.compiledCollections\\pages.js"}
+[Scanner] Walk failed ... ENOENT ... pages.js
+Failed to warm cache ... Vite module runner has been closed.
+```
+
+**Cause**: Vite closes the SSR module runner during HMR/restart. A schema scan that lands in that window used to treat the failure as a broken compiled file, delete it and touch the source (`utimes`) to force a recompile. The recompile finished while the next runner was still closing, so the cycle repeated.
+
+**Fix**: current code classifies `module runner has been closed` (and `The server is being restarted`) as **transient**: the compiled file is kept, the source is not touched, and the scanner retries on the next pass; cache warming skips the same window. Restart any dev server that was already running when you pulled the fix (`Ctrl+C` → `bun run dev`) — Vite keeps the old SSR module graph until it does. If a restart does not clear a stale dependency error, remove the Vite cache: `rm -rf node_modules/.vite && bun run dev`.
+
+### Compiled schema is recompiled but the collection still disappears
+
+**Fix**: check whether the scan reports `Broken compiled schema` (real file problem) or only `Deferring … dev module runner restarting` (transient). Only the first should trigger a source edit. If a collection is missing after a crash, let one request finish after the runner is back — the scanner rescans on demand — or run the **Sync** action in `/config/sync`.
 
 ---
 

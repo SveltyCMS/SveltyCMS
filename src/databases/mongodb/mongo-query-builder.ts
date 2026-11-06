@@ -27,6 +27,7 @@ import type {
   QueryOptimizationHints,
 } from "../db-interface";
 import { normalizeSortDirection } from "../core/page-utils";
+import { nowISODateString } from "@utils/date";
 
 /**
  * Direction of the LAST key of a Mongo sort object. Object key order is
@@ -661,7 +662,7 @@ export class MongoQueryBuilder<T extends BaseEntity> implements QueryBuilder<T> 
         ...updateData
       } = {
         ...data,
-        updatedAt: new Date().toISOString(),
+        updatedAt: nowISODateString(),
       } as any;
       const result = await this.model.updateMany(
         query,

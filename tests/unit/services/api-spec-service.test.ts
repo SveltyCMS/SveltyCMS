@@ -5,6 +5,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ApiSpecService } from "@src/services/system/api-spec-service";
+import { ENDPOINT_PERMISSIONS } from "@src/routes/api/[...path]/endpoint-permissions";
 
 // Mock CacheService
 const mockCache = {
@@ -51,6 +52,43 @@ describe("ApiSpecService (Whitebox)", () => {
       "tenant-2",
       "api",
     );
+  });
+
+  it("documents webhooks, workflows and automation flows", async () => {
+    mockCache.get.mockResolvedValue(null);
+
+    const spec = await service.generateSpec([], "tenant-paths");
+
+    for (const path of [
+      "/webhooks",
+      "/webhooks/{id}",
+      "/webhooks/{id}/test",
+      "/webhooks/logs",
+      "/workflows",
+      "/automations",
+      "/automations/{id}",
+      "/automations/{id}/test",
+    ]) {
+      expect(spec.paths[path], `missing ${path}`).toBeDefined();
+    }
+  });
+
+  it("publishes the complete namespace inventory", async () => {
+    mockCache.get.mockResolvedValue(null);
+
+    const spec = await service.generateSpec([], "tenant-inventory");
+    const meta = spec["x-sveltycms"] as {
+      endpointPermissions: Record<string, string>;
+      documentedNamespaces: string[];
+      undocumentedNamespaces: string[];
+    };
+
+    const all = Object.keys(ENDPOINT_PERMISSIONS).sort();
+    expect(Object.keys(meta.endpointPermissions).sort()).toEqual(all);
+    expect([...meta.documentedNamespaces, ...meta.undocumentedNamespaces].sort()).toEqual(all);
+    expect(meta.undocumentedNamespaces.length).toBeGreaterThan(0);
+    expect(meta.documentedNamespaces).toContain("webhooks");
+    expect(meta.documentedNamespaces).toContain("automations");
   });
 
   it("should invalidate both L1 and L2 caches", async () => {

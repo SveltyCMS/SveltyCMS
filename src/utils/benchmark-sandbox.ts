@@ -157,6 +157,14 @@ export function resolveCompiledCollectionsPath(tenantId?: string | null): string
   if (isLocalBenchmarkSandbox()) {
     return getLocalSandboxCompiledRoot(tenantId);
   }
+  // Every automated harness (unit/integration/E2E/benchmark) compiles under the
+  // test-owned root, never the live `.compiledCollections` tree. The manifest is
+  // written beside the output, so this also keeps the live manifest untouched.
+  if (isAutomatedTestHarness()) {
+    const base = path.join(process.cwd(), ".compiledCollections", "test-collections");
+    if (tenantId === undefined || tenantId === null || tenantId === "global") return base;
+    return path.join(base, path.basename(tenantId));
+  }
   return liveCompiledCollectionsPath(tenantId);
 }
 

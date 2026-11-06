@@ -27,6 +27,7 @@ test.describe("System Language Change", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     // DE: open the dropdown, click the German option, assert the html lang attr.
+    // force-allow: portaled dropdown panel overlaps its trigger (animation awaited below)
     await trigger.click({ force: true });
     const deOption = page.getByRole("button", { name: /german|deutsch/i }).first();
     await expect(deOption).toBeVisible({ timeout: 5_000 });
@@ -50,6 +51,7 @@ test.describe("System Language Change", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "de", { timeout: 5_000 });
 
     // EN: switch back and assert the html lang attr flips again.
+    // force-allow: same portaled dropdown panel as the DE case
     await trigger.click({ force: true });
     const enOption = page.getByRole("button", { name: /english|englisch/i }).first();
     await expect(enOption).toBeVisible({ timeout: 5_000 });

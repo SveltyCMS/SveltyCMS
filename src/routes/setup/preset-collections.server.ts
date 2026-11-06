@@ -18,6 +18,7 @@ import { DEFAULT_REVISION_LIMIT } from "@src/content/revision-defaults";
 import type { CollectionPreset, FieldTemplate } from "./presets";
 import { PRESETS } from "./presets";
 import { logger } from "@utils/logger";
+import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { isBenchmarkArtifact, normalizeCollectionId } from "@utils/benchmark-runtime";
 
 /**
@@ -42,14 +43,39 @@ export function isMockScanCollection(id: string, displayName?: string): boolean 
 }
 
 /**
+ * Fail-closed guard for the setup/preset writer. Test-aware resolution alone is
+ * not enough: a future caller (or a `COLLECTIONS_DIR` override) can point back
+ * at the live tree, so a harness must refuse before any purge or write.
+ */
+export function assertHarnessCollectionsWritable(targetDir: string): void {
+  if (!isAutomatedTestHarness()) return;
+  const live = path.normalize(path.resolve(process.cwd(), "config", "collections"));
+  const target = path.normalize(path.resolve(targetDir));
+  if (target === live || target.startsWith(`${live}${path.sep}`)) {
+    throw new Error(
+      `[LiveDataGuard] Automated harness refused to write live collections at '${path.relative(process.cwd(), target)}'. ` +
+        "Use config/test-collections/ (paths.getCollections()) only.",
+    );
+  }
+}
+
+/**
  * Removes benchmark debris from config/collections and .compiledCollections.
  * @returns Number of files removed.
  */
 export async function purgeBenchmarkCollectionArtifacts(options?: {
   wipeAllSource?: boolean;
+  /** Directory the caller is about to write; defaults to the active (test-aware) dir. */
+  collectionsDir?: string;
 }): Promise<number> {
-  const { USER_COLLECTIONS_DIR, USER_COMPILED_DIR, cleanupAllBenchmarkWorkspaces } =
+  const { USER_COMPILED_DIR, cleanupAllBenchmarkWorkspaces } =
     await import("@utils/benchmark-paths");
+  const { paths } = await import("@utils/path-resolver");
+
+  // `paths.collections` is the LIVE directory regardless of TEST_MODE. A setup
+  // completion (including the E2E wizard) must purge the directory it is about
+  // to write to, or it deletes the developer's real collection files.
+  const sourceDir = options?.collectionsDir ?? paths.getCollections();
 
   let removed = await cleanupAllBenchmarkWorkspaces();
 
@@ -82,7 +108,7 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
     }
   }
 
-  await purgeRootArtifacts(USER_COLLECTIONS_DIR, !!options?.wipeAllSource);
+  await purgeRootArtifacts(sourceDir, !!options?.wipeAllSource);
   await purgeRootArtifacts(USER_COMPILED_DIR, false);
 
   const { purgeBenchmarkDatabaseArtifacts } = await import("@utils/benchmark-db-purge");
@@ -331,8 +357,11 @@ export async function writePresetCollectionFiles(
 
   await fs.mkdir(dir, { recursive: true });
 
+  // A harness must never touch the live tree, even if the resolved dir drifts.
+  assertHarnessCollectionsWritable(dir);
+
   if (options.replaceAll) {
-    await purgeBenchmarkCollectionArtifacts({ wipeAllSource: true });
+    await purgeBenchmarkCollectionArtifacts({ wipeAllSource: true, collectionsDir: dir });
   }
 
   for (const [index, collection] of collections.entries()) {

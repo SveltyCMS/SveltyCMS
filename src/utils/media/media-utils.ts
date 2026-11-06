@@ -269,35 +269,48 @@ export function resolveMediaPublicPath(item: {
   return rel ? `/files/${rel}` : (item.url ?? "");
 }
 
-/** Construct public media URL */
+/** Construct the original public media URL (downloads, playback, version archives). */
 export function mediaUrl(item: MediaItem, size?: string): string {
   if (!item?.url) return "";
 
-  if (publicEnv.MEDIASERVER_URL) {
-    const cleanUrl = item.url.replace(/^\/files\//, "");
-    return `${publicEnv.MEDIASERVER_URL.replace(/\/+$/, "")}/files/${cleanUrl}`;
-  }
-
   // Use `isStoredMedia` type guard instead of duck-type / `as any` cast
   if (size && isStoredMedia(item) && item.thumbnails?.[size]?.url) {
-    return item.thumbnails[size]!.url;
+    return withMediaServer(item.thumbnails[size]!.url);
   }
 
-  if (item.url.startsWith("/files/")) return item.url;
-  if (item.url.startsWith("http://") || item.url.startsWith("https://")) return item.url;
-
-  return `/files/${item.url}`;
+  const raw =
+    item.url.startsWith("/files/") ||
+    item.url.startsWith("http://") ||
+    item.url.startsWith("https://")
+      ? item.url
+      : `/files/${item.url}`;
+  return withMediaServer(raw);
 }
 
 export type MediaDisplayItem = {
+  type?: string | null;
   url?: string | null;
   thumbnail?: { url?: string } | null;
   thumbnails?: Record<string, { url?: string } | undefined>;
 };
 
-const DISPLAY_SIZE_FALLBACK = ["thumbnail", "sm", "md"] as const;
+export type MediaPreviewOptions = {
+  /**
+   * Append the server-normalized `thumbnail` field and the original asset.
+   * Callers set this for images only — a document URL is the file itself, and an
+   * `<img>` pointed at it renders a broken image instead of the file icon.
+   */
+  includeOriginal?: boolean;
+};
 
-/** Prefix a relative `/files/...` URL with the configured media server, when set. */
+/** Preview rendition ladder, smallest → largest. */
+const PREVIEW_SIZE_LADDER = ["thumbnail", "sm", "md", "lg"] as const;
+
+/**
+ * Prefix a relative `/files/...` URL with the configured media server, when set.
+ * Absolute URLs are returned untouched so a CDN/S3 asset is never re-pointed at
+ * the CMS media origin.
+ */
 function withMediaServer(raw: string): string {
   if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
   if (publicEnv.MEDIASERVER_URL) {
@@ -308,19 +321,43 @@ function withMediaServer(raw: string): string {
 }
 
 /**
+ * Ordered, de-duplicated rendition ladder for a gallery tile.
+ *
+ * `preferredSize` is tried first, then the standard `thumbnail → sm → md → lg`
+ * sequence. `includeOriginal` appends the server-normalized thumbnail and the
+ * original asset; callers enable it for images only.
+ */
+export function mediaPreviewCandidates(
+  item: MediaDisplayItem,
+  preferredSize?: string,
+  { includeOriginal = false }: MediaPreviewOptions = {},
+): string[] {
+  const thumbs = item.thumbnails;
+  const raw: Array<string | null | undefined> = [
+    preferredSize ? thumbs?.[preferredSize]?.url : undefined,
+    ...PREVIEW_SIZE_LADDER.map((key) => thumbs?.[key]?.url),
+    includeOriginal ? item.thumbnail?.url : undefined,
+    includeOriginal ? item.url : undefined,
+  ];
+
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+  for (const url of raw) {
+    if (typeof url !== "string" || url.length === 0) continue;
+    const resolved = withMediaServer(url);
+    if (seen.has(resolved)) continue;
+    seen.add(resolved);
+    candidates.push(resolved);
+  }
+  return candidates;
+}
+
+/**
  * Gallery/list preview URL. Prefers a stored thumbnail over the original so
  * a 60-tile grid does not decode 60 full-resolution files.
  */
 export function mediaDisplayUrl(item: MediaDisplayItem, preferredSize?: string): string {
-  const thumbs = item.thumbnails;
-  const candidates: Array<string | undefined> = [
-    preferredSize ? thumbs?.[preferredSize]?.url : undefined,
-    ...DISPLAY_SIZE_FALLBACK.map((key) => thumbs?.[key]?.url),
-    item.thumbnail?.url ?? undefined,
-    item.url ?? undefined,
-  ];
-  const raw = candidates.find((url): url is string => typeof url === "string" && url.length > 0);
-  return raw ? withMediaServer(raw) : "";
+  return mediaPreviewCandidates(item, preferredSize, { includeOriginal: true })[0] ?? "";
 }
 
 /**
@@ -331,13 +368,7 @@ export function mediaDisplayUrl(item: MediaDisplayItem, preferredSize?: string):
  * image instead of the file icon.
  */
 export function mediaThumbnailUrl(item: MediaDisplayItem, preferredSize?: string): string {
-  const thumbs = item.thumbnails;
-  const candidates: Array<string | undefined> = [
-    preferredSize ? thumbs?.[preferredSize]?.url : undefined,
-    ...DISPLAY_SIZE_FALLBACK.map((key) => thumbs?.[key]?.url),
-  ];
-  const raw = candidates.find((url): url is string => typeof url === "string" && url.length > 0);
-  return raw ? withMediaServer(raw) : "";
+  return mediaPreviewCandidates(item, preferredSize)[0] ?? "";
 }
 
 // ─── Validation ────────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@
  *   bun run scripts/test/mutate-core.ts --max=2           # first two mutations
  *   bun run scripts/test/mutate-core.ts                   # full write-path set
  *   bun run scripts/test/mutate-core.ts --security-only   # auth/security/egress/write-pipeline
+ *   bun run scripts/test/mutate-core.ts --only=id1,id2    # explicit seam selection
  *   bun run scripts/test/mutate-core.ts --report=out.json # custom report path
  *   bun run scripts/test/mutate-core.ts --no-report       # skip the JSON report
  *
@@ -37,7 +38,8 @@
  * - explicit file + mutation list (no glob discovery, no dependencies)
  * - dirty-tree guard per target, before any write
  * - try/finally restore plus a final restore pass (and SIGINT/SIGTERM handlers)
- * - `--dry-run`, `--max=<n>`, `--security-only`, summary table, non-zero exit on survival
+ * - `--dry-run`, `--max=<n>`, `--security-only`, `--only=<ids>`, summary table,
+ *   non-zero exit on survival
  * - machine-readable report (`.mutation/report.json`) consumed by
  *   `scripts/security/check-test-strength.ts`; `--no-report` keeps the old behaviour
  */
@@ -107,7 +109,7 @@ export interface MutationReportEntry {
 export interface MutationReport {
   version: 1;
   generated_at: string;
-  mode: "write-path" | "security";
+  mode: "write-path" | "security" | "all";
   totals: { total: number; killed: number; survived: number; invalid: number; aborted: number };
   mutations: MutationReportEntry[];
 }
@@ -233,9 +235,9 @@ const MUTATIONS: readonly Mutation[] = [
 ];
 
 /**
- * Security-area seams. Selected with `--security-only`; the write-path set above
- * stays the default so existing callers are unchanged. Every entry maps to a
- * unit suite that must fail while the mutation is applied — the score gate in
+ * Security-area seams. Also part of the default run; `--security-only` selects
+ * just this set for the nightly security workflow. Every entry maps to a unit
+ * suite that must fail while the mutation is applied — the score gate in
  * `scripts/security/check-test-strength.ts` reads the resulting report.
  *
  * Areas: `src/databases/auth/`, `src/utils/security/`, `src/utils/egress-guard.ts`,
@@ -333,16 +335,16 @@ export const SECURITY_TARGETS: readonly Mutation[] = [
   {
     id: "security-input-sanitizer-script-strip",
     file: "src/utils/security/input-sanitizer.ts",
-    description: "sanitizeString: keep script tags instead of stripping them",
-    find: '  cleaned = cleaned.replace(SCRIPT_TAG_RE, "");',
-    replace: '  cleaned = cleaned.replace(SCRIPT_TAG_RE, "$&");',
+    description: "sanitizeString: return the input unchanged (script tags survive)",
+    find: "  return sanitizeHtml(input);",
+    replace: "  return input;",
     tests: ["tests/unit/security/input-sanitization.test.ts"],
   },
   {
     id: "egress-protocol-relative",
     file: "src/utils/egress-guard.ts",
     description: "validateEgressUrl: only `//` is rejected, the `/\\` form is not",
-    find: '  if (typeof url === "string" && (url.trim().startsWith("//") || url.trim().startsWith("/\\"))) {',
+    find: '  if (typeof url === "string" && (url.trim().startsWith("//") || url.trim().startsWith("/\\\\"))) {',
     replace: '  if (typeof url === "string" && url.trim().startsWith("//")) {',
     tests: ["tests/unit/security/egress-guard.test.ts"],
   },
@@ -369,6 +371,134 @@ export const SECURITY_TARGETS: readonly Mutation[] = [
     find: '    entryData.createdBy = system ? "system" : user?._id;',
     replace: "    entryData.createdBy = user?._id;",
     tests: ["tests/unit/sdk/write-pipeline-perf.test.ts"],
+  },
+  {
+    id: "auth-permission-catalog-accept",
+    file: "src/databases/auth/permissions.ts",
+    description: "isAcceptablePermissionId: catalog-only ids are rejected again (registry alone)",
+    find: "  return permissionRegistry.has(permissionId) || isCatalogPermissionId(permissionId);",
+    replace: "  return permissionRegistry.has(permissionId);",
+    tests: ["tests/unit/security/permission-registry-consistency.test.ts"],
+  },
+  {
+    id: "auth-permission-bitmask-decision",
+    file: "src/databases/auth/permissions.ts",
+    description: "evaluatePermissionWithRoles: invert the 64-bit grant test (unheld bits grant)",
+    find: "    return (userMask & reqBit) !== 0n;",
+    replace: "    return (userMask & reqBit) === 0n;",
+    tests: ["tests/unit/auth/roles/role-permission-access.test.ts"],
+  },
+  {
+    id: "auth-totp-replay-detect",
+    file: "src/databases/auth/totp-replay-registry.ts",
+    description: "tryInsert: an already-consumed code is accepted again (replay allowed)",
+    find: "      return false; // replay detected",
+    replace: "      return true; // replay detected",
+    tests: ["tests/unit/auth/totp/totp-replay-registry.test.ts"],
+  },
+  {
+    id: "auth-totp-replay-fail-closed",
+    file: "src/databases/auth/totp-replay-registry.ts",
+    description: "consumeCode: a registry error fails open instead of rejecting the code",
+    find: [
+      '      logger.error("TOTP replay registry error — rejecting code (fail-closed)", err);',
+      "      return false;",
+    ].join("\n"),
+    replace: [
+      '      logger.error("TOTP replay registry error — rejecting code (fail-closed)", err);',
+      "      return true;",
+    ].join("\n"),
+    tests: ["tests/unit/auth/totp/totp-replay-registry.test.ts"],
+  },
+  {
+    id: "auth-api-permission-fail-open",
+    file: "src/databases/auth/api-permissions.ts",
+    description: "hasApiPermission: an endpoint absent from the map/trie is allowed",
+    find: [
+      "  if (!allowedRoles) {",
+      "    // If endpoint is not defined, deny access by default (secure by default)",
+      "    return false;",
+      "  }",
+    ].join("\n"),
+    replace: [
+      "  if (!allowedRoles) {",
+      "    // If endpoint is not defined, deny access by default (secure by default)",
+      "    return true;",
+      "  }",
+    ].join("\n"),
+    tests: ["tests/unit/auth/api-permissions.test.ts"],
+  },
+  {
+    id: "security-session-cookie-host-precedence",
+    file: "src/utils/security/session-cookie.ts",
+    description: "readSessionCookie: secure connections read the plain cookie before __Host-",
+    find: [
+      "  if (isSecure === true) {",
+      "    result =",
+      "      cookies.get(HOST_SESSION_COOKIE_NAME) ||",
+      "      cookies.get(SESSION_COOKIE_NAME) ||",
+      "      cookies.get(SECURE_SESSION_COOKIE_NAME);",
+    ].join("\n"),
+    replace: [
+      "  if (isSecure === true) {",
+      "    result =",
+      "      cookies.get(SESSION_COOKIE_NAME) ||",
+      "      cookies.get(SESSION_COOKIE_NAME) ||",
+      "      cookies.get(SECURE_SESSION_COOKIE_NAME);",
+    ].join("\n"),
+    tests: ["tests/unit/security/session-cookie.test.ts"],
+  },
+  {
+    id: "security-user-attr-admin-inversion",
+    file: "src/utils/security/user-attribute-policy.ts",
+    description: "sanitizeClientUserAttributePatch: non-admin patches keep privileged fields",
+    find: ["  if (!options.isAdmin) {", "    stripPrivilegedUserFields(updates);", "  }"].join(
+      "\n",
+    ),
+    replace: ["  if (options.isAdmin) {", "    stripPrivilegedUserFields(updates);", "  }"].join(
+      "\n",
+    ),
+    tests: ["tests/unit/security/user-attribute-policy.test.ts"],
+  },
+  {
+    id: "security-user-attr-permissions-field",
+    file: "src/utils/security/user-attribute-policy.ts",
+    description: "PRIVILEGE_ESCALATION_FIELDS: `permissions` is no longer stripped at the adapter",
+    find: ['  "roleIds",', '  "permissions",', "] as const;"].join("\n"),
+    replace: ['  "roleIds",', "] as const;"].join("\n"),
+    tests: ["tests/unit/security/user-attribute-policy.test.ts"],
+  },
+  {
+    id: "security-redirect-backslash",
+    file: "src/utils/security/safe-redirect.ts",
+    description: "safeRedirect: `/\\evil.com` is accepted as an internal path",
+    find: '    !trimmed.startsWith("/\\\\") &&',
+    replace: "    true &&",
+    tests: ["tests/unit/security/safe-redirect.test.ts"],
+  },
+  {
+    id: "security-mongo-where-operator",
+    file: "src/utils/security/mongo-sanitize.ts",
+    description: "BLOCKED_OPERATORS: `$where` script execution is no longer rejected",
+    find: ['  "$where",', '  "$function",'].join("\n"),
+    replace: '  "$function",',
+    tests: ["tests/unit/utils/security-hot-path-optimizations.test.ts"],
+  },
+  {
+    id: "security-mongo-regex-cap",
+    file: "src/utils/security/mongo-sanitize.ts",
+    description: "sanitizeMongoQuery: the $regex length cap (ReDoS guard) never trips",
+    find: '      if (typeof val === "string" && val.length > MAX_REGEX_LENGTH) {',
+    replace: '      if (typeof val === "string" && val.length > Number.MAX_SAFE_INTEGER) {',
+    tests: ["tests/unit/utils/security-hot-path-optimizations.test.ts"],
+  },
+  {
+    id: "security-input-sanitizer-zero-copy-constructor",
+    file: "src/utils/security/input-sanitizer.ts",
+    description: "objectNeedsSanitize: a `constructor` own key no longer forces the rebuild pass",
+    find: '    if (key === "__proto__" || key === "constructor" || key === "prototype") return true;',
+    replace: '    if (key === "__proto__" || key === "prototype") return true;',
+    tests: ["tests/unit/security/prototype-pollution.test.ts"],
   },
 ];
 
@@ -577,6 +707,8 @@ export interface CliOptions {
   max: number | null;
   help: boolean;
   securityOnly: boolean;
+  /** Explicit mutation-id allow-list; null selects the whole pool. */
+  only: readonly string[] | null;
   /** Project-relative (or absolute) report path; null disables the report. */
   report: string | null;
 }
@@ -586,6 +718,7 @@ export function parseArgs(argv: readonly string[]): CliOptions {
   let max: number | null = null;
   let help = false;
   let securityOnly = false;
+  let only: string[] | null = null;
   let report: string | null = DEFAULT_REPORT_PATH;
 
   for (const arg of argv) {
@@ -611,6 +744,16 @@ export function parseArgs(argv: readonly string[]): CliOptions {
       report = raw;
       continue;
     }
+    if (arg.startsWith("--only=")) {
+      const ids = arg
+        .slice("--only=".length)
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+      if (ids.length === 0) throw new Error("--only=<ids> needs at least one mutation id");
+      only = ids;
+      continue;
+    }
     if (arg.startsWith("--max=")) {
       const raw = arg.slice("--max=".length);
       const parsed = Number(raw);
@@ -623,19 +766,24 @@ export function parseArgs(argv: readonly string[]): CliOptions {
     throw new Error(`unknown argument "${arg}"`);
   }
 
-  return { dryRun, max, help, securityOnly, report };
+  return { dryRun, max, help, securityOnly, only, report };
 }
 
 function printUsage(): void {
   console.log(`
 Usage: bun run scripts/test/mutate-core.ts [--dry-run] [--max=<n>] [--security-only]
+                                            [--only=<id[,id]>]
                                             [--report=<path>|--no-report]
 
   --dry-run        list the mutation set and exit (nothing is written)
   --max=<n>        run at most the first n mutations
   --security-only  mutate only the auth/security/egress/write-pipeline targets
+  --only=<ids>     run only the named mutation ids (comma-separated; pool order)
   --report=<path>  JSON report path (default ${DEFAULT_REPORT_PATH})
   --no-report      do not write a JSON report
+
+The default set is the write-path corpus plus the security corpus, so the
+security:assurance mutation floors get data for every configured area.
 `);
 }
 
@@ -678,7 +826,7 @@ function emitReport(outcomes: readonly Outcome[], options: CliOptions): void {
   try {
     const written = writeReport(
       options.report,
-      buildReport(outcomes, options.securityOnly ? "security" : "write-path"),
+      buildReport(outcomes, options.securityOnly ? "security" : "all"),
     );
     console.log(`\n📄 Mutation report: ${written}`);
   } catch (error) {
@@ -706,8 +854,21 @@ function main(): number {
     return 0;
   }
 
-  const pool = options.securityOnly ? SECURITY_TARGETS : MUTATIONS;
-  const selected = options.max ? pool.slice(0, options.max) : [...pool];
+  const pool: Mutation[] = options.securityOnly
+    ? [...SECURITY_TARGETS]
+    : [...MUTATIONS, ...SECURITY_TARGETS];
+  let filtered = pool;
+  if (options.only) {
+    const byId = new Map(pool.map((mutation) => [mutation.id, mutation]));
+    const unknown = options.only.filter((id) => !byId.has(id));
+    if (unknown.length > 0) {
+      console.error(`\n🛑 unknown mutation id(s): ${unknown.join(", ")}\n`);
+      printUsage();
+      return EXIT_USAGE;
+    }
+    filtered = options.only.map((id) => byId.get(id) as Mutation);
+  }
+  const selected = options.max ? filtered.slice(0, options.max) : filtered;
 
   if (options.dryRun) {
     console.log(`Dry run — ${selected.length} mutation(s), nothing will be written.\n`);
@@ -773,7 +934,7 @@ function main(): number {
   if (survivors.length > 0) {
     console.error(
       `\n🛑 ${survivors.length} mutation(s) were not caught — the ${
-        options.securityOnly ? "security" : "write-path"
+        options.securityOnly ? "security" : "write-path + security"
       } surface is not fully pinned.`,
     );
     return EXIT_SURVIVED;

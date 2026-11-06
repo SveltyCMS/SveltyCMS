@@ -34,6 +34,7 @@ import {
   type FieldEncryptionContext,
 } from "@utils/security/field-encryption";
 import type { SchemaHotFlags } from "./schema-store";
+import { logger } from "@utils/logger";
 
 /** Logical combinators — their array values are branches, never relation arrays. */
 const LOGICAL_FILTER_KEYS = new Set(["$and", "$or", "$not", "AND", "OR", "NOT"]);
@@ -353,7 +354,9 @@ export async function readThroughCache(
         setRequestCache(cacheKey, payload);
         return { hit: true, payload };
       }
-    } catch {}
+    } catch (error) {
+      logger.debug("[read-pipeline] suppressed error", error);
+    }
   }
 
   return { hit: false };

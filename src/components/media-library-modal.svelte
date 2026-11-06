@@ -59,6 +59,7 @@
 	} from '@src/paraglide/messages';
 
 	import { SvelteSet } from 'svelte/reactivity';
+	import { nowISODateString } from '@utils/date';
 
 	interface Props {
 		allowedTypes?: string[];
@@ -216,10 +217,10 @@
 		}
 
 		const createdAt = (
-			typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString()
+			typeof item.createdAt === 'string' ? item.createdAt : nowISODateString()
 		) as ISODateString;
 		const updatedAt = (
-			typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString()
+			typeof item.updatedAt === 'string' ? item.updatedAt : nowISODateString()
 		) as ISODateString;
 
 		return {

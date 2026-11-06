@@ -34,6 +34,7 @@
 
 	// Native UI Components
 	import { modalState } from '@utils/modal.svelte';
+	import { nowISODateString } from '@utils/date';
 
 	// No Props needed
 
@@ -127,7 +128,7 @@
 					type="date"
 					label="Date"
 					bind:value={scheduleDateOnly}
-					min={new Date().toISOString().slice(0, 10)}
+					min={nowISODateString().slice(0, 10)}
 					required
 				/>
 				<Input type="time" label="Time" bind:value={scheduleTimeOnly} required />

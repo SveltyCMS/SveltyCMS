@@ -242,6 +242,24 @@ export function invalidateScanCache(targetDir?: string): void {
 }
 
 /**
+ * Debug log throttle for transient loader deferrals (dev runner restarting).
+ * One line per path per minute beats seven warnings per second, and keeping the
+ * compiled artifact intact stops the delete → touch source → recompile loop.
+ */
+const TRANSIENT_DEFERRAL_LOG_INTERVAL_MS = 60_000;
+const _transientDeferralLoggedAt = new Map<string, number>();
+
+function noteTransientDeferral(fullPath: string): void {
+  const now = Date.now();
+  const last = _transientDeferralLoggedAt.get(fullPath);
+  if (last !== undefined && now - last < TRANSIENT_DEFERRAL_LOG_INTERVAL_MS) return;
+  _transientDeferralLoggedAt.set(fullPath, now);
+  logger.debug("[Scanner] Deferring compiled schema — dev module runner restarting", {
+    path: fullPath,
+  });
+}
+
+/**
  * Scans the .compiledCollections directory for compiled schema files.
  */
 export async function scanCompiledCollections(targetDir?: string): Promise<Schema[]> {
@@ -264,7 +282,9 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
       const benchmarkRuntime = await loadBenchmarkRuntimeModule();
       skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
       isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
-    } catch {} // module unavailable (stripped/embedded build) — scan everything
+    } catch (error) {
+      logger.debug("[engine.server] suppressed error", error);
+    } // module unavailable (stripped/embedded build) — scan everything
 
     async function walk(dir: string) {
       try {
@@ -293,8 +313,16 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
               return;
             }
             if (skipBenchmarks && isBenchmarkArtifact(entry.name)) return;
-            const stats = await stat(fullPath);
-            fileList.push({ fullPath, mtime: stats.mtimeMs });
+            try {
+              const stats = await stat(fullPath);
+              fileList.push({ fullPath, mtime: stats.mtimeMs });
+            } catch (err) {
+              // The compiler rewrites pages.js between readdir and stat. A single
+              // vanished entry must not abort the walk (it did: "Walk failed"
+              // ENOENT storms during HMR), so only rethrow real IO failures.
+              if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return;
+              throw err;
+            }
           }),
         );
       } catch (_err) {
@@ -334,6 +362,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
           if (cached && cached.mtime === file.mtime) {
             _schemaCache.set(file.fullPath, cached.schema);
             _mtimeTree.set(file.fullPath, file.mtime);
+            _transientDeferralLoggedAt.delete(file.fullPath);
             return;
           }
 
@@ -348,6 +377,14 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
           const schema = moduleData?.schema;
 
           if (!schema) {
+            // Transient: the dev module runner was mid-restart. The artifact is
+            // valid — deleting it and touching the source caused a recompile
+            // loop (7 warnings/s) until the runner came back.
+            if (moduleData?.transient) {
+              noteTransientDeferral(file.fullPath);
+              return;
+            }
+
             // Compiled file is broken — delete it and touch source to trigger recompilation
             logger.warn("[Scanner] Broken compiled schema, triggering recompilation", {
               path: file.fullPath,
@@ -401,6 +438,7 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             _schemaCache.set(file.fullPath, schema);
           }
           _mtimeTree.set(file.fullPath, file.mtime);
+          _transientDeferralLoggedAt.delete(file.fullPath);
         }),
       );
 
@@ -563,7 +601,9 @@ async function bootstrapCollectionFilesFromDb(
     const sb = await loadBenchmarkSandboxModule();
     isLocalBenchmarkSandbox = sb.isLocalBenchmarkSandbox;
     assertLiveDataWriteAllowed = sb.assertLiveDataWriteAllowed;
-  } catch {}
+  } catch (error) {
+    logger.debug("[engine.server] suppressed error", error);
+  }
 
   if (isLocalBenchmarkSandbox()) {
     return;
@@ -584,7 +624,9 @@ async function bootstrapCollectionFilesFromDb(
     const benchmarkRuntime = await loadBenchmarkRuntimeModule();
     skipBenchmarks = !benchmarkRuntime.isBenchmarkRuntime();
     isBenchmarkArtifact = benchmarkRuntime.isBenchmarkArtifact;
-  } catch {} // module unavailable (stripped build) — bootstrap everything
+  } catch (error) {
+    logger.debug("[engine.server] suppressed error", error);
+  } // module unavailable (stripped build) — bootstrap everything
 
   for (const schema of dbSchemas) {
     const slug = String((schema as any).slug || schema._id || schema.name || "")
@@ -618,7 +660,9 @@ async function bootstrapCollectionFilesFromDb(
     try {
       await fs.access(filePath);
       continue;
-    } catch {}
+    } catch (error) {
+      logger.debug("[engine.server] suppressed error", error);
+    }
 
     const content = `/**
  * @file ${isTestCollection ? "config/test-collections/" : "config/collections/"}${fileName}
@@ -734,7 +778,9 @@ export const contentService = {
     try {
       const { prewarmCollectionSchemas } = await loadSchemaStoreModule();
       prewarmCollectionSchemas(schemas, dbAdapter, tenantId);
-    } catch {}
+    } catch (error) {
+      logger.debug("[engine.server] suppressed error", error);
+    }
 
     // 4. Invalidate navigation L1/L2 + broadcast
     await notifyContentUpdate(tenantId);

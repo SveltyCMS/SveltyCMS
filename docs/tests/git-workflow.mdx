@@ -81,7 +81,7 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 | SQLite integration tests      | `run-integration.ts --no-build --diff`                                | ~35–180s |
 | DB parity (conditional)       | `test:parity` when adapter/service code changed                       | ~1–5 min |
 | E2E browser gate              | same changed-path contract set + `smoke.spec.ts` on `next` and `main` | ~70–180s |
-| Mutation (last)               | `bun run test:mutation`                                               | ~6s      |
+| Mutation (last)               | `bun run test:mutation` (write-path + security corpora)               | ~35–45s  |
 
 **`next` and `main` run the same gate.** Both compute the browser targets from the same diff base (`origin/next`) and the same path mapping, so the release bump (`package.json` + `sbom.json`) is the only difference between them. The full serial suite is **CI-only**: it is split into 9 shards with isolated databases, because one shared local database takes ~17 min and surfaces spec-isolation artefacts rather than product regressions.
 

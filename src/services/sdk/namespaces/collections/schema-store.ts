@@ -25,6 +25,7 @@ import { widgetRegistryService } from "@src/services/core/widget-registry-servic
 import { AppError } from "@utils/error-handling";
 import { fieldDeclaresGuard } from "@utils/field-guard";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
+import { logger } from "@utils/logger";
 
 export type ContentSystem = typeof serverContentSystem;
 
@@ -490,7 +491,9 @@ export function prewarmCollectionSchemas(
           if (dbAdapter.collection?.getModel) {
             void dbAdapter.collection.getModel(s._id).catch(() => {});
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[schema-store] suppressed error", error);
+        }
       }
     }
   }
@@ -555,7 +558,9 @@ export async function resolveSchema(
         }
       }
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[schema-store] suppressed error", error);
+  }
 
   const idLower = collectionId.toLowerCase();
   const hasNoFields = !schema?.fields || schema.fields.length === 0;

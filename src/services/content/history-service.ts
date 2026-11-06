@@ -11,6 +11,7 @@ import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
 import { pubSub } from "../background/pub-sub";
 import { logger } from "@utils/logger";
 import { collectionTableName } from "@src/databases/core/collection-name";
+import { nowISODateString } from "@utils/date";
 
 export class HistoryService {
   // === Version State Management ===
@@ -35,7 +36,7 @@ export class HistoryService {
       const newVersion = result.data;
       pubSub.publish("contentStructureUpdated", {
         version: newVersion,
-        timestamp: new Date().toISOString(),
+        timestamp: nowISODateString(),
         affectedCollections: ["*"], // System-wide for now
         changeType: "update",
         tenantId: tenantId || null,

@@ -48,6 +48,7 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { quintOut } from 'svelte/easing';
 	import { scale } from 'svelte/transition';
+	import { nowISODateString } from '@utils/date';
 
 	// --- Types ---
 	type ActionType =
@@ -485,7 +486,7 @@
 					if (exportSelection) await exportSelection();
 					break;
 				case 'schedule': {
-					const now = new Date().toISOString();
+					const now = nowISODateString();
 					schedule(now, 'publish');
 					break;
 				}

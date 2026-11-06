@@ -5,15 +5,22 @@
 
 import crypto from "node:crypto";
 import { generateUUID } from "@utils/native-utils";
+import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
-import type { Webhook, WebhookEvent } from "@src/services/background/webhook-service";
+import type { Webhook } from "@src/services/background/webhook-service";
 
 import { safeFetch } from "../../../utils/egress-guard";
 
 export interface WebhookJobPayload {
   webhook: Webhook;
-  event: WebhookEvent;
+  /** Any event name (admin `WebhookEvent` or automation `AutomationEvent`). */
+  event: string;
   payload: unknown;
+  /** Pre-rendered body (automation custom body); absent → CMS envelope. */
+  body?: string;
+  method?: string;
+  /** Automation deliveries always enforce HTTPS; configured webhooks keep the default. */
+  allowHttp?: boolean;
 }
 
 /**
@@ -23,18 +30,21 @@ export interface WebhookJobPayload {
 export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
   const { webhook, event, payload } = jobPayload;
 
-  const payloadStr = JSON.stringify({
-    event,
-    timestamp: new Date().toISOString(),
-    payload,
-    webhookId: webhook.id,
-    deliveryId: generateUUID(),
-    tenantId: webhook.tenantId,
-  });
+  const payloadStr =
+    jobPayload.body ??
+    JSON.stringify({
+      event,
+      timestamp: nowISODateString(),
+      payload,
+      webhookId: webhook.id,
+      deliveryId: generateUUID(),
+      tenantId: webhook.tenantId,
+    });
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-SveltyCMS-Event": event,
+    "X-SveltyCMS-Tenant": webhook.tenantId,
     "X-SveltyCMS-Delivery": generateUUID(),
     "X-SveltyCMS-Timestamp": Math.floor(Date.now() / 1000).toString(),
     "User-Agent": "SveltyCMS-Webhook/1.0 (JobQueue)",
@@ -49,10 +59,11 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
 
   try {
     const response = await safeFetch(webhook.url, {
-      method: "POST",
+      method: jobPayload.method || "POST",
       headers,
       body: payloadStr,
       timeoutMs: 10000,
+      ...(jobPayload.allowHttp === undefined ? {} : { allowHttp: jobPayload.allowHttp }),
     });
 
     if (response.success) {

@@ -77,9 +77,25 @@ describe("validateEgressUrl — SSRF defense", () => {
     await expect(validateEgressUrl("http://100.127.255.254/", opts)).rejects.toThrow(
       /private|Blocked/i,
     );
+    // Every second octet 64–127 is inside the /10, including the values the
+    // earlier `1[0-2][0-7]` regex skipped (108, 109, 118, 119).
+    for (const second of [108, 109, 118, 119]) {
+      await expect(validateEgressUrl(`http://100.${second}.0.1/`, opts)).rejects.toThrow(
+        /private|Blocked/i,
+      );
+    }
     // Just outside the CGNAT range stays allowed (no DNS needed for an IP literal)
     await expect(validateEgressUrl("http://100.63.0.1/", opts)).resolves.toBeTruthy();
     await expect(validateEgressUrl("http://100.128.0.1/", opts)).resolves.toBeTruthy();
+  });
+
+  it("keeps CGNAT blocked even with allowPrivate", async () => {
+    const localOpts = { allowHttp: true, allowPrivate: true };
+    for (const second of [64, 100, 108, 109, 118, 119, 127]) {
+      await expect(validateEgressUrl(`http://100.${second}.0.1/`, localOpts)).rejects.toThrow(
+        /private|Blocked/i,
+      );
+    }
   });
 
   it("blocks non-http(s) protocols", async () => {

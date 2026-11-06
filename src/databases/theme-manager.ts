@@ -115,7 +115,9 @@ export class ThemeManager {
         try {
           const { cacheService } = await import("./cache/cache-service");
           await cacheService.set("theme:global", DEFAULT_THEME, 300, "global");
-        } catch {}
+        } catch (error) {
+          logger.debug("[theme-manager] suppressed error", error);
+        }
         return;
       }
 
@@ -128,7 +130,9 @@ export class ThemeManager {
       try {
         const { cacheService } = await import("./cache/cache-service");
         await cacheService.set("theme:global", defaultTheme, 300, "global");
-      } catch {}
+      } catch (error) {
+        logger.debug("[theme-manager] suppressed error", error);
+      }
       logger.debug(`Default theme cached: ${defaultTheme.name}`);
     } catch (err) {
       logger.error("Failed to load themes from database:", err);
@@ -137,7 +141,9 @@ export class ThemeManager {
       try {
         const { cacheService } = await import("./cache/cache-service");
         await cacheService.set("theme:global", DEFAULT_THEME, 300, "global");
-      } catch {}
+      } catch (error) {
+        logger.debug("[theme-manager] suppressed error", error);
+      }
     }
   }
 
@@ -159,7 +165,9 @@ export class ThemeManager {
         this.themeCache.set(cacheKey, cached);
         return cached;
       }
-    } catch {}
+    } catch (error) {
+      logger.debug("[theme-manager] suppressed error", error);
+    }
 
     // For tenant-specific themes, fetch from database
     // For now, fall back to global theme since tenant-specific themes
@@ -199,7 +207,9 @@ export class ThemeManager {
         const { cacheService } = await import("./cache/cache-service");
         await cacheService.set(`theme:${cacheKey}`, theme, 300, tenantId);
         await cacheService.publishInvalidation(`theme:${cacheKey}`, tenantId);
-      } catch {}
+      } catch (error) {
+        logger.debug("[theme-manager] suppressed error", error);
+      }
 
       logger.info(`Theme updated to: ${theme.name}`, {
         tenantId: tenantId || "global",
@@ -221,7 +231,9 @@ export class ThemeManager {
     try {
       const { cacheService } = await import("./cache/cache-service");
       await cacheService.clearByPattern("theme:*");
-    } catch {}
+    } catch (error) {
+      logger.debug("[theme-manager] suppressed error", error);
+    }
     await this.loadAndCacheDefaultTheme();
     logger.debug("ThemeManager cache refreshed.");
   }

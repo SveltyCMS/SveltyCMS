@@ -944,10 +944,14 @@ export const handle: Handle = async ({ event, resolve }) => {
         try {
           const { contentSystem } = await loadContentModule();
           health.content = contentSystem.getHealthStatus();
-        } catch {}
+        } catch (error) {
+          logger.debug("[hooks.server] suppressed error", error);
+        }
         try {
           health.graphql = metricsService.getReport().graphql;
-        } catch {}
+        } catch (error) {
+          logger.debug("[hooks.server] suppressed error", error);
+        }
 
         // 🖥️ HARDWARE: what THIS machine derived (pools, caches, workers,
         // compression) + the actionable heap-alignment verdict. Same payload the

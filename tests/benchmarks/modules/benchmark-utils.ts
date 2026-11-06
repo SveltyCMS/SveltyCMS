@@ -1763,6 +1763,8 @@ export async function setupBenchmarkServer() {
       DISABLE_OUTBOX: process.env.DISABLE_OUTBOX || "true",
       RATE_LIMIT_MAX_REQUESTS: process.env.RATE_LIMIT_MAX_REQUESTS || "1000000",
       SECURITY_RATE_LIMIT_SCALE: process.env.SECURITY_RATE_LIMIT_SCALE || "100",
+      RATE_LIMIT_L1_CAPACITY: process.env.RATE_LIMIT_L1_CAPACITY || "1000000",
+      RATE_LIMIT_L1_REFILL_PER_SEC: process.env.RATE_LIMIT_L1_REFILL_PER_SEC || "1000000",
       // 🚀 POSTGRES DURABILITY & FAST LANE: for high-throughput benchmark runs,
       // allow PostgreSQL to run with synchronous_commit=off (matching SQLite's
       // PRAGMA synchronous=NORMAL) and enable the raw socket write lane.

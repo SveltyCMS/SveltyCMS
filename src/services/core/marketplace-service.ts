@@ -10,6 +10,7 @@
  */
 
 import { adminThemeService } from "./admin-theme-service";
+import { logger } from "@utils/logger";
 
 export interface MarketplaceItem {
   id: string;
@@ -195,7 +196,9 @@ export class MarketplaceService {
             localInstalledKeys.add(pid);
             localInstalledKeys.add(`plugin-${pid}`);
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[marketplace-service] suppressed error", error);
+        }
 
         // Also check installed custom widgets
         const customWidgets = [

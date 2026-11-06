@@ -26,6 +26,7 @@ import type {
 } from "./types";
 import { safeFetch } from "../../utils/egress-guard";
 import { isCleanRequestSurface, splitRequestUrl } from "./threat-scan";
+import { nowISODateString } from "@utils/date";
 
 // ============================================================================
 // CONSTANTS & POLICIES
@@ -710,7 +711,7 @@ export class SecurityResponseService {
         tenantId,
         incidentId: incident?.id,
         indicatorsCount: incident?.indicators.length || 0,
-        timestamp: new Date().toISOString(),
+        timestamp: nowISODateString(),
       };
 
       await safeFetch(webhook, {
@@ -803,7 +804,9 @@ if (g.__SVELTY_SECURITY_INSTANCE__) {
     if (typeof g.__SVELTY_SECURITY_INSTANCE__.destroySync === "function") {
       g.__SVELTY_SECURITY_INSTANCE__.destroySync();
     }
-  } catch {}
+  } catch (error) {
+    logger.debug("[response-service] suppressed error", error);
+  }
 }
 
 /**

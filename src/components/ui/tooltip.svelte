@@ -12,6 +12,7 @@ reveal after position calculation prevents layout flash.
 - `positioning` ({ placement, gutter }): Placement options (default: top, 8px).
 - `triggerClass` (string): CSS class for the trigger wrapper.
 - `class` (string): Additional CSS classes on the tooltip.
+- `disabled` (boolean): Never show the tooltip (e.g. a tile too small for the hint).
 - `content` / `children` (Snippet): Custom tooltip/trigger content.
 
 ### Features:
@@ -43,6 +44,8 @@ reveal after position calculation prevents layout flash.
 		children?: Snippet;
 		role?: string | null;
 		tabindex?: number | string | null;
+		/** Never open (e.g. a thumbnail too small for the hint). */
+		disabled?: boolean;
 		[key: string]: any;
 	}
 
@@ -55,6 +58,7 @@ reveal after position calculation prevents layout flash.
 		children,
 		role = 'button',
 		tabindex = 0,
+		disabled = false,
 		...rest
 	}: Props = $props();
 
@@ -170,8 +174,13 @@ reveal after position calculation prevents layout flash.
 		}
 	});
 
+	// A disabled trigger may become disabled while open (e.g. the grid size changes).
+	$effect(() => {
+		if (disabled && open) open = false;
+	});
+
 	function show() {
-		if (!hasContent) return;
+		if (disabled || !hasContent) return;
 		portalTarget = (referenceEl?.closest('dialog[open]') as HTMLElement | null) ?? 'body';
 		open = true;
 	}

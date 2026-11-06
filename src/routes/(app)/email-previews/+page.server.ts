@@ -140,7 +140,7 @@ export async function load({
 /** Previewer form action before the admin gate is applied. */
 type PreviewAction = (event: RequestEvent) => Promise<Record<string, unknown> | void>;
 
-// Helper to gate actions for administrator use only
+// Gate the previewer actions so only administrators can invoke them.
 function gateAction(actionFn: PreviewAction): PreviewAction {
   return async (event: RequestEvent) => {
     const { locals } = event;
@@ -151,7 +151,13 @@ function gateAction(actionFn: PreviewAction): PreviewAction {
   };
 }
 
-const rawActions: Record<string, PreviewAction> = {
+/**
+ * The previewer package declares its handlers with the default `RequestEvent`
+ * generics (`AppRouteId | null`), while `PreviewAction` is bound to this route's
+ * instantiation. Both describe the same runtime event; align them at the package
+ * boundary instead of widening every handler.
+ */
+const previewerActions = {
   ...createEmail(),
   ...sendEmail({
     customSendEmailFunction: async ({ to, subject }: { to: string; subject: string }) => {
@@ -206,7 +212,9 @@ const rawActions: Record<string, PreviewAction> = {
       }
     },
   }),
-};
+} as unknown as Record<string, PreviewAction>;
+
+const rawActions: Record<string, PreviewAction> = { ...previewerActions };
 
 export const actions: Actions = {};
 for (const [key, fn] of Object.entries(rawActions)) {

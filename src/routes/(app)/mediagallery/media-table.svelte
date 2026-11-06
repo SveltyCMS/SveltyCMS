@@ -30,7 +30,7 @@
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
-	import { mediaDisplayUrl, mediaThumbnailUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaPreviewCandidates } from '@utils/media/media-utils';
 	import {
 		type MediaBase,
 		type MediaImage,
@@ -56,7 +56,7 @@
 		mediagallery_type_placeholder,
 		trash_th_actions
 	} from '@src/paraglide/messages';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import Checkbox from '@components/ui/checkbox.svelte';
 
 	interface Props {
@@ -104,7 +104,9 @@
 		onClearFilters = () => {}
 	}: Props = $props();
 
-	let failedImages = $state(new SvelteSet<string>());
+	const previewAttempts = new SvelteMap<string, number>();
+	/** Rows whose entire preview ladder failed — file icon + "File missing" badge. */
+	const missingImages = new SvelteSet<string>();
 	let lastSelectedId = $state<string | null>(null);
 	let showTagModal = $state(false);
 	let taggingFile = $state<MediaImage | null>(null);
@@ -245,6 +247,28 @@
 		return file._id?.toString() || file.filename;
 	}
 
+	/**
+	 * Per-row preview state key. The candidate ladder is part of the key so a
+	 * newly generated thumbnail restarts the ladder instead of inheriting a
+	 * stale failure.
+	 */
+	function previewKeyOf(fileId: string, candidates: string[]): string {
+		return `${fileId}\u0000${candidates.join('\u0001')}`;
+	}
+
+	/** Walk the rendition ladder on `<img>` errors; mark the row missing when it is exhausted. */
+	function handlePreviewError(candidates: string[], previewKey: string, attemptedIndex: number) {
+		const index = previewAttempts.get(previewKey) ?? 0;
+		// The mobile list and the desktop table render the same row; a stale error
+		// from the other `<img>` must not advance the ladder twice.
+		if (attemptedIndex !== index) return;
+		if (index < candidates.length - 1) {
+			previewAttempts.set(previewKey, index + 1);
+			return;
+		}
+		missingImages.add(previewKey);
+	}
+
 	/** Shift-click selects the whole range on the current table page. */
 	function selectWithRange(file: MediaBase | MediaImage, shiftKey: boolean) {
 		const fileId = fileIdOf(file);
@@ -366,7 +390,14 @@
 				{@const fileId = file._id?.toString() || file.filename}
 				{@const processing = processingStatusOf(file)}
 				{@const inUse = publishedMediaIds.has(fileId)}
-				{@const documentPreview = file.type === 'image' ? '' : mediaThumbnailUrl(file, 'thumbnail')}
+				{@const isImage = file.type === 'image'}
+				{@const candidateUrls = mediaPreviewCandidates(file, 'thumbnail', {
+					includeOriginal: isImage
+				})}
+				{@const previewKey = previewKeyOf(fileId, candidateUrls)}
+				{@const previewIndex = previewAttempts.get(previewKey) ?? 0}
+				{@const previewFailed =
+					missingImages.has(previewKey) || (isImage && candidateUrls.length === 0)}
 
 				<div
 					class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
@@ -421,20 +452,20 @@
 						<div
 							class="media-thumb-checkerboard flex h-10 w-10 items-center justify-center overflow-hidden rounded"
 						>
-							{#if (documentPreview || file.type === 'image') && !failedImages.has(fileId)}
+							{#if candidateUrls.length > 0 && !previewFailed}
 								<img
-									src={documentPreview || mediaDisplayUrl(file, 'thumbnail')}
+									src={candidateUrls[previewIndex] ?? ''}
 									alt=""
-									class="pointer-events-none h-full w-full {documentPreview
-										? 'object-contain bg-white'
-										: 'object-cover'}"
+									class="pointer-events-none h-full w-full {isImage
+										? 'object-cover'
+										: 'object-contain bg-white'}"
 									loading="lazy"
 									decoding="async"
 									draggable="false"
 									crossorigin="anonymous"
-									onerror={() => failedImages.add(fileId)}
+									onerror={() => handlePreviewError(candidateUrls, previewKey, previewIndex)}
 								/>
-							{:else if file.type === 'image'}
+							{:else if isImage}
 								<iconify-icon
 									icon="mdi:image-off-outline"
 									width="18"
@@ -454,8 +485,14 @@
 						<div class="truncate text-sm font-medium leading-snug" dir="auto" title={file.filename}>
 							{file.filename}
 						</div>
-						{#if processing !== 'ready' || inUse}
+						{#if processing !== 'ready' || inUse || previewFailed}
 							<div class="mt-0.5 flex flex-wrap items-center gap-1">
+								{#if previewFailed}
+									<span
+										class="rounded-full border border-error-500/30 bg-error-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-error-500 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400"
+										title="File missing — open the file details to replace it">File missing</span
+									>
+								{/if}
 								{#if processing === 'processing'}
 									<span
 										class="rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950"
@@ -616,16 +653,22 @@
 				</tr>
 			</thead>
 
-			<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+			<tbody>
 				{#each paginatedFiles as file (file._id || file.filename)}
 					{@const fileId = file._id?.toString() || file.filename}
 					{@const processing = processingStatusOf(file)}
 					{@const inUse = publishedMediaIds.has(fileId)}
-					{@const documentPreview =
-						file.type === 'image' ? '' : mediaThumbnailUrl(file, 'thumbnail')}
+					{@const isImage = file.type === 'image'}
+					{@const candidateUrls = mediaPreviewCandidates(file, 'thumbnail', {
+						includeOriginal: isImage
+					})}
+					{@const previewKey = previewKeyOf(fileId, candidateUrls)}
+					{@const previewIndex = previewAttempts.get(previewKey) ?? 0}
+					{@const previewFailed =
+						missingImages.has(previewKey) || (isImage && candidateUrls.length === 0)}
 
 					<tr
-						class="group cursor-grab align-middle active:cursor-grabbing
+						class="group cursor-grab border-b border-surface-500/30 align-middle last:border-0 active:cursor-grabbing dark:border-surface-500/40
 								{selectedFiles.has(fileId) ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
 						onclick={(e) => handleRowClick(file, e)}
 						onkeydown={(e) => handleKeyDown(e, file)}
@@ -674,20 +717,20 @@
 							<div
 								class="media-thumb-checkerboard flex h-10 w-11 items-center justify-center overflow-hidden rounded sm:h-11 sm:w-12"
 							>
-								{#if (documentPreview || file.type === 'image') && !failedImages.has(fileId)}
+								{#if candidateUrls.length > 0 && !previewFailed}
 									<img
-										src={documentPreview || mediaDisplayUrl(file, 'thumbnail')}
+										src={candidateUrls[previewIndex] ?? ''}
 										alt=""
-										class="pointer-events-none h-full w-full {documentPreview
-											? 'object-contain bg-white'
-											: 'object-cover'}"
+										class="pointer-events-none h-full w-full {isImage
+											? 'object-cover'
+											: 'object-contain bg-white'}"
 										loading="lazy"
 										decoding="async"
 										draggable="false"
 										crossorigin="anonymous"
-										onerror={() => failedImages.add(fileId)}
+										onerror={() => handlePreviewError(candidateUrls, previewKey, previewIndex)}
 									/>
-								{:else if file.type === 'image'}
+								{:else if isImage}
 									<iconify-icon
 										icon="mdi:image-off-outline"
 										width="20"
@@ -706,8 +749,14 @@
 							<div class="truncate text-sm font-medium" dir="auto" title={file.filename}>
 								{file.filename}
 							</div>
-							{#if processing !== 'ready' || inUse}
+							{#if processing !== 'ready' || inUse || previewFailed}
 								<div class="mt-0.5 flex flex-wrap items-center gap-1">
+									{#if previewFailed}
+										<span
+											class="rounded-full border border-error-500/30 bg-error-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-error-500 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400"
+											title="File missing — open the file details to replace it">File missing</span
+										>
+									{/if}
 									{#if processing === 'processing'}
 										<span
 											class="rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950"

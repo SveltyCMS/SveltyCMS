@@ -207,11 +207,13 @@ test("Forgot Password Flow", async ({ page }) => {
 
   await dismissCookieConsent(page);
   await page.locator("#emailforgot").fill("test@test.de");
+  // force-allow: cookie/consent layer can cover the reset trigger
   await page.getByRole("button", { name: /reset password/i }).click({ force: true });
 
   await dismissCookieConsent(page);
   await page.locator("#passwordreset").fill("NewPass123!");
   await page.locator("#confirm_passwordreset").fill("NewPass123!");
+  // force-allow: the reset dialog animates over the submit button
   await page.getByRole("button", { name: /save new password/i }).click({ force: true });
 
   await expect(page).toHaveURL(/\/login/);

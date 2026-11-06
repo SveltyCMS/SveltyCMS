@@ -209,7 +209,9 @@ class WidgetRegistryService {
         .catch(() => {
           logger.debug("Service health update for widgets failed silently");
         });
-    } catch {}
+    } catch (error) {
+      logger.debug("[widget-registry-service] suppressed error", error);
+    }
   }
 
   // Public API

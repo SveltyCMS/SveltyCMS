@@ -601,7 +601,9 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
           "collection_pages",
           (tenantId ?? undefined) as string | undefined,
         );
-      } catch {}
+      } catch (error) {
+        logger.debug("[testing-seed] suppressed error", error);
+      }
       return rawResponse({ success: true, ...result });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);

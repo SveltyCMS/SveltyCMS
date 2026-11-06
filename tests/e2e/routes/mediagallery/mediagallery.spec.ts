@@ -482,6 +482,49 @@ test.describe("Media Gallery", () => {
     await expect(page.getByTestId("media-grid")).toBeVisible({ timeout: 5_000 });
   });
 
+  test("tiny grid collapses the action rail into one compact menu", async ({ page }) => {
+    const seeded = await seedMediaWithMetadata(page);
+    const target = seeded.items[0]!;
+    try {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      const toggle = page.getByTestId("media-grid-size-toggle");
+      await expect(toggle).toBeVisible({ timeout: 10_000 });
+      for (let attempt = 0; attempt < 4; attempt++) {
+        if ((await toggle.getAttribute("data-size")) === "tiny") break;
+        await toggle.click();
+      }
+      await expect(toggle).toHaveAttribute("data-size", "tiny");
+
+      const tile = mediaCard(page, target.filename);
+      await expect(tile).toBeVisible({ timeout: 15_000 });
+      await tile.hover();
+
+      // The six-button rail cannot fit an 88–120px tile, so the grid swaps it for
+      // one portalled menu trigger instead of letting the buttons overflow.
+      const actions = tile.getByTestId("media-grid-actions");
+      await expect(actions).toBeVisible({ timeout: 10_000 });
+      await expect(actions.getByRole("button")).toHaveCount(1);
+      await expect(tile.getByTestId("media-edit-button")).toHaveCount(0);
+      await expect(tile.getByTestId("media-copy-url")).toHaveCount(0);
+
+      await actions.getByRole("button").click();
+      const menu = page.getByRole("menu");
+      await expect(menu).toBeVisible({ timeout: 10_000 });
+      // Details, Edit, Focal point, Tags, Copy URL, Delete.
+      await expect(menu.getByRole("menuitem")).toHaveCount(6);
+      await expect(menu).toBeInViewport({ ratio: 1 });
+
+      await menu.getByRole("menuitem", { name: /details/i }).click();
+      await expect(page.getByTestId("media-details-modal")).toBeVisible({ timeout: 10_000 });
+      await page.keyboard.press("Escape");
+      await expect(page.getByTestId("media-details-modal")).toBeHidden({ timeout: 10_000 });
+    } finally {
+      for (const item of seeded.items) await deleteMediaRow(page, item._id);
+    }
+  });
+
   test("breadcrumb exists and is clickable", async ({ page }) => {
     // Create folder, then navigate into it to generate breadcrumbs
     await page.getByTestId("media-create-folder").click();
@@ -504,9 +547,16 @@ test.describe("Media Gallery", () => {
     await expect(page).toHaveURL(/folderId=/, { timeout: 15_000 });
 
     // Breadcrumbs now show the folder as a non-root crumb.
-    await expect(page.getByTestId("media-gallery-breadcrumbs").getByText(folderName)).toBeVisible({
-      timeout: 10_000,
-    });
+    const trail = page.getByTestId("media-gallery-breadcrumbs");
+    await expect(trail.getByText(folderName)).toBeVisible({ timeout: 10_000 });
+
+    // The trail was migrated to the shared Breadcrumb primitive; the crumb
+    // contract (testids + aria-current) must survive that migration.
+    await expect(trail.locator('[data-testid^="media-breadcrumb-"]')).toHaveCount(2);
+    const currentCrumb = trail.locator('[data-testid^="media-breadcrumb-"][aria-current="page"]');
+    await expect(currentCrumb).toHaveCount(1);
+    await expect(currentCrumb).toContainText(folderName);
+    await expect(page.getByTestId("media-breadcrumb-root")).toBeVisible();
 
     // Click root breadcrumb to go back — now rendered as a link (not the
     // current-folder span), so navigation lands back at /mediagallery.

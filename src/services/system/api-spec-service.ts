@@ -10,6 +10,7 @@ import type { Schema, FieldInstance, DatabaseId } from "@src/content/types";
 import { CacheCategory } from "@src/databases/cache/types";
 import { deepClone } from "@utils/native-utils";
 import { logger } from "@utils/logger";
+import { ENDPOINT_PERMISSIONS } from "@src/routes/api/[...path]/endpoint-permissions";
 
 /** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
 let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
@@ -31,6 +32,22 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
 }
 
+/**
+ * OpenAPI Response Object for an error status. A bare `$ref` to the ApiError
+ * *Schema Object* is invalid here: every response needs its own `description`
+ * and the schema belongs under `content`.
+ */
+function apiErrorResponse(description: string) {
+  return {
+    description,
+    content: {
+      "application/json": {
+        schema: { $ref: "#/components/schemas/ApiError" },
+      },
+    },
+  };
+}
+
 export class ApiSpecService {
   private static instance: ApiSpecService;
   private baseSpec: any;
@@ -46,7 +63,7 @@ export class ApiSpecService {
         title: "SveltyCMS Unified API",
         version: version,
         description:
-          "Enterprise-grade, high-performance headless API. Supports multi-tenancy, real-time events, and JIT GraphQL.",
+          "Enterprise-grade, high-performance headless API. Supports multi-tenancy, real-time events, and JIT GraphQL. This OpenAPI document is a curated sample: it covers auth, users, system, media, search, tokens, collections, webhooks, workflows and automations. Endpoints outside this list remain available and are enforced by the endpoint-permission map.",
         contact: {
           name: "SveltyCMS Team",
           url: "https://sveltycms.com",
@@ -68,6 +85,10 @@ export class ApiSpecService {
           description: "Global and collection-specific search",
         },
         { name: "Tokens", description: "API and Website token management" },
+        {
+          name: "Webhooks & Automation",
+          description: "Outbound webhooks, content workflows and event-driven automation flows",
+        },
         {
           name: "SCIM",
           description: "System for Cross-domain Identity Management (v2.0)",
@@ -193,7 +214,32 @@ export class ApiSpecService {
     // 5. Add Token Paths
     this.addTokenPaths(spec);
 
-    // 6. Add Collection Paths dynamically
+    // 6. Add Webhooks, Workflows & Automations
+    this.addAutomationPaths(spec);
+
+    // 7. Publish the complete namespace inventory (documented + undocumented).
+    //    The curated paths are a subset; this extension makes the coverage gap
+    //    explicit and machine-readable instead of hidden.
+    const documented = new Set(
+      Object.keys(spec.paths)
+        .map((path) => path.split("/").filter(Boolean)[0])
+        .filter((namespace): namespace is string => Boolean(namespace)),
+    );
+    const endpointPermissions = Object.fromEntries(
+      Object.entries(ENDPOINT_PERMISSIONS).map(([namespace, mapping]) => [
+        namespace,
+        typeof mapping === "function" ? "method-dependent" : mapping,
+      ]),
+    );
+    spec["x-sveltycms"] = {
+      endpointPermissions,
+      documentedNamespaces: [...documented].filter((ns) => ns in endpointPermissions).sort(),
+      undocumentedNamespaces: Object.keys(endpointPermissions)
+        .filter((namespace) => !documented.has(namespace))
+        .sort(),
+    };
+
+    // 8. Add Collection Paths dynamically
     for (const collection of collections) {
       this.addCollectionPaths(spec, collection);
     }
@@ -291,7 +337,7 @@ export class ApiSpecService {
             "application/json": {
               schema: {
                 type: "object",
-                required: ["email", "security"],
+                required: ["email", "password"],
                 properties: {
                   email: {
                     type: "string",
@@ -300,7 +346,7 @@ export class ApiSpecService {
                   },
                   password: {
                     type: "string",
-                    format: "security",
+                    format: "password",
                     example: "********",
                   },
                 },
@@ -310,7 +356,7 @@ export class ApiSpecService {
         },
         responses: {
           200: { description: "Success" },
-          401: { $ref: "#/components/schemas/ApiError" },
+          401: apiErrorResponse("Unauthorized"),
         },
       },
     };
@@ -335,7 +381,7 @@ export class ApiSpecService {
         security: [{ bearerAuth: [] }],
         responses: {
           200: { description: "Current user profile" },
-          401: { $ref: "#/components/schemas/ApiError" },
+          401: apiErrorResponse("Unauthorized"),
         },
       },
     };
@@ -533,6 +579,314 @@ export class ApiSpecService {
     };
   }
 
+  /**
+   * Webhooks, workflows and automation flows share one admin surface but are
+   * three distinct contracts: durable outbound delivery (retry/logs),
+   * per-collection lifecycle transitions, and event-triggered operation chains.
+   * They were absent from the published spec entirely.
+   */
+  private addAutomationPaths(spec: any) {
+    const badRequest = apiErrorResponse("Bad request");
+    const forbidden = apiErrorResponse("Forbidden");
+    const notFound = apiErrorResponse("Not found");
+    const idParam = [{ name: "id", in: "path", required: true, schema: { type: "string" } }];
+    const security = [{ bearerAuth: [] }];
+    const tag = ["Webhooks & Automation"];
+
+    const webhookBody = {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            required: ["url"],
+            properties: {
+              name: { type: "string" },
+              url: { type: "string", format: "uri" },
+              events: { type: "array", items: { type: "string" } },
+              event: { type: "string" },
+              active: { type: "boolean" },
+              secret: { type: "string", description: "HMAC-SHA-256 signing secret" },
+              headers: { type: "object", additionalProperties: { type: "string" } },
+            },
+          },
+        },
+      },
+    } as const;
+
+    const webhookPatchBody = {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              url: { type: "string", format: "uri" },
+              events: { type: "array", items: { type: "string" } },
+              event: { type: "string" },
+              active: { type: "boolean" },
+              secret: { type: "string" },
+              headers: { type: "object", additionalProperties: { type: "string" } },
+            },
+          },
+        },
+      },
+    } as const;
+
+    const workflowBody = {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            required: ["collectionId"],
+            properties: {
+              _id: { type: "string" },
+              collectionId: { type: "string" },
+              name: { type: "string" },
+              states: { type: "array", items: { type: "object", additionalProperties: true } },
+              transitions: {
+                type: "array",
+                items: { type: "object", additionalProperties: true },
+              },
+            },
+            additionalProperties: true,
+          },
+        },
+      },
+    } as const;
+
+    const workflowTransitionBody = {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            required: ["entryId"],
+            properties: {
+              entryId: { type: "string" },
+              targetStateId: { type: "string" },
+              assigneeId: { type: "string" },
+              comment: { type: "string" },
+            },
+            anyOf: [{ required: ["targetStateId"] }, { required: ["assigneeId"] }],
+          },
+        },
+      },
+    } as const;
+
+    const automationBody = {
+      required: true,
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string" },
+              trigger: { type: "object", additionalProperties: true },
+              actions: { type: "array", items: { type: "object", additionalProperties: true } },
+              active: { type: "boolean" },
+            },
+            additionalProperties: true,
+          },
+        },
+      },
+    } as const;
+
+    spec.paths["/webhooks"] = {
+      get: {
+        tags: tag,
+        operationId: "webhooks.list",
+        summary: "List configured webhooks",
+        security,
+        responses: { 200: { description: "Webhook list" }, 403: forbidden },
+      },
+      post: {
+        tags: tag,
+        operationId: "webhooks.create",
+        summary: "Create a webhook",
+        security,
+        requestBody: webhookBody,
+        responses: { 201: { description: "Created" }, 400: badRequest, 403: forbidden },
+      },
+    };
+
+    spec.paths["/webhooks/{id}"] = {
+      parameters: idParam,
+      patch: {
+        tags: tag,
+        operationId: "webhooks.update",
+        summary: "Update a webhook",
+        security,
+        requestBody: webhookPatchBody,
+        responses: { 200: { description: "Updated" }, 404: notFound },
+      },
+      delete: {
+        tags: tag,
+        operationId: "webhooks.delete",
+        summary: "Delete a webhook",
+        security,
+        responses: { 200: { description: "Deleted" }, 404: notFound },
+      },
+    };
+
+    spec.paths["/webhooks/{id}/test"] = {
+      parameters: idParam,
+      post: {
+        tags: tag,
+        operationId: "webhooks.test",
+        summary: "Send a test event",
+        security,
+        responses: { 200: { description: "Delivery attempted" }, 404: notFound },
+      },
+    };
+
+    spec.paths["/webhooks/logs"] = {
+      get: {
+        tags: tag,
+        operationId: "webhooks.logs",
+        summary: "List delivery attempts (durable webhook-delivery jobs)",
+        description:
+          "Includes retry state and last error; a failed job may be requeued with POST /webhooks/logs/{id}/retry.",
+        security,
+        parameters: [
+          { name: "limit", in: "query", schema: { type: "integer", default: 50, maximum: 200 } },
+          {
+            name: "status",
+            in: "query",
+            schema: { type: "string", enum: ["pending", "running", "completed", "failed"] },
+          },
+        ],
+        responses: { 200: { description: "Delivery log rows" }, 403: forbidden },
+      },
+    };
+
+    spec.paths["/webhooks/logs/{id}/retry"] = {
+      parameters: idParam,
+      post: {
+        tags: tag,
+        operationId: "webhooks.retryDelivery",
+        summary: "Requeue a failed delivery",
+        security,
+        responses: { 200: { description: "Requeued" }, 404: notFound },
+      },
+    };
+
+    spec.paths["/workflows"] = {
+      get: {
+        tags: tag,
+        operationId: "workflows.get",
+        summary: "Read a workflow definition or an entry's workflow instance",
+        security,
+        parameters: [
+          { name: "collectionId", in: "query", schema: { type: "string" } },
+          { name: "entryId", in: "query", schema: { type: "string" } },
+        ],
+        responses: {
+          200: { description: "Definition or instance" },
+          400: badRequest,
+          403: forbidden,
+        },
+      },
+      post: {
+        tags: tag,
+        operationId: "workflows.save",
+        summary: "Save a workflow definition",
+        security,
+        requestBody: workflowBody,
+        responses: {
+          200: { description: "Saved" },
+          201: { description: "Created" },
+          400: badRequest,
+        },
+      },
+      patch: {
+        tags: tag,
+        operationId: "workflows.transition",
+        summary: "Transition or assign an entry",
+        security,
+        requestBody: workflowTransitionBody,
+        responses: { 200: { description: "Updated instance" }, 400: badRequest, 403: forbidden },
+      },
+      delete: {
+        tags: tag,
+        operationId: "workflows.delete",
+        summary: "Delete a workflow definition",
+        security,
+        parameters: [{ name: "id", in: "query", required: true, schema: { type: "string" } }],
+        responses: { 200: { description: "Deleted" }, 400: badRequest },
+      },
+    };
+
+    spec.paths["/automations"] = {
+      get: {
+        tags: tag,
+        operationId: "automations.list",
+        summary: "List automation flows",
+        security,
+        responses: { 200: { description: "Flow list" }, 403: forbidden },
+      },
+      post: {
+        tags: tag,
+        operationId: "automations.create",
+        summary: "Create an automation flow",
+        security,
+        requestBody: automationBody,
+        responses: { 201: { description: "Created" }, 400: badRequest, 403: forbidden },
+      },
+    };
+
+    spec.paths["/automations/{id}"] = {
+      parameters: idParam,
+      get: {
+        tags: tag,
+        operationId: "automations.get",
+        summary: "Read a flow",
+        security,
+        responses: { 200: { description: "Flow" }, 404: notFound },
+      },
+      patch: {
+        tags: tag,
+        operationId: "automations.update",
+        summary: "Update a flow",
+        security,
+        requestBody: automationBody,
+        responses: { 200: { description: "Updated" }, 404: notFound },
+      },
+      delete: {
+        tags: tag,
+        operationId: "automations.delete",
+        summary: "Delete a flow",
+        security,
+        responses: { 200: { description: "Deleted" }, 404: notFound },
+      },
+    };
+
+    spec.paths["/automations/{id}/test"] = {
+      parameters: idParam,
+      post: {
+        tags: tag,
+        operationId: "automations.test",
+        summary: "Execute a flow with a test payload",
+        security,
+        responses: { 200: { description: "Execution log" }, 404: notFound },
+      },
+    };
+
+    spec.paths["/automations/{id}/logs"] = {
+      parameters: idParam,
+      get: {
+        tags: tag,
+        operationId: "automations.logs",
+        summary: "Recent execution logs for a flow",
+        security,
+        responses: { 200: { description: "Execution log entries" }, 404: notFound },
+      },
+    };
+  }
+
   private addCollectionPaths(spec: any, collection: Schema) {
     const name = collection.name;
     const schemaName = `Collection_${name}`;
@@ -601,7 +955,7 @@ export class ApiSpecService {
         },
         responses: {
           201: { description: "Created" },
-          400: { $ref: "#/components/schemas/ApiError" },
+          400: apiErrorResponse("Bad request"),
         },
       },
     };

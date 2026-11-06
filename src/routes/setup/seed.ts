@@ -1984,7 +1984,9 @@ export async function seedSettings(
       if (existing.success && existing.data) {
         existingSettings[setting.key] = existing.data;
       }
-    } catch {}
+    } catch (error) {
+      logger.debug("[seed] suppressed error", error);
+    }
   }
 
   // Filter out settings that already exist. Empty-string private settings are

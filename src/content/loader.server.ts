@@ -9,6 +9,7 @@
  * - Self-healing case-insensitive widgets proxy (dev/native path)
  * - Mtime-based ESM cache busting
  * - Zero-tax deterministic schema hashing
+ * - Transient dev-runner teardown detection (no false "broken schema" recompiles)
  */
 
 import { existsSync } from "node:fs";
@@ -39,6 +40,36 @@ export const contentRuntime = {
     return existsSync(new URL("./module-worker.server.ts", import.meta.url));
   },
 };
+
+// ─── Transient load failures ─────────────────────────────────────────────────
+
+/**
+ * Vite tears down the SSR module runner before restarting it (HMR, config
+ * change, dev-server shutdown). An `import()` that lands in that window throws
+ * "Vite module runner has been closed." — the compiled file itself is fine.
+ * Treating it as broken deletes the artifact, touches the source and triggers a
+ * recompile, which loops until the runner is back (7 identical warnings in one
+ * second at 19:50). These errors must be deferred, never "repaired".
+ */
+const TRANSIENT_LOAD_ERROR_PATTERNS = [
+  /module runner has been closed/i,
+  /the server is being restarted/i,
+  /err_closed_message_port/i,
+];
+
+/** True when a schema import failed only because the dev runner was restarting. */
+export function isTransientSchemaLoadError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  if (!message) return false;
+  return TRANSIENT_LOAD_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+}
+
+/** Result of a schema load; `transient` means "retry later", not "broken file". */
+export interface SchemaLoadResult {
+  schema?: Schema;
+  transient?: boolean;
+  error?: string;
+}
 
 // ─── Path security ───────────────────────────────────────────────────────────
 
@@ -149,7 +180,7 @@ export function shouldUseWorkerPool(): boolean {
 export async function loadSchemaNative(
   filePath: string,
   mtimeMs?: number,
-): Promise<{ schema?: Schema } | null> {
+): Promise<SchemaLoadResult | null> {
   const fullPath = path.resolve(filePath);
 
   if (!isSafeCollectionPath(fullPath)) {
@@ -176,10 +207,16 @@ export async function loadSchemaNative(
     const raw = module.default || module.schema || module;
 
     return normalizeLoadedSchema(raw, filePath);
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (isTransientSchemaLoadError(err)) {
+      // Expected during HMR/restart — the next scan retries against the new runner.
+      logger.debug(`[Loader] Deferring ${path.basename(filePath)} — dev module runner restarting`);
+      return { transient: true, error: message };
+    }
     logger.error(`[Loader] Failed to load ${path.basename(filePath)}`, {
-      error: err.message,
-      stack: process.env.BENCHMARK_DEBUG === "true" ? err.stack : undefined,
+      error: message,
+      stack: process.env.BENCHMARK_DEBUG === "true" && err instanceof Error ? err.stack : undefined,
     });
     return null;
   }
@@ -201,7 +238,7 @@ interface Task {
   id: number;
   filePath: string;
   mtimeMs?: number;
-  resolve: (result: { schema?: any; error?: string }) => void;
+  resolve: (result: { schema?: any; error?: string; transient?: boolean }) => void;
   reject: (err: Error) => void;
   timer: ReturnType<typeof setTimeout> | null;
 }
@@ -347,7 +384,7 @@ class ModuleWorkerPool {
       worker.lastUsedAt = Date.now();
 
       if (msg.success) {
-        task.resolve({ schema: msg.schema });
+        task.resolve({ schema: msg.schema, error: msg.error, transient: msg.transient });
       } else {
         task.resolve({ error: msg.error || "Unknown worker error" });
       }
@@ -386,7 +423,10 @@ class ModuleWorkerPool {
     }, IDLE_TIMEOUT_MS);
   }
 
-  async load(filePath: string, mtimeMs?: number): Promise<{ schema?: any; error?: string }> {
+  async load(
+    filePath: string,
+    mtimeMs?: number,
+  ): Promise<{ schema?: any; error?: string; transient?: boolean }> {
     if (this.disabled) {
       // Synchronous rejection — callers fall back to native in-process loading.
       return Promise.reject(new Error("Worker pool unavailable"));
@@ -457,7 +497,7 @@ export async function shutdownWorkerPool(): Promise<void> {
 export async function loadSchemaPooled(
   filePath: string,
   mtimeMs?: number,
-): Promise<{ schema?: Schema } | null> {
+): Promise<SchemaLoadResult | null> {
   const fullPath = path.resolve(filePath);
 
   if (!isSafeCollectionPath(fullPath)) {
@@ -471,6 +511,11 @@ export async function loadSchemaPooled(
 
     if (result.schema && Array.isArray(result.schema.fields)) {
       return normalizeLoadedSchema(result.schema, filePath);
+    }
+
+    if (result.transient) {
+      logger.debug(`[WorkerPool] Deferring ${path.basename(filePath)} — module runner restarting`);
+      return { transient: true, error: result.error };
     }
 
     if (result.error) {
@@ -489,7 +534,7 @@ export async function loadSchemaPooled(
 export async function loadSchema(
   filePath: string,
   mtimeMs?: number,
-): Promise<{ schema?: Schema } | null> {
+): Promise<SchemaLoadResult | null> {
   if (shouldUseWorkerPool()) {
     return loadSchemaPooled(filePath, mtimeMs);
   }

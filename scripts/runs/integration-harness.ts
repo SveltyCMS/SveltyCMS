@@ -815,6 +815,32 @@ export function cleanupTestArtifacts(root: string): void {
     /* no config dir — nothing to sweep */
   }
 
+  // Legacy compiled output from before the harness redirect: test tenants used
+  // to compile into `.compiledCollections/<tenant>/`. Sweep test-named dirs only;
+  // live tenant output and the live manifest stay in place.
+  const compiledRoot = join(root, ".compiledCollections");
+  try {
+    for (const entry of readdirSync(compiledRoot)) {
+      const candidate = join(compiledRoot, entry);
+      const isTestTenant =
+        entry.startsWith("iso-tenant-") ||
+        entry.startsWith("test-") ||
+        entry.startsWith("tenant-") ||
+        entry.startsWith("contract-") ||
+        isIsolatedTestDbName(entry);
+      if (!isTestTenant) continue;
+      try {
+        if (statSync(candidate).isDirectory()) {
+          rmSync(candidate, { recursive: true, force: true });
+        }
+      } catch {
+        /* locked — leave it for the next run */
+      }
+    }
+  } catch {
+    /* no compiled root — nothing to sweep */
+  }
+
   const swept = sweepHarnessSqliteFiles(root);
   if (swept.length > 0) {
     console.log(`🧹 Swept harness DB leftovers from the live folder: ${swept.join(", ")}`);

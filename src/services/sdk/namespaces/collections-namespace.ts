@@ -782,7 +782,9 @@ export class CollectionsNamespace {
         CollectionsNamespace.setRequestCache(cacheKey, cached, undefined, tenantId);
         return cached;
       }
-    } catch {}
+    } catch (error) {
+      logger.debug("[collections-namespace] suppressed error", error);
+    }
 
     const cs = await this._resolveContentSystem();
     const collections = await cs.getCollections(tenantId);
@@ -829,7 +831,9 @@ export class CollectionsNamespace {
         CacheCategory.SYSTEM,
       );
       CollectionsNamespace.setRequestCache(cacheKey, processed, undefined, tenantId);
-    } catch {}
+    } catch (error) {
+      logger.debug("[collections-namespace] suppressed error", error);
+    }
 
     return processed;
   }
@@ -1311,7 +1315,9 @@ export class CollectionsNamespace {
         }
 
         CollectionsNamespace.setRequestCache(cacheKey, result, schema._id as string, tenantId);
-      } catch {}
+      } catch (error) {
+        logger.debug("[collections-namespace] suppressed error", error);
+      }
     }
 
     return presentRead(result, schema, hot, encCtx, options.user, options.system);
@@ -1626,7 +1632,9 @@ export class CollectionsNamespace {
             schema._id as string,
             tenantId as string,
           );
-        } catch {}
+        } catch (error) {
+          logger.debug("[collections-namespace] suppressed error", error);
+        }
       }
 
       invalidateCache(schema, tenantId);
@@ -1641,7 +1649,9 @@ export class CollectionsNamespace {
           tenantId,
           user,
         });
-      } catch {}
+      } catch (error) {
+        logger.debug("[collections-namespace] suppressed error", error);
+      }
     }
 
     return result;

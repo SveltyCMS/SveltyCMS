@@ -171,7 +171,9 @@ async function sqliteBatchInsert(
     logger.error("[Perf] SQLite batch insert error:", err);
     try {
       client.exec("ROLLBACK");
-    } catch {}
+    } catch (error) {
+      logger.debug("[performance] suppressed error", error);
+    }
   }
   return count;
 }

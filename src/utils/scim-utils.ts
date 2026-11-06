@@ -20,6 +20,7 @@ import type { ScimError, ScimPatchOp } from "@src/types/scim";
 import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import { json } from "@sveltejs/kit";
+import { nowISODateString } from "@utils/date";
 
 // ============================================================================
 // SCIM Filter Parser (RFC 7644 §3.4.2.2)
@@ -325,8 +326,8 @@ export function buildScimUser(user: Record<string, any>, baseUrl: string): Recor
     roles: user.role ? [{ value: user.role, display: user.role, primary: true }] : [],
     meta: {
       resourceType: "User",
-      created: user.createdAt || new Date().toISOString(),
-      lastModified: user.updatedAt || new Date().toISOString(),
+      created: user.createdAt || nowISODateString(),
+      lastModified: user.updatedAt || nowISODateString(),
       location: `${baseUrl}/api/scim/v2/Users/${user._id}`,
       version: `W/"${user.updatedAt || user.createdAt || Date.now()}"`,
     },
@@ -352,8 +353,8 @@ export function buildScimGroup(
     })),
     meta: {
       resourceType: "Group",
-      created: role.createdAt || new Date().toISOString(),
-      lastModified: role.updatedAt || new Date().toISOString(),
+      created: role.createdAt || nowISODateString(),
+      lastModified: role.updatedAt || nowISODateString(),
       location: `${baseUrl}/api/scim/v2/Groups/${role._id}`,
     },
   };

@@ -153,6 +153,32 @@ function cleanRunArtifacts(): void {
   }
 }
 
+/**
+ * Remove test-owned collections/database/media after a successful run.
+ * Never touches live `config/collections`, `config/database`, `config/private.ts`
+ * or `mediaFolder`. Set `KEEP_E2E_ARTIFACTS=1` to inspect a run.
+ */
+function cleanHarnessArtifacts(): void {
+  if (process.env.KEEP_E2E_ARTIFACTS === "1") {
+    console.log("ℹ️  KEEP_E2E_ARTIFACTS=1 — test-owned artifacts kept.");
+    return;
+  }
+  for (const rel of [
+    "config/test-collections",
+    ".compiledCollections/test-collections",
+    "config/test-database",
+    "config/private.test.ts",
+    "tests/e2e/.media",
+  ]) {
+    try {
+      rmSync(join(ROOT, rel), { recursive: true, force: true });
+    } catch {
+      /* non-fatal */
+    }
+  }
+  console.log("🧹 Test-owned collections/DB/media removed (live config untouched).");
+}
+
 async function runCmd(cmd: string, cargs: string[], env: Record<string, string>): Promise<number> {
   return new Promise((resolve) => {
     const proc = spawn(cmd, cargs, {
@@ -372,6 +398,7 @@ async function main() {
     process.exit(143);
   });
 
+  let suitePassed = false;
   try {
     await waitForServerOrExit(server, BASE_URL);
     console.log(`✅ Server ready at ${BASE_URL}\n`);
@@ -436,9 +463,13 @@ async function main() {
       console.error("\nSome E2E tests failed.");
       process.exit(1);
     }
+    suitePassed = true;
     console.log("\n✅ All E2E tests passed.");
   } finally {
+    // Stop the preview server first: background jobs recreate the test DB
+    // directory if cleanup runs while the process is still alive.
     cleanupSync(server);
+    if (suitePassed) cleanHarnessArtifacts();
   }
 }
 

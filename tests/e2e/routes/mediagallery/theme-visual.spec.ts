@@ -408,6 +408,7 @@ for (const scheme of ["light", "dark"] as const) {
         await expect(preview).toBeVisible({ timeout: ACTION_TIMEOUT });
         await expect(preview.getByText("21:9")).toBeVisible({ timeout: ACTION_TIMEOUT });
         // Let the open/scale transition finish so colors are the final ones.
+        // wait-allow: open/scale transition must settle before the colour audit
         await page.waitForTimeout(400);
         await auditSurface(
           page,

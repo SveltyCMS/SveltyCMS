@@ -6,7 +6,7 @@ order: 5
 icon: "mdi:file-document-check"
 author: "SveltyCMS Team"
 created: "2026-08-23"
-updated: "2026-11-05"
+updated: "2026-11-06"
 tags:
   - "tests"
   - "documentation"
@@ -96,6 +96,8 @@ tags:
 | `tests/unit/scripts/external-validation.test.ts`                        | `docs/reference/security/security-case.mdx`, `docs/security/external-validation.json`                                                                                |
 | `tests/unit/security/red-team-corpus.test.ts`                           | `docs/reference/security/test-strength.mdx` (§ Executable corpus)                                                                                                    |
 | `tests/unit/security/invariants.test.ts`                                | `docs/reference/security/threat-models.mdx`, `docs/reference/security/security-case.mdx`                                                                             |
+| `tests/unit/utils/property-based.test.ts`                               | `docs/tests/test-status.mdx`, `docs/reference/security/api-security.mdx`                                                                                             |
+| `tests/unit/utils/filter-property-based.test.ts`                        | `docs/reference/api/collections.mdx` (filter/sort/pagination contract), `docs/tests/test-status.mdx`                                                                 |
 | `tests/unit/plugins/wasm-plugin-pool.test.ts`                           | `docs/development/plugins/architecture.mdx` (§ Dual-track execution), `docs/reference/security/security-posture.mdx`                                                 |
 | `tests/unit/plugins/post-write-wasm-dual-track.test.ts`                 | `docs/development/plugins/architecture.mdx` (§ Dual-track execution)                                                                                                 |
 | `tests/unit/plugins/wasm-stress-load.test.ts`                           | `docs/development/plugins/architecture.mdx` (§ Dual-track execution)                                                                                                 |
@@ -193,9 +195,26 @@ tags:
 | `tests/unit/ci/ci-tier-contract.test.ts`                                | `docs/tests/adr-testing-2026.mdx`, `AGENTS.md` (CI tiers)                                                                                                            |
 | `tests/unit/databases/role-permissions-reconcile.test.ts`               | `docs/reference/api/auth.mdx`, `docs/reference/api/media.mdx`                                                                                                        |
 | `tests/unit/graphql/graphql-server.test.ts`                             | `docs/reference/api/graphql.mdx`                                                                                                                                     |
+| `tests/unit/services/api-spec-service.test.ts`                          | `docs/reference/api/index.mdx` (REST/OpenAPI coverage incl. webhooks, workflows, automations), `docs/tests/test-status.mdx` (curated-subset + namespace inventory)   |
+| `tests/unit/api/openapi.test.ts`                                        | `docs/reference/api/index.mdx`, `docs/tests/test-status.mdx`                                                                                                         |
+| `tests/unit/api/openapi-contract-coverage.test.ts`                      | `docs/reference/api/index.mdx` (curated-subset inventory), `docs/tests/test-status.mdx` (OpenAPI honesty gate)                                                       |
+| `tests/unit/scripts/marketplace-conformance.test.ts`                    | `docs/development/plugins/testing.mdx` (§10 conformance audit), `docs/development/plugins/marketplace.mdx`                                                           |
+| `tests/unit/scripts/check-coverage-budget.test.ts`                      | `docs/tests/coverage-budget.mdx`                                                                                                                                     |
+| `tests/unit/services/webhook-dispatch.test.ts`                          | `docs/guides/content/automations.mdx` (durable webhook delivery), `docs/tests/routes/webhooks.mdx`                                                                   |
+| `tests/unit/routes/system-shared-guards.test.ts`                        | `docs/reference/security/api-security.mdx` (admin gate + tenant override)                                                                                            |
+| `tests/unit/utils/api-unwrap-list.test.ts`                              | `docs/reference/api/index.mdx` (envelope normalization)                                                                                                              |
+| `tests/unit/scripts/lint-global-timers.test.ts`                         | `AGENTS.md` (drift gates), `docs/troubleshooting.mdx` (HMR teardown)                                                                                                 |
+| `tests/unit/scripts/lint-live-paths.test.ts`                            | `docs/tests/benchmark-isolation.mdx`, `AGENTS.md` (drift gates)                                                                                                      |
+| `tests/unit/scripts/lint-transient-classification.test.ts`              | `docs/tests/benchmark-isolation.mdx`, `AGENTS.md` (drift gates)                                                                                                      |
+| `tests/unit/scripts/lint-date-helpers.test.ts`                          | `AGENTS.md` (drift gates), `docs/reference/architecture/content-system.mdx`                                                                                          |
+| `tests/unit/scripts/lint-silent-catch.test.ts`                          | `AGENTS.md` (errors & logging)                                                                                                                                       |
+| `tests/unit/scripts/lint-rule-budgets.test.ts`                          | `AGENTS.md` (errors & logging, code hygiene), `docs/project/roadmap-2026.mdx`                                                                                        |
+| `tests/unit/scripts/lint-e2e-actionability.test.ts`                     | `docs/tests/adr-testing-2026.mdx`, `AGENTS.md` (before you push)                                                                                                     |
 | `tests/unit/content/sync-content-state.test.ts`                         | `docs/reference/architecture/content-system.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                                                             |
 | `tests/unit/content/collection-save-sync.test.ts`                       | `docs/reference/architecture/compilation-pipeline.mdx`, `docs/reference/architecture/collection-builder-architecture.mdx`                                            |
 | `tests/unit/content/schema-contract.test.ts`                            | `docs/reference/architecture/content-system.mdx`                                                                                                                     |
+| `tests/unit/content/loader-utils.test.ts`                               | `docs/reference/architecture/compilation-pipeline.mdx` (load-time failure classification), `docs/troubleshooting.mdx` (Vite module-runner deferral)                  |
+| `tests/unit/content/content-reconcile.test.ts`                          | `docs/reference/architecture/compilation-pipeline.mdx` (transient scan deferral)                                                                                     |
 | `tests/unit/compilation/compile-manifest.test.ts`                       | `docs/reference/architecture/compilation-pipeline.mdx`                                                                                                               |
 | `tests/unit/compilation/category-directories.test.ts`                   | `docs/reference/architecture/collection-builder-architecture.mdx`, `docs/reference/architecture/compilation-pipeline.mdx`                                            |
 | `tests/integration/collectionbuilder/*`                                 | `docs/reference/architecture/collection-builder-architecture.mdx`                                                                                                    |
@@ -228,6 +247,7 @@ tags:
 | `tests/unit/utils/entry-actions.test.ts`                                | `docs/reference/architecture/content-system.mdx`, `docs/project/achievements-2026.mdx` (§3.18)                                                                       |
 | `tests/unit/widgets/custom-widget-sveltycms.test.ts`                    | `docs/development/widgets/index.mdx`, `docs/reference/components/fields.mdx`                                                                                         |
 | `tests/unit/databases/cache-service-l2-contract.test.ts`                | `docs/reference/architecture/cache-system.mdx`, `docs/reference/database/performance-architecture.mdx`                                                               |
+| `tests/unit/databases/cache-warming-service.test.ts`                    | `docs/reference/architecture/cache-system.mdx`                                                                                                                       |
 | `tests/unit/media/derivative-ladder.test.ts`                            | `docs/reference/architecture/media-system.mdx` (#3 + derivative format), `docs/project/achievements-2026.mdx`                                                        |
 | `tests/unit/media/processing/media-storage.test.ts`                     | `docs/reference/architecture/media-system.mdx` (derivative format), `docs/project/achievements-2026.mdx`                                                             |
 | `tests/unit/media/upload-dedupe-order.test.ts`                          | `docs/reference/architecture/media-system.mdx` (#2 dedupe), `docs/project/achievements-2026.mdx`                                                                     |

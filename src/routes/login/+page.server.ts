@@ -54,6 +54,7 @@ import {
   resetPW as resetPWFn,
   prefetch as prefetchFn,
 } from "./auth.remote";
+import { nowISODateString } from "@utils/date";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -84,7 +85,9 @@ function getUserLanguage(): string {
   try {
     const langFromStore = (globalThis as any).__app?.systemLanguage;
     if (langFromStore) return langFromStore;
-  } catch {}
+  } catch (error) {
+    logger.debug("[+page.server] suppressed error", error);
+  }
   return "en";
 }
 
@@ -418,7 +421,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
               existingUser._id as any,
               {
                 lastAuthMethod: "google",
-                lastActiveAt: new Date().toISOString() as any,
+                lastActiveAt: nowISODateString() as any,
               },
               withSystemScope("bootstrap"),
             )

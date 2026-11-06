@@ -75,6 +75,7 @@
 			tenantId: string | null;
 			openapiSpecUrl: string;
 			graphqlEndpoint: string;
+			graphqlPlaygroundEnabled: boolean;
 			collections: { id: string; name: string; icon?: string }[];
 		};
 	}
@@ -527,20 +528,37 @@ export const load: PageServerLoad = async ({ locals }) => {
 		<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
 			<!-- Query Editor -->
 			<AdminCard class={cardClass}>
-				<div class="mb-4 flex items-center justify-between">
+				<div class="mb-4 flex flex-wrap items-center justify-between gap-2">
 					<h3 class="text-base font-semibold text-surface-900 dark:text-surface-50">
 						{api_gql_query()}
 					</h3>
-					<a
-						href={data.graphqlEndpoint}
-						target="_blank"
-						rel="noopener noreferrer"
-						class="inline-flex items-center gap-1 font-mono text-xs text-tertiary-500 underline underline-offset-2 dark:text-primary-500"
-					>
-						{data.graphqlEndpoint}
-						<iconify-icon icon="mdi:open-in-new" width="12" aria-hidden="true"></iconify-icon>
-					</a>
+					<div class="flex flex-wrap items-center gap-2">
+						<code class="font-mono text-xs text-surface-500">{data.graphqlEndpoint}</code>
+						{#if data.graphqlPlaygroundEnabled}
+							<a
+								href={data.graphqlEndpoint}
+								target="_blank"
+								rel="noopener noreferrer"
+								class="inline-flex items-center gap-1.5 rounded-lg border border-surface-500/20 bg-surface-500/10 px-3 py-1.5 text-xs font-medium text-surface-900 transition-colors hover:bg-surface-500/20 dark:bg-surface-800 dark:text-surface-100"
+							>
+								<iconify-icon icon="mdi:open-in-new" width="14" aria-hidden="true"></iconify-icon>
+								Open Yoga Explorer
+							</a>
+						{/if}
+					</div>
 				</div>
+
+				{#if data.graphqlPlaygroundEnabled}
+					<p class="mb-4 text-xs text-surface-500">
+						The Yoga explorer opens the full GraphiQL IDE (schema docs, autocomplete, history) in a
+						new tab. Use the console below to run an operation without leaving the admin UI.
+					</p>
+				{:else}
+					<p class="mb-4 text-xs text-surface-500">
+						The Yoga explorer is development-only: production blocks its CDN assets and schema
+						introspection. The console below still runs operations.
+					</p>
+				{/if}
 
 				<div class="space-y-4">
 					<div class="space-y-1">

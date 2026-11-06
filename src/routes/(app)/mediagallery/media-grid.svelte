@@ -8,6 +8,7 @@
 - Multi-select integration
 - High-contrast focus states
 - Drag media (or multi-selection) onto sidebar virtual folders
+- Rendition fallback (thumbnail → sm → md → lg → original) with a visible "File missing" state
 -->
 
 <script lang="ts">
@@ -40,12 +41,13 @@
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import MediaGridActionTooltip from './media-grid-action-tooltip.svelte';
+	import MediaTableRowMenu from './media-table-row-menu.svelte';
 	import {
 		type MediaBase,
 		type MediaImage,
 		normalizeProcessingStatus
 	} from '@utils/media/media-models';
-	import { mediaDisplayUrl, mediaThumbnailUrl } from '@utils/media/media-utils';
+	import { mediaDisplayUrl, mediaPreviewCandidates } from '@utils/media/media-utils';
 	import { adminFade, motionDuration } from '@utils/admin-transitions';
 	import {
 		MEDIA_DRAG_CONTAINER,
@@ -57,7 +59,7 @@
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { dndState } from '@thisux/sveltednd';
-	import { SvelteSet } from 'svelte/reactivity';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import Badge from '@components/ui/badge.svelte';
 
 	interface Props {
@@ -116,7 +118,10 @@
 	let showTagModal = $state(false);
 	let taggingFile = $state<MediaImage | null>(null);
 	let fileUploadInput = $state<HTMLInputElement>();
-	let failedImages = $state(new SvelteSet<string>());
+	/** Per-tile `<img>` attempt index, keyed by file + rendition ladder. */
+	const previewAttempts = new SvelteMap<string, number>();
+	/** Tiles whose entire preview ladder failed — icon fallback + "File missing" badge. */
+	const missingImages = new SvelteSet<string>();
 	let touchActiveId = $state<string | null>(null);
 	/** Shift-click range anchor (grid order of the last selected tile). */
 	let lastSelectedId = $state<string | null>(null);
@@ -209,6 +214,27 @@
 
 	function fileIdOf(file: MediaBase | MediaImage): string {
 		return file._id?.toString() || file.filename;
+	}
+
+	/**
+	 * Per-tile preview state key. The candidate ladder is part of the key so a
+	 * grid-size change (different preferred rendition) or freshly generated
+	 * thumbnails restart the ladder instead of inheriting a stale failure.
+	 */
+	function previewKeyOf(fileId: string, candidates: string[]): string {
+		return `${fileId}\u0000${candidates.join('\u0001')}`;
+	}
+
+	/** Walk the rendition ladder on `<img>` errors; mark the tile missing when it is exhausted. */
+	function handlePreviewError(candidates: string[], previewKey: string, attemptedIndex: number) {
+		const index = previewAttempts.get(previewKey) ?? 0;
+		// A stale error from a previous `src` must not advance the ladder twice.
+		if (attemptedIndex !== index) return;
+		if (index < candidates.length - 1) {
+			previewAttempts.set(previewKey, index + 1);
+			return;
+		}
+		missingImages.add(previewKey);
 	}
 
 	/** Shift-click selects the whole range from the previous anchor (visible batch). */
@@ -434,7 +460,15 @@
 			{@const fileId = file._id?.toString() || file.filename}
 			{@const processing = processingStatusOf(file)}
 			{@const inUse = publishedMediaIds.has(fileId)}
-			{@const documentPreview = file.type === 'image' ? '' : mediaThumbnailUrl(file, previewSize)}
+			{@const isImage = file.type === 'image'}
+			{@const candidateUrls = mediaPreviewCandidates(file, previewSize, {
+				includeOriginal: isImage
+			})}
+			{@const previewKey = previewKeyOf(fileId, candidateUrls)}
+			{@const previewIndex = previewAttempts.get(previewKey) ?? 0}
+			{@const previewSrc = candidateUrls[previewIndex] ?? ''}
+			{@const previewFailed =
+				missingImages.has(previewKey) || (isImage && candidateUrls.length === 0)}
 
 			<!-- Row wrapper (display: contents) keeps the gridcell as the grid item while
 			     satisfying the grid's required row → gridcell ownership. -->
@@ -509,6 +543,7 @@
 							title={mediagallery_drag_to_folder()}
 							positioning={{ placement: 'top' }}
 							triggerClass="h-full w-full"
+							disabled={gridSize === 'tiny'}
 						>
 							<div
 								role="button"
@@ -518,16 +553,14 @@
 								onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
 								aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
 							>
-								{#if (documentPreview || file.type === 'image') && !failedImages.has(fileId)}
+								{#if candidateUrls.length > 0 && !previewFailed}
 									<div
-										class="h-full w-full transition-colors duration-500 {documentPreview
-											? 'bg-white'
-											: ''}"
-										style:background-color={documentPreview
-											? undefined
-											: (file.metadata?.dominantColor as string) || 'transparent'}
+										class="h-full w-full transition-colors duration-500 {isImage ? '' : 'bg-white'}"
+										style:background-color={isImage
+											? (file.metadata?.dominantColor as string) || 'transparent'
+											: undefined}
 									>
-										{#if !documentPreview && file.metadata?.placeholder}
+										{#if isImage && file.metadata?.placeholder}
 											<img
 												src={file.metadata.placeholder as string}
 												alt=""
@@ -539,11 +572,11 @@
 										{/if}
 
 										<img
-											src={documentPreview || mediaDisplayUrl(file, previewSize)}
+											src={previewSrc}
 											alt=""
-											class="relative h-full w-full pointer-events-none {documentPreview
-												? 'object-contain'
-												: 'object-cover'}"
+											class="relative h-full w-full pointer-events-none {isImage
+												? 'object-cover'
+												: 'object-contain'}"
 											style:object-position={file.metadata?.focalPoint
 												? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
 												: 'center'}
@@ -551,19 +584,29 @@
 											decoding="async"
 											draggable="false"
 											crossorigin="anonymous"
-											onerror={() => failedImages.add(fileId)}
+											onerror={() => handlePreviewError(candidateUrls, previewKey, previewIndex)}
 											onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
 										/>
 									</div>
 								{:else}
 									<div
-										class="flex h-full w-full items-center justify-center bg-(--admin-bg-card)/80"
+										class="flex h-full w-full flex-col items-center justify-center gap-2 bg-(--admin-bg-card)/80"
 									>
 										<iconify-icon
-											icon={file.type === 'image' ? 'mdi:image-off-outline' : getFileIcon(file)}
+											icon={isImage ? 'mdi:image-off-outline' : getFileIcon(file)}
 											width={36}
 											class="text-(--admin-text-muted)"
 										></iconify-icon>
+										{#if previewFailed}
+											<span
+												class="relative z-20 inline-flex items-center gap-1 rounded-full border border-error-500/30 bg-error-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-error-500 dark:border-error-500/40 dark:bg-error-900/20 dark:text-error-400"
+												title="File missing — open the file details to replace it"
+											>
+												<iconify-icon icon="mdi:file-alert-outline" width="11" aria-hidden="true"
+												></iconify-icon>
+												File missing
+											</span>
+										{/if}
 									</div>
 								{/if}
 
@@ -618,216 +661,230 @@
 							data-no-drag
 							data-testid="media-grid-actions"
 						>
-							<MediaGridActionTooltip
-								theme="light"
-								ariaLabel="Details for {file.filename}"
-								class="{actionBtnClass} hidden sm:flex"
-								onclick={(e) => {
-									e.stopPropagation();
-									onOpenFileDetails(file);
-								}}
-							>
-								{#snippet children()}
-									<span
-										class="font-serif text-sm font-semibold italic leading-none text-primary-500 transition-colors group-hover/action:text-white"
-										>i</span
-									>
-								{/snippet}
-								{#snippet content()}
-									<div class="flex flex-col text-[11px] text-(--admin-text-muted) min-w-60">
-										<div
-											class="mb-0 border-b border-(--admin-border-default) pb-2 text-center text-tertiary-500 dark:text-primary-500 text-[13px] font-semibold wrap-break-word"
-											dir="auto"
-										>
-											{file.filename}
-										</div>
-										<table class="w-full text-start border-collapse mt-2">
-											<thead>
-												<tr
-													class="border-b border-(--admin-border-default) text-tertiary-500 dark:text-primary-500"
-												>
-													<th
-														class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-start"
-														>{mediagallery_name()}</th
-													>
-													<th
-														class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-center"
-														>{mediagallery_Pixel()}</th
-													>
-													<th class="font-bold py-1 px-2 text-end" colspan="2"
-														>{mediagallery_size()}</th
-													>
-												</tr>
-											</thead>
-											<tbody class="text-(--admin-text-muted)">
-												<tr class="border-b border-(--admin-border-default)">
-													<td
-														class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
-														>{mediagallery_original()}</td
-													>
-													<td class="py-1 px-2 text-center border-e border-(--admin-border-default)"
-														>{getDimensionsLabel(file) || '-'}</td
-													>
-													<td class="py-1 px-2 text-end tabular-nums" colspan="2"
-														>{formatBytes((file as MediaImage).size)}</td
-													>
-												</tr>
-												{#if file.thumbnails}
-													{@const hasWebp = hasWebpVariants(file.thumbnails)}
-													{@const primaryLabel = primaryFormatLabel(
-														file.thumbnails,
-														(file as MediaImage).mimeType
-													)}
-													<tr class="border-b border-(--admin-border-default)">
-														<td
-															class="py-1 px-2 text-center font-bold text-tertiary-500 dark:text-primary-500"
-															colspan="4"
-														>
-															{mediagallery_resized_variants()}{#if primaryLabel}{primaryLabel}{#if hasWebp}
-																	+ WebP{/if}{/if}
-														</td>
-													</tr>
-													{#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
-														{@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
-														{@const thumb = file.thumbnails[sizeKey]!}
-														<tr class="border-b border-(--admin-border-default) last:border-0">
-															<td
-																class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
-																>{sizeKey}</td
-															>
-															<td
-																class="py-1 px-2 text-center border-e border-(--admin-border-default)"
-															>
-																{thumb.width}x{thumb.height}
-															</td>
-															{#if hasWebp}
-																<td
-																	class="py-1 px-2 text-end tabular-nums border-e border-(--admin-border-default)"
-																>
-																	{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
-																</td>
-																<td class="py-1 px-2 text-end tabular-nums">
-																	{#if webpKey}
-																		{formatBytes((file.thumbnails[webpKey] as any).size)}
-																	{:else}
-																		<span
-																			class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
-																			>—</span
-																		>
-																	{/if}
-																</td>
-															{:else}
-																<td class="py-1 px-2 text-end tabular-nums">
-																	{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
-																</td>
-															{/if}
-														</tr>
-													{/each}
-												{/if}
-											</tbody>
-										</table>
-									</div>
-								{/snippet}
-							</MediaGridActionTooltip>
-
-							<MediaGridActionTooltip
-								title={button_edit()}
-								ariaLabel="Edit {file.filename}"
-								class={actionBtnClass}
-								data-testid="media-edit-button"
-								onclick={(e) => {
-									e.stopPropagation();
-									onEditImage(file as MediaImage);
-								}}
-							>
-								{#snippet children()}
-									<iconify-icon icon="mdi:pencil" width={15}></iconify-icon>
-								{/snippet}
-							</MediaGridActionTooltip>
-
-							{#if file.type === 'image'}
+							{#if gridSize === 'tiny'}
+								<!-- A 6-button rail cannot fit an 88–120 px tile; one portalled
+								     menu keeps every action reachable without clipping. -->
+								<MediaTableRowMenu
+									{file}
+									onDetails={() => onOpenFileDetails(file)}
+									onEdit={() => onEditImage(file as MediaImage)}
+									onFocal={() => onSetFocalPoint(file as MediaImage)}
+									onTags={() => openTagEditor(file as MediaImage)}
+									onDelete={() => ondeleteImage(file)}
+								/>
+							{:else}
 								<MediaGridActionTooltip
-									title={mediagallery_focal_title()}
-									ariaLabel={mediagallery_focal_title()}
-									class={actionBtnClass}
-									data-testid="media-focal-button"
+									theme="light"
+									ariaLabel="Details for {file.filename}"
+									class="{actionBtnClass} hidden sm:flex"
 									onclick={(e) => {
 										e.stopPropagation();
-										onSetFocalPoint(file as MediaImage);
+										onOpenFileDetails(file);
 									}}
 								>
 									{#snippet children()}
-										<iconify-icon icon="mdi:crosshairs-gps" width={15}></iconify-icon>
+										<span
+											class="font-serif text-sm font-semibold italic leading-none text-primary-500 transition-colors group-hover/action:text-white"
+											>i</span
+										>
+									{/snippet}
+									{#snippet content()}
+										<div class="flex flex-col text-[11px] text-(--admin-text-muted) min-w-60">
+											<div
+												class="mb-0 border-b border-(--admin-border-default) pb-2 text-center text-tertiary-500 dark:text-primary-500 text-[13px] font-semibold wrap-break-word"
+												dir="auto"
+											>
+												{file.filename}
+											</div>
+											<table class="w-full text-start border-collapse mt-2">
+												<thead>
+													<tr
+														class="border-b border-(--admin-border-default) text-tertiary-500 dark:text-primary-500"
+													>
+														<th
+															class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-start"
+															>{mediagallery_name()}</th
+														>
+														<th
+															class="font-bold py-1 px-2 border-e border-(--admin-border-default) text-center"
+															>{mediagallery_Pixel()}</th
+														>
+														<th class="font-bold py-1 px-2 text-end" colspan="2"
+															>{mediagallery_size()}</th
+														>
+													</tr>
+												</thead>
+												<tbody class="text-(--admin-text-muted)">
+													<tr class="border-b border-(--admin-border-default)">
+														<td
+															class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
+															>{mediagallery_original()}</td
+														>
+														<td
+															class="py-1 px-2 text-center border-e border-(--admin-border-default)"
+															>{getDimensionsLabel(file) || '-'}</td
+														>
+														<td class="py-1 px-2 text-end tabular-nums" colspan="2"
+															>{formatBytes((file as MediaImage).size)}</td
+														>
+													</tr>
+													{#if file.thumbnails}
+														{@const hasWebp = hasWebpVariants(file.thumbnails)}
+														{@const primaryLabel = primaryFormatLabel(
+															file.thumbnails,
+															(file as MediaImage).mimeType
+														)}
+														<tr class="border-b border-(--admin-border-default)">
+															<td
+																class="py-1 px-2 text-center font-bold text-tertiary-500 dark:text-primary-500"
+																colspan="4"
+															>
+																{mediagallery_resized_variants()}{#if primaryLabel}{primaryLabel}{#if hasWebp}
+																		+ WebP{/if}{/if}
+															</td>
+														</tr>
+														{#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
+															{@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
+															{@const thumb = file.thumbnails[sizeKey]!}
+															<tr class="border-b border-(--admin-border-default) last:border-0">
+																<td
+																	class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
+																	>{sizeKey}</td
+																>
+																<td
+																	class="py-1 px-2 text-center border-e border-(--admin-border-default)"
+																>
+																	{thumb.width}x{thumb.height}
+																</td>
+																{#if hasWebp}
+																	<td
+																		class="py-1 px-2 text-end tabular-nums border-e border-(--admin-border-default)"
+																	>
+																		{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+																	</td>
+																	<td class="py-1 px-2 text-end tabular-nums">
+																		{#if webpKey}
+																			{formatBytes((file.thumbnails[webpKey] as any).size)}
+																		{:else}
+																			<span
+																				class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
+																				>—</span
+																			>
+																		{/if}
+																	</td>
+																{:else}
+																	<td class="py-1 px-2 text-end tabular-nums">
+																		{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+																	</td>
+																{/if}
+															</tr>
+														{/each}
+													{/if}
+												</tbody>
+											</table>
+										</div>
 									{/snippet}
 								</MediaGridActionTooltip>
 
 								<MediaGridActionTooltip
-									title={builder_tag_input_label()}
-									ariaLabel="Tags for {file.filename}"
+									title={button_edit()}
+									ariaLabel="Edit {file.filename}"
+									class={actionBtnClass}
+									data-testid="media-edit-button"
+									onclick={(e) => {
+										e.stopPropagation();
+										onEditImage(file as MediaImage);
+									}}
+								>
+									{#snippet children()}
+										<iconify-icon icon="mdi:pencil" width={15}></iconify-icon>
+									{/snippet}
+								</MediaGridActionTooltip>
+
+								{#if file.type === 'image'}
+									<MediaGridActionTooltip
+										title={mediagallery_focal_title()}
+										ariaLabel={mediagallery_focal_title()}
+										class={actionBtnClass}
+										data-testid="media-focal-button"
+										onclick={(e) => {
+											e.stopPropagation();
+											onSetFocalPoint(file as MediaImage);
+										}}
+									>
+										{#snippet children()}
+											<iconify-icon icon="mdi:crosshairs-gps" width={15}></iconify-icon>
+										{/snippet}
+									</MediaGridActionTooltip>
+
+									<MediaGridActionTooltip
+										title={builder_tag_input_label()}
+										ariaLabel="Tags for {file.filename}"
+										class={actionBtnClass}
+										onclick={(e) => {
+											e.stopPropagation();
+											openTagEditor(file as MediaImage);
+										}}
+									>
+										{#snippet children()}
+											<iconify-icon
+												icon={(file as MediaImage).metadata?.tags?.length ||
+												(file as MediaImage).metadata?.aiTags?.length
+													? 'mdi:tag'
+													: 'mdi:tag-outline'}
+												width={15}
+											></iconify-icon>
+										{/snippet}
+									</MediaGridActionTooltip>
+								{/if}
+
+								<MediaGridActionTooltip
+									title={mediagallery_copy_url()}
+									ariaLabel={mediagallery_copy_url_aria({ name: file.filename })}
+									class={actionBtnClass}
+									data-testid="media-copy-url"
+									onclick={async (e) => {
+										e.stopPropagation();
+										const raw = file.url || mediaDisplayUrl(file);
+										if (!raw) {
+											toast.error(mediagallery_copy_url_missing());
+											return;
+										}
+										try {
+											const absolute = raw.startsWith('http')
+												? raw
+												: new URL(raw, window.location.origin).toString();
+											await navigator.clipboard.writeText(absolute);
+											toast.success(mediagallery_copy_url_success());
+										} catch (error) {
+											logger.warn('Clipboard write failed', error);
+											toast.error(mediagallery_copy_url_failed());
+										}
+									}}
+								>
+									{#snippet children()}
+										<iconify-icon icon="mdi:link-variant" width={15}></iconify-icon>
+									{/snippet}
+								</MediaGridActionTooltip>
+
+								<MediaGridActionTooltip
+									title="Delete"
+									ariaLabel="Delete {file.filename}"
 									class={actionBtnClass}
 									onclick={(e) => {
 										e.stopPropagation();
-										openTagEditor(file as MediaImage);
+										ondeleteImage(file);
 									}}
 								>
 									{#snippet children()}
 										<iconify-icon
-											icon={(file as MediaImage).metadata?.tags?.length ||
-											(file as MediaImage).metadata?.aiTags?.length
-												? 'mdi:tag'
-												: 'mdi:tag-outline'}
+											icon="mdi:trash-can-outline"
 											width={15}
+											class="text-error-400 transition-colors group-hover/action:text-white"
 										></iconify-icon>
 									{/snippet}
 								</MediaGridActionTooltip>
 							{/if}
-
-							<MediaGridActionTooltip
-								title={mediagallery_copy_url()}
-								ariaLabel={mediagallery_copy_url_aria({ name: file.filename })}
-								class={actionBtnClass}
-								data-testid="media-copy-url"
-								onclick={async (e) => {
-									e.stopPropagation();
-									const raw = file.url || mediaDisplayUrl(file);
-									if (!raw) {
-										toast.error(mediagallery_copy_url_missing());
-										return;
-									}
-									try {
-										const absolute = raw.startsWith('http')
-											? raw
-											: new URL(raw, window.location.origin).toString();
-										await navigator.clipboard.writeText(absolute);
-										toast.success(mediagallery_copy_url_success());
-									} catch (error) {
-										logger.warn('Clipboard write failed', error);
-										toast.error(mediagallery_copy_url_failed());
-									}
-								}}
-							>
-								{#snippet children()}
-									<iconify-icon icon="mdi:link-variant" width={15}></iconify-icon>
-								{/snippet}
-							</MediaGridActionTooltip>
-
-							<MediaGridActionTooltip
-								title="Delete"
-								ariaLabel="Delete {file.filename}"
-								class={actionBtnClass}
-								onclick={(e) => {
-									e.stopPropagation();
-									ondeleteImage(file);
-								}}
-							>
-								{#snippet children()}
-									<iconify-icon
-										icon="mdi:trash-can-outline"
-										width={15}
-										class="text-error-400 transition-colors group-hover/action:text-white"
-									></iconify-icon>
-								{/snippet}
-							</MediaGridActionTooltip>
 						</div>
 					</div>
 

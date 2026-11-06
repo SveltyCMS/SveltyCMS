@@ -754,7 +754,9 @@ export class AuthNamespace {
       try {
         const { clearTurboAuthCache } = await loadHandleTurboGetModule();
         clearTurboAuthCache();
-      } catch {}
+      } catch (error) {
+        logger.debug("[auth-namespace] suppressed error", error);
+      }
 
       await auditLogService.logEvent({
         action: "Updated system roles and permissions",
@@ -839,7 +841,9 @@ export class AuthNamespace {
           for (const userId of userIds) {
             invalidateTurboAuthForUser(userId);
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[auth-namespace] suppressed error", error);
+        }
         // Purge every session layer (LRU cache, turbo, session store, Redis) for
         // affected users — blocked/deleted users must lose access immediately,
         // not after the 24h session-cache TTL.
@@ -856,7 +860,9 @@ export class AuthNamespace {
               invalidateSessionCache(String(s._id), tenantId as DatabaseId);
             }
           }
-        } catch {}
+        } catch (error) {
+          logger.debug("[auth-namespace] suppressed error", error);
+        }
       }
 
       return batchResult.data;

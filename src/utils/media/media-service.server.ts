@@ -18,8 +18,7 @@ import {
   getFile,
   saveFile,
   saveResizedImages,
-  generateCsvThumbnail,
-  generatePdfThumbnail,
+  buildDocumentPreview,
 } from "./media-storage.server";
 import {
   processImageWithPresets,
@@ -725,6 +724,38 @@ export class MediaService {
     });
   }
 
+  /**
+   * Queue the `process-media` background job for work the synchronous upload
+   * path cannot cover: documents streamed above the buffering threshold and
+   * videos (which get no preview during upload).
+   *
+   * Loaded dynamically — `job-queue-service` imports every job handler, so a
+   * static import here would pull the worker graph into the upload module.
+   * Fire-and-forget: the record already exists, so a queue failure only means
+   * the tile keeps its file icon until the next processing attempt.
+   */
+  private queueMediaProcessing(
+    recordId: DatabaseId | null | undefined,
+    tenantId?: DatabaseId | null,
+  ): void {
+    if (!recordId) return;
+    void (async () => {
+      try {
+        const { jobQueue } = await import("@src/services/background/jobs/job-queue-service");
+        await jobQueue.dispatch(
+          "process-media",
+          { fileId: String(recordId), basePath: tenantId || "global" },
+          tenantId ? String(tenantId) : undefined,
+        );
+      } catch (err) {
+        logger.warn("[Media] Failed to queue process-media job — original intact", {
+          fileId: String(recordId),
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    })();
+  }
+
   private async ensureOriginalOnDisk(
     hash: string,
     filename: string,
@@ -869,68 +900,33 @@ export class MediaService {
     };
   }
 
-  /** True when an existing document row has no generated preview yet (pre-pipeline upload). */
-  private needsDocumentPreview(record: DbMediaItem, filename: string, mimeType: string): boolean {
+  /**
+   * Document families `buildDocumentPreview()` can render (PDF, CSV/TSV, Office).
+   *
+   * The gate stays on the service side so images, video and audio never cross
+   * into the preview helpers — their upload path is the derivative ladder alone.
+   */
+  private hasPreviewableDocumentType(filename: string, mimeType: string): boolean {
     const lower = filename.toLowerCase();
-    const isDocument =
-      mimeType === "application/pdf" ||
-      mimeType === "text/csv" ||
-      mimeType === "text/tab-separated-values" ||
-      lower.endsWith(".pdf") ||
-      lower.endsWith(".csv") ||
-      lower.endsWith(".tsv");
-    if (!isDocument) return false;
-    const thumbnails = (record as unknown as EnrichableRecord).thumbnails ?? {};
-    return Object.keys(thumbnails).length === 0;
+    const mime = mimeType.split(";")[0]!.trim().toLowerCase();
+    if (
+      mime === "application/pdf" ||
+      mime === "text/csv" ||
+      mime === "application/csv" ||
+      mime === "text/tab-separated-values" ||
+      mime.includes("officedocument") ||
+      mime.startsWith("application/vnd.oasis.opendocument")
+    ) {
+      return true;
+    }
+    return /\.(pdf|csv|tsv|docx|xlsx|pptx|odt|ods|odp)$/i.test(lower);
   }
 
-  /**
-   * Build the first-page/table preview for a non-image document (PDF, CSV/TSV).
-   *
-   * Images already get their ladder from `buildDerivativeSet`; documents have no
-   * pixels to resize, so this renders one preview buffer and runs it through the
-   * same ladder. Failure is non-fatal: the tile falls back to its file icon.
-   */
-  private async buildDocumentPreview(
-    buffer: Buffer,
-    hash: string,
-    filename: string,
-    mimeType: string,
-    tenantId?: DatabaseId | null,
-  ): Promise<{ metadata: Record<string, unknown>; thumbnails: Record<string, unknown> }> {
-    const lower = filename.toLowerCase();
-    const isPdf = mimeType === "application/pdf" || lower.endsWith(".pdf");
-    const isDelimitedText =
-      lower.endsWith(".csv") ||
-      lower.endsWith(".tsv") ||
-      mimeType === "text/csv" ||
-      mimeType === "application/csv" ||
-      mimeType === "text/tab-separated-values";
-    if (!isPdf && !isDelimitedText) return { metadata: {}, thumbnails: {} };
-
-    try {
-      const preview = isPdf
-        ? await generatePdfThumbnail(buffer)
-        : await generateCsvThumbnail(buffer);
-      if (!preview) return { metadata: {}, thumbnails: {} };
-
-      const dotIdx = filename.lastIndexOf(".");
-      const baseName = dotIdx > 0 ? filename.slice(0, dotIdx) : filename;
-      const thumbnails = await saveResizedImages(
-        preview,
-        hash,
-        `${baseName}-thumb`,
-        "jpg",
-        tenantId || "global",
-      );
-      return { metadata: {}, thumbnails };
-    } catch (err) {
-      logger.warn("[Media] Document preview skipped", {
-        file: filename,
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return { metadata: {}, thumbnails: {} };
-    }
+  /** True when an existing document row has no generated preview yet (pre-pipeline upload). */
+  private needsDocumentPreview(record: DbMediaItem, filename: string, mimeType: string): boolean {
+    if (!this.hasPreviewableDocumentType(filename, mimeType)) return false;
+    const thumbnails = (record as unknown as EnrichableRecord).thumbnails ?? {};
+    return Object.keys(thumbnails).length === 0;
   }
 
   /**
@@ -1107,13 +1103,9 @@ export class MediaService {
           await this.buildDerivativeSet(buffer, hash, file.name, effectiveType, tenantId);
         // Documents have no source pixels — render a first-page/table preview once
         // and run it through the same ladder. Images get empty maps here.
-        const documentPreview = await this.buildDocumentPreview(
-          buffer,
-          hash,
-          file.name,
-          effectiveType,
-          tenantId,
-        );
+        const documentPreview = this.hasPreviewableDocumentType(file.name, effectiveType)
+          ? await buildDocumentPreview(buffer, hash, file.name, effectiveType, tenantId)
+          : { metadata: {}, thumbnails: {} };
         const previewMetadata = { ...imageMetadata, ...documentPreview.metadata };
         const previewThumbnails = { ...imageThumbnails, ...documentPreview.thumbnails };
 
@@ -1180,6 +1172,15 @@ export class MediaService {
             uploadResult.success
               ? ((uploadResult.data as { _id?: DatabaseId } | undefined)?._id ?? null)
               : null,
+            tenantId,
+          );
+        }
+
+        // Videos get no preview during upload — hand the record to `process-media`
+        // so ffmpeg can capture a frame and the row settles its processing status.
+        if (uploadResult.success && effectiveType.startsWith("video/")) {
+          this.queueMediaProcessing(
+            (uploadResult.data as { _id?: DatabaseId } | undefined)?._id ?? null,
             tenantId,
           );
         }
@@ -1323,6 +1324,18 @@ export class MediaService {
               : null,
             tenantId,
           );
+        }
+
+        // Documents streamed above the buffering threshold never reach the
+        // synchronous preview builder, and videos get no preview at all — both are
+        // handed to `process-media` once the record exists. Fire-and-forget: the
+        // upload succeeds even when the queue or the converter is unavailable.
+        if (uploadResult.success) {
+          const recordId = (uploadResult.data as { _id?: DatabaseId } | undefined)?._id ?? null;
+          const isDocument = this.hasPreviewableDocumentType(file.name, largeType);
+          if (isDocument || largeType.startsWith("video/")) {
+            this.queueMediaProcessing(recordId, tenantId);
+          }
         }
 
         return uploadResult as unknown as DatabaseResult<MediaItem>;

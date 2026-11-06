@@ -292,7 +292,9 @@ async function handleFormSubmit(
   if (process.env.TEST_MODE !== "true" && (await formSubmissionLimiter.isLimited(event))) {
     try {
       event.setHeaders({ "Retry-After": "60" });
-    } catch {}
+    } catch (error) {
+      logger.debug("[forms] suppressed error", error);
+    }
     throw new AppError("Too many submissions. Please try again later.", 429, "RATE_LIMIT_EXCEEDED");
   }
 

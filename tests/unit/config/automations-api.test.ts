@@ -5,7 +5,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-  unwrapFlowList,
   listAutomations,
   createAutomation,
   deleteAutomation,
@@ -13,17 +12,6 @@ import {
   testAutomation,
 } from "../../../src/routes/(app)/config/automations/automations-api";
 import { stubDocumentCookie, unstubAllGlobals } from "../helpers/stub-global";
-
-describe("unwrapFlowList", () => {
-  it("returns empty on failure", () => {
-    expect(unwrapFlowList({ success: false })).toEqual([]);
-  });
-
-  it("unwraps data arrays", () => {
-    const flows = [{ id: "1", name: "A" }];
-    expect(unwrapFlowList({ success: true, data: flows } as any)).toEqual(flows);
-  });
-});
 
 describe("automations-api mutations attach CSRF", () => {
   let fetchMock: ReturnType<typeof vi.fn>;

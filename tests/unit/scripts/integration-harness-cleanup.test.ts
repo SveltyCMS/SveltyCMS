@@ -93,4 +93,23 @@ describe("integration harness cleanup — live folder protection", () => {
       existsSync(join(root, "config", "global", "collections", "live-category", "posts.ts")),
     ).toBe(true);
   });
+
+  it("sweeps legacy test-tenant compiled dirs and keeps live compiled output", () => {
+    const compiled = join(root, ".compiledCollections");
+    mkdirSync(join(compiled, "iso-tenant-a"), { recursive: true });
+    writeFileSync(join(compiled, "iso-tenant-a", "x.js"), "x");
+    mkdirSync(join(compiled, "contract-gui-x"), { recursive: true });
+    mkdirSync(join(compiled, "live-tenant"), { recursive: true });
+    writeFileSync(join(compiled, "live-tenant", "posts.js"), "live");
+    writeFileSync(join(compiled, "pages.js"), "live");
+    writeFileSync(join(compiled, ".compilation-manifest.json"), "{}");
+
+    cleanupTestArtifacts(root);
+
+    expect(existsSync(join(compiled, "iso-tenant-a"))).toBe(false);
+    expect(existsSync(join(compiled, "contract-gui-x"))).toBe(false);
+    expect(existsSync(join(compiled, "live-tenant", "posts.js"))).toBe(true);
+    expect(existsSync(join(compiled, "pages.js"))).toBe(true);
+    expect(existsSync(join(compiled, ".compilation-manifest.json"))).toBe(true);
+  });
 });

@@ -505,6 +505,7 @@ Handles all field types and validation automatically
 	import { modalState } from '@utils/modal.svelte';
 	import { page } from '$app/state';
 	import Button from '@components/ui/button.svelte';
+	import { nowISODateString } from '@utils/date';
 
 	// ... previous code until saveSettings ...
 
@@ -607,7 +608,7 @@ Handles all field types and validation automatically
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = `sveltycms-settings-${group.id}-${new Date().toISOString().slice(0, 10)}.json`;
+		a.download = `sveltycms-settings-${group.id}-${nowISODateString().slice(0, 10)}.json`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}
