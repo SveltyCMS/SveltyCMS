@@ -1137,8 +1137,8 @@
 	showBackButton={true}
 	backUrl="/"
 	fullHeight={true}
+	flushContent={true}
 	titleCompact={true}
-	spaceY="4"
 >
 	{#snippet actions()}
 		<div class="flex items-center gap-1 sm:gap-1.5">

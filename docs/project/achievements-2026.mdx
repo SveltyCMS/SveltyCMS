@@ -2185,6 +2185,12 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **One upload allowlist.** `MEDIA_UPLOAD_ACCEPT` is derived from the server’s `ALLOWED_UPLOAD_MIME`, and both the gallery picker and the queue inputs use it — replacing the broader `image/*,video/*,audio/*,application/pdf` and a hand-written list that still offered office documents the server rejects.
 - **One redirect.** `LocalUpload` no longer navigates itself; the page owns the single `goto` back to the browsed folder. The optimization step also names its progress (“Optimizing 2/5: …”) instead of sitting at 0%.
 
+#### Media gallery layout gaps (2026-11-06)
+
+- **Measured, then removed.** At 1280×900 the gallery carried a 16px band between the title row and the breadcrumb strip (`AdminPageShell`'s `pt-4`) and a 24px band below the grid card. The bottom band was not the 8px `pb-2` alone: Tailwind v4 applies `space-y-4` as a `margin-block-end` on every non-last child, so the card's content column kept a 16px bottom margin even though the empty `media_gallery` slot renders nothing.
+- **One opt-in shell mode.** `AdminPageShell` gained `flushContent`, which drops `pt-4`/`pb-2` and the `space-y` rhythm while keeping the `px-2` card inset. `/mediagallery` sets it; the other five `fullHeight` routes (collection builder, extensions, queue, workflows, email previews) keep the previous spacing. The breadcrumb/toolbar bands now sit directly under `PageTitle` and the card reaches the bottom edge at both 1280×900 and 420×900.
+- **Pinned by** `tests/e2e/routes/mediagallery/mediagallery.spec.ts` (grid/table, toolbar, bulk and filter flows); the gap fix itself was verified with a temporary Playwright geometry probe at 1280×900 and 420×900 (both bands 0px), then the probe was removed.
+
 #### Image editor — preview/bake parity (2026-11-06)
 
 - **Geometry matches the canvas.** The bake now extracts the source crop first, then flips, then rotates — the same order the canvas draws (`translate × scale(flip) × rotate`). Because Sharp always flips before rotating, a single flip negates the rotation angle (`Fx∘R(θ) = R(−θ)∘Fx`) so 90°/free rotation and flip-with-crop produce the same orientation as the preview. Rotated PNG/WebP/AVIF keep transparent corners; JPEG is filled white.

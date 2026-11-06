@@ -16,6 +16,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 - `backUrl` (string): Back link target.
 - `highlight` (string): Partial title highlight.
 - `fullHeight` (boolean): Disable vertical scroll on shell (editor layouts).
+- `flushContent` (boolean): Drop the vertical content rhythm (`pt-4`/`pb-2`/`space-y-*`) for full-height workspaces that must sit flush under the title row and reach the bottom edge. Keeps the horizontal `px-2` card inset.
 - `spaceY` ('4' | '6' | '8'): Vertical rhythm between sections.
 - `titleCompact` (boolean): Tighter PageTitle row with bottom border.
 - `animate` (boolean): Apply standard page entry fade (respects reduced motion).
@@ -45,6 +46,12 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		backUrl?: string;
 		highlight?: string;
 		fullHeight?: boolean;
+		/**
+		 * Full-height workspaces (media gallery) that own their own dense chrome:
+		 * removes `pt-4`/`pb-2` and `space-y-*` so the first row sits directly under
+		 * PageTitle and the content reaches the bottom edge. `px-2` is kept.
+		 */
+		flushContent?: boolean;
 		spaceY?: '4' | '6' | '8';
 		titleCompact?: boolean;
 		titleBorderless?: boolean;
@@ -64,6 +71,7 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 		backUrl = '',
 		highlight = '',
 		fullHeight = false,
+		flushContent = false,
 		spaceY = '6',
 		titleCompact = false,
 		titleBorderless = true,
@@ -103,7 +111,11 @@ Enforces the unified structural blueprint from style-guide-gui.mdx:
 
 	<AdminZone zone="content-header" inline={true} />
 
-	<div class="px-2 pb-2 pt-4 {spaceClass} {fullHeight ? 'flex min-h-0 flex-1 flex-col' : ''}">
+	<div
+		class="px-2 {flushContent ? 'pb-0 pt-0' : `pb-2 pt-4 ${spaceClass}`} {fullHeight
+			? 'flex min-h-0 flex-1 flex-col'
+			: ''}"
+	>
 		{@render children?.()}
 	</div>
 
