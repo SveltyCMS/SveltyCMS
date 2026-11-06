@@ -456,6 +456,14 @@ The DAM API endpoints are wired into native Svelte 5 admin surfaces — no third
 | **Adaptive HLS playback** | Details modal → `hls-video-player.svelte`                | `metadata.hls.master`; native HLS or lazy `hls.js`         |
 | **Video transcoding**     | Details modal → Transcode → `transcode-modal.svelte`     | `POST /api/media/transcode` (ffmpeg; `503` when absent)    |
 
+### Gallery affordances
+
+- **Filenames are always visible** on every grid tile (bottom gradient strip). The earlier hover-only reveal forced users to probe tiles to know what they were looking at, and touch devices never hovered at all.
+- **Native browser tooltips are not used in the gallery.** The drag hint on a tile and the per-field help in Advanced Search render through `@components/ui/tooltip.svelte` (portaled, WCAG 3.0 `role="tooltip"` + `aria-describedby`), so they follow the theme and cannot be clipped by the grid's scroll container.
+- **Advanced Search labels carry a `?` trigger** per field (`HelpIcon` inside `Tooltip`, `tabindex={0}` so the help is reachable from the keyboard). The label text stays the control's accessible name; the tooltip only explains the filter.
+- **The tile actions keep `media-grid-action-tooltip.svelte`** rather than the shared `Tooltip`: the icon column stacks against the scroll edge, and positioning from each button's own rect avoids the shared-anchor drift that file was written to fix.
+- The grid scrolls with `px-2 sm:px-3` insets so the first and last tile never sit against the card border; the details tooltip shows the filename alone (no `File NAME :` label) and wraps long names instead of overflowing the panel.
+
 ### Media Details Modal
 
 `media-details-modal.svelte` is the asset control center with four tabs:

@@ -1223,17 +1223,18 @@
 							bind:value={globalSearchValue}
 							type="search"
 							placeholder={mediagallery_search_modf()}
-							class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
+							class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 							aria-label={mediagallery_search_assets()}
 						/>
-						<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+						<span class="absolute inset-e-1 top-1/2 z-10 -translate-y-1/2">
 							<Button
 								type="button"
-								variant="ghost"
+								variant="transparent"
 								size="sm"
 								onclick={() => (showAdvancedSearch = true)}
 								aria-label={mediagallery_advanced_search()}
-								class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+								class="h-10! w-10! min-w-0! px-0! text-(--admin-text-muted) hover:bg-surface-500/10 dark:hover:bg-surface-500/20 {searchCriteria ||
+								jsonPathFilter.trim()
 									? 'text-primary-500'
 									: ''}"
 								data-testid="media-advanced-search-mobile"
@@ -1367,18 +1368,19 @@
 						bind:value={globalSearchValue}
 						type="search"
 						placeholder={mediagallery_search_modf()}
-						class="w-full ps-9 pe-10 dark:border-surface-500/40 focus-visible:ring-1"
+						class="w-full ps-9 pe-11 dark:border-surface-500/40 focus-visible:ring-1"
 						aria-label={mediagallery_search_assets()}
 					/>
-					<span class="absolute inset-e-2 top-1/2 z-10 -translate-y-1/2">
+					<span class="absolute inset-e-1 top-1/2 z-10 -translate-y-1/2">
 						<Button
 							type="button"
-							variant="ghost"
+							variant="transparent"
 							size="sm"
 							onclick={() => (showAdvancedSearch = true)}
 							aria-label={mediagallery_advanced_search()}
 							data-testid="media-advanced-search"
-							class="h-10! w-10! min-w-0! px-0! {searchCriteria || jsonPathFilter.trim()
+							class="h-10! w-10! min-w-0! px-0! text-(--admin-text-muted) hover:bg-surface-500/10 dark:hover:bg-surface-500/20 {searchCriteria ||
+							jsonPathFilter.trim()
 								? 'text-primary-500'
 								: ''}"
 						>

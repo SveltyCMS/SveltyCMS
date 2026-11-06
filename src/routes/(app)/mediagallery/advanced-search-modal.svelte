@@ -35,6 +35,8 @@ Structure optimized for LLM integration and AI-powered search.
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Input from '@components/ui/input.svelte';
 	import Select from '@components/ui/select.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
+	import HelpIcon from '@components/ui/help-icon.svelte';
 	import {
 		button_cancel,
 		button_reset,
@@ -51,7 +53,6 @@ Structure optimized for LLM integration and AI-powered search.
 		mediagallery_found,
 		mediagallery_id_placeholder,
 		mediagallery_json_path_filter,
-		mediagallery_json_path_format,
 		mediagallery_json_path_helper_part1,
 		mediagallery_json_path_helper_part2,
 		mediagallery_json_path_helper_part3,
@@ -93,6 +94,35 @@ Structure optimized for LLM integration and AI-powered search.
 		{ value: 'yes', label: 'Yes' },
 		{ value: 'no', label: 'No' }
 	];
+
+	/**
+	 * Per-field help shown behind the `?` trigger next to each label. The labels
+	 * themselves are still the ones painted by the control, so the tooltip text
+	 * only explains what the value does to the result set.
+	 */
+	const FIELD_HELP = {
+		filename: 'Match files whose name contains this text.',
+		tags: 'Comma-separated tags. A file matches when it carries any of them.',
+		minWidth: 'Smallest accepted original width in pixels.',
+		maxWidth: 'Largest accepted original width in pixels.',
+		minHeight: 'Smallest accepted original height in pixels.',
+		maxHeight: 'Largest accepted original height in pixels.',
+		aspectRatio:
+			'Landscape is wider than tall, portrait is taller than wide, square has equal sides.',
+		minSize: 'Smallest accepted file size in megabytes (1 MB = 1024 × 1024 bytes).',
+		maxSize: 'Largest accepted file size in megabytes (1 MB = 1024 × 1024 bytes).',
+		fileTypes: 'Comma-separated MIME types, for example image/jpeg, image/png.',
+		uploadedAfter: 'Only files uploaded on or after this date.',
+		uploadedBefore: 'Only files uploaded on or before this date.',
+		hasEXIF: 'Restrict the result to files that do or do not carry EXIF metadata.',
+		camera: 'Matches the camera model recorded in the EXIF data.',
+		location: 'Matches the location string recorded in the EXIF data.',
+		dominantColor: 'Hex colour; finds images whose dominant colour is close to this value.',
+		hashMatch: 'Content hash, for finding exact duplicates of a file.',
+		jsonPath:
+			'Metadata expression evaluated per file. Supports `path = value` comparisons joined with `;`.',
+		duplicates: 'Only show files that share a content hash with another file.'
+	};
 
 	// Form input values (separate from criteria for easier binding)
 	let formValues = $state({
@@ -219,6 +249,17 @@ Structure optimized for LLM integration and AI-powered search.
 	}
 </script>
 
+<!-- Shared label with a `?` help trigger — one trigger per field, never the
+     whole label wrapped, so the tooltip cannot swallow the control's click. -->
+{#snippet fieldLabel(text: string, help: string)}
+	<span class="inline-flex items-center gap-1.5 text-sm font-medium leading-none">
+		<span>{text}</span>
+		<Tooltip title={help}>
+			<HelpIcon ariaLabel="{text} information" tabindex={0} />
+		</Tooltip>
+	</span>
+{/snippet}
+
 <!-- Modal Content Wrapper -->
 <div class="flex h-full w-full flex-col items-center justify-center p-4">
 	<AdminCard
@@ -235,7 +276,7 @@ Structure optimized for LLM integration and AI-powered search.
 	>
 		<!-- Header -->
 		<div
-			class="flex-none border-b border-surface-500/30 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50"
+			class="flex-none border-b border-surface-500/30 bg-surface-200/50 px-4 py-3 dark:border-surface-600 dark:bg-surface-700/50"
 		>
 			<h2
 				id="advanced-search-title"
@@ -246,14 +287,14 @@ Structure optimized for LLM integration and AI-powered search.
 		</div>
 
 		<!-- Scrollable Body -->
-		<div class="flex-1 overflow-y-auto p-6">
+		<div class="flex-1 overflow-y-auto p-4 sm:p-5">
 			<form
 				id="advanced-search-form"
 				onsubmit={(e) => {
 					e.preventDefault();
 					handleSearch();
 				}}
-				class="space-y-6"
+				class="space-y-4"
 			>
 				<!-- Search Presets -->
 				<div class="flex flex-wrap gap-2">
@@ -322,18 +363,24 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_basic_criteria()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2">
+					<div class="grid gap-3 md:grid-cols-2">
 						<Input
 							bind:value={formValues.filename}
-							label="Filename"
 							placeholder={mediagallery_filename_placeholder()}
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Filename', FIELD_HELP.filename)}
+							{/snippet}
+						</Input>
 						<div>
 							<Input
 								bind:value={formValues.tagsInput}
-								label="Tags (comma-separated)"
 								placeholder={mediagallery_tags_placeholder()}
-							/>
+							>
+								{#snippet labelSnippet()}
+									{@render fieldLabel('Tags (comma-separated)', FIELD_HELP.tags)}
+								{/snippet}
+							</Input>
 							{#if suggestions.tags.length > 0}
 								<div class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 									{mediagallery_suggestions()}
@@ -349,40 +396,35 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_dimensions()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-						<Input
-							bind:value={formValues.minWidth}
-							type="number"
-							label="Min Width (px)"
-							placeholder="1920"
-						/>
-						<Input
-							bind:value={formValues.maxWidth}
-							type="number"
-							label="Max Width (px)"
-							placeholder="3840"
-						/>
-						<Input
-							bind:value={formValues.minHeight}
-							type="number"
-							label="Min Height (px)"
-							placeholder="1080"
-						/>
-						<Input
-							bind:value={formValues.maxHeight}
-							type="number"
-							label="Max Height (px)"
-							placeholder="2160"
-						/>
+					<div class="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+						<Input bind:value={formValues.minWidth} type="number" placeholder="1920">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Min Width (px)', FIELD_HELP.minWidth)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.maxWidth} type="number" placeholder="3840">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Max Width (px)', FIELD_HELP.maxWidth)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.minHeight} type="number" placeholder="1080">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Min Height (px)', FIELD_HELP.minHeight)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.maxHeight} type="number" placeholder="2160">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Max Height (px)', FIELD_HELP.maxHeight)}
+							{/snippet}
+						</Input>
 					</div>
 
-					<div class="mt-4">
-						<Select
-							bind:value={formValues.aspectRatio}
-							label="Aspect Ratio"
-							options={aspectRatioOptions}
-							placeholder=""
-						/>
+					<div class="mt-3">
+						<Select bind:value={formValues.aspectRatio} options={aspectRatioOptions} placeholder="">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Aspect Ratio', FIELD_HELP.aspectRatio)}
+							{/snippet}
+						</Select>
 					</div>
 
 					{#if suggestions.dimensions.length > 0}
@@ -398,26 +440,25 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_file_properties()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-3">
-						<Input
-							bind:value={formValues.minSize}
-							type="number"
-							label="Min Size (MB)"
-							placeholder="1"
-							step="0.1"
-						/>
-						<Input
-							bind:value={formValues.maxSize}
-							type="number"
-							label="Max Size (MB)"
-							placeholder="50"
-							step="0.1"
-						/>
+					<div class="grid gap-3 md:grid-cols-3">
+						<Input bind:value={formValues.minSize} type="number" placeholder="1" step="0.1">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Min Size (MB)', FIELD_HELP.minSize)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.maxSize} type="number" placeholder="50" step="0.1">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Max Size (MB)', FIELD_HELP.maxSize)}
+							{/snippet}
+						</Input>
 						<Input
 							bind:value={formValues.fileTypesInput}
-							label="File Types"
 							placeholder={mediagallery_mime_placeholder()}
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('File Types', FIELD_HELP.fileTypes)}
+							{/snippet}
+						</Input>
 					</div>
 				</section>
 
@@ -426,9 +467,17 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_upload_dates()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2">
-						<Input bind:value={formValues.uploadedAfter} type="date" label="Uploaded After" />
-						<Input bind:value={formValues.uploadedBefore} type="date" label="Uploaded Before" />
+					<div class="grid gap-3 md:grid-cols-2">
+						<Input bind:value={formValues.uploadedAfter} type="date">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Uploaded After', FIELD_HELP.uploadedAfter)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.uploadedBefore} type="date">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Uploaded Before', FIELD_HELP.uploadedBefore)}
+							{/snippet}
+						</Input>
 					</div>
 				</section>
 
@@ -437,19 +486,18 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{mediagallery_metadata_exif()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-3">
-						<Select
-							bind:value={formValues.hasEXIF}
-							label="Has EXIF Data"
-							options={hasExifOptions}
-							placeholder=""
-						/>
+					<div class="grid gap-3 md:grid-cols-3">
+						<Select bind:value={formValues.hasEXIF} options={hasExifOptions} placeholder="">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Has EXIF Data', FIELD_HELP.hasEXIF)}
+							{/snippet}
+						</Select>
 						<div>
-							<Input
-								bind:value={formValues.camera}
-								label="Camera"
-								placeholder={mediagallery_camera_placeholder()}
-							/>
+							<Input bind:value={formValues.camera} placeholder={mediagallery_camera_placeholder()}>
+								{#snippet labelSnippet()}
+									{@render fieldLabel('Camera', FIELD_HELP.camera)}
+								{/snippet}
+							</Input>
 							{#if suggestions.cameras.length > 0}
 								<div class="mt-1 text-xs text-(--admin-text-muted) dark:text-surface-50">
 									{mediagallery_found()}
@@ -459,9 +507,12 @@ Structure optimized for LLM integration and AI-powered search.
 						</div>
 						<Input
 							bind:value={formValues.location}
-							label="Location"
 							placeholder={mediagallery_location_placeholder()}
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Location', FIELD_HELP.location)}
+							{/snippet}
+						</Input>
 					</div>
 				</section>
 
@@ -470,27 +521,29 @@ Structure optimized for LLM integration and AI-powered search.
 					<h3 class="mb-3 text-lg font-semibold text-tertiary-500 dark:text-primary-500">
 						{common_advanced()}
 					</h3>
-					<div class="grid gap-4 md:grid-cols-2">
-						<Input
-							bind:value={formValues.dominantColor}
-							label="Dominant Color (hex)"
-							placeholder="#FF5733"
-						/>
-						<Input
-							bind:value={formValues.hashMatch}
-							label="Hash Match"
-							placeholder={mediagallery_id_placeholder()}
-						/>
+					<div class="grid gap-3 md:grid-cols-2">
+						<Input bind:value={formValues.dominantColor} placeholder="#FF5733">
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Dominant Color (hex)', FIELD_HELP.dominantColor)}
+							{/snippet}
+						</Input>
+						<Input bind:value={formValues.hashMatch} placeholder={mediagallery_id_placeholder()}>
+							{#snippet labelSnippet()}
+								{@render fieldLabel('Hash Match', FIELD_HELP.hashMatch)}
+							{/snippet}
+						</Input>
 					</div>
 
-					<div class="mt-4">
+					<div class="mt-3">
 						<Input
 							bind:value={formValues.jsonPath}
-							label={mediagallery_json_path_filter()}
 							placeholder={mediagallery_json_path_placeholder()}
-							title={mediagallery_json_path_format()}
 							data-testid="media-json-path-filter"
-						/>
+						>
+							{#snippet labelSnippet()}
+								{@render fieldLabel(mediagallery_json_path_filter(), FIELD_HELP.jsonPath)}
+							{/snippet}
+						</Input>
 						<p class="mt-1 text-xs text-(--admin-text-muted)">
 							{mediagallery_json_path_helper_part1()}{' '}
 							<code dir="ltr">metadata.exif.camera = Canon</code>.{' '}
@@ -499,8 +552,12 @@ Structure optimized for LLM integration and AI-powered search.
 						</p>
 					</div>
 
-					<div class="mt-4">
-						<Checkbox bind:checked={formValues.showDuplicatesOnly} label="Show Duplicates Only" />
+					<div class="mt-3">
+						<Checkbox
+							bind:checked={formValues.showDuplicatesOnly}
+							label="Show Duplicates Only"
+							description={FIELD_HELP.duplicates}
+						/>
 					</div>
 				</section>
 			</form>
@@ -508,7 +565,7 @@ Structure optimized for LLM integration and AI-powered search.
 
 		<!-- Footer -->
 		<div
-			class="flex-none border-t border-surface-500/30 bg-surface-200/50 p-4 dark:border-surface-600 dark:bg-surface-700/50"
+			class="flex-none border-t border-surface-500/30 bg-surface-200/50 px-4 py-3 dark:border-surface-600 dark:bg-surface-700/50"
 		>
 			<div class="flex items-center justify-between">
 				<div class="hidden text-sm sm:block">

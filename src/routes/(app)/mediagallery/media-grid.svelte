@@ -22,7 +22,6 @@
 		mediagallery_copy_url_success,
 		mediagallery_drag_to_folder,
 		mediagallery_drop_files,
-		mediagallery_file_name_label,
 		mediagallery_filter_media_aria,
 		mediagallery_loading_more,
 		mediagallery_media_grid_aria,
@@ -35,6 +34,7 @@
 		mediagallery_upload_first
 	} from '@src/paraglide/messages';
 	import Checkbox from '@components/ui/checkbox.svelte';
+	import Tooltip from '@components/ui/tooltip.svelte';
 	import MediaGridActionTooltip from './media-grid-action-tooltip.svelte';
 	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import { mediaDisplayUrl } from '@utils/media/media-utils';
@@ -252,7 +252,7 @@
 
 <div
 	bind:this={scrollRoot}
-	class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden py-2 sm:gap-x-3 sm:gap-y-4 sm:py-3"
+	class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden px-2 py-2 sm:gap-x-3 sm:gap-y-4 sm:px-3 sm:py-3"
 	style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
 	role="grid"
 	tabindex="-1"
@@ -337,7 +337,6 @@
 						attributes: { draggingClass: 'opacity-50' }
 					}}
 					ondragstart={suppressNativeDragGhost}
-					title={mediagallery_drag_to_folder()}
 					data-testid="media-item"
 					data-media-id={fileId}
 					in:adminFade={{ duration: motionDuration(120) }}
@@ -381,70 +380,72 @@
             Use a div (not <button>) so HTML5 drag can start from the thumbnail.
             Native buttons cancel dragstart in Chromium when nested under a draggable parent.
           -->
-						<div
-							role="button"
-							tabindex="0"
-							class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
-							onclick={() => handleItemClick(file)}
-							onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
-							aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
+						<Tooltip
+							title={mediagallery_drag_to_folder()}
+							positioning={{ placement: 'top' }}
+							triggerClass="h-full w-full"
 						>
-							{#if file.type === 'image' && !failedImages.has(fileId)}
-								<div
-									class="h-full w-full transition-colors duration-500"
-									style:background-color={(file.metadata?.dominantColor as string) || 'transparent'}
-								>
-									{#if file.metadata?.placeholder}
+							<div
+								role="button"
+								tabindex="0"
+								class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
+								onclick={() => handleItemClick(file)}
+								onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
+								aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
+							>
+								{#if file.type === 'image' && !failedImages.has(fileId)}
+									<div
+										class="h-full w-full transition-colors duration-500"
+										style:background-color={(file.metadata?.dominantColor as string) ||
+											'transparent'}
+									>
+										{#if file.metadata?.placeholder}
+											<img
+												src={file.metadata.placeholder as string}
+												alt=""
+												class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
+												aria-hidden="true"
+												draggable="false"
+												crossorigin="anonymous"
+											/>
+										{/if}
+
 										<img
-											src={file.metadata.placeholder as string}
+											src={mediaDisplayUrl(file, previewSize)}
 											alt=""
-											class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
-											aria-hidden="true"
+											class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02] pointer-events-none"
+											style:object-position={file.metadata?.focalPoint
+												? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
+												: 'center'}
+											loading="lazy"
+											decoding="async"
 											draggable="false"
 											crossorigin="anonymous"
+											onerror={() => failedImages.add(fileId)}
+											onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
 										/>
-									{/if}
+									</div>
+								{:else}
+									<div
+										class="flex h-full w-full items-center justify-center bg-(--admin-bg-card)/80"
+									>
+										<iconify-icon
+											icon={file.type === 'image' ? 'mdi:image-off-outline' : getFileIcon(file)}
+											width={36}
+											class="text-(--admin-text-muted)"
+										></iconify-icon>
+									</div>
+								{/if}
 
-									<img
-										src={mediaDisplayUrl(file, previewSize)}
-										alt=""
-										class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02] pointer-events-none"
-										style:object-position={file.metadata?.focalPoint
-											? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
-											: 'center'}
-										loading="lazy"
-										decoding="async"
-										draggable="false"
-										crossorigin="anonymous"
-										onerror={() => failedImages.add(fileId)}
-										onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
-									/>
-								</div>
-							{:else}
-								<div class="flex h-full w-full items-center justify-center bg-(--admin-bg-card)/80">
-									<iconify-icon
-										icon={file.type === 'image' ? 'mdi:image-off-outline' : getFileIcon(file)}
-										width={36}
-										class="text-(--admin-text-muted)"
-									></iconify-icon>
-								</div>
-							{/if}
-
-							<div
-								class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
-								fileId
-									? 'opacity-100'
-									: 'opacity-0'}"
-							>
-								<p
-									dir="auto"
-									class="truncate text-[11px] font-medium leading-tight text-white"
-									title={file.filename}
+								<div
+									class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8"
 								>
-									{file.filename}
-								</p>
+									<p dir="auto" class="truncate text-[11px] font-medium leading-tight text-white">
+										{file.filename}
+									</p>
+								</div>
 							</div>
-						</div>
+						</Tooltip>
 
 						<div
 							class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
@@ -472,9 +473,9 @@
 								{#snippet content()}
 									<div class="flex flex-col text-[11px] text-(--admin-text-muted) min-w-60">
 										<div
-											class="border-b border-(--admin-border-default) pb-2 mb-0 text-center text-[13px]"
+											class="mb-0 border-b border-(--admin-border-default) pb-2 text-center text-[13px] font-semibold wrap-break-word"
+											dir="auto"
 										>
-											{mediagallery_file_name_label()}
 											{file.filename}
 										</div>
 										<table class="w-full text-start border-collapse mt-2">
