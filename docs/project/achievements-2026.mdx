@@ -667,6 +667,10 @@ Tests: `tests/unit/api/authz-bypass-guard.test.ts` (27), `tests/unit/api/dispatc
 
 **Coverage added** — the previously unmeasured claims are now measured: media-gallery composite indexes (planner-proven `index_used=1`; 0.396–0.410 ms on 4 000 rows SQLite, 1.248 ms PostgreSQL), zstd-async (477 KiB GET 6.0–6.2 ms avg, 300–315 RPS, co-tenant p95 0.37 → 1.06–1.48 ms — no event-loop stall). The body-limiter and scan-dedup changes remain deliberately unmeasured (sub-µs work on a ≥1 ms path, ~3 orders below the noise floor).
 
+#### Release back-merge keeps `next` current (2026-11-06)
+
+`next` never receives the release bump on its own: the `chore(release)` commit is created on `main` after the `next` → `main` merge. Auto Release now back-merges `main` into `next` after a published release, so the development branch carries the released `package.json` and the tag is reachable for local `version:bump` derivation. Without it, a `next` checkout keeps reporting the previous release and the admin badge recommends an update the branch already contains. The step is best-effort — a blocked bot push logs a warning and the merge is done manually — and never affects tagging, the GitHub Release, or npm.
+
 ### 3.20 September 2026 — Unified Translation Cockpit & Multilingual Studio Inspector
 
 A comprehensive multilingual management and inspection suite bridging admin UI chrome localization with per-field content readiness:
