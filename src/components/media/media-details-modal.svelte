@@ -57,6 +57,15 @@
 		file ? { ...file, url: mediaDisplayUrl(file, 'md') || file.url || '' } : undefined
 	);
 
+	/**
+	 * Missing-blob guard: the DB row can outlive its storage object (cleanup, moved
+	 * folder, old tenant). Key the failure to the current preview URL so switching
+	 * assets clears it without a state-writing effect.
+	 */
+	const previewKey = $derived(`${file?._id ?? ''}:${previewAsset?.url ?? ''}`);
+	let failedPreviewKey = $state<string | null>(null);
+	const previewUnavailable = $derived(failedPreviewKey === previewKey || !previewAsset?.url);
+
 	/** Focal point framing — applies to the derivative preview exactly as to the original. */
 	const previewObjectPosition = $derived(
 		file?.metadata?.focalPoint
@@ -559,7 +568,7 @@
 </script>
 
 <div
-	class="media-details-modal flex w-full min-w-0 max-w-none flex-col gap-0 overflow-hidden text-surface-900 max-md:px-4 max-md:pb-4 md:gap-4 lg:max-h-[min(85dvh,44rem)] lg:flex-row lg:gap-6 dark:text-surface-100"
+	class="media-details-modal flex w-full min-w-0 max-w-none flex-col gap-0 overflow-hidden text-surface-900 max-md:px-4 max-md:pb-4 md:h-full md:gap-4 lg:max-h-[min(85dvh,44rem)] lg:flex-row lg:gap-6 dark:text-surface-100"
 	data-testid="media-details-modal"
 >
 	<!-- Mobile header: filename + close (sticky, full-bleed background) -->
@@ -597,16 +606,42 @@
 				class="media-checkerboard flex max-h-[min(30dvh,11rem)] w-full flex-1 items-center justify-center overflow-hidden rounded-lg sm:max-h-[min(38dvh,20rem)] lg:max-h-[min(32dvh,18rem)]"
 				style:background-color={file.metadata?.dominantColor || undefined}
 			>
-				<Image
-					asset={previewAsset}
-					preset="hero"
-					sizes="(min-width: 1024px) 20rem, (min-width: 640px) 28rem, 100vw"
-					priority
-					alt={file.filename || 'Media preview'}
-					class="max-h-full max-w-full object-contain"
-					style={`object-position: ${previewObjectPosition}`}
-					crossorigin="anonymous"
-				/>
+				{#if previewUnavailable}
+					<div
+						class="flex h-full min-h-40 w-full flex-col items-center justify-center gap-2 px-4 text-center"
+						data-testid="media-preview-unavailable"
+					>
+						<iconify-icon icon="mdi:image-off-outline" width="40" class="text-(--admin-text-muted)"
+						></iconify-icon>
+						<p class="text-sm font-semibold text-surface-600 dark:text-surface-100">
+							Preview unavailable
+						</p>
+						<p class="max-w-xs text-xs text-(--admin-text-muted)">
+							The stored file for this asset could not be loaded. Re-upload it from the Versions
+							tab.
+						</p>
+						<Button
+							variant="surface"
+							size="sm"
+							class="mt-1 h-8"
+							onclick={() => (activeTab = 'versions')}
+						>
+							Upload new version
+						</Button>
+					</div>
+				{:else}
+					<Image
+						asset={previewAsset}
+						preset="hero"
+						sizes="(min-width: 1024px) 20rem, (min-width: 640px) 28rem, 100vw"
+						priority
+						alt={file.filename || 'Media preview'}
+						class="max-h-full max-w-full object-contain"
+						style={`object-position: ${previewObjectPosition}`}
+						crossorigin="anonymous"
+						onerror={() => (failedPreviewKey = previewKey)}
+					/>
+				{/if}
 			</div>
 		{:else if file.type === 'video'}
 			<!-- Playback prefers the adaptive HLS derivative; the original is the fallback
@@ -1358,7 +1393,6 @@
 								bind:value={expiryHoursValue}
 								onchange={handleExpiryChange}
 								label="Expiration"
-								size="sm"
 								placeholder="Select expiration…"
 								options={[
 									{ value: '1', label: '1 Hour' },
@@ -1371,7 +1405,7 @@
 								type="password"
 								bind:value={sharePassword}
 								label="Password (optional)"
-								inputClass="h-9 text-sm"
+								inputClass="h-10 text-sm"
 								placeholder="Set password…"
 								aria-label="Share password"
 							/>

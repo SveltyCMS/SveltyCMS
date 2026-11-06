@@ -598,7 +598,7 @@
 						</Tooltip>
 
 						<div
-							class="absolute inset-e-2 top-2 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
+							class="absolute inset-e-1 top-4 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
 							fileId
 								? 'opacity-100'
 								: 'opacity-0'}"
