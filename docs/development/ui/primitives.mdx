@@ -180,22 +180,37 @@ Radius follows `--admin-radius-input`. The control stays user-resizable (`resize
 
 `src/components/ui/toggle.svelte`. An on/off switch with `role="switch"` and `aria-checked`. Use it for a setting that takes effect as a boolean. Use `Checkbox` for a value that is submitted with a form or that can be indeterminate.
 
+The **on** track is the brand ramp and the **off** track is neutral (`surface-500/40`) — off is a state, not an error, so it never paints `error-500`. The thumb carries state by position (and an optional icon pair); there is no ON/OFF text, which is what previously forced an oversized thumb.
+
 ```svelte
 <Toggle label="Reduced motion" bind:value={reducedMotion} onToggle={(next) => save(next)} />
+
+<!-- Label with a `?` help trigger -->
+<Toggle bind:value={highContrast}>
+  {#snippet labelSnippet()}
+    <span class="inline-flex items-center gap-1.5">
+      <span>High contrast</span>
+      <Tooltip title="Raises text and border contrast for your account.">
+        <HelpIcon ariaLabel="Help for high contrast" tabindex={0} />
+      </Tooltip>
+    </span>
+  {/snippet}
+</Toggle>
 ```
 
-| Prop                | Type                       | Default       | Role                                          |
-| :------------------ | :------------------------- | :------------ | :-------------------------------------------- |
-| `value`             | `boolean`                  | `false`       | Bindable.                                     |
-| `label`             | `string`                   | —             | Visible name. The switch is inside the label. |
-| `ariaLabel`         | `string`                   | —             | Name when `label` is omitted.                 |
-| `description`       | `string`                   | —             | Helper text under the label.                  |
-| `size`              | `'sm' \| 'md' \| 'lg'`     | `'md'`        | Track width is at least 40px, 48px, or 56px.  |
-| `iconOn`, `iconOff` | `string`                   | —             | Iconify names drawn on the thumb.             |
-| `labelColor`        | `string`                   | theme classes | Classes for the label text.                   |
-| `disabled`          | `boolean`                  | `false`       | Blocks interaction.                           |
-| `onToggle`          | `(value: boolean) => void` | —             | Called with the next value.                   |
-| `class`             | `string`                   | —             | Wrapper classes.                              |
+| Prop                | Type                       | Default   | Role                                          |
+| :------------------ | :------------------------- | :-------- | :-------------------------------------------- |
+| `value`             | `boolean`                  | `false`   | Bindable.                                     |
+| `label`             | `string`                   | —         | Visible name. The switch is inside the label. |
+| `labelSnippet`      | `Snippet`                  | —         | Rich label content (wins over `label`).       |
+| `ariaLabel`         | `string`                   | —         | Name when `label` is omitted.                 |
+| `description`       | `string`                   | —         | Helper text under the label.                  |
+| `size`              | `'sm' \| 'md' \| 'lg'`     | `'md'`    | Track is 36×20, 44×24, or 52×28 px.           |
+| `iconOn`, `iconOff` | `string`                   | —         | Iconify names drawn on the thumb.             |
+| `labelColor`        | `string`                   | body text | Classes for the label text.                   |
+| `disabled`          | `boolean`                  | `false`   | Blocks interaction.                           |
+| `onToggle`          | `(value: boolean) => void` | —         | Called with the next value.                   |
+| `class`             | `string`                   | —         | Wrapper classes.                              |
 
 ## Checkbox
 

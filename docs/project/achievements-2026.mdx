@@ -2129,6 +2129,15 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **Modernized Dependencies**:
   Updated `@inlang/paraglide-js` to `3.1.0` and `graphql` to `17.1.0` with full regression verification across all Paraglide message catalogues and 6 GraphQL test suites.
 
+#### Design System IA consolidation (2026-11-06)
+
+- **Eight tabs → four.** `Themes & Catalog` → `Theme Customizer` → `Live Preview` → `My Overrides`. The admin default was already `themes` in code but sat third in the strip, so the landing tab did not match the first tab. It is now first **and** default; non-admins still land on `overrides`.
+- **One home per setting.** The old `presets` / `layout` / `style` / `features` / `advanced` tabs are sections of the customizer. Density and card style previously appeared in three tabs each (My Overrides, the layout-preset cards, and their own tab); the preset cards moved next to the two selects that own the value. Marketplace and theme JSON import/export moved into the Themes tab, where installation and activation happen. Legacy `?tab=presets|layout|style|features|advanced` links resolve to `customizer` instead of falling back to My Overrides.
+- **Help where the questions were.** Every customizer and override control that lacked an inline description carries a keyboard-reachable `?` (`HelpIcon` inside `Tooltip`), with the text in one `HELP` map: what each density changes, what flat/bordered/elevated remove, what a shell region is, what "Use current layout" snapshots, and what "lock" means for workspace users. Shells that already render an inline description keep it rather than duplicating it into a tooltip.
+- **Toggle shrunk and neutralised.** The default `md` switch went from 32×56 px with a 24 px ON/OFF thumb to 44×24 px with a 20 px thumb, and the off track is neutral (`surface-500/40`) instead of `error-500` — "off" is not an error. Labels no longer turn brand-green in both states, and `labelSnippet` was added so a `?` can sit next to a switch label.
+- **`/user` duplication made explicit.** The Workspace Appearance panel is now described inline as the same personal preferences as Design System → My Overrides, instead of leaving that relationship inside a tooltip.
+- Tests: `tests/e2e/routes/config/design-system.spec.ts` gains the default-tab and tab-count contract plus a legacy deep-link case; `tests/unit/components/dom/design-system-draft-interaction.test.ts` tracks the merged tab. Docs: [Design System & Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx).
+
 #### Deliberately not claimed
 
 - **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).

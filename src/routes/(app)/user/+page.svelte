@@ -111,7 +111,6 @@
 		userpage_help_2fa,
 		userpage_help_2fa_aria,
 		userpage_help_appearance,
-		userpage_help_appearance_aria,
 		userpage_help_avatar,
 		userpage_help_card_style,
 		userpage_help_card_style_aria,
@@ -1785,17 +1784,13 @@
 										width={20}
 										aria-hidden="true"
 									></iconify-icon>
-									<div class="flex items-center gap-1 text-sm font-medium text-(--admin-text-body)">
+									<h4 class="text-sm font-medium text-(--admin-text-body)">
 										{userpage_workspace_appearance()}
-										<SystemTooltip title={helpTitle('appearance')}>
-											<HelpIcon
-												ariaLabel={userpage_help_appearance_aria()}
-												tabindex={0}
-												class={helpBtnClass}
-											/>
-										</SystemTooltip>
-									</div>
+									</h4>
 								</div>
+								<!-- The same personal preferences as Design System → My Overrides; say so
+								     inline instead of hiding the relationship behind a `?`. -->
+								<p class="mb-3 text-xs text-(--admin-text-muted)">{userpage_help_appearance()}</p>
 								<div
 									class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2"
 									data-testid="user-quick-appearance"

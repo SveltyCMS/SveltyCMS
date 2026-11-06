@@ -2322,7 +2322,7 @@
   "theme_no_marketplace": "No marketplace themes available.",
   "theme_open_preview": "Open Live Preview",
   "theme_presets": "Theme Presets",
-  "theme_presets_intro": "Edit brand colors in the palette studio, apply layout presets, or import theme JSON.",
+  "theme_presets_intro": "Edit brand colors in the palette studio. Layout presets, density and card style live in the Layout section below.",
   "theme_preview_aria": "Theme preview",
   "theme_preview_rest": "— preview all native components and tokens live.",
   "theme_reduced_motion": "Reduced Motion",

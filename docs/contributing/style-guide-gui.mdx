@@ -211,12 +211,14 @@ Do not replace these with `text-start`: that forces the interface direction onto
 
 **Canonical route:** `/config/design-system`
 
-| Tab              | Purpose                                                            |
-| :--------------- | :----------------------------------------------------------------- |
-| `?tab=overrides` | Per-user density, card style, a11y, layout — linked from `/user`   |
-| `?tab=preview`   | Live component catalog + token readout                             |
-| `?tab=presets`   | **Palette studio** (seed colors → runtime CSS) + Theme JSON import |
-| `?tab=themes` …  | Admin workspace themes, layout density, features, advanced         |
+| Tab               | Purpose                                                                            |
+| :---------------- | :--------------------------------------------------------------------------------- |
+| `?tab=themes`     | **Default for admins.** Installed themes, marketplace catalog, JSON import/export  |
+| `?tab=customizer` | Palette studio, layout/style (one control per setting), features, CSS, danger zone |
+| `?tab=preview`    | Live component catalog + token readout                                             |
+| `?tab=overrides`  | Per-user density, card style, a11y, layout — last tab, linked from `/user`         |
+
+Legacy `?tab=presets|layout|style|features|advanced` links resolve to `customizer`.
 
 Palette studio writes a marked `customCss` block via `buildPaletteCssFromSeeds` / `mergePaletteCssIntoCustomCss` — do not invent a second token system.
 

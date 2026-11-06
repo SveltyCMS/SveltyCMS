@@ -3,7 +3,7 @@
  * @file tests/unit/components/dom/design-system-draft-interaction.test.ts
  * @description Page-level draft/discard state machine for the Design System page.
  *
- * Mounts the real `/config/design-system/+page.svelte` on the `layout` tab and
+ * Mounts the real `/config/design-system/+page.svelte` on the `customizer` tab and
  * exercises the dirty comparison (`draft` vs `savedDraft`) and Discard.
  *
  * The audit finding this pins:
@@ -106,7 +106,7 @@ async function mount(): Promise<Rendered> {
 
 beforeEach(() => {
   localStorage.clear();
-  page.url = new URL("http://localhost/config/design-system?tab=layout");
+  page.url = new URL("http://localhost/config/design-system?tab=customizer");
   page.data = {};
 
   h.liveTheme = new AdminTheme({
@@ -151,27 +151,33 @@ describe("Design System — draft/discard state (client interaction)", () => {
   it("exposes WAI-ARIA tabs: roving tabindex, arrow keys and a labelled panel", async () => {
     const { target, cleanup } = await mount();
     try {
-      const layoutTab = target.querySelector<HTMLElement>("[data-testid='appearance-tab-layout']");
+      const customizerTab = target.querySelector<HTMLElement>(
+        "[data-testid='appearance-tab-customizer']",
+      );
       const tabpanel = target.querySelector<HTMLElement>("[role='tabpanel']");
 
-      expect(layoutTab?.getAttribute("role")).toBe("tab");
-      expect(layoutTab?.getAttribute("aria-selected")).toBe("true");
-      expect(layoutTab?.getAttribute("tabindex")).toBe("0");
-      expect(tabpanel?.getAttribute("aria-labelledby")).toBe("appearance-tab-layout");
+      expect(customizerTab?.getAttribute("role")).toBe("tab");
+      expect(customizerTab?.getAttribute("aria-selected")).toBe("true");
+      expect(customizerTab?.getAttribute("tabindex")).toBe("0");
+      expect(tabpanel?.getAttribute("aria-labelledby")).toBe("appearance-tab-customizer");
       expect(tabpanel?.getAttribute("tabindex")).toBe("0");
 
       // ArrowRight moves selection (and focus) to the next visible tab.
-      layoutTab?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      customizerTab?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
       await settle();
 
-      const styleTab = target.querySelector<HTMLElement>("[data-testid='appearance-tab-style']");
-      expect(styleTab?.getAttribute("aria-selected")).toBe("true");
-      expect(styleTab?.getAttribute("tabindex")).toBe("0");
-      expect(layoutTab?.getAttribute("aria-selected")).toBe("false");
-      expect(layoutTab?.getAttribute("tabindex")).toBe("-1");
+      const previewTab = target.querySelector<HTMLElement>(
+        "[data-testid='appearance-tab-preview']",
+      );
+      expect(previewTab?.getAttribute("aria-selected")).toBe("true");
+      expect(previewTab?.getAttribute("tabindex")).toBe("0");
+      expect(customizerTab?.getAttribute("aria-selected")).toBe("false");
+      expect(customizerTab?.getAttribute("tabindex")).toBe("-1");
       expect(
         target.querySelector<HTMLElement>("[role='tabpanel']")?.getAttribute("aria-labelledby"),
-      ).toBe("appearance-tab-style");
+      ).toBe("appearance-tab-preview");
     } finally {
       cleanup();
     }
