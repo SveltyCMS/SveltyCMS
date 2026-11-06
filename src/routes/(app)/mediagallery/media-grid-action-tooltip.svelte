@@ -50,6 +50,7 @@ floating/anchor bugs when multiple icons stack in a column.
 	let panelLeft = $state(0);
 	let panelTop = $state(0);
 	let arrowTop = $state(0);
+	let panelSide = $state<'left' | 'right'>('left');
 	let positioned = $state(false);
 
 	function reposition(): void {
@@ -58,9 +59,16 @@ floating/anchor bugs when multiple icons stack in a column.
 		const panel = panelEl.getBoundingClientRect();
 		const edge = 8;
 
-		// Open to the inline-start of the trigger, then clamp inside the viewport so a
-		// tile near the top/edge never pushes the panel off-screen (narrow gallery).
-		panelLeft = Math.max(edge, trigger.left - panel.width - gutter);
+		// Open on the side with room: inline-start first, then flip to the other side
+		// near the tile/viewport edge. The arrow follows the chosen side so it always
+		// points back at the trigger.
+		const spaceLeft = trigger.left - gutter - edge;
+		const spaceRight = window.innerWidth - trigger.right - gutter - edge;
+		const openRight = spaceLeft < panel.width && spaceRight >= panel.width;
+		panelSide = openRight ? 'right' : 'left';
+		panelLeft = openRight
+			? Math.min(trigger.right + gutter, window.innerWidth - panel.width - edge)
+			: Math.max(edge, trigger.left - panel.width - gutter);
 		panelTop = Math.max(
 			edge,
 			Math.min(
@@ -109,13 +117,15 @@ floating/anchor bugs when multiple icons stack in a column.
 	const panelClass = $derived(
 		theme === 'light'
 			? 'min-w-[10.5rem] rounded-(--admin-radius-input) border border-(--admin-border-default) bg-(--admin-bg-card) px-3 py-2.5 text-(--admin-text-body) shadow-lg'
-			: 'rounded-(--admin-radius-input) bg-surface-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-2xl dark:bg-surface-500/10 dark:text-(--admin-text-body)'
+			: 'rounded-(--admin-radius-input) bg-surface-900 px-3 py-1.5 text-[11px] font-medium text-white shadow-2xl'
 	);
 
-	const arrowClass = $derived(
-		theme === 'light'
-			? 'border-s-(--admin-bg-card)'
-			: 'border-s-surface-500/40 dark:border-s-surface-100'
+	const arrowStyle = $derived(
+		`top:${arrowTop}px;transform:translateY(-50%);${
+			panelSide === 'left'
+				? `right:-6px;border-left:6px solid ${theme === 'light' ? 'var(--admin-bg-card)' : 'var(--color-surface-900)'};`
+				: `left:-6px;border-right:6px solid ${theme === 'light' ? 'var(--admin-bg-card)' : 'var(--color-surface-900)'};`
+		}`
 	);
 </script>
 
@@ -155,10 +165,8 @@ floating/anchor bugs when multiple icons stack in a column.
 				{title}
 			{/if}
 			<div
-				class="pointer-events-none absolute h-0 w-0 border-y-[6px] border-y-transparent border-s-[6px] {arrowClass}"
-				style:top="{arrowTop}px"
-				style:right="-6px"
-				style:transform="translateY(-50%)"
+				class="pointer-events-none absolute h-0 w-0 border-y-[6px] border-y-transparent"
+				style={arrowStyle}
 				aria-hidden="true"
 			></div>
 		</div>

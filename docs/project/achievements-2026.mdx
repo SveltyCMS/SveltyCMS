@@ -2160,6 +2160,7 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **Tiles explain their state.** `processing` and `failed` badges are derived from `metadata.processingStatus`, and a tertiary **In use** badge marks assets referenced by published content (`publishedMediaIds`, previously passed to both views but unused).
 - **Selection scales.** Shift+click selects the range from the previous anchor in both the grid and the table; the anchor follows checkbox toggles, and Space/Enter toggles the focused row in selection mode. The bulk bar gained a folder picker + **Move** action that reuses `moveIdsToFolder`, so breadcrumb drags, sidebar drops and bulk moves share the same optimistic removal and revalidation.
 - **Table actions match the grid.** The row menu gained **Copy URL** (same absolute-URL logic and toasts as the grid) and now flips above the trigger near the viewport bottom; its horizontal anchor follows the document direction.
+- **Action tooltips are readable and point at their trigger.** The default media tooltip was a 10% surface wash in dark mode with light text, so it disappeared over bright images; it now uses a solid `surface-900` panel with white text in both modes. Placement chooses the side with room and the arrow flips with it (`border-left`/`border-right` rendered from the panel side instead of a fixed start border).
 - **One filter source of truth.** The unused legacy `mediagallery/filter.svelte` strip was deleted — the page toolbar owns search/type/status/sort.
 
 #### Deliberately not claimed
