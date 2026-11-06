@@ -252,7 +252,7 @@
 
 <div
 	bind:this={scrollRoot}
-	class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden px-2 py-2 sm:gap-x-3 sm:gap-y-4 sm:px-3 sm:py-3"
+	class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden p-2 sm:gap-x-3 sm:gap-y-4 sm:px-3 sm:py-3"
 	style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
 	role="grid"
 	tabindex="-1"

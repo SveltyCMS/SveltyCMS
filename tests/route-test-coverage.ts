@@ -225,6 +225,10 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
     ],
   },
   {
+    route: "email-previews",
+    testFiles: ["tests/unit/routes/email-previews.test.ts"],
+  },
+  {
     route: "config/workflows",
     testFiles: [
       "tests/unit/routes/workflows-page-server.test.ts",

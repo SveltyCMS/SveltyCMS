@@ -1,5 +1,5 @@
 /**
- * @file src/routes/email-previews/+page.server.ts
+ * @file src/routes/(app)/email-previews/+page.server.ts
  * @description Server-side logic for the email preview page.
  *
  * Renders the selected email template to HTML on the server so the browser

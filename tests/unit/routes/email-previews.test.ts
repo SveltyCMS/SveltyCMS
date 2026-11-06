@@ -39,7 +39,7 @@ vi.mock("@src/services/sdk", () => ({
   LocalCMS: class LocalCMS {},
 }));
 
-import { load, actions } from "@src/routes/email-previews/+page.server";
+import { load, actions } from "@src/routes/(app)/email-previews/+page.server";
 
 type LoadEvent = Parameters<typeof load>[0];
 type ActionEvent = Parameters<(typeof actions)[string]>[0];

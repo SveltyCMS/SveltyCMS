@@ -2138,6 +2138,12 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **`/user` duplication made explicit.** The Workspace Appearance panel is now described inline as the same personal preferences as Design System → My Overrides, instead of leaving that relationship inside a tooltip.
 - Tests: `tests/e2e/routes/config/design-system.spec.ts` gains the default-tab and tab-count contract plus a legacy deep-link case; `tests/unit/components/dom/design-system-draft-interaction.test.ts` tracks the merged tab. Docs: [Design System & Admin Theme Settings](../guides/configuration/admin-theme-settings.mdx).
 
+#### Config surface fixes (2026-11-06)
+
+- **The public site starter is opt-in.** `isSiteStarterEnabled()` now requires an explicit `true` and `seedSettings()` writes `false`; only the Website Starter preset turns it on (`website-starter-seed.server.ts`). A blank/content/commerce install serves `/login` at `/` instead of the seeded marketing homepage. Existing installs keep their stored value; flip **System Settings → SITE_STARTER_ENABLED** to change it.
+- **`/email-previews` moved into `(app)`.** It was a top-level route with a hand-rolled `<div>` shell, so it had no sidebar, no page title and no way back. It now composes `AdminPageShell` + `AdminCard`, uses the full content width (fixed template list, preview takes the rest), and is covered by the admin route-breadth E2E.
+- **The render-side sanitizer cannot 500 on data.** `sanitizeHtml()`/`sanitizeSvgMarkup()` accept `unknown` and return `""` for non-strings; `localizeSitePage()` unwraps a legacy `{ en: { title, content } }` body via `.content` and otherwise falls back to `""`. This fixed a real 500 on `/` for the seeded homepage.
+
 #### Deliberately not claimed
 
 - **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).
