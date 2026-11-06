@@ -131,6 +131,24 @@ tags:
   - [x] SigV4 presigned direct-to-storage instructions for S3/R2 (`upload-instructions` + `direct-upload/complete`) — shipped 2026-10-19.
   - [ ] Cloudinary signed direct-upload preset (currently the TUS fallback lane).
   - [ ] Multi-instance TUS spool: a shared volume or Redis-backed session store instead of the local spool directory.
+- **Media gallery UX backlog (2026-11-06)** — the P0 audit set shipped; the rest is tracked here:
+  - [x] **Filtered-empty vs true-empty**: the grid/table distinguish “no media yet” from “no assets match these filters” and offer **Reset filters**; the true-empty state also offers **Create folder** next to **Upload**.
+  - [x] **OS file drop on the grid**: dragenter/dragover/drop on the scroll root reuse the `externalUpload` event, with a full-stage “Drop files to upload” indicator; internal media drags are excluded via `dndState`.
+  - [x] **Status + usage badges** on tiles and table rows (`processing`, `failed`, `In use` from `publishedMediaIds`).
+  - [x] **Shift+click range selection** in grid and table, anchored to the last checkbox/selection.
+  - [x] **Copy URL in the table row menu**, with viewport-aware flip; the unused legacy `filter.svelte` was deleted (one filter source of truth).
+  - [x] **Bulk “Move to folder…”** in the selection bar via `moveIdsToFolder` (breadcrumb drag, sidebar drop and the bulk picker all share the same optimistic-removal path).
+  - [ ] **URL-synced filters** (`?q=`, `?type=`, `?status=`, `?sort=`) so gallery views are shareable; `jsonPath` is already URL-seeded.
+  - [ ] **Virtualized grid** (~20–40 cells in the DOM) before folders exceed a few hundred items; keep the sentinel for server pages.
+  - [ ] **Table/grid action parity**: focal-point quick action, download, and identical destructive safeguards in both views.
+  - [ ] **Batch depth**: format/quality, fit modes, no-upscale, per-asset progress, failed-file list, and an image-only pre-flight with skipped counts.
+  - [ ] **Import from URLs** UI wired to `saveRemoteMediaUrls` (success/failure list, not a generic toast).
+  - [ ] **Folder operations**: counts in sidebar/breadcrumbs, inline rename/delete/move, folder drag-reparent.
+  - [ ] **Side-panel details** alongside the modal; multi-select metadata editor (tags/alt/copyright); edited-image version history.
+  - [ ] **Soft-delete / trash** with a restore window; duplicate detection on upload; smart auto-folders (date/type/tag).
+  - [ ] **AI tagging / alt-text suggestions** (privacy-aware, opt-in); shareable read-only gallery links.
+  - [ ] **Discoverability**: first-run coach mark for drag-to-folder/selection, “show processing” default, one-time drag hint.
+  - [ ] **Gallery state store**: selection/filters/view in one runes store so grid, table, modals and bulk actions share a single source of truth.
 
 ---
 

@@ -31,7 +31,11 @@
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
 	import { mediaDisplayUrl } from '@utils/media/media-utils';
-	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import {
+		type MediaBase,
+		type MediaImage,
+		normalizeProcessingStatus
+	} from '@utils/media/media-models';
 	import { draggable } from '@thisux/sveltednd';
 	import {
 		MEDIA_DRAG_CONTAINER,
@@ -46,6 +50,8 @@
 		mediagallery_assets_loaded_count,
 		mediagallery_drag_to_folder_breadcrumb,
 		mediagallery_name,
+		mediagallery_picker_empty_filtered,
+		mediagallery_picker_reset_filters,
 		mediagallery_size,
 		mediagallery_type_placeholder,
 		trash_th_actions
@@ -72,6 +78,9 @@
 		onEditImage?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
 		onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
+		/** True when a search/filter is narrowing the folder — drives the filtered-empty state. */
+		hasActiveFilters?: boolean;
+		onClearFilters?: () => void;
 	}
 
 	let {
@@ -87,10 +96,13 @@
 		ondeleteImage = () => {},
 		onEditImage = () => {},
 		onUpdateImage = () => {},
-		onOpenFileDetails = () => {}
+		onOpenFileDetails = () => {},
+		hasActiveFilters = false,
+		onClearFilters = () => {}
 	}: Props = $props();
 
 	let failedImages = $state(new SvelteSet<string>());
+	let lastSelectedId = $state<string | null>(null);
 	let showTagModal = $state(false);
 	let taggingFile = $state<MediaImage | null>(null);
 
@@ -224,10 +236,41 @@
 		}
 	}
 
-	function handleRowClick(file: MediaBase | MediaImage) {
+	function fileIdOf(file: MediaBase | MediaImage): string {
+		return file._id?.toString() || file.filename;
+	}
+
+	/** Shift-click selects the whole range on the current table page. */
+	function selectWithRange(file: MediaBase | MediaImage, shiftKey: boolean) {
+		const fileId = fileIdOf(file);
+		if (shiftKey && lastSelectedId) {
+			const ids = paginatedFiles.map(fileIdOf);
+			const from = ids.indexOf(lastSelectedId);
+			const to = ids.indexOf(fileId);
+			if (from !== -1 && to !== -1) {
+				const [start, end] = from < to ? [from, to] : [to, from];
+				for (let i = start; i <= end; i++) selectedFiles.add(ids[i]);
+				return;
+			}
+		}
+		toggleSelection(file);
+		lastSelectedId = fileId;
+	}
+
+	function processingStatusOf(file: MediaBase | MediaImage): 'processing' | 'ready' | 'failed' {
+		return (
+			normalizeProcessingStatus(
+				(file.metadata as Record<string, unknown> | undefined)?.processingStatus
+			) ?? 'ready'
+		);
+	}
+
+	function handleRowClick(file: MediaBase | MediaImage, event?: MouseEvent) {
 		if (!isSelectionMode) {
 			onOpenFileDetails(file);
+			return;
 		}
+		selectWithRange(file, event?.shiftKey ?? false);
 	}
 
 	function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
@@ -235,6 +278,9 @@
 			e.preventDefault();
 			if (!isSelectionMode) {
 				onOpenFileDetails(file);
+			} else {
+				toggleSelection(file);
+				lastSelectedId = fileIdOf(file);
 			}
 		}
 	}
@@ -251,9 +297,11 @@
 <AdminCard class="flex min-h-0 w-full flex-1 flex-col" data-testid="media-table">
 	<SmartTableShell
 		empty={filteredFiles.length === 0}
-		emptyTitle="No media found"
-		emptyDescription="Try adjusting your search or filter."
-		emptyIcon="mdi:image-search-outline"
+		emptyTitle={hasActiveFilters ? mediagallery_picker_empty_filtered() : 'No media yet'}
+		emptyDescription={hasActiveFilters
+			? 'Try a different search or filter.'
+			: 'Upload files from the page header to get started.'}
+		emptyIcon={hasActiveFilters ? 'mdi:filter-off-outline' : 'mdi:image-plus-outline'}
 		{currentPage}
 		{rowsPerPage}
 		{pagesCount}
@@ -262,6 +310,14 @@
 		{onUpdateRowsPerPage}
 		scrollClass="media-table-scroll"
 	>
+		{#snippet emptyAction()}
+			{#if hasActiveFilters}
+				<Button variant="primary" onclick={onClearFilters}>
+					<iconify-icon icon="mdi:filter-remove-outline" width="16"></iconify-icon>
+					{mediagallery_picker_reset_filters()}
+				</Button>
+			{/if}
+		{/snippet}
 		<!-- Mobile: compact list rows (no table — fits viewport without scroll) -->
 		<div class="flex flex-col md:hidden" role="table" aria-label={common_media_files()}>
 			<div
@@ -303,6 +359,8 @@
 
 			{#each paginatedFiles as file (file._id || file.filename)}
 				{@const fileId = file._id?.toString() || file.filename}
+				{@const processing = processingStatusOf(file)}
+				{@const inUse = publishedMediaIds.has(fileId)}
 
 				<div
 					class="flex cursor-grab items-center gap-3 border-b border-s-2 border-s-transparent border-surface-500/30 px-2 py-3 active:cursor-grabbing dark:border-surface-500/40
@@ -327,7 +385,7 @@
 					}}
 					ondragstart={suppressNativeDragGhost}
 					title={mediagallery_drag_to_folder_breadcrumb()}
-					onclick={() => handleRowClick(file)}
+					onclick={(e) => handleRowClick(file, e)}
 					onkeydown={(e) => handleKeyDown(e, file)}
 				>
 					<div
@@ -343,7 +401,10 @@
 						<Checkbox
 							class="w-auto"
 							checked={selectedFiles.has(fileId)}
-							onchange={() => toggleSelection(file)}
+							onchange={() => {
+								lastSelectedId = fileId;
+								toggleSelection(file);
+							}}
 							label="Select {file.filename}"
 							hideLabel
 							size="sm"
@@ -385,6 +446,27 @@
 						<div class="truncate text-sm font-medium leading-snug" dir="auto" title={file.filename}>
 							{file.filename}
 						</div>
+						{#if processing !== 'ready' || inUse}
+							<div class="mt-0.5 flex flex-wrap items-center gap-1">
+								{#if processing === 'processing'}
+									<span
+										class="rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950"
+										>Processing</span
+									>
+								{:else if processing === 'failed'}
+									<span
+										class="rounded-full bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+										>Failed</span
+									>
+								{/if}
+								{#if inUse}
+									<span
+										class="rounded-full bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white dark:bg-primary-500"
+										>In use</span
+									>
+								{/if}
+							</div>
+						{/if}
 						<div
 							class="mt-0.5 truncate font-mono text-[10px] text-(--admin-text-muted)"
 							title={(file as MediaImage).path}
@@ -528,11 +610,13 @@
 			<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
 				{#each paginatedFiles as file (file._id || file.filename)}
 					{@const fileId = file._id?.toString() || file.filename}
+					{@const processing = processingStatusOf(file)}
+					{@const inUse = publishedMediaIds.has(fileId)}
 
 					<tr
 						class="group cursor-grab align-middle active:cursor-grabbing
 								{selectedFiles.has(fileId) ? SMART_TABLE_ROW_SELECTED : SMART_TABLE_ROW_HOVER}"
-						onclick={() => handleRowClick(file)}
+						onclick={(e) => handleRowClick(file, e)}
 						onkeydown={(e) => handleKeyDown(e, file)}
 						tabindex="0"
 						aria-selected={selectedFiles.has(fileId)}
@@ -565,7 +649,10 @@
 								<Checkbox
 									class="w-auto"
 									checked={selectedFiles.has(fileId)}
-									onchange={() => toggleSelection(file)}
+									onchange={() => {
+										lastSelectedId = fileId;
+										toggleSelection(file);
+									}}
 									label="Select {file.filename}"
 									hideLabel
 									size="sm"
@@ -606,6 +693,27 @@
 							<div class="truncate text-sm font-medium" dir="auto" title={file.filename}>
 								{file.filename}
 							</div>
+							{#if processing !== 'ready' || inUse}
+								<div class="mt-0.5 flex flex-wrap items-center gap-1">
+									{#if processing === 'processing'}
+										<span
+											class="rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950"
+											>Processing</span
+										>
+									{:else if processing === 'failed'}
+										<span
+											class="rounded-full bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white"
+											>Failed</span
+										>
+									{/if}
+									{#if inUse}
+										<span
+											class="rounded-full bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white dark:bg-primary-500"
+											>In use</span
+										>
+									{/if}
+								</div>
+							{/if}
 							<div
 								class="media-table-path hidden font-mono text-[10px] text-(--admin-text-muted) sm:block dark:text-(--admin-text-muted)"
 								title={(file as MediaImage).path}

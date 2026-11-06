@@ -34,7 +34,14 @@ test.describe("Media Gallery", () => {
     await expect(search).toBeVisible();
 
     await search.fill("e2e-no-match-xyz-random");
-    await expect(page.getByTestId("media-grid-empty")).toBeVisible({ timeout: 10_000 });
+    const empty = page.getByTestId("media-grid-empty");
+    await expect(empty).toBeVisible({ timeout: 10_000 });
+    await expect(empty).toContainText(/no assets match your filters/i);
+
+    // A narrowed view can reset itself — it must not pretend the folder is empty.
+    await empty.getByRole("button", { name: /reset filters/i }).click();
+    await expect(search).toHaveValue("");
+    await expect(empty).not.toContainText(/no assets match your filters/i);
 
     await search.clear();
     await expect(page.getByTestId("media-grid")).toBeVisible();
@@ -45,6 +52,32 @@ test.describe("Media Gallery", () => {
     await typeFilter.selectOption({ label: "IMAGE" });
     await expect(typeFilter).toHaveValue("image");
     await expect(page.getByTestId("media-grid")).toBeVisible();
+  });
+
+  test("shift-click selects a range of tiles", async ({ page }) => {
+    const seeded = await seedMediaWithMetadata(page);
+    try {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await waitForHydration(page);
+
+      await page.getByTestId("media-selection-toggle").click();
+
+      const ids = seeded.items.map((item) => item._id);
+      const first = page.locator(`[data-media-id="${ids[0]}"]`);
+      const last = page.locator(`[data-media-id="${ids[ids.length - 1]}"]`);
+      await expect(first).toBeVisible({ timeout: 15_000 });
+
+      await first.getByRole("button", { name: /preview .*drag to move/i }).click();
+      await expect(first).toHaveAttribute("aria-selected", "true");
+
+      await last
+        .getByRole("button", { name: /preview .*drag to move/i })
+        .click({ modifiers: ["Shift"] });
+      await expect(last).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByTestId("media-bulk-count")).toContainText(/\d+\s*selected/i);
+    } finally {
+      for (const item of seeded.items) await deleteMediaRow(page, item._id);
+    }
   });
 
   test("can switch between grid and table views", async ({ page }) => {

@@ -164,6 +164,50 @@
 	let jsonPathFilter = $state((data as { jsonPathFilter?: string }).jsonPathFilter ?? '');
 	let sortBy = $state('newest');
 	let mobileFiltersExpanded = $state(false);
+
+	/** Drives the "no matches" state instead of the first-run empty gallery. */
+	const hasActiveFilters = $derived(
+		Boolean(
+			globalSearchValue.trim() ||
+			selectedMediaType !== 'All' ||
+			selectedProcessingStatus !== 'all' ||
+			jsonPathFilter.trim() ||
+			searchCriteria
+		)
+	);
+
+	function clearMediaFilters() {
+		globalSearchValue = '';
+		selectedMediaType = 'All';
+		selectedProcessingStatus = 'all';
+		jsonPathFilter = '';
+		searchCriteria = null;
+	}
+
+	let bulkMoveFolderId = $state('');
+	const folderMoveOptions = $derived.by(() => {
+		const all = (data.systemVirtualFolders ?? []) as Array<{
+			_id: string;
+			name: string;
+			path: string;
+		}>;
+		return all
+			.filter((folder) => folder._id !== currentFolderId)
+			.map((folder) => ({
+				value: folder._id,
+				label:
+					folder.path && folder.path !== '/'
+						? folder.path.split('/').filter(Boolean).join(' / ')
+						: folder.name
+			}));
+	});
+
+	async function handleBulkMove() {
+		if (!bulkMoveFolderId) return;
+		const label = folderMoveOptions.find((option) => option.value === bulkMoveFolderId)?.label;
+		await moveIdsToFolder([...selectedFiles], bulkMoveFolderId, label ?? 'folder');
+		bulkMoveFolderId = '';
+	}
 	/** True only while a media-gallery card (not some unrelated drag) is in flight */
 	const isMediaDragActive = $derived(
 		dndState.isDragging && dndState.sourceContainer === MEDIA_DRAG_CONTAINER
@@ -1068,6 +1112,29 @@
 						>
 					</p>
 					<div class="flex flex-wrap items-center gap-2">
+						<div class="w-40 shrink-0">
+							<Select
+								bind:value={bulkMoveFolderId}
+								options={folderMoveOptions}
+								placeholder="Move to…"
+								aria-label="Move selected media to folder"
+								data-testid="media-bulk-move-target"
+							/>
+						</div>
+						<Button
+							variant="surface"
+							size="sm"
+							onclick={handleBulkMove}
+							disabled={!bulkMoveFolderId || isMovingMedia}
+							aria-busy={isMovingMedia}
+							aria-label="Move selected media"
+							data-testid="media-bulk-move"
+							class="h-8 gap-1.5 px-3"
+						>
+							<iconify-icon icon="mdi:folder-move-outline" width="16" aria-hidden="true"
+							></iconify-icon>
+							<span>Move</span>
+						</Button>
 						<Button
 							variant="surface"
 							size="sm"
@@ -1505,6 +1572,9 @@
 						{isSelectionMode}
 						bind:selectedFiles
 						{publishedMediaIds}
+						{hasActiveFilters}
+						onClearFilters={clearMediaFilters}
+						onCreateFolder={handleCreateFolder}
 						serverHasMore={mediaPagination.hasNextPage}
 						{isLoadingMore}
 						onLoadMore={loadMoreMedia}
@@ -1527,6 +1597,8 @@
 						{isSelectionMode}
 						bind:selectedFiles
 						{publishedMediaIds}
+						{hasActiveFilters}
+						onClearFilters={clearMediaFilters}
 						serverHasMore={mediaPagination.hasNextPage}
 						serverTotal={mediaPagination.total}
 						serverLoaded={files.length}

@@ -2153,6 +2153,15 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **The variant table explains itself.** Its first column is **Name** (it lists variant keys, not sizes), and the group label falls back to the file MIME when individual renditions carry none — previously a missing rendition `mimeType` rendered the literal fallback **Size** after the localized dash.
 - **Primary actions use one accent.** Create Role, Save Changes, Add SSO provider, Save provider and the empty-state Upload First File now use `variant="primary"`; the filled badge in advanced search dropped a redundant `dark:text-white`.
 
+#### Media gallery action parity + safety (2026-11-06)
+
+- **Empty states now name the reason.** The grid and table distinguish a true empty folder (“No media yet”, Upload + Create folder) from a narrowed view (“No assets match these filters”, **Reset filters**). The old copy told a filtered-out user to drop files.
+- **OS drops land on the grid.** The scroll root accepts file drags (`dragenter`/`dragover`/`drop`) and reuses the existing `externalUpload` event, so the empty-state promise is true everywhere. A full-stage “Drop files to upload” indicator appears while a file drag is over the grid; internal media drags are excluded through `dndState`.
+- **Tiles explain their state.** `processing` and `failed` badges are derived from `metadata.processingStatus`, and a tertiary **In use** badge marks assets referenced by published content (`publishedMediaIds`, previously passed to both views but unused).
+- **Selection scales.** Shift+click selects the range from the previous anchor in both the grid and the table; the anchor follows checkbox toggles, and Space/Enter toggles the focused row in selection mode. The bulk bar gained a folder picker + **Move** action that reuses `moveIdsToFolder`, so breadcrumb drags, sidebar drops and bulk moves share the same optimistic removal and revalidation.
+- **Table actions match the grid.** The row menu gained **Copy URL** (same absolute-URL logic and toasts as the grid) and now flips above the trigger near the viewport bottom; its horizontal anchor follows the document direction.
+- **One filter source of truth.** The unused legacy `mediagallery/filter.svelte` strip was deleted — the page toolbar owns search/type/status/sort.
+
 #### Deliberately not claimed
 
 - **Draft/live separation is partial**: the storage, adapters, SDK, API, autosave sink and resume/discard flow are shipped, but a draft is **not promoted** on publish (Save writes the live row directly) and there is no draft-version rollback. Those remain the open half of [competitive bet #1](./roadmap-2026.mdx#2-collection-builder-content-modeling-active-backlog).

@@ -28,6 +28,8 @@
 		mediagallery_name,
 		mediagallery_no_media,
 		mediagallery_original,
+		mediagallery_picker_empty_filtered,
+		mediagallery_picker_reset_filters,
 		mediagallery_preview_drag_aria,
 		mediagallery_resized_variants,
 		mediagallery_size,
@@ -37,7 +39,11 @@
 	import Checkbox from '@components/ui/checkbox.svelte';
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import MediaGridActionTooltip from './media-grid-action-tooltip.svelte';
-	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import {
+		type MediaBase,
+		type MediaImage,
+		normalizeProcessingStatus
+	} from '@utils/media/media-models';
 	import { mediaDisplayUrl } from '@utils/media/media-utils';
 	import { adminFade, motionDuration } from '@utils/admin-transitions';
 	import {
@@ -49,6 +55,7 @@
 	import { formatBytes } from '@utils/file';
 	import { logger } from '@utils/logger';
 	import { toast } from '@src/stores/toast.svelte.ts';
+	import { dndState } from '@thisux/sveltednd';
 	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
@@ -67,6 +74,10 @@
 		onEditImage?: (file: MediaImage) => void;
 		onUpdateImage?: (file: MediaImage) => void;
 		onOpenFileDetails?: (file: MediaBase | MediaImage) => void;
+		/** True when a search/filter is narrowing the folder — drives the filtered-empty state. */
+		hasActiveFilters?: boolean;
+		onClearFilters?: () => void;
+		onCreateFolder?: () => void;
 	}
 
 	let {
@@ -81,7 +92,10 @@
 		ondeleteImage = () => {},
 		onEditImage = () => {},
 		onUpdateImage = () => {},
-		onOpenFileDetails = () => {}
+		onOpenFileDetails = () => {},
+		hasActiveFilters = false,
+		onClearFilters = () => {},
+		onCreateFolder = undefined
 	}: Props = $props();
 
 	const minColWidthCss = $derived(
@@ -99,6 +113,11 @@
 	let fileUploadInput = $state<HTMLInputElement>();
 	let failedImages = $state(new SvelteSet<string>());
 	let touchActiveId = $state<string | null>(null);
+	/** Shift-click range anchor (grid order of the last selected tile). */
+	let lastSelectedId = $state<string | null>(null);
+	/** File drag from the OS is hovering the grid — shows the drop overlay. */
+	let osDragOver = $state(false);
+	let osDragDepth = 0;
 
 	const BATCH_SIZE = 60;
 	let visibleCount = $state(BATCH_SIZE);
@@ -183,10 +202,72 @@
 		}
 	}
 
-	function handleItemClick(file: MediaBase | MediaImage) {
+	function fileIdOf(file: MediaBase | MediaImage): string {
+		return file._id?.toString() || file.filename;
+	}
+
+	/** Shift-click selects the whole range from the previous anchor (visible batch). */
+	function selectWithRange(file: MediaBase | MediaImage, shiftKey: boolean) {
+		const fileId = fileIdOf(file);
+		if (shiftKey && lastSelectedId) {
+			const ids = visibleFiles.map(fileIdOf);
+			const from = ids.indexOf(lastSelectedId);
+			const to = ids.indexOf(fileId);
+			if (from !== -1 && to !== -1) {
+				const [start, end] = from < to ? [from, to] : [to, from];
+				for (let i = start; i <= end; i++) selectedFiles.add(ids[i]);
+				return;
+			}
+		}
+		toggleSelection(file);
+		lastSelectedId = fileId;
+	}
+
+	function processingStatusOf(file: MediaBase | MediaImage): 'processing' | 'ready' | 'failed' {
+		return (
+			normalizeProcessingStatus(
+				(file.metadata as Record<string, unknown> | undefined)?.processingStatus
+			) ?? 'ready'
+		);
+	}
+
+	function isFileDrag(event: DragEvent): boolean {
+		return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+	}
+
+	function handleOsDragEnter(event: DragEvent) {
+		if (dndState.isDragging || !isFileDrag(event)) return;
+		event.preventDefault();
+		osDragDepth++;
+		osDragOver = true;
+	}
+
+	function handleOsDragOver(event: DragEvent) {
+		if (dndState.isDragging || !isFileDrag(event)) return;
+		event.preventDefault();
+	}
+
+	function handleOsDragLeave() {
+		osDragDepth = Math.max(0, osDragDepth - 1);
+		if (osDragDepth === 0) osDragOver = false;
+	}
+
+	function handleOsDrop(event: DragEvent) {
+		if (dndState.isDragging) return;
+		event.preventDefault();
+		osDragDepth = 0;
+		osDragOver = false;
+		const files = event.dataTransfer?.files;
+		if (!files?.length) return;
+		document.dispatchEvent(new CustomEvent('externalUpload', { detail: { files } }));
+	}
+
+	function handleItemClick(file: MediaBase | MediaImage, event?: MouseEvent) {
 		if (!isSelectionMode) {
 			onOpenFileDetails(file);
+			return;
 		}
+		selectWithRange(file, event?.shiftKey ?? false);
 	}
 
 	function handleKeyDown(e: KeyboardEvent, file: MediaBase | MediaImage) {
@@ -194,6 +275,9 @@
 			e.preventDefault();
 			if (!isSelectionMode) {
 				onOpenFileDetails(file);
+			} else {
+				toggleSelection(file);
+				lastSelectedId = fileIdOf(file);
 			}
 		}
 	}
@@ -261,6 +345,10 @@
 	tabindex="-1"
 	aria-label={mediagallery_media_grid_aria()}
 	data-testid="media-grid"
+	ondragenter={handleOsDragEnter}
+	ondragover={handleOsDragOver}
+	ondragleave={handleOsDragLeave}
+	ondrop={handleOsDrop}
 	ontouchstart={() => {
 		touchActiveId = null;
 	}}
@@ -281,41 +369,66 @@
 				in:adminFade={{ duration: 200 }}
 				data-testid="media-grid-empty"
 			>
-				<iconify-icon icon="mdi:cloud-upload-outline" width="48" class="text-(--admin-text-muted)"
-				></iconify-icon>
-				<div class="space-y-1">
-					<h3 class="text-base font-semibold">{mediagallery_no_media()}</h3>
-					<p class="max-w-xs text-sm text-(--admin-text-muted)">
-						{mediagallery_drop_files()}
-					</p>
-				</div>
+				{#if hasActiveFilters}
+					<iconify-icon icon="mdi:filter-off-outline" width="48" class="text-(--admin-text-muted)"
+					></iconify-icon>
+					<div class="space-y-1">
+						<h3 class="text-base font-semibold">{mediagallery_picker_empty_filtered()}</h3>
+						<p class="max-w-xs text-sm text-(--admin-text-muted)">
+							Try a different search or filter.
+						</p>
+					</div>
+					<Button variant="primary" onclick={onClearFilters}>
+						<iconify-icon icon="mdi:filter-remove-outline" width="18"></iconify-icon>
+						<span>{mediagallery_picker_reset_filters()}</span>
+					</Button>
+				{:else}
+					<iconify-icon icon="mdi:cloud-upload-outline" width="48" class="text-(--admin-text-muted)"
+					></iconify-icon>
+					<div class="space-y-1">
+						<h3 class="text-base font-semibold">{mediagallery_no_media()}</h3>
+						<p class="max-w-xs text-sm text-(--admin-text-muted)">
+							{mediagallery_drop_files()}
+						</p>
+					</div>
 
-				<Button variant="primary" onclick={() => fileUploadInput?.click()}>
-					<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
-					<span>{mediagallery_upload_first()}</span>
-				</Button>
-				<input
-					aria-label={mediagallery_filter_media_aria()}
-					type="file"
-					multiple
-					class="hidden"
-					bind:this={fileUploadInput}
-					onchange={(e) => {
-						const input = e.target as HTMLInputElement;
-						if (input.files?.length) {
-							const event = new CustomEvent('externalUpload', {
-								detail: { files: input.files }
-							});
-							document.dispatchEvent(event);
-						}
-					}}
-					accept="image/*,video/*,audio/*,application/pdf"
-				/>
+					<div class="flex flex-wrap items-center justify-center gap-2">
+						<Button variant="primary" onclick={() => fileUploadInput?.click()}>
+							<iconify-icon icon="mdi:plus" width="18"></iconify-icon>
+							<span>{mediagallery_upload_first()}</span>
+						</Button>
+						{#if onCreateFolder}
+							<Button variant="secondary" onclick={onCreateFolder}>
+								<iconify-icon icon="mdi:folder-plus" width="18"></iconify-icon>
+								<span>Create folder</span>
+							</Button>
+						{/if}
+					</div>
+					<input
+						aria-label={mediagallery_filter_media_aria()}
+						type="file"
+						multiple
+						class="hidden"
+						bind:this={fileUploadInput}
+						onchange={(e) => {
+							const input = e.target as HTMLInputElement;
+							if (input.files?.length) {
+								const event = new CustomEvent('externalUpload', {
+									detail: { files: input.files }
+								});
+								document.dispatchEvent(event);
+							}
+						}}
+						accept="image/*,video/*,audio/*,application/pdf"
+					/>
+				{/if}
 			</div>
 		</div>
 	{:else}
 		{#each visibleFiles as file (file._id || file.filename)}
 			{@const fileId = file._id?.toString() || file.filename}
+			{@const processing = processingStatusOf(file)}
+			{@const inUse = publishedMediaIds.has(fileId)}
 
 			<!-- Row wrapper (display: contents) keeps the gridcell as the grid item while
 			     satisfying the grid's required row → gridcell ownership. -->
@@ -368,11 +481,45 @@
 						>
 							<Checkbox
 								checked={selectedFiles.has(fileId)}
-								onchange={() => toggleSelection(file)}
+								onchange={() => {
+									lastSelectedId = fileId;
+									toggleSelection(file);
+								}}
 								label="Select {file.filename}"
 								hideLabel
 								size="sm"
 							/>
+						</div>
+					{/if}
+
+					{#if processing !== 'ready' || inUse}
+						<div class="pointer-events-none absolute bottom-9 inset-s-2 z-20 flex flex-wrap gap-1">
+							{#if processing === 'processing'}
+								<span
+									class="inline-flex items-center gap-1 rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950 shadow-sm"
+								>
+									<iconify-icon icon="mdi:progress-clock" width="11" aria-hidden="true"
+									></iconify-icon>
+									Processing
+								</span>
+							{:else if processing === 'failed'}
+								<span
+									class="inline-flex items-center gap-1 rounded-full bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm"
+								>
+									<iconify-icon icon="mdi:alert-circle-outline" width="11" aria-hidden="true"
+									></iconify-icon>
+									Failed
+								</span>
+							{/if}
+							{#if inUse}
+								<span
+									class="inline-flex items-center gap-1 rounded-full bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm dark:bg-primary-500"
+								>
+									<iconify-icon icon="mdi:link-variant" width="11" aria-hidden="true"
+									></iconify-icon>
+									In use
+								</span>
+							{/if}
 						</div>
 					{/if}
 
@@ -392,7 +539,7 @@
 								role="button"
 								tabindex="0"
 								class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
-								onclick={() => handleItemClick(file)}
+								onclick={(e) => handleItemClick(file, e)}
 								onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
 								aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
 							>
@@ -685,6 +832,26 @@
 				<span>{mediagallery_loading_more()}</span>
 			</div>
 		{/if}
+	{/if}
+
+	{#if osDragOver}
+		<div
+			class="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-primary-500/10"
+			role="status"
+			aria-live="polite"
+		>
+			<div
+				class="flex items-center gap-3 rounded-(--admin-radius-card) border-2 border-dashed border-primary-500 bg-(--admin-bg-card)/95 px-6 py-4 text-sm font-semibold text-(--admin-text-body) shadow-xl"
+			>
+				<iconify-icon
+					icon="mdi:tray-arrow-down"
+					width="26"
+					aria-hidden="true"
+					class="text-primary-500"
+				></iconify-icon>
+				Drop files to upload
+			</div>
+		</div>
 	{/if}
 </div>
 

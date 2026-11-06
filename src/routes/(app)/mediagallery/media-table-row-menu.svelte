@@ -12,8 +12,15 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 		builder_tag_input_label,
 		button_edit,
 		mediagallery_actions_for,
+		mediagallery_copy_url,
+		mediagallery_copy_url_failed,
+		mediagallery_copy_url_missing,
+		mediagallery_copy_url_success,
 		mp_details
 	} from '@src/paraglide/messages';
+	import { logger } from '@utils/logger';
+	import { mediaDisplayUrl } from '@utils/media/media-utils';
+	import { toast } from '@src/stores/toast.svelte.ts';
 
 	let {
 		file,
@@ -49,9 +56,32 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 		if (!triggerEl) return;
 		const rect = triggerEl.getBoundingClientRect();
 		const menuWidth = 176;
-		const left = Math.min(Math.max(8, rect.right - menuWidth), window.innerWidth - menuWidth - 8);
-		const top = rect.bottom + 4;
+		const rtl = document.documentElement.dir === 'rtl';
+		const preferredLeft = rtl ? rect.left : rect.right - menuWidth;
+		const left = Math.min(Math.max(8, preferredLeft), window.innerWidth - menuWidth - 8);
+		const menuHeight = menuEl?.offsetHeight ?? 220;
+		const below = rect.bottom + 4;
+		const top =
+			below + menuHeight > window.innerHeight ? Math.max(8, rect.top - menuHeight - 4) : below;
 		menuStyle = `top:${top}px;left:${left}px;`;
+	}
+
+	async function copyUrl() {
+		const raw = file.url || mediaDisplayUrl(file);
+		if (!raw) {
+			toast.error(mediagallery_copy_url_missing());
+			return;
+		}
+		try {
+			const absolute = raw.startsWith('http')
+				? raw
+				: new URL(raw, window.location.origin).toString();
+			await navigator.clipboard.writeText(absolute);
+			toast.success(mediagallery_copy_url_success());
+		} catch (error) {
+			logger.warn('Clipboard write failed', error);
+			toast.error(mediagallery_copy_url_failed());
+		}
 	}
 
 	async function toggleMenu(e: MouseEvent) {
@@ -172,6 +202,21 @@ Per-row action menu for media gallery table view — mirrors grid actions (detai
 						<span>{builder_tag_input_label()}</span>
 					</Button>
 				{/if}
+
+				<Button
+					type="button"
+					variant="transparent"
+					role="menuitem"
+					class={menuItemClass}
+					onclick={() => closeAndRun(() => void copyUrl())}
+				>
+					<iconify-icon
+						icon="mdi:link-variant"
+						width="16"
+						class="shrink-0 text-(--admin-text-muted)"
+					></iconify-icon>
+					<span>{mediagallery_copy_url()}</span>
+				</Button>
 
 				<Button
 					type="button"
