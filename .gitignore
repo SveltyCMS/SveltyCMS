@@ -118,6 +118,8 @@ agent-tools/
 tests/e2e/.auth/
 # Playwright-owned media root (never the dev mediaFolder)
 tests/e2e/.media/
+# Integration-owned media root (testing resets empty it)
+tests/integration/.media/
 # Rolling flake history (appended per run; CI persists it as a cache, not a commit)
 tests/e2e/.flake-history.jsonl
 nul

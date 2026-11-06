@@ -1173,7 +1173,9 @@ export async function handleMediaShareDownload(
   }
 
   const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
-  const fullPath = path.join(process.cwd(), normalizedFolder, item.path);
+  // `path.resolve` (not `join`) so an absolute harness `MEDIA_FOLDER`
+  // (`tests/integration/.media`, E2E) resolves instead of being appended to cwd.
+  const fullPath = path.resolve(process.cwd(), normalizedFolder, item.path);
 
   // 🛡️ Defense-in-depth: mirror the LocalStorageAdapter guard. item.path is
   // normally written only via buildOriginalRelPath (which the upload path

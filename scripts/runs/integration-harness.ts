@@ -168,6 +168,8 @@ export function writePrivateTestConfig(ctx: IntegrationRunContext): void {
   mkdirSync(configDir, { recursive: true });
   mkdirSync(join(root, "config", "test-database"), { recursive: true });
   mkdirSync(join(root, "config", "test-collections"), { recursive: true });
+  // Harness-owned media root: testing resets wipe this, never the dev `mediaFolder`.
+  mkdirSync(join(root, "tests", "integration", ".media"), { recursive: true });
 
   const content = `/**
  * @file config/private.test.ts
@@ -241,6 +243,9 @@ export function buildIntegrationServerEnv(
     DB_USER: process.env.DB_USER ?? creds.user,
     DB_PASSWORD: process.env.DB_PASSWORD ?? creds.password,
     TEST_MODE: "true",
+    // Isolate uploads from the developer's `mediaFolder`: the testing reset
+    // empties this root. The benchmark matrix overrides it explicitly.
+    MEDIA_FOLDER: process.env.MEDIA_FOLDER || join(ctx.root, "tests", "integration", ".media"),
     NODE_ENV: process.env.NODE_ENV || "test",
     // 🧮 BODY-CEILING DETERMINISM: `API_MAX_BODY_SIZE_BYTES` is derived from the
     // memory tier in production (15–128 MB: a small box keeps the 15 MB floor,
