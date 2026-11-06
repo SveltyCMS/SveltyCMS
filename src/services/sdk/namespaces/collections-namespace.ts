@@ -23,7 +23,7 @@
  */
 
 import { modifyStream, type EntryData } from "@utils/modify-request";
-import { prepareCollectionFields } from "@src/content/content-utils";
+import { prepareCollectionFields } from "@src/content/content-write-prep.server";
 import { runAfterOperation } from "@src/content/schema-hooks";
 import {
   applyPublicationToQuery,

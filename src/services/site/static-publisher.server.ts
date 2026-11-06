@@ -24,7 +24,7 @@ import { LocalCMS } from "@src/services/sdk";
 import { logger } from "@utils/logger";
 import { eventBus } from "@utils/event-bus";
 import { nowISODateString } from "@utils/date";
-import { sanitizeHtml } from "@utils/sanitize-html";
+import { sanitizeHtml } from "@src/utils/sanitize-html.server";
 import type { DatabaseId } from "@src/databases/db-interface";
 import type { SitePage } from "./types";
 

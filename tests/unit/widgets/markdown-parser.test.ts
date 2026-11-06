@@ -74,10 +74,23 @@ describe("parseMarkdown", () => {
     expect(parseMarkdown(img)).toContain('<img alt="Logo" src="https://example.com/logo.png"');
   });
 
-  it("sanitizes dangerous XSS payloads", () => {
+  it("escapes raw HTML instead of emitting it", () => {
     const dangerous = "<script>alert('xss')</script>";
     const result = parseMarkdown(dangerous);
     expect(result).not.toContain("<script>");
-    expect(result).not.toContain("alert('xss')");
+    expect(result).toContain("&lt;script&gt;");
+    expect(result).toContain("&lt;/script&gt;");
+  });
+
+  it("refuses scriptable link and image URLs", () => {
+    expect(parseMarkdown("[click](javascript:alert)")).toBe("<p>click</p>");
+    expect(parseMarkdown("[click](java\tscript:alert)")).toBe("<p>click</p>");
+    expect(parseMarkdown("![x](data:text/html;base64,PHNjcmlwdD4=)")).toBe("<p>x</p>");
+  });
+
+  it("does not let a quote in a URL break out of the href attribute", () => {
+    const result = parseMarkdown('[x](https://ok.example/"onmouseover=alert)');
+    expect(result).toContain("&quot;");
+    expect(result).not.toMatch(/<a[^>]*\sonmouseover=/i);
   });
 });

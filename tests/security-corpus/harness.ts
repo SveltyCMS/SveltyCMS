@@ -16,7 +16,7 @@
  * ### Features:
  * - URL / path guard (`isValidDashboardEndpoint`)
  * - XSS triage (`containsXssVector`)
- * - SVG markup scrubber (`sanitizeSvg`, compared as before/after)
+ * - SVG markup scrubber (`sanitizeSvg`, vector-presence before vs. after)
  * - Prototype-key filter (`sanitizeObject`, compared as before/after)
  */
 
@@ -42,9 +42,18 @@ function prototypeKeysRejected(payload: string): boolean {
   return JSON.stringify(sanitizeObject(parsed)) !== JSON.stringify(parsed);
 }
 
-/** `sanitizeSvg` is a scrubber, not a predicate: any rewrite means it found a vector. */
+/**
+ * `sanitizeSvg` is a scrubber, not a predicate. Any rewrite used to mean a
+ * vector was found, but the parser-based allowlist also normalizes inert
+ * markup (`<rect/>` → `<rect></rect>`), so compare semantics: reject only when
+ * the payload carried an SVG vector and the sanitized output no longer does.
+ */
+const SVG_VECTOR_RE =
+  /<(?:script|foreignobject|iframe|object|embed|style|animate|set)\b|(?:^|[\s"'/>])on[a-z]+\s*=|\bjavascript\s*:|\bdata\s*:/i;
+
 function svgMarkupRejected(payload: string): boolean {
-  return sanitizeSvg(payload) !== payload;
+  if (!SVG_VECTOR_RE.test(payload)) return false;
+  return !SVG_VECTOR_RE.test(sanitizeSvg(payload));
 }
 
 /**

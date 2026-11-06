@@ -9,7 +9,7 @@
  *   - `getModelResilient(dbAdapter, schema)`  -> loads the collection model from
  *     the DB and populates the `collectionModelCache` WeakMap (schema-store).
  *   - `getOrCompilePrepPlan(schema)`          -> compiles the sanitize/truncate
- *     plan and populates the `prepPlanCache` WeakMap (content-utils).
+ *     plan and populates the `prepPlanCache` WeakMap (content-write-prep.server).
  *   - `resolveSchema(...)`                     -> warms `_schemaCache`.
  *
  * Pre-warming these caches at boot removes the one-time ~10ms (update) /
@@ -44,7 +44,7 @@ export async function prewarmWritePath(
     const { contentStore } = await import("@stores/content-registry.svelte");
     const { getModelResilient, collectionModelCache } =
       await import("@services/sdk/namespaces/collections/schema-store");
-    const { getOrCompilePrepPlan } = await import("./content-utils");
+    const { getOrCompilePrepPlan } = await import("./content-write-prep.server");
 
     const schemas = contentStore.getAllCollections(tenantId);
 

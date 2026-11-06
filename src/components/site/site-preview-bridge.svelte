@@ -37,6 +37,10 @@
 		}
 
 		const bridge = createSitePreviewBridge({
+			// The CMS editor frame is same-origin; without this the listener accepts
+			// `svelty:update` payloads from any embedding origin, which would inject
+			// unsanitized rich text into the preview renderer's HTML sink.
+			origin: window.location.origin,
 			visualEditing: inFrame,
 			onUpdate: (data) => {
 				entry = { ...(entry as Record<string, unknown>), ...data };

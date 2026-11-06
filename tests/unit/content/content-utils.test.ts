@@ -15,9 +15,11 @@ import {
   generateCategoryNodesFromPaths,
   sortContentNodes,
   hasDuplicateSiblingName,
+} from "@src/content/content-utils";
+import {
   payloadTouchesCollectionFieldPreparation,
   prepareCollectionFields,
-} from "@src/content/content-utils";
+} from "@src/content/content-write-prep.server";
 import type { Schema } from "@src/content/types";
 
 describe("content-utils unit tests", () => {

@@ -15,7 +15,18 @@
 	import { parseSveditContent, type SveditDocument } from '@src/services/site/svedit/types';
 	import type { SiteContentBlock, SitePage, SitePageContent } from '@src/services/site/types';
 	import { postDocumentUpdate, postFieldClick } from '@utils/site-preview-bridge';
-	import { sanitizeHtml } from '@utils/sanitize-html';
+	import { safeHref } from '@utils/sanitize-html';
+
+	/**
+	 * Pass-through marker: `page` arrives from the server loader, where
+	 * `localizeSitePage()` sanitizes the body and rich-text blocks with the
+	 * parser-based allowlist (`sanitize-html.server.ts`). The parser is
+	 * server-only, so nothing is imported into the browser bundle here.
+	 * Never route raw or unsanitized HTML through this `@html` sink.
+	 */
+	function serverSanitizedHtml(html: string | undefined): string {
+		return html ?? '';
+	}
 
 	interface Props {
 		page: SitePage;
@@ -45,10 +56,16 @@
 	const blocks = $derived(parseContent(page.content));
 	const sveditDocument = $derived(parseSveditContent(page.content));
 	const hasHero = $derived(!!(page.heroHeading || page.heroSubheading || page.ctaText));
+	/**
+	 * `ctaHref` comes from a free-text collection field, so it is untrusted: an
+	 * editor (or a compromised account) could store `javascript:…`. `safeHref`
+	 * drops script-capable schemes before the value reaches `<a href>`.
+	 */
+	const heroCtaHref = $derived(safeHref(page.ctaHref));
 	const sanitizedBody = $derived(
-		page.body ? sanitizeHtml(typeof page.body === 'string' ? page.body : '') : ''
+		serverSanitizedHtml(typeof page.body === 'string' ? page.body : '')
 	);
-	const sanitizedBlockHtml = (raw: string | undefined) => sanitizeHtml(raw || '');
+	const sanitizedBlockHtml = (raw: string | undefined) => serverSanitizedHtml(raw);
 
 	function handleSveditChange(document: SveditDocument) {
 		postDocumentUpdate('content', document);
@@ -97,11 +114,11 @@
 						{page.heroSubheading}
 					</p>
 				{/if}
-				{#if page.ctaText && page.ctaHref}
+				{#if page.ctaText && heroCtaHref}
 					<div class="mt-6">
 						<Button
 							variant="primary"
-							href={page.ctaHref}
+							href={heroCtaHref}
 							data-svelty-field="ctaText"
 							onclick={() => handleFieldClick('ctaText')}
 						>
@@ -157,7 +174,13 @@
 				{:else if block.type === 'richtext'}
 					<div class="prose dark:prose-invert">{@html sanitizedBlockHtml(block.body)}</div>
 				{:else if block.type === 'cta' && block.ctaText}
-					<Button variant="primary" href={block.ctaHref || '#'}>{block.ctaText}</Button>
+					{@const ctaHref = safeHref(block.ctaHref)}
+					{#if ctaHref}
+						<Button variant="primary" href={ctaHref}>{block.ctaText}</Button>
+					{:else}
+						<!-- Unguarded or rejected target: keep the copy, drop the dead link. -->
+						<p class="text-(--admin-text-muted)">{block.ctaText}</p>
+					{/if}
 				{/if}
 			</Card>
 		{/each}

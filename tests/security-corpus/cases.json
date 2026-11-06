@@ -243,5 +243,61 @@
     "payload": "{\"title\":\"Hello\",\"count\":1}",
     "expected": "accept",
     "note": "Positive control: ordinary documents must pass the prototype-key walk unchanged."
+  },
+  {
+    "id": "xss-nested-script-reconstruction",
+    "target": "xss-vector",
+    "payload": "<img src=x <scr<script>ipt>onerror=alert(1)>",
+    "expected": "reject",
+    "note": "Removing the inner tag can reconstruct a live tag; triage must see the literal `<script` fragment."
+  },
+  {
+    "id": "xss-entity-encoded-scheme",
+    "target": "xss-vector",
+    "payload": "<a href=\"&#106;avascript:alert(1)\">x</a>",
+    "expected": "reject",
+    "note": "Parsers decode numeric entities inside attribute values before resolving the scheme."
+  },
+  {
+    "id": "xss-entity-encoded-tag",
+    "target": "xss-vector",
+    "payload": "<scr&#105;pt>alert(1)</scr&#105;pt>",
+    "expected": "reject",
+    "note": "Numeric entities decode to a script tag name; triage must decode before matching."
+  },
+  {
+    "id": "xss-malformed-script-src",
+    "target": "xss-vector",
+    "payload": "<script/src=x>alert(1)</script>",
+    "expected": "reject",
+    "note": "A slash immediately after the tag name is still the `<script` opener for HTML parsing."
+  },
+  {
+    "id": "svg-malformed-script",
+    "target": "svg-markup",
+    "payload": "<svg><script/src=x>alert(1)</script></svg>",
+    "expected": "reject",
+    "note": "The SVG scrubber must drop the no-space script opener as well."
+  },
+  {
+    "id": "svg-use-data-href",
+    "target": "svg-markup",
+    "payload": "<svg><use href=\"data:image/svg+xml;base64,PHN2Zz4=\"/></svg>",
+    "expected": "reject",
+    "note": "`use href` may only reference a same-document `#id`; data: nests another document."
+  },
+  {
+    "id": "svg-animate-javascript",
+    "target": "svg-markup",
+    "payload": "<svg><animate attributeName=\"href\" to=\"javascript:alert(1)\"/></svg>",
+    "expected": "reject",
+    "note": "SMIL animation can rewrite href at runtime; animate/set are outside the allowlist."
+  },
+  {
+    "id": "svg-allows-xlink-fragment",
+    "target": "svg-markup",
+    "payload": "<svg><use xlink:href=\"#icon\"/></svg>",
+    "expected": "accept",
+    "note": "Positive control: same-document paint/use references must survive the allowlist."
   }
 ]

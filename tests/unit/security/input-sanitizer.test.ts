@@ -26,6 +26,12 @@ describe("containsXssVector — URL schemes", () => {
     expect(containsXssVector("data:image/svg+xml;base64,PHN2Zz4=")).toBe(true);
   });
 
+  it("decodes entity-encoded schemes before the check", () => {
+    expect(containsXssVector('<a href="&#106;avascript:alert(1)">x</a>')).toBe(true);
+    expect(containsXssVector("javascript&colon;alert(1)")).toBe(true);
+    expect(containsXssVector("<scr&#105;pt>alert(1)</scr&#105;pt>")).toBe(true);
+  });
+
   it("rejects plain text and harmless data-attribute strings", () => {
     expect(containsXssVector("Content for item… plain")).toBe(false);
     expect(containsXssVector('data-id="123"')).toBe(false);

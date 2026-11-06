@@ -19,7 +19,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
 import type { ContentDraft } from "@src/databases/db-interface";
 import { StatusTypes } from "@src/content/types";
-import { prepareCollectionFields } from "@src/content/content-utils";
+import { prepareCollectionFields } from "@src/content/content-write-prep.server";
 import { collectionTableName, buildCollectionCacheTags } from "@src/databases/core/collection-name";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
