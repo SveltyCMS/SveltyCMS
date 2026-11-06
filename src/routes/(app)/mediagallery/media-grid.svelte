@@ -57,6 +57,7 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { dndState } from '@thisux/sveltednd';
 	import { SvelteSet } from 'svelte/reactivity';
+	import Badge from '@components/ui/badge.svelte';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
@@ -524,7 +525,7 @@
 					{/if}
 
 					<div
-						class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg ring-1 ring-inset ring-surface-500/20 dark:ring-surface-500/30"
+						class="media-checkerboard relative aspect-square w-full overflow-hidden rounded-t-lg border border-surface-500/30 dark:border-surface-500/40"
 					>
 						<!--
             Use a div (not <button>) so HTML5 drag can start from the thumbnail.
@@ -563,7 +564,7 @@
 										<img
 											src={mediaDisplayUrl(file, previewSize)}
 											alt=""
-											class="relative h-full w-full object-cover transition-transform duration-300 sm:group-hover:scale-[1.02] pointer-events-none"
+											class="relative h-full w-full object-cover pointer-events-none"
 											style:object-position={file.metadata?.focalPoint
 												? `${file.metadata.focalPoint.x}% ${file.metadata.focalPoint.y}%`
 												: 'center'}
@@ -588,7 +589,7 @@
 								{/if}
 
 								<div
-									class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2.5 pb-2 pt-8"
+									class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent ps-2 pe-2.5 pb-1 pt-8"
 								>
 									<p dir="auto" class="truncate text-[11px] font-medium leading-tight text-white">
 										{file.filename}
@@ -598,7 +599,7 @@
 						</Tooltip>
 
 						<div
-							class="absolute inset-e-1 top-4 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
+							class="absolute inset-e-1 top-3 z-20 flex flex-col gap-1 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 {touchActiveId ===
 							fileId
 								? 'opacity-100'
 								: 'opacity-0'}"
@@ -667,7 +668,7 @@
 													)}
 													<tr class="border-b border-(--admin-border-default)">
 														<td
-															class="py-1 px-2 font-bold text-(--admin-text-muted) border-e border-(--admin-border-default) text-start"
+															class="py-1 px-2 text-center font-bold text-tertiary-500 dark:text-primary-500"
 															colspan="4"
 														>
 															{mediagallery_resized_variants()}{#if primaryLabel}{primaryLabel}{#if hasWebp}
@@ -803,19 +804,10 @@
 						</div>
 					</div>
 
-					<div
-						class="mt-1.5 flex items-baseline justify-between gap-2 border-b border-surface-500/30 px-1.5 pb-2 pt-0.5 sm:px-2 dark:border-surface-500/40"
-					>
-						<span
-							class="shrink-0 font-mono text-[10px] font-semibold uppercase tracking-wide text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
-						>
-							{formatMimeType((file as MediaImage).mimeType)}
-						</span>
-						<span
-							class="shrink-0 font-mono text-[10px] tabular-nums text-(--admin-text-muted) sm:text-[11px] dark:text-(--admin-text-muted)"
-						>
-							{formatBytes((file as MediaImage).size)}
-						</span>
+					<div class="mt-1 flex items-baseline justify-between gap-2">
+						<Badge preset="tonal">{formatMimeType((file as MediaImage).mimeType)}</Badge>
+
+						<Badge preset="tonal">{formatBytes((file as MediaImage).size)}</Badge>
 					</div>
 				</div>
 			</div>
