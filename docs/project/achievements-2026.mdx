@@ -2171,6 +2171,15 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **Destructive confirmations name published references.** Single and bulk delete confirmations state how many of the selected assets are referenced by published content, using the same `publishedMediaIds` set as the **In use** badge.
 - **Shareable filter state.** `?q=`, `?type=`, `?status=`, `?sort=`/`?dir=` and `?jsonPath=` seed the page and stay in the URL through `replaceState` (no reload while typing); the six client sort labels map onto the adapter's `sort`/`dir` contract so a shared link is sorted server-side on first paint.
 - **Smaller fits.** The drag badge reads `N file(s)` instead of `+N`; the table’s default page size is 25 (was 10, against a continuous grid); the toolbar names the inline path **Quick upload** and links to the staged **Queue** for the current folder.
+- **Tile chrome holds at every density.** The status chips (`Processing` / `Failed` / `In use`) moved inside the image box and are centred above the filename instead of sitting at an offset that depended on the metadata-row height (they used to overlap the name). The filename is centred in its gradient strip, and the metadata badges use the small size, never wrap, and drop the MIME label at XS so the size badge fits without overflowing.
+
+#### Upload queue consistency (2026-11-06)
+
+- **One folder for both entry points.** `/mediagallery/upload-media?folderId=…` resolves the folder in a server `load`, shows the target above the tabs and passes it to `LocalUpload`/`RemoteUpload`; the route’s `upload` action now reads and forwards `folder` to `saveMedia`, matching the gallery’s inline `?/upload`.
+- **Partial outcomes are reported, not hidden.** The sequential and resumable upload clients continue past a rejected file and return per-file outcomes. The queue keeps only the failed files (and their previews) for a retry, while the gallery announces “X of Y uploaded” instead of a blanket failure or success.
+- **Remote import reports counts.** `saveRemoteMediaUrls` returns `processed` / `failed` / `errors`; the remote tab shows the parsed URL count before submit, names up to three failure reasons, and keeps the textarea on a partial import so the failed URLs can be retried.
+- **One upload allowlist.** `MEDIA_UPLOAD_ACCEPT` is derived from the server’s `ALLOWED_UPLOAD_MIME`, and both the gallery picker and the queue inputs use it — replacing the broader `image/*,video/*,audio/*,application/pdf` and a hand-written list that still offered office documents the server rejects.
+- **One redirect.** `LocalUpload` no longer navigates itself; the page owns the single `goto` back to the browsed folder. The optimization step also names its progress (“Optimizing 2/5: …”) instead of sitting at 0%.
 
 #### Deliberately not claimed
 

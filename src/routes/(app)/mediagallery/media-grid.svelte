@@ -439,7 +439,7 @@
 			     satisfying the grid's required row → gridcell ownership. -->
 			<div role="row" class="contents">
 				<div
-					class="border border-surface-500 group relative flex h-full flex-col focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--admin-focus-ring) cursor-grab active:cursor-grabbing
+					class="rounded border border-surface-500 group relative flex h-full min-w-0 flex-col focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--admin-focus-ring) cursor-grab active:cursor-grabbing
           {selectedFiles.has(fileId) ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
 					role="gridcell"
 					tabindex="-1"
@@ -494,37 +494,6 @@
 								hideLabel
 								size="sm"
 							/>
-						</div>
-					{/if}
-
-					{#if processing !== 'ready' || inUse}
-						<div class="pointer-events-none absolute bottom-9 inset-s-2 z-20 flex flex-wrap gap-1">
-							{#if processing === 'processing'}
-								<span
-									class="inline-flex items-center gap-1 rounded-full text-center bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950 shadow-sm"
-								>
-									<iconify-icon icon="mdi:progress-clock" width="11" aria-hidden="true"
-									></iconify-icon>
-									Processing
-								</span>
-							{:else if processing === 'failed'}
-								<span
-									class="inline-flex items-center gap-1 rounded-full text-center bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm"
-								>
-									<iconify-icon icon="mdi:alert-circle-outline" width="11" aria-hidden="true"
-									></iconify-icon>
-									Failed
-								</span>
-							{/if}
-							{#if inUse}
-								<span
-									class="inline-flex items-center gap-1 rounded-full text-center bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm dark:bg-primary-500"
-								>
-									<iconify-icon icon="mdi:link-variant" width="11" aria-hidden="true"
-									></iconify-icon>
-									In use
-								</span>
-							{/if}
 						</div>
 					{/if}
 
@@ -593,12 +562,45 @@
 								{/if}
 
 								<div
-									class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent ps-2 pe-2.5 pb-1 pt-8"
+									class="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-black/75 via-black/30 to-transparent px-2 pb-1.5 pt-8 text-center"
 								>
 									<p dir="auto" class="truncate text-[11px] font-medium leading-tight text-white">
 										{file.filename}
 									</p>
 								</div>
+
+								{#if processing !== 'ready' || inUse}
+									<div
+										class="pointer-events-none absolute inset-x-0 bottom-8 z-10 flex flex-wrap justify-center gap-1 px-1.5"
+									>
+										{#if processing === 'processing'}
+											<span
+												class="inline-flex items-center gap-1 rounded-full bg-warning-500 px-1.5 py-0.5 text-[10px] font-semibold text-surface-950 shadow-sm"
+											>
+												<iconify-icon icon="mdi:progress-clock" width="11" aria-hidden="true"
+												></iconify-icon>
+												Processing
+											</span>
+										{:else if processing === 'failed'}
+											<span
+												class="inline-flex items-center gap-1 rounded-full bg-error-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm"
+											>
+												<iconify-icon icon="mdi:alert-circle-outline" width="11" aria-hidden="true"
+												></iconify-icon>
+												Failed
+											</span>
+										{/if}
+										{#if inUse}
+											<span
+												class="inline-flex items-center gap-1 rounded-full bg-tertiary-500 px-1.5 py-0.5 text-[10px] font-semibold text-white shadow-sm dark:bg-primary-500"
+											>
+												<iconify-icon icon="mdi:link-variant" width="11" aria-hidden="true"
+												></iconify-icon>
+												In use
+											</span>
+										{/if}
+									</div>
+								{/if}
 							</div>
 						</Tooltip>
 
@@ -823,10 +825,20 @@
 						</div>
 					</div>
 
-					<div class="my-1 flex items-baseline justify-between gap-2">
-						<Badge preset="tonal">{formatMimeType((file as MediaImage).mimeType)}</Badge>
+					<div
+						class="m-1 flex min-w-0 items-center gap-1 {gridSize === 'tiny'
+							? 'justify-center'
+							: 'justify-between'}"
+					>
+						{#if gridSize !== 'tiny'}
+							<Badge preset="tonal" size="sm" class="shrink-0 whitespace-nowrap"
+								>{formatMimeType((file as MediaImage).mimeType)}</Badge
+							>
+						{/if}
 
-						<Badge preset="tonal">{formatBytes((file as MediaImage).size)}</Badge>
+						<Badge preset="tonal" size="sm" class="shrink-0 whitespace-nowrap"
+							>{formatBytes((file as MediaImage).size)}</Badge
+						>
 					</div>
 				</div>
 			</div>
@@ -835,7 +847,7 @@
 		{#if hasMore || serverHasMore}
 			<div
 				bind:this={sentinel}
-				class="col-span-full flex items-center justify-center gap-2 py-5 font-mono text-[11px] text-(--admin-text-muted)"
+				class="col-span-full flex items-center justify-center gap-1 py-5 font-mono text-[11px] text-(--admin-text-muted)"
 				data-testid="media-grid-load-more"
 				aria-hidden="true"
 			>

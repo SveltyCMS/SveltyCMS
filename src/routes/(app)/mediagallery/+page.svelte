@@ -58,7 +58,7 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
-	import { mediaUrl, updateMediaMetadata } from '@utils/media/media-utils';
+	import { mediaUrl, updateMediaMetadata, MEDIA_UPLOAD_ACCEPT } from '@utils/media/media-utils';
 	import {
 		IMAGE_EDITOR_MODAL_CLASSES,
 		IMAGE_EDITOR_MODAL_SIZE
@@ -1162,7 +1162,6 @@
 				onclick={() => fileUploadInput?.click()}
 				disabled={isUploading}
 				aria-busy={isUploading}
-				aria-label={mediagallery_upload()}
 				class="h-9 gap-1.5 px-2 sm:px-3"
 			>
 				<iconify-icon
@@ -1171,18 +1170,19 @@
 					class={isUploading ? 'animate-spin' : ''}
 				></iconify-icon>
 				<span class="hidden sm:inline">{isUploading ? `Uploading…` : 'Quick upload'}</span>
+				<span class="sr-only sm:hidden">{isUploading ? 'Uploading' : 'Quick upload'}</span>
 			</Button>
 
 			<Button
 				size="sm"
 				variant="surface"
 				href={`/mediagallery/upload-media${data.currentFolder?._id ? `?folderId=${data.currentFolder._id}` : ''}`}
-				aria-label="Open the staged upload queue"
 				title="Stage several files in a queue before uploading"
 				class="h-9 gap-1.5 px-2 sm:px-3"
 			>
 				<iconify-icon icon="mdi:upload-multiple" width="18"></iconify-icon>
 				<span class="hidden sm:inline">Queue</span>
+				<span class="sr-only sm:hidden">Open the staged upload queue</span>
 			</Button>
 
 			<input
@@ -1192,7 +1192,7 @@
 				class="hidden"
 				bind:this={fileUploadInput}
 				onchange={handleUpload}
-				accept="image/*,video/*,audio/*,application/pdf"
+				accept={MEDIA_UPLOAD_ACCEPT}
 				data-testid="media-upload-input"
 			/>
 		</div>
@@ -1571,7 +1571,7 @@
 			     without it the fixed controls squeezed it to ~24px and the
 			     absolutely positioned advanced-search button rendered under the
 			     left sidebar (pointer events hit the aside instead of the button). -->
-			<div class="hidden flex-wrap items-center gap-2 py-1 sm:flex">
+			<div class="hidden flex-wrap items-center justify-center gap-1 py-1 sm:flex">
 				<div class="relative min-w-40 flex-1">
 					<iconify-icon
 						icon="mdi:magnify"

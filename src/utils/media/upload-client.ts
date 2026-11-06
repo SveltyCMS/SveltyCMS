@@ -388,14 +388,20 @@ export function uploadMediaFilesResumable(
         overallPercent: Math.min(100, Math.round((completedBytes / totalBytes) * 100)),
         filePercent: result.success ? 100 : 0,
       });
+    }
 
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message || `Failed on ${file.name}`,
-          files: outcomes,
-        };
-      }
+    // One rejected file must not hide the rest of the queue: outcomes are the
+    // honest report, and `success` still means "every file landed".
+    const failed = outcomes.filter((outcome) => !outcome.success);
+    if (failed.length > 0) {
+      const first = failed[0]!;
+      return {
+        success: false,
+        message: `${failed.length} of ${files.length} files failed${
+          first.message ? ` — ${first.name}: ${first.message}` : ""
+        }`,
+        files: outcomes,
+      };
     }
 
     return { success: true, files: outcomes };
@@ -495,14 +501,19 @@ export function uploadMediaFilesSequential(
         overallPercent: Math.min(100, Math.round((completedBytes / totalBytes) * 100)),
         filePercent: result.success ? 100 : 0,
       });
+    }
 
-      if (!result.success) {
-        return {
-          success: false,
-          message: result.message || `Failed on ${file.name}`,
-          files: outcomes,
-        };
-      }
+    // Continue past a rejected file; the outcome list carries the truth.
+    const failed = outcomes.filter((outcome) => !outcome.success);
+    if (failed.length > 0) {
+      const first = failed[0]!;
+      return {
+        success: false,
+        message: `${failed.length} of ${files.length} files failed${
+          first.message ? ` — ${first.name}: ${first.message}` : ""
+        }`,
+        files: outcomes,
+      };
     }
 
     return { success: true, files: outcomes };

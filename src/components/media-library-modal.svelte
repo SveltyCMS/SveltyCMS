@@ -475,7 +475,6 @@
 			{#if activeTab === 'local'}
 				<LocalUpload
 					{folder}
-					redirectOnSuccess={false}
 					onUploadComplete={() => {
 						void fetchMedia();
 						activeTab = 'library';

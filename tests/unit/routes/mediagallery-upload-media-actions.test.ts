@@ -21,10 +21,18 @@ vi.mock("@utils/page-guards.server", () => ({
 
 const mediaStore = vi.hoisted(() => {
   const names = new Set<string>();
+  /** Pre-seeded names that must be refused as duplicates (storage-side). */
+  const duplicates = new Set<string>();
 
   const saveMedia = vi.fn(
-    async (_file: File, _userId: string, _access: string, _tenantId: string | null) => {
-      if (names.has(_file.name)) {
+    async (
+      _file: File,
+      _userId: string,
+      _access: string,
+      _tenantId: string | null,
+      _folder?: string,
+    ) => {
+      if (duplicates.has(_file.name) || names.has(_file.name)) {
         throw new Error(`duplicate media file: ${_file.name}`);
       }
       names.add(_file.name);
@@ -32,7 +40,7 @@ const mediaStore = vi.hoisted(() => {
     },
   );
 
-  return { names, saveMedia };
+  return { names, duplicates, saveMedia };
 });
 
 vi.mock("@src/utils/media/media-service.server", () => {
@@ -44,8 +52,9 @@ vi.mock("@src/utils/media/media-service.server", () => {
       userId: string,
       access: string,
       tenantId: string | null,
+      folder?: string,
     ): Promise<unknown> {
-      return mediaStore.saveMedia(file, userId, access, tenantId);
+      return mediaStore.saveMedia(file, userId, access, tenantId, folder);
     }
   }
 
@@ -72,9 +81,11 @@ function makeLocals(overrides: UploadLocals = {}): UploadLocals {
 function makeUploadEvent(
   files: File[],
   locals: UploadLocals,
+  folder?: string,
 ): Parameters<typeof actions.upload>[0] {
   const form = new FormData();
   for (const file of files) form.append("files", file);
+  if (folder) form.append("folder", folder);
 
   return {
     request: new Request(UPLOAD_URL, { method: "POST", body: form }),
@@ -90,6 +101,7 @@ describe("mediagallery upload-media action", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mediaStore.names.clear();
+    mediaStore.duplicates.clear();
     mediaStore.saveMedia.mockClear();
 
     vi.mocked(getAuthenticatedUser).mockImplementation(
@@ -98,12 +110,12 @@ describe("mediagallery upload-media action", () => {
     vi.mocked(requirePagePermission).mockImplementation(() => undefined);
   });
 
-  it("stores an uploaded file for the session user, public access and the tenant (load-contract)", async () => {
+  it("stores an uploaded file for the session user, public access, the tenant and the target folder", async () => {
     const file = new File(["pixels"], "photo.jpg", { type: "image/jpeg" });
 
-    const result = await actions.upload(makeUploadEvent([file], makeLocals()));
+    const result = await actions.upload(makeUploadEvent([file], makeLocals(), "folders/travel"));
 
-    expect(result).toEqual({ success: true });
+    expect(result).toMatchObject({ success: true, processed: 1, failed: 0, errors: [] });
     expect(mediaStore.saveMedia).toHaveBeenCalledTimes(1);
     // `request.formData()` rebuilds the File, so match the boundary arguments
     // structurally instead of by object identity.
@@ -112,6 +124,7 @@ describe("mediagallery upload-media action", () => {
       "u-media",
       "public",
       "t1",
+      "folders/travel",
     );
     expect(await readStoredNames()).toEqual(["photo.jpg"]);
   });
@@ -133,7 +146,7 @@ describe("mediagallery upload-media action", () => {
   });
 
   it("wraps a duplicate-name refusal from storage into a 400 naming the file", async () => {
-    mediaStore.names.add("taken.jpg");
+    mediaStore.duplicates.add("taken.jpg");
 
     let failure: { status?: number; body?: { message?: string } } | null = null;
     try {
@@ -152,7 +165,7 @@ describe("mediagallery upload-media action", () => {
     const first = await actions.upload(
       makeUploadEvent([new File(["v1"], "same.png", { type: "image/png" })], locals),
     );
-    expect(first).toEqual({ success: true });
+    expect(first).toMatchObject({ success: true, processed: 1 });
 
     const duplicateAttempt = actions.upload(
       makeUploadEvent([new File(["v2"], "same.png", { type: "image/png" })], locals),
@@ -165,6 +178,30 @@ describe("mediagallery upload-media action", () => {
     expect(mediaStore.saveMedia).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps uploading after one file is rejected and reports the partial outcome", async () => {
+    mediaStore.duplicates.add("taken.jpg");
+
+    const result = await actions.upload(
+      makeUploadEvent(
+        [
+          new File(["a"], "taken.jpg", { type: "image/jpeg" }),
+          new File(["b"], "fresh.jpg", { type: "image/jpeg" }),
+        ],
+        makeLocals(),
+      ),
+    );
+
+    expect(result).toMatchObject({ success: true, processed: 1, failed: 1 });
+    const outcome = result as { errors?: Array<{ filename: string; message: string }> };
+    expect(outcome.errors).toEqual([
+      expect.objectContaining({
+        filename: "taken.jpg",
+        message: expect.stringMatching(/already exists/i),
+      }),
+    ]);
+    expect(await readStoredNames()).toEqual(["fresh.jpg"]);
+  });
+
   it("keeps both files when two uploads run in parallel (concurrency)", async () => {
     const locals = makeLocals();
 
@@ -173,7 +210,10 @@ describe("mediagallery upload-media action", () => {
       actions.upload(makeUploadEvent([new File(["b"], "b.jpg", { type: "image/jpeg" })], locals)),
     ]);
 
-    expect(results).toEqual([{ success: true }, { success: true }]);
+    expect(results).toEqual([
+      expect.objectContaining({ success: true, processed: 1 }),
+      expect.objectContaining({ success: true, processed: 1 }),
+    ]);
 
     const stored = await readStoredNames();
     expect(stored).toEqual(["a.jpg", "b.jpg"]);

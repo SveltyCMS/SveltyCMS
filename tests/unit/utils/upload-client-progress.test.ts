@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 class MockXHR {
   static instances: MockXHR[] = [];
+  /** Zero-based request indexes that answer 400 instead of 200. */
+  static failIndexes: number[] = [];
   upload = { addEventListener: vi.fn() };
   status = 200;
   responseText = "{}";
@@ -16,8 +18,12 @@ class MockXHR {
   onabort: (() => void) | null = null;
   open = vi.fn();
   send = vi.fn(() => {
-    // Auto-succeed after open/send so sequential batch can complete
-    queueMicrotask(() => this.onload?.());
+    // Auto-complete after open/send so sequential batches can finish.
+    const index = MockXHR.instances.indexOf(this);
+    queueMicrotask(() => {
+      this.status = MockXHR.failIndexes.includes(index) ? 400 : 200;
+      this.onload?.();
+    });
   });
   abort = vi.fn(() => this.onabort?.());
   setRequestHeader = vi.fn();
@@ -32,6 +38,7 @@ describe("uploadMediaFilesHandle sequential progress", () => {
 
   beforeEach(() => {
     MockXHR.instances = [];
+    MockXHR.failIndexes = [];
     globalThis.XMLHttpRequest = MockXHR as unknown as typeof XMLHttpRequest;
   });
 
@@ -65,6 +72,27 @@ describe("uploadMediaFilesHandle sequential progress", () => {
     expect(fileEvents.some((e) => e.includes("a.jpg"))).toBe(true);
     expect(fileEvents.some((e) => e.includes("b.jpg"))).toBe(true);
     expect(percents.length).toBeGreaterThan(0);
+  });
+
+  it("keeps uploading after a rejected file and reports per-file outcomes", async () => {
+    const { uploadMediaFilesHandle } = await import("@utils/media/upload-client");
+
+    // The middle request fails — the third file must still be attempted.
+    MockXHR.failIndexes = [1];
+    const files = ["a", "b", "c"].map(
+      (name) => new File([new Uint8Array(10)], `${name}.jpg`, { type: "image/jpeg" }),
+    );
+
+    const handle = uploadMediaFilesHandle(files, {
+      formActionUrl: "?/upload",
+      sequential: true,
+    });
+
+    const result = await handle.promise;
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/1 of 3 files failed/i);
+    expect(result.files?.map((file) => file.success)).toEqual([true, false, true]);
+    expect(MockXHR.instances).toHaveLength(3);
   });
 
   it("aborts sequential batch via cancel()", async () => {

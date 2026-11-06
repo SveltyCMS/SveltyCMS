@@ -112,7 +112,7 @@ test.describe("Media — remote upload panel", () => {
     await allowTestEgressOrigin(page, fixtureOrigin);
     await field.fill(`${fixtureOrigin}/${REMOTE_FILENAME}`);
     await submit.click();
-    await expect(page.getByText(/Remote URLs submitted/i)).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/Imported 1 remote URL/i)).toBeVisible({ timeout: 60_000 });
 
     // Cleanup through the gallery list so later specs see an unchanged folder.
     await page.goto("/mediagallery", { waitUntil: "domcontentloaded" });

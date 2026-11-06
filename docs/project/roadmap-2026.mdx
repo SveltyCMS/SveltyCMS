@@ -144,7 +144,7 @@ tags:
   - [ ] **Table/grid action parity**: per-row download and identical destructive safeguards in both views (delete confirmations already share the page handlers).
   - [x] **Batch pre-flight**: the panel receives the selected image ids, states “N non-image assets will be skipped”, counts images on the run button and disables it when the selection holds none; the request body is pinned to image ids only.
   - [ ] **Batch depth**: format/quality, fit modes, no-upscale, per-asset progress and a failed-file list.
-  - [ ] **Import from URLs** UI wired to `saveRemoteMediaUrls` (success/failure list, not a generic toast).
+  - [x] **Import from URLs** reports per-URL outcomes: `saveRemoteMediaUrls` returns `processed`/`failed`/`errors`, the tab shows the parsed URL count before submit and names failure reasons, and a partial import stays on the page for a retry.
   - [ ] **Folder operations**: counts in sidebar/breadcrumbs, inline rename/delete/move, folder drag-reparent.
   - [ ] **Side-panel details** alongside the modal; multi-select metadata editor (tags/alt/copyright); edited-image version history.
   - [ ] **Soft-delete / trash** with a restore window; duplicate detection on upload; smart auto-folders (date/type/tag).

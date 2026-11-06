@@ -160,6 +160,16 @@ export const ALLOWED_UPLOAD_MIME: ReadonlySet<string> = new Set(
   Object.values(MIME_MAP).filter((mime) => !BLOCKED_UPLOAD_MIME.has(mime)),
 );
 
+/**
+ * `accept` attribute for media upload inputs.
+ *
+ * Enumerates the same allowlist the write path enforces, so the picker cannot
+ * offer a type that `saveMedia` will reject (the gallery used the broader
+ * `image/*,video/*,audio/*,application/pdf`, the queue a narrower hand-written
+ * list that still allowed blocked office documents).
+ */
+export const MEDIA_UPLOAD_ACCEPT = [...ALLOWED_UPLOAD_MIME].join(",");
+
 /** Strip RFC 7231 parameters (`image/jpeg; charset=binary` → `image/jpeg`). */
 export function normalizeMime(mime: string): string {
   return mime.split(";", 1)[0].trim().toLowerCase();

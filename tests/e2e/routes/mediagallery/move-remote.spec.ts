@@ -109,7 +109,7 @@ async function uploadImage(page: Page): Promise<string> {
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser", { timeout: ACTION_TIMEOUT }),
     page
-      .getByRole("button", { name: /^upload$/i })
+      .getByRole("button", { name: /^quick upload$/i })
       .first()
       .click(),
   ]);
