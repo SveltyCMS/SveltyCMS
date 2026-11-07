@@ -41,7 +41,6 @@ It provides the following functionality:
 	import { untrack } from 'svelte';
 	import { draggable, droppable } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
-	import RoleModal from './role-modal.svelte';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Checkbox from '@components/ui/checkbox.svelte';
@@ -113,7 +112,10 @@ It provides the following functionality:
 	/** Strip the view-only `id` alias before the parent stores the draft. */
 	const cleanRoles = (rows: (Role & { id: string })[]) => rows.map(({ id, ...rest }) => rest);
 
-	const openModal = (role: Role | null = null, groupName = '') => {
+	const openModal = async (role: Role | null = null, groupName = '') => {
+		// Loaded on first open — the role editor is a rare admin action and its
+		// form was previously part of the access-management chunk.
+		const { default: RoleModal } = await import('./role-modal.svelte');
 		isEditMode = !!role;
 		currentRoleId = role ? role._id : null;
 		currentGroupName = groupName || '';
@@ -121,7 +123,7 @@ It provides the following functionality:
 		// response is the 3rd arg to trigger() — must not be buried in props
 		// (close() only invokes active.response, not props.response)
 		modalState.trigger(
-			RoleModal as any,
+			RoleModal,
 			{
 				isEditMode,
 				currentRoleId,

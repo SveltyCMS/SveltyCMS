@@ -254,6 +254,7 @@ import Pagination from "@components/ui/table/pagination.svelte";
 ## Performance
 
 - Virtualization threshold: `VIRTUALIZATION_THRESHOLD` (25) via `@utils/table-constants`
+- Wide tables (16+ data columns) window **body cells** horizontally: only the viewport plus 2 overscan columns render, and each skipped range collapses into one width-preserving `colspan` cell. The header row stays complete (sort, resize, column semantics), `aria-colindex` stays absolute, and Arrow/Home/End scroll the focused column into view. RTL, SSR and unmeasured layouts render the full table (`column-window.ts`, used by `entry-list.svelte`).
 - Server mode: only current page in memory; SWR on service layer
 - Client mode: local sort/page without network
 - Id selection avoids virtual-index desync bugs

@@ -26,6 +26,7 @@
  * ### Features:
  * - buffered, non-blocking enqueue (`enqueueBuffered`)
  * - trailing 25ms debounce + 50-item chunked flush (bounded DB statement size)
+ * - immediate post-flush delivery kick (microtask; no 5s poll-tick wait)
  * - exponential backoff for failed deliveries (updatedAt + 2^attempts, capped)
  * - tenant-scoped event isolation
  * - integration with webhook delivery pipeline
@@ -386,11 +387,35 @@ class OutboxServiceImpl {
         }
       } finally {
         this.emitFlushInFlight = null;
+        // Committed rows are durable — deliver them now instead of waiting for
+        // the next poll tick (default 5s). `committed` is the failure guard: a
+        // flush that persisted nothing has nothing to kick for.
+        this.scheduleImmediateProcessing(committed);
         if (this.emitBuffer.length > 0) void this.flushEmitBuffer();
       }
     })();
 
     await this.emitFlushInFlight;
+  }
+
+  /**
+   * Kick one delivery pass right after buffered events are durably committed.
+   *
+   * Deferred to a microtask so the flush caller (content write path) never pays
+   * the processing latency. The kick is skipped when nothing was committed
+   * (DB unavailable / first chunk failed), when the outbox is disabled, and
+   * when a pass is already running — the latter also suppresses recursion when
+   * the flush itself originated inside `processBatch`.
+   */
+  private scheduleImmediateProcessing(committed: number): void {
+    if (committed <= 0 || this.isProcessing || isOutboxDisabled()) return;
+    queueMicrotask(() => {
+      // Re-check: a poll tick or another kick may have started a pass meanwhile.
+      if (this.isProcessing || isOutboxDisabled()) return;
+      void this.processBatch().catch((err) =>
+        logger.error("[Outbox] Immediate processing kick failed", err),
+      );
+    });
   }
 
   /**

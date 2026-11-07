@@ -35,24 +35,6 @@ const REPO_ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 
 export const FAST_CHECKS: readonly CheckSpec[] = [
   {
-    id: "lint-design",
-    script: "scripts/lint/lint-design.ts",
-    kind: "policy",
-    owner: "design-system",
-  },
-  {
-    id: "lint-duplicate-testids",
-    script: "scripts/lint/lint-duplicate-testids.ts",
-    kind: "static",
-    owner: "tests",
-  },
-  {
-    id: "scan-anonymous-leaks",
-    script: "scripts/lint/scan-anonymous-leaks.ts",
-    kind: "static",
-    owner: "security",
-  },
-  {
     id: "consolidate-shades",
     script: "scripts/lint/consolidate-shades.ts",
     args: ["--check"],
@@ -73,12 +55,6 @@ export const FAST_CHECKS: readonly CheckSpec[] = [
     args: ["--check"],
     kind: "static",
     owner: "tests",
-  },
-  {
-    id: "lint-rule-budgets",
-    script: "scripts/lint/lint-rule-budgets.ts",
-    kind: "policy",
-    owner: "architecture",
   },
   {
     id: "lint-e2e-actionability",

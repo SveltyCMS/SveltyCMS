@@ -7,19 +7,19 @@
       "pattern": ":\\s*any\\b|\\bas\\s+any\\b|<any>|any\\[\\]",
       "areas": {
         "root": 44,
-        "components": 130,
+        "components": 123,
         "content": 94,
-        "databases": 1624,
+        "databases": 1622,
         "hooks": 212,
         "paraglide": 3,
         "plugins": 361,
-        "routes": 815,
-        "services": 682,
+        "routes": 807,
+        "services": 677,
         "stores": 37,
         "utils": 142,
         "widgets": 277
       },
-      "total": 4421
+      "total": 4399
     },
     "appError": {
       "label": "throw new AppError()",
@@ -28,10 +28,10 @@
         "databases": 4,
         "hooks": 23,
         "routes": 479,
-        "services": 147,
+        "services": 144,
         "utils": 53
       },
-      "total": 706
+      "total": 703
     }
   }
 }

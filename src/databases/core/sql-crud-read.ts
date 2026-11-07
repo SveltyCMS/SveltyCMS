@@ -38,6 +38,7 @@ import {
 import {
   count as drizzleCount,
   eq,
+  gt,
   and,
   sql,
   getTableName,
@@ -614,6 +615,20 @@ export async function executeSqlFindMany<T extends BaseEntity>(
 }
 
 /**
+ * Keyset streaming is only equivalent to offset streaming when the caller starts
+ * at the first row and either imposes no order or orders solely by `_id` asc.
+ * Any other sort could reorder rows across pages and silently skip/duplicate them.
+ */
+function isIdAscendingStreamSort(sort: FindOptions<BaseEntity>["sort"]): boolean {
+  if (sort === undefined) return true;
+  if (Array.isArray(sort)) {
+    return sort.length === 1 && sort[0]?.[0] === "_id" && sort[0]?.[1] === "asc";
+  }
+  const fields = Object.keys(sort);
+  return fields.length === 1 && fields[0] === "_id" && sort._id === "asc";
+}
+
+/**
  * Executes a streamMany async iterator query on the SQL database adapter.
  */
 export async function executeSqlStreamMany<T extends BaseEntity>(
@@ -642,7 +657,39 @@ export async function executeSqlStreamMany<T extends BaseEntity>(
     const startOffset = options.offset ?? 0;
     const maxRows = options.limit ?? Number.MAX_SAFE_INTEGER;
 
+    // `_id` keyset pagination needs a physical id column and a total order that
+    // starts at the first row; anything else keeps the legacy offset loop.
+    const idCol =
+      startOffset === 0 && isIdAscendingStreamSort(options.sort)
+        ? ctx.getColumn(table, "_id")
+        : undefined;
+    const keysetOptions: FindOptions<T> = { ...options, sort: { _id: "asc" } };
+
     async function* generator() {
+      if (idCol) {
+        let lastId: DatabaseId | undefined;
+        let yielded = 0;
+        while (yielded < maxRows) {
+          const take = Math.min(pageSize, maxRows - yielded);
+          const pageWhere = lastId === undefined ? where : and(where, gt(idCol, lastId));
+          let pageQuery = db.select(selection).from(table).where(pageWhere);
+          pageQuery = applyOrderBy(pageQuery, table, keysetOptions) as typeof pageQuery;
+          pageQuery = pageQuery.limit(take);
+          const results = await pageQuery;
+          if (!results || results.length === 0) break;
+          const data = convertDatesToISO(results, convertOpts) as T[];
+          for (let i = 0; i < data.length; i++) {
+            yield data[i];
+          }
+          yielded += data.length;
+          const nextId = data[data.length - 1]?._id;
+          if (nextId === undefined || nextId === null) break;
+          lastId = nextId;
+          if (data.length < take) break;
+        }
+        return;
+      }
+
       let offset = startOffset;
       let yielded = 0;
       while (yielded < maxRows) {

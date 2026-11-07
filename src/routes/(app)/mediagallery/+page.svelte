@@ -77,7 +77,6 @@
 		type MediaBase,
 		type MediaImage,
 		type MediaType,
-		type StoredMediaBase,
 		MediaTypeEnum,
 		normalizeProcessingStatus
 	} from '@utils/media/media-models';
@@ -110,6 +109,7 @@
 		MEDIA_SEARCH_MAX_LENGTH,
 		structuredFiltersFromCriteria
 	} from './media-search-query';
+	import { compareMedia, dateBoundToIso, matchesDateBounds } from './media-sort';
 
 	let { data }: { data: PageData } = $props();
 
@@ -582,6 +582,12 @@
 		// the whole library. Re-filtering them here would both duplicate the work and
 		// hide a valid server match whose slimmed gallery row omitted the field.
 		// Everything still below runs on the assets loaded so far (page-scoped).
+
+		// Advanced-search date bounds: converted once per filter pass (not two
+		// `Date` allocations per row). Canonical ISO rows then compare as strings.
+		const uploadedAfterIso = dateBoundToIso(searchCriteria?.uploadedAfter);
+		const uploadedBeforeIso = dateBoundToIso(searchCriteria?.uploadedBefore);
+
 		let result = files.filter((file) => {
 			if (selectedMediaType !== 'All' && file.type !== selectedMediaType) {
 				return false;
@@ -603,16 +609,9 @@
 					!file.filename?.toLowerCase().includes(searchCriteria.filename.toLowerCase())
 				)
 					return false;
-				if (
-					searchCriteria.uploadedAfter &&
-					new Date(file.createdAt || 0) < searchCriteria.uploadedAfter
-				)
+				if (!matchesDateBounds(file.createdAt, uploadedAfterIso, uploadedBeforeIso)) {
 					return false;
-				if (
-					searchCriteria.uploadedBefore &&
-					new Date(file.createdAt || 0) > searchCriteria.uploadedBefore
-				)
-					return false;
+				}
 
 				if (searchCriteria.tags && searchCriteria.tags.length > 0) {
 					const tags = meta?.tags as string[] | undefined;
@@ -652,23 +651,7 @@
 			return true;
 		});
 
-		result.sort((a, b) => {
-			switch (sortBy) {
-				case 'oldest':
-					return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-				case 'name-asc':
-					return (a.filename || '').localeCompare(b.filename || '');
-				case 'name-desc':
-					return (b.filename || '').localeCompare(a.filename || '');
-				case 'size-desc':
-					return (b as StoredMediaBase).size - (a as StoredMediaBase).size;
-				case 'size-asc':
-					return (a as StoredMediaBase).size - (b as StoredMediaBase).size;
-				case 'newest':
-				default:
-					return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
-			}
-		});
+		result.sort((a, b) => compareMedia(a, b, sortBy));
 
 		return result;
 	});

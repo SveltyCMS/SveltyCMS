@@ -160,19 +160,31 @@ const MediaWidget = createWidget<MediaProps>({
       graphql: "",
       resolver: {
         [fieldName as string]: async (parent: any, _args: any, context: any) => {
-          const { dbAdapter, tenantId } = context;
-          if (!dbAdapter) return null;
+          const { dbAdapter, tenantId, loaders } = context;
 
           const val = parent[fieldName as string];
           if (!val) return null;
 
+          // Prefer the request-scoped batch loader: media fields across sibling
+          // rows then coalesce into one findByIds per tick. Older contexts that
+          // do not expose loaders keep the direct dbAdapter path.
+          const mediaLoader = loaders?.mediaLoader;
+
           if (isMulti && Array.isArray(val)) {
+            if (mediaLoader) {
+              const items = await Promise.all(val.map((id: string) => mediaLoader.load(id)));
+              return items.filter(Boolean);
+            }
+            if (!dbAdapter) return [];
             const result = await dbAdapter.crud.findMany("media", {
               _id: { $in: val },
               tenantId,
             });
             return result.success ? result.data : [];
           }
+
+          if (mediaLoader) return mediaLoader.load(val);
+          if (!dbAdapter) return null;
 
           const result = await dbAdapter.crud.findOne("media", {
             _id: val,

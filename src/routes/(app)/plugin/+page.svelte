@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import '@src/plugins/index';
+	import '@src/plugins/client';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import { pluginPageRegistry } from '@src/plugins/plugin-page-registry.svelte.ts';

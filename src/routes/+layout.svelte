@@ -29,7 +29,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// A runtime call creates a hard dependency so the plugin catalog executes at
 	// app start even when the bundler ignores manualChunks (Rolldown client builds
 	// drop manualChunks when SvelteKit sets output.codeSplitting — see vite.config.ts).
-	import { registerPluginSlots } from '@src/plugins/index';
+	import { registerPluginSlots } from '@src/plugins/client';
 	registerPluginSlots();
 
 	// Deterministic DOM ids: hand every render (each SSR request, each client hydration) a fresh id

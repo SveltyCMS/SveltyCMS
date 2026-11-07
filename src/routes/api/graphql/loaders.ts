@@ -83,6 +83,57 @@ export function createLoaders(
     return loader;
   };
 
+  // --- 4. Inverse Relation Loader Factory ---
+  // Relation resolvers call this once per parent row; caching per request keeps
+  // those calls on one batch queue so `$in` receives every parent id.
+  const createInverseLoaderInstance = (collectionName: string, foreignKeyField: string) =>
+    new BatchLoader<string | DatabaseId, any[]>(async (parentIds) => {
+      try {
+        const query: Record<string, unknown> = {
+          [foreignKeyField]: { $in: parentIds },
+        };
+        const result = await dbAdapter.crud.findMany(collectionName, query, {
+          tenantId: tenantId as DatabaseId,
+          limit: Math.max(parentIds.length * 50, 1000),
+        });
+        if (!result.success || !result.data) {
+          if (!result.success) {
+            logger.error(
+              `[GraphQL loaders] inverseLoader for "${collectionName}.${foreignKeyField}" failed: ${result.message || "Unknown error"}`,
+              result.error,
+            );
+          }
+          return parentIds.map(() => []);
+        }
+        const groupMap = new Map<string, any[]>();
+        for (const row of result.data) {
+          const fk = String((row as any)[foreignKeyField] ?? "");
+          if (!groupMap.has(fk)) groupMap.set(fk, []);
+          groupMap.get(fk)!.push(row);
+        }
+        return parentIds.map((id) => groupMap.get(String(id)) || []);
+      } catch (err: any) {
+        logger.error(
+          `[GraphQL loaders] inverseLoader for "${collectionName}.${foreignKeyField}" encountered an exception:`,
+          err,
+        );
+        return parentIds.map(() => []);
+      }
+    });
+
+  const inverseLoaders = new Map<string, ReturnType<typeof createInverseLoaderInstance>>();
+
+  const getInverseLoader = (collectionName: string, foreignKeyField: string) => {
+    // NUL separator: no collection name or field name can forge another pair's key.
+    const key = `${collectionName}\u0000${foreignKeyField}`;
+    let loader = inverseLoaders.get(key);
+    if (!loader) {
+      loader = createInverseLoaderInstance(collectionName, foreignKeyField);
+      inverseLoaders.set(key, loader);
+    }
+    return loader;
+  };
+
   return {
     /** 🚀 LAZY INITIALIZATION: Only instantiates when accessed in a resolver context */
     get userLoader() {
@@ -185,40 +236,7 @@ export function createLoaders(
     },
 
     /** Batch inverse relation lookups: one findMany($in) per tick instead of N queries */
-    createInverseLoader: (collectionName: string, foreignKeyField: string) =>
-      new BatchLoader<string | DatabaseId, any[]>(async (parentIds) => {
-        try {
-          const query: Record<string, unknown> = {
-            [foreignKeyField]: { $in: parentIds },
-          };
-          const result = await dbAdapter.crud.findMany(collectionName, query, {
-            tenantId: tenantId as DatabaseId,
-            limit: Math.max(parentIds.length * 50, 1000),
-          });
-          if (!result.success || !result.data) {
-            if (!result.success) {
-              logger.error(
-                `[GraphQL loaders] inverseLoader for "${collectionName}.${foreignKeyField}" failed: ${result.message || "Unknown error"}`,
-                result.error,
-              );
-            }
-            return parentIds.map(() => []);
-          }
-          const groupMap = new Map<string, any[]>();
-          for (const row of result.data) {
-            const fk = String((row as any)[foreignKeyField] ?? "");
-            if (!groupMap.has(fk)) groupMap.set(fk, []);
-            groupMap.get(fk)!.push(row);
-          }
-          return parentIds.map((id) => groupMap.get(String(id)) || []);
-        } catch (err: any) {
-          logger.error(
-            `[GraphQL loaders] inverseLoader for "${collectionName}.${foreignKeyField}" encountered an exception:`,
-            err,
-          );
-          return parentIds.map(() => []);
-        }
-      }),
+    createInverseLoader: getInverseLoader,
   };
 }
 

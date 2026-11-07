@@ -917,10 +917,15 @@ export class Auth {
       amr?: string[];
     },
   ): Promise<{ user: User; sessionId: DatabaseId } | null> {
+    // Every failed attempt must run exactly one Argon2 verification (CWE-208):
+    // this flag lets the catch path avoid double-hashing after a real verify.
+    let hashPerformed = false;
     try {
       const user = await this.getUserByEmail({ email, tenantId }, options);
       if (!user) {
         logger.debug("User not found for authentication", { email, tenantId });
+        hashPerformed = true;
+        await cryptoVerifyDummyPassword(password);
         return null;
       }
 
@@ -951,6 +956,8 @@ export class Auth {
           tenantId,
           userId: user._id,
         });
+        hashPerformed = true;
+        await cryptoVerifyDummyPassword(password);
         return null;
       }
 
@@ -964,9 +971,12 @@ export class Auth {
           tenantId,
           userId: user._id,
         });
+        hashPerformed = true;
+        await cryptoVerifyDummyPassword(password);
         return null;
       }
 
+      hashPerformed = true;
       const isValid = await cryptoVerifyPassword(user.password, password);
 
       logger.debug("Password verification result", { email, isValid });
@@ -1022,6 +1032,16 @@ export class Auth {
       );
       return { user, sessionId: session._id };
     } catch (err: any) {
+      // Unanticipated failures (e.g. the 423 lockout throw) still hash once so
+      // locked/unknown/timed-out paths are not distinguishable by latency.
+      if (!hashPerformed) {
+        hashPerformed = true;
+        try {
+          await cryptoVerifyDummyPassword(password);
+        } catch {
+          // catch-allow: timing normalization must never mask the original error
+        }
+      }
       // Vite 8 dev-mode HMR cycle — non-fatal, retry will succeed
       if (err.message?.includes("module runner has been closed")) {
         logger.debug(

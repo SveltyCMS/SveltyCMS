@@ -358,15 +358,158 @@ export async function saveAvatar(file: File, userId: string): Promise<string> {
   return await saveFile(resized, rel);
 }
 
-/**
- * Captures a thumbnail from a video at the 1s mark using ffmpeg
- */
-export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | null> {
-  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
-    logger.error("Video buffer too large for thumbnail capture", { size: buffer.length });
-    return null;
-  }
+/** Cap on captured ffmpeg stderr; it is a failure diagnostic, not a log sink. */
+const FFMPEG_STDERR_LIMIT_BYTES = 8 * 1024;
 
+/** Default budget for a single-frame ffmpeg grab. */
+const FFMPEG_THUMBNAIL_TIMEOUT_MS = 30_000;
+
+/**
+ * Args for a video supplied on stdin.
+ *
+ * `-ss` must follow `-i`: a pipe cannot seek, so ffmpeg has to decode up to the
+ * requested timestamp instead of jumping to it.
+ */
+const FFMPEG_PIPE_INPUT_ARGS: readonly string[] = [
+  "-i",
+  "pipe:0",
+  "-ss",
+  "00:00:01",
+  "-frames:v",
+  "1",
+  "-q:v",
+  "2",
+  "-f",
+  "image2",
+  "-vcodec",
+  "mjpeg",
+  "pipe:1",
+];
+
+/**
+ * Args for a seekable temp input: the input-side `-ss` skips the first second.
+ * The JPEG still streams to stdout, so no output temp file or read-back exists.
+ */
+function ffmpegTempInputArgs(tempInput: string): string[] {
+  return [
+    "-ss",
+    "00:00:01",
+    "-i",
+    tempInput,
+    "-frames:v",
+    "1",
+    "-q:v",
+    "2",
+    "-f",
+    "image2",
+    "-vcodec",
+    "mjpeg",
+    "pipe:1",
+  ];
+}
+
+/**
+ * Whether a video buffer can be decoded from a non-seekable stdin pipe.
+ *
+ * ISO-BMFF containers (MP4/MOV/M4V/HEIF) carry an `ftyp` box at offset 4 and
+ * keep their index (`moov`) anywhere in the file; ffmpeg needs a seekable input
+ * to jump to the 1s mark there. Every other container (WebM/Matroska, FLV,
+ * Ogg, …) can be piped. A short buffer has no `ftyp` and is attempted as a pipe:
+ * the caller falls back to the temp-file path when ffmpeg rejects it.
+ */
+export function shouldPipeVideoInput(buffer: Buffer): boolean {
+  return buffer.length < 8 || buffer.toString("latin1", 4, 8) !== "ftyp";
+}
+
+/** Runs ffmpeg with the video on stdin/args and resolves the JPEG from stdout. */
+function runFfmpegToStdout(
+  args: readonly string[],
+  input: Buffer | null,
+  timeoutMs: number,
+): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn("ffmpeg", args, { stdio: ["pipe", "pipe", "pipe"] });
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error(String(err)));
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    let stderr = "";
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const finish = (error?: Error, output?: Buffer) => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      if (error) reject(error);
+      else resolve(output ?? Buffer.alloc(0));
+    };
+
+    timer = setTimeout(() => {
+      try {
+        child.kill("SIGKILL");
+      } catch {
+        /* process already gone */
+      }
+      finish(new Error(`ffmpeg timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    (timer as { unref?: () => void }).unref?.();
+
+    child.stdout?.on("data", (data: Buffer) => {
+      chunks.push(data);
+    });
+    child.stderr?.on("data", (data: Buffer) => {
+      if (stderr.length >= FFMPEG_STDERR_LIMIT_BYTES) return;
+      stderr += data.toString();
+      if (stderr.length > FFMPEG_STDERR_LIMIT_BYTES) {
+        stderr = stderr.slice(0, FFMPEG_STDERR_LIMIT_BYTES);
+      }
+    });
+    child.stdin?.on("error", (err: NodeJS.ErrnoException) => {
+      // A child that stops reading stdin (EPIPE) reports the real diagnosis via
+      // its exit code, so only a pipe error on a live process is fatal.
+      if (err.code === "EPIPE") return;
+      finish(err);
+    });
+    child.on("error", (err) => {
+      finish(err);
+    });
+    child.on("close", (code) => {
+      if (code !== 0) {
+        finish(
+          new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-FFMPEG_STDERR_LIMIT_BYTES)}`),
+        );
+        return;
+      }
+      const output = Buffer.concat(chunks);
+      if (output.length === 0) {
+        finish(new Error("ffmpeg produced no thumbnail data on stdout"));
+        return;
+      }
+      finish(undefined, output);
+    });
+
+    child.stdin?.end(input ?? undefined);
+  });
+}
+
+/**
+ * Captures the 1s frame from a video piped on stdin and returns the JPEG bytes
+ * ffmpeg writes to stdout. No temp files are created.
+ */
+export function runFfmpegPipe(
+  input: Buffer,
+  timeoutMs = FFMPEG_THUMBNAIL_TIMEOUT_MS,
+): Promise<Buffer> {
+  return runFfmpegToStdout(FFMPEG_PIPE_INPUT_ARGS, input, timeoutMs);
+}
+
+/** Legacy full temp-file capture, kept as the fallback when an ffmpeg pipe fails. */
+async function captureVideoThumbnailWithTempFiles(buffer: Buffer): Promise<Buffer | null> {
   const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${generateUUID()}.mp4`);
   const tempOutput = path.join(os.tmpdir(), `ffmpeg-output-${generateUUID()}.jpg`);
   try {
@@ -400,6 +543,53 @@ export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | nu
       /* ignore */
     }
   }
+}
+
+/**
+ * Captures a thumbnail from a video at the 1s mark using ffmpeg.
+ *
+ * Non-ISO-BMFF containers are piped end-to-end (no temp files). ISO-BMFF keeps
+ * a temp input so ffmpeg can seek, but the JPEG streams back on stdout instead
+ * of a second temp file. Any pipe failure falls back to the original full
+ * temp-file path so capture behaviour never regresses.
+ */
+export async function captureVideoThumbnail(buffer: Buffer): Promise<Buffer | null> {
+  if (buffer.length > MAX_TEMP_BUFFER_SIZE) {
+    logger.error("Video buffer too large for thumbnail capture", { size: buffer.length });
+    return null;
+  }
+
+  if (shouldPipeVideoInput(buffer)) {
+    try {
+      return await runFfmpegPipe(buffer);
+    } catch (err) {
+      logger.debug("Piped video thumbnail failed; falling back to temp files", { error: err });
+      return await captureVideoThumbnailWithTempFiles(buffer);
+    }
+  }
+
+  // ISO-BMFF keeps a seekable input (fast `-ss` before `-i`); only the output is piped.
+  const tempInput = path.join(os.tmpdir(), `ffmpeg-input-${generateUUID()}.mp4`);
+  try {
+    await writeFile(tempInput, buffer);
+    return await runFfmpegToStdout(
+      ffmpegTempInputArgs(tempInput),
+      null,
+      FFMPEG_THUMBNAIL_TIMEOUT_MS,
+    );
+  } catch (err) {
+    logger.debug("Piped video thumbnail from temp input failed; falling back to temp files", {
+      error: err,
+    });
+  } finally {
+    try {
+      await unlink(tempInput);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return await captureVideoThumbnailWithTempFiles(buffer);
 }
 
 /**

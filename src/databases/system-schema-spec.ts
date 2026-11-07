@@ -1711,8 +1711,11 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
       ],
       sqlite: [
         `      -- Full-text search virtual table (not auto-created by Drizzle ORM)
-      -- Keep an internal mirror keyed by _id so we don't depend on nonexistent title/content columns
-      -- or SQLite rowid semantics for the text primary key.
+      -- Keep an internal mirror with the real name/description/data columns instead of the
+      -- nonexistent title/content columns. The mirror is keyed on the source table's implicit
+      -- rowid (text primary keys still have one), which FTS5 indexes: trigger deletes and
+      -- updates resolve with a rowid probe instead of a full scan of the UNINDEXED _id column.
+      -- _id stays UNINDEXED — it is carried only so search results can read it back.
       DROP TRIGGER IF EXISTS "content_nodes_ai";
       DROP TRIGGER IF EXISTS "content_nodes_ad";
       DROP TRIGGER IF EXISTS "content_nodes_au";
@@ -1723,21 +1726,21 @@ export const SYSTEM_SCHEMA: SchemaItem[] = [
         "description",
         "data"
       );
-      -- Triggers to keep FTS5 in sync
+      -- Triggers to keep FTS5 in sync (rowid is copied from the source row)
       CREATE TRIGGER IF NOT EXISTS "content_nodes_ai" AFTER INSERT ON "content_nodes" BEGIN
-        INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
-        VALUES (new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
+        INSERT INTO "content_nodes_fts"("rowid", "_id", "name", "description", "data")
+        VALUES (new.rowid, new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
       END;
       CREATE TRIGGER IF NOT EXISTS "content_nodes_ad" AFTER DELETE ON "content_nodes" BEGIN
-        DELETE FROM "content_nodes_fts" WHERE "_id" = old._id;
+        DELETE FROM "content_nodes_fts" WHERE "rowid" = old.rowid;
       END;
       CREATE TRIGGER IF NOT EXISTS "content_nodes_au" AFTER UPDATE ON "content_nodes" BEGIN
-        DELETE FROM "content_nodes_fts" WHERE "_id" = old._id;
-        INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
-        VALUES (new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
+        DELETE FROM "content_nodes_fts" WHERE "rowid" = old.rowid;
+        INSERT INTO "content_nodes_fts"("rowid", "_id", "name", "description", "data")
+        VALUES (new.rowid, new._id, COALESCE(new.name, ''), COALESCE(new.description, ''), COALESCE(new.data, ''));
       END;
-      INSERT INTO "content_nodes_fts"("_id", "name", "description", "data")
-      SELECT "_id", COALESCE("name", ''), COALESCE("description", ''), COALESCE("data", '')
+      INSERT INTO "content_nodes_fts"("rowid", "_id", "name", "description", "data")
+      SELECT rowid, "_id", COALESCE("name", ''), COALESCE("description", ''), COALESCE("data", '')
       FROM "content_nodes";`,
       ],
     },

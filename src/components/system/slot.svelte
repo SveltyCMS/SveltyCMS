@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import '@src/plugins/index';
+	import '@src/plugins/client';
 	import { slotRegistry } from '@src/plugins/slot-registry.svelte.ts';
 	import type { InjectionZone } from '@src/plugins/types';
 	import { memoizeLazyLoader, type LazyComponent } from '@utils/lazy-module';

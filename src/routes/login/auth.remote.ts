@@ -606,8 +606,6 @@ async function signInInternal(event: RequestEvent, input: any) {
       } catch (error) {
         logger.debug("[auth.remote] suppressed error", error);
       }
-    } else {
-      await verifyDummyPassword(p);
     }
   }
 

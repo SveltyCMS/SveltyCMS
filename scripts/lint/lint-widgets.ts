@@ -330,6 +330,6 @@ function run(): void {
 }
 
 // Only execute when run directly via CLI (not when imported in unit tests)
-if (process.argv[1]?.replaceAll("\\", "/").endsWith("scripts/lint-widgets.ts")) {
+if (import.meta.main) {
   run();
 }

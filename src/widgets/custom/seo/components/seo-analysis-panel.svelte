@@ -107,7 +107,7 @@ Designed to be used in a dashboard layout (e.g. side-by-side with preview).
 >
 	<button
 		type="button"
-		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors text-start cursor-pointer rounded-t-(--admin-radius-card)"
+		class="flex items-center gap-4 w-full p-3 bg-white dark:bg-surface-900 hover:bg-surface-200 dark:hover:bg-surface-800 transition-colors text-start rounded-t-(--admin-radius-card)"
 		onclick={() => {
 			if (onOpenModal) {
 				onOpenModal();

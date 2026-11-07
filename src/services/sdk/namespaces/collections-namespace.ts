@@ -41,7 +41,7 @@ import type { contentSystem as serverContentSystem } from "@src/content/index.se
 import type { FieldInstance, Schema } from "@src/content/types";
 import { DEFAULT_REVISION_LIMIT } from "@src/content/revision-defaults";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
-import { resolvePopulatedRelations } from "./populate-resolver";
+import { resolvePopulatedRelations, scheduleRelationWarmup } from "./populate-resolver";
 import { PROFILE_WRITE_ENABLED, profileSpan, profileMark } from "@utils/write-profiler";
 import {
   decodePageCursor,
@@ -152,6 +152,20 @@ function loadContentModule(): Promise<typeof import("@src/content/index.server")
 }
 
 type ContentSystem = typeof serverContentSystem;
+
+/** Adapter envelope returned by `crud.findOne` — threaded through the write pipeline. */
+type FindOneEnvelope = Awaited<ReturnType<IDBAdapter["crud"]["findOne"]>>;
+
+/**
+ * Scope a write must satisfy on its target row: `false` when the schema
+ * declares no ownership, `null` when ownership is declared but the caller has
+ * no usable user id (fail closed), the ownership fragment otherwise. `access`
+ * carries the read-access rule fragment, if any.
+ */
+interface WriteOwnershipScope {
+  scope: Record<string, unknown> | false | null;
+  access: Record<string, unknown> | null;
+}
 
 function isThenable<T>(value: T | Promise<T>): value is Promise<T> {
   return !!value && typeof (value as { then?: unknown }).then === "function";
@@ -425,35 +439,63 @@ export class CollectionsNamespace {
     user: unknown,
     system?: boolean,
   ): void | Promise<void> {
-    const scope = ownershipFilter(schema, user, system);
-    if (scope === null) throw new AppError("Entry not found", 404, "NOT_FOUND");
-    const access = getReadConstraint(schema.name || String(schema._id), {
-      user: user as { _id?: unknown; role?: unknown } | null | undefined,
-      role: (user as { role?: string } | undefined)?.role,
-      tenantId: tenantId ? String(tenantId) : null,
-    });
-    if (scope === false && !access) return;
-    const field = scope ? Object.keys(scope)[0] : "";
+    const ownership = this.resolveWriteOwnership(schema, tenantId, user, system);
+    if (ownership.scope === null) raise(404, "Entry not found", "NOT_FOUND");
+    if (ownership.scope === false && !ownership.access) return;
     return this._dbAdapter.crud
       .findOne(
         this.getCollectionName(schema._id as string),
-        mergeAccessConstraint({ _id: entryId }, access) as never,
+        mergeAccessConstraint({ _id: entryId }, ownership.access) as never,
         {
           tenantId: tenantId as DatabaseId,
         },
       )
-      .then((existing) => {
-        if (!existing?.success || !existing.data) {
-          // A row hidden by an access rule must look absent, not forbidden.
-          if (access) throw new AppError("Entry not found", 404, "NOT_FOUND");
-          return;
-        }
-        if (!scope) return;
-        const value = field ? ownerValue(existing.data, field) : undefined;
-        if (value === undefined || value === null || String(value) !== String(scope[field])) {
-          throw new AppError("Entry not found", 404, "NOT_FOUND");
-        }
-      });
+      .then((existing) => this.assertOwnedWriteRow(existing, ownership));
+  }
+
+  /**
+   * Resolve the ownership/access scope a write must satisfy before touching the
+   * row. Shared by `assertEntryOwnership` and `update()` so the write pipeline
+   * resolves the scope once and can reuse a single loaded row.
+   */
+  private resolveWriteOwnership(
+    schema: Schema,
+    tenantId: DatabaseId | null | undefined,
+    user: unknown,
+    system?: boolean,
+  ): WriteOwnershipScope {
+    return {
+      scope: ownershipFilter(schema, user, system),
+      access: getReadConstraint(schema.name || String(schema._id), {
+        user: user as { _id?: unknown; role?: unknown } | null | undefined,
+        role: (user as { role?: string } | undefined)?.role,
+        tenantId: tenantId ? String(tenantId) : null,
+      }),
+    };
+  }
+
+  /**
+   * Validate a loaded row against the resolved write scope. A foreign row and a
+   * row hidden by an access rule both answer 404 so existence is not revealed;
+   * a missing row returns so the adapter's own update/delete 404 stays the
+   * single response.
+   */
+  private assertOwnedWriteRow(
+    existing: FindOneEnvelope | null | undefined,
+    ownership: WriteOwnershipScope,
+  ): void {
+    const { scope, access } = ownership;
+    if (!existing?.success || !existing.data) {
+      // A row hidden by an access rule must look absent, not forbidden.
+      if (access) raise(404, "Entry not found", "NOT_FOUND");
+      return;
+    }
+    if (!scope) return;
+    const field = Object.keys(scope)[0] ?? "";
+    const value = field ? ownerValue(existing.data, field) : undefined;
+    if (value === undefined || value === null || String(value) !== String(scope[field])) {
+      raise(404, "Entry not found", "NOT_FOUND");
+    }
   }
 
   /**
@@ -1387,6 +1429,29 @@ export class CollectionsNamespace {
     const cacheKey = `${tenantId || "global"}:collection:${schema._id}:${entryId}${publicationCacheSuffix(effectivePublicationFilter)}`;
     const skipRequestCache = bypassCache || options.bypassRequestCache;
 
+    // Warm the declared relations of a detail row for privileged callers. The
+    // entry editor opens relation pickers separately, so warming here makes the
+    // first open an L1 hit. `scheduleRelationWarmup` is deferred, capped and
+    // no-op for unprivileged callers; it never alters `data`.
+    const warmRelations = (result: { data?: unknown } | null | undefined): void => {
+      if (options.populate && options.populate.length > 0) return;
+      const row = result?.data;
+      if (!row || typeof row !== "object") return;
+      scheduleRelationWarmup(
+        [row],
+        schema,
+        tenantId || undefined,
+        this._dbAdapter,
+        (id) => this.getCollectionName(id),
+        {
+          user: options.user,
+          system: options.system,
+          requestedPublicationFilter: effectivePublicationFilter,
+          resolveTargetSchema: (id: string) => this.schemaOf(id, tenantId),
+        },
+      );
+    };
+
     // The request cache for this key is only ever populated by a caller that did NOT
     // pass `skipCacheService` (see `loadOneById`), so probing it on behalf of such a
     // caller is dead work on the cold point-read path.
@@ -1394,7 +1459,7 @@ export class CollectionsNamespace {
       const cachedEntry = getRequestCache(cacheKey);
       if (cachedEntry !== undefined) {
         const hot = ensureSchemaHotFlags(schema);
-        return presentRead(
+        const result = presentRead(
           cachedEntry,
           schema,
           hot,
@@ -1402,6 +1467,8 @@ export class CollectionsNamespace {
           options.user,
           options.system,
         );
+        warmRelations(result);
+        return result;
       }
     }
 
@@ -1415,7 +1482,7 @@ export class CollectionsNamespace {
       if (syncCached !== undefined && syncCached !== null) {
         CollectionsNamespace.setRequestCache(cacheKey, syncCached, schema._id as string, tenantId);
         const hot = ensureSchemaHotFlags(schema);
-        return presentRead(
+        const result = presentRead(
           syncCached,
           schema,
           hot,
@@ -1423,6 +1490,8 @@ export class CollectionsNamespace {
           options.user,
           options.system,
         );
+        warmRelations(result);
+        return result;
       }
     }
 
@@ -1450,7 +1519,9 @@ export class CollectionsNamespace {
     // Single-id hot path: direct loadOneById (no microtask batch delay). The
     // cache key built above is threaded through so the point-read lane does not
     // rebuild the same string and does not copy the options object.
-    return this.loadOneById(schema, entryId, options, cacheKey);
+    const result = await this.loadOneById(schema, entryId, options, cacheKey);
+    warmRelations(result);
+    return result;
   }
 
   /**
@@ -1811,9 +1882,36 @@ export class CollectionsNamespace {
       hot = ensureSchemaHotFlags(schema);
     }
     markWritePhase(options, "schema", tSchema);
-    if (!system) {
-      const ownP = this.assertEntryOwnership(schema, entryId, tenantId, user, system);
-      if (ownP) await ownP;
+
+    // Resolve the write scope once and thread the loaded row through the whole
+    // pre-write pipeline. Ownership, the optimistic-lock comparison, required
+    // field validation and the revision snapshot all need the same document; a
+    // single read serves them instead of up to three sequential `findOne`s.
+    const expectedVersion = normalizeExpectedVersion(options.expectedVersion);
+    const tableName = this.getCollectionName(schema._id as string);
+    const ownership = system ? null : this.resolveWriteOwnership(schema, tenantId, user, system);
+    if (ownership?.scope === null) raise(404, "Entry not found", "NOT_FOUND");
+    const ownershipNeedsRow =
+      ownership !== null && (ownership.scope !== false || ownership.access !== null);
+    let preloadedExisting: FindOneEnvelope | null = null;
+    const loadExistingRow = async (): Promise<FindOneEnvelope> => {
+      if (preloadedExisting) return preloadedExisting;
+      preloadedExisting = await this._dbAdapter.crud.findOne(
+        tableName,
+        mergeAccessConstraint({ _id: entryId }, ownership?.access) as never,
+        {
+          tenantId: tenantId as DatabaseId,
+          // A cached row can be older than the write that just landed
+          // (`schedulePostWrite` invalidates asynchronously), which would make a
+          // stale `If-Match` look current. The lock check must read the row.
+          ...(expectedVersion !== null ? { bypassCache: true } : {}),
+          ...(transaction ? { transaction } : {}),
+        },
+      );
+      return preloadedExisting;
+    };
+    if (ownershipNeedsRow && ownership) {
+      this.assertOwnedWriteRow(await loadExistingRow(), ownership);
     }
 
     const tPrep = writePhaseT0(options);
@@ -1831,30 +1929,17 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    let preloadedExisting: Awaited<ReturnType<IDBAdapter["crud"]["findOne"]>> | null = null;
-
     // 🔒 OPTIMISTIC LOCKING: the caller tells us which version it loaded.
     // `casRowVersion` is the value the UPDATE must still match — the comparison
     // happens inside the write (compare-and-set), this pre-check only fails
     // fast so a stale edit never reaches validation/hooks.
-    const expectedVersion = normalizeExpectedVersion(options.expectedVersion);
     let casRowVersion: unknown = null;
     if (expectedVersion !== null) {
-      const tableName = this.getCollectionName(schema._id as string);
-      if (!preloadedExisting) {
-        preloadedExisting = await this._dbAdapter.crud.findOne(tableName, { _id: entryId } as any, {
-          tenantId: tenantId as DatabaseId,
-          // A cached row can be older than the write that just landed
-          // (`schedulePostWrite` invalidates asynchronously), which would make a
-          // stale `If-Match` look current. The lock check must read the row.
-          bypassCache: true,
-          ...(transaction ? { transaction } : {}),
-        });
-      }
-      if (!preloadedExisting.success || !preloadedExisting.data) {
+      const existing = await loadExistingRow();
+      if (!existing.success || !existing.data) {
         raise(404, `Entry ${entryId} was not found.`, "NOT_FOUND");
       }
-      const currentRow = preloadedExisting.data as unknown as Record<string, unknown>;
+      const currentRow = existing.data as unknown as Record<string, unknown>;
       const currentVersion = currentRow.updatedAt ?? null;
       if (!matchesVersion(currentVersion, expectedVersion)) {
         raise(
@@ -1895,14 +1980,10 @@ export class CollectionsNamespace {
       }
 
       if (schema.fields && schema.fields.length > 0) {
-        preloadedExisting = await this._dbAdapter.crud.findOne(
-          this.getCollectionName(schema._id as string),
-          { _id: entryId } as any,
-          { tenantId: tenantId as DatabaseId, ...(transaction ? { transaction } : {}) },
-        );
+        const existing = await loadExistingRow();
         const existingData =
-          preloadedExisting.success && preloadedExisting.data
-            ? (preloadedExisting.data as unknown as Record<string, unknown>)
+          existing.success && existing.data
+            ? (existing.data as unknown as Record<string, unknown>)
             : undefined;
         const merged = {
           ...existingData,
@@ -1979,13 +2060,7 @@ export class CollectionsNamespace {
       revisionEnabled && PROFILE_WRITE_ENABLED ? profileMark("ns:revision-snapshot") : null;
     if (revisionEnabled) {
       try {
-        const prev =
-          preloadedExisting ??
-          (await this._dbAdapter.crud.findOne(
-            this.getCollectionName(schema._id as string),
-            { _id: entryId } as any,
-            { tenantId: tenantId as DatabaseId, ...(transaction ? { transaction } : {}) },
-          ));
+        const prev = await loadExistingRow();
         if (prev.success && prev.data) {
           previousSnapshot = prev.data;
         }
@@ -2038,7 +2113,6 @@ export class CollectionsNamespace {
         // so the raw token matched zero rows on those engines even when nothing
         // had changed. Try the Date first, then the raw value, and only then call
         // it a conflict — both attempts use the version the caller loaded.
-        const tableName = this.getCollectionName(schema._id as string);
         const casCandidates = casVersionCandidates(casRowVersion);
         let cas = await this._dbAdapter.crud.updateMany(
           tableName,

@@ -231,7 +231,27 @@ function queueInvalidation(
       _pendingInvalidationTasks.delete(requestKey);
       if (_pendingInvalidationDirty.has(requestKey)) {
         _pendingInvalidationDirty.delete(requestKey);
-        queueInvalidation(schema, tenantId, true, undefined, undefined, false);
+        // Writes that landed while this flush was in flight live in a fresh id
+        // set (the flushed one was detached above). Replay them with their own
+        // intent instead of forcing a structural clear: a point burst that was
+        // replayed structurally lost its `doc:` tags (a structural clear carries
+        // neither `doc:` nor `res:all`), which left the HTTP body of the last
+        // point write stale for the full TTL.
+        const replayIds = _pendingInvalidationIds.get(requestKey);
+        const replayStructural = _pendingStructuralInvalidations.has(requestKey);
+        const replayIdList = replayIds ? Array.from(replayIds) : undefined;
+        if (replayIds) {
+          _pendingInvalidationIds.delete(requestKey);
+          releaseIdSet(replayIds);
+        }
+        queueInvalidation(
+          schema,
+          tenantId,
+          true,
+          undefined,
+          replayIdList,
+          !replayStructural && replayIdList !== undefined && replayIdList.length > 0,
+        );
       }
     }
   });
@@ -265,6 +285,14 @@ export function schedulePostWrite(
 
   // L2 invalidation starts IMMEDIATELY (debounced + coalesced) — never behind
   // workflow/pubsub work, so save-then-read can't race a stale cached list.
+  //
+  // Every action stays structural, including a single-id update: a cached list
+  // body embeds the written row, and a point write leaves the `collection:` /
+  // `res:` tags intact, so the edited row kept its old title for the whole list
+  // TTL (measured on the E2E stack — 172b68b75, restored by 5836daa78). Point
+  // semantics remain available to callers whose write cannot change a list body
+  // (the single-id bulk lanes call `invalidateCache({ writtenId })`), and the
+  // coalesced replay below preserves them for a mid-flush burst.
   queueInvalidation(schema, tenantId, true, id, undefined, false);
 
   if ((action === "create" || action === "update") && !options.skipReturning) {

@@ -49,7 +49,7 @@ import {
 
 // Static ESM binding for hot domain handlers (collections, content, auth, system, tokens, media, dashboard)
 // eliminates dynamic import resolution overhead entirely on 95%+ of API traffic.
-import { isChunkedExportResponse } from "./handlers/streaming";
+import { isChunkedExportResponse, isStreamingResponse } from "./handlers/streaming";
 // Namespace imports on purpose: each handler module is registered wholesale as a dispatcher
 // surface in `namespaceHandlers` below. Converting these to named imports would mean listing
 // every export of seven modules for no runtime or bundle benefit (server-only route).
@@ -674,7 +674,7 @@ export const _handler = async (event: RequestEvent) => {
   // 🚀 ETag SUPPORT: Conditional request handling for cache-efficient GET responses
   // Skip ETag for streaming responses (SSE) and non-200 responses
   const contentType = response.headers.get("content-type") || "";
-  const isStreaming = contentType.includes("text/event-stream");
+  const isStreaming = isStreamingResponse(response);
   const isChunkedExport = isChunkedExportResponse(response);
 
   // ⚡ CONTENT-BASED ETag: Computed from the actual response body.

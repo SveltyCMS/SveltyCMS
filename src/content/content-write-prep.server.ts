@@ -136,8 +136,13 @@ function prepareFieldsCore(
       const fieldName = plan.sanitizeRich[i];
       const value = (result || data)[fieldName];
       if (typeof value === "string") {
-        if (!result) result = { ...data };
-        result[fieldName] = sanitizeHtml(value);
+        // Both helpers return the SAME reference when there is no `<`, so most
+        // writes must not clone the payload just to reassign an identical value.
+        const cleaned = sanitizeHtml(value);
+        if (cleaned !== value) {
+          if (!result) result = { ...data };
+          result[fieldName] = cleaned;
+        }
       }
     }
     // Sanitize text/textarea
@@ -145,8 +150,11 @@ function prepareFieldsCore(
       const fieldName = plan.sanitizeText[i];
       const value = (result || data)[fieldName];
       if (typeof value === "string") {
-        if (!result) result = { ...data };
-        result[fieldName] = stripHtml(value);
+        const cleaned = stripHtml(value);
+        if (cleaned !== value) {
+          if (!result) result = { ...data };
+          result[fieldName] = cleaned;
+        }
       }
     }
   }
@@ -156,16 +164,15 @@ function prepareFieldsCore(
     for (let i = 0; i < plan.arrayFields.length; i++) {
       const fieldName = plan.arrayFields[i];
       const value = (result || data)[fieldName];
-      if (Array.isArray(value)) {
-        const originalLength = value.length;
+      // `filter` allocates unconditionally; probe first so the common clean
+      // array keeps its reference (and the caller keeps the payload reference).
+      if (Array.isArray(value) && value.some((item) => item == null)) {
         const filtered = value.filter((item) => item != null);
-        if (filtered.length < originalLength) {
-          if (!result) result = { ...data };
-          result[fieldName] = filtered;
-          logger.warn(
-            `[stripNullRows] Field "${fieldName}" had ${originalLength - filtered.length} null entries removed`,
-          );
-        }
+        if (!result) result = { ...data };
+        result[fieldName] = filtered;
+        logger.warn(
+          `[stripNullRows] Field "${fieldName}" had ${value.length - filtered.length} null entries removed`,
+        );
       }
     }
   }

@@ -17,7 +17,7 @@ pathname, collection, isAdmin).
 -->
 
 <script lang="ts">
-	import '@src/plugins/index';
+	import '@src/plugins/client';
 	import {
 		adminZoneRegistry,
 		type AdminZoneName

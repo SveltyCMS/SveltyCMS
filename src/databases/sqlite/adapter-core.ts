@@ -31,7 +31,7 @@ import {
 } from "../core/drizzle-sql-helpers";
 import { resolveSqliteAdapterPath } from "./path-resolver";
 import { provisionSqliteTable } from "./schema-sync";
-import { generateUUID } from "@utils/native-utils";
+import { FastLRU, generateUUID } from "@utils/native-utils";
 import { getTableName } from "drizzle-orm";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { statSync } from "node:fs";
@@ -1326,7 +1326,12 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     string,
     { sqlite: SQLiteClient; db: SQLiteDB; statementCache: Map<string, any> }
   >();
-  protected _statementCache = new Map<string, any>();
+  /**
+   * SQL text → prepared statement. A bounded LRU (not a plain Map): at the cap
+   * the coldest statement is evicted, so admission never freezes and hot
+   * statements are not re-prepared while stale ones stay resident.
+   */
+  protected _statementCache = new FastLRU<string, any>(1000);
 
   protected state: "idle" | "connecting" | "connected" | "closing" | "closed" = "idle";
   protected config: string | SQLiteConfig = "";
@@ -1739,7 +1744,10 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     let stmt = this._statementCache.get(sqlText);
     if (!stmt) {
       stmt = client.prepare(sqlText);
-      if (this._statementCache.size < 1000) this._statementCache.set(sqlText, stmt);
+      // Eviction is the LRU's job: reaching the cap evicts the least-recently
+      // used statement instead of freezing admission (which re-prepared hot
+      // statements while stale ones stayed resident).
+      this._statementCache.set(sqlText, stmt);
     }
     this.metrics.queryCount++;
     // 🎯 PROFILE_DB=1: exec timing + busy-retry counts (WAL checkpoint stalls /
@@ -2297,18 +2305,18 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
 
         // 🚀 PREPARED-STATEMENT CACHE: Drizzle's SQLiteBunSession.prepareQuery
         // calls client.prepare(query.sql) on EVERY query (no reuse). Caching by
-        // SQL text turns per-call sqlite3_prepare (~4µs, 6.6x slower) into a
-        // Map hit. Statements are safe to reuse: Drizzle never finalizes them
+        // SQL text turns per-call sqlite3_prepare (~4µs, 6.6x slower) into an
+        // LRU hit. Statements are safe to reuse: Drizzle never finalizes them
         // (session.js only calls stmt.run/all/values) and each call binds params
         // afresh. Schema-changing operations (createModel/clearDatabase) clear
         // the cache via clearStatementCaches().
-        const stmtCache = new Map<string, any>();
+        const stmtCache = new FastLRU<string, any>(2000);
         const origPrepare = sqlite.prepare.bind(sqlite);
         sqlite.prepare = (sqlText: string) => {
           let stmt = stmtCache.get(sqlText);
           if (!stmt) {
             stmt = origPrepare(sqlText);
-            if (stmtCache.size < 2000) stmtCache.set(sqlText, stmt);
+            stmtCache.set(sqlText, stmt);
           }
           return stmt;
         };
@@ -2363,7 +2371,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
                 let stmt = this._statementCache.get(sqlText);
                 if (!stmt) {
                   stmt = sqlite.prepare(sqlText);
-                  if (this._statementCache.size < 1000) this._statementCache.set(sqlText, stmt);
+                  this._statementCache.set(sqlText, stmt);
                 }
                 if (method === "all") {
                   const result = stmt.all(...serializedParams);

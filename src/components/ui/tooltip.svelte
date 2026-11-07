@@ -19,6 +19,7 @@ reveal after position calculation prevents layout flash.
 - CSS Anchor Positioning (compositor-level) in Chrome 143+ / Firefox 147+
 - JS fallback with flip + shift for Safari and older browsers
 - show on mouseenter/focus, hide on mouseleave/blur/Escape
+- Escape handled by one shared window listener while open (no per-instance global listener)
 - delayed visibility until position calculated (opacity-0 trick)
 - arrow anchor delegated to `useFloating` (resolved placement, flip/shift, resize-aware)
 - portals into the enclosing modal `<dialog>` so it renders above the top layer
@@ -31,6 +32,7 @@ reveal after position calculation prevents layout flash.
 	import type { Snippet } from 'svelte';
 	import Portal from './portal.svelte';
 	import { useFloating, type Placement } from '@utils/use-floating.svelte.ts';
+	import { registerTooltipEscape } from '@utils/tooltip-escape';
 
 	interface Props {
 		title?: string;
@@ -179,6 +181,15 @@ reveal after position calculation prevents layout flash.
 		if (disabled && open) open = false;
 	});
 
+	// Escape closes this tooltip through the shared dispatcher: only open tooltips
+	// register, so an idle page carries no per-instance window listener.
+	$effect(() => {
+		if (!open) return;
+		return registerTooltipEscape(() => {
+			open = false;
+		});
+	});
+
 	function show() {
 		if (disabled || !hasContent) return;
 		portalTarget = (referenceEl?.closest('dialog[open]') as HTMLElement | null) ?? 'body';
@@ -187,12 +198,7 @@ reveal after position calculation prevents layout flash.
 	function hide() {
 		open = false;
 	}
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && open) hide();
-	}
 </script>
-
-<svelte:window onkeydown={handleKeydown} />
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div

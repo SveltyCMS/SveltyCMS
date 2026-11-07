@@ -809,25 +809,23 @@ This page dynamically switches between List views and Field editors based on the
 			<p class="text-center text-error-600 dark:text-error-500">{collection_unable_to_load()}</p>
 		</div>
 	{:else if effectiveMode === 'view' || effectiveMode === 'modify'}
-		<!-- Key block forces EntryList to remount when collection changes -->
-		{#key activeCollection?._id}
-			{@const listMetrics =
-				(data?.listMetrics as {
-					count: number;
-					hitRate: number;
-					p50Ms: number;
-					p95Ms: number;
-					avgMs: number;
-				} | null) ?? null}
-			<EntryList
-				collection={activeCollection}
-				{entries}
-				{pagination}
-				contentLanguage={serverContentLanguage}
-				{statusFacets}
-				{listMetrics}
-			/>
-		{/key}
+		<!-- EntryList updates in place across collections; it swaps its per-collection state itself. -->
+		{@const listMetrics =
+			(data?.listMetrics as {
+				count: number;
+				hitRate: number;
+				p50Ms: number;
+				p95Ms: number;
+				avgMs: number;
+			} | null) ?? null}
+		<EntryList
+			collection={activeCollection}
+			{entries}
+			{pagination}
+			contentLanguage={serverContentLanguage}
+			{statusFacets}
+			{listMetrics}
+		/>
 	{:else if ['edit', 'create'].includes(effectiveMode)}
 		{@const activeEntryId = String(collections.activeValue?._id || urlEditParam || '')}
 		<div

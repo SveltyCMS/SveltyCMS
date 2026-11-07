@@ -274,7 +274,7 @@ export function normalizeSseEventPayload(
  * Sends keep-alive pings every 30 seconds.
  * Cleans up on client disconnect via AbortSignal.
  */
-async function handleContentEventsStream(event: RequestEvent, tenantId: DatabaseId) {
+export async function handleContentEventsStream(event: RequestEvent, tenantId: DatabaseId) {
   const { eventBus } = await import("@utils/event-bus");
   const encoder = new TextEncoder();
 
@@ -298,23 +298,36 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
       }
 
       // Micro-buffer queue — decouples event emission from HTTP backpressure.
-      // Events are buffered and flushed in batches every 32ms to avoid
-      // synchronous controller.enqueue() blocking the event loop under load.
+      // Events are buffered and flushed in batches 32ms after the first one, so an
+      // idle connection owns no flush timer (a per-connection interval would wake
+      // every subscriber 31×/s just to find an empty buffer).
       let eventBuffer: string[] = [];
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
       const flushBuffer = () => {
+        if (flushTimer !== null) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
         if (eventBuffer.length === 0 || isClosed) return;
         try {
           controller.enqueue(encoder.encode(eventBuffer.join("")));
           eventBuffer = [];
         } catch {
           isClosed = true;
-          clearInterval(flushTimer);
           eventBus.off("*", handler);
         }
       };
 
-      const flushTimer = setInterval(flushBuffer, 32);
+      const scheduleFlush = () => {
+        if (isClosed || flushTimer !== null) return;
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          flushBuffer();
+        }, 32);
+        // A pending batch must never keep the process (or a test runner) alive.
+        (flushTimer as { unref?: () => void }).unref?.();
+      };
 
       // Event handler — buffers events instead of synchronous enqueue
       const handler = (payload: { event?: string; data?: Record<string, unknown> }) => {
@@ -324,8 +337,9 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
         // Redact the VALUE, never the serialized document: text patterns also match
         // inside JSON tokens (a 13-digit epoch-ms read as a phone number rewrote
         // `"timestamp":1793522984546` to `"timestamp":[REDACTED]`, which the client then
-        // reported as `Unexpected token 'R'`). The frame always ends with a blank line.
+        // reported as `Unexpected token 'R'`. The frame always ends with a blank line.
         eventBuffer.push(`data: ${JSON.stringify(redactSecretsDeep(clientPayload))}\n\n`);
+        scheduleFlush();
       };
 
       eventBus.on("*", handler);
@@ -338,7 +352,10 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
           } catch {
             isClosed = true;
             clearInterval(keepAlive);
-            clearInterval(flushTimer);
+            if (flushTimer !== null) {
+              clearTimeout(flushTimer);
+              flushTimer = null;
+            }
             eventBus.off("*", handler);
           }
         }
@@ -348,7 +365,10 @@ async function handleContentEventsStream(event: RequestEvent, tenantId: Database
       event.request.signal.addEventListener("abort", () => {
         isClosed = true;
         clearInterval(keepAlive);
-        clearInterval(flushTimer);
+        if (flushTimer !== null) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
         eventBus.off("*", handler);
         try {
           controller.close();

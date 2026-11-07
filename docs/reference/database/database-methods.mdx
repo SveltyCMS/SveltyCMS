@@ -95,7 +95,7 @@ export type DatabaseResult<T> =
 | `update` / `updateMany`                | Scoped updates with multi-tenant safety.                                                                                                                                              |
 | `delete` / `deleteMany`                | Permanent or soft-deletion.                                                                                                                                                           |
 | `upsert` / `upsertMany`                | Atomic update-or-insert. SQL `_id` filters are one `INSERT … ON CONFLICT` / `ON DUPLICATE KEY` (chunked under bind limits). Mongo is `bulkWrite`. Other filters stay findOne + write. |
-| `streamMany`                           | Async-iterable scan for export / migration.                                                                                                                                           |
+| `streamMany`                           | Async-iterable scan for export / migration. SQL pages by `_id` keyset (500 rows, no `OFFSET`) when unsorted; offset paging remains for custom sorts or a non-zero offset.             |
 
 ### `findPage` (shared product path)
 

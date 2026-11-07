@@ -37,7 +37,8 @@ FIXES:
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import TranslationCockpit from './translation-cockpit.svelte';
+	// Loaded on demand: the cockpit pulls the translation workspace and is only
+	// mounted after a user opens it, keeping it out of the entry-list chunk.
 
 	// State
 	let isInitialized = $state(false);
@@ -559,7 +560,11 @@ FIXES:
 		{/if}
 	</Dropdown>
 
-	<TranslationCockpit bind:open={isCockpitOpen} />
+	{#if isCockpitOpen}
+		{#await import('./translation-cockpit.svelte') then { default: TranslationCockpit }}
+			<TranslationCockpit bind:open={isCockpitOpen} />
+		{/await}
+	{/if}
 
 	<div class="mt-0.5 transition-all duration-300">
 		<!-- External progress bar removed to prevent header overflow -->

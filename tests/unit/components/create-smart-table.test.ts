@@ -165,6 +165,26 @@ describe("createSmartTable", () => {
     expect(table.columnWidths.col1).toBe(180);
   });
 
+  it("resets table prefs when a layout key has nothing saved", () => {
+    const table = createSmartTable({
+      mode: "client",
+      layoutKey: "test-layout-reset-a",
+    });
+    table.setPaginationMeta({ pagesCount: 5, totalItems: 50, pageSize: 10 });
+    table.setPage(3);
+    table.setDensity("compact");
+    table.setViewMode("card");
+    table.setPageSize(25);
+
+    // A key with no saved prefs must not inherit the previous key's layout.
+    table.setLayoutKey("test-layout-reset-empty-b");
+    expect(table.density).toBe("normal");
+    expect(table.viewMode).toBe("table");
+    expect(table.pagination.pageSize).toBe(10);
+    expect(table.pagination.currentPage).toBe(1);
+    expect(table.columnWidths).toEqual({});
+  });
+
   it("composes multi-column sort with Shift (multi: true) and emits field:dir list", () => {
     const onQueryChange = vi.fn();
     const table = createSmartTable({

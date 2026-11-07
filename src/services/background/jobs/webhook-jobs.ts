@@ -1,5 +1,5 @@
 /**
- * @file src/services/jobs/webhook-jobs.ts
+ * @file src/services/background/jobs/webhook-jobs.ts
  * @description Job handler for durable webhook delivery with Dead-Letter Queue (DLQ) logic.
  */
 
@@ -10,6 +10,11 @@ import { logger } from "@utils/logger";
 import type { Webhook } from "@src/services/background/webhook-service";
 
 import { safeFetch } from "@utils/egress-guard";
+import {
+  beforeWebhookRequest,
+  recordWebhookFailure,
+  recordWebhookSuccess,
+} from "./webhook-circuit-breaker";
 
 export interface WebhookJobPayload {
   webhook: Webhook;
@@ -58,6 +63,11 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
   }
 
   try {
+    // Process-local per-origin breaker: while open this throws
+    // `RETRYABLE_ERROR: CIRCUIT_OPEN …` before any network I/O, so the queue
+    // backs off instead of every queued delivery hammering a dead endpoint.
+    beforeWebhookRequest(webhook.url);
+
     const response = await safeFetch(webhook.url, {
       method: jobPayload.method || "POST",
       headers,
@@ -67,6 +77,7 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
     });
 
     if (response.success) {
+      recordWebhookSuccess(webhook.url);
       logger.info(`[WebhookJob] Successfully delivered ${event} to ${webhook.name}`);
       return;
     }
@@ -76,6 +87,7 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
     // RETRYABLE transport failure, not a permanent dead-letter (previously it
     // fell through as `PERMANENT_FAILURE: HTTP 0`).
     if (!response.status) {
+      recordWebhookFailure(webhook.url, "retryable");
       throw new Error(
         `RETRYABLE_ERROR: ${response.error || "network failure"} from ${webhook.url}`,
       );
@@ -86,12 +98,17 @@ export async function webhookDeliveryHandler(jobPayload: WebhookJobPayload) {
 
     // 1. RETRYABLE ERRORS (5xx, 429, 408)
     if (status >= 500 || status === 429 || status === 408) {
+      recordWebhookFailure(webhook.url, "retryable");
       throw new Error(`RETRYABLE_ERROR: HTTP ${status} from ${webhook.url}`);
     }
 
     // 2. POISON PILLS (400, 401, 403, 404, etc.)
     // These will never succeed on retry (e.g. invalid API key, wrong URL).
     // We throw a special error that the JobQueue should recognize as PERMANENT.
+    // The endpoint answered, so the origin is healthy even though this payload
+    // is not — record the classification, then close/reset the breaker.
+    recordWebhookFailure(webhook.url, "permanent");
+    recordWebhookSuccess(webhook.url);
     throw new Error(`PERMANENT_FAILURE: HTTP ${status} - Routing to DLQ.`);
   } catch (error: any) {
     const errMessage = error.message;

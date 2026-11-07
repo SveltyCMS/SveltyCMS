@@ -21,6 +21,8 @@
  * - Per-top-level-area budgets (`src/databases`, `src/routes`, …)
  * - Comment lines ignored (documenting a rule is not a violation)
  * - `--update` records decreases; the check never fails on a decrease
+ * - Exported `checkRuleBudgets()` / `loadBudgetBaseline()` so the aggregated
+ *   source-lint gate reads the baseline once and emits identical violation text
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -50,7 +52,20 @@ export interface BudgetViolation {
   rule: string;
 }
 
-const BASELINE_PATH = join(process.cwd(), "scripts/lint/rule-budgets.json");
+export const BUDGET_BASELINE_RELATIVE_PATH = "scripts/lint/rule-budgets.json";
+
+export function budgetBaselinePath(root = process.cwd()): string {
+  return join(root, BUDGET_BASELINE_RELATIVE_PATH);
+}
+
+/** Reads the recorded ratchet; `null` when the file is missing or unparsable. */
+export function loadBudgetBaseline(root = process.cwd()): BudgetBaseline | null {
+  try {
+    return JSON.parse(readFileSync(budgetBaselinePath(root), "utf8")) as BudgetBaseline;
+  } catch {
+    return null; // catch-allow: the caller reports the missing baseline and its --update command
+  }
+}
 
 const RULES: Record<string, { label: string; pattern: RegExp; source: string }> = {
   any: {
@@ -105,6 +120,26 @@ export function findBudgetViolations(
   return violations.sort((a, b) => b.current - b.budget - (a.current - a.budget));
 }
 
+/** Compares every rule's current per-area counts against the recorded baseline. */
+export function checkRuleBudgets(files: SourceFile[], baseline: BudgetBaseline): BudgetViolation[] {
+  const violations: BudgetViolation[] = [];
+  for (const [key, rule] of Object.entries(RULES)) {
+    const current = countRule(files, rule.pattern);
+    const budget = baseline.rules[key];
+    if (!budget) {
+      violations.push({ area: "(missing baseline)", budget: 0, current: 1, rule: rule.label });
+      continue;
+    }
+    violations.push(...findBudgetViolations(current, budget.areas, rule.label));
+  }
+  return violations;
+}
+
+/** One violation, formatted for both this CLI and the aggregated gate. */
+export function formatBudgetViolation(violation: BudgetViolation): string {
+  return `${violation.rule} · ${violation.area}: ${violation.current} (budget ${violation.budget})`;
+}
+
 function buildBaseline(files: SourceFile[]): BudgetBaseline {
   const rules: Record<string, BudgetRule> = {};
   for (const [key, rule] of Object.entries(RULES)) {
@@ -131,37 +166,27 @@ function main(): void {
 
   if (update) {
     const baseline = buildBaseline(files);
-    writeFileSync(BASELINE_PATH, `${JSON.stringify(baseline, null, 2)}\n`);
+    const baselinePath = budgetBaselinePath();
+    writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
     for (const rule of Object.values(baseline.rules)) {
       console.log(
         `📌 ${rule.label}: ${rule.total} occurrences across ${Object.keys(rule.areas).length} areas`,
       );
     }
-    console.log(`✅ baseline written to ${BASELINE_PATH}`);
+    console.log(`✅ baseline written to ${baselinePath}`);
     return;
   }
 
-  let baseline: BudgetBaseline;
-  try {
-    baseline = JSON.parse(readFileSync(BASELINE_PATH, "utf8")) as BudgetBaseline;
-  } catch {
+  const baseline = loadBudgetBaseline();
+  if (!baseline) {
     console.error(
-      `❌ Missing ${BASELINE_PATH}. Run: bun run scripts/lint/lint-rule-budgets.ts --update`,
+      `❌ Missing ${budgetBaselinePath()}. Run: bun run scripts/lint/lint-rule-budgets.ts --update`,
     );
     process.exitCode = 1;
     return;
   }
 
-  const violations: BudgetViolation[] = [];
-  for (const [key, rule] of Object.entries(RULES)) {
-    const current = countRule(files, rule.pattern);
-    const budget = baseline.rules[key];
-    if (!budget) {
-      violations.push({ area: "(missing baseline)", budget: 0, current: 1, rule: rule.label });
-      continue;
-    }
-    violations.push(...findBudgetViolations(current, budget.areas, rule.label));
-  }
+  const violations = checkRuleBudgets(files, baseline);
 
   if (violations.length === 0) {
     console.log("✅ rule budgets: no area above its baseline.");
@@ -170,9 +195,7 @@ function main(): void {
 
   console.error(`❌ rule budget exceeded: ${violations.length}`);
   for (const violation of violations) {
-    console.error(
-      `   ${violation.rule} · ${violation.area}: ${violation.current} (budget ${violation.budget})`,
-    );
+    console.error(`   ${formatBudgetViolation(violation)}`);
   }
   console.error(
     "\n   Reduce the count instead of raising the baseline; after a reduction run --update to ratchet down.",

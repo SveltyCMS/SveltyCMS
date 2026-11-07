@@ -47,19 +47,18 @@ bulk actions, and predictive preloading.
 
 <script module lang="ts">
 	import Button from '@components/ui/button.svelte';
-	import { contentLanguage, systemLanguage } from '@src/stores/locale-store.svelte';
+	import { contentLanguage } from '@src/stores/locale-store.svelte';
 	export type SortOrder = 0 | 1 | -1; // Strict type for sort order
 </script>
 
 <script lang="ts">
 	// Components
 	import AdminCard from '@components/admin-card.svelte';
-	import SystemTooltip from '@components/system/system-tooltip.svelte';
 	import Status from '@components/system/table/status.svelte';
 	import TableFilter from '@components/system/table/table-filter.svelte';
 	import TableIcons from '@components/system/table/table-icons.svelte';
 	import PluginComponent from '@src/components/plugins/plugin-component.svelte';
-	import { availablePlugins } from '@src/plugins/index';
+	import { availablePlugins } from '@src/plugins/client';
 	// Types
 	// =================================================================
 	// 1. RECEIVE DATA AS PROPS (From +page.server.ts)
@@ -127,6 +126,7 @@ bulk actions, and predictive preloading.
 	import SmartTableStatusFacets from '@components/ui/smart-table/smart-table-status-facets.svelte';
 	import SmartTableMetricsBadge from '@components/ui/smart-table/smart-table-metrics-badge.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
+	import { computeColumnWindow } from '@components/ui/smart-table/column-window';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
 	import EntryListMultiButton from './entry-list-multi-button.svelte';
 	import TranslationStatus from './translation-status.svelte';
@@ -204,7 +204,7 @@ bulk actions, and predictive preloading.
 	}
 
 	// Unified Smart Table (server mode) — selection, virtualization, density, sort/page callbacks
-	// layoutKey is per-collection (EntryList remounts via {#key collectionSchema?._id})
+	// layoutKey is per-collection; `resetForCollection` swaps it when the table updates in place.
 	const smartTable = createSmartTable<CollectionEntry>({
 		mode: 'server',
 		layoutKey: initialCollectionId ? `entry-list:${initialCollectionId}` : 'entry-list',
@@ -321,12 +321,24 @@ bulk actions, and predictive preloading.
 	const spacerTop = $derived(smartTable.virtual.spacerTop);
 	const spacerBottom = $derived(smartTable.virtual.spacerBottom);
 
+	// Horizontal body-cell windowing. The header row stays complete (it is one row
+	// and carries sort/resize/column semantics); body cells outside the viewport
+	// collapse into two width-preserving placeholder cells. Widths are measured
+	// from the rendered header cells once per column-layout change, never on
+	// scroll ticks, and stay empty when layout is unavailable (SSR, jsdom).
+	let headerColumnOffsets = $state<number[]>([]);
+	let headerColumnWidths = $state<number[]>([]);
+	let tableViewportWidth = $state(0);
+	let tableScrollLeft = $state(0);
+
 	function onVirtualScroll() {
 		if (scrollContainerEl) {
 			smartTable.virtual.onScroll(
 				scrollContainerEl.scrollTop,
 				scrollContainerEl.clientHeight || 600
 			);
+			tableScrollLeft = scrollContainerEl.scrollLeft;
+			tableViewportWidth = scrollContainerEl.clientWidth || 0;
 		}
 	}
 
@@ -530,14 +542,14 @@ bulk actions, and predictive preloading.
 
 	let entryListPaginationSettings = $state(loadPaginationSettings(initialCollectionId));
 
-	// Save settings to localStorage
+	// Save settings to localStorage. Keyed off the prop collection (not the store)
+	// and guarded by `collectionId`, so a switch cannot persist collection A's
+	// settings under collection B's key before the handover below runs.
 	$effect(() => {
-		if (browser && collections.active?._id && entryListPaginationSettings) {
-			const key = `entryListPaginationSettings_${collections.active._id}`;
-			// Debounce save slightly or just save? $effect runs after render.
-			// Use untrack? No, we want to track entryListPaginationSettings.
-			const stringified = JSON.stringify(entryListPaginationSettings);
-			localStorage.setItem(key, stringified);
+		const collectionId = propCollection?._id ? String(propCollection._id) : null;
+		const settings = entryListPaginationSettings;
+		if (browser && collectionId && settings && settings.collectionId === collectionId) {
+			localStorage.setItem(`entryListPaginationSettings_${collectionId}`, JSON.stringify(settings));
 		}
 	});
 
@@ -547,13 +559,6 @@ bulk actions, and predictive preloading.
 	let expand = $state(false);
 	let filterShow = $state(false);
 	let columnShow = $state(false);
-	const currentStates = $derived.by(() => ({
-		language: contentLanguage.value,
-		systemLanguage: systemLanguage.value,
-		mode: collections.mode,
-		collection: collections.active,
-		screenSize: screen.size
-	}));
 
 	// Sync the input FROM the URL — but only when the URL's `search` value
 	// changes (navigation, saved view, clear). Reading `globalSearchValue`
@@ -608,10 +613,12 @@ bulk actions, and predictive preloading.
 		});
 	});
 
-	// Destructure for easier access
-	const currentLanguage = $derived(propContentLanguage || currentStates.language);
-	const currentMode = $derived(currentStates.mode);
-	const currentCollection = $derived(propCollection ?? currentStates.collection);
+	// Destructure for easier access. These are separate derivations (and none of
+	// them reads `screen.size`), so a viewport resize cannot invalidate the table
+	// headers, rows or selection state.
+	const currentLanguage = $derived(propContentLanguage || contentLanguage.value);
+	const currentMode = $derived(collections.mode);
+	const currentCollection = $derived(propCollection ?? collections.active);
 	// Collection header icon (widget default if the collection has no custom icon)
 	const collectionIcon = $derived(currentCollection?.icon || 'bi:collection');
 
@@ -773,6 +780,108 @@ bulk actions, and predictive preloading.
 	const visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
 
 	const cellPaddingClass = $derived(smartTable.cellPaddingClass);
+
+	function measureHeaderColumns(): void {
+		const container = scrollContainerEl;
+		if (!container || smartTable.viewMode !== 'table') return;
+
+		// RTL scroll offsets are negative from the right edge in modern engines, so
+		// the physical left-to-right offsets below would not match. Keep the full
+		// table instead of risking misplaced cells.
+		if (browser && document.documentElement.dir === 'rtl') {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			return;
+		}
+
+		const cells = container.querySelectorAll<HTMLTableCellElement>('thead tr:last-child th');
+		if (cells.length !== visibleTableHeaders.length) {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			return;
+		}
+
+		const widths: number[] = [];
+		const offsets: number[] = [];
+		let left = 0;
+		for (const cell of cells) {
+			const width = cell.offsetWidth;
+			widths.push(width);
+			offsets.push(left);
+			left += width;
+		}
+
+		// No layout engine (SSR/jsdom) or a collapsed table: every width is 0.
+		if (!widths.some((width) => width > 0)) {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			return;
+		}
+
+		headerColumnWidths = widths;
+		headerColumnOffsets = offsets;
+		// A layout change can clamp a stale horizontal offset (e.g. switching to a
+		// narrower collection) without a scroll event; resync while measuring.
+		tableScrollLeft = container.scrollLeft;
+		tableViewportWidth = container.clientWidth || 0;
+	}
+
+	// Measure once per column set/order, persisted width, density or table↔card
+	// switch; ResizeObserver covers container resizes without re-reading layout on
+	// every scroll event.
+	$effect(() => {
+		const inTable = smartTable.viewMode === 'table';
+		const container = scrollContainerEl;
+		const layoutSignature = visibleTableHeaders
+			.map((header) => `${header.id}:${header.name ?? ''}`)
+			.join('|');
+		const widthSignature = Object.values(smartTable.columnWidths).join(',');
+		void layoutSignature;
+		void widthSignature;
+		void cellPaddingClass;
+		// The filter row's `min-w-28` inputs can widen columns when it appears.
+		void filterShow;
+
+		if (!inTable || !container) {
+			headerColumnOffsets = [];
+			headerColumnWidths = [];
+			tableViewportWidth = 0;
+			return;
+		}
+
+		measureHeaderColumns();
+
+		if (typeof ResizeObserver === 'undefined') return;
+		const observer = new ResizeObserver(() => measureHeaderColumns());
+		observer.observe(container);
+		return () => observer.disconnect();
+	});
+
+	const columnWindow = $derived.by(() => {
+		if (
+			smartTable.viewMode === 'table' &&
+			headerColumnWidths.length === visibleTableHeaders.length
+		) {
+			const window = computeColumnWindow({
+				offsets: headerColumnOffsets,
+				widths: headerColumnWidths,
+				viewportWidth: tableViewportWidth,
+				scrollLeft: tableScrollLeft
+			});
+			if (window.active) return window;
+		}
+
+		// No window (card view, narrow table, SSR/jsdom): the full column set.
+		return {
+			start: 0,
+			end: visibleTableHeaders.length,
+			leadingCount: 0,
+			trailingCount: 0,
+			leadingWidth: 0,
+			trailingWidth: 0,
+			active: false
+		};
+	});
 
 	/**
 	 * Start inset for the toolbar/title row. Mirrors `PageTitle` (`ps-5 md:ps-10`)
@@ -997,6 +1106,42 @@ bulk actions, and predictive preloading.
 	let focusedRowIndex = $state<number>(0);
 	let focusedColIndex = $state<number>(0);
 
+	/**
+	 * Scroll the body-cell viewport so the keyboard-focused column is rendered.
+	 * Only an active window can hide a column; narrow/inactive tables render the
+	 * full row, so there is nothing to reveal and no scroll is issued.
+	 */
+	function revealFocusedColumn(): void {
+		const container = scrollContainerEl;
+		const index = focusedColIndex;
+		if (
+			!container ||
+			!columnWindow.active ||
+			index < 0 ||
+			index >= headerColumnOffsets.length ||
+			index >= headerColumnWidths.length
+		) {
+			return;
+		}
+
+		const offset = headerColumnOffsets[index] ?? 0;
+		const width = headerColumnWidths[index] ?? 0;
+		const viewportWidth = container.clientWidth || 0;
+		if (width <= 0 || viewportWidth <= 0) return;
+
+		const scrollLeft = container.scrollLeft;
+		if (offset < scrollLeft) {
+			container.scrollLeft = offset;
+		} else if (offset + width > scrollLeft + viewportWidth) {
+			container.scrollLeft = offset + width - viewportWidth;
+		}
+
+		// Sync immediately: the browser scroll event that follows is asynchronous,
+		// so the derived window would otherwise lag one tick behind the focus ring.
+		tableScrollLeft = container.scrollLeft;
+		tableViewportWidth = container.clientWidth || 0;
+	}
+
 	function handleTableKeydown(e: KeyboardEvent) {
 		const target = e.target as HTMLElement | null;
 		if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
@@ -1022,20 +1167,24 @@ bulk actions, and predictive preloading.
 			case 'ArrowRight':
 				e.preventDefault();
 				focusedColIndex = Math.min(colCount - 1, focusedColIndex + 1);
+				revealFocusedColumn();
 				break;
 			case 'ArrowLeft':
 				e.preventDefault();
 				focusedColIndex = Math.max(0, focusedColIndex - 1);
+				revealFocusedColumn();
 				break;
 			case 'Home':
 				e.preventDefault();
 				if (e.ctrlKey) focusedRowIndex = 0;
 				focusedColIndex = 0;
+				revealFocusedColumn();
 				break;
 			case 'End':
 				e.preventDefault();
 				if (e.ctrlKey) focusedRowIndex = tableData.length - 1;
 				focusedColIndex = colCount - 1;
+				revealFocusedColumn();
 				break;
 			case 'PageDown':
 				e.preventDefault();
@@ -1122,6 +1271,66 @@ bulk actions, and predictive preloading.
 			window.addEventListener('keydown', onGlobalKeydown);
 			return () => window.removeEventListener('keydown', onGlobalKeydown);
 		}
+	});
+
+	/**
+	 * Hand over the per-collection UI state when the table updates in place.
+	 *
+	 * `{#key}` used to remount EntryList on every collection switch, which reset
+	 * selection, layout and scroll for free. The table now keeps its component
+	 * instance, so the controller layout key and the persisted settings must be
+	 * swapped explicitly — otherwise the next collection inherits the previous
+	 * one's selection, column widths, scroll offset and local filters.
+	 */
+	function resetForCollection(collectionId: string | null): void {
+		smartTable.setLayoutKey(collectionId ? `entry-list:${collectionId}` : 'entry-list');
+		smartTable.clearSelection();
+		smartTable.setPage(1, { emit: false });
+		smartTable.virtual.onScroll(0, scrollContainerEl?.clientHeight ?? 0);
+
+		entryListPaginationSettings = loadPaginationSettings(collectionId);
+		displayTableHeaders = reconcileTableHeaders(
+			tableHeaders,
+			entryListPaginationSettings,
+			collectionId
+		);
+
+		if (scrollContainerEl) scrollContainerEl.scrollTop = 0;
+
+		focusedRowIndex = 0;
+		focusedColIndex = 0;
+		openingEntryId = null;
+		showDeleted = false;
+		expand = false;
+		columnShow = false;
+		isBulkEditOpen = false;
+		isAdvancedFilterOpen = false;
+		advancedFilterClauses = [];
+		advancedFilterConjunction = 'AND';
+
+		// The URL is authoritative for search/filters: clear the previous
+		// collection's values, then replay the current URL (filters that are not
+		// in the URL must not survive the switch).
+		smartFilter.clearAll();
+		smartFilter.syncFromURL(page.url.searchParams);
+		entryListPaginationSettings.filters = smartFilter.toPlainObject();
+		globalSearchValue = page.url.searchParams.get('search') || '';
+		filterShow = smartFilter.activeCount > 0;
+
+		clearTimeout(filterTimeoutId);
+		clearTimeout(searchTimeoutId);
+	}
+
+	let syncedCollectionId = untrack(() => initialCollectionId);
+
+	$effect.pre(() => {
+		const nextCollectionId = currentCollection?._id ? String(currentCollection._id) : null;
+		if (nextCollectionId === untrack(() => syncedCollectionId)) return;
+
+		untrack(() => {
+			syncedCollectionId = nextCollectionId;
+			resetForCollection(nextCollectionId);
+		});
 	});
 </script>
 
@@ -1478,13 +1687,24 @@ bulk actions, and predictive preloading.
 													}}
 												/>
 												{#if visibleTableHeaders}
-													{#each visibleTableHeaders as header, colIdx (header.id)}
+													{#if columnWindow.active && columnWindow.leadingCount > 0}
+														<td
+															colspan={columnWindow.leadingCount}
+															aria-hidden="true"
+															style="width:{columnWindow.leadingWidth}px; min-width:{columnWindow.leadingWidth}px"
+														></td>
+													{/if}
+													{#each visibleTableHeaders.slice(columnWindow.start, columnWindow.end) as header, sliceIdx (header.id)}
+														{@const colIdx = columnWindow.start + sliceIdx}
 														{@const cellKey = ((header as TableHeader).name || header.id) as string}
 														{@const isFocusedCell = isFocused && focusedColIndex === colIdx}
 														<td
 															role="gridcell"
 															dir="auto"
 															aria-colindex={colIdx + 2}
+															title={(header as TableHeader).name !== 'status'
+																? 'Click to edit this entry'
+																: 'Click to change status'}
 															class="{SMART_TABLE_TD} {cellPaddingClass} text-sm {(
 																header as TableHeader
 															).name !== 'status'
@@ -1557,76 +1777,71 @@ bulk actions, and predictive preloading.
 																}
 															}}
 														>
-															<SystemTooltip
-																title={(header as TableHeader).name !== 'status'
-																	? 'Click to edit this entry'
-																	: 'Click to change status'}
-															>
-																{#if (header as TableHeader).name === 'status'}
-																	<div class="flex w-full items-center justify-center">
-																		<Status value={entry.status || entry.raw_status || 'draft'} />
-																	</div>
-																{:else if (header as TableHeader).component}
-																	<!-- Dynamic Plugin Component Injection -->
-																	{const pluginId = ((header as TableHeader).id || '').split(
-																		'-'
-																	)[0]}
+															{#if (header as TableHeader).name === 'status'}
+																<div class="flex w-full items-center justify-center">
+																	<Status value={entry.status || entry.raw_status || 'draft'} />
+																</div>
+															{:else if (header as TableHeader).component}
+																<!-- Dynamic Plugin Component Injection -->
+																{const pluginId = ((header as TableHeader).id || '').split('-')[0]}
 
-																	<PluginComponent
-																		{pluginId}
-																		componentName={(header as TableHeader).component || ''}
-																		{...mapPluginProps((header as TableHeader).props, entry)}
-																		compact={true}
-																	/>
-																{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
-																	<div class="flex flex-col text-xs">
-																		<div class="font-semibold">
-																			{formatDisplayDate(
-																				(entry as any)[
-																					(header as TableHeader).name || ''
-																				] as string,
-																				undefined,
-																				{
-																					year: 'numeric',
-																					month: 'short',
-																					day: 'numeric'
-																				}
-																			)}
-																		</div>
-																		<div class="text-(--admin-text-muted)">
-																			{formatDisplayDate(
-																				(entry as any)[
-																					(header as TableHeader).name || ''
-																				] as string,
-																				undefined,
-																				{
-																					hour: '2-digit',
-																					minute: '2-digit',
-																					second: '2-digit',
-																					hour12: false
-																				}
-																			)}
-																		</div>
-																	</div>
-																{:else if (header as TableHeader).widgetName}
-																	<EntryListCell
-																		widgetName={(header as TableHeader).widgetName}
-																		fieldName={(header as TableHeader).name || ''}
-																		value={(entry as any)[(header as TableHeader).name || '']}
-																		contentLanguage={currentLanguage}
-																		compact={true}
-																	/>
-																{:else}
-																	<Sanitize
-																		html={String(
-																			(entry as any)[(header as TableHeader).name || ''] || '-'
+																<PluginComponent
+																	{pluginId}
+																	componentName={(header as TableHeader).component || ''}
+																	{...mapPluginProps((header as TableHeader).props, entry)}
+																	compact={true}
+																/>
+															{:else if (header as TableHeader).name === 'createdAt' || (header as TableHeader).name === 'updatedAt'}
+																<div class="flex flex-col text-xs">
+																	<div class="font-semibold">
+																		{formatDisplayDate(
+																			(entry as any)[(header as TableHeader).name || ''] as string,
+																			undefined,
+																			{
+																				year: 'numeric',
+																				month: 'short',
+																				day: 'numeric'
+																			}
 																		)}
-																		profile="strict"
-																	/>
-																{/if}
-															</SystemTooltip>
+																	</div>
+																	<div class="text-(--admin-text-muted)">
+																		{formatDisplayDate(
+																			(entry as any)[(header as TableHeader).name || ''] as string,
+																			undefined,
+																			{
+																				hour: '2-digit',
+																				minute: '2-digit',
+																				second: '2-digit',
+																				hour12: false
+																			}
+																		)}
+																	</div>
+																</div>
+															{:else if (header as TableHeader).widgetName}
+																<EntryListCell
+																	widgetName={(header as TableHeader).widgetName}
+																	fieldName={(header as TableHeader).name || ''}
+																	value={(entry as any)[(header as TableHeader).name || '']}
+																	contentLanguage={currentLanguage}
+																	compact={true}
+																/>
+															{:else}
+																<Sanitize
+																	html={String(
+																		(entry as any)[(header as TableHeader).name || ''] || '-'
+																	)}
+																	profile="strict"
+																/>
+															{/if}
 														</td>
 													{/each}
+													{#if columnWindow.active && columnWindow.trailingCount > 0}
+														<td
+															colspan={columnWindow.trailingCount}
+															aria-hidden="true"
+															style="width:{columnWindow.trailingWidth}px; min-width:{columnWindow.trailingWidth}px"
+														></td>
+													{/if}
 												{/if}
 											</tr>
 										{/each}

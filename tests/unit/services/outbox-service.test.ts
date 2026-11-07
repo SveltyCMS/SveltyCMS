@@ -2,7 +2,7 @@
  * @file tests/unit/services/outbox-service.test.ts
  * @description Unit tests for transactional outbox helpers and service logic.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock DB + pubSub before importing the service
 // Use vi.hoisted to ensure variables are initialized before hoisted vi.mock calls
@@ -377,5 +377,106 @@ describe("outboxService.getPendingCount", () => {
       { status: "pending", tenantId: "tenant-a" },
       { tenantId: "tenant-a" },
     );
+  });
+});
+
+describe("outboxService immediate processing kick", () => {
+  const emptyStats = { processed: 0, delivered: 0, failed: 0 };
+  let previousDisableOutbox: string | undefined;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    outboxService.stopPolling();
+    previousDisableOutbox = process.env.DISABLE_OUTBOX;
+    delete process.env.DISABLE_OUTBOX;
+    dbState.available = true;
+    insertManyMock.mockResolvedValue({ success: true, data: [] });
+    findManyMock.mockResolvedValue({ success: true, data: [] });
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    outboxService.stopPolling();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    dbState.available = true;
+    if (previousDisableOutbox === undefined) delete process.env.DISABLE_OUTBOX;
+    else process.env.DISABLE_OUTBOX = previousDisableOutbox;
+  });
+
+  it("runs exactly one pass after the debounce flush, without the 5s poll tick", async () => {
+    // Arm the poller: the kick must beat it, not be it.
+    outboxService.startPolling();
+    const processSpy = vi.spyOn(outboxService, "processBatch").mockResolvedValue(emptyStats);
+
+    await outboxService.emit("entry:create", "entry", "doc-kick", { title: "Hi" }, "tenant-kick");
+    expect(insertManyMock).not.toHaveBeenCalled();
+    expect(processSpy).not.toHaveBeenCalled();
+
+    // Fire only the 25ms trailing debounce — 5000ms was never advanced.
+    await vi.advanceTimersByTimeAsync(25);
+    await Promise.resolve();
+
+    expect(insertManyMock).toHaveBeenCalledTimes(1);
+    expect(processSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not kick while the DB registry is unavailable", async () => {
+    const processSpy = vi.spyOn(outboxService, "processBatch").mockResolvedValue(emptyStats);
+    dbState.available = false;
+
+    await outboxService.emit("entry:create", "entry", "doc-nodb", {}, "tenant-nodb");
+    await vi.advanceTimersByTimeAsync(25);
+    await Promise.resolve();
+
+    expect(insertManyMock).not.toHaveBeenCalled();
+    expect(processSpy).not.toHaveBeenCalled();
+
+    // Drain the deferred buffer so the singleton starts the next file clean.
+    dbState.available = true;
+    await outboxService.emit("entry:create", "entry", "doc-after-db", {}, "tenant-nodb");
+    await vi.advanceTimersByTimeAsync(25);
+    expect(insertManyMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not kick when the flush fails before committing any chunk", async () => {
+    const processSpy = vi.spyOn(outboxService, "processBatch").mockResolvedValue(emptyStats);
+    let releaseRetry: (() => void) | undefined;
+    insertManyMock
+      .mockRejectedValueOnce(new Error("boom"))
+      // The service immediately retries the uncommitted tail; hold that retry
+      // open so the assertion observes only the committed = 0 outcome.
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseRetry = () => resolve({ success: true, data: [] });
+          }),
+      );
+
+    await outboxService.emit("entry:create", "entry", "doc-fail", {}, "tenant-fail");
+    await vi.advanceTimersByTimeAsync(25);
+    await Promise.resolve();
+
+    expect(insertManyMock).toHaveBeenCalledTimes(2); // failed chunk + held retry
+    expect(processSpy).not.toHaveBeenCalled();
+
+    // Release the retry: committed > 0 now schedules a kick, but the assertion
+    // above already proved a zero-commit flush never does.
+    releaseRetry?.();
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+  });
+
+  it("does not kick when DISABLE_OUTBOX is set before the flush", async () => {
+    const processSpy = vi.spyOn(outboxService, "processBatch").mockResolvedValue(emptyStats);
+
+    await outboxService.emit("entry:create", "entry", "doc-disabled", {}, "tenant-disabled");
+    process.env.DISABLE_OUTBOX = "true";
+    await vi.advanceTimersByTimeAsync(25);
+    await Promise.resolve();
+
+    // The buffered batch still persists; only delivery is suppressed.
+    expect(insertManyMock).toHaveBeenCalledTimes(1);
+    expect(processSpy).not.toHaveBeenCalled();
   });
 });
