@@ -398,6 +398,31 @@ export const CONVENTION_ALLOWLIST: ReadonlyArray<{ pattern: RegExp; reason: stri
     reason: "Standard reactive URL search params rune helper (AGENTS.md §3.10)",
   },
   {
+    pattern: /^src\/widgets\/custom\/seo\/components\/[^/]+\.svelte$/,
+    reason: "SEO widget subcomponents (heatmap, meta-input, robots-meta-input, previews)",
+  },
+  {
+    pattern: /^src\/widgets\/core\/rich-text\/components\/[^/]+\.svelte$/,
+    reason: "Rich text widget dialog and editor subcomponents",
+  },
+  {
+    pattern: /^src\/widgets\/missing-widget\.svelte$/,
+    reason: "Widget fallback placeholder component for unresolvable widgets",
+  },
+  {
+    pattern: /^src\/routes\/\(app\)\/dashboard\/widget-sdk\.ts$/,
+    reason: "Dashboard widget SDK contract and developer utility barrel",
+  },
+  {
+    pattern: /^src\/utils\/offline-draft-sync\.ts$/,
+    reason: "Offline draft sync / PWA optimistic sync contract",
+  },
+  {
+    pattern:
+      /^src\/plugins\/smart-importer\/(?:ai-co-pilot|blueprints|hooks|polish|utils\/[^/]+)\.ts$/,
+    reason: "Smart Importer migration engine and AI copilot modules",
+  },
+  {
     pattern: /^src\/utils\/(?:vite-plugin-[^/]+|setup-check-fast|v8-shim)\.ts$/,
     reason: "Vite config / package.json sideEffects bootstrap utility",
   },
