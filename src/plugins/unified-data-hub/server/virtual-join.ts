@@ -22,7 +22,7 @@ import type {
 import { FederationError } from "../types";
 import { getVirtualCollection } from "./connector-registry";
 export const MAX_JOIN_ROW_BUDGET = 500;
-export const MAX_INCLUDE_RELATIONS = 5;
+const MAX_INCLUDE_RELATIONS = 5;
 
 export function validateJoinCapability(connector: ConnectorRecord): void {
   if (connector.capabilities.joinable !== "same-source-only") {

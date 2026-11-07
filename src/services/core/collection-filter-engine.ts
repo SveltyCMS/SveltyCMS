@@ -149,7 +149,7 @@ export function resolveFilterableFields(
 /**
  * Searchable field names restricted by FLAC (for global `?search=`).
  */
-export function resolveSearchableFields(
+function resolveSearchableFields(
   collection: Schema | null | undefined,
   user?: User | { _id: string; role: string } | null,
 ): string[] {

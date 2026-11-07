@@ -5,7 +5,7 @@
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 import { describe, expect, it, vi } from "vitest";
-import { seedWebsiteStarterPages } from "@src/routes/setup/seed";
+import { seedWebsiteStarterPages } from "@src/services/setup/seed";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
 
 function createMockAdapter(existingPages: Array<Record<string, unknown>> = []) {

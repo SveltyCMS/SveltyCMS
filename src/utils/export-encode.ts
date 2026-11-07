@@ -78,7 +78,7 @@ export function encodeCsvField(value: unknown): string {
   return out;
 }
 
-export function encodeCsvRow(values: unknown[]): string {
+function encodeCsvRow(values: unknown[]): string {
   if (values.length === 0) return "\n";
   let line = encodeCsvField(values[0]);
   for (let i = 1; i < values.length; i++) {

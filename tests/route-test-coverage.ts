@@ -175,7 +175,7 @@ export const APP_ROUTE_COVERAGE: AppRouteCoverageEntry[] = [
     route: "config/redirects",
     testFiles: [
       "tests/unit/routes/redirects-page-server.test.ts",
-      "tests/unit/config/redirects-utils.test.ts",
+      "tests/unit/utils/redirects-utils.test.ts",
       "tests/e2e/routes/config/redirects.spec.ts",
     ],
   },

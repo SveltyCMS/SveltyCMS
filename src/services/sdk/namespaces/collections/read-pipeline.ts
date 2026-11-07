@@ -35,6 +35,11 @@ import {
 } from "@utils/security/field-encryption";
 import type { SchemaHotFlags } from "./schema-store";
 import { logger } from "@utils/logger";
+import type { FieldInstance, Schema } from "@src/content/types";
+import { isAdmin } from "@src/databases/auth/constants";
+import { redactReadEnvelope } from "@utils/field-access";
+import { stripUnownedRows } from "./access-filter";
+import type { LocalApiOptions } from "../types";
 
 /** Logical combinators — their array values are branches, never relation arrays. */
 const LOGICAL_FILTER_KEYS = new Set(["$and", "$or", "$not", "AND", "OR", "NOT"]);
@@ -245,7 +250,7 @@ function serializeShapeComponent(fields: unknown): string {
  * encoding (the same key the shape cache is keyed by), nested/object shapes →
  * the serializeQueryShape-compatible short form cached on the canonical key.
  */
-export function canonicalFieldToken(fields: unknown): string {
+function canonicalFieldToken(fields: unknown): string {
   if (fields === undefined || fields === null || fields === "") return "";
   if (Array.isArray(fields)) {
     return fields.length === 0 ? "" : encodeFieldKey(fields);
@@ -316,7 +321,7 @@ export function buildFindCacheKey(params: BuildFindCacheKeyParams): string | nul
 }
 
 /** Wrap a raw cache payload into the canonical `{ success, data }` envelope. */
-export function normalizeCachePayload(raw: any): any {
+function normalizeCachePayload(raw: any): any {
   return raw && typeof raw === "object" && "success" in raw ? raw : { success: true, data: raw };
 }
 
@@ -515,4 +520,75 @@ export async function* decryptReadStream(
     decryptOneDoc(clone, fieldNames, context);
     yield clone;
   }
+}
+
+/** Shared placeholder — never read, because the context is only used when fields encrypt. */
+export const NO_ENCRYPTION_CONTEXT: FieldEncryptionContext = Object.freeze({
+  collectionId: "",
+  tenantId: "",
+});
+
+/**
+ * Shared `{ clone: true }` options object for `decryptReadResult` — the function
+ * only reads `opts.clone` (never mutates opts), so the hot read lanes share one
+ * frozen instance instead of allocating one per call.
+ */
+export const DECRYPT_CLONE_OPTIONS = Object.freeze({ clone: true });
+
+/**
+ * Field encryption context for tenant/collection scope.
+ */
+export function fieldEncryptionContext(
+  schema: Schema,
+  tenantId: DatabaseId | null | undefined,
+): FieldEncryptionContext {
+  return {
+    collectionId: String(schema._id ?? schema.name ?? ""),
+    tenantId: tenantId != null && String(tenantId).length > 0 ? String(tenantId) : "global",
+  };
+}
+
+/**
+ * Encryption context for the read path.
+ */
+export function readEncryptionContext(
+  schema: Schema,
+  tenantId: DatabaseId | null | undefined,
+  hot: { _hasEncryptedFields?: boolean },
+): FieldEncryptionContext {
+  return hot._hasEncryptedFields ? fieldEncryptionContext(schema, tenantId) : NO_ENCRYPTION_CONTEXT;
+}
+
+/** Admins and system callers keep every field. Everyone else is redacted. */
+export function readerMaySeeGuardedFields(
+  user: { _id?: unknown; role?: unknown; isAdmin?: unknown } | null | undefined,
+  system?: boolean,
+): boolean {
+  if (system) return true;
+  if (!user) return false;
+  return user._id === "system" || isAdmin(user);
+}
+
+/**
+ * Decrypt, then drop fields the caller may not read. The cache keeps the full
+ * row; this runs on the way out. Unguarded schemas and admins return the
+ * decrypt result unchanged.
+ */
+export function presentRead(
+  result: unknown,
+  schema: Schema,
+  hot: SchemaHotFlags,
+  encCtx: FieldEncryptionContext,
+  user: LocalApiOptions["user"],
+  system?: boolean,
+): any {
+  const decoded = decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+  const permitted =
+    !hot._hasGuardedFields || readerMaySeeGuardedFields(user, system)
+      ? decoded
+      : redactReadEnvelope(decoded, schema.fields as FieldInstance[], user);
+  const ownership = (schema as { ownership?: { field?: unknown } }).ownership;
+  const ownerField = ownership && typeof ownership === "object" ? ownership.field : undefined;
+  if (typeof ownerField !== "string" || !ownerField || system || isAdmin(user)) return permitted;
+  return stripUnownedRows(permitted, ownerField, user);
 }

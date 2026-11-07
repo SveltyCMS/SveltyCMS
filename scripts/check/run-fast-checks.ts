@@ -3,12 +3,16 @@
  * @file scripts/check/run-fast-checks.ts
  * @description Parallel runner for SveltyCMS static policy, AST, and security-assurance gates.
  *
- * Previously `bun run check` chained 20 read-only TypeScript scripts sequentially
- * via shell `&&`, paying process startup + disk I/O latency 20 times in series.
- * This orchestrator runs all 20 read-only checks concurrently across CPU cores,
- * preserves deterministic output order, and fails closed if any check exits non-zero.
+ * The check suite (ids, scripts, args, kind, owner) is owned by
+ * `scripts/check/rule-registry.ts`; this runner only schedules it. Previously
+ * `bun run check` chained the read-only TypeScript scripts sequentially via
+ * shell `&&`, paying process startup + disk I/O latency once per check. This
+ * orchestrator runs them concurrently across CPU cores, preserves
+ * deterministic output order, and fails closed if any check exits non-zero.
  *
  * Features:
+ * - Registry integrity assertion before spawning (duplicate ids, missing
+ *   scripts, AST rules without an exported pure function)
  * - Bounded worker concurrency (up to 8 parallel checks)
  * - Deterministic buffered output per check
  * - Individual timing diagnostics + failure summary
@@ -17,51 +21,13 @@
 import { spawn } from "node:child_process";
 import os from "node:os";
 import { join } from "node:path";
+import { FAST_CHECKS, assertRuleRegistryIntegrity } from "./rule-registry";
+import type { CheckSpec } from "./rule-registry";
 
-interface CheckSpec {
-  id: string;
-  script: string;
-  args?: readonly string[];
-}
+export { FAST_CHECKS };
 
 const ROOT = process.cwd();
 const BUN_BIN = process.execPath;
-
-export const FAST_CHECKS: readonly CheckSpec[] = [
-  { id: "lint-design", script: "scripts/lint/lint-design.ts" },
-  { id: "lint-duplicate-testids", script: "scripts/lint/lint-duplicate-testids.ts" },
-  { id: "scan-anonymous-leaks", script: "scripts/lint/scan-anonymous-leaks.ts" },
-  { id: "consolidate-shades", script: "scripts/lint/consolidate-shades.ts", args: ["--check"] },
-  { id: "lint-widgets", script: "scripts/lint/lint-widgets.ts" },
-  { id: "lint-e2e-hydration", script: "scripts/lint/lint-e2e-hydration.ts", args: ["--check"] },
-  {
-    id: "lint-trivial-assertions",
-    script: "scripts/lint/lint-trivially-true-assertions.ts",
-    args: ["--check"],
-  },
-  { id: "lint-global-timers", script: "scripts/lint/lint-global-timers.ts" },
-  { id: "lint-live-paths", script: "scripts/lint/lint-live-paths.ts" },
-  { id: "lint-transient-classification", script: "scripts/lint/lint-transient-classification.ts" },
-  { id: "lint-date-helpers", script: "scripts/lint/lint-date-helpers.ts" },
-  { id: "lint-silent-catch", script: "scripts/lint/lint-silent-catch.ts" },
-  { id: "lint-rule-budgets", script: "scripts/lint/lint-rule-budgets.ts" },
-  { id: "lint-e2e-actionability", script: "scripts/lint/lint-e2e-actionability.ts" },
-  { id: "marketplace-conformance", script: "scripts/marketplace/conformance.ts" },
-  {
-    id: "check-route-behaviour",
-    script: "scripts/check/check-route-behaviour.ts",
-    args: ["--check", "--min=99"],
-  },
-  {
-    id: "check-integration-isolation",
-    script: "scripts/test/check-integration-isolation.ts",
-    args: ["--check"],
-  },
-  { id: "check-lockfile-sync", script: "scripts/check/check-lockfile-sync.ts" },
-  { id: "check-seam-assertions", script: "scripts/check/check-seam-assertions.ts" },
-  { id: "version-verify", script: "scripts/version.ts", args: ["--verify"] },
-  { id: "security-assurance", script: "scripts/security/security-assurance.ts" },
-];
 
 interface CheckOutcome {
   spec: CheckSpec;
@@ -110,6 +76,14 @@ function runSingleCheck(spec: CheckSpec): Promise<CheckOutcome> {
 }
 
 async function main(): Promise<number> {
+  // Validate the same root the spawner will use, so a wrong cwd fails before any check runs.
+  const registryErrors = assertRuleRegistryIntegrity(ROOT);
+  if (registryErrors.length > 0) {
+    console.error("🛑 Rule registry integrity failed:");
+    for (const error of registryErrors) console.error(`   - ${error}`);
+    return 1;
+  }
+
   const startedAt = Date.now();
   const concurrency = Math.max(2, Math.min(8, os.cpus().length));
   const outcomes: CheckOutcome[] = [];

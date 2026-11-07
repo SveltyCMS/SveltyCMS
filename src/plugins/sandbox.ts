@@ -141,7 +141,7 @@ export function createScopedDbAdapter(
 /**
  * Creates a sandboxed plugin context with restricted capabilities.
  */
-export function createSandboxedContext(
+function createSandboxedContext(
   context: PluginContext,
   pluginId: string,
 ): { context: PluginContext; stats: { queryCount: number } } {

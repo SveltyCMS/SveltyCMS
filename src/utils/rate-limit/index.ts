@@ -26,13 +26,41 @@ import {
   type AdaptiveContext,
   type BaseRateLimitConfig,
 } from "./adaptive";
-import { loadBaseRateLimitConfig, loadRedisPingMs } from "./config";
 import { MemoryRateLimitStore } from "./memory-store";
 import { RedisRateLimitStore } from "./redis-client";
 import { startPressureMonitor } from "./system-pressure";
 import { recordRequest } from "./request-clock";
 import { getEndpointCost } from "./endpoint-cost";
 import { velocityCostMultiplier } from "./request-velocity";
+
+const DEFAULT_CAPACITY = 100;
+const DEFAULT_WINDOW_MS = 60_000;
+
+function num(value: string | undefined, fallback: number): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+export function loadBaseRateLimitConfig(): BaseRateLimitConfig {
+  const capacity = num(
+    process.env.RATE_LIMIT_CAPACITY,
+    num(process.env.RATE_LIMIT_MAX_REQUESTS, DEFAULT_CAPACITY),
+  );
+  const windowMs = num(process.env.RATE_LIMIT_WINDOW_MS, DEFAULT_WINDOW_MS);
+  const derivedRefill = capacity / (windowMs / 1000);
+  const refillPerSecond = num(process.env.RATE_LIMIT_REFILL_PER_SEC, derivedRefill);
+
+  return {
+    capacity,
+    refillPerSecond,
+    maxRequests: capacity,
+    windowMs,
+  };
+}
+
+export function loadRedisPingMs(): number {
+  return num(process.env.RATE_LIMIT_REDIS_PING_MS, 30_000);
+}
 
 export type RateLimitScope = "redis" | "memory";
 

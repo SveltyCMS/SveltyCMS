@@ -144,17 +144,18 @@ History is bounded by `revisionLimit` (default `100`; the Collection Builder acc
 
 ### Draft autosave
 
-`content_drafts` holds author-scoped editor snapshots; it is **not** the published entry and never appears in list, export or GraphQL reads. A draft for an unsaved entry uses the row's own UUID as `contentId` and is tagged `data.__draft = { kind: "new" }`, so the editor never stamps a live `_id` onto the form. Save/Publish still writes the live row; draft promotion and draft-version rollback are not shipped.
+`content_drafts` holds author-scoped editor snapshots; it is **not** the published entry and never appears in list, export or GraphQL reads. A draft for an unsaved entry uses the row's own UUID as `contentId` and is tagged `data.__draft = { kind: "new" }`, so the editor never stamps a live `_id` onto the form. A publish (`status: "publish"`) promotes the current author's staged draft through the normal create/update lane — schema validation, hooks, required-field publish checks, optimistic locking and the revision snapshot included — and removes the draft only after the live write succeeds; a failed write leaves the draft retryable. A publish with no draft keeps the historical path. Draft-version rollback is not shipped, and live-write + draft-delete are ordered rather than transactional (the SDK write lane does not accept a transaction handle).
 
-| Endpoint                                    | Method   | Purpose                                                         |
-| :------------------------------------------ | :------- | :-------------------------------------------------------------- |
-| `/api/collections/{colId}/drafts?entryId=`  | `GET`    | Latest draft for the current author (entry or new-entry)        |
-| `/api/collections/{colId}/{entryId}/drafts` | `GET`    | Latest draft for one entry and the current author               |
-| `/api/collections/{colId}/drafts`           | `POST`   | Upsert `{ entryId?, data, status? }`; returns `201` + the draft |
-| `/api/collections/{colId}/drafts/{draftId}` | `DELETE` | Discard one draft                                               |
-| `/api/collections/{colId}/{entryId}/drafts` | `DELETE` | Discard the current author's drafts for one entry               |
+| Endpoint                                                   | Method   | Purpose                                                         |
+| :--------------------------------------------------------- | :------- | :-------------------------------------------------------------- |
+| `/api/collections/{colId}/drafts?entryId=`                 | `GET`    | Latest draft for the current author (entry or new-entry)        |
+| `/api/collections/{colId}/{entryId}/drafts`                | `GET`    | Latest draft for one entry and the current author               |
+| `/api/collections/{colId}/drafts`                          | `POST`   | Upsert `{ entryId?, data, status? }`; returns `201` + the draft |
+| `/api/collections/{colId}/drafts/{draftId}?action=promote` | `POST`   | Promote the draft into the live entry                           |
+| `/api/collections/{colId}/drafts/{draftId}`                | `DELETE` | Discard one draft                                               |
+| `/api/collections/{colId}/{entryId}/drafts`                | `DELETE` | Discard the current author's drafts for one entry               |
 
-Mutations require `collections:write`; reads require `collections:read`. Drafts are tenant- and author-scoped: another author's draft is invisible and answers `404`, never `403`. A missing draft is `200` with `data: null`. The SDK exposes the same surface as `cms.drafts` (`saveDraft`, `getDraft`, `discardDraft`, `discardDraftsForEntry`), and the editor uses it for the resume banner instead of fetching its own API.
+Mutations require `collections:write`; reads require `collections:read`. Drafts are tenant- and author-scoped: another author's draft is invisible and answers `404`, never `403`. A missing draft is `200` with `data: null`. The SDK exposes the same surface as `cms.drafts` (`saveDraft`, `getDraft`, `discardDraft`, `discardDraftsForEntry`, `promoteDraft`), and the editor uses it for the resume banner instead of fetching its own API.
 
 ### Filter validation
 

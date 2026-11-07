@@ -640,8 +640,8 @@ None (TreeView has its own keyboard navigation)
 			async (response: { presetId: string } | null) => {
 				if (!response?.presetId) return;
 
-				const { PRESETS } = await import('@src/routes/setup/presets');
-				const preset = PRESETS.find((p) => p.id === response.presetId);
+				const { PRESET_METADATA } = await import('@src/services/setup/preset-meta');
+				const preset = PRESET_METADATA.find((p) => p.id === response.presetId);
 				if (!preset?.collections?.length) return;
 
 				// Stage the preset (no server write) and preview its collections in

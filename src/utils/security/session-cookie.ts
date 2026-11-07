@@ -8,28 +8,17 @@
  * - Multi-variant cookie deletion to prevent zombie session cookies
  */
 
-import {
-  HOST_SESSION_COOKIE_NAME,
-  SECURE_SESSION_COOKIE_NAME,
-  SESSION_COOKIE_NAME,
-} from "@src/databases/auth/constants";
+export const SESSION_COOKIE_NAME = "auth_sessions";
+export const HOST_SESSION_COOKIE_NAME = `__Host-${SESSION_COOKIE_NAME}`;
+export const SECURE_SESSION_COOKIE_NAME = `__Secure-${SESSION_COOKIE_NAME}`;
 
-// NOTE: constants.ts re-exports this module (circular import). The cookie-name
-// constants must therefore be read at CALL time, never at module-eval time —
-// under a constants-first evaluation order the imported names are still
-// `undefined` while this module initializes. Lazy init keeps the steady-state
-// per-call cost at zero while staying immune to import order.
 // Needle order mirrors readSessionCookie precedence:
-// secure: __Host- → plain → __Secure-; insecure: plain → __Host- → __Secure-.
+// secure: __Host- only; insecure: plain → __Host- → __Secure-.
 let _secureNeedles: readonly string[] | undefined;
 let _insecureNeedles: readonly string[] | undefined;
 
 function secureNeedles(): readonly string[] {
-  return (_secureNeedles ??= [
-    `${HOST_SESSION_COOKIE_NAME}=`,
-    `${SESSION_COOKIE_NAME}=`,
-    `${SECURE_SESSION_COOKIE_NAME}=`,
-  ]);
+  return (_secureNeedles ??= [`${HOST_SESSION_COOKIE_NAME}=`]);
 }
 
 function insecureNeedles(): readonly string[] {
@@ -82,7 +71,10 @@ const _cookieCache = new WeakMap<
 /**
  * Reads the session cookie according to environment security requirements.
  *
- * - Secure connections: ONLY accept __Host- prefixed cookie (prevents subdomain cookie tossing)
+ * - Secure connections: ONLY accept the __Host- prefixed cookie. It is the only
+ *   variant a sibling subdomain cannot forge (Secure + path=/ + no Domain), so
+ *   accepting the plain/__Secure- names as a fallback would let an attacker on
+ *   a sibling host plant a session id that production then honours.
  * - Insecure connections: ONLY accept unprefixed cookie (never fall back to __Host-)
  * - Unspecified: checks in standard precedence (__Host- -> raw -> __Secure-)
  */
@@ -104,10 +96,7 @@ export function readSessionCookie(
 
   let result: string | undefined;
   if (isSecure === true) {
-    result =
-      cookies.get(HOST_SESSION_COOKIE_NAME) ||
-      cookies.get(SESSION_COOKIE_NAME) ||
-      cookies.get(SECURE_SESSION_COOKIE_NAME);
+    result = cookies.get(HOST_SESSION_COOKIE_NAME);
   } else if (isSecure === false) {
     result =
       cookies.get(SESSION_COOKIE_NAME) ||

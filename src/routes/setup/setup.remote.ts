@@ -43,7 +43,7 @@ export const testDatabaseConnection = query(
     allowOverwrite?: boolean;
     ownsDatabase?: boolean;
   }) => {
-    const { testDatabaseConnection: fn } = await import("./setup.server");
+    const { testDatabaseConnection: fn } = await import("@src/services/setup/setup.server");
     return fn(configData, createIfMissing, allowOverwrite, ownsDatabase);
   },
 );
@@ -57,7 +57,7 @@ export const seedDatabase = query(
     configData: import("./setup-types").DbConfig;
     systemData?: import("./setup-types").SystemSettings;
   }) => {
-    const { seedDatabase: fn } = await import("./setup.server");
+    const { seedDatabase: fn } = await import("@src/services/setup/setup.server");
     return fn(configData, systemData);
   },
 );
@@ -84,7 +84,7 @@ export const completeSetup = command(
       secure?: boolean;
     };
   }) => {
-    const { completeSetup: fn } = await import("./setup.server");
+    const { completeSetup: fn } = await import("@src/services/setup/setup.server");
     const result = await fn(database, admin, system, emailSettings);
 
     if (result.success && result.sessionCookie) {
@@ -121,7 +121,7 @@ export const testEmailConnection = query(
     secure: boolean;
     testEmail: string;
   }) => {
-    const { testEmailConnection: fn } = await import("./setup.server");
+    const { testEmailConnection: fn } = await import("@src/services/setup/setup.server");
     return fn(cfg);
   },
 );
@@ -137,13 +137,13 @@ export const testRedisConnection = query(
     port?: number;
     password?: string;
   }) => {
-    const { testRedisConnection: fn } = await import("./setup.server");
+    const { testRedisConnection: fn } = await import("@src/services/setup/setup.server");
     return fn(host, port, password);
   },
 );
 
 export const probeRedis = query("unchecked", async (_payload?: {}) => {
-  const { probeRedis: fn } = await import("./setup.server");
+  const { probeRedis: fn } = await import("@src/services/setup/setup.server");
   return fn();
 });
 

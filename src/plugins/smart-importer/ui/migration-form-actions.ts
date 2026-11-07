@@ -44,7 +44,7 @@ const PLUGIN_ID = "smart-importer";
 const PLUGIN_API = `/api/plugins/${PLUGIN_ID}`;
 
 /** Unwrap plugin API or SvelteKit form action JSON payloads */
-export function unwrapFormActionResult<T extends Record<string, unknown>>(
+function unwrapFormActionResult<T extends Record<string, unknown>>(
   result: { data?: T; error?: string } & T,
 ): T {
   if (result.error && !result.success) {

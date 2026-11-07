@@ -11,21 +11,14 @@
 
 import { error } from "@sveltejs/kit";
 import { logger } from "@src/utils/logger";
-import { nowISODateString } from "@src/utils/date";
 import { AppError, raise } from "@utils/error-handling";
 import {
   fileExists,
-  getFile,
   saveFile,
   saveResizedImages,
   buildDocumentPreview,
 } from "./media-storage.server";
-import {
-  processImageWithPresets,
-  MAX_OUTPUT_DIMENSION,
-  type ImageVariant,
-} from "@src/services/media/image-processor";
-import type sharp from "sharp";
+import { type ImageVariant } from "@src/services/media/image-processor";
 import { deleteAllVariants } from "@src/services/media/image-variant-storage";
 import type {
   IDBAdapter,
@@ -37,162 +30,65 @@ import type {
   EntityCreate,
   EntityUpdate,
 } from "@src/databases/db-interface";
-import { normalizeFocalPercent } from "./focal-point";
 import { MediaProcessingStatus, mediaTypeFromMime, type MediaItem } from "./media-models";
 import {
   buildOriginalRelPath,
-  clampManipulatedDimensions,
   getMimeType,
   isAllowedUploadMime,
-  normalizeMime,
   resolveMediaRelPath,
 } from "./media-utils";
 import { getUrl } from "./storage-adapters";
 import { validateEgressUrl, safeFetch } from "../egress-guard";
 import { assertMimeAgreement, resolveRemoteAssetMime, sniffMimeType } from "./slim-sniffer.server";
-import { API_MAX_BODY_SIZE_BYTES, bodyTooLargeMessage } from "@utils/api-body-limits";
-import { collectionTableName } from "@src/databases/core/collection-name";
 import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
-import type { SharpOverlayOptions } from "./sharp-loader.server";
 import { MediaReferenceIndex, type MediaReference } from "./media-reference-index";
 import { eventBus, SystemEvents } from "@utils/event-bus";
-import { sanitizeSvgMarkup } from "@src/utils/sanitize-html.server";
 import { scheduleVariantJob } from "./variant-job-scheduler.server";
-import { collectReferencedHashes, isRasterImage } from "./media-lifecycle.server";
+import { collectReferencedHashes } from "./media-lifecycle.server";
 
-/** Cached lazy handle to the engine server — one module-registry lookup instead of one per call. */
-let engineServerModulePromise: Promise<typeof import("@src/content/engine.server")> | undefined;
-function loadEngineServerModule(): Promise<typeof import("@src/content/engine.server")> {
-  return (engineServerModulePromise ??= import("@src/content/engine.server"));
-}
+import {
+  MAX_SVG_BYTES,
+  sanitizeSvg,
+  assertMediaReplaceSize,
+  isSvgFile,
+  validateMime,
+  bufferAndSanitizeSvg,
+  executeUploadNewVersion,
+  executeRestoreVersion,
+  type MediaVersionEntry,
+} from "./media-versioning.server";
+export { MAX_SVG_BYTES, sanitizeSvg, assertMediaReplaceSize, type MediaVersionEntry };
 
-/* -------------------------------------------------------------------------- */
-/* Security helpers for SVG attribute injection defense                       */
-/* -------------------------------------------------------------------------- */
+import {
+  executeMediaManipulation,
+  executeBatchProcessImages,
+  type CropOptions,
+  type FilterOptions,
+  type BlurRegion,
+  type TextWatermark,
+  type ImageWatermark,
+  type Watermark,
+  type Annotation,
+  type MediaManipulation,
+} from "./media-manipulation.server";
+export type {
+  CropOptions,
+  FilterOptions,
+  BlurRegion,
+  TextWatermark,
+  ImageWatermark,
+  Watermark,
+  Annotation,
+  MediaManipulation,
+};
 
-/** Only allow hex colours (#RGB, #RRGGBB, #RRGGBBAA) in dynamically-built SVG. */
-const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$/;
-
-/** Only allow plain numeric strings (no expressions, no units) in SVG attributes. */
-const SAFE_NUMBER = /^-?\d+(\.\d+)?$/;
-
-type SharpPipeline = ReturnType<typeof sharp>;
-
-/** One encoder configuration for manipulated output and the optional cap pass. */
-function encodeManipulatedOutput(
-  pipeline: SharpPipeline,
-  ext: string,
-  isCircle: boolean,
-): Promise<Buffer> {
-  if (isCircle || ext === "png") return pipeline.png({ compressionLevel: 8 }).toBuffer();
-  if (ext === "webp") return pipeline.webp({ quality: 90 }).toBuffer();
-  if (ext === "avif") return pipeline.avif({ quality: 80 }).toBuffer();
-  return pipeline.jpeg({ quality: 92, mozjpeg: true }).toBuffer();
-}
-
-/**
- * Validate a value against a regex; return a safe fallback when it fails.
- * Used to harden dynamically-built SVG markup (watermark text colour, annotation
- * stroke/fill, font-size, stroke-width, etc.).
- */
-function guardAttr(value: string, pattern: RegExp, fallback: string): string {
-  if (pattern.test(value)) return value;
-  logger.warn(`[MediaService] Rejected unsafe SVG attribute value: "${value}"`);
-  return fallback;
-}
-
-/**
- * Like guardAttr but for numeric values — converts to string first,
- * returns the original number on match or the numeric fallback.
- */
-function guardNumeric(value: number, fallback: number): number {
-  if (SAFE_NUMBER.test(String(value))) return value;
-  logger.warn(`[MediaService] Rejected unsafe SVG numeric value: ${value}`);
-  return fallback;
-}
-
-/* -------------------------------------------------------------------------- */
-
-/**
- * 🛡️ SVG sanitizer — parser-based allowlist (`sanitizeSvgMarkup`).
- *
- * The htmlparser2 tree walk drops `script`, `foreignObject`, `iframe`, `object`,
- * `embed`, `style`, `animate`/`set`, every `on*` handler, and any
- * `href`/`xlink:href` whose value is not a same-document `#…` reference.
- * `viewBox` and camelCase SVG element names survive the round-trip.
- *
- * Defense-in-depth: the RichText/Sanitize display pipeline also applies DOMPurify client-side
- */
-export function sanitizeSvg(svg: string): string {
-  return sanitizeSvgMarkup(svg);
-}
-
-function isSvgFile(mimeType: string, filename: string): boolean {
-  return mimeType === "image/svg+xml" || filename.toLowerCase().endsWith(".svg");
-}
-
-/**
- * Maximum SVG upload size (bytes). SVGs are always fully buffered + sanitized
- * before storage — oversized SVGs are rejected rather than streamed unsanitized
- * (stored-XSS class: large-file streaming used to skip sanitizeSvg).
- */
-export const MAX_SVG_BYTES = 5 * 1024 * 1024; // 5 MiB
-
-/**
- * Same byte ceiling a new API upload uses (`API_MAX_BODY_SIZE_BYTES`).
- * SVG stays on the tighter {@link MAX_SVG_BYTES} cap inside `bufferAndSanitizeSvg`.
- * `byteLength` is the buffered size when `file.size` can under-report.
- */
-export function assertMediaReplaceSize(
-  file: { type: string; name: string; size: number },
-  byteLength?: number,
-): void {
-  if (isSvgFile(file.type, file.name)) return;
-  const bytes = byteLength ?? file.size;
-  if (bytes > API_MAX_BODY_SIZE_BYTES) {
-    throw new AppError(bodyTooLargeMessage(bytes), 413, "PAYLOAD_TOO_LARGE");
-  }
-}
-
-/**
- * Buffer + sanitize an SVG upload. Always required — never stream raw SVG to disk.
- * Rejects files above MAX_SVG_BYTES to bound memory and block sanitizer bypass.
- */
-async function bufferAndSanitizeSvg(file: {
-  name: string;
-  type: string;
-  size: number;
-  arrayBuffer?: () => Promise<ArrayBuffer>;
-  stream?: () => ReadableStream;
-}): Promise<Buffer> {
-  if (file.size > MAX_SVG_BYTES) {
-    throw new Error(
-      `SVG files must be ≤ ${MAX_SVG_BYTES / (1024 * 1024)}MB and are always sanitized before storage`,
-    );
-  }
-  if (typeof file.arrayBuffer !== "function") {
-    throw new Error("SVG uploads require a bufferable file object for sanitization");
-  }
-  const bytes = Buffer.from(await file.arrayBuffer());
-  if (bytes.length > MAX_SVG_BYTES) {
-    throw new Error(
-      `SVG files must be ≤ ${MAX_SVG_BYTES / (1024 * 1024)}MB and are always sanitized before storage`,
-    );
-  }
-  const raw = bytes.toString("utf-8");
-  return Buffer.from(sanitizeSvg(raw), "utf-8");
-}
-
-function validateMime(mimeType: string, filename: string) {
-  const ext = filename.split(".").pop()?.toLowerCase();
-  if (ext && ["html", "js", "wasm"].includes(ext)) throw new Error("Blocked: ." + ext);
-  if (!mimeType) return; // sniff + allowlist run after magic-byte inspection
-  const normalized = normalizeMime(mimeType);
-  if (!normalized || normalized === "application/octet-stream") return;
-  if (!isAllowedUploadMime(normalized)) {
-    throw new Error("MIME not allowed: " + mimeType);
-  }
-}
+import {
+  executeGetMediaReferences,
+  executeGetPublishedReferencedIds,
+  executeIsReferencedByPublishedContent,
+  executeGetPublishedReferences,
+  type ReferenceIndexTenantState,
+} from "./media-references.server";
 
 /* -------------------------------------------------------------------------- */
 /* Media manipulation options (typed replacement for `any`)                   */
@@ -239,96 +135,6 @@ interface HookableAdapter {
   compiledHooks?: { clear(): void };
 }
 
-/** A media version entry stored in metadata.versions. */
-interface MediaVersionEntry {
-  version: number;
-  url?: string;
-  path?: string;
-  hash?: string;
-  size?: number;
-  filename?: string;
-  mimeType?: string;
-  createdAt?: string;
-  createdBy?: string;
-  action?: string;
-  /** Derivative set captured with this version so restore can reinstate it. */
-  thumbnails?: Record<string, unknown>;
-  imageVariants?: ImageVariant[];
-}
-
-// MediaReference is now imported from ./media-reference-index
-
-/* -------------------------------------------------------------------------- */
-
-export interface CropOptions {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  shape?: "circle" | "rect";
-}
-
-export interface FilterOptions {
-  brightness?: number;
-  contrast?: number;
-  saturation?: number;
-  grayscale?: number;
-  sepia?: number;
-  temperature?: number;
-  /** Fine-tune sliders — mapped with the same approximations as the canvas preview. */
-  exposure?: number;
-  highlights?: number;
-  shadows?: number;
-  clarity?: number;
-  vibrance?: number;
-  tint?: number;
-  sharpness?: number;
-}
-
-export interface BlurRegion {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  strength?: number;
-}
-
-export interface TextWatermark {
-  type: "text";
-  text: string;
-  color?: string;
-  fontSize?: number;
-  opacity?: number;
-  x: number;
-  y: number;
-}
-
-export interface ImageWatermark {
-  type: "image";
-  imageUrl: string;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-}
-
-export type Watermark = TextWatermark | ImageWatermark;
-
-export interface Annotation {
-  type: "rect" | "circle" | "text" | "arrow" | "line";
-  stroke?: string;
-  fill?: string;
-  strokeWidth?: number;
-  fontSize?: number;
-  x: number;
-  y: number;
-  width?: number;
-  height?: number;
-  radius?: number;
-  text?: string;
-}
-
-/* -------------------------------------------------------------------------- */
 /* Client update allowlist (mass-assignment defense)                          */
 /* -------------------------------------------------------------------------- */
 
@@ -410,46 +216,6 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Coerce index-signature values (`unknown`) back to the string/number shape a version entry stores. */
-function textOr(value: unknown, fallback = ""): string {
-  return typeof value === "string" && value ? value : fallback;
-}
-
-function firstText(...values: unknown[]): string {
-  for (const value of values) if (typeof value === "string" && value) return value;
-  return "";
-}
-
-function numberOr(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-/** Build a historical version snapshot from the currently active media record. */
-function buildVersionSnapshot(
-  existing: EnrichableRecord,
-  version: number,
-  userId: string,
-  action: "edit" | "replace" | "restore",
-  fallbackTimestamp: string,
-): MediaVersionEntry {
-  return {
-    version,
-    url: existing.url || "",
-    path: existing.path || "",
-    hash: textOr(existing.hash),
-    size: numberOr(existing.size),
-    filename: textOr(existing.filename),
-    mimeType: textOr(existing.mimeType),
-    createdAt: firstText(existing.updatedAt, existing.createdAt, fallbackTimestamp),
-    createdBy: firstText(existing.updatedBy, existing.createdBy, userId),
-    action,
-    thumbnails: (existing.thumbnails as Record<string, unknown>) || {},
-    imageVariants: Array.isArray(existing.metadata?.imageVariants)
-      ? (existing.metadata.imageVariants as ImageVariant[])
-      : [],
-  };
-}
-
 /**
  * Reduce a client-supplied media PATCH body to the fields the UI actually owns.
  *
@@ -503,26 +269,10 @@ function sanitizeMediaUpdateMetadata(value: unknown): Record<string, unknown> {
   return metadata;
 }
 
-export interface MediaManipulation {
-  rotation?: number;
-  flipH?: boolean;
-  flipV?: boolean;
-  crop?: CropOptions;
-  /** Explicit output size (batch resize). Applied after composites so overlay coordinates stay in source space. */
-  resize?: { width?: number; height?: number };
-  filters?: FilterOptions;
-  blurRegions?: BlurRegion[];
-  watermarks?: Watermark[];
-  annotations?: Annotation[];
-  /** Subject point as a percentage of the image, 0–100. Stored on media metadata. */
-  focalPoint?: { x: number; y: number };
-  saveBehavior?: "overwrite" | "new";
-}
-
 /* -------------------------------------------------------------------------- */
 
 export class MediaService {
-  private readonly db: IDBAdapter;
+  public readonly db: IDBAdapter;
   private static hookRegistered = false;
   private registeredHookId: string | null = null;
 
@@ -551,7 +301,7 @@ export class MediaService {
     }
   >();
 
-  private getTenantState(tenantId?: DatabaseId | null) {
+  public getTenantState(tenantId?: DatabaseId | null): ReferenceIndexTenantState {
     const key = tenantId ? String(tenantId) : "global";
     let state = MediaService.tenantIndexState.get(key);
     if (!state) {
@@ -644,7 +394,7 @@ export class MediaService {
    * Maps Node.js filesystem error codes to meaningful AppError responses.
    * Call this in catch blocks where filesystem writes may fail.
    */
-  private mapFileSystemError(err: unknown): void {
+  public mapFileSystemError(err: unknown): void {
     const code = (err as NodeJS.ErrnoException)?.code;
     if (!code) return; // Not a Node.js system error — let caller handle normally
 
@@ -669,7 +419,7 @@ export class MediaService {
    * instead of saturating libvips, and the record update happens per
    * subscriber once the shared run resolves.
    */
-  private generateVariantsForStreamedFile(
+  public generateVariantsForStreamedFile(
     hash: string,
     relPath: string,
     _mimeType: string,
@@ -756,7 +506,7 @@ export class MediaService {
     })();
   }
 
-  private async ensureOriginalOnDisk(
+  public async ensureOriginalOnDisk(
     hash: string,
     filename: string,
     data: Buffer | ReadableStream | import("node:stream").Readable,
@@ -934,7 +684,7 @@ export class MediaService {
    * Non-images and SVG return empty maps (SVG is never rasterised). Failure is logged and
    * swallowed — the original is already on disk, so derivatives must never fail an upload.
    */
-  private async buildDerivativeSet(
+  public async buildDerivativeSet(
     buffer: Buffer,
     hash: string,
     filename: string,
@@ -1583,540 +1333,7 @@ export class MediaService {
     userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaItem> {
-    const { hashFileContent } = await import("./media-processing.server");
-    const sharp = await getSharp();
-
-    // 1. Load existing record
-    const res = await this.db.crud.findOne<DbMediaItem>(
-      "media",
-      { _id: id as DatabaseId },
-      { tenantId: tenantId },
-    );
-    if (!res.success || !res.data) throw new Error("Media not found");
-    const existing = res.data;
-
-    // 2. Read original file + get dimensions once (reused by blur/watermark)
-    const originalBuffer = await getFile(existing.path);
-    const meta = await sharp(originalBuffer, {
-      limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "none",
-    }).metadata();
-    const imgW = meta.width ?? 1;
-    const imgH = meta.height ?? 1;
-
-    const {
-      rotation,
-      flipH,
-      flipV,
-      crop,
-      filters,
-      blurRegions,
-      watermarks,
-      annotations,
-      saveBehavior,
-      focalPoint,
-    } = manipulations;
-
-    const storedFocal = focalPoint ? normalizeFocalPercent(focalPoint) : undefined;
-
-    // 3. Geometry — mirror the editor preview exactly: the canvas draws the
-    //    SOURCE crop inside the flip/rotate transform, so crop first, then flip,
-    //    then rotate. (The old order rotated first and extracted afterwards in
-    //    rotated-canvas coordinates, which is why a crop preview never matched.)
-    const cropRect =
-      crop && crop.width > 0 && crop.height > 0
-        ? (() => {
-            const x = Math.min(Math.max(0, Math.round(crop.x)), imgW - 1);
-            const y = Math.min(Math.max(0, Math.round(crop.y)), imgH - 1);
-            return {
-              x,
-              y,
-              width: Math.min(Math.max(1, Math.round(crop.width)), imgW - x),
-              height: Math.min(Math.max(1, Math.round(crop.height)), imgH - y),
-            };
-          })()
-        : null;
-
-    const cropX = cropRect?.x ?? 0;
-    const cropY = cropRect?.y ?? 0;
-    const workW = cropRect?.width ?? imgW;
-    const workH = cropRect?.height ?? imgH;
-
-    const ext = (existing.filename.split(".").pop() ?? "jpg").toLowerCase();
-    const isCircle = crop?.shape === "circle";
-    const preservesAlpha = isCircle || ext === "png" || ext === "webp" || ext === "avif";
-
-    // Crop + circle mask must run as their own stage: Sharp always applies
-    // `composite` after `rotate`, so a crop-sized mask cannot share the main
-    // chain once the canvas grows.
-    let preparedBuffer = originalBuffer;
-    if (cropRect) {
-      let cropped = sharp(originalBuffer, {
-        limitInputPixels: MAX_INPUT_PIXELS,
-        failOn: "none",
-      }).extract({
-        left: cropRect.x,
-        top: cropRect.y,
-        width: cropRect.width,
-        height: cropRect.height,
-      });
-
-      if (isCircle) {
-        // True circle even if the crop drifted slightly off-square.
-        const radius = Math.min(cropRect.width, cropRect.height) / 2;
-        const circleSvg = Buffer.from(
-          `<svg width="${cropRect.width}" height="${cropRect.height}"><circle cx="${cropRect.width / 2}" cy="${cropRect.height / 2}" r="${radius}" fill="#ffffff"/></svg>`,
-        );
-        cropped = cropped.ensureAlpha().composite([{ input: circleSvg, blend: "dest-in" }]);
-      }
-
-      // Lossless intermediate keeps JPEG source quality through stage 2.
-      preparedBuffer = await cropped.png({ compressionLevel: 8 }).toBuffer();
-    }
-
-    // Sharp applies flips BEFORE rotation regardless of call order; the canvas
-    // preview rotates first, then flips. Negating the angle for a single flip
-    // makes the pipelines equivalent (Fx∘R(θ) = R(−θ)∘Fx).
-    const effectiveRotation = (rotation ?? 0) * (flipH !== flipV ? -1 : 1);
-
-    let pipeline = sharp(preparedBuffer, {
-      limitInputPixels: MAX_INPUT_PIXELS,
-      failOn: "none",
-    });
-    if (flipH) pipeline = pipeline.flop();
-    if (flipV) pipeline = pipeline.flip();
-    if (rotation) {
-      pipeline = pipeline.rotate(effectiveRotation, {
-        // Canvas shows transparency; JPEG has no alpha, so fill white.
-        background: preservesAlpha
-          ? { r: 0, g: 0, b: 0, alpha: 0 }
-          : { r: 255, g: 255, b: 255, alpha: 1 },
-      });
-    }
-
-    // — Colour filters —
-    // Every slider the editor exposes must survive the round-trip. The preview
-    // approximates the photographic controls with CSS filter primitives; the
-    // factors below mirror those formulas exactly so preview == saved.
-    if (filters) {
-      const {
-        brightness = 0,
-        contrast = 0,
-        saturation = 0,
-        grayscale = 0,
-        sepia = 0,
-        temperature = 0,
-        exposure = 0,
-        highlights = 0,
-        shadows = 0,
-        clarity = 0,
-        vibrance = 0,
-        tint = 0,
-        sharpness = 0,
-      } = filters;
-
-      let brightnessFactor = 1 + brightness / 100;
-      let saturationFactor = 1 + saturation / 100;
-      let contrastFactor = 1 + contrast / 100;
-      let hueShift = 0;
-
-      if (exposure !== 0) brightnessFactor *= 1 + (exposure * 1.2) / 100;
-      if (vibrance !== 0) saturationFactor *= 1 + (vibrance * 0.7) / 100;
-
-      // Clarity — contrast/saturation/brightness lift (same constants as the canvas).
-      if (clarity !== 0) {
-        if (clarity > 0) {
-          contrastFactor *= 1 + (clarity * 0.42) / 100;
-          saturationFactor *= 1 + (clarity * 0.18) / 100;
-          brightnessFactor *= 1 - (clarity * 0.05) / 100;
-        } else {
-          const softness = Math.abs(clarity);
-          contrastFactor *= 1 - (softness * 0.26) / 100;
-          brightnessFactor *= 1 + (softness * 0.1) / 100;
-          saturationFactor *= 1 - (softness * 0.08) / 100;
-        }
-      }
-
-      if (highlights !== 0) {
-        if (highlights > 0) {
-          brightnessFactor *= 1 + (highlights * 0.25) / 100;
-          contrastFactor *= 1 - (highlights * 0.08) / 100;
-        } else {
-          const lift = Math.abs(highlights);
-          contrastFactor *= 1 + (lift * 0.12) / 100;
-          brightnessFactor *= 1 - (lift * 0.08) / 100;
-        }
-      }
-
-      if (shadows !== 0) {
-        if (shadows > 0) {
-          brightnessFactor *= 1 + (shadows * 0.2) / 100;
-          contrastFactor *= 1 - (shadows * 0.05) / 100;
-        } else {
-          const depth = Math.abs(shadows);
-          brightnessFactor *= 1 - (depth * 0.18) / 100;
-          contrastFactor *= 1 + (depth * 0.1) / 100;
-        }
-      }
-
-      // Temperature (CSS approximation): warm = partial sepia + slight cool hue
-      // rotation, cool = hue rotation only.
-      let temperatureSepia = 0;
-      if (temperature > 0) {
-        temperatureSepia = Math.min(1, (temperature * 0.3) / 100);
-        hueShift -= temperature * 0.2;
-      } else if (temperature < 0) {
-        hueShift += Math.abs(temperature) * 0.3;
-      }
-
-      // Tint (green/magenta) is a hue rotation in the preview.
-      if (tint !== 0) hueShift += tint * 1.5;
-
-      const brightnessValue = Math.max(0, brightnessFactor);
-      const saturationValue = Math.max(0, saturationFactor);
-      if (brightnessValue !== 1 || saturationValue !== 1 || hueShift !== 0) {
-        pipeline = pipeline.modulate({
-          brightness: brightnessValue,
-          saturation: saturationValue,
-          ...(hueShift !== 0 ? { hue: hueShift } : {}),
-        });
-      }
-
-      // CSS `contrast(x%)` is a linear transform around mid-grey.
-      const contrastValue = Math.max(0, contrastFactor);
-      if (contrastValue !== 1) {
-        pipeline = pipeline.linear(contrastValue, 128 * (1 - contrastValue));
-      }
-
-      // Grayscale (full desaturate)
-      if (grayscale > 0) pipeline = pipeline.grayscale();
-
-      const sepiaMatrix = (
-        strength: number,
-      ): [[number, number, number], [number, number, number], [number, number, number]] => {
-        const s = Math.min(1, Math.max(0, strength));
-        return [
-          [0.393 * s + 1 * (1 - s), 0.769 * s, 0.189 * s],
-          [0.349 * s, 0.686 * s + 1 * (1 - s), 0.168 * s],
-          [0.272 * s, 0.534 * s, 0.131 * s + 1 * (1 - s)],
-        ];
-      };
-
-      // Sepia slider (batch presets) + the warm half of the temperature slider.
-      const sepiaStrength = Math.min(1, sepia / 100) + temperatureSepia;
-      if (sepiaStrength > 0) pipeline = pipeline.recomb(sepiaMatrix(sepiaStrength));
-
-      // Detail: the preview runs a 3×3 unsharp mask where positive strength
-      // sharpens and negative softens. Sharp's convolution is the closest native
-      // equivalent; the sigma range keeps the visual radius comparable.
-      const detailStrength = sharpness / 72 + clarity / 92;
-      if (detailStrength > 0) {
-        pipeline = pipeline.sharpen({ sigma: 0.5 + Math.min(1, detailStrength) * 1.5 });
-      } else if (detailStrength < 0) {
-        pipeline = pipeline.blur(0.3 + Math.min(1, Math.abs(detailStrength)) * 1.7);
-      }
-    }
-
-    // 4. Collect composites (blur regions + watermarks + annotations rendered as SVG)
-    const composites: SharpOverlayOptions[] = [];
-
-    // — Blur regions (coordinates are in original image space — offset by crop origin) —
-    if (Array.isArray(blurRegions) && blurRegions.length > 0) {
-      for (const region of blurRegions) {
-        const rx = Math.max(0, Math.round(region.x));
-        const ry = Math.max(0, Math.round(region.y));
-        const rw = Math.min(Math.round(region.width), imgW - rx);
-        const rh = Math.min(Math.round(region.height), imgH - ry);
-        if (rw <= 0 || rh <= 0) continue;
-        // Composite position is relative to the post-crop canvas
-        const compositeLeft = Math.max(0, rx - cropX);
-        const compositeTop = Math.max(0, ry - cropY);
-        if (compositeLeft >= workW || compositeTop >= workH) continue;
-        const blurBuf = await sharp(originalBuffer)
-          .extract({ left: rx, top: ry, width: rw, height: rh })
-          .blur(Math.max(0.3, (region.strength ?? 20) * 0.5))
-          .toBuffer();
-        composites.push({
-          input: blurBuf,
-          left: compositeLeft,
-          top: compositeTop,
-          blend: "over",
-        });
-      }
-    }
-
-    // — Watermarks —
-    const escXml = (s: string) =>
-      s.replace(
-        /[<>&"]/g,
-        (c: string) =>
-          (
-            {
-              "<": "&lt;",
-              ">": "&gt;",
-              "&": "&amp;",
-              '"': "&quot;",
-            } as Record<string, string>
-          )[c] ?? c,
-      );
-
-    if (Array.isArray(watermarks) && watermarks.length > 0) {
-      for (const wm of watermarks) {
-        if (wm.type === "text" && wm.text) {
-          // 🛡️ Validate user-supplied SVG attributes against safe patterns
-          const fontSize = guardNumeric(Math.round(wm.fontSize ?? 48), 48);
-          const color = guardAttr(wm.color ?? "#ffffff", SAFE_COLOR, "#ffffff");
-          const opacity = Math.round((wm.opacity ?? 0.8) * 255)
-            .toString(16)
-            .padStart(2, "0");
-          const left = Math.max(0, Math.round(wm.x) - cropX);
-          const top = Math.max(0, Math.round(wm.y) - cropY);
-          const svgText = Buffer.from(
-            `<svg xmlns="http://www.w3.org/2000/svg" width="${workW}" height="${workH}">` +
-              `<text x="${left}" y="${top + fontSize}" font-size="${fontSize}" fill="${color}${opacity}" font-family="sans-serif">${escXml(wm.text)}</text>` +
-              `</svg>`,
-          );
-          composites.push({ input: svgText, top: 0, left: 0, blend: "over" });
-        } else if (wm.type === "image" && wm.imageUrl) {
-          try {
-            const wmLeft = Math.max(0, Math.round(wm.x) - cropX);
-            const wmTop = Math.max(0, Math.round(wm.y) - cropY);
-            const wmW = Math.min(Math.round(wm.width ?? 100), workW - wmLeft);
-            const wmH = Math.min(Math.round(wm.height ?? 100), workH - wmTop);
-            if (wmW > 0 && wmH > 0) {
-              const wmBuf = await sharp(Buffer.from(wm.imageUrl.split(",")[1] ?? "", "base64"), {
-                limitInputPixels: MAX_INPUT_PIXELS,
-                failOn: "none",
-              })
-                .resize(wmW, wmH, { fit: "contain" })
-                .ensureAlpha()
-                .toBuffer();
-              composites.push({
-                input: wmBuf,
-                left: wmLeft,
-                top: wmTop,
-                blend: "over",
-              });
-            }
-          } catch {
-            logger.warn(`[manipulateMedia] Skipping invalid watermark image`);
-          }
-        }
-      }
-    }
-
-    // — Annotations rendered as SVG overlay (crop-relative coordinates) —
-    if (Array.isArray(annotations) && annotations.length > 0) {
-      const shapes = annotations
-        .map((a: Annotation) => {
-          // 🛡️ Validate user-supplied SVG attributes against safe patterns
-          const stroke = guardAttr(a.stroke ?? "#ff0000", SAFE_COLOR, "#ff0000");
-          const fill = a.fill === "none" ? "none" : guardAttr(a.fill ?? "none", SAFE_COLOR, "none");
-          const sw = guardNumeric(a.strokeWidth ?? 2, 2);
-          const ax = (a.x ?? 0) - cropX;
-          const ay = (a.y ?? 0) - cropY;
-          switch (a.type) {
-            case "rect":
-              return `<rect x="${ax}" y="${ay}" width="${a.width ?? 50}" height="${a.height ?? 50}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
-            case "circle":
-              return `<circle cx="${ax}" cy="${ay}" r="${a.radius ?? 25}" stroke="${stroke}" fill="${fill}" stroke-width="${sw}"/>`;
-            case "text":
-              return `<text x="${ax}" y="${ay}" font-size="${guardNumeric(a.fontSize ?? 20, 20)}" fill="${stroke}" font-family="sans-serif">${escXml(String(a.text ?? ""))}</text>`;
-            case "arrow":
-            case "line":
-              return `<line x1="${ax}" y1="${ay}" x2="${ax + (a.width ?? 50)}" y2="${ay + (a.height ?? 0)}" stroke="${stroke}" stroke-width="${sw}"/>`;
-            default:
-              return "";
-          }
-        })
-        .filter(Boolean)
-        .join("\n");
-
-      if (shapes) {
-        const svgOverlay = Buffer.from(
-          `<svg xmlns="http://www.w3.org/2000/svg" width="${workW}" height="${workH}">${shapes}</svg>`,
-        );
-        composites.push({ input: svgOverlay, top: 0, left: 0, blend: "over" });
-      }
-    }
-
-    if (composites.length > 0) pipeline = pipeline.composite(composites);
-
-    // 5. Encode — circular crop forces PNG (needs alpha channel); otherwise preserve original format
-    const encoded = await encodeManipulatedOutput(pipeline, ext, isCircle);
-
-    let outputBuffer: Buffer = encoded;
-    let outputW = workW;
-    let outputH = workH;
-
-    // Rotation grows the canvas (auto-sized bounding box), so the mathematical
-    // crop size no longer describes the output — read the real dimensions.
-    if (rotation || cropRect) {
-      const encodedMeta = await sharp(encoded, { limitInputPixels: MAX_INPUT_PIXELS }).metadata();
-      outputW = encodedMeta.width ?? outputW;
-      outputH = encodedMeta.height ?? outputH;
-    }
-
-    // 5a. Explicit resize (editor/batch). A second encode is deliberate: Sharp
-    // applies `resize` before `composite` regardless of chain order, so resizing
-    // in the main pipeline would shift watermark/annotation coordinates.
-    const requestedResize = manipulations.resize;
-    if (requestedResize && (requestedResize.width || requestedResize.height)) {
-      const clampDimension = (value: number | undefined) =>
-        value === undefined
-          ? undefined
-          : Math.min(Math.max(Math.round(value), 32), MAX_OUTPUT_DIMENSION);
-      const resized = sharp(outputBuffer, {
-        limitInputPixels: MAX_INPUT_PIXELS,
-        failOn: "none",
-      }).resize({
-        width: clampDimension(requestedResize.width),
-        height: clampDimension(requestedResize.height),
-        fit: "inside",
-        withoutEnlargement: true,
-      });
-      outputBuffer = await encodeManipulatedOutput(resized, ext, isCircle);
-      const resizedMeta = await sharp(outputBuffer).metadata();
-      outputW = resizedMeta.width ?? outputW;
-      outputH = resizedMeta.height ?? outputH;
-      logger.debug(`[manipulateMedia] Explicit resize → ${outputW}x${outputH}`);
-    }
-
-    // SECURITY: cap the editor output at the same ceiling as on-demand transforms.
-    // A second pass is deliberate — Sharp applies `resize` before `composite`
-    // regardless of chain order, so resizing after the overlay build would shift
-    // watermark/annotation coordinates. Normal-size outputs still encode once.
-    const capped = clampManipulatedDimensions(outputW, outputH, MAX_OUTPUT_DIMENSION);
-    if (capped.width !== outputW || capped.height !== outputH) {
-      const downscaled = sharp(encoded, {
-        limitInputPixels: MAX_INPUT_PIXELS,
-        failOn: "none",
-      }).resize({
-        width: capped.width,
-        height: capped.height,
-        fit: "inside",
-        withoutEnlargement: true,
-      });
-      outputBuffer = await encodeManipulatedOutput(downscaled, ext, isCircle);
-      logger.debug(
-        `[manipulateMedia] Capped output ${outputW}x${outputH} → ${capped.width}x${capped.height} (max ${MAX_OUTPUT_DIMENSION}px)`,
-      );
-    }
-
-    // 6. Hash, persist, update DB
-    // Circular crop outputs PNG — rename file accordingly
-    const outputFilename =
-      isCircle && !existing.filename.endsWith(".png")
-        ? existing.filename.replace(/\.[^.]+$/, ".png")
-        : existing.filename;
-    const outputMime = isCircle ? "image/png" : existing.mimeType;
-    const newHash = await hashFileContent(outputBuffer);
-    const relPath = buildOriginalRelPath(newHash, outputFilename, tenantId);
-    await saveFile(outputBuffer, relPath);
-    const now = nowISODateString();
-
-    // Rebuild the derivative set for the edited bytes. Without this the record
-    // kept the pre-edit ladder/thumbnail URLs after `thumbnails: {}` was written,
-    // so the gallery served renditions of the replaced original.
-    const { metadata: derivativeMetadata, thumbnails: derivativeThumbnails } =
-      await this.buildDerivativeSet(outputBuffer, newHash, outputFilename, outputMime, tenantId);
-    let editedVariants: ImageVariant[] = [];
-    try {
-      editedVariants = await processImageWithPresets(
-        outputBuffer,
-        newHash,
-        ["thumbnail", "card", "default"],
-        tenantId,
-      );
-    } catch (variantErr) {
-      logger.warn("[Media] Variant generation failed during image edit — original intact", {
-        error: variantErr instanceof Error ? variantErr.message : String(variantErr),
-      });
-    }
-    const editedVariantMetadata = editedVariants.map((v) => ({
-      preset: v.preset,
-      width: v.width,
-      height: v.height,
-      format: v.format,
-      quality: v.quality,
-      path: v.path,
-      size: v.size,
-    }));
-    const editedStatus =
-      editedVariantMetadata.length > 0 ? MediaProcessingStatus.Ready : MediaProcessingStatus.Failed;
-
-    if (saveBehavior === "new") {
-      const uploadResult = await this.files.upload(
-        {
-          filename: outputFilename,
-          originalFilename: outputFilename,
-          mimeType: outputMime,
-          size: outputBuffer.byteLength,
-          hash: newHash,
-          path: relPath,
-          createdBy: userId,
-          updatedBy: userId,
-          metadata: {
-            ...derivativeMetadata,
-            versions: [],
-            ...(storedFocal ? { focalPoint: storedFocal } : {}),
-            imageVariants: editedVariantMetadata,
-            processingStatus: editedStatus,
-            ...(editedStatus === MediaProcessingStatus.Failed
-              ? { processingError: "No variants generated" }
-              : {}),
-          },
-          thumbnails: derivativeThumbnails,
-          access: existing.access || "public",
-          folderId: existing.folderId ?? undefined,
-          originalId: id,
-          tenantId: tenantId,
-        } as unknown as EntityCreate<DbMediaItem>,
-        { tenantId: tenantId },
-      );
-      if (!uploadResult.success || !uploadResult.data)
-        throw new Error("Failed to create new media record");
-      return this.enrichMediaWithUrl(
-        uploadResult.data as unknown as EnrichableRecord,
-      ) as unknown as MediaItem;
-    }
-
-    // overwrite: push current file to version history, update record in place
-    const versions = (existing.metadata?.versions as MediaVersionEntry[] | undefined) || [];
-    const overwritePatch = {
-      hash: newHash,
-      path: relPath,
-      size: outputBuffer.byteLength,
-      thumbnails: derivativeThumbnails,
-      updatedBy: userId,
-      updatedAt: now,
-      metadata: {
-        ...existing.metadata,
-        ...derivativeMetadata,
-        ...(storedFocal ? { focalPoint: storedFocal } : {}),
-        imageVariants: editedVariantMetadata,
-        processingStatus: editedStatus,
-        ...(editedStatus === MediaProcessingStatus.Failed
-          ? { processingError: "No variants generated" }
-          : {}),
-        versions: [
-          ...versions,
-          buildVersionSnapshot(
-            existing as unknown as EnrichableRecord,
-            versions.length + 1,
-            userId,
-            "edit",
-            now,
-          ),
-        ],
-      },
-    };
-    await this.updateMedia(id, overwritePatch, tenantId, { internal: true });
-
-    return this.enrichMediaWithUrl({
-      ...(existing as unknown as EnrichableRecord),
-      ...overwritePatch,
-    } as unknown as EnrichableRecord) as unknown as MediaItem;
+    return executeMediaManipulation(this, id, manipulations, userId, tenantId);
   }
 
   public async batchProcessImages(
@@ -2125,29 +1342,13 @@ export class MediaService {
     userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaItem[]> {
-    if (ids.length === 0) return [];
-    const concurrency = Math.min(4, ids.length);
-    const ordered: Array<MediaItem | undefined> = Array.from(
-      { length: ids.length },
-      () => undefined,
+    return executeBatchProcessImages(
+      this.manipulateMedia.bind(this),
+      ids,
+      config,
+      userId,
+      tenantId,
     );
-    let cursor = 0;
-
-    await Promise.all(
-      Array.from({ length: concurrency }, async () => {
-        while (cursor < ids.length) {
-          const idx = cursor++;
-          const id = ids[idx];
-          try {
-            ordered[idx] = await this.manipulateMedia(id, config, userId, tenantId);
-          } catch (err) {
-            logger.error(`Batch processing failed for ${id}:`, err);
-          }
-        }
-      }),
-    );
-
-    return ordered.filter((item): item is MediaItem => item !== undefined);
   }
 
   /**
@@ -2158,172 +1359,34 @@ export class MediaService {
     return mediaTypeFromMime(mime) as "image" | "video" | "audio" | "document";
   }
 
-  /**
-   * Returns all collection entries referencing a specific mediaId.
-   * Uses the in-memory reverse-index for O(1) lookups after an initial
-   * O(n) rebuild on first access or after cache invalidation.
-   */
-  private async ensureReferenceIndex(tenantId?: DatabaseId | null) {
-    const state = this.getTenantState(tenantId);
-    if (state.referenceIndex.isBuilt()) return state;
-    if (!state.rebuildInflight) {
-      state.rebuildInflight = this.rebuildReferenceIndex(tenantId, state).finally(() => {
-        state.rebuildInflight = null;
-      });
-    }
-    await state.rebuildInflight;
-    return state;
-  }
-
   public async getMediaReferences(
     mediaId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaReference[]> {
-    try {
-      // Rebuild once per cache lifetime — empty refs for an unknown mediaId
-      // must NOT re-scan all collections (caused OOM on DELETE nonexistent).
-      const state = await this.ensureReferenceIndex(tenantId);
-      return this.enrichReferences(state.referenceIndex.getReferences(mediaId), state.entryNameMap);
-    } catch (err) {
-      logger.error(`[MediaService] Error scanning usage references:`, err);
-      return [];
-    }
+    return executeGetMediaReferences(this, mediaId, tenantId);
   }
 
-  /**
-   * Gallery load helper: one rebuild, then O(1) lookups per id.
-   */
   public async getPublishedReferencedIds(
     mediaIds: string[],
     tenantId?: DatabaseId | null,
   ): Promise<string[]> {
-    if (mediaIds.length === 0) return [];
-    try {
-      const state = await this.ensureReferenceIndex(tenantId);
-      return state.referenceIndex.collectPublishedIds(
-        mediaIds,
-        (entryId) => state.entryStatusMap.get(entryId) === "publish",
-      );
-    } catch (err) {
-      logger.error(`[MediaService] Error collecting published media ids:`, err);
-      return [];
-    }
+    return executeGetPublishedReferencedIds(this, mediaIds, tenantId);
   }
 
-  /**
-   * Checks if a media item is referenced by any published content entries.
-   * Uses the in-memory reverse-index for fast lookups.
-   */
   public async isReferencedByPublishedContent(
     mediaId: string,
     tenantId?: DatabaseId | null,
   ): Promise<{ referenced: boolean; references: MediaReference[] }> {
-    try {
-      const references = await this.getPublishedReferences(mediaId, tenantId);
-      return {
-        referenced: references.length > 0,
-        references,
-      };
-    } catch (err) {
-      logger.error(`[MediaService] Error checking published references:`, err);
-      return { referenced: false, references: [] };
-    }
+    return executeIsReferencedByPublishedContent(this, mediaId, tenantId);
   }
 
-  /**
-   * Returns all published collection entries that reference a specific mediaId.
-   * Uses the in-memory reverse-index — rebuilds on first access or after invalidation.
-   */
   public async getPublishedReferences(
     mediaId: string,
     tenantId?: DatabaseId | null,
   ): Promise<MediaReference[]> {
-    try {
-      const state = await this.ensureReferenceIndex(tenantId);
-      // Filter to published-only references by checking the status map
-      const allRefs = state.referenceIndex.getReferences(mediaId);
-      return this.enrichReferences(
-        allRefs.filter((ref) => state.entryStatusMap.get(ref.entryId) === "publish"),
-        state.entryNameMap,
-      );
-    } catch (err) {
-      logger.error(`[MediaService] Error scanning published references:`, err);
-      return [];
-    }
+    return executeGetPublishedReferences(this, mediaId, tenantId);
   }
 
-  /**
-   * Rebuilds the in-memory reference index by scanning all collection entries in parallel.
-   */
-  private async rebuildReferenceIndex(
-    tenantId: DatabaseId | null | undefined,
-    state: {
-      referenceIndex: MediaReferenceIndex;
-      entryStatusMap: Map<string, string>;
-      entryNameMap: Map<string, string>;
-    },
-  ): Promise<void> {
-    const { scanCompiledCollections } = await loadEngineServerModule();
-    const schemas = await scanCompiledCollections();
-    const allEntries: Array<{
-      collectionId: string;
-      collectionName: string;
-      entryId: string;
-      data: Record<string, unknown>;
-      status?: string;
-    }> = [];
-
-    await Promise.all(
-      schemas.map(async (schema) => {
-        // 🐛 FIX (BUG-01): canonical physical name — manual `collection_${id}`
-        // breaks for hyphenated ids; collectionTableName normalizes (idempotent).
-        const collectionName = collectionTableName(schema._id as string);
-        const collectionLabel = schema.name || schema._id || "";
-        try {
-          const res = await this.db.crud.findMany(collectionName, {}, { tenantId: tenantId });
-          if (res.success && Array.isArray(res.data)) {
-            for (const entry of res.data) {
-              const entryAny = entry as unknown as Record<string, unknown>;
-              const entryId = entryAny._id?.toString() ?? "";
-              allEntries.push({
-                collectionId: schema._id ?? "",
-                collectionName: collectionLabel,
-                entryId,
-                data: entryAny,
-                status: entryAny.status as string | undefined,
-              });
-              const entryName =
-                entryAny.name || entryAny.title || entryAny.slug || entryAny._id || entryId;
-              state.entryNameMap.set(entryId, String(entryName));
-              if (entryAny.status) {
-                state.entryStatusMap.set(entryId, entryAny.status as string);
-              }
-            }
-          }
-        } catch (err) {
-          logger.error(`[MediaService] Error scanning ${collectionName} for references:`, err);
-        }
-      }),
-    );
-
-    state.referenceIndex.rebuild(allEntries);
-    // Even with zero entries, mark built so empty lookups stay O(1)
-    state.referenceIndex.markBuilt();
-  }
-
-  /** Enrich index references with legacy fields for backward compatibility. */
-  private enrichReferences(
-    refs: MediaReference[],
-    entryNameMap: Map<string, string>,
-  ): MediaReference[] {
-    for (const ref of refs) {
-      ref.fieldName = ref.fieldPath.split(".")[0] || ref.fieldPath;
-      ref.entryName = entryNameMap.get(ref.entryId) || ref.entryId;
-    }
-    return refs;
-  }
-
-  /** Manually clear the reference-index cache. */
   public invalidateReferenceCache(): void {
     MediaService.tenantIndexState.clear();
   }
@@ -2347,195 +1410,7 @@ export class MediaService {
     userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<MediaItem>> {
-    try {
-      assertMediaReplaceSize(file);
-      // 1. Get the existing media record
-      const res = await this.db.crud.findOne<DbMediaItem>(
-        "media",
-        { _id: mediaId as DatabaseId },
-        { tenantId: tenantId },
-      );
-      if (!res.success || !res.data) {
-        throw new Error("Original media item not found");
-      }
-      const existing = res.data;
-
-      // 2. Upload the new file to storage
-      // To bypass hash deduplication returning the existing record, we can temporarily save
-      // the file under a new hash/path.
-      const { hashFileContent } = await import("./media-processing.server");
-      let hash = "";
-      let buffer: Buffer | null = null;
-      // 🛡️ SVG versions: always sanitize — never stream unsanitized SVG
-      if (isSvgFile(file.type, file.name)) {
-        buffer = await bufferAndSanitizeSvg(file);
-        hash = await hashFileContent(buffer);
-      } else if (file.size < 5 * 1024 * 1024 && typeof file.arrayBuffer === "function") {
-        buffer = Buffer.from(await file.arrayBuffer());
-        assertMediaReplaceSize(file, buffer.length);
-        hash = await hashFileContent(buffer);
-      } else {
-        const { hashStream } = await import("./media-processing.server");
-        const [s1] = file.stream().tee();
-        hash = await hashStream(s1, API_MAX_BODY_SIZE_BYTES);
-      }
-
-      const isRaster = file.type.startsWith("image/") && !isSvgFile(file.type, file.name);
-
-      // Generate derivatives for small files (buffer available). The same set is
-      // written under the new content hash so the gallery can render the new
-      // version immediately — and captured on the OLD version entry so a later
-      // restore reinstates the matching derivatives instead of the replaced ones.
-      let versionVariants: ImageVariant[] = [];
-      let versionThumbnails: Record<string, unknown> = {};
-      let versionImageMetadata: Record<string, unknown> = {};
-      if (buffer && isRaster) {
-        try {
-          const { metadata, thumbnails } = await this.buildDerivativeSet(
-            buffer,
-            hash,
-            file.name,
-            file.type,
-            tenantId,
-          );
-          versionImageMetadata = metadata;
-          versionThumbnails = thumbnails;
-          versionVariants = await processImageWithPresets(
-            buffer,
-            hash,
-            ["thumbnail", "card", "default"],
-            tenantId,
-          );
-          if (versionVariants.length > 0) {
-            logger.debug("[Media] Variants generated for version upload", {
-              hash: hash.slice(0, 12),
-              count: versionVariants.length,
-            });
-          }
-        } catch (variantErr) {
-          logger.warn("[Media] Variant generation failed during version upload — original intact", {
-            error: variantErr instanceof Error ? variantErr.message : String(variantErr),
-          });
-        }
-      }
-
-      const versionVariantsMetadata = versionVariants.map((v) => ({
-        preset: v.preset,
-        width: v.width,
-        height: v.height,
-        format: v.format,
-        quality: v.quality,
-        path: v.path,
-        size: v.size,
-      }));
-
-      const versionMetadata = {
-        ...versionImageMetadata,
-        ...(versionVariantsMetadata.length > 0 ? { imageVariants: versionVariantsMetadata } : {}),
-        processingStatus: isRaster
-          ? versionVariantsMetadata.length > 0 || buffer
-            ? versionVariantsMetadata.length > 0
-              ? MediaProcessingStatus.Ready
-              : MediaProcessingStatus.Failed
-            : MediaProcessingStatus.Processing
-          : MediaProcessingStatus.Ready,
-      };
-
-      const newRelPath = buildOriginalRelPath(hash, file.name, tenantId);
-      // Write straight to the canonical content-addressed path. The previous
-      // implementation inserted a staging media row only to reuse the adapter
-      // upload path, then deleted it — an extra DB round-trip and a transient
-      // gallery row for every version upload.
-      if (buffer) {
-        await this.ensureOriginalOnDisk(hash, file.name, buffer, tenantId);
-      } else if (typeof file.stream === "function") {
-        await this.ensureOriginalOnDisk(hash, file.name, file.stream(), tenantId);
-      } else if (typeof file.arrayBuffer === "function") {
-        await this.ensureOriginalOnDisk(
-          hash,
-          file.name,
-          Buffer.from(await file.arrayBuffer()),
-          tenantId,
-        );
-      } else {
-        throw new Error("Version upload requires a readable file stream");
-      }
-
-      // 3. Create version record from the OLD properties
-      const existingR = existing as unknown as EnrichableRecord;
-      const versions = (existingR.metadata?.versions as MediaVersionEntry[] | undefined) || [];
-      const now = nowISODateString();
-      const oldVersionEntry = buildVersionSnapshot(
-        existingR,
-        versions.length + 1,
-        userId,
-        "replace",
-        now,
-      );
-
-      // Push old version to the history array
-      const updatedVersions = [...versions, oldVersionEntry];
-
-      // 4. Update the existing database record with the new file properties
-      const updatedMetadata: Record<string, unknown> = {
-        ...(existingR.metadata as Record<string, unknown>),
-        ...versionImageMetadata,
-        versions: updatedVersions,
-        imageVariants: versionVariantsMetadata,
-        processingStatus: versionMetadata.processingStatus,
-      };
-      if (versionVariantsMetadata.length === 0 && isRaster && buffer) {
-        updatedMetadata.processingError = "No variants generated";
-      } else {
-        delete updatedMetadata.processingError;
-      }
-
-      const updateData = {
-        filename: file.name,
-        originalFilename: file.name,
-        mimeType: file.type,
-        size: file.size,
-        hash,
-        path: newRelPath,
-        thumbnails: versionThumbnails,
-        metadata: updatedMetadata,
-        updatedBy: userId,
-        updatedAt: now,
-      };
-
-      await this.updateMedia(mediaId, updateData, tenantId, { internal: true });
-
-      // Large streamed images never had a buffer — generate their derivatives
-      // off the request path and flip `processingStatus` when they land.
-      if (isRaster && !buffer) {
-        this.generateVariantsForStreamedFile(
-          hash,
-          newRelPath,
-          file.type,
-          file.name,
-          mediaId as DatabaseId,
-          tenantId,
-        );
-      }
-
-      // Return the updated media item enriched directly without a redundant DB round-trip
-      return {
-        success: true,
-        data: this.enrichMediaWithUrl({
-          ...existingR,
-          ...updateData,
-        } as unknown as EnrichableRecord) as unknown as MediaItem,
-      };
-    } catch (err: unknown) {
-      this.mapFileSystemError(err);
-      const e = err as Error;
-      logger.error(`[MediaService] Error uploading new version:`, err);
-      return {
-        success: false,
-        message: e.message,
-        error: err as DatabaseError,
-      };
-    }
+    return executeUploadNewVersion(this, mediaId, file, userId, tenantId);
   }
 
   /**
@@ -2547,104 +1422,6 @@ export class MediaService {
     userId: string,
     tenantId?: DatabaseId | null,
   ): Promise<DatabaseResult<MediaItem>> {
-    try {
-      // 1. Get the media item
-      const res = await this.db.crud.findOne<DbMediaItem>(
-        "media",
-        { _id: mediaId as DatabaseId },
-        { tenantId: tenantId },
-      );
-      if (!res.success || !res.data) {
-        throw new Error("Media item not found");
-      }
-      const existingR = res.data as unknown as EnrichableRecord;
-
-      const versions = (existingR.metadata?.versions as MediaVersionEntry[] | undefined) || [];
-      const targetVersion = versions.find((v: MediaVersionEntry) => v.version === versionNumber);
-      if (!targetVersion) {
-        throw new Error(`Version ${versionNumber} not found`);
-      }
-
-      // 2. Create a version entry from the CURRENT active state
-      const now = nowISODateString();
-      const currentVersionEntry = buildVersionSnapshot(
-        existingR,
-        versions.length + 1,
-        userId,
-        "restore",
-        now,
-      );
-
-      // 3. Update the active record to point back to the restored version
-      const updatedVersions = [...versions, currentVersionEntry];
-      const restoredHash = textOr(targetVersion.hash, textOr(existingR.hash));
-      const isRaster = isRasterImage(
-        targetVersion.mimeType || textOr(existingR.mimeType),
-        targetVersion.filename,
-      );
-      const restoredVariants = Array.isArray(targetVersion.imageVariants)
-        ? targetVersion.imageVariants
-        : [];
-      const restoredThumbnails =
-        targetVersion.thumbnails && typeof targetVersion.thumbnails === "object"
-          ? targetVersion.thumbnails
-          : {};
-      // Legacy entries predate derivative capture: never keep the replaced
-      // version's renditions — clear them and regenerate from the restored bytes.
-      const needsDerivativeRepair = isRaster && restoredVariants.length === 0;
-      const updatedMetadata: Record<string, unknown> = {
-        ...(existingR.metadata as Record<string, unknown>),
-        versions: updatedVersions,
-        imageVariants: restoredVariants,
-        processingStatus: !isRaster
-          ? MediaProcessingStatus.Ready
-          : needsDerivativeRepair
-            ? MediaProcessingStatus.Processing
-            : MediaProcessingStatus.Ready,
-      };
-      if (!needsDerivativeRepair) delete updatedMetadata.processingError;
-
-      const updateData = {
-        filename: targetVersion.filename || textOr(existingR.filename),
-        originalFilename: targetVersion.filename || textOr(existingR.filename),
-        mimeType: targetVersion.mimeType || textOr(existingR.mimeType),
-        size: targetVersion.size ?? numberOr(existingR.size),
-        hash: restoredHash,
-        path: targetVersion.path,
-        thumbnails: restoredThumbnails,
-        metadata: updatedMetadata,
-        updatedBy: userId,
-        updatedAt: now,
-      };
-
-      await this.updateMedia(mediaId, updateData, tenantId, { internal: true });
-
-      if (needsDerivativeRepair && restoredHash && targetVersion.path) {
-        this.generateVariantsForStreamedFile(
-          restoredHash,
-          targetVersion.path,
-          targetVersion.mimeType || textOr(existingR.mimeType) || "image/*",
-          targetVersion.filename || textOr(existingR.filename) || "restored",
-          mediaId as DatabaseId,
-          tenantId,
-        );
-      }
-
-      return {
-        success: true,
-        data: this.enrichMediaWithUrl({
-          ...existingR,
-          ...updateData,
-        } as unknown as EnrichableRecord) as unknown as MediaItem,
-      };
-    } catch (err: unknown) {
-      const e = err as Error;
-      logger.error(`[MediaService] Error restoring version:`, err);
-      return {
-        success: false,
-        message: e.message,
-        error: err as DatabaseError,
-      };
-    }
+    return executeRestoreVersion(this, mediaId, versionNumber, userId, tenantId);
   }
 }

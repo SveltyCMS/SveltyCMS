@@ -169,6 +169,7 @@ const SERVER_STUB_FILES = [
   "/src/databases/db-utils.ts",
   "/src/databases/schemas.ts",
   "/src/databases/auth/index.ts",
+  "/src/databases/auth/auth-service.ts",
   "/src/databases/auth/session-manager.ts",
   "/src/databases/auth/two-factor-auth.ts",
   "/src/databases/auth/permissions.ts",

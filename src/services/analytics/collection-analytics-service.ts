@@ -182,7 +182,7 @@ function resolvePreviousRange(
 }
 
 /** Format numbers with appropriate unit compacting (e.g. 1.2K, 3.4M) */
-export function formatMetricNumber(val: number): string {
+function formatMetricNumber(val: number): string {
   if (!Number.isFinite(val)) return "0";
   if (Math.abs(val) >= 1_000_000) {
     return (val / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";

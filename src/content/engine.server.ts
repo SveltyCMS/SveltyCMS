@@ -730,7 +730,9 @@ export const contentService = {
     const [dbResult, categoryNodes, manifestOrder, manifestStructure] = await Promise.all([
       dbAdapter.content.nodes.getStructure("flat", {
         tenantId: tenantId as any,
-        ...withSystemScope("bootstrap"),
+        // A caller-scoped read must not bypass the tenant predicate; only a
+        // genuinely global request (tenantId null/empty) uses system scope.
+        ...(tenantId ? {} : withSystemScope("bootstrap")),
       }),
       generateCategoryNodesFromPaths(schemas, tenantId),
       getCollectionOrder(tenantId ?? null),
@@ -1209,7 +1211,9 @@ export const contentService = {
     if (!db) return [];
     const res = await db.content.nodes.getStructure(format as any, {
       tenantId: tenantId as any,
-      ...withSystemScope("bootstrap"),
+      // Only a global read (no tenant) may bypass the tenant predicate; a
+      // tenant-scoped caller must never receive other tenants' structures.
+      ...(tenantId ? {} : withSystemScope("bootstrap")),
       // Fresh read: callers use this right after structure writes (saves,
       // GUI reorders) — a stale cached empty list would render an empty
       // builder board even though the DB row exists.
@@ -1281,7 +1285,10 @@ export const contentService = {
           // requested path really survived the delete.
           const remaining = await dbAdapter.content.nodes.getStructure("flat", {
             tenantId: tenantId as any,
-            ...withSystemScope("bootstrap"),
+            // Only a genuinely global request (no tenant) may bypass the tenant
+            // predicate: with a live tenantId, `withSystemScope` empties the
+            // clause and this re-read would see every tenant's nodes.
+            ...(tenantId ? {} : withSystemScope("bootstrap")),
             bypassCache: true,
           });
           const remainingPaths = new Set(

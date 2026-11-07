@@ -6,7 +6,7 @@
 import { logger } from "@utils/logger";
 
 // Registry of plugin UI components (lazy-loaded)
-export const pluginUIComponents: Record<string, Record<string, () => Promise<{ default: any }>>> = {
+const pluginUIComponents: Record<string, Record<string, () => Promise<{ default: any }>>> = {
   pagespeed: {
     // score: () => import('@components/plugins/PageSpeedScore.svelte')
   },

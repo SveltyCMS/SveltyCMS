@@ -160,9 +160,9 @@ export const DEFAULT_ENABLED_SYSTEM_IDS: readonly string[] = [
   "settings",
 ] as const;
 
-export const PREFS_VERSION = 1 as const;
-export const LEGACY_PINS_KEY = "floatingNav_pins";
-export const LEGACY_FAVORITES_KEY = "floatingNav_favorites";
+const PREFS_VERSION = 1 as const;
+const LEGACY_PINS_KEY = "floatingNav_pins";
+const LEGACY_FAVORITES_KEY = "floatingNav_favorites";
 /** Default radial spoke bg when PageTitle does not pass `navColor`. */
 export const DEFAULT_FAVORITE_COLOR = "bg-warning-500";
 
@@ -211,7 +211,7 @@ export function normalizeNavPath(path: string): string {
   return trimmed.length > 0 ? trimmed : "/";
 }
 
-export function getUserStorageKey(userId: string): string {
+function getUserStorageKey(userId: string): string {
   return `${STORAGE_PREFIX}${userId}`;
 }
 
@@ -224,7 +224,7 @@ export function findSystemEndpointByPath(pathname: string): SystemEndpointDef | 
   return SYSTEM_ENDPOINTS.find((e) => normalizeNavPath(e.path) === norm);
 }
 
-export function getFixedSystemEndpoints(): SystemEndpointDef[] {
+function getFixedSystemEndpoints(): SystemEndpointDef[] {
   return SYSTEM_ENDPOINTS.filter((e) => e.fixed);
 }
 
@@ -266,7 +266,7 @@ export function migrateLegacyFavorites(raw: unknown): FloatingNavFavorite[] {
   return out;
 }
 
-export function migrateLegacyPins(raw: unknown): string[] | null {
+function migrateLegacyPins(raw: unknown): string[] | null {
   if (!Array.isArray(raw)) return null;
   const ids = raw.filter((id): id is string => typeof id === "string");
   return ids;

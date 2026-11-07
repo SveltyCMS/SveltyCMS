@@ -83,7 +83,7 @@ Handles all field types and validation automatically
 	// Remote Functions — loaded dynamically for code splitting
 
 	// Types and Utilities
-	import type { SettingField, SettingGroup } from './settings-groups';
+	import type { SettingField, SettingGroup } from '@src/services/system/settings-groups';
 	import {
 		initializeGroupValues,
 		validateSettingField,
@@ -572,9 +572,8 @@ Handles all field types and validation automatically
 						action: {
 							label: 'Update Now',
 							onClick: async () => {
-								const ModalEditForm = (
-									await import('@src/routes/(app)/user/components/modal-edit-form.svelte')
-								).default;
+								const ModalEditForm = (await import('@components/user/modal-edit-form.svelte'))
+									.default;
 								modalState.trigger(ModalEditForm, {
 									user_id: currentUser._id,
 									username: currentUser.username,

@@ -17,7 +17,7 @@ export type StitchWarningCode = "NONE" | "HIGH_KEY_COUNT" | "NEAR_BUDGET";
 /** Warn when batch size may cause N+1 latency in list/table enrich paths */
 export const STITCH_WARNING_THRESHOLD = 25;
 
-export const NEAR_BUDGET_RATIO = 0.8;
+const NEAR_BUDGET_RATIO = 0.8;
 
 export interface StitchTelemetry {
   stitchWarning: boolean;

@@ -60,8 +60,7 @@ Features:
 		userpasskey_verification_failed_description,
 		userpasskey_verification_failed_title
 	} from '@src/paraglide/messages';
-	import { getPasskeyRegisterOptions, verifyPasskeyRegister } from '@src/routes/login/auth.remote';
-	import { revokePasskey } from '../user.remote';
+	import { getPasskeyRegisterOptions, verifyPasskeyRegister, revokePasskey } from '../user.remote';
 	import type { Authenticator, User } from '@src/databases/auth/types';
 
 	interface Props {

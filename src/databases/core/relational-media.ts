@@ -618,7 +618,7 @@ export function escapeRegex(value: string): string {
 /**
  * Dialect-specific expression extracting a value from the media `metadata` column.
  */
-export function metadataJsonExtractSql(dialect: MediaJsonSqlDialect, relativePath: string): SQL {
+function metadataJsonExtractSql(dialect: MediaJsonSqlDialect, relativePath: string): SQL {
   if (dialect === "postgresql") {
     if (relativePath.includes(".")) {
       const pathLiteral = `{${relativePath.split(".").join(",")}}`;

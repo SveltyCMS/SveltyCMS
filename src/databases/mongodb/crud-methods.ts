@@ -1785,7 +1785,9 @@ export class MongoCrudMethods<T extends BaseEntity> {
     const startTime = performance.now();
     try {
       const filter: any = { _id: id };
-      if (options.tenantId) filter.tenantId = options.tenantId;
+      // `null` is a real scope (global rows), so only an absent tenantId means
+      // "no context" — mirror the SQL `tenantId IS NULL` predicate.
+      if (options.tenantId !== undefined) filter.tenantId = options.tenantId;
 
       if (options.skipReturning === true) {
         const written = await this.model

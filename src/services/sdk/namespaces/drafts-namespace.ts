@@ -15,6 +15,8 @@
  * - `saveDraft` upserts the newest draft for `(contentId, authorId)` and bumps `version`
  * - A new unsaved entry gets no placeholder id: the draft row's own UUID becomes
  *   `contentId` and `data.__draft = { kind: "new" }` marks it resumable
+ * - `promoteDraft` writes the staged data through the normal create/update lane and
+ *   removes the draft only after the live write lands (revision snapshot included)
  * - Legacy drafts (`collectionId` null) stay reachable by entry id
  * - Discard one draft or every draft for an entry, always author-scoped
  */
@@ -27,6 +29,7 @@ import type {
   DatabaseResult,
   IDBAdapter,
 } from "@src/databases/db-interface";
+import { StatusTypes, type StatusType } from "@src/content/types";
 import type { CollectionsNamespace } from "./collections-namespace";
 import type { LocalApiOptions } from "./types";
 
@@ -35,6 +38,16 @@ const DRAFT_STATUSES = new Set<ContentDraft["status"]>(["draft", "review", "arch
 
 /** The adapter column name for the draft table (no domain adapter exposes it otherwise). */
 const DRAFT_COLLECTION = "content_drafts";
+
+/** Status written to the live row when the caller promotes for a publish. */
+export interface PromoteDraftOptions extends LocalApiOptions {
+  /**
+   * Live-row status for the promoted entry. Omitted → the status staged in the
+   * draft is kept. A publish passes `StatusTypes.publish` so a draft autosaved
+   * while the entry was a draft is not promoted back to draft.
+   */
+  status?: StatusType;
+}
 
 /** Autosave payload: `entryId` targets a live entry, omitted for an unsaved one. */
 export interface SaveDraftPayload {
@@ -289,11 +302,20 @@ export class DraftsNamespace {
   /**
    * Promotes an existing draft to the live collection entry.
    * Cleans internal __draft markers, updates or creates the live row, and clears the draft.
+   *
+   * ### Write ordering
+   * The live write runs first and the draft row is deleted only after it lands,
+   * so a failed write leaves the draft intact and a retry re-promotes the same
+   * staged content. `IDBAdapter.transaction` exists, but the collection write
+   * lane runs validation, hooks, the revision snapshot and the outbox schedule
+   * outside any transaction handle; only this draft delete could join one. The
+   * ordered contract is therefore the fallback: a crash between the two writes
+   * leaves a stale draft, never a lost live write or a discarded draft.
    */
   async promoteDraft(
     collectionId: string,
     draftId: string,
-    options: LocalApiOptions = {},
+    options: PromoteDraftOptions = {},
   ): Promise<DatabaseResult<unknown>> {
     try {
       if (typeof draftId !== "string" || draftId.length === 0) {
@@ -319,24 +341,31 @@ export class DraftsNamespace {
 
       const rawData = (row.data as Record<string, unknown>) || {};
       const isNew = isNewEntryDraft(row as unknown as ContentDraft);
-      const liveData = withoutDraftMarker(rawData);
+      const staged = withoutDraftMarker(rawData);
       const contentId = row.contentId as string | undefined;
+      const liveData = options.status ? { ...staged, status: options.status } : staged;
+      if (options.status === StatusTypes.publish) {
+        // A publish supersedes a staged schedule: the scheduler would otherwise
+        // see a `_scheduled` timestamp on an already-published row. `updatedBy`
+        // and `updatedAt` are re-stamped by `collections.update()` itself.
+        delete liveData._scheduled;
+        delete liveData._scheduledBy;
+      }
 
       let result: DatabaseResult<unknown>;
       if (isNew || !contentId) {
-        result = await (this._collections as any).create(collectionId, liveData, options);
+        result = await this._collections.create(collectionId, liveData, options);
       } else {
-        result = await (this._collections as any).update(
-          collectionId,
-          contentId,
-          liveData,
-          options,
-        );
+        // Goes through the normal update lane, so the pre-write snapshot in
+        // `content_revisions` is recorded for revision-enabled collections.
+        result = await this._collections.update(collectionId, contentId, liveData, options);
       }
 
       if (result.success) {
-        // Automatically prune/discard the promoted draft once live row is written
-        await this.discardDraft(collectionId, draftId, options).catch(() => {});
+        // Live row is durable: only now is the staged row allowed to disappear.
+        await this.discardDraft(collectionId, draftId, options).catch((err) => {
+          logger.debug(`[Drafts] promoted ${draftId} but could not remove it:`, err);
+        });
       }
       return result;
     } catch (err) {

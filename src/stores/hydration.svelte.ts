@@ -21,7 +21,7 @@
 export const HYDRATION_ATTRIBUTE = "data-hydrated";
 
 /** Value that attribute carries once hydration completed. */
-export const HYDRATION_VALUE = "true";
+const HYDRATION_VALUE = "true";
 
 class HydrationStore {
   /** False in the server-rendered HTML, true from the first hydrated client tick. */

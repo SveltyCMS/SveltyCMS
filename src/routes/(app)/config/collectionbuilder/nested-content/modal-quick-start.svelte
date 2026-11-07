@@ -16,7 +16,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 <script lang="ts">
 	import Button from '@components/ui/button.svelte';
 	import Badge from '@components/ui/badge.svelte';
-	import { PRESETS } from '@src/routes/setup/presets';
+	import { PRESET_METADATA } from '@src/services/setup/preset-meta';
 	import {
 		builder_quickstart_available_templates,
 		builder_quickstart_cancel_aria,
@@ -42,7 +42,7 @@ Selecting a template auto-creates the collections using the installTemplateColle
 	let hoveredPreset = $state<string | null>(null);
 
 	const availablePresets = $derived(
-		PRESETS.filter((p) => p.collections && p.collections.length > 0)
+		PRESET_METADATA.filter((p) => p.collections && p.collections.length > 0)
 	);
 
 	function selectPreset(id: string) {

@@ -10,8 +10,8 @@ Sidebar navigation for System Settings
 	import GroupIcon from '@src/components/group-icon.svelte';
 	import Input from '@components/ui/input.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import type { SettingGroup } from '@src/routes/(app)/config/system-settings/settings-groups';
-	import { getSettingGroupsByRole } from '@src/routes/(app)/config/system-settings/settings-groups';
+	import type { SettingGroup } from '@src/services/system/settings-groups';
+	import { getSettingGroupsByRole } from '@src/services/system/settings-groups';
 	import { isAdmin as checkIsAdmin } from '@src/databases/auth/constants';
 	// Stores
 	import { groupsNeedingConfig } from '@src/routes/(app)/config/system-settings/settings-state.svelte';

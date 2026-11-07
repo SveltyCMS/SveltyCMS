@@ -67,7 +67,7 @@ function indexCategoryNodes(nodes: readonly CategoryDirNode[]): Map<string, Cate
  * A category inside another category uses the parent's directory plus its own slug,
  * so dragging Blog under News moves `blog/` to `news/blog/`.
  */
-export function desiredCategoryRelative(
+function desiredCategoryRelative(
   node: CategoryDirNode,
   byId: ReadonlyMap<string, CategoryDirNode>,
   seen: Set<string> = new Set(),
@@ -89,7 +89,7 @@ export function desiredCategoryRelative(
 }
 
 /** Relative directories the categories occupy, including a move under a new parent. */
-export function placedCategoryDirs(nodes: readonly CategoryDirNode[]): string[] {
+function placedCategoryDirs(nodes: readonly CategoryDirNode[]): string[] {
   const byId = indexCategoryNodes(nodes);
   const dirs: string[] = [];
   for (const node of nodes) {

@@ -22,6 +22,7 @@
 
 import type { FieldInstance, Schema } from "@src/content/types";
 import { getFieldName } from "@utils/schema/field-utils";
+import { raise } from "@utils/error-handling";
 import {
   compileBooleanFilterGroup,
   decodeBooleanFilterParam,
@@ -34,7 +35,7 @@ import {
 export const FILTER_URL_PREFIX = "filter_";
 
 /** System columns always allowed for filtering (when present on entries). */
-export const SYSTEM_FILTER_FIELDS = ["status", "createdAt", "updatedAt", "_id"] as const;
+const SYSTEM_FILTER_FIELDS = ["status", "createdAt", "updatedAt", "_id"] as const;
 
 /** Map Mongo-style / snake_case sort keys onto stored column names. */
 const SORT_FIELD_ALIASES: Record<string, string> = {
@@ -226,6 +227,124 @@ export function getNestedFilterPaths(collection: Schema | null | undefined): Nes
 
 /** Mongo-style logical operators that may appear at the top level of a filter. */
 const LOGICAL_OPERATOR_KEYS = new Set(["$and", "$or", "$nor", "$not"]);
+
+/** Field types whose stored value is boolean / numeric (see `schema-store` flags). */
+const BOOLEAN_FIELD_TYPES = new Set(["boolean", "checkbox", "toggle", "switch"]);
+const NUMERIC_FIELD_TYPES = new Set(["number", "integer", "float", "double", "decimal", "range"]);
+const TRUTHY_STRINGS = new Set(["true", "1", "yes", "on"]);
+const FALSY_STRINGS = new Set(["false", "0", "no", "off"]);
+/** Operators whose operand is a list (coerced element-wise). */
+const LIST_OPERATORS = new Set(["$in", "$nin", "$all", "$notIn"]);
+/** Operators whose operand is a scalar of the field's type. */
+const SCALAR_OPERATORS = new Set(["$eq", "$ne", "$gt", "$gte", "$lt", "$lte"]);
+
+/** Resolve a (possibly dotted) filter key to its declared field, if any. */
+function resolveFilterField(schema: Schema, key: string): Record<string, unknown> | null {
+  let fields: readonly unknown[] = schema.fields ?? [];
+  let found: Record<string, unknown> | null = null;
+  for (const segment of key.split(".").filter((part) => !/^\d+$/.test(part))) {
+    found = null;
+    for (const raw of fields) {
+      const field = raw as Record<string, unknown>;
+      if (fieldStorageNames(field as Partial<FieldInstance>).includes(segment)) {
+        found = field;
+        break;
+      }
+    }
+    if (!found) return null;
+    fields = Array.isArray(found.fields) ? (found.fields as readonly unknown[]) : [];
+  }
+  return found;
+}
+
+/**
+ * Coerce a query-string value to the declared field type.
+ * Unknown types pass through untouched; a value that cannot be represented in
+ * the field's type is a `400` rather than an adapter-dependent silent miss
+ * (MariaDB compares `'true'` against a TINYINT as `0`, Mongo matches nothing).
+ */
+function coerceFilterScalar(field: Record<string, unknown>, value: unknown, key: string): unknown {
+  const type = String(field.type ?? "").toLowerCase();
+  if (BOOLEAN_FIELD_TYPES.has(type)) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (TRUTHY_STRINGS.has(normalized)) return true;
+      if (FALSY_STRINGS.has(normalized)) return false;
+    }
+    raise(400, `Invalid boolean value for filter "${key}"`, "FILTER_INVALID_VALUE");
+  }
+  if (NUMERIC_FIELD_TYPES.has(type)) {
+    if (typeof value === "number") return value;
+    if (typeof value === "string" && value.trim() !== "") {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    raise(400, `Invalid numeric value for filter "${key}"`, "FILTER_INVALID_VALUE");
+  }
+  return value;
+}
+
+/**
+ * Coerce every leaf of a REST filter to its schema type (booleans, numbers).
+ * Returns a new object: filters may be shared with a cache key or the caller's
+ * options bag, so the input is never mutated. Unknown keys are left alone here
+ * (`assertFilterableFields` owns rejection).
+ */
+export function coerceFilterValues(
+  schema: Schema | null | undefined,
+  filter: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!schema || !filter || typeof filter !== "object" || Array.isArray(filter)) {
+    return (filter ?? {}) as Record<string, unknown>;
+  }
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(filter)) {
+    if (LOGICAL_OPERATOR_KEYS.has(key)) {
+      if (Array.isArray(value)) {
+        out[key] = value.map((entry) =>
+          entry && typeof entry === "object" && !Array.isArray(entry)
+            ? coerceFilterValues(schema, entry as Record<string, unknown>)
+            : entry,
+        );
+      } else if (key === "$not" && value && typeof value === "object") {
+        out[key] = coerceFilterValues(schema, value as Record<string, unknown>);
+      } else {
+        out[key] = value;
+      }
+      continue;
+    }
+    if (key.startsWith("$")) {
+      out[key] = value;
+      continue;
+    }
+    const field = resolveFilterField(schema, key);
+    if (!field) {
+      out[key] = value;
+      continue;
+    }
+    if (Array.isArray(value)) {
+      out[key] = value.map((entry) => coerceFilterScalar(field, entry, key));
+      continue;
+    }
+    if (value && typeof value === "object") {
+      const operators: Record<string, unknown> = {};
+      for (const [operator, operand] of Object.entries(value as Record<string, unknown>)) {
+        if (LIST_OPERATORS.has(operator) && Array.isArray(operand)) {
+          operators[operator] = operand.map((entry) => coerceFilterScalar(field, entry, key));
+        } else if (SCALAR_OPERATORS.has(operator)) {
+          operators[operator] = coerceFilterScalar(field, operand, key);
+        } else {
+          operators[operator] = operand;
+        }
+      }
+      out[key] = operators;
+      continue;
+    }
+    out[key] = coerceFilterScalar(field, value, key);
+  }
+  return out;
+}
 
 /** Remove array-index segments (`items.0.title` → `items.title`). */
 function withoutArrayIndices(path: string): string {

@@ -1,0 +1,23 @@
+{
+  "summary": {
+    "generatedAt": "2026-11-07T09:50:00.000Z",
+    "totalFiles": 1467,
+    "totalLoc": 418327,
+    "totalBytes": 14161800,
+    "runtimeEdgeCount": 6049,
+    "typeEdgeCount": 1031,
+    "barrelCount": 20,
+    "passThroughBarrelCount": 2,
+    "reExportBridgeCount": 2,
+    "microFileCount": 266,
+    "singleCallerCount": 512,
+    "sameDirUntestedSingleCallerCount": 17,
+    "orphanFileCount": 58,
+    "unusedRuntimeExportCount": 298,
+    "testOnlyRuntimeExportCount": 489,
+    "runtimeCycleCount": 6,
+    "clientServerLeakCount": 0,
+    "clientReachableFiles": 443,
+    "clientReachableKB": 4250
+  }
+}

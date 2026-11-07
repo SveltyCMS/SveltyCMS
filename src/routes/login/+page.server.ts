@@ -44,7 +44,7 @@ import { sendMail } from "@utils/email.server";
 import { safeRedirect } from "@src/utils/security/safe-redirect";
 
 import { getSystemState } from "@src/stores/system/state.svelte.ts";
-import pkg from "../../../package.json";
+import pkg from "@root/package.json";
 
 // Auth actions delegate to auth.remote.ts
 import {

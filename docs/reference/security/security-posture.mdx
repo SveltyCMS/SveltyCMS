@@ -1,21 +1,21 @@
 ---
 path: "docs/reference/security/security-posture.mdx"
-title: "Security Posture — 2026-10-18"
-description: "Dated, self-assessed security and FIPS 140-3 posture: internal gates, external penetration-test status, scope checklist, and open items as of 2026-10-18."
+title: "Security Posture — 2026-11-07"
+description: "Dated, self-assessed security and FIPS 140-3 posture: internal gates, external penetration-test status, scope checklist, and open items; base assessment 2026-10-18, hardening sections dated."
 order: 11
 icon: "mdi:shield-check-outline"
 author: "SveltyCMS Team"
 created: "2026-10-18"
-updated: "2026-11-05"
+updated: "2026-11-07"
 tags:
   - "security"
   - "compliance"
   - "assessment"
 ---
 
-# Security Posture — 2026-10-18
+# Security Posture — 2026-11-07
 
-This page records the security assessment posture of the SveltyCMS repository as of **2026-10-18**. It is a factual status page, not a certificate, an audit report, or a marketing claim. Where a control has not been independently verified, this page says so.
+This page records the security assessment posture of the SveltyCMS repository. The **base assessment is dated 2026-10-18**; controls shipped after that date are listed in the dated hardening sections below, most recently **2026-11-07**. It is a factual status page, not a certificate, an audit report, or a marketing claim. Where a control has not been independently verified, this page says so.
 
 The internal gates below are **self-assessed** by the project. They fail when a named control regresses, but they are rule-based and regression-based; they do not replace an independent assessment of a running deployment.
 
@@ -88,10 +88,24 @@ page still lists as open:
 | Ephemeral key-material zeroing           | DEK/KEK and plaintext buffers are wiped in `finally` in `hybrid-kem`, `field-encryption`, `share-link-hash`, and `hmacSha256VerifyWithKeys`.                                                                      | `tests/unit/utils/field-encryption.test.ts`, `tests/unit/media/sharing.test.ts`                        |
 | WASM plugin sandbox (marketplace code)   | Third-party plugins run in `WasmPluginPool` with a 128 MB global ceiling, linear-memory zeroing, 500-run recycling, and pointer-bounded host ABIs; first-party core plugins stay on the native JS path.           | `tests/unit/plugins/wasm-plugin-pool.test.ts`, `tests/unit/plugins/post-write-wasm-dual-track.test.ts` |
 
-**Known propagation gap:** the revocation epoch and the L1 flood gate are
-process-local. A multi-node deployment still relies on the persisted session row
-and Redis bucket for cross-node effects — do not describe either control as
-cluster-wide until the outbox/Redis propagation is wired.
+### Hardening added 2026-11-07
+
+Shipped after a code-path review of competitor advisories and two independent read-only audits. Each row is covered by the named regression; none has been exercised by the external test this page still lists as open.
+
+| Control                                      | Implementation                                                                                                                                                                                                                                                                                                                                                                | Regression                                                                                                                            |
+| :------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| Privilege-change session revocation          | A patch touching `role`/`roles`/`roleIds`/`isAdmin`/`permissions`/`blocked` invalidates the permission cache, purges every stored session (LRU + store + DB row), and publishes a user revocation epoch plus a shared-cache marker. The session-cache hit path re-checks the epoch, so a warm snapshot cannot outlive the change. OIDC `syncRolesOnLogin` uses the same path. | `tests/unit/api/user.test.ts`, `tests/unit/auth/sessions/session-cookies.test.ts`, `tests/unit/api/rbac-endpoint-integration.test.ts` |
+| `__Host-`-only session cookie in secure mode | Secure contexts read only the `__Host-` cookie; the plain and `__Secure-` names are dev-only fallbacks, so a `Domain=` cookie planted by a sibling subdomain is ignored. `path=/` is forced for the prefixed cookie, and the rate-limit tier peek follows the same rule.                                                                                                      | `tests/unit/auth/sessions/session-cookies.test.ts`, `tests/benchmarks/security-utils.test.ts`                                         |
+| Avatar upload boundary                       | The self-service avatar route requires `media:write` for the upload branch, accepts only an image, and stores only a site file path (`/files                                                                                                                                                                                                                                  | media                                                                                                                                 | mediaFolder/…`) or a base64 image data URL with a length cap. The alias route applies the same checks. | `tests/unit/api/user.test.ts` |
+| Media version-upload branch parity           | `executeUploadNewVersion` validates the declared MIME before every branch; each branch sniffs the header, calls `assertMimeAgreement`, enforces the upload allowlist, and rejects SVG content including the `<svg` polyglot probe. Failures are `415`, and the row stores the verified type and written byte count.                                                           | `tests/unit/api/media-security.test.ts`, `tests/unit/api/media-security-critical.test.ts`                                             |
+| `/files/` response policy                    | MIME parameters are normalized, so `text/html; charset=utf-8` cannot bypass the attachment branch. HTML/XHTML/XML/JavaScript/CSS are served as `attachment` with `default-src 'none'; sandbox` and `nosniff`; cloud mode refuses a redirect for those types instead of delegating the headers to the bucket.                                                                  | `tests/unit/media/files-route-transform.test.ts`, `tests/unit/api/media-security.test.ts`                                             |
+| Public-form upload exclusion                 | Anonymous `/api/forms` submissions drop `File`/`Blob` values recursively (arrays and nested objects), using a duck-typed check instead of `instanceof`, so the widget pipeline cannot store media as the `system` user.                                                                                                                                                       | `tests/unit/api/forms-security.test.ts`                                                                                               |
+| REST filter type coercion                    | Query-string filter leaves are coerced to the declared field type (`boolean`, `number`) at the `validateFilter` boundary; an unrepresentable value is `400 FILTER_INVALID_VALUE` instead of an adapter-dependent silent miss or inverted MariaDB row. Logical groups and operator operands are walked; the input is not mutated.                                              | `tests/unit/security/filter-coercion.test.ts`                                                                                         |
+| Relation-target read policy                  | Populated relations are fetched with the caller's publication filter, ownership rule and ACCESS*RULES, and target rows are redacted with the target schema before `\_populated*\*` is attached. The shared relation cache is skipped for unprivileged callers when a constraint applies, so a cached draft cannot bypass the policy.                                          | `tests/unit/sdk/populate-policy.test.ts` (redaction, admin bypass, published clamp, cache skip)                                       |
+| Nested guarded-field recursion               | `fieldDeclaresGuardDeep()` walks group/repeater children; the schema hot flag, the guarded-filter blocker and the read redactor (including repeater arrays) use it, so `team.salary` is hidden and `filter[team.salary]` is rejected.                                                                                                                                         | `tests/unit/security/nested-field-guards.test.ts`                                                                                     |
+| Tenant-scope lint gate                       | `scripts/lint/lint-tenant-scope.ts` fails an unconditional `withSystemScope()` spread next to a live `tenantId` (the bug class that shipped twice in content reads). It runs inside `bun run check` (23 static gates) and has a bootstrap allowlist for setup/E2E seeders.                                                                                                    | `tests/unit/scripts/lint-tenant-scope.test.ts`                                                                                        |
+
+**Propagation note (updated 2026-11-07):** role and block changes now also publish a user revocation marker to the shared cache, which the session-cache hit path reads with a 5-second per-user memo. Global and tenant revocation epochs, the L1 flood gate, and the permission/session LRUs are still process-local; a multi-node deployment should not describe them as cluster-wide until the outbox/Redis propagation is wired.
 
 ## What an external test should cover
 

@@ -15,7 +15,7 @@
  */
 
 /** Modes in which the editor entry exists and a save is meaningful. */
-export const SAVE_SHORTCUT_MODES: readonly string[] = ["edit", "create"];
+const SAVE_SHORTCUT_MODES: readonly string[] = ["edit", "create"];
 
 export interface SaveShortcutEvent {
   altKey?: boolean;

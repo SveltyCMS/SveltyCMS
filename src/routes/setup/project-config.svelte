@@ -19,14 +19,14 @@ Features:
 	import Select from '@components/ui/select.svelte';
 	import { setup_presets_helper } from '@src/paraglide/messages';
 	import type { SystemSettings } from '@src/stores/setup-store.svelte.ts';
-	import { countryOptions, suggestMarket } from './market';
+	import { countryOptions, suggestMarket } from '@src/services/setup/market';
 	import PresetSelector from './preset-selector.svelte';
-	import { PRESETS } from './presets';
+	import { PRESET_METADATA } from '@src/services/setup/preset-meta';
 
 	// --- PROPS ---
 	let { systemSettings = $bindable() }: { systemSettings: SystemSettings } = $props();
 
-	const presets = PRESETS;
+	const presets = PRESET_METADATA;
 	const countryChoices = countryOptions();
 
 	// The market block (country, currency, tax) only applies when the chosen blueprint

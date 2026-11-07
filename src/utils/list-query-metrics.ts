@@ -37,7 +37,7 @@ export function recordListQuery(sample: Omit<ListQuerySample, "at">): ListQueryS
   return full;
 }
 
-export function getListQuerySamples(source?: string): ListQuerySample[] {
+function getListQuerySamples(source?: string): ListQuerySample[] {
   const result: ListQuerySample[] = [];
 
   for (let i = 0; i < count; i++) {

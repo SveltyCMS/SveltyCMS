@@ -24,7 +24,7 @@ import type { Component } from "svelte";
 export type AdminComponentKey = keyof typeof adminComponentRegistry;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const adminComponentRegistry: Record<string, Component<any>> = {
+const adminComponentRegistry: Record<string, Component<any>> = {
   // Canonical names
   Input,
   Toggle,

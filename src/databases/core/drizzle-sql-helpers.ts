@@ -39,6 +39,14 @@ import { normalizeSortDirection } from "./page-utils";
 import { logger } from "@utils/logger";
 
 /**
+ * Sentinel for the raw point-read fast path.
+ * `null` from `rawFindById` means "SELECT ran and matched 0 rows" (absent);
+ * `RAW_DECLINED` means "the raw path could not run" (fall back to Drizzle).
+ */
+export const RAW_DECLINED: unique symbol = Symbol("SveltyCMS.RAW_DECLINED");
+export type RawFindResult<T> = T | null | typeof RAW_DECLINED;
+
+/**
  * Universal Drizzle write executor across SQLite (.run()), LibSQL (.run()), and PostgreSQL/MariaDB (thenable).
  */
 export async function executeWrite<T extends { run?: () => Promise<unknown> }>(
@@ -176,7 +184,7 @@ function widgetNameOf(field: any): string {
  * Exact string field types — never coerced through numeric/boolean paths.
  * Their physical types come from `materializedSqlType` (see collection-module).
  */
-export const EXACT_STRING_FIELD_TYPES: ReadonlySet<string> = new Set([
+const EXACT_STRING_FIELD_TYPES: ReadonlySet<string> = new Set([
   "decimal",
   "bigint",
   "calendarDay",
@@ -192,7 +200,7 @@ function isExactStringFieldType(type: unknown): boolean {
  * physical column (capability check — see `shouldMaterializeField` for the
  * policy that decides when columns are actually created).
  */
-export function isScalarMaterializableField(field: any): boolean {
+function isScalarMaterializableField(field: any): boolean {
   if (!field || typeof field !== "object") return false;
   const type = field.type;
   const isExact = isExactStringFieldType(type);
@@ -298,7 +306,7 @@ export function materializedColumnTypes(fields: unknown): Map<string, string> {
  * `slug` and `locale` are equality-lookup columns whose single-column index
  * already serves every filter that uses them.
  */
-export const COMPOSITE_INDEX_BASE_COLUMNS: ReadonlySet<string> = new Set(["publishedAt"]);
+const COMPOSITE_INDEX_BASE_COLUMNS: ReadonlySet<string> = new Set(["publishedAt"]);
 
 /**
  * Whether a materialized field earns the covering composite index.
@@ -345,7 +353,7 @@ export function buildCompositeIndexColumns(fields: unknown): Set<string> {
  * The wire plane's JSON generator needs the complement of this set to know which
  * physical columns hold *field* values (see `getMaterializedFieldColumns`).
  */
-export const COLLECTION_SYSTEM_COLUMNS: ReadonlySet<string> = new Set([
+const COLLECTION_SYSTEM_COLUMNS: ReadonlySet<string> = new Set([
   "_id",
   "tenantId",
   "status",
@@ -499,7 +507,7 @@ export const SYSTEM_COLLECTIONS = new Set([
   "pluginStorage",
 ]);
 
-export const SYSTEM_NAME_MAP = new Map<string, string>();
+const SYSTEM_NAME_MAP = new Map<string, string>();
 for (const [key, val] of Object.entries(SQL_TABLE_ALIASES)) {
   SYSTEM_NAME_MAP.set(key, val);
   SYSTEM_NAME_MAP.set(val, val);
@@ -871,7 +879,7 @@ export const SYSTEM_LITERAL_COLUMNS: Record<string, string[]> = {
   ],
 };
 
-export const FIXED_COLUMNS = new Set([
+const FIXED_COLUMNS = new Set([
   "_id",
   "id",
   "path",

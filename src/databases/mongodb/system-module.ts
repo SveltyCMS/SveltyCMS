@@ -46,7 +46,7 @@ function tenantIdOf(value: unknown): string | null {
   return null;
 }
 
-export class MongoSystemMethods {
+class MongoSystemMethods {
   private readonly SystemPreferencesModel: Model<SystemPreferencesDocument>;
   private readonly SystemSettingModel: Model<SystemSetting>;
 

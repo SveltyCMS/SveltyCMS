@@ -9,7 +9,7 @@ import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId } from "@src/content/types";
 import { rawResponse, successResponse } from "../base";
 import { requireAdminUser } from "./system-shared";
-import { settingsGroups } from "@src/routes/(app)/config/system-settings/settings-groups";
+import { settingsGroups } from "@src/services/system/settings-groups";
 import { handleWebhookRoutes } from "./system-webhooks";
 
 /**

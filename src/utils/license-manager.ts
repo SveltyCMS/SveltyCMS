@@ -16,9 +16,6 @@
  * - NEVER throws
  */
 
-import { getDb } from "@src/databases/db";
-import { getPrivateSettingSync } from "@src/services/core/settings-service";
-
 export interface LicenseStatus {
   active: boolean;
   daysRemaining: number | null;
@@ -58,9 +55,11 @@ function setCache(cacheKey: string, status: LicenseStatus): void {
   licenseCache.set(cacheKey, { status, expiresAt: Date.now() + ttl });
 }
 
-function safeGetSetting(key: string): string {
+async function safeGetSetting(key: string): Promise<string> {
+  if (typeof window !== "undefined") return "";
   try {
-    const value = getPrivateSettingSync(key as any);
+    const { getPrivateSettingSync } = await import("@src/services/core/settings-service");
+    const value: unknown = getPrivateSettingSync(key as never);
     return typeof value === "string" ? value.trim() : "";
   } catch {
     return "";
@@ -133,8 +132,10 @@ async function checkExtensionRegistration(extensionId: string): Promise<LicenseS
 }
 
 async function computeTrialStatus(): Promise<LicenseStatus | null> {
+  if (typeof window !== "undefined") return null;
   try {
     if (!cachedInstallDate) {
+      const { getDb } = await import("@src/databases/db");
       const db = getDb();
       if (!db) return null;
 
@@ -183,8 +184,9 @@ export async function checkExtensionLicense(
   const specificKeyName = `LICENSE_KEY_${type.toUpperCase()}_${id
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "_")}`;
-  const specificKey = safeGetSetting(specificKeyName);
-  const masterKey = safeGetSetting("MARKETPLACE_LICENSE_KEY") || safeGetSetting("LICENSE_KEY");
+  const specificKey = await safeGetSetting(specificKeyName);
+  const masterKey =
+    (await safeGetSetting("MARKETPLACE_LICENSE_KEY")) || (await safeGetSetting("LICENSE_KEY"));
 
   // Dynamic cache key: changes when license keys change (auto-invalidates on purchase)
   const cacheKey = `${extensionId}|${specificKey}|${masterKey}`;

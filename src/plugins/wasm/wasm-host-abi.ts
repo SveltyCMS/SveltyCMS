@@ -30,7 +30,7 @@ export const PROTECTED_COLLECTIONS = new Set([
 ]);
 
 /** Public read-only collections accessible if db:read capability is granted */
-export const PUBLIC_READ_COLLECTIONS = new Set(["collections", "media"]);
+const PUBLIC_READ_COLLECTIONS = new Set(["collections", "media"]);
 
 /** Strict identifier validation for collection names */
 const SAFE_COLLECTION_REGEX = /^[a-z0-9_-]{1,64}$/;

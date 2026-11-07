@@ -11,6 +11,29 @@ import type { DatabaseId } from "@src/content/types";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
+import { redactRecord } from "@utils/field-access";
+import { ownershipFilter } from "./collections/access-filter";
+import {
+  getReadConstraint,
+  mergeAccessConstraint,
+} from "@src/services/security/access-rule-service";
+import {
+  applyPublicationToQuery,
+  resolvePublicationFilter,
+  type PublicationFilter,
+} from "@utils/security/publication-policy";
+
+/**
+ * Caller policy applied to the TARGET rows of a populated relation. Without it a
+ * relation is a bypass: the parent query is scoped/redacted, the target fetch is
+ * a bare `_id $in` that returns drafts, foreign-tenant rows, and private fields.
+ */
+export interface PopulatePolicy {
+  user?: unknown;
+  system?: boolean;
+  requestedPublicationFilter?: PublicationFilter;
+  resolveTargetSchema?: (collectionId: string) => Promise<any>;
+}
 
 /**
  * Max ids per relation query — protects SQL variable limits. Hoisted so the
@@ -35,6 +58,7 @@ export async function resolvePopulatedRelations(
   tenantId: string | undefined,
   _dbAdapter: any,
   getCollectionName: (id: string) => string,
+  policy: PopulatePolicy = {},
 ): Promise<void> {
   if (!items || items.length === 0 || !populateFields || populateFields.length === 0) return;
 
@@ -96,6 +120,36 @@ export async function resolvePopulatedRelations(
       if (ids.size === 0) return;
 
       try {
+        const targetSchema = policy.resolveTargetSchema
+          ? await policy.resolveTargetSchema(collectionId)
+          : null;
+        const isAdminActor = policy.system === true;
+        const publicationFilter = resolvePublicationFilter(
+          { user: policy.user as never, system: policy.system === true },
+          policy.requestedPublicationFilter ?? null,
+        );
+        const targetName = String(targetSchema?.name || collectionName);
+        const accessConstraint = getReadConstraint(targetName, {
+          user: policy.user as never,
+          role: (policy.user as { role?: string } | undefined)?.role,
+          tenantId: tenantId ? String(tenantId) : null,
+        });
+        const ownership = targetSchema
+          ? ownershipFilter(targetSchema, policy.user, policy.system)
+          : false;
+        // Fail closed: ownership declared but the caller has no id.
+        if (ownership === null) return;
+        // Only a privileged caller with no row constraint may reuse the shared
+        // raw relation cache — otherwise cached drafts/private rows would bypass
+        // the target policy. Without a target schema there is no policy to
+        // enforce (unit-level callers / schema not loaded yet).
+        const enforceTargetPolicy =
+          Boolean(targetSchema) &&
+          !isAdminActor &&
+          (publicationFilter !== "all" ||
+            accessConstraint !== null ||
+            (ownership !== false && typeof ownership === "object"));
+
         const relatedMap = new Map<string, any>();
         const missingIds: string[] = [];
         // L2 keys are built once during the L1 probe and carried in parallel,
@@ -104,22 +158,30 @@ export async function resolvePopulatedRelations(
 
         // 🚀 L1 Probe: Check if relation entity is already in-memory
         const tenantKey = tenantId || "global";
-        for (const id of ids) {
-          const cacheKey = `${tenantKey}:collection:${collectionId}:${id}`;
-          const cached = cacheService.getSync<any>(cacheKey, tenantId);
-          if (cached && typeof cached === "object") {
-            const row = "data" in cached ? cached.data : cached;
-            if (row) {
-              relatedMap.set(id, row);
-              continue;
+        if (!enforceTargetPolicy) {
+          for (const id of ids) {
+            const cacheKey = `${tenantKey}:collection:${collectionId}:${id}`;
+            const cached = cacheService.getSync<any>(cacheKey, tenantId);
+            if (cached && typeof cached === "object") {
+              const row = "data" in cached ? cached.data : cached;
+              if (row) {
+                relatedMap.set(id, row);
+                continue;
+              }
             }
+            missingIds.push(id);
+            missingKeys.push(cacheKey);
           }
-          missingIds.push(id);
-          missingKeys.push(cacheKey);
+        } else {
+          for (const id of ids) missingIds.push(id);
         }
 
-        // 🚀 L2 Probe (Redis batch mGet): If Redis is available, check missing keys in bulk
-        if (missingIds.length > 0 && typeof cacheService.getMany === "function") {
+        // 🚀 L2 Probe (Redis batch): If Redis is available, check missing keys in bulk
+        if (
+          !enforceTargetPolicy &&
+          missingIds.length > 0 &&
+          typeof cacheService.getMany === "function"
+        ) {
           const l2Results = await cacheService.getMany<any>(missingKeys, tenantId).catch(() => []);
           // In-place compaction of the ID list only (no `stillMissing` copy);
           // survivors keep their original relative order for the DB `$in` batch
@@ -146,15 +208,24 @@ export async function resolvePopulatedRelations(
         if (missingIds.length > 0) {
           for (let c = 0; c < missingIds.length; c += RELATION_FETCH_CHUNK_SIZE) {
             const chunk = missingIds.slice(c, c + RELATION_FETCH_CHUNK_SIZE);
-            const relatedResult = await _dbAdapter.crud.findMany(
-              collectionName,
-              { _id: { $in: chunk } },
-              {
-                limit: chunk.length,
-                tenantId: tenantId as DatabaseId,
-                ...withSystemScope("bootstrap"),
-              },
-            );
+            const baseQuery: Record<string, unknown> = { _id: { $in: chunk } };
+            let scopedQuery: Record<string, unknown> = baseQuery;
+            if (targetSchema) {
+              scopedQuery = mergeAccessConstraint(
+                typeof ownership === "object" && ownership !== null
+                  ? { ...baseQuery, ...ownership }
+                  : baseQuery,
+                accessConstraint,
+              );
+              applyPublicationToQuery(scopedQuery, publicationFilter);
+            }
+            const relatedResult = await _dbAdapter.crud.findMany(collectionName, scopedQuery, {
+              limit: chunk.length,
+              tenantId: tenantId as DatabaseId,
+              // Never fetch relations across tenants: system scope is for a global
+              // (tenantless) read only.
+              ...(tenantId ? {} : withSystemScope("bootstrap")),
+            });
 
             if (relatedResult?.success && Array.isArray(relatedResult.data)) {
               for (let i = 0; i < relatedResult.data.length; i++) {
@@ -177,19 +248,30 @@ export async function resolvePopulatedRelations(
           }
         }
 
-        // Attach resolved relations directly to items
+        // Attach resolved relations directly to items. Target rows are redacted
+        // with the TARGET schema's field policy; `redactRecord` returns the same
+        // reference when nothing is guarded, so the shared cache stays raw.
+        const targetFields = Array.isArray(targetSchema?.fields) ? targetSchema.fields : null;
         for (let f = 0; f < fields.length; f++) {
           const fieldName = fields[f];
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
             const val = item[fieldName];
             if (typeof val === "string") {
-              item[`_populated_${fieldName}`] = relatedMap.get(val) || null;
+              const row = relatedMap.get(val) || null;
+              item[`_populated_${fieldName}`] =
+                row && targetFields ? redactRecord(row, targetFields, policy.user as never) : row;
             } else if (Array.isArray(val)) {
               const populatedList: any[] = [];
               for (let v = 0; v < val.length; v++) {
                 const resolved = relatedMap.get(val[v]);
-                if (resolved) populatedList.push(resolved);
+                if (resolved) {
+                  populatedList.push(
+                    targetFields
+                      ? redactRecord(resolved, targetFields, policy.user as never)
+                      : resolved,
+                  );
+                }
               }
               item[`_populated_${fieldName}`] = populatedList;
             }

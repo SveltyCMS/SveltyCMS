@@ -84,20 +84,24 @@ Runs before every commit. Steps:
 6. **Component interactions (conditional)** — `bun run test:unit:components` (runs when `.svelte` or UI/component/route/widget/store files are staged)
 7. **SBOM sync** — when `bun.lock` / `package.json` changed
 
-### `.githooks/pre-push` (Stage 2) — Smart Build → CI Unit Parity → Integration → Browser → Changed Mutations (~8–12 min warm)
+### `.githooks/pre-push` (Stage 2) — Smart Build → CI Unit Parity → Integration → Browser → Changed Mutations (~10–15 min warm)
 
 Runs before every push, in this order:
 
 1. **Database & live-config safety** — `scripts/check/check-test-db-safety.ts`
 2. **Production build (smart reuse)** — `scripts/runs/integration-harness.ts --ensure-build` (reuses `build/` if fresh and `/api/testing`-enabled; rebuilds with `COMPILE_ALL_ADAPTERS=true` when stale)
-3. **Build verifiers** — prod-backdoor probe + bundle-size gate
-4. **Quality Gate** — `bun run check` (includes `version:verify` and `security:assurance`)
-5. **CI Unit parity** — `test:coverage` (`test:unit:coverage` + `test:coverage:budget`) + `test:unit:components`
-6. **Security/policy** — `bun audit`, `scan-secret-misuse --strict --full`, hardware probe, `lint:tenant -- --full` + `test:tenant`, deploy-backdoor probe
-7. **SQLite integration** — `run-integration.ts --no-build --diff` (full suite when no diff mapping or when harness/helpers changed)
-8. **DB parity** — only when adapter/service code changed (plus a non-UTC clock run)
-9. **Browser gate** — `smoke.spec.ts` plus the changed-path accessibility, visual, behavioural and media-server specs (identical mapping on `next` and `main`); then `check-flake-budget.ts --max-flaky=0`
-10. **Mutation** — `scripts/test/mutate-core.ts --changed` runs **last** (`FULL_MUTATION=true` runs all 31 seams); it dynamically queries `--list-targets`, rewrites affected source files, restores them atomically, and the hook restores any dirty target from HEAD as a second line of defence
+3. **Bundle size gate** — `scripts/check/check-bundle-size.ts`
+4. **Build & security probes (parallel)** — `scripts/runs/run-probe-group.ts` runs prod-backdoor, secret-misuse, hardware-tiers and tenant-isolation concurrently (~13 s measured instead of ~30 s serial)
+5. **Quality Gate** — `bun run check` (includes `version:verify` and `security:assurance`); skipped when this exact tree already passed it at commit time
+6. **CI Unit parity** — `test:coverage` (`test:unit:coverage` + `test:coverage:budget`) + `test:unit:components`; coverage is skipped when the push changes no `src/`, `tests/` or coverage config
+7. **CVE audit** — `bun audit --severity=high` (informational)
+8. **SQLite integration** — `run-integration.ts --no-build --diff` (full suite when no diff mapping or when harness/helpers changed)
+9. **DB parity** — only when adapter/service code changed (plus a non-UTC clock run)
+10. **Browser gate** — `smoke.spec.ts` plus the changed-path accessibility, visual, behavioural and media-server specs (identical mapping on `next` and `main`); then `check-flake-budget.ts --max-flaky=0`
+11. **Deploy backdoor probe** — `scripts/probe/probe-deploy-testing-api.ts` runs after the browser gate because it rebuilds `build/` without the testing harness
+12. **Mutation** — `scripts/test/mutate-core.ts --changed` runs **last** (`FULL_MUTATION=true` runs all 31 seams); it dynamically queries `--list-targets`, rewrites affected source files, restores them atomically, and the hook restores any dirty target from HEAD as a second line of defence
+
+**Tree-scoped cache.** `scripts/runs/gate-cache.ts` records each passing gate in `.git/svelty-gate-cache.json` (tree hash + manifest/lock/test-config hashes + runtime + DB mode; diff-scoped gates also include the diff base). Pre-commit records `check`/unit/components against the index tree; pre-push reuses them. A dirty or untracked worktree never records or hits — every gate reads the filesystem. `bun run scripts/runs/gate-cache.ts clear` forces a full run.
 
 ### Full DB Matrix (Local Pre-CI) — ~8 min
 
@@ -418,6 +422,21 @@ Runs the 21 read-only policy/AST/assurance gates concurrently (8 workers) and fa
 ### `scripts/check/run-typecheck.ts` — Parallel type gates
 
 Runs `tsc --noEmit` and `scripts/check/check-svelte-diagnostics.ts` at the same time, after `svelte-kit sync` has generated the route types. Both are independent readers of the same sources; the old serial chain cost ~100 s, the parallel run ~50 s on a warm tree. The svelte-check warning gate is unchanged — it is still the authority on warnings as well as errors.
+
+### `scripts/runs/gate-cache.ts` — Tree-scoped gate cache
+
+Records which gates already passed for an exact tree and lets pre-push reuse them. The key is the Git tree hash plus hashes of `package.json`, `bun.lock`, the Vitest/Playwright configs and the coverage budget, the Node/Bun runtime, and the DB mode; diff-scoped gates add the diff base. A dirty or untracked working tree can never record or hit, because every gate reads the filesystem.
+
+```bash
+bun run scripts/runs/gate-cache.ts key              # show the current key
+bun run scripts/runs/gate-cache.ts clear            # force a full gate run
+```
+
+Cache file: `.git/svelty-gate-cache.json` (never committed).
+
+### `scripts/runs/run-probe-group.ts` — Parallel pre-push probes
+
+Runs `prod-backdoor`, `secret-misuse`, `hardware-tiers` and `tenant-isolation` concurrently. They share nothing but the completed `build/` and none binds a port. `check-bundle-size` stays separate (it reads `.svelte-kit/output`, which any concurrent build rewrites) and the deploy probe stays last (it rebuilds `build/` without the testing harness).
 
 ### `scripts/check/check-flake-budget.ts` — Flake Budget Enforcement
 

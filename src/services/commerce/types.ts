@@ -1,7 +1,7 @@
 /**
  * @file src/services/commerce/types.ts
  * @description Shared commerce value types. OrderStatus matches the ecommerce
- * preset options in `src/routes/setup/presets.ts` exactly.
+ * preset options in `src/services/setup/presets.server.ts` exactly.
  *
  * ### Features:
  * - integer-cent Price
@@ -44,7 +44,7 @@ export interface PriceBreakdown {
 }
 
 /** Preset `orders.status` options. Map paid → processing, fulfilled → shipped. */
-export const ORDER_STATUSES = [
+const ORDER_STATUSES = [
   "pending",
   "processing",
   "shipped",

@@ -37,7 +37,7 @@ export interface LoadSeoHeadForPageOptions {
 }
 
 /** Resolves a media file ID to an absolute public URL (best effort). */
-export async function resolveSeoMediaUrl(
+async function resolveSeoMediaUrl(
   cms: LocalCMS,
   mediaId: string | undefined,
   tenantId: string | null | undefined,

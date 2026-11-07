@@ -18,7 +18,7 @@ import type { BaseIssue } from "valibot";
 // ============================================================================
 
 // Standard error codes for widget validation
-export const WidgetErrorCode = {
+const WidgetErrorCode = {
   REQUIRED: "REQUIRED",
   MIN_LENGTH: "MIN_LENGTH",
   MAX_LENGTH: "MAX_LENGTH",
@@ -62,7 +62,7 @@ export interface WidgetValidationOptions {
 // ============================================================================
 
 // Extract a user-friendly error message from a Valibot validation error
-export function extractValibotError(error: ValibotError): string {
+function extractValibotError(error: ValibotError): string {
   if (!error.issues || error.issues.length === 0) {
     return "Validation failed";
   }
@@ -73,7 +73,7 @@ export function extractValibotError(error: ValibotError): string {
 }
 
 // Extract all error messages from a Valibot validation error
-export function extractAllValibotErrors(error: ValibotError): string[] {
+function extractAllValibotErrors(error: ValibotError): string[] {
   if (!error.issues || error.issues.length === 0) {
     return ["Validation failed"];
   }
@@ -87,7 +87,7 @@ interface ValibotError {
 }
 
 // Type guard to check if an error is a Valibot ValiError
-export function isValibotError(error: unknown): error is ValibotError {
+function isValibotError(error: unknown): error is ValibotError {
   return (
     error !== null &&
     typeof error === "object" &&
@@ -101,7 +101,7 @@ export function isValibotError(error: unknown): error is ValibotError {
 // ============================================================================
 
 // Map Valibot issue type to widget error code
-export function mapValibotIssueToCode(issue: BaseIssue<unknown>): WidgetErrorCode {
+function mapValibotIssueToCode(issue: BaseIssue<unknown>): WidgetErrorCode {
   const type = issue.type?.toLowerCase() || "";
   const message = issue.message?.toLowerCase() || "";
 

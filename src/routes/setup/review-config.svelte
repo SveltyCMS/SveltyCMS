@@ -63,9 +63,8 @@ This component presents a summary of all configuration steps before finalizing t
 		EmailSettings,
 		SystemSettings
 	} from '@src/stores/setup-store.svelte.ts';
-	import { PRESETS } from './presets';
+	import { PRESET_METADATA } from '@src/services/setup/preset-meta';
 
-	//  props
 	//  props
 	interface Props {
 		adminUser: AdminUser;
@@ -80,7 +79,7 @@ This component presents a summary of all configuration steps before finalizing t
 	const presetCollections = $derived(
 		(() => {
 			if (!systemSettings.preset || systemSettings.preset === 'blank') return [];
-			const preset = PRESETS.find((p) => p.id === systemSettings.preset);
+			const preset = PRESET_METADATA.find((p) => p.id === systemSettings.preset);
 			return preset?.collections?.map((c) => c.label || c.name) ?? [];
 		})()
 	);

@@ -7,9 +7,9 @@ import {
   getWizardPresetSchemas,
   isMockScanCollection,
   purgeBenchmarkCollectionArtifacts,
-} from "@src/routes/setup/preset-collections.server";
+} from "@src/services/setup/preset-collections.server";
 import { isBenchmarkArtifact } from "@utils/benchmark-runtime";
-import { PRESETS } from "@src/routes/setup/presets";
+import { PRESETS } from "@src/services/setup/presets.server";
 
 interface NamedField {
   db_fieldName?: string;

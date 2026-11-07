@@ -12,6 +12,7 @@
 import {
   test,
   exportResult,
+  exportMetric,
   printTruthTable,
   printSummaryTable,
   getDbType,
@@ -21,6 +22,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { logger } from "@utils/logger";
+import { analyzeWorkspaceLinkmap } from "../../scripts/check/analyze-linkmap";
 
 async function getDirSize(dir: string): Promise<number> {
   let total = 0;
@@ -62,10 +64,10 @@ async function fileExists(p: string): Promise<boolean> {
 }
 
 /**
- * Sum the eager JS the (app) admin shell loads on first paint — the client
- * equivalent of "bundle size" for the editor. Walks the manifest's eager
- * import graph of the (app) layout node (sidebars + chrome + shell deps).
- * Guards against bundle regressions (e.g. a lib leaking into the shell).
+ * Sum the eager uncompressed JS the (app) admin shell loads on first paint.
+ * Finds the (app) layout node deterministically from `.vite/manifest.json` by
+ * matching the generated node module (`client-optimized/nodes/N.js`) that wraps
+ * `src/routes/(app)/+layout.svelte`, then walks its eager `imports` graph.
  */
 async function getAdminShellJsKb(): Promise<{ kb: number; nodeCount: number }> {
   try {
@@ -80,27 +82,44 @@ async function getAdminShellJsKb(): Promise<{ kb: number; nodeCount: number }> {
     if (!(await fileExists(manifestPath))) return { kb: 0, nodeCount: 0 };
     const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<
       string,
-      { file: string; imports?: string[]; size?: number }
+      { file: string; src?: string; imports?: string[]; size?: number }
     >;
 
-    // Find the (app) layout node: it is the only nodes/N.js chunk containing
-    // the admin shell markers below.
     const nodeKeys = Object.keys(manifest).filter((k) => k.includes("client-optimized/nodes/"));
     let appNode: string | null = null;
+
+    // 1. Primary lookup: inspect the generated node wrapper (.svelte-kit/generated/.../nodes/N.js)
+    //    for its exact route import (`src/routes/(app)/+layout.svelte`).
     for (const key of nodeKeys) {
-      const file = path.join(
-        process.cwd(),
-        ".svelte-kit",
-        "output",
-        "client",
-        manifest[key]?.file ?? "",
-      );
-      // `nodes` dir check must be separator-agnostic (Windows backslashes).
-      if (!file.includes(`nodes${path.sep}`) || !(await fileExists(file))) continue;
-      const content = await fs.readFile(file, "utf8");
-      if (content.includes("command-palette") || content.includes("floating-nav")) {
+      const wrapperPath = path.join(process.cwd(), key);
+      if (!(await fileExists(wrapperPath))) continue;
+      const wrapperSource = (await fs.readFile(wrapperPath, "utf8")).replace(/\\/g, "/");
+      if (wrapperSource.includes("src/routes/(app)/+layout.svelte")) {
         appNode = key;
         break;
+      }
+    }
+
+    // 2. Fallback if `.svelte-kit/generated` was cleaned post-build: check emitted node chunk
+    if (!appNode) {
+      for (const key of nodeKeys) {
+        const file = path.join(
+          process.cwd(),
+          ".svelte-kit",
+          "output",
+          "client",
+          manifest[key]?.file ?? "",
+        );
+        if (!file.includes(`nodes${path.sep}`) || !(await fileExists(file))) continue;
+        const content = await fs.readFile(file, "utf8");
+        if (
+          content.includes("command-palette") ||
+          content.includes("floating-nav") ||
+          content.includes("left-sidebar")
+        ) {
+          appNode = key;
+          break;
+        }
       }
     }
     if (!appNode) return { kb: 0, nodeCount: 0 };
@@ -150,15 +169,16 @@ async function runBuildAnalysis() {
       }
     }
 
-    if (passedDuration) {
+    const buildExists = await fileExists(buildDir);
+    if (passedDuration && buildExists) {
       buildTimeMs = parseFloat(passedDuration);
       console.log(`   ⏭️ Using pre-computed build duration: ${buildTimeMs.toFixed(0)}ms`);
-    } else if (isSuite) {
+    } else if (isSuite && buildExists) {
       console.log("   ⏭️ Skipping redundant build (Suite Mode active).");
       buildTimeMs = 0;
     } else {
       console.log("   🔨 Running production build...");
-      execSync("bun run build", {
+      execSync("bun run build:fast", {
         stdio: "inherit",
         env: { ...process.env, NODE_ENV: "production" },
       });
@@ -174,6 +194,7 @@ async function runBuildAnalysis() {
 
     const bundleSizeMB = totalSize / 1024 / 1024;
     const shell = await getAdminShellJsKb();
+    const linkmap = analyzeWorkspaceLinkmap();
 
     const result = {
       name: "Production Build",
@@ -184,6 +205,11 @@ async function runBuildAnalysis() {
       jsChunkCount: jsFiles.length,
       adminShellKb: shell.kb,
       adminShellChunks: shell.nodeCount,
+      sourceFiles: linkmap.summary.totalFiles,
+      microFiles: linkmap.summary.microFileCount,
+      singleCallerFiles: linkmap.summary.singleCallerCount,
+      runtimeCycles: linkmap.summary.runtimeCycleCount,
+      clientReachableKB: linkmap.summary.clientReachableKB,
     };
 
     printTruthTable({
@@ -196,8 +222,13 @@ async function runBuildAnalysis() {
     printSummaryTable([
       { key: "Build Time", val: buildTimeMs.toFixed(0), unit: "ms" },
       { key: "Total Bundle Size", val: bundleSizeMB.toFixed(2), unit: "MB" },
-      { key: "Admin Shell (eager JS)", val: shell.kb, unit: "KB" },
+      { key: "Admin Shell (eager uncompressed JS)", val: shell.kb, unit: "KB" },
       { key: "JS Chunks", val: jsFiles.length, unit: "" },
+      { key: "Source Files (src/)", val: linkmap.summary.totalFiles, unit: "files" },
+      { key: "Micro-Files (<60 LOC)", val: linkmap.summary.microFileCount, unit: "files" },
+      { key: "Single-Caller Modules", val: linkmap.summary.singleCallerCount, unit: "files" },
+      { key: "Runtime Import Cycles", val: linkmap.summary.runtimeCycleCount, unit: "cycles" },
+      { key: "Client-Reachable Source", val: linkmap.summary.clientReachableKB, unit: "KB" },
       {
         key: "Build Efficiency",
         val: buildTimeMs < 45000 ? "EXCELLENT" : buildTimeMs < 65000 ? "GOOD" : "SLOW",
@@ -205,6 +236,13 @@ async function runBuildAnalysis() {
       },
     ]);
 
+    exportMetric("build.admin_shell_kb", shell.kb, "KB");
+    exportMetric("build.js_chunks", jsFiles.length, "count");
+    exportMetric("linkmap.source_files", linkmap.summary.totalFiles, "count");
+    exportMetric("linkmap.micro_files", linkmap.summary.microFileCount, "count");
+    exportMetric("linkmap.single_caller_files", linkmap.summary.singleCallerCount, "count");
+    exportMetric("linkmap.runtime_cycles", linkmap.summary.runtimeCycleCount, "count");
+    exportMetric("linkmap.client_reachable_kb", linkmap.summary.clientReachableKB, "KB");
     exportResult(result as any);
   } catch (err: any) {
     logger.error(`Build analysis failed: ${err.message}`);

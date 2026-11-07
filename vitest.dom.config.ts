@@ -72,6 +72,9 @@ export default defineConfig({
     // startup cost. Keep the suite fast without masking cross-test DOM leaks.
     pool: "forks",
     isolate: true,
+    // Same reason as vitest.config.ts: Node's ML-KEM Web Crypto warning is
+    // intentional usage, not a test problem.
+    execArgv: ["--disable-warning=ExperimentalWarning"],
     // Separate report from the unit run: the client build's statement maps are
     // incompatible with the SSR unit maps, so the two are unioned per file by
     // scripts/merge-coverage.ts instead of being merged statement-by-statement.

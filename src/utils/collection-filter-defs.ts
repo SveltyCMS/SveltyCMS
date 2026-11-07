@@ -40,7 +40,7 @@ export interface BuildFilterDefinitionsOptions {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const UNSAFE_FILTER_WIDGET_PATTERNS = [
+const UNSAFE_FILTER_WIDGET_PATTERNS = [
   "media",
   "upload",
   "richtext",
@@ -58,7 +58,7 @@ export const UNSAFE_FILTER_WIDGET_PATTERNS = [
   "ai-enrichment",
 ] as const;
 
-export const STATUS_FILTER_OPTIONS: SmartFilterOption[] = [
+const STATUS_FILTER_OPTIONS: SmartFilterOption[] = [
   { value: StatusTypes.publish, label: "Published" },
   { value: StatusTypes.draft, label: "Draft" },
   { value: StatusTypes.unpublish, label: "Unpublished" },
@@ -66,12 +66,12 @@ export const STATUS_FILTER_OPTIONS: SmartFilterOption[] = [
   { value: StatusTypes.archive, label: "Archived" },
 ];
 
-export const BOOLEAN_FILTER_OPTIONS: SmartFilterOption[] = [
+const BOOLEAN_FILTER_OPTIONS: SmartFilterOption[] = [
   { value: "true", label: "Yes" },
   { value: "false", label: "No" },
 ];
 
-export const SYSTEM_FILTER_FIELD_DEFS: Array<{
+const SYSTEM_FILTER_FIELD_DEFS: Array<{
   id: string;
   label: string;
   type: FilterControlType;
@@ -96,7 +96,7 @@ function normalizeWidgetName(field: Partial<FieldInstance> & Record<string, unkn
 /** 🛡️ Hardened: Compiled regex replaces array.some() for widget safety check */
 const UNSAFE_WIDGET_REGEX = new RegExp(UNSAFE_FILTER_WIDGET_PATTERNS.join("|"), "i");
 
-export function isUnsafeFilterWidget(widgetName: string): boolean {
+function isUnsafeFilterWidget(widgetName: string): boolean {
   return UNSAFE_WIDGET_REGEX.test(widgetName);
 }
 

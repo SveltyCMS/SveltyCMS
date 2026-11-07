@@ -121,7 +121,7 @@ const HTML_OPTIONS: SanitizeOptions = {
  * `on*` handler are absent, so the parser drops them; `script`/`style` content
  * is removed as non-text, while a removed wrapper keeps only its escaped text.
  */
-export const SVG_ALLOWED_TAGS = [
+const SVG_ALLOWED_TAGS = [
   "svg",
   "g",
   "path",

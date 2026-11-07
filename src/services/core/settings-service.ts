@@ -70,7 +70,7 @@ export class SettingsService {
 
   private async loadPkgVersion(): Promise<string> {
     if (!this.pkgVersionPromise) {
-      this.pkgVersionPromise = import("../../../package.json")
+      this.pkgVersionPromise = import("@root/package.json")
         .then((pkg) => pkg.version || "0.0.0")
         .catch(() => "0.0.0");
     }

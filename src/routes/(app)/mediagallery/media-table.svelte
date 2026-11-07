@@ -15,8 +15,8 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { logger } from '@utils/logger';
+	import { createSmartTable } from '@components/ui/smart-table/create-smart-table.svelte';
 	import {
-		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
 		SMART_TABLE_ROW_HOVER,
@@ -24,7 +24,7 @@
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
-	} from '@components/ui/smart-table';
+	} from '@components/ui/smart-table/chrome';
 	import Button from '@components/ui/button.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';

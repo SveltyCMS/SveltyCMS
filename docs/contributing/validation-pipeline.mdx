@@ -33,20 +33,24 @@ Hook: `.githooks/pre-commit` · Manual: `bun run precommit`
 6. `bun run test:unit:components` — real-DOM interaction suite (only when `.svelte` or UI/component/route/widget/store files are staged)
 7. **SBOM sync** — `bun run audit:sbom` when `bun.lock` / `package.json` changed
 
-## Tier 2 — Pre-push (~8–12 min warm)
+## Tier 2 — Pre-push (~10–15 min warm)
 
 Hook: `.githooks/pre-push` · Manual: **`bun run gate`** or `bun run prepush`
 
 1. `scripts/check/check-test-db-safety.ts`
 2. Production build via `scripts/runs/integration-harness.ts --ensure-build` — reuses a fresh 4-adapter build (with `/api/testing`) in <1 s, rebuilds when stale
-3. **Prod build backdoor verify** — `scripts/security/verify-prod-build-backdoor.ts --mode=bench` · **Bundle size gate** — `scripts/check/check-bundle-size.ts`
-4. `bun run check` — TypeScript / Svelte quality gate
-5. **CI unit parity** — `bun run test:coverage` (full suite under coverage, ~4 min) + `bun run test:unit:components`
-6. Security/policy — `bun audit`, `scan-secret-misuse --strict --full`, hardware probe, `lint:tenant -- --full` + `test:tenant`, deploy-backdoor probe
-7. SQLite integration — `scripts/runs/run-integration.ts --no-build --diff` (diff-scoped; full suite when harness/helpers or an unmapped path changed)
-8. **DB parity** — only when adapter/service code changed, plus a non-UTC clock run
-9. **Browser gate** — `smoke.spec.ts` plus the changed-path accessibility/visual/behavioural/media specs, then `check-flake-budget.ts`
-10. **Mutation** — `scripts/test/mutate-core.ts --changed` runs last (`FULL_MUTATION=true` for all seams)
+3. Bundle-size gate — `scripts/check/check-bundle-size.ts`
+4. **Build & security probes (parallel)** — `scripts/runs/run-probe-group.ts`: prod-backdoor, secret-misuse, hardware-tiers, tenant-isolation
+5. `bun run check` — TypeScript / Svelte quality gate (reused when this tree already passed it at commit time)
+6. **CI unit parity** — `bun run test:coverage` (full suite under coverage, ~4 min; skipped when no `src/`, `tests/` or coverage config changed) + `bun run test:unit:components`
+7. CVE audit — `bun audit` (informational)
+8. SQLite integration — `scripts/runs/run-integration.ts --no-build --diff` (diff-scoped; full suite when harness/helpers or an unmapped path changed)
+9. **DB parity** — only when adapter/service code changed, plus a non-UTC clock run
+10. **Browser gate** — `smoke.spec.ts` plus the changed-path accessibility/visual/behavioural/media specs, then `check-flake-budget.ts`
+11. **Deploy backdoor probe** — `scripts/probe/probe-deploy-testing-api.ts` (after the browser gate: it rebuilds `build/` without the testing harness)
+12. **Mutation** — `scripts/test/mutate-core.ts --changed` runs last (`FULL_MUTATION=true` for all seams)
+
+`scripts/runs/gate-cache.ts` keys a passing gate on the tree hash (plus manifest/lock/test-config/runtime/DB mode, and the diff base for diff-scoped gates) and stores it in `.git/svelty-gate-cache.json`. A dirty or untracked tree never records or hits. `bun run scripts/runs/gate-cache.ts clear` forces a full run.
 
 Docs-only pushes skip build + integration. The multi-engine DB matrix and benchmarks are **CI-only**; pre-push runs the SQLite suite plus the changed-path browser contracts, not the full 9-shard E2E partition.
 

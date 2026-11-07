@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import type { DashboardWidgetManifest } from "@src/routes/(app)/dashboard/widgets/manifest-registry";
+import type { DashboardWidgetManifest } from "@src/services/core/dashboard-manifest-registry";
 import {
   filterPickerByPlugins,
   manifestsToPickerList,

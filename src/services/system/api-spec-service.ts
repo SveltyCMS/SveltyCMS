@@ -5,7 +5,7 @@
  * Dynamically constructs the API contract from collection schemas and system handlers.
  */
 
-import { version } from "../../../package.json";
+import { version } from "@root/package.json";
 import type { Schema, FieldInstance, DatabaseId } from "@src/content/types";
 import { CacheCategory } from "@src/databases/cache/types";
 import { deepClone } from "@utils/native-utils";

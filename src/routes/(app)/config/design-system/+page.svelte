@@ -163,7 +163,7 @@ Deep links: /config/design-system?tab=themes|customizer|preview|overrides
 		resetAdminTheme as apiResetAdminTheme,
 		importThemePreset as apiImportThemePreset,
 		updateUserThemePrefs as apiUpdateUserThemePrefs
-	} from './appearance-api';
+	} from '@utils/appearance-api';
 	import { nowISODateString } from '@utils/date';
 
 	const layoutVisibilityOptions = [

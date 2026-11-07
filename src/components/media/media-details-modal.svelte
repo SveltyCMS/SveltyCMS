@@ -11,6 +11,7 @@
 - High-fidelity visual previews for Images, Audio, Video, and Documents
 - Adaptive HLS playback when `metadata.hls.master` exists (native HLS or hls.js)
 - Inline video transcoding to HLS/MP4 via `POST /api/media/transcode`
+- On-device AI alt-text generation with confirm-before-replace and undo
 -->
 
 <script lang="ts">
@@ -29,9 +30,29 @@
 	import { mediaDisplayUrl, mediaThumbnailUrl, mediaUrl } from '@utils/media/media-utils';
 	import { debounce } from '@utils/debounce';
 	import { refreshAll } from '$app/navigation';
+	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { formatDate, formatDateTime } from '@utils/format-date';
 	import { normalizeProcessingStatus } from '@utils/media/media-models';
+	import type { AltTextResult } from '@src/services/ai-client/types';
+	import { logger } from '@utils/logger';
+	import Tooltip from '@components/ui/tooltip.svelte';
+	import {
+		mediagallery_alt_backend_on_device,
+		mediagallery_alt_backend_server,
+		mediagallery_alt_generate,
+		mediagallery_alt_generate_failed,
+		mediagallery_alt_generate_hint,
+		mediagallery_alt_generating,
+		mediagallery_alt_image_load_failed,
+		mediagallery_alt_keep_current,
+		mediagallery_alt_no_result,
+		mediagallery_alt_source,
+		mediagallery_alt_suggestion,
+		mediagallery_alt_undo,
+		mediagallery_alt_undo_aria,
+		mediagallery_alt_use_suggestion
+	} from '@src/paraglide/messages';
 
 	// Props
 	let {
@@ -126,6 +147,38 @@
 	/** Video transcoding panel — opens as a nested dialog above this one. */
 	let showTranscode = $state(false);
 
+	/**
+	 * Narrow slice of the layout snapshot the AI action needs. Every `(app)` page
+	 * already receives `isAdmin` + the user record; role-derived grants leave
+	 * `user.permissions` empty, so an empty list is not treated as a denial —
+	 * `PATCH /api/media/:id` stays the authority and reports 403 through the toast.
+	 */
+	type MediaDetailsPageData = {
+		isAdmin?: boolean;
+		user?: { permissions?: string[]; role?: string } | null;
+		layoutUser?: { permissions?: string[]; role?: string } | null;
+	};
+
+	/**
+	 * Whether this session may persist metadata. `onEdit`/`onDelete` are the write
+	 * channel the modal already receives (a read-only embed omits them); the
+	 * permission list sharpens the answer when the layout snapshot exposes one.
+	 * This gates the AI affordance only — it never replaces server-side RBAC.
+	 */
+	const canWriteMedia = $derived.by(() => {
+		if (!onEdit && !onDelete) return false;
+		const data = page.data as MediaDetailsPageData | undefined;
+		if (data?.isAdmin === true) return true;
+		const role = data?.user?.role ?? data?.layoutUser?.role;
+		// The stock `guest` role is read-only by definition.
+		if (typeof role === 'string' && role.toLowerCase() === 'guest') return false;
+		const permissions = data?.user?.permissions ?? data?.layoutUser?.permissions;
+		if (!Array.isArray(permissions) || permissions.length === 0) return true;
+		return permissions.includes('media:write') || permissions.includes('system:admin');
+	});
+
+	const canGenerateAltText = $derived(file?.type === 'image' && canWriteMedia);
+
 	// Tab State
 	let activeTab = $state<'info' | 'versions' | 'references' | 'share'>('info');
 
@@ -142,6 +195,15 @@
 	let editAlt = $state('');
 	let altSaveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 	let altInputEl = $state<HTMLInputElement | null>(null);
+
+	// AI alt-text generation — client-side inference, persisted by `debouncedSaveAlt`.
+	let isGeneratingAlt = $state(false);
+	/** Pending suggestion shown when the field already had text (never overwrite silently). */
+	let altSuggestion = $state<AltTextResult | null>(null);
+	/** Provenance of the last applied generation (backend badge). */
+	let lastAltGeneration = $state<AltTextResult | null>(null);
+	/** Value before the last applied generation; `null` when there is nothing to undo. */
+	let altUndoValue = $state<string | null>(null);
 
 	let isEditingCaption = $state(false);
 	let editCaption = $state('');
@@ -284,11 +346,120 @@
 	async function startEditAlt() {
 		editAlt = file.metadata?.alt || '';
 		isEditingAlt = true;
+		altSuggestion = null;
+		lastAltGeneration = null;
+		altUndoValue = null;
 		// The field only exists after the state change, so wait for the DOM before
 		// moving focus — otherwise focus stayed on <body> (retest m8).
 		await tick();
 		altInputEl?.focus();
 		if (editAlt) altInputEl?.select();
+	}
+
+	function altBackendLabel(backend: AltTextResult['backend']): string {
+		return backend === 'ollama'
+			? mediagallery_alt_backend_server()
+			: mediagallery_alt_backend_on_device();
+	}
+
+	const altGenerationSummary = $derived(
+		lastAltGeneration
+			? mediagallery_alt_source({
+					backend: altBackendLabel(lastAltGeneration.backend),
+					confidence: Math.round(lastAltGeneration.confidence * 100)
+				})
+			: ''
+	);
+
+	/**
+	 * Commit a generated value into the editor. The existing 300 ms debounce is the
+	 * only save path — generation never issues its own PATCH.
+	 */
+	function applyGeneratedAlt(result: AltTextResult) {
+		altUndoValue = editAlt;
+		editAlt = result.altText;
+		lastAltGeneration = result;
+		altSuggestion = null;
+		altSaveStatus = 'saving';
+		debouncedSaveAlt();
+	}
+
+	function handleUseAltSuggestion() {
+		if (!altSuggestion) return;
+		applyGeneratedAlt(altSuggestion);
+	}
+
+	function handleKeepCurrentAlt() {
+		altSuggestion = null;
+	}
+
+	function undoGeneratedAlt() {
+		if (altUndoValue === null) return;
+		editAlt = altUndoValue;
+		altUndoValue = null;
+		lastAltGeneration = null;
+		altSaveStatus = 'saving';
+		debouncedSaveAlt();
+	}
+
+	/**
+	 * Fetch the asset bytes and run the on-device model (server Ollama fallback).
+	 * `credentials: 'same-origin'` keeps cookies off a CDN/media-server URL, and the
+	 * 300 ms debounce persists whatever lands in `editAlt` afterwards.
+	 */
+	async function handleGenerateAltText() {
+		if (isGeneratingAlt || !canGenerateAltText || !file?._id) return;
+
+		const url = mediaUrl(file);
+		if (!url) {
+			toast.error(mediagallery_alt_image_load_failed());
+			return;
+		}
+
+		isGeneratingAlt = true;
+		altSuggestion = null;
+		try {
+			const response = await fetch(url, {
+				credentials: 'same-origin',
+				headers: { Accept: 'image/*' }
+			});
+			if (!response.ok) {
+				throw new Error(`Media fetch failed (${response.status})`);
+			}
+			const imageData = await response.arrayBuffer();
+			if (imageData.byteLength === 0) {
+				throw new Error('Empty image payload');
+			}
+			const mimeType =
+				(typeof file.mimeType === 'string' && file.mimeType) ||
+				response.headers.get('content-type')?.split(';')[0]?.trim() ||
+				'image/jpeg';
+
+			// Lazy boundary: the AI client (worker bootstrap + Ollama fallback) is only
+			// needed once the author asks for a suggestion. Importing it statically put
+			// the whole module in the static client graph of every page that mounts the
+			// media modal (~17 KB raw source); the click pays one chunk fetch instead.
+			const { ai } = await import('@src/services/ai-client');
+			const result = await ai.generateAltText(imageData, mimeType, file.filename);
+			const altText = result.altText?.trim() ?? '';
+			if (result.backend === 'failed' || !altText) {
+				throw new Error(mediagallery_alt_no_result());
+			}
+
+			const generated = { ...result, altText };
+			lastAltGeneration = generated;
+			if (!editAlt.trim()) {
+				applyGeneratedAlt(generated);
+			} else if (altText !== editAlt.trim()) {
+				// Existing copy is authored content — require an explicit replace.
+				altSuggestion = generated;
+			}
+		} catch (err) {
+			logger.warn('[media-details] alt-text generation failed', err);
+			toast.error(mediagallery_alt_generate_failed());
+		} finally {
+			isGeneratingAlt = false;
+		}
 	}
 
 	function startEditCaption() {
@@ -876,6 +1047,11 @@
 													aria-label="Alt text"
 													class="flex-1"
 													oninput={() => {
+														// Manual edits invalidate the AI provenance and its undo snapshot.
+														if (lastAltGeneration && editAlt !== lastAltGeneration.altText) {
+															lastAltGeneration = null;
+															altUndoValue = null;
+														}
 														altSaveStatus = 'saving';
 														debouncedSaveAlt();
 													}}
@@ -896,7 +1072,91 @@
 													<iconify-icon icon="mdi:check" width="14" class="text-success-500"
 													></iconify-icon>
 												{/if}
+												{#if canGenerateAltText}
+													<Tooltip title={mediagallery_alt_generate_hint()} triggerClass="shrink-0">
+														<Button
+															variant="surface"
+															size="sm"
+															class="h-10 w-10 min-w-10 shrink-0 p-0!"
+															onclick={handleGenerateAltText}
+															disabled={isGeneratingAlt}
+															aria-busy={isGeneratingAlt}
+															aria-label={isGeneratingAlt
+																? mediagallery_alt_generating()
+																: mediagallery_alt_generate()}
+															data-testid="media-alt-generate"
+														>
+															{#if isGeneratingAlt}
+																<iconify-icon
+																	icon="mdi:loading"
+																	class="animate-spin motion-reduce:animate-none"
+																	width="18"
+																></iconify-icon>
+															{:else}
+																<iconify-icon icon="mdi:creation" width="18"></iconify-icon>
+															{/if}
+														</Button>
+													</Tooltip>
+												{/if}
 											</div>
+											{#if altSuggestion}
+												<div
+													class="mt-2 rounded-md border border-primary-500/30 bg-primary-500/10 p-2"
+													data-testid="media-alt-suggestion"
+												>
+													<p class="text-xs text-surface-600 dark:text-surface-100">
+														<span class="font-semibold">{mediagallery_alt_suggestion()}</span>
+														<span class="ms-1">{altSuggestion.altText}</span>
+													</p>
+													<div class="mt-2 flex flex-wrap gap-2">
+														<Button
+															variant="tertiary"
+															size="sm"
+															class="h-10 px-3"
+															onclick={handleUseAltSuggestion}
+															data-testid="media-alt-apply-suggestion"
+															>{mediagallery_alt_use_suggestion()}</Button
+														>
+														<Button
+															variant="ghost"
+															size="sm"
+															class="h-10 px-3"
+															onclick={handleKeepCurrentAlt}
+															data-testid="media-alt-keep-suggestion"
+															>{mediagallery_alt_keep_current()}</Button
+														>
+													</div>
+												</div>
+											{:else if lastAltGeneration}
+												<div class="mt-1.5 flex flex-wrap items-center gap-2">
+													<Badge
+														variant="surface"
+														preset="tonal"
+														size="sm"
+														class="gap-1"
+														title={altGenerationSummary}
+														data-testid="media-alt-ai-source"
+													>
+														<iconify-icon icon="mdi:creation" width="12"></iconify-icon>
+														{altBackendLabel(lastAltGeneration.backend)} · {Math.round(
+															lastAltGeneration.confidence * 100
+														)}%
+													</Badge>
+													{#if altUndoValue !== null}
+														<Button
+															variant="ghost"
+															size="sm"
+															class="h-10 gap-1 px-2"
+															onclick={undoGeneratedAlt}
+															aria-label={mediagallery_alt_undo_aria()}
+															data-testid="media-alt-undo"
+														>
+															<iconify-icon icon="mdi:undo" width="14"></iconify-icon>
+															<span>{mediagallery_alt_undo()}</span>
+														</Button>
+													{/if}
+												</div>
+											{/if}
 										{:else}
 											<Button
 												variant="ghost"

@@ -27,11 +27,7 @@ export function quoteIdentifier(dialect: SqlDialect, name: string): string {
   return `"${safe}"`;
 }
 
-export function qualifiedTable(
-  dialect: SqlDialect,
-  schema: string | undefined,
-  table: string,
-): string {
+function qualifiedTable(dialect: SqlDialect, schema: string | undefined, table: string): string {
   const tableQ = quoteIdentifier(dialect, table);
   if (!schema || dialect === "sqlite") return tableQ;
   return `${quoteIdentifier(dialect, schema)}.${tableQ}`;

@@ -14,10 +14,7 @@ import {
   initializeGroupValues,
   validateSettingField,
 } from "../../../src/routes/(app)/config/system-settings/settings-utils";
-import {
-  settingsGroups,
-  type SettingField,
-} from "../../../src/routes/(app)/config/system-settings/settings-groups";
+import { settingsGroups, type SettingField } from "@src/services/system/settings-groups";
 
 function numberField(overrides: Partial<SettingField> = {}): SettingField {
   return {

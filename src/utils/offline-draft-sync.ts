@@ -38,7 +38,7 @@ export interface LocalDraftRecord<T = Record<string, unknown>> {
 }
 
 export const MAX_SYNC_RETRIES = 3;
-export const DRAFT_STORAGE_PREFIX = "sveltycms_draft:";
+const DRAFT_STORAGE_PREFIX = "sveltycms_draft:";
 
 export class OfflineDraftSync {
   private queue: PendingRemoteCall[] = [];

@@ -4,8 +4,8 @@
  * rule names the offending file on failure and documents its allowlist inline.
  *
  * Invariants:
- * - `new Date().toISOString()` must not grow outside the canonical date helper /
- *   documented legacy ratchet (AGENTS: use `nowISODateString()`).
+ * - `new Date().toISOString()` must not appear outside the lint gate's
+ *   allowlist (AGENTS: use `nowISODateString()`).
  * - `Math.random()` must never appear in security, auth or media utilities.
  * - The `@components/ui` barrel must not be imported anywhere.
  * - Every `+server.ts` / `+page.server.ts` route is owned by a threat-model surface.
@@ -20,78 +20,18 @@ import {
   parseManifest,
   resolveSurfaceFiles,
 } from "../../../scripts/security/threat-model-lib";
+import { ALLOWED_FILES as DATE_HELPER_ALLOWLIST } from "../../../scripts/lint/lint-date-helpers";
 
 const ROOT = resolve(process.cwd());
 const SOURCE_EXTENSIONS = [".ts", ".svelte"];
 
 /**
- * Ratchet for `new Date().toISOString()`. Values are the exact occurrence count
- * allowed in that file today; a new occurrence in an allowlisted file still
- * fails. Entries must be deleted as files migrate to `nowISODateString()`
- * (`src/utils/date.ts`), never added without a security review.
- *
- * - `src/utils/date.ts` is the canonical implementation of `nowISODateString()`
- *   and `toISOString()` — the only sanctioned direct calls.
- * - The remaining entries are pre-gate occurrences. Client-only export/display
- *   timestamps (`.svelte`) never persist an `ISODateString`; server files are
- *   legacy write paths awaiting migration.
+ * Files allowed to call `new Date().toISOString()` directly: the canonical
+ * helper implementation (`src/utils/date.ts`) and the log-file timestamp
+ * slicer (`src/utils/logger.server.ts`). The allowlist is imported from the
+ * lint gate (`scripts/lint/lint-date-helpers.ts`) so this invariant and the CLI
+ * can never diverge; add entries there only after review.
  */
-const ISO_TO_STRING_ALLOWLIST: ReadonlyMap<string, number> = new Map([
-  // Canonical date helper implementation.
-  ["src/utils/date.ts", 3],
-  // Client-side export / display timestamps.
-  ["src/components/collection-display/entry-list.svelte", 1],
-  ["src/components/collection-display/entry-list-multi-button.svelte", 1],
-  ["src/components/collection-display/schedule-modal.svelte", 1],
-  ["src/components/emails/database-failure.svelte", 2],
-  ["src/components/media-library-modal.svelte", 2],
-  ["src/components/permissions-setting.svelte", 1],
-  ["src/components/system/gdpr-settings.svelte", 1],
-  ["src/routes/(app)/config/design-system/+page.svelte", 1],
-  ["src/routes/(app)/config/system-settings/generic-settings-group.svelte", 1],
-  ["src/routes/(app)/dashboard/widgets/calendar-view/index.svelte", 2],
-  ["src/routes/(app)/dashboard/widgets/cpu/index.svelte", 1],
-  ["src/routes/(app)/user/components/modal-privacy-data.svelte", 1],
-  // Legacy server write paths — migrate to `nowISODateString()`.
-  ["src/utils/scim-utils.ts", 4],
-  ["src/services/core/content-sync-service.ts", 4],
-  ["src/routes/login/auth.remote.ts", 4],
-  ["src/databases/mongodb/content-module.ts", 4],
-  ["src/utils/logger.server.ts", 3],
-  ["src/services/background/automation/automation-service.ts", 3],
-  ["src/routes/api/[...path]/handlers/dashboard.ts", 3],
-  ["src/utils/smart-table-saved-views.ts", 2],
-  ["src/utils/offline-draft-sync.ts", 2],
-  ["src/services/core/migration-engine.ts", 2],
-  ["src/services/core/config-service.ts", 2],
-  ["src/routes/api/[...path]/handlers/auth.ts", 2],
-  ["src/databases/mongodb/system-module.ts", 2],
-  ["src/utils/log-export.ts", 1],
-  ["src/utils/cpu-profiler.ts", 1],
-  ["src/services/token/helper.ts", 1],
-  ["src/services/security/response-service.ts", 1],
-  ["src/services/sdk/namespaces/misc-namespaces.ts", 1],
-  ["src/services/observability/telemetry-service.ts", 1],
-  ["src/services/core/content-package-service.ts", 1],
-  ["src/services/content/history-service.ts", 1],
-  ["src/services/background/jobs/webhook-jobs.ts", 1],
-  ["src/services/background/jobs/media-jobs.ts", 1],
-  ["src/routes/login/+page.server.ts", 1],
-  ["src/routes/api/graphql/resolvers/users.ts", 1],
-  ["src/routes/api/[...path]/handlers/utility.ts", 1],
-  ["src/routes/api/[...path]/handlers/testing/testing-users-gdpr.ts", 1],
-  ["src/routes/api/[...path]/handlers/system/system-workflows.ts", 1],
-  ["src/routes/api/[...path]/handlers/system/system-health.ts", 1],
-  ["src/routes/api/[...path]/handlers/config.ts", 1],
-  ["src/databases/mongodb/mongo-query-builder.ts", 1],
-  ["src/databases/database-resilience.ts", 1],
-  ["src/databases/core/system-schema-bootstrap.ts", 1],
-  ["src/hooks/handle-authentication.ts", 1],
-  ["src/plugins/pagespeed/index.server.ts", 1],
-  ["src/plugins/stripe/server/webhooks.ts", 1],
-  ["src/plugins/unified-data-hub/hub-page.server.ts", 1],
-  ["src/plugins/unified-data-hub/server/cache.ts", 1],
-]);
 
 interface Offence {
   path: string;
@@ -155,7 +95,7 @@ describe("security invariants", () => {
   it("uses nowISODateString() instead of new Date().toISOString()", () => {
     const files = sourceFiles(["src/**"]).filter((file) => !file.startsWith("src/paraglide/"));
     const offences = findOccurrences(files, /new Date\(\)\.toISOString\(\)/g).filter(
-      (offence) => offence.count > (ISO_TO_STRING_ALLOWLIST.get(offence.path) ?? 0),
+      (offence) => !DATE_HELPER_ALLOWLIST.has(offence.path),
     );
 
     expect(

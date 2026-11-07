@@ -48,10 +48,10 @@ export const RESERVED_FIELD_NAMES: ReadonlySet<string> = new Set([
 ]);
 
 /** camelCase db_fieldName convention: starts lowercase, alphanumeric + underscore. */
-export const FIELD_NAME_REGEX = /^[a-z][a-zA-Z0-9_]*$/;
+const FIELD_NAME_REGEX = /^[a-z][a-zA-Z0-9_]*$/;
 
 /** Product slug convention: lowercase letters, digits and hyphens only. */
-export const SLUG_REGEX = /^[a-z0-9-]+$/;
+const SLUG_REGEX = /^[a-z0-9-]+$/;
 
 const proposalFieldSchema = pipe(
   object({

@@ -71,7 +71,7 @@ Manages actions (edit, delete, block, unblock) with debounced submissions.
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { convertDateToExpiresFormat } from '../user-remote-utils';
-	import ModalEditForm from './modal-edit-form.svelte';
+	import ModalEditForm from '@components/user/modal-edit-form.svelte';
 	import ModalEditToken from './modal-edit-token.svelte';
 
 	// 🛡️ REFINED TYPE GUARDS: Prevent collisions between User and Token

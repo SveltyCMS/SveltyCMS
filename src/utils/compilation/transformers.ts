@@ -50,6 +50,8 @@ import {
 import path from "node:path";
 import { statSync } from "node:fs";
 import { createHash } from "node:crypto";
+// Relative on purpose: the compilation pipeline runs outside Vite (esbuild/bun),
+// where the `@root` alias is not configured.
 import { pathAliases } from "../../../path-aliases.ts";
 
 // ─── Compile-time aliases (strip ./ prefix for specifier matching) ──────

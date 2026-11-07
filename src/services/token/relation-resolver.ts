@@ -14,7 +14,7 @@ import { logger } from "@utils/logger";
 import type { TokenContext } from "./types";
 
 // Checks if user has read access to a collection
-export async function canAccessCollection(
+async function canAccessCollection(
   user: User | undefined,
   collectionId: string,
   _tenantId?: string | null,

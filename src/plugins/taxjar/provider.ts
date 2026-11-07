@@ -11,7 +11,7 @@ import {
   type TaxProvider,
 } from "../commerce/fulfillment";
 
-export const TAXJAR_PLUGIN_ID = "taxjar";
+const TAXJAR_PLUGIN_ID = "taxjar";
 
 export function createTaxjarProvider(
   isReady: typeof isFulfillmentPluginReady = isFulfillmentPluginReady,

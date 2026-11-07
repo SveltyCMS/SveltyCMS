@@ -114,10 +114,14 @@ describe("pre-push hook", () => {
 
   it("enforces the CI flake budget and the full static gates", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    const group = readFileSync(join(ROOT, "scripts/runs/run-probe-group.ts"), "utf8");
     expect(prePush).toContain("check-flake-budget.ts");
     expect(prePush).toContain("--max-flaky=0");
-    expect(prePush).toContain("probe-hardware-tiers.ts");
-    expect(prePush).toContain("lint:tenant -- --full");
+    // The static policy probes moved into the parallel group; assert the job
+    // list there so dropping one from the group fails this test.
+    expect(group).toContain("probe-hardware-tiers.ts");
+    expect(group).toContain("scan-secret-misuse.ts");
+    expect(group).toContain("lint:tenant");
   });
 
   it("diagnoses unhandled errors instead of swallowing them", () => {
@@ -133,6 +137,36 @@ describe("pre-push hook", () => {
     expect(prePush).toContain("tests/e2e/routes/collection-builder/kitchen-sink.spec.ts");
     expect(prePush).toContain("scripts/runs/run-e2e.ts --no-build $E2E_TARGETS");
     expect(prePush).toContain("SKIP_E2E_SMOKE");
+  });
+
+  it("reuses gates already proven for the same tree", () => {
+    const preCommit = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    const lib = readFileSync(join(ROOT, ".githooks/lib.sh"), "utf8");
+
+    expect(lib).toContain("scripts/runs/gate-cache.ts");
+    expect(preCommit).toContain("record_gate --index check");
+    expect(prePush).toContain("gate_cached check");
+    expect(prePush).toContain("gate_cached coverage");
+    // Diff-scoped gates must key on the diff base as well as the tree, so a
+    // rebase re-runs them instead of borrowing a result from another diff.
+    expect(prePush).toContain('gate_cached "integration@${DIFF_SCOPE}"');
+    expect(prePush).toContain('gate_cached "e2e@${DIFF_SCOPE}"');
+    expect(prePush).toContain("No instrumented source or coverage config changed");
+  });
+
+  it("runs the independent probes concurrently and keeps the deploy probe late", () => {
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    expect(prePush).toContain("scripts/runs/run-probe-group.ts");
+    // The deploy probe rebuilds `build/` without the testing harness. Running it
+    // before the browser gate would leave E2E/integration on a stripped build;
+    // running it beside the bundle scan deleted a chunk mid-scan.
+    const deployAt = prePush.indexOf("Deploy Backdoor Probe (A01)");
+    expect(deployAt).toBeGreaterThan(prePush.indexOf("E2E Browser Gate"));
+    expect(deployAt).toBeLessThan(prePush.indexOf("Mutation (changed seams)"));
+    const group = readFileSync(join(ROOT, "scripts/runs/run-probe-group.ts"), "utf8");
+    expect(group).not.toContain('bunRun("scripts/check/check-bundle-size.ts")');
+    expect(group).not.toContain('bunRun("scripts/probe/probe-deploy-testing-api.ts")');
   });
 
   it("runs mutation last and restores a dirty target", () => {

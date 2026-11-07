@@ -114,7 +114,7 @@ export function getRoleBasedDensity(role: string): AdminDensity {
   return "cozy";
 }
 
-export function buildTenantThemeDefaults(
+function buildTenantThemeDefaults(
   tenantConfig: TenantAdminThemeConfig | null | undefined,
   role: string,
 ): MergedAdminTheme {

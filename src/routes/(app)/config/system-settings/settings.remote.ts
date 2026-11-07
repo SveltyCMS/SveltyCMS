@@ -9,7 +9,7 @@
 
 import { command, query, getRequestEvent } from "$app/server";
 import { getRequestLocalCMS, remoteErrorMessage } from "@utils/server/request-cms.server";
-import { settingsGroups } from "./settings-groups";
+import { settingsGroups } from "@src/services/system/settings-groups";
 import { AppError } from "@utils/error-handling";
 
 function requireUser() {
@@ -166,7 +166,7 @@ export const saveSettingsGroup = command(
       if (Array.isArray(values.LOCALES)) {
         try {
           const { syncInlangSystemLocales } =
-            await import("@src/routes/setup/sync-inlang-locales.server");
+            await import("@src/services/setup/sync-inlang-locales.server");
           inlang = await syncInlangSystemLocales(values.LOCALES as string[]);
         } catch {
           /* best effort — settings already persisted */

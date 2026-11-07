@@ -161,7 +161,7 @@ export function oklchToHex(color: OklchColor): string {
  * generated theme ramp is emitted in this notation so a token resolves to the
  * same color space as the `@theme` design tokens instead of an opaque hex.
  */
-export function oklchToCss(color: OklchColor): string {
+function oklchToCss(color: OklchColor): string {
   const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
   const lPercent = Number((clamp01(color.l) * 100).toFixed(2));
   const l = lPercent / 100;

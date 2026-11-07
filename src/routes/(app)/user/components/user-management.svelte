@@ -51,8 +51,9 @@
 	import Role from '@src/components/system/table/role.svelte';
 	import TableFilter from '@src/components/system/table/table-filter.svelte';
 	import TableIcons from '@src/components/system/table/table-icons.svelte';
+	import { createSmartTable } from '@components/ui/smart-table/create-smart-table.svelte';
+	import type { TableDensity } from '@components/ui/smart-table/types';
 	import {
-		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
 		SMART_TABLE_COLUMN_MANAGER,
@@ -61,9 +62,8 @@
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD,
-		SMART_TABLE_TOOLBAR,
-		type TableDensity
-	} from '@components/ui/smart-table';
+		SMART_TABLE_TOOLBAR
+	} from '@components/ui/smart-table/chrome';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';

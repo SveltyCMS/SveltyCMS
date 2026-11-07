@@ -259,6 +259,21 @@ prepare_release() {
   printf '%b\n' "  ${GREEN}✔${NC} release commit ${BOLD}chore(release): bump version to v${version}${NC}"
 }
 
+# ── Tree-scoped gate cache ────────────────────────────────────────
+# `check`, coverage, components and the browser/integration gates are
+# deterministic for an unchanged tree. Pre-commit records what it ran; pre-push
+# skips a gate whose exact tree (and diff base, for the diff-scoped gates) has
+# already passed. A dirty or untracked working tree never produces a hit.
+# Cache file: .git/svelty-gate-cache.json (never committed; delete to force a
+# full run). Implementation: scripts/runs/gate-cache.ts.
+gate_cached() {
+  "$PM_BIN" run scripts/runs/gate-cache.ts hit "$1" >/dev/null 2>&1
+}
+
+record_gate() {
+  "$PM_BIN" run scripts/runs/gate-cache.ts record "$@" >/dev/null 2>&1 || true
+}
+
 # ── Change detection ──────────────────────────────────────────────
 # pre-commit MUST inspect the staging index (the commit has not happened yet);
 # pre-push compares against the branch-independent base below.

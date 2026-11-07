@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-06",
+  "generatedAt": "2026-11-07",
   "note": "Ratchet: the gate fails only when an area grows. Run --update after lowering a count.",
   "rules": {
     "any": {
@@ -7,19 +7,19 @@
       "pattern": ":\\s*any\\b|\\bas\\s+any\\b|<any>|any\\[\\]",
       "areas": {
         "root": 44,
-        "components": 138,
+        "components": 130,
         "content": 94,
-        "databases": 1637,
+        "databases": 1624,
         "hooks": 212,
         "paraglide": 3,
         "plugins": 361,
-        "routes": 866,
-        "services": 698,
+        "routes": 815,
+        "services": 682,
         "stores": 37,
-        "utils": 143,
-        "widgets": 283
+        "utils": 142,
+        "widgets": 277
       },
-      "total": 4516
+      "total": 4421
     },
     "appError": {
       "label": "throw new AppError()",

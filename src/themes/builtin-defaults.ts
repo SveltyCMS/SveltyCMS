@@ -18,7 +18,7 @@ import type { StoredAdminTheme } from "@src/services/core/admin-theme-service";
 import { mapPresetToAdminTheme } from "@utils/theme-preset-mapper";
 
 /** Read a built-in theme JSON file from `/src/themes/` */
-export function loadBuiltinThemeFile(basename: string): Record<string, unknown> | null {
+function loadBuiltinThemeFile(basename: string): Record<string, unknown> | null {
   const filePath = join(process.cwd(), "src", "themes", `${basename}.json`);
   if (!existsSync(filePath)) return null;
   try {

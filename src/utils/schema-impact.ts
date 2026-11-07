@@ -24,7 +24,7 @@ import type { BreakingChange } from "./collection-schema-warnings";
 // ─── Impact weights ────────────────────────────────────────────────────────
 
 /** Maps breaking change types to structural impact scores (higher = more severe) */
-export const IMPACT_WEIGHTS: Record<string, number> = {
+const IMPACT_WEIGHTS: Record<string, number> = {
   field_removed: 100,
   type_changed: 70,
   required_added: 40,

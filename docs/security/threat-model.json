@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-07",
-      "fingerprint": "4fa4bdef377a1510b6b0029a854f253f45b74692c1bd700ac4f50c8136c37f87"
+      "fingerprint": "1431ac28ed46f13a7542b18d0fbebb17de29ea517c9afe3853e99a85d393d749"
     },
     {
       "id": "auth-session",
@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-07",
-      "fingerprint": "1758e4c841e1dd89ab3552491719a9186db4ee6d346c5b6a950eeb500eab315a"
+      "fingerprint": "dce8c9f27ce340d656b20cc844cbf0cd618361ae0d0bff6e910966164afcbece"
     },
     {
       "id": "content-write",
@@ -58,7 +58,7 @@
       ],
       "model": "docs/security/threat-models/content-write.mdx",
       "reviewed_at": "2026-11-07",
-      "fingerprint": "6508bea71482db5a8da84e7c2c6a259cce49926fe03ffd89efe2a359ba09b84d"
+      "fingerprint": "596bf3bdaed96c6fe7d1a21219d4d7ecb7c69b5a104162ca3acb7905abed13b8"
     },
     {
       "id": "media-files",
@@ -75,7 +75,7 @@
       ],
       "model": "docs/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-07",
-      "fingerprint": "9c80a1d0b4c4dba1b9cf6c7badd6a924b0d1f18055cab129def8b68be2ddec3b"
+      "fingerprint": "03cc1889d64160b0acf16c52aa71a48a5c0e4d1a75ab95f9fc4585713f92d7ac"
     },
     {
       "id": "admin-pages",
@@ -91,7 +91,7 @@
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-07",
-      "fingerprint": "46047ed9276f77eb8740b96804cecf4a65e05d91196400e305d03cfa62aedb62"
+      "fingerprint": "ed216efe10b6d6475d98cc0f929df403779eaf6548f01c4c62a66a58328eceb6"
     },
     {
       "id": "system-ops",
@@ -132,7 +132,7 @@
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-07",
-      "fingerprint": "25c4140bb2ce4b41a1806113cb47b567673a77e3555e91bfccdf1bb12374a27c"
+      "fingerprint": "3b36f71560b5e98c6f7690faeaa7f811c59e735f190c8778eaca05e4ebf3ece0"
     }
   ]
 }

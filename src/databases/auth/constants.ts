@@ -6,7 +6,27 @@
  * and can be safely imported in client-side code.
  */
 
-export const SESSION_COOKIE_NAME = "auth_sessions";
+import {
+  HOST_SESSION_COOKIE_NAME,
+  SECURE_SESSION_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+  readSessionCookie,
+  readSessionIdFromCookieHeader,
+  clearAllSessionCookies,
+  type CookieReader,
+  type CookieDeleter,
+} from "@src/utils/security/session-cookie";
+
+export {
+  SESSION_COOKIE_NAME,
+  HOST_SESSION_COOKIE_NAME,
+  SECURE_SESSION_COOKIE_NAME,
+  readSessionCookie,
+  readSessionIdFromCookieHeader,
+  clearAllSessionCookies,
+  type CookieReader,
+  type CookieDeleter,
+};
 
 /**
  * Whether the request should use Secure / __Host- session cookies.
@@ -59,22 +79,11 @@ export function getSessionCookieName(isSecure: boolean): string {
   return isSecure ? `__Host-${SESSION_COOKIE_NAME}` : SESSION_COOKIE_NAME;
 }
 
-export const HOST_SESSION_COOKIE_NAME = `__Host-${SESSION_COOKIE_NAME}`;
-export const SECURE_SESSION_COOKIE_NAME = `__Secure-${SESSION_COOKIE_NAME}`;
-
 export const SESSION_COOKIE_VARIANTS = Object.freeze([
   { name: HOST_SESSION_COOKIE_NAME, isSecure: true },
   { name: SECURE_SESSION_COOKIE_NAME, isSecure: true },
   { name: SESSION_COOKIE_NAME, isSecure: false },
 ]);
-
-export {
-  readSessionCookie,
-  readSessionIdFromCookieHeader,
-  clearAllSessionCookies,
-  type CookieReader,
-  type CookieDeleter,
-} from "@src/utils/security/session-cookie";
 
 /**
  * Generates a cryptographically secure random alphanumeric token with zero bias.

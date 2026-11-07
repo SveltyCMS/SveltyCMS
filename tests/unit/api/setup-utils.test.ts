@@ -8,8 +8,8 @@
 
 import { describe, expect, it } from "vitest";
 import type { DatabaseConfig } from "@src/databases/schemas";
-import { classifyDatabaseError } from "@src/routes/setup/error-classifier";
-import { buildDatabaseConnectionString } from "@src/routes/setup/utils";
+import { classifyDatabaseError } from "@src/services/setup/error-classifier";
+import { buildDatabaseConnectionString } from "@src/services/setup/setup-utils";
 
 describe("Setup Utils - Connection String Builder", () => {
   it("should build standard MongoDB connection string", () => {

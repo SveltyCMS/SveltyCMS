@@ -117,7 +117,7 @@ export interface Tenant extends BaseEntity {
   usage: TenantUsage;
 }
 
-export const tenantSchema = new Schema<Tenant>(
+const tenantSchema = new Schema<Tenant>(
   {
     _id: { type: String, required: true },
     name: { type: String, required: true },

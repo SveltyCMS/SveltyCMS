@@ -6,7 +6,7 @@ order: 32
 icon: "mdi:lightning-bolt"
 author: "SveltyCMS Team"
 created: "2026-07-18"
-updated: "2026-09-08"
+updated: "2026-11-07"
 tags:
   - "ai"
   - "litert"
@@ -163,6 +163,18 @@ const result = await ai.generateAltText(imageBuffer, "image/jpeg", contextHint);
 ```
 
 The image editor and media details modal own their own UI; there is no `<AltTextSuggestion>` or `<AiStatusBadge>` component to import.
+
+### Media details modal (alt text)
+
+The media details modal is the first hosted UI for `generateAltText()`:
+
+- A 40×40 icon-only **Generate alt text** button sits beside the alt input (images only). It is disabled while running, reports `aria-busy`, and only renders when the modal's write channel is present; `PATCH /api/media/:id` remains the authority on `media:write`.
+- An **empty** field is filled directly. Authored text opens an inline **Suggested alt text** panel with _Use suggestion_ / _Keep current_ — generation never overwrites a human's copy silently.
+- An applied value carries an **Undo** plus a backend/confidence badge; manual typing clears both. A `backend: "failed"` result is treated as a failure, not as empty output.
+- Persistence stays on the modal's existing 300 ms debounce → one `PATCH`, no second save path.
+- The AI client itself is imported **lazily on first click**, so mounting the modal does not pull the worker bootstrap into the page chunk.
+
+Pinned by `tests/unit/components/dom/media-details-alt-generation.test.ts` (empty fill, confirm-before-replace + undo, failure path).
 
 ## Adding New Models
 

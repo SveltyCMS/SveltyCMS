@@ -27,7 +27,7 @@ export type { CmsMediaMetadata };
 /* Value maps — single source of truth for both types AND runtime lists       */
 /* -------------------------------------------------------------------------- */
 
-export const MediaType = {
+const MediaType = {
   Image: "image",
   Video: "video",
   Audio: "audio",
@@ -45,10 +45,10 @@ export const MediaAccess = {
 
 export type MediaAccess = (typeof MediaAccess)[keyof typeof MediaAccess];
 
-export const STORAGE_TYPES = ["local", "s3", "r2", "cloudinary"] as const;
+const STORAGE_TYPES = ["local", "s3", "r2", "cloudinary"] as const;
 export type StorageType = (typeof STORAGE_TYPES)[number];
 
-export const REMOTE_VIDEO_PROVIDERS = ["youtube", "vimeo"] as const;
+const REMOTE_VIDEO_PROVIDERS = ["youtube", "vimeo"] as const;
 export type RemoteVideoProvider = (typeof REMOTE_VIDEO_PROVIDERS)[number] | (string & {});
 
 /**
@@ -86,7 +86,7 @@ export function normalizeProcessingStatus(value: unknown): MediaProcessingStatus
  * `original` keeps the source format and pairs every step with a WebP sidecar
  * (the pre-2026-09 behaviour, kept as an explicit opt-in).
  */
-export const DERIVATIVE_FORMATS = ["jpeg", "webp", "avif", "original"] as const;
+const DERIVATIVE_FORMATS = ["jpeg", "webp", "avif", "original"] as const;
 
 export type DerivativeFormat = (typeof DERIVATIVE_FORMATS)[number];
 
@@ -288,7 +288,7 @@ export type MediaPatch = Partial<
  * Sharp-compatible gravities. "top"/"bottom"/"left"/"right" are convenience
  * aliases — map them to "north"/"south"/"west"/"east" before passing to sharp.
  */
-export const WATERMARK_POSITIONS = [
+const WATERMARK_POSITIONS = [
   "centre",
   "north",
   "northeast",

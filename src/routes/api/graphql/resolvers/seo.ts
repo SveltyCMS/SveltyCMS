@@ -7,7 +7,7 @@ import { dbAdapter } from "@src/databases/db";
 import { logger } from "@utils/logger";
 import type { User } from "@src/databases/auth/types";
 import type { PublicationFilter } from "@src/utils/security/publication-policy";
-import { isSafeRedirectRegex } from "@src/routes/(app)/config/redirects/redirects-utils";
+import { isSafeRedirectRegex } from "@utils/redirects-utils";
 
 interface GraphQLContext {
   tenantId?: string | null;

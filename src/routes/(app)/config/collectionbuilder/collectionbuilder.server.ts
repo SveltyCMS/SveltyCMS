@@ -93,7 +93,7 @@ export async function installPresetCollections(
     return failure(400, "Invalid preset ID");
   }
 
-  const { PRESETS } = await import("@src/routes/setup/presets");
+  const { PRESETS } = await import("@src/services/setup/presets.server");
   const preset = PRESETS.find((p) => p.id === presetId);
 
   if (!preset || !preset.collections || preset.collections.length === 0) {
@@ -101,7 +101,7 @@ export async function installPresetCollections(
   }
 
   const { writePresetCollectionFiles } =
-    await import("@src/routes/setup/preset-collections.server");
+    await import("@src/services/setup/preset-collections.server");
   await writePresetCollectionFiles(preset.collections, { tenantId });
 
   const cms = await getCollectionBuilderCms(tenantId);

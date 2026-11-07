@@ -136,6 +136,16 @@ describe("readSessionCookie", () => {
     expect(readSessionCookie(cookies, true)).toBe("host");
   });
 
+  it("on secure: ignores plain and __Secure- cookies (subdomain cookie tossing)", () => {
+    const plainOnly = {
+      get: (name: string) =>
+        ({ auth_sessions: "plain", "__Secure-auth_sessions": "secure" } as Record<string, string>)[
+          name
+        ],
+    };
+    expect(readSessionCookie(plainOnly, true)).toBeUndefined();
+  });
+
   it("returns undefined when no session cookie present", () => {
     expect(readSessionCookie({ get: () => undefined }, false)).toBeUndefined();
     expect(readSessionCookie({ get: () => undefined }, true)).toBeUndefined();

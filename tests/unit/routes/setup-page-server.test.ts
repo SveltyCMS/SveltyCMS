@@ -23,7 +23,7 @@ vi.mock("@utils/server/setup-check", () => ({
   getSetupState: () => h.getSetupState(),
 }));
 
-vi.mock("@src/routes/setup/setup.server", () => ({
+vi.mock("@src/services/setup/setup.server", () => ({
   testDatabaseConnection: vi.fn(),
   seedDatabase: vi.fn(),
   completeSetup: vi.fn(),

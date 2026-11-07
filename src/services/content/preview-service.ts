@@ -25,7 +25,7 @@ interface PreviewPayload {
   aud: string; // audience = host
 }
 
-export class PreviewService {
+class PreviewService {
   private static instance: PreviewService;
 
   private constructor() {}

@@ -39,7 +39,7 @@ function loadDbModule(): Promise<typeof import("@src/databases/db")> {
   return (dbModulePromise ??= import("@src/databases/db"));
 }
 
-import { AppError, rethrow, isAppError } from "@utils/error-handling";
+import { AppError, raise, rethrow, isAppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, ISODateString } from "@src/content/types";
@@ -60,6 +60,7 @@ import {
 import { getAllPermissions, hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import type { User } from "@src/databases/auth/types";
 import { successResponse, rawResponse } from "./base";
+import { hasMediaPermission } from "./media-permissions";
 import {
   adoptSessionSurface,
   invalidateSessionCache,
@@ -793,6 +794,32 @@ export async function handleOidcLoginCallback(
         withSystemScope("bootstrap"),
       );
       user.role = targetRole;
+      // A synced role is an authorization change: the stored session snapshot
+      // (which a reused device session would restore on an LRU miss) and the
+      // 5-minute permission cache still carry the pre-sync role. Revoke those
+      // before the login below mints its session snapshot.
+      try {
+        const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+        invalidatePermissionCache(String(user._id));
+      } catch (err) {
+        logger.debug("[OIDC] permission cache invalidation failed", err);
+      }
+      try {
+        const { publishUserRevocation } =
+          await import("@src/databases/auth/revocation-publish.server");
+        await publishUserRevocation(String(user._id), tenantId ? String(tenantId) : null);
+        const activeRes = await auth.getActiveSessions?.(user._id as any, {
+          tenantId: tenantId as any,
+          ...(tenantId ? {} : withSystemScope("auth-bootstrap")),
+        });
+        const active = activeRes?.success && Array.isArray(activeRes.data) ? activeRes.data : [];
+        for (const s of active) {
+          invalidateSessionCache(String(s._id), tenantId);
+          await auth.deleteSession?.(s._id, withSystemScope("bootstrap")).catch(() => {});
+        }
+      } catch (err) {
+        logger.debug("[OIDC] session purge after role sync failed", err);
+      }
     }
   }
 
@@ -816,7 +843,7 @@ export async function handleOidcLoginCallback(
     try {
       const res = await auth.getActiveSessions(user._id as any, {
         tenantId: tenantId as any,
-        ...withSystemScope("auth-bootstrap"),
+        ...(tenantId ? {} : withSystemScope("auth-bootstrap")),
       });
       const list = res?.success && Array.isArray(res.data) ? res.data : [];
       return (
@@ -1109,6 +1136,25 @@ export async function handleUpdateUserAttributesRoute(
 }
 
 /**
+ * An avatar must resolve to bytes this CMS already serves (or an inline image
+ * data URL). A free-form URL would be fetched by every admin browser that
+ * renders the user widget (`<img src>`), leaking their IP/user-agent, and a
+ * `data:` URL is stored verbatim in the user row and broadcast in dashboard
+ * payloads — so both are length-capped here.
+ */
+const AVATAR_DATA_URL = /^data:image\/(?:png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+/=\s]+$/i;
+const AVATAR_SITE_PATH = /^\/(?:files|media|mediaFolder)\//;
+const AVATAR_REFERENCE_MAX_LENGTH = 512 * 1024;
+
+function assertAvatarReference(value: string): string {
+  if (value.length > AVATAR_REFERENCE_MAX_LENGTH) {
+    raise(400, "Avatar payload is too large", "INVALID_AVATAR");
+  }
+  if (AVATAR_SITE_PATH.test(value) || AVATAR_DATA_URL.test(value)) return value;
+  raise(400, "Avatar must be a CMS file path (/files/…) or an image data URL", "INVALID_AVATAR");
+}
+
+/**
  * Handles user avatar upload (multipart/form-data or JSON).
  */
 export async function handleSaveAvatarRoute(
@@ -1130,14 +1176,44 @@ export async function handleSaveAvatarRoute(
     avatarValue = body.avatar;
   }
 
-  const targetId = userId === "self" ? event.locals.user?._id : userId;
+  const caller = event.locals.user;
+  if (!caller) raise(401, "Authentication required", "UNAUTHORIZED");
+
+  const targetId = userId === "self" ? caller._id : userId;
   if (!targetId) throw new AppError("User ID is required", 400);
   if (!avatarValue) throw new AppError("Avatar file or URL is required", 400);
 
+  // 🛡️ Self-service only unless the caller can manage users. The dispatcher
+  // allowlists `save-avatar` for every authenticated principal so a user can
+  // set their own avatar; without this check any session could rewrite another
+  // user's avatar by supplying `user_id` (IDOR).
+  if (String(targetId) !== String(caller._id)) {
+    const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
+    const canManageUsers =
+      isAdmin(caller) || hasPermissionWithRoles(caller as User, "user:write", roles);
+    if (!canManageUsers) {
+      raise(403, "Forbidden: cannot change another user's avatar", "FORBIDDEN");
+    }
+  }
+
   let finalAvatarUrl: string;
   if (typeof avatarValue !== "string") {
+    // Writing to the media store is a media operation: the dispatcher allowlists
+    // `save-avatar` for every authenticated principal (so a user can set their
+    // own avatar), but that must not bypass `media:write` for the upload itself.
+    if (!hasMediaPermission(event, caller, "media:write")) {
+      raise(403, "Insufficient permissions for asset upload", "FORBIDDEN");
+    }
+    // An avatar is an image, not an arbitrary document: `cms.media.upload`
+    // would otherwise store a PDF/video under the avatars folder and hand back
+    // a URL that renders as a broken image. The media service sniffs the bytes
+    // again (`assertMimeAgreement`), so a spoofed declared type is rejected too.
+    const avatarMime = typeof avatarValue?.type === "string" ? avatarValue.type : "";
+    if (!avatarMime.toLowerCase().startsWith("image/")) {
+      raise(400, "Avatar must be an image file", "INVALID_FILE_TYPE");
+    }
     const uploadResult = await cms.media.upload(avatarValue, {
-      userId: event.locals.user?._id || "system",
+      userId: caller._id || "system",
       tenantId,
       folder: "avatars",
       skipResizing: true,
@@ -1147,7 +1223,7 @@ export async function handleSaveAvatarRoute(
     }
     finalAvatarUrl = uploadResult.data.url || (uploadResult.data as any).path;
   } else {
-    finalAvatarUrl = avatarValue;
+    finalAvatarUrl = assertAvatarReference(avatarValue);
   }
 
   const result = await cms.auth.saveAvatar(finalAvatarUrl, {
@@ -1724,10 +1800,29 @@ export async function handleUserSpecificRoutes(
 
   // Avatar sub-routes
   if (subAction === "avatar") {
+    // 🛡️ Defense-in-depth: the dispatcher allowlists this route, but the
+    // handler must not let a caller rewrite another user's avatar (same
+    // boundary as handleSaveAvatarRoute).
+    const caller = event.locals.user;
+    if (!caller) raise(401, "Authentication required", "UNAUTHORIZED");
+    if (String(userId) !== String(caller._id)) {
+      const roles = (event.locals.roles ?? []) as Parameters<typeof hasPermissionWithRoles>[2];
+      const canManageUsers =
+        isAdmin(caller) || hasPermissionWithRoles(caller as User, "user:write", roles);
+      if (!canManageUsers) {
+        raise(403, "Forbidden: cannot change another user's avatar", "FORBIDDEN");
+      }
+    }
     switch (request.method) {
       case "POST": {
         const { avatar } = await request.json();
-        return successResponse(event, await cms.auth.saveAvatar(avatar, { userId, tenantId }));
+        if (typeof avatar !== "string") {
+          raise(400, "avatar must be a string reference", "INVALID_AVATAR");
+        }
+        return successResponse(
+          event,
+          await cms.auth.saveAvatar(assertAvatarReference(avatar), { userId, tenantId }),
+        );
       }
       case "DELETE":
         return successResponse(event, await cms.auth.deleteAvatar({ userId, tenantId }));

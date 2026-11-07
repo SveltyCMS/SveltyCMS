@@ -128,7 +128,7 @@ export function analyze(files: MediaItem[]): Breakdown {
 }
 
 /** Generate insights from storage breakdown */
-export function generateInsights(files: MediaItem[], breakdown: Breakdown): Insight[] {
+function generateInsights(files: MediaItem[], breakdown: Breakdown): Insight[] {
   const list: Insight[] = [];
 
   // Large files (>10MB)

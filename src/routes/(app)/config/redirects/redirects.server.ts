@@ -26,7 +26,7 @@ import {
   toRedirectPayload,
   validateRedirectDraft,
   type RedirectDraft,
-} from "./redirects-utils";
+} from "@utils/redirects-utils";
 
 export { normalizeRedirectRow };
 

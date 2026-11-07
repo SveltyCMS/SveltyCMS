@@ -188,7 +188,7 @@ export interface SseErrorVerdict {
 }
 
 /** A reconnect that failed this many times in a row is a real failure, not a hiccup. */
-export const SSE_FAILURE_LOG_THRESHOLD = 3;
+const SSE_FAILURE_LOG_THRESHOLD = 3;
 
 /**
  * Decides how loud an `EventSource` error should be, and whether the caller has to

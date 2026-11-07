@@ -9,7 +9,7 @@ import {
   getSettingGroup,
   getEnabledSettingGroups,
   getSettingGroupsByRole,
-} from "../../../src/routes/(app)/config/system-settings/settings-groups";
+} from "@src/services/system/settings-groups";
 
 describe("settingsGroups catalog", () => {
   it("defines unique group ids", () => {

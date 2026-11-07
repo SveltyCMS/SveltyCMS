@@ -68,8 +68,17 @@ test.describe("Media gallery — large library", () => {
       // Bounded first paint: only BATCH_SIZE tiles exist in the DOM.
       await expect(tiles).toHaveCount(BATCH_SIZE, { timeout: 30_000 });
 
-      // Scrolling to the sentinel appends the remainder.
-      await tiles.last().scrollIntoViewIfNeeded();
+      // Drive the reveal through the sentinel, not the last tile: a search
+      // response can reset the scroll container, so a single scroll to the last
+      // tile is not a stable trigger. The retry loop re-scrolls until the batch
+      // grows.
+      const sentinel = page.getByTestId("media-grid-load-more").first();
+      await expect(async () => {
+        await sentinel.scrollIntoViewIfNeeded();
+        expect(await tiles.count()).toBeGreaterThan(BATCH_SIZE);
+      }).toPass({ timeout: 30_000, intervals: [250, 500, 1_000] });
+
+      // Every match is eventually mounted.
       await expect(tiles).toHaveCount(BULK_COUNT, { timeout: 30_000 });
 
       await expect(grid.getByText(`${prefix}-${BULK_COUNT - 1}.png`)).toBeVisible({

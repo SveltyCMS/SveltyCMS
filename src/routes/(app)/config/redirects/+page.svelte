@@ -72,7 +72,7 @@
 		toRedirectPayload,
 		validateRedirectDraft,
 		type RedirectDraft
-	} from './redirects-utils';
+	} from '@utils/redirects-utils';
 
 	let { data } = $props();
 	let redirects = $derived((data.redirects || []) as Array<RedirectDraft & { _id?: string }>);

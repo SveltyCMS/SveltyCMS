@@ -58,7 +58,8 @@ export async function seedWebsiteStarterBlueprint(
 ): Promise<SeedWebsiteStarterBlueprintResult> {
   const { siteName = "SveltyCMS", tenantId = null, enablePlugin = true, adminUserId } = options;
 
-  const { seedPresetCollections, seedWebsiteStarterPages } = await import("@src/routes/setup/seed");
+  const { seedPresetCollections, seedWebsiteStarterPages } =
+    await import("@src/services/setup/seed");
 
   const schemas = await seedPresetCollections(adapter, "website", tenantId, undefined, {
     replaceAll: false,

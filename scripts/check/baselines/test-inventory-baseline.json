@@ -1,0 +1,179 @@
+{
+  "version": 1,
+  "layers": {
+    "unit": {
+      "generatedAt": "2026-11-07T18:54:22.146Z",
+      "totals": {
+        "files": 844,
+        "tests": 8018
+      },
+      "areas": {
+        "unit": {
+          "files": 11,
+          "tests": 79
+        },
+        "unit/api": {
+          "files": 54,
+          "tests": 519
+        },
+        "unit/auth": {
+          "files": 31,
+          "tests": 309
+        },
+        "unit/bench": {
+          "files": 1,
+          "tests": 5
+        },
+        "unit/benchmarks": {
+          "files": 5,
+          "tests": 42
+        },
+        "unit/ci": {
+          "files": 5,
+          "tests": 40
+        },
+        "unit/collaboration": {
+          "files": 1,
+          "tests": 13
+        },
+        "unit/collectionbuilder": {
+          "files": 10,
+          "tests": 113
+        },
+        "unit/commerce": {
+          "files": 2,
+          "tests": 13
+        },
+        "unit/compilation": {
+          "files": 3,
+          "tests": 17
+        },
+        "unit/components": {
+          "files": 20,
+          "tests": 179
+        },
+        "unit/config": {
+          "files": 12,
+          "tests": 64
+        },
+        "unit/content": {
+          "files": 16,
+          "tests": 179
+        },
+        "unit/core": {
+          "files": 10,
+          "tests": 125
+        },
+        "unit/dashboard": {
+          "files": 7,
+          "tests": 51
+        },
+        "unit/databases": {
+          "files": 87,
+          "tests": 706
+        },
+        "unit/graphql": {
+          "files": 3,
+          "tests": 30
+        },
+        "unit/hooks": {
+          "files": 36,
+          "tests": 570
+        },
+        "unit/live": {
+          "files": 1,
+          "tests": 2
+        },
+        "unit/media": {
+          "files": 24,
+          "tests": 282
+        },
+        "unit/multi-tenancy": {
+          "files": 6,
+          "tests": 32
+        },
+        "unit/performance": {
+          "files": 1,
+          "tests": 1
+        },
+        "unit/permissions": {
+          "files": 2,
+          "tests": 41
+        },
+        "unit/plugins": {
+          "files": 58,
+          "tests": 432
+        },
+        "unit/rate-limit": {
+          "files": 12,
+          "tests": 91
+        },
+        "unit/routes": {
+          "files": 63,
+          "tests": 337
+        },
+        "unit/scripts": {
+          "files": 47,
+          "tests": 611
+        },
+        "unit/sdk": {
+          "files": 21,
+          "tests": 178
+        },
+        "unit/security": {
+          "files": 39,
+          "tests": 533
+        },
+        "unit/services": {
+          "files": 80,
+          "tests": 709
+        },
+        "unit/setup": {
+          "files": 6,
+          "tests": 28
+        },
+        "unit/site": {
+          "files": 1,
+          "tests": 5
+        },
+        "unit/stores": {
+          "files": 13,
+          "tests": 160
+        },
+        "unit/test-harness": {
+          "files": 3,
+          "tests": 4
+        },
+        "unit/user": {
+          "files": 7,
+          "tests": 143
+        },
+        "unit/utils": {
+          "files": 101,
+          "tests": 973
+        },
+        "unit/widgets": {
+          "files": 28,
+          "tests": 300
+        },
+        "widgets": {
+          "files": 17,
+          "tests": 102
+        }
+      }
+    },
+    "components": {
+      "generatedAt": "2026-11-07T18:20:20.153Z",
+      "totals": {
+        "files": 53,
+        "tests": 238
+      },
+      "areas": {
+        "unit/components": {
+          "files": 53,
+          "tests": 238
+        }
+      }
+    }
+  }
+}

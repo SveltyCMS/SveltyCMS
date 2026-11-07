@@ -65,7 +65,7 @@ export function fieldMappingsToNodes(mappings: WizardFieldMapping[]): MappingNod
   }));
 }
 
-export function flattenMappingNodes(tree: MappingNode[]): MappingNode[] {
+function flattenMappingNodes(tree: MappingNode[]): MappingNode[] {
   const result: MappingNode[] = [];
   for (const node of tree) {
     result.push(node);

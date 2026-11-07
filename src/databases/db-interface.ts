@@ -161,6 +161,12 @@ export interface BaseQueryOptions {
   bypassCache?: boolean; // 🚀 PERFORMANCE: Force bypass of all caching layers
   hints?: QueryOptimizationHints;
   transaction?: any; // Database-specific transaction object
+  /**
+   * Marks the operation as a write for tracing/allocation decisions
+   * (`skipMeta + isWrite` skips the AsyncLocalStorage trace lookup). Adapter
+   * write paths set it; callers normally omit it.
+   */
+  isWrite?: boolean;
   /** No-read-back write: reconstruct the row client-side (full-doc callers). See WritePolicy.readBack. */
   skipReturning?: boolean;
   /** Skip post-write side effects (invalidation, outbox, pubsub, hooks). See WritePolicy.sideEffects. */

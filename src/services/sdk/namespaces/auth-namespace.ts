@@ -391,6 +391,53 @@ export class AuthNamespace {
       } catch {
         // Non-critical — caches expire naturally after TTL
       }
+      // 🛡️ A role/permission change is an authorization change, not a profile
+      // edit: the per-user permission cache and the stored session snapshot
+      // both carry the old role. `blocked` belongs in the same class — a warm
+      // session snapshot is consulted before the DB, so a block must revoke it.
+      if (
+        data &&
+        typeof data === "object" &&
+        ["role", "roles", "roleIds", "isAdmin", "permissions", "blocked"].some((field) =>
+          Object.hasOwn(data, field),
+        )
+      ) {
+        try {
+          const { invalidatePermissionCache } = await import("@src/databases/auth/permissions");
+          invalidatePermissionCache(String(userId));
+        } catch (error) {
+          logger.debug("[auth-namespace] suppressed error", error);
+        }
+        try {
+          // Revoke first: the epoch + distributed marker invalidate any session
+          // that is not enumerated below (other workers, re-primed LRUs).
+          const { publishUserRevocation } =
+            await import("@src/databases/auth/revocation-publish.server");
+          await publishUserRevocation(String(userId), tenantId as string | null | undefined);
+        } catch (error) {
+          logger.debug("[auth-namespace] suppressed error", error);
+        }
+        try {
+          const { invalidateSessionCache } = await loadHandleAuthenticationModule();
+          const activeRes = await auth.getActiveSessions(userId as DatabaseId, {
+            tenantId: tenantId as DatabaseId,
+            // Only a tenantless call may bypass the tenant predicate; with a
+            // live tenant this must purge only that tenant's sessions.
+            ...(tenantId ? {} : withSystemScope("auth-bootstrap")),
+          });
+          const active = activeRes?.success && Array.isArray(activeRes.data) ? activeRes.data : [];
+          for (const session of active) {
+            invalidateSessionCache(String(session._id), tenantId as DatabaseId);
+            // Drop the stored snapshot too: an LRU purge alone would let the next
+            // request re-hydrate the pre-change role from the session store.
+            await auth
+              .deleteSession(session._id, { tenantId: tenantId as DatabaseId })
+              .catch(() => {});
+          }
+        } catch (error) {
+          logger.debug("[auth-namespace] suppressed error", error);
+        }
+      }
       // The (app) layout reads its own 15 s snapshot (avatar, name) — clear it as well.
       await this.invalidateLayoutUserSnapshot(userId, tenantId as DatabaseId | null | undefined);
       // Adapter returns DatabaseResult; Auth facade may return bare User
@@ -541,7 +588,7 @@ export class AuthNamespace {
           if (policy !== "allow-multiple") {
             const sessionsResult = await auth.getActiveSessions(user._id as DatabaseId, {
               tenantId: tenantId as DatabaseId,
-              ...withSystemScope("auth-bootstrap"),
+              ...(tenantId ? {} : withSystemScope("auth-bootstrap")),
             });
             if (sessionsResult.success) {
               const sessions = Array.isArray(sessionsResult.data) ? sessionsResult.data : [];
@@ -852,7 +899,7 @@ export class AuthNamespace {
           for (const userId of userIds) {
             const activeRes = await auth.getActiveSessions(userId as DatabaseId, {
               tenantId: tenantId as DatabaseId,
-              ...withSystemScope("auth-bootstrap"),
+              ...(tenantId ? {} : withSystemScope("auth-bootstrap")),
             });
             const active =
               activeRes?.success && Array.isArray(activeRes.data) ? activeRes.data : [];

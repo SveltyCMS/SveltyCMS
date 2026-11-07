@@ -9,7 +9,7 @@ import { nowISODateString } from "@utils/date";
 import { logger } from "@utils/logger";
 import type { Webhook } from "@src/services/background/webhook-service";
 
-import { safeFetch } from "../../../utils/egress-guard";
+import { safeFetch } from "@utils/egress-guard";
 
 export interface WebhookJobPayload {
   webhook: Webhook;

@@ -12,6 +12,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { fetchApi, type ApiResponse } from '@utils/api';
 	import { logger } from '@utils/logger';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
@@ -29,7 +30,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
 		SMART_TABLE_THEAD
-	} from '@components/ui/smart-table';
+	} from '@components/ui/smart-table/chrome';
 	import {
 		sync_action,
 		sync_backup_heading,
@@ -127,8 +128,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 	async function loadStatus() {
 		isLoading = true;
 		try {
-			const { fetchSyncStatus } = await import('./sync-api');
-			const result = await fetchSyncStatus();
+			const result = await fetchApi<ConfigStatus>('/api/config/status');
 			if (!result.success) {
 				throw new Error(result.message || 'Failed to fetch status');
 			}
@@ -162,9 +162,13 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		isProcessing = true;
 		try {
 			toast.info(`Creating configuration plan (${selectedMode} mode)...`);
-			const { createSyncPlan, applySyncPlan } = await import('./sync-api');
-
-			const planResult = await createSyncPlan(selectedMode);
+			const planResult: ApiResponse<{ planId?: string; mode?: string }> = await fetchApi(
+				'/api/config/plan',
+				{
+					method: 'POST',
+					body: JSON.stringify({ mode: selectedMode })
+				}
+			);
 			if (!planResult.success) {
 				throw new Error(planResult.message || 'Plan failed');
 			}
@@ -175,7 +179,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 				throw new Error('Plan response did not include a planId.');
 			}
 
-			const applyResult = await applySyncPlan(plan.planId, plan.mode || selectedMode);
+			const applyResult: ApiResponse<{ message?: string }> = await fetchApi('/api/config/apply', {
+				method: 'POST',
+				body: JSON.stringify({ planId: plan.planId, mode: plan.mode || selectedMode })
+			});
 			if (!applyResult.success) {
 				throw new Error(applyResult.message || 'Apply failed');
 			}
@@ -196,8 +203,10 @@ Allows synchronization between filesystem and database, safety mode selection, a
 		isExporting = true;
 		try {
 			toast.info('Exporting database configuration to filesystem...');
-			const { exportConfig } = await import('./sync-api');
-			const result = await exportConfig();
+			const result: ApiResponse<{ dirPath: string }> = await fetchApi('/api/config/export', {
+				method: 'POST',
+				body: JSON.stringify({})
+			});
 			if (!result.success) {
 				throw new Error(result.message || 'Export failed');
 			}

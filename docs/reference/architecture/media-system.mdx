@@ -6,7 +6,7 @@ order: 10
 icon: "mdi:sitemap"
 author: "SveltyCMS Team"
 created: "2026-02-16"
-updated: "2026-11-01"
+updated: "2026-11-07"
 tags:
   - "architecture"
   - "media"
@@ -159,6 +159,26 @@ Implementation:
 - SQL/Mongo builders: `src/databases/core/media-json-path.ts`
 - Unit: `tests/unit/utils/json-path-filter.test.ts`, `tests/unit/databases/media-json-path.test.ts`
 - Integration: `tests/integration/api/media-jsonpath.test.ts` (`?jsonPath=` reduces load payload)
+
+---
+
+## Listing, server search & the windowed grid
+
+The gallery never searches what it has already downloaded. `?q=` is a **server** query: `+page.server.ts` passes `search` to `media.files.getByFolder`, and every adapter filters on `filename` / `originalFilename` (`LIKE` on SQLite/PostgreSQL/MariaDB, escaped case-insensitive `$regex` on MongoDB). `?q=` therefore finds rows the client has never fetched, and a new query deletes `?page=` so the result set starts at page 1.
+
+| Concern           | Contract                                                                                                        |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------- |
+| Page size         | `GALLERY_PAGE_SIZE = 100`; `?page=` is clamped to 10,000                                                        |
+| Search            | `?q=` (legacy `?search=` accepted), trimmed and capped at 100 chars; 300 ms debounce in `media-search-query.ts` |
+| Count             | the “x of y” label uses the adapter COUNT, never the rendered slice                                             |
+| Sorting           | `?sort=` / `?dir=` mapped onto the adapter's `sort`/`dir` contract                                              |
+| Structured filter | `?jsonPath=` (see above)                                                                                        |
+
+**Rendering.** Up to 500 loaded rows the grid keeps the original progressive reveal: 60 tiles, then 60 more each time the sentinel enters the scroll root. Above 500 rows it switches to a **window**: only the rows in view plus 3 overscan rows each side stay mounted, and top/bottom spacers preserve the exact scroll range of the full list. Geometry (columns, row height, gap) is measured once per layout and re-measured on resize; the math lives in `grid-window.ts`. Tiles also carry `content-visibility: auto` with a density-specific `contain-intrinsic-size`. Shift-range selection ranges over the full result list, not the mounted window, so an anchor outside the viewport still selects correctly.
+
+The sentinel is re-armed on a result-head change (`revealEpoch`) and the scroll handler also reveals/loads when it is within 600 px of the bottom — `IntersectionObserver` only reports threshold _changes_, so a reset alone could otherwise leave it silent.
+
+Implementation: `src/routes/(app)/mediagallery/media-grid.svelte`, `+page.svelte`, `+page.server.ts`, `grid-window.ts`, `media-search-query.ts`. Tests: `tests/unit/routes/mediagallery-grid-window.test.ts`, `tests/unit/routes/mediagallery-search-query.test.ts`, `tests/unit/components/dom/media-grid-virtual-window.test.ts`, `tests/e2e/routes/mediagallery/{large-library,media-pagination}.spec.ts`.
 
 ---
 

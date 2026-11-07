@@ -71,8 +71,11 @@
 	import Button from '@src/components/ui/button.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import FloatingInput from '@components/ui/floating-input.svelte';
-	import { generateCollectionTypeScript } from '../../../collection-code-generator';
-	import { inferWidgetFromFieldName, type InferredWidgetResult } from '../../../smart-inference';
+	import { generateCollectionTypeScript } from '@src/routes/(app)/config/collectionbuilder/collection-code-generator';
+	import {
+		inferWidgetFromFieldName,
+		type InferredWidgetResult
+	} from '@src/routes/(app)/config/collectionbuilder/smart-inference';
 	import { draggable, droppable, dndState } from '@thisux/sveltednd';
 	import type { DragDropState } from '@thisux/sveltednd';
 

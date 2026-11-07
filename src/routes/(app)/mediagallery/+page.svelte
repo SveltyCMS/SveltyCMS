@@ -28,6 +28,7 @@
 		mediagallery_folder_drop_path,
 		mediagallery_grid_size,
 		mediagallery_grid_view,
+		mediagallery_loading_more,
 		mediagallery_loading_table,
 		mediagallery_list_pagination_sr,
 		mediagallery_new_folder,
@@ -71,6 +72,7 @@
 	import {
 		type MediaBase,
 		type MediaImage,
+		type MediaType,
 		type StoredMediaBase,
 		MediaTypeEnum,
 		normalizeProcessingStatus
@@ -97,6 +99,7 @@
 	import Select from '@components/ui/select.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
+	import { buildMediaSearchUrl, MEDIA_SEARCH_MAX_LENGTH } from './media-search-query';
 
 	let { data }: { data: PageData } = $props();
 
@@ -137,9 +140,9 @@
 	// Filters seed from the URL so a shared link restores the whole view, not just
 	// `jsonPath`. `replaceState` keeps the URL in step without re-running the load.
 	const initialParams = untrack(() => page.url.searchParams);
-	function mediaTypeFromParam(value: string | null): 'All' | MediaTypeEnum {
+	function mediaTypeFromParam(value: string | null): 'All' | MediaType {
 		return value && (Object.values(MediaTypeEnum) as string[]).includes(value)
-			? (value as MediaTypeEnum)
+			? (value as MediaType)
 			: 'All';
 	}
 	function statusFromParam(value: string | null): 'all' | 'processing' | 'ready' | 'failed' {
@@ -161,9 +164,7 @@
 	}
 
 	let globalSearchValue = $state(initialParams.get('q') ?? initialParams.get('search') ?? '');
-	let selectedMediaType = $state<'All' | MediaTypeEnum>(
-		mediaTypeFromParam(initialParams.get('type'))
-	);
+	let selectedMediaType = $state<'All' | MediaType>(mediaTypeFromParam(initialParams.get('type')));
 	let selectedProcessingStatus = $state<'all' | 'processing' | 'ready' | 'failed'>(
 		statusFromParam(initialParams.get('status'))
 	);
@@ -216,16 +217,80 @@
 	/** Last query the effect wrote — avoids a replaceState per unchanged render. */
 	let lastSyncedQuery: string | null = null;
 
+	/**
+	 * Query the server has already answered (`?q=`; the loader still accepts the
+	 * legacy `?search=` alias). The input is committed to the URL only after a
+	 * typing pause, so typing in a 20k folder does not spend one load per keystroke.
+	 */
+	const committedSearchQuery = $derived(
+		(page.url.searchParams.get('q') ?? page.url.searchParams.get('search') ?? '').trim()
+	);
+
+	const SEARCH_DEBOUNCE_MS = 300;
+	let isSearching = $state(false);
+	let searchInFlight = false;
+	let queuedSearchQuery: string | null = null;
+
 	$effect(() => {
 		if (!browser) return;
 
-		const q = globalSearchValue.trim();
+		const next = globalSearchValue.trim().slice(0, MEDIA_SEARCH_MAX_LENGTH);
+		// `committedSearchQuery` is read so the effect settles after the server
+		// answers: the URL now carries the query and no new timer is armed.
+		if (next === committedSearchQuery) return;
+
+		const timer = setTimeout(() => void commitSearchQuery(next), SEARCH_DEBOUNCE_MS);
+		return () => clearTimeout(timer);
+	});
+
+	/**
+	 * Drive `?q=` from the debounced input. A second search can land while a load
+	 * is still in flight; queue it instead of cancelling the navigation so neither
+	 * result set is dropped.
+	 */
+	async function commitSearchQuery(query: string) {
+		if (searchInFlight) {
+			queuedSearchQuery = query;
+			return;
+		}
+		searchInFlight = true;
+		isSearching = true;
+		try {
+			let next: string | null = query;
+			while (next !== null) {
+				queuedSearchQuery = null;
+				await navigateToSearch(next);
+				next = queuedSearchQuery;
+			}
+		} catch (err) {
+			logger.error('Media search navigation failed', err);
+			toast.error('Could not load search results');
+		} finally {
+			searchInFlight = false;
+			isSearching = false;
+		}
+	}
+
+	async function navigateToSearch(query: string) {
+		if (query === committedSearchQuery) return;
+		// `replace` keeps the history stack clean while typing; `reset: false` leaves
+		// scroll and focus alone across the server round-trip (the grid resets its own
+		// scroll when the result head changes).
+		await goto(buildMediaSearchUrl(page.url.href, query), {
+			replace: true,
+			reset: false
+		});
+	}
+
+	$effect(() => {
+		// A search navigation owns the URL until its load settles; writing filter
+		// params from here mid-flight would race the `goto` target. The effect
+		// re-runs when `isSearching` drops and then writes the current values.
+		if (!browser || isSearching) return;
+
 		const jsonPath = jsonPathFilter.trim();
 		const sort = MEDIA_SORT_PARAMS[sortBy] ?? MEDIA_SORT_PARAMS.newest!;
 		const next: Record<string, string | null> = {
-			q: q || null,
-			// `?search=` is the legacy alias the loader also accepts; normalise to `q`.
-			search: null,
 			type: selectedMediaType === 'All' ? null : selectedMediaType,
 			status: selectedProcessingStatus === 'all' ? null : selectedProcessingStatus,
 			jsonPath: jsonPath || null,
@@ -234,6 +299,14 @@
 		};
 
 		const params = new URLSearchParams(window.location.search);
+		// One-time alias normalisation: the loader accepts `?search=` from older
+		// links. `?q=` is owned by the debounced search effect above, so it is not
+		// written here on every keystroke.
+		if (params.has('search')) {
+			const legacy = (params.get('search') ?? '').trim();
+			params.delete('search');
+			if (legacy && !params.has('q')) params.set('q', legacy);
+		}
 		for (const [key, value] of Object.entries(next)) {
 			if (value) params.set(key, value);
 			else params.delete(key);
@@ -383,7 +456,7 @@
 
 	/** Fetch the next 100 rows of the folder (grid sentinel / table "load more"). */
 	async function loadMoreMedia() {
-		if (isLoadingMore || !mediaPagination.hasNextPage) return;
+		if (isLoadingMore || isSearching || !mediaPagination.hasNextPage) return;
 		isLoadingMore = true;
 		try {
 			await navigateMediaPage(mediaPagination.page + 1);
@@ -438,13 +511,10 @@
 	);
 
 	const filteredFiles = $derived.by(() => {
+		// The quick search is server-side (`?q=` → adapter LIKE on filename /
+		// originalFilename). Re-filtering the loaded slice here would both duplicate
+		// it and hide matches that live on pages the client has not fetched yet.
 		let result = files.filter((file) => {
-			if (globalSearchValue) {
-				const matchesSearch = (file.filename || '')
-					.toLowerCase()
-					.includes(globalSearchValue.toLowerCase());
-				if (!matchesSearch) return false;
-			}
 			if (selectedMediaType !== 'All' && file.type !== selectedMediaType) {
 				return false;
 			}
@@ -1721,7 +1791,34 @@
 			class="relative flex min-h-0 flex-1 flex-col"
 			data-testid="media-gallery-content"
 			data-view={view}
+			aria-busy={isSearching}
 		>
+			<!--
+				Non-blocking refresh state: the current tiles stay painted while the
+				debounced ?q= load is in flight, so the search box (toolbar, outside this
+				region) never unmounts or loses focus mid-query.
+			-->
+			{#if isSearching}
+				<div
+					class="pointer-events-none absolute inset-x-0 top-0 z-20 flex justify-center"
+					role="status"
+					aria-live="polite"
+					data-testid="media-gallery-searching"
+				>
+					<span
+						class="mt-2 inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-(--admin-bg-card)/95 px-3 py-1 text-xs font-medium text-(--admin-text-body) shadow-sm"
+					>
+						<iconify-icon
+							icon="mdi:loading"
+							width="14"
+							class="animate-spin text-primary-500 motion-reduce:animate-none"
+							aria-hidden="true"
+						></iconify-icon>
+						{mediagallery_loading_more()}
+					</span>
+				</div>
+			{/if}
+
 			{#if view === 'grid'}
 				<AdminCard class="flex min-h-0 w-full flex-1 flex-col" data-testid="media-grid-card">
 					<MediaGrid
@@ -1735,6 +1832,7 @@
 						onCreateFolder={handleCreateFolder}
 						serverHasMore={mediaPagination.hasNextPage}
 						{isLoadingMore}
+						isRefreshing={isSearching}
 						onLoadMore={loadMoreMedia}
 						onEditImage={handleEditImage}
 						onSetFocalPoint={handleSetFocalPoint}

@@ -78,7 +78,7 @@ function shouldCancelClick(target: HTMLElement): boolean {
  * reaches the target. Cancels navigation-intent clicks (anchors,
  * submit/reset) while letting interactive element toggles pass through.
  */
-export function handlePreviewClick(event: MouseEvent): void {
+function handlePreviewClick(event: MouseEvent): void {
   const target = event.target as HTMLElement;
   if (!target) return;
 

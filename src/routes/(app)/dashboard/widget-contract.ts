@@ -10,7 +10,10 @@
 
 import * as v from "valibot";
 import type { DashboardWidgetConfig, WidgetSize } from "@src/content/types";
-import type { DashboardWidgetCategory, DashboardWidgetLicense } from "./widgets/manifest-registry";
+import type {
+  DashboardWidgetCategory,
+  DashboardWidgetLicense,
+} from "@src/services/core/dashboard-manifest-registry";
 
 export type { DashboardWidgetCategory, DashboardWidgetLicense };
 

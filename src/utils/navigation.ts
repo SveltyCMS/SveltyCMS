@@ -104,7 +104,7 @@ export function preloadEntry(entryId: string, currentPath: string, delay = 200):
   preloadTimers.set(entryId, timer);
 }
 
-export function cancelPreload(entryId: string): void {
+function cancelPreload(entryId: string): void {
   const timer = preloadTimers.get(entryId);
   if (timer) {
     clearTimeout(timer);

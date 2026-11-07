@@ -49,7 +49,7 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
 
     // Seed default roles if missing (crucial after database reset/wipe)
     try {
-      const { seedRoles } = await import("@src/routes/setup/seed");
+      const { seedRoles } = await import("@src/services/setup/seed");
       await seedRoles(initializedAdapter, tenantId);
     } catch (err: any) {
       logger.warn(`[TestingHandler] Non-fatal role seeding error: ${err.message}`);
@@ -135,7 +135,7 @@ export async function handleTestingSeedRoutes(ctx: TestingContext): Promise<Resp
     // them the settings-service cache serves defaults (e.g. SITE_STARTER_ENABLED
     // unset → guests get redirected from / to /login despite a seeded site).
     try {
-      const { seedSettings } = await import("@src/routes/setup/seed");
+      const { seedSettings } = await import("@src/services/setup/seed");
       await seedSettings(initializedAdapter, tenantId);
     } catch (err: any) {
       logger.warn(`[TestingHandler] Non-fatal settings seeding error: ${err.message}`);

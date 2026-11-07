@@ -32,7 +32,7 @@ function l2IsOpen(): boolean {
   return _l2Open;
 }
 
-export class PersistentSecurityStore {
+class PersistentSecurityStore {
   /**
    * Checks if an IP is blocked.
    * L1 is the source of truth when Redis is down (set() always writes L1).

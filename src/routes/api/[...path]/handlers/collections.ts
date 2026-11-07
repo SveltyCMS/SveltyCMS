@@ -17,7 +17,7 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
-import type { ContentDraft } from "@src/databases/db-interface";
+import type { ContentDraft, DatabaseResult } from "@src/databases/db-interface";
 import { StatusTypes } from "@src/content/types";
 import { prepareCollectionFields } from "@src/content/content-write-prep.server";
 import { collectionTableName, buildCollectionCacheTags } from "@src/databases/core/collection-name";
@@ -124,6 +124,67 @@ function collectionConditionalGet(
     search: event.url.search,
     userCacheId: getUserCacheId(event.locals.user),
   });
+}
+
+/** Statuses that mean "publish" in a write payload (`published` is the workflow alias). */
+const PUBLISH_STATUSES = new Set([StatusTypes.publish, "published"]);
+
+/**
+ * A publish request is the only write that promotes a staged draft. A plain
+ * Save keeps writing the live row from the submitted form, exactly as before.
+ */
+function isPublishWrite(rawData: unknown): boolean {
+  if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) return false;
+  const status = (rawData as Record<string, unknown>).status;
+  return typeof status === "string" && PUBLISH_STATUSES.has(status);
+}
+
+/**
+ * Promote the author's staged draft for a publish request.
+ *
+ * `null` means "no draft for this author" and the caller keeps the historical
+ * write path. A failed draft lookup is returned as-is: writing the live row from
+ * the submitted form after failing to read the staged content would silently
+ * drop that content, so the publish fails closed instead. The SDK method owns the
+ * author/ownership gate, the live-write-first ordering and the revision snapshot.
+ */
+async function promoteStagedDraft(
+  cms: LocalCMS,
+  collectionId: string,
+  entryId: string | undefined,
+  tenantId: DatabaseId,
+  user: unknown,
+  options: { expectedVersion?: string | number | null } = {},
+): Promise<DatabaseResult<unknown> | null> {
+  const draft = await cms.drafts.getDraft(collectionId, entryId, { user, tenantId });
+  if (!draft.success) return draft;
+  if (!draft.data) return null;
+
+  return cms.drafts.promoteDraft(collectionId, String(draft.data._id), {
+    user,
+    tenantId,
+    status: StatusTypes.publish,
+    ...(options.expectedVersion !== undefined &&
+    options.expectedVersion !== null &&
+    options.expectedVersion !== ""
+      ? { expectedVersion: options.expectedVersion }
+      : {}),
+    // Deliberately NOT `skipReturning`: that adapter path cannot tell a
+    // zero-row UPDATE from a successful one, so a deleted live row would
+    // "promote" and then discard the draft. Promotion is rare; read the row.
+  });
+}
+
+/** RFC 7240 status-only ack shared by the create/update promotion paths. */
+function minimalWriteAck(
+  event: RequestEvent,
+  result: DatabaseResult<unknown>,
+  status: number,
+): Response {
+  const data = result.success ? (result.data as { _id?: unknown; id?: unknown } | null) : null;
+  const rawId = data?._id ?? data?.id;
+  const safeId = fastEscapeString(String(rawId ?? ""));
+  return fastSuccessResponse(event, `{"_id":"${safeId}"}`, { _id: rawId }, status);
 }
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -662,6 +723,19 @@ export async function handleCollectionCreate(
   }
 
   const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
+
+  // 📝 PUBLISH PROMOTION: a publish replaces the submitted form with the author's
+  // staged draft (autosave sink). The draft is the source of truth for the fields
+  // it staged; no live row is written from the payload in that case. Without a
+  // draft the historical create path below is untouched.
+  if (isPublishWrite(rawData)) {
+    const promoted = await promoteStagedDraft(cms, collectionId, undefined, tenantId, user);
+    if (promoted) {
+      if (promoted.success && isMinimal) return minimalWriteAck(event, promoted, 201);
+      return successResponse(event, promoted, 201);
+    }
+  }
+
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.create", () =>
         cms.collections.create(collectionId, rawData, {
@@ -678,9 +752,7 @@ export async function handleCollectionCreate(
 
   // RFC 7240: `Prefer: return=minimal` asks for a status-only ack with created ID.
   if (result?.success && isMinimal) {
-    const rawId = (result.data as any)?._id || (result.data as any)?.id;
-    const safeId = fastEscapeString(String(rawId ?? ""));
-    return fastSuccessResponse(event, `{"_id":"${safeId}"}`, { _id: rawId }, 201);
+    return minimalWriteAck(event, result, 201);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result, 201);
@@ -744,6 +816,20 @@ export async function handleCollectionUpdate(
       ? { expectedVersion }
       : {}),
   };
+
+  // 📝 PUBLISH PROMOTION: prefer the author's staged draft over the submitted
+  // form. `expectedVersion` still applies (optimistic locking is part of
+  // "exactly as today"); the SDK raises 409 before writing if the row moved.
+  if (isPublishWrite(rawData)) {
+    const promoted = await promoteStagedDraft(cms, collectionId, entryId, tenantId, user, {
+      expectedVersion,
+    });
+    if (promoted) {
+      if (promoted.success && isMinimal) return minimalWriteAck(event, promoted, 200);
+      return successResponse(event, promoted);
+    }
+  }
+
   const result = PROFILE_WRITE_ENABLED
     ? await profileSpan("handler:namespace.update", () =>
         cms.collections.update(collectionId, entryId, rawData, writeOptions),
@@ -1261,7 +1347,6 @@ export async function handleCollectionIncrement(
     // Fast path: native atomic increment via adapter
     result = await (cms.db.crud as any).atomicIncrement(collectionName, entryId, field, amount, {
       tenantId,
-      bypassSafeQuery: true,
       ...(minimal ? { skipReturning: true } : {}),
     });
   } else {

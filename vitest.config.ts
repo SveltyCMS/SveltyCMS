@@ -214,7 +214,11 @@ export default defineConfig({
     // 147 tests fail — setup.ts global mocks and module-level singletons leak
     // across files). Keep per-file isolation; reduce import cost instead.
     // Worker args are top-level in Vitest 5 (`poolOptions.forks` is gone).
-    execArgv: ["--enable-source-maps"],
+    // ML-KEM-768 is intentional (`src/utils/security/hybrid-kem.ts`), but Node
+    // flags the Web Crypto API as experimental and prints a warning from every
+    // fork that exercises it — interleaved into the reporter output. Disable
+    // only that warning code; real errors and deprecations still surface.
+    execArgv: ["--enable-source-maps", "--disable-warning=ExperimentalWarning"],
     // Cap fork parallelism to reduce Windows I/O thrash during heavy API unit suites.
     // Coverage runs get a smaller pool: v8 instrumentation + 16 forks crashed a worker.
     ...(isCI ? {} : { maxWorkers: isCoverageRun ? coverageMaxWorkers : localMaxWorkers }),

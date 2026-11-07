@@ -24,7 +24,7 @@ import type { CommerceRow, CommerceStore } from "./store";
 import { displayText, majorToPrice, priceToMajor } from "./money";
 import { normalizeTaxClass, type TaxClass } from "./vat";
 
-export const CART_MAX_ITEMS = 50;
+const CART_MAX_ITEMS = 50;
 const CART_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export interface CartLine {

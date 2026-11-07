@@ -109,7 +109,7 @@ export class MarketplaceService {
     // Local dashboard widget packages (marketplace-portable folders)
     try {
       const { getInstalledDashboardWidgets } =
-        await import("@src/routes/(app)/dashboard/widgets/manifest-registry");
+        await import("@src/services/core/dashboard-manifest-registry");
       for (const w of getInstalledDashboardWidgets()) {
         items.push({
           id: `dashboard-widget-${w.id}`,

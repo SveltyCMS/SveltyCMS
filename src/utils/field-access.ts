@@ -14,7 +14,7 @@ import type { FieldInstance } from "@src/content/types";
 import { AppError } from "@utils/error-handling";
 import { auditLogService, AuditEventType } from "@src/services/security/audit-service";
 import type { DatabaseId } from "@src/databases/db-interface";
-import { fieldDeclaresGuard } from "@utils/field-guard";
+import { childFieldsOf, fieldDeclaresGuardDeep } from "@utils/field-guard";
 import { deepClone } from "@utils/native-utils";
 import { isAdmin } from "@src/databases/auth/constants";
 
@@ -115,31 +115,85 @@ export function redactRecord(
   const keys = Object.keys(record);
 
   for (const field of fields) {
-    if (canAccessField(field, user, "read")) continue;
-    const fieldName = (field.db_fieldName || (field as { name?: string }).name) as
+    if (!canAccessField(field, user, "read")) {
+      const fieldName = (field.db_fieldName || (field as { name?: string }).name) as
+        | string
+        | undefined;
+      if (!fieldName) continue;
+
+      const present =
+        fieldName in record ||
+        keys.some((key) => key.startsWith(`${fieldName}_`)) ||
+        (fieldName.includes(".") && fieldName.split(".")[0] in record);
+      if (!present) continue;
+
+      if (!copy) copy = { ...record };
+      removeNestedField(copy, fieldName);
+      for (const key of keys) {
+        if (key.startsWith(`${fieldName}_`)) delete copy[key];
+      }
+      continue;
+    }
+
+    // The field itself is readable, but a group/repeater child may not be.
+    const children = childFieldsOf(field);
+    if (children.length === 0 || !children.some(fieldDeclaresGuardDeep)) continue;
+    const groupKey = (field.db_fieldName || (field as { name?: string }).name) as
       | string
       | undefined;
-    if (!fieldName) continue;
-
-    const present =
-      fieldName in record ||
-      keys.some((key) => key.startsWith(`${fieldName}_`)) ||
-      (fieldName.includes(".") && fieldName.split(".")[0] in record);
-    if (!present) continue;
-
-    if (!copy) copy = { ...record };
-    removeNestedField(copy, fieldName);
-    for (const key of keys) {
-      if (key.startsWith(`${fieldName}_`)) delete copy[key];
+    if (!groupKey || !(groupKey in record)) continue;
+    const redactedChild = redactNestedValue(record[groupKey], children, user);
+    if (redactedChild !== record[groupKey]) {
+      if (!copy) copy = { ...record };
+      copy[groupKey] = redactedChild;
     }
   }
 
   return copy ?? row;
 }
 
+/** Redact guarded leaves inside a nested group/repeater value (arrays included). */
+function redactNestedValue(
+  value: unknown,
+  fields: readonly FieldInstance[],
+  user: FieldActor,
+): unknown {
+  if (!value || typeof value !== "object") return value;
+  if (Array.isArray(value)) {
+    let changed = false;
+    const next = value.map((entry) => {
+      const redacted = redactNestedValue(entry, fields, user);
+      if (redacted !== entry) changed = true;
+      return redacted;
+    });
+    return changed ? next : value;
+  }
+  const record = value as Record<string, unknown>;
+  let copy: Record<string, unknown> | null = null;
+  for (const field of fields) {
+    if (canAccessField(field, user, "read")) {
+      const children = childFieldsOf(field);
+      if (children.length === 0 || !children.some(fieldDeclaresGuardDeep)) continue;
+      const key = (field.db_fieldName || (field as { name?: string }).name) as string | undefined;
+      if (!key || !(key in record)) continue;
+      const redactedChild = redactNestedValue(record[key], children, user);
+      if (redactedChild !== record[key]) {
+        if (!copy) copy = { ...record };
+        copy[key] = redactedChild;
+      }
+      continue;
+    }
+    const key = (field.db_fieldName || (field as { name?: string }).name) as string | undefined;
+    if (!key || !(key in record)) continue;
+    if (!copy) copy = { ...record };
+    delete copy[key];
+  }
+  return copy ?? value;
+}
+
 function fieldDeclaresGuardOnAny(fields: readonly FieldInstance[]): boolean {
   for (let i = 0; i < fields.length; i++) {
-    if (fieldDeclaresGuard(fields[i])) return true;
+    if (fieldDeclaresGuardDeep(fields[i])) return true;
   }
   return false;
 }

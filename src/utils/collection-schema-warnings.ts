@@ -123,7 +123,7 @@ function extractFields(schema: Schema): Map<string, ComparableField> {
  * @param newSchema - The new/updated schema
  * @returns Array of breaking changes detected
  */
-export function detectBreakingSchemaChanges(
+function detectBreakingSchemaChanges(
   oldSchema: Schema | null,
   newSchema: Schema,
 ): BreakingChange[] {

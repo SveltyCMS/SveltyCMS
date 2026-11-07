@@ -12,7 +12,7 @@
 
 import type { Cookies } from "@sveltejs/kit";
 import { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER } from "@utils/security/csrf-utils";
-import type { SettingField, SettingGroup } from "./settings-groups";
+import type { SettingField, SettingGroup } from "@src/services/system/settings-groups";
 
 /**
  * Build JSON headers with CSRF token from cookies when present.

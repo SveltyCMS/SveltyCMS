@@ -31,7 +31,7 @@
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import { enforceFieldAccess } from "@utils/field-access";
-import { fieldDeclaresGuard } from "@utils/field-guard";
+import { fieldDeclaresGuardDeep } from "@utils/field-guard";
 import type { FieldInstance } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 
@@ -245,7 +245,7 @@ export function hasGuardedFields(fields: FieldInstance[]): boolean {
 
   let isGuarded = false;
   for (const field of fields) {
-    if (fieldDeclaresGuard(field)) {
+    if (fieldDeclaresGuardDeep(field)) {
       isGuarded = true;
       break;
     }

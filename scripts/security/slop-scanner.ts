@@ -11,6 +11,8 @@
  * - Dynamic brace-balanced {#each} block key constraint validations
  * - Duplicate content duplication flags
  * - Scans TS/JS files for TODOs, naming, and duplicate content slop
+ * - Advisory export-surface / duplicate-export-name inventory (`--surface`)
+ * - Dead-export analysis is owned by scripts/check/analyze-linkmap.ts (AST)
  * - Supports dynamic `.slop-suppress.json` loading for granular error overrides
  *
  * Usage:
@@ -127,6 +129,54 @@ export interface Violation {
   message: string;
   severity: "error" | "warning" | "info";
   fixable?: boolean;
+}
+
+/** Machine-readable scanner output (`--json`), stable for CI annotations/dashboards. */
+export interface ScannerJsonReport {
+  ok: boolean;
+  strict: boolean;
+  filesScanned: number;
+  counts: { errors: number; warnings: number; infos: number; inventory: number };
+  /** Finding counts by category (errors + warnings + infos); inventory excluded. */
+  categories: Record<string, number>;
+  /** Advisory inventory counts by category (export-surface, duplicate-export-name). */
+  inventoryCategories: Record<string, number>;
+  autofixedFiles: number;
+  violations: Violation[];
+}
+
+function countByCategory(violations: readonly Violation[]): Record<string, number> {
+  const counts = new Map<string, number>();
+  for (const violation of violations) {
+    counts.set(violation.category, (counts.get(violation.category) ?? 0) + 1);
+  }
+  return Object.fromEntries([...counts.entries()].sort(([a], [b]) => a.localeCompare(b)));
+}
+
+/** Pure JSON projection so CLI output and tests stay in sync. */
+export function buildScannerJson(input: {
+  findings: readonly Violation[];
+  inventory: readonly Violation[];
+  filesScanned: number;
+  isStrict: boolean;
+  autofixedFiles: number;
+}): ScannerJsonReport {
+  const counts = { errors: 0, warnings: 0, infos: 0 };
+  for (const violation of input.findings) {
+    if (violation.severity === "error") counts.errors += 1;
+    else if (violation.severity === "warning") counts.warnings += 1;
+    else counts.infos += 1;
+  }
+  return {
+    ok: counts.errors === 0 && counts.warnings === 0,
+    strict: input.isStrict,
+    filesScanned: input.filesScanned,
+    counts: { ...counts, inventory: input.inventory.length },
+    categories: countByCategory(input.findings),
+    inventoryCategories: countByCategory(input.inventory),
+    autofixedFiles: input.autofixedFiles,
+    violations: [...input.findings],
+  };
 }
 
 /**
@@ -1167,177 +1217,6 @@ function scanCollectionTableNameRisk(relPath: string, content: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Whole-program dead-export heuristic ("exported but never referenced")
-// ---------------------------------------------------------------------------
-
-/**
- * Cross-file "exported but never referenced" scan over src/ only — test files
- * do NOT count as usage (a symbol that only exists in a test mock is dead).
- *
- * Regex-based on purpose so the scanner stays a fast text pass: top-level
- * exported symbols (`export function/const/class` and `export { foo }`) are
- * registered only when the name is distinctive (camelCase hump + ≥6 chars),
- * which filters out generic verbs (get/set/connect/…). Candidates that are
- * referenced **only** by tests/docs are reported separately as
- * `export-surface` (public/test API inventory) instead of drowning the
- * actionable `unused-export` set — measured before the split: 135 of 159
- * candidates were test/doc-referenced API, only 24 were referenced nowhere.
- * Class methods are deliberately NOT scanned (their `this.`-style usage was the
- * main false-positive source).
- */
-function classifyExportReference(refs: {
-  inSrcScripts: boolean;
-  inTests: boolean;
-  inDocs: boolean;
-  ownCount: number;
-}): "used" | "export-surface" | "unused-export" {
-  if (refs.inSrcScripts || refs.ownCount > 1) return "used";
-  if (refs.inTests || refs.inDocs) return "export-surface";
-  return "unused-export";
-}
-
-async function readGlob(glob: string): Promise<string> {
-  let out = "";
-  for (const f of globSync(glob, {
-    cwd: ROOT,
-    exclude: (p) => String(p).includes("node_modules") || String(p).includes(".svelte-kit"),
-  })) {
-    try {
-      out += await fs.readFile(join(ROOT, f), "utf8");
-    } catch {
-      /* unreadable — skip */
-    }
-  }
-  return out;
-}
-async function scanUnusedExports(tsFiles: string[], svelteFiles: string[]) {
-  // Reference set = src + scripts + root entry/config files. Scripts (config-cli
-  // and friends) and the root entries (index.cjs, vite.config.ts,
-  // …) are production callers of src exports. Candidates are registered from src
-  // only — those callers are reference-only, never dead-code sources here.
-  const contents = new Map<string, string>();
-  const srcRel = new Set<string>();
-  for (const file of tsFiles) srcRel.add(relative(ROOT, file).replace(/\\/g, "/"));
-  for (const file of svelteFiles) srcRel.add(relative(ROOT, file).replace(/\\/g, "/"));
-
-  const scriptFiles = globSync("scripts/**/*.{ts,js,mjs,cjs}", {
-    cwd: ROOT,
-    exclude: (p) => String(p).includes("node_modules"),
-  }).map((f) => (isAbsolute(f) ? f : join(ROOT, f)));
-
-  // Root entry points and build/config files sit outside src/scripts. Without
-  // them, exports invoked only from a bundled entry (e.g. startYjsSyncServer,
-  // imported via build entries) are misreported as dead.
-  const entryFiles = globSync("*.{js,mjs,cjs,ts}", {
-    cwd: ROOT,
-    exclude: (p) => String(p).includes("node_modules"),
-  }).map((f) => (isAbsolute(f) ? f : join(ROOT, f)));
-
-  for (const file of [...tsFiles, ...svelteFiles, ...scriptFiles, ...entryFiles]) {
-    if (file.endsWith(".d.ts")) continue;
-    try {
-      contents.set(relative(ROOT, file).replace(/\\/g, "/"), await fs.readFile(file, "utf8"));
-    } catch {
-      /* unreadable — skip */
-    }
-  }
-
-  const candidates = new Map<string, { file: string; line: number }>();
-  const register = (rel: string, content: string, name: string) => {
-    if (name.length < 6 || !/[a-z][A-Z]/.test(name)) return; // distinctive camelCase only
-    if (candidates.has(name)) return; // first definition wins
-    const idx = content.indexOf(name);
-    const line = idx >= 0 ? content.slice(0, idx).split("\n").length : 0;
-    candidates.set(name, { file: rel, line });
-  };
-
-  for (const [rel, content] of contents) {
-    if (!srcRel.has(rel)) continue; // scripts are reference-only
-    // Glob-loaded surfaces (widgets/plugins are picked up via import.meta.glob,
-    // so their symbol names never appear as text) and type-only API areas are
-    // not dead-code candidates.
-    if (
-      rel.startsWith("src/widgets/custom/") ||
-      rel.startsWith("src/plugins/") ||
-      rel.startsWith("src/types/")
-    ) {
-      continue;
-    }
-    // Runtime symbols only — exported types/interfaces are API contracts
-    // (cheap and often intentionally public); dead runtime code is the cost.
-    for (const m of content.matchAll(
-      /^export\s+(?:async\s+)?(?:function|const|class)\s+([A-Za-z_$][\w$]*)/gm,
-    )) {
-      register(rel, content, m[1]);
-    }
-    // Re-export statements: `export { foo }` / `export { foo as bar }` — a
-    // re-export bridge that no consumer references is exactly the legacy
-    // compat code this project forbids, so it is a candidate like any export.
-    for (const m of content.matchAll(/^export\s*\{([^}]*)\}\s*;?/gm)) {
-      for (const spec of m[1].split(",")) {
-        const name = spec
-          .trim()
-          .split(/\s+as\s+/)[0]
-          .trim();
-        if (/^[A-Za-z_$][\w$]*$/.test(name)) register(rel, content, name);
-      }
-    }
-  }
-
-  const testsContent = await readGlob("tests/**/*.{ts,js}");
-  const docsContent = await readGlob("docs/**/*.{mdx,md}");
-
-  for (const [name, { file, line }] of candidates) {
-    const escaped = escapeRegExp(name);
-    const needle = new RegExp(`\\b${escaped}\\b`);
-    const needleGlobal = new RegExp(`\\b${escaped}\\b`, "g");
-    let referenced = false;
-    let ownCount = 0;
-    for (const [rel, content] of contents) {
-      if (rel === file) {
-        ownCount = (content.match(needleGlobal) || []).length;
-        continue;
-      }
-      if (needle.test(content)) {
-        referenced = true;
-        break;
-      }
-    }
-    // Only a BARE definition is dead: one occurrence in its own file and zero
-    // elsewhere. Exports used internally by their module (recursive helpers,
-    // exported diagnostics called from the same file) are skipped.
-    const inTests = needle.test(testsContent);
-    const inDocs = needle.test(docsContent);
-    const verdict = classifyExportReference({
-      inSrcScripts: referenced,
-      inTests,
-      inDocs,
-      ownCount,
-    });
-    if (verdict === "used") continue;
-
-    if (verdict === "export-surface") {
-      const where = [inTests ? "tests" : null, inDocs ? "docs" : null].filter(Boolean).join(" + ");
-      report(
-        file,
-        line,
-        "export-surface",
-        `"${name}" is referenced by ${where} only — public/test surface, keep or document (not dead code)`,
-        "info",
-      );
-    } else {
-      report(
-        file,
-        line,
-        "unused-export",
-        `"${name}" is exported but referenced nowhere in src/scripts/root/tests/docs — dead-code candidate (verify dynamic/bundled callers)`,
-        "info",
-      );
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Bundle-lean rules + cross-module hygiene (lean-out plan enforcement)
 // ---------------------------------------------------------------------------
 
@@ -1563,6 +1442,7 @@ async function main() {
   const argv = process.argv.slice(2);
   const shouldFix = argv.includes("--fix");
   const isStrict = argv.includes("--strict");
+  const wantsJson = argv.includes("--json");
   // The export-surface bucket is a tracked inventory (test-only helpers,
   // documented public API) — never actionable, and ~90 lines every run. It is
   // summarised by default and fully listed only when asked for.
@@ -1579,7 +1459,7 @@ async function main() {
     }
   }
 
-  console.log("🔍 Svelte Quality Scanner (Smart + Autofix)\n");
+  if (!wantsJson) console.log("🔍 Svelte Quality Scanner (Smart + Autofix)\n");
 
   const svelteFiles: string[] = [];
   const tsFiles: string[] = [];
@@ -1604,7 +1484,9 @@ async function main() {
     }
   }
 
-  console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files...\n`);
+  if (!wantsJson) {
+    console.log(`📂 Scanning ${svelteFiles.length} Svelte + ${tsFiles.length} TS/JS files...\n`);
+  }
 
   // Read everything up front so the duplicate-content post-pass can compare
   // every file against every earlier file in deterministic order (no
@@ -1655,7 +1537,7 @@ async function main() {
   scanDuplicateExportNames(entries);
   scanAdapterParity(entries, targetFiles !== null);
 
-  await scanUnusedExports(tsFiles, svelteFiles);
+  // Dead-export analysis is owned by scripts/check/analyze-linkmap.ts (AST); the regex crawler was removed to avoid divergence (2026-11-07).
 
   // Summary Report
   //
@@ -1666,6 +1548,26 @@ async function main() {
   // 0/0/0 and `--strict` stays meaningful; `--surface`/`--verbose` still prints
   // the full inventory.
   const { errors, warnings, infos, inventory } = summarizeViolations(violations);
+
+  // `--json` makes stdout a single stable document; read failures already went
+  // to stderr, and the human summary below is skipped entirely.
+  if (wantsJson) {
+    console.log(
+      JSON.stringify(
+        buildScannerJson({
+          findings: [...errors, ...warnings, ...infos],
+          inventory,
+          filesScanned: entries.length,
+          isStrict,
+          autofixedFiles: fixedFiles,
+        }),
+        null,
+        2,
+      ),
+    );
+    if (isStrict && (errors.length > 0 || warnings.length > 0)) process.exit(1);
+    return;
+  }
 
   console.log(
     `\n📊 Results: ${errors.length} errors, ${warnings.length} warnings, ${infos.length} infos`,

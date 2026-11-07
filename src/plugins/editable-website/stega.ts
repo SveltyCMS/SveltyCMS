@@ -106,6 +106,10 @@ export function stegaCleanDeep<T>(value: T): T {
     return stegaClean(value) as unknown as T;
   }
 
+  if (value instanceof Date || value instanceof RegExp) {
+    return value;
+  }
+
   if (Array.isArray(value)) {
     return value.map((item) => stegaCleanDeep(item)) as unknown as T;
   }

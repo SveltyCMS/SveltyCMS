@@ -36,7 +36,7 @@ export interface BuilderAiGatewayOptions {
   windowMs?: number;
 }
 
-export const DEFAULT_QUOTA = {
+const DEFAULT_QUOTA = {
   maxRequests: 20,
   windowMs: 10 * 60 * 1000,
 } as const;

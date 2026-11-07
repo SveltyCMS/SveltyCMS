@@ -260,7 +260,7 @@ export interface BuildNewsSitemapOptions {
 }
 
 /** Extracts image URLs and titles associated with an entry. */
-export function extractEntryImages(
+function extractEntryImages(
   entry: SitemapEntryInput,
   origin: string,
 ): Array<{ loc: string; title?: string }> {

@@ -14,7 +14,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { isBenchmarkArtifact, normalizeCollectionId } from "@utils/benchmark-runtime";
-import { isMockScanCollection } from "@src/routes/setup/preset-collections.server";
+import { isMockScanCollection } from "@src/services/setup/preset-collections.server";
 import { isAutomatedTestHarness } from "@utils/private-config-policy";
 import { logger } from "@utils/logger";
 

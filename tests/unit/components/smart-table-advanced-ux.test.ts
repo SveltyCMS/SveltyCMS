@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { createSmartTable } from "@components/ui/smart-table";
+import { createSmartTable } from "@components/ui/smart-table/create-smart-table.svelte";
 
 describe("Smart Table Advanced UX", () => {
   describe("Multi-Column Sort", () => {

@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import type { ContentNodeInput, ContentNodeOperation } from "@src/content/types";
 import {
   findDuplicateDatabaseFieldNames,
   getDescendantIds,
@@ -14,7 +15,19 @@ import {
   parseOperations,
   uniquePathForCategory,
   validateMinimumCollectionFields,
+  validateStructureOperation,
 } from "@src/routes/(app)/config/collectionbuilder/collectionbuilder-utils";
+
+const field = (overrides: Record<string, unknown> = {}) => ({
+  id: 1,
+  label: "Title",
+  db_fieldName: "title",
+  widget: { Name: "Input", key: "Input" },
+  ...overrides,
+});
+
+const nodeOp = (type: ContentNodeOperation["type"], node: Partial<ContentNodeInput>) =>
+  ({ type, node: { path: "/x", ...node } }) as ContentNodeOperation;
 
 describe("Collection Builder Utilities", () => {
   describe("getDescendantIds", () => {
@@ -161,7 +174,46 @@ describe("Collection Builder Utilities", () => {
     });
   });
 
-  describe("validateMinimumCollectionFields duplicate collision guard", () => {
+  describe("validateMinimumCollectionFields", () => {
+    it("rejects a field-less collection in every payload shape", () => {
+      expect(validateMinimumCollectionFields([])).toMatchObject({ ok: false });
+      expect(validateMinimumCollectionFields({})).toMatchObject({ ok: false });
+      expect(validateMinimumCollectionFields(undefined)).toMatchObject({ ok: false });
+    });
+
+    it("accepts one well-formed field (array and field-map shapes)", () => {
+      expect(validateMinimumCollectionFields([field()])).toEqual({ ok: true });
+      expect(validateMinimumCollectionFields({ "0": field() })).toEqual({ ok: true });
+    });
+
+    it("rejects a field without a database field name", () => {
+      const result = validateMinimumCollectionFields([field({ db_fieldName: "  " })]);
+      expect(result).toEqual({
+        ok: false,
+        message: "Field 1 (“Title”) needs a database field name (db_fieldName) before saving.",
+      });
+    });
+
+    it("falls back to the field `name` for identity", () => {
+      expect(
+        validateMinimumCollectionFields([{ name: "title", widget: { Name: "Input" } }]),
+      ).toEqual({ ok: true });
+    });
+
+    it("rejects a field without a widget/type and accepts a bare `type`", () => {
+      expect(validateMinimumCollectionFields([field({ widget: {} })])).toEqual({
+        ok: false,
+        message: "Field “title” needs a widget (type) before saving.",
+      });
+      expect(validateMinimumCollectionFields([{ db_fieldName: "title", type: "text" }])).toEqual({
+        ok: true,
+      });
+    });
+
+    it("rejects non-object field entries", () => {
+      expect(validateMinimumCollectionFields(["title"])).toMatchObject({ ok: false });
+    });
+
     it("fails validation when fields share database identifiers", () => {
       const fields = [
         { db_fieldName: "email", widget: "input" },
@@ -181,6 +233,39 @@ describe("Collection Builder Utilities", () => {
       ];
       const result = validateMinimumCollectionFields(fields);
       expect(result.ok).toBe(true);
+    });
+  });
+
+  describe("validateStructureOperation", () => {
+    it("requires a non-empty path", () => {
+      expect(
+        validateStructureOperation(
+          nodeOp("create", { name: "Blog", nodeType: "category", path: "  " }),
+        ),
+      ).toBe("A structure node needs a path before it can be saved.");
+    });
+
+    it("requires a name for create/rename/update", () => {
+      expect(validateStructureOperation(nodeOp("create", { name: "", nodeType: "category" }))).toBe(
+        "A category needs a name before it can be saved.",
+      );
+      expect(
+        validateStructureOperation(nodeOp("rename", { name: "  ", nodeType: "collection" })),
+      ).toBe("A collection node needs a name before it can be saved.");
+      expect(
+        validateStructureOperation(nodeOp("update", { name: "", nodeType: "collection" })),
+      ).toBe("A collection node needs a name before it can be saved.");
+    });
+
+    it("allows path-only move/delete ops", () => {
+      expect(validateStructureOperation(nodeOp("move", {}))).toBeNull();
+      expect(validateStructureOperation(nodeOp("delete", {}))).toBeNull();
+    });
+
+    it("accepts a named create", () => {
+      expect(
+        validateStructureOperation(nodeOp("create", { name: "Blog", nodeType: "category" })),
+      ).toBeNull();
     });
   });
 });

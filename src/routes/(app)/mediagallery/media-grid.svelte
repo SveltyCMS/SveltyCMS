@@ -9,6 +9,7 @@
 - High-contrast focus states
 - Drag media (or multi-selection) onto sidebar virtual folders
 - Rendition fallback (thumbnail → sm → md → lg → original) with a visible "File missing" state
+- Large folders: row windowing with spacers plus `content-visibility` on tiles
 -->
 
 <script lang="ts">
@@ -45,6 +46,9 @@
 	import {
 		type MediaBase,
 		type MediaImage,
+		type StoredMediaBase,
+		type Thumbnail,
+		type ThumbnailSet,
 		normalizeProcessingStatus
 	} from '@utils/media/media-models';
 	import { mediaDisplayUrl, mediaPreviewCandidates } from '@utils/media/media-utils';
@@ -61,6 +65,7 @@
 	import { dndState } from '@thisux/sveltednd';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import Badge from '@components/ui/badge.svelte';
+	import { computeGridWindow, countGridColumns, shouldVirtualize } from './grid-window';
 
 	interface Props {
 		filteredFiles?: (MediaBase | MediaImage)[];
@@ -72,6 +77,8 @@
 		serverHasMore?: boolean;
 		/** A server page request is in flight (parent-owned). */
 		isLoadingMore?: boolean;
+		/** The parent is replacing the result set (debounced search); keep tiles painted. */
+		isRefreshing?: boolean;
 		/** Asks the parent for the next server page. */
 		onLoadMore?: () => void;
 		ondeleteImage?: (file: MediaBase | MediaImage) => void;
@@ -94,6 +101,7 @@
 		publishedMediaIds = $bindable(new SvelteSet<string>()),
 		serverHasMore = false,
 		isLoadingMore = false,
+		isRefreshing = false,
 		onLoadMore = () => {},
 		ondeleteImage = () => {},
 		onEditImage = () => {},
@@ -130,17 +138,166 @@
 	let osDragDepth = 0;
 
 	const BATCH_SIZE = 60;
+	/**
+	 * Above this many loaded rows the grid stops mounting every tile: only the
+	 * rows around the scroll position stay in the DOM and spacers stand in for
+	 * the rest. Small folders keep the progressive batch reveal — it is cheaper
+	 * than measuring layout and behaves exactly as it did before.
+	 */
+	const VIRTUALIZE_THRESHOLD = 500;
+	const OVERSCAN_ROWS = 3;
+	/** Used until the first layout pass reports real tile geometry. */
+	const FALLBACK_ROW_HEIGHT = 220;
+	const FALLBACK_VIEWPORT_HEIGHT = 800;
+
 	let visibleCount = $state(BATCH_SIZE);
+	/**
+	 * Bumped whenever a new result head resets the batch. The sentinel observer
+	 * reads it so a reset re-creates the observer: IntersectionObserver only
+	 * reports threshold changes, and a sentinel that never left the scroll root
+	 * would otherwise stay silent after the reset.
+	 */
+	let revealEpoch = $state(0);
+	/** Cooldown for the scroll fallback so one gesture cannot queue several pages. */
+	let lastLoadMoreAt = 0;
 	let scrollRoot = $state<HTMLElement>();
 	let sentinel = $state<HTMLElement>();
 	let lastHeadKey = '';
 	let lastTotal = 0;
 
-	const visibleFiles = $derived(filteredFiles.slice(0, visibleCount));
-	const hasMore = $derived(visibleCount < filteredFiles.length);
+	interface GridGeometry {
+		columns: number;
+		rowHeight: number;
+		rowGap: number;
+	}
+
+	let geometry = $state<GridGeometry>({
+		columns: 1,
+		rowHeight: FALLBACK_ROW_HEIGHT,
+		rowGap: 12
+	});
+	let viewport = $state({ scrollTop: 0, height: FALLBACK_VIEWPORT_HEIGHT });
+	let scrollFrame = 0;
+
+	const virtualized = $derived(shouldVirtualize(filteredFiles.length, VIRTUALIZE_THRESHOLD));
+	const gridWindow = $derived(
+		computeGridWindow({
+			totalItems: filteredFiles.length,
+			columns: geometry.columns,
+			rowHeight: geometry.rowHeight,
+			rowGap: geometry.rowGap,
+			scrollTop: viewport.scrollTop,
+			viewportHeight: viewport.height,
+			overscanRows: OVERSCAN_ROWS
+		})
+	);
+	const visibleFiles = $derived(
+		virtualized
+			? filteredFiles.slice(gridWindow.startIndex, gridWindow.endIndex)
+			: filteredFiles.slice(0, visibleCount)
+	);
+	const hasMore = $derived(!virtualized && visibleCount < filteredFiles.length);
+	const topSpacerHeight = $derived(virtualized ? gridWindow.topSpacerHeight : 0);
+	const bottomSpacerHeight = $derived(virtualized ? gridWindow.bottomSpacerHeight : 0);
 	const previewSize = $derived(
 		gridSize === 'large' ? 'md' : gridSize === 'medium' ? 'sm' : 'thumbnail'
 	);
+
+	/**
+	 * Read the resolved grid geometry: columns from the used track list (the
+	 * `auto-fill` template resolves to explicit tracks), row height from the first
+	 * mounted tile. Tiles are uniform — square preview plus a fixed badge row.
+	 */
+	function measureGrid() {
+		const root = scrollRoot;
+		if (!root) return;
+
+		const style = getComputedStyle(root);
+		const rowGap = Number.parseFloat(style.rowGap) || 0;
+		const columnGap = Number.parseFloat(style.columnGap) || 0;
+		const rect = root
+			.querySelector<HTMLElement>('[data-testid="media-item"]')
+			?.getBoundingClientRect();
+
+		let columns = countGridColumns(style.gridTemplateColumns);
+		if (columns === 0 && rect && rect.width > 0 && root.clientWidth > 0) {
+			columns = Math.max(1, Math.round((root.clientWidth + columnGap) / (rect.width + columnGap)));
+		}
+		columns = Math.max(1, columns || geometry.columns);
+		const rowHeight = rect && rect.height > 0 ? rect.height : geometry.rowHeight;
+
+		if (
+			columns !== geometry.columns ||
+			Math.abs(rowHeight - geometry.rowHeight) > 0.5 ||
+			Math.abs(rowGap - geometry.rowGap) > 0.5
+		) {
+			geometry = { columns, rowHeight, rowGap };
+		}
+
+		const height = root.clientHeight > 0 ? root.clientHeight : viewport.height;
+		if (height !== viewport.height) viewport = { ...viewport, height };
+	}
+
+	$effect(() => {
+		const root = scrollRoot;
+		// Reading the layout-affecting inputs re-measures on a density change or a
+		// newly appended server page (a new first row).
+		const layoutKey = `${gridSize}:${filteredFiles.length}`;
+		if (!root) return;
+		const frame = requestAnimationFrame(() => {
+			if (layoutKey) measureGrid();
+		});
+		return () => cancelAnimationFrame(frame);
+	});
+
+	$effect(() => {
+		const root = scrollRoot;
+		if (!root || typeof ResizeObserver === 'undefined') return;
+		const observer = new ResizeObserver(() => measureGrid());
+		observer.observe(root);
+		return () => observer.disconnect();
+	});
+
+	/** Only re-window when the first visible row changes; overscan covers sub-row gaps. */
+	function commitViewport(scrollTop: number) {
+		const stride = geometry.rowHeight + geometry.rowGap;
+		const currentRow = stride > 0 ? Math.floor(viewport.scrollTop / stride) : 0;
+		const nextRow = stride > 0 ? Math.floor(scrollTop / stride) : 0;
+		if (nextRow === currentRow && scrollTop !== 0) return;
+		viewport = { ...viewport, scrollTop };
+	}
+
+	function handleGridScroll() {
+		const root = scrollRoot;
+		if (!root || scrollFrame) return;
+		scrollFrame = requestAnimationFrame(() => {
+			scrollFrame = 0;
+			const element = scrollRoot;
+			if (!element) return;
+			commitViewport(element.scrollTop);
+			if (element.clientHeight > 0 && element.clientHeight !== viewport.height) {
+				viewport = { ...viewport, height: element.clientHeight };
+			}
+			// Belt-and-braces for the sentinel: IntersectionObserver only reports
+			// threshold changes, so a list reset can leave it silent. Proximity to the
+			// bottom is the same signal and always fires while scrolling.
+			if (
+				element.clientHeight > 0 &&
+				element.scrollTop + element.clientHeight >= element.scrollHeight - 600
+			) {
+				if (!virtualized && visibleCount < filteredFiles.length) {
+					visibleCount = Math.min(visibleCount + BATCH_SIZE, filteredFiles.length);
+				} else if (serverHasMore && !isLoadingMore && Date.now() - lastLoadMoreAt > 500) {
+					lastLoadMoreAt = Date.now();
+					onLoadMore();
+				}
+			}
+		});
+	}
+
+	$effect(() => () => {
+		if (scrollFrame) cancelAnimationFrame(scrollFrame);
+	});
 
 	$effect(() => {
 		// Reset batching only when the head of the visible set changes or the list
@@ -153,7 +310,9 @@
 		lastTotal = total;
 		if (!shouldReset) return;
 		visibleCount = BATCH_SIZE;
-		scrollRoot?.scrollTo({ top: 0 });
+		revealEpoch += 1;
+		viewport = { ...viewport, scrollTop: 0 };
+		if (scrollRoot) scrollRoot.scrollTop = 0;
 	});
 
 	$effect(() => {
@@ -161,17 +320,22 @@
 		// Reading the paging state re-arms the observer when a server page lands: a
 		// fresh observer emits an initial entry, which is what continues the chain
 		// while the sentinel never left the viewport (IntersectionObserver only
-		// reports threshold *changes*).
+		// reports threshold *changes*). `revealEpoch` does the same for a list
+		// reset after a search.
+		const epoch = revealEpoch;
 		const hasServerMore = serverHasMore;
 		const loading = isLoadingMore;
+		const windowed = virtualized;
 		const observer = new IntersectionObserver(
 			(entries) => {
+				void epoch;
 				if (!entries[0]?.isIntersecting) return;
-				if (visibleCount < filteredFiles.length) {
+				// A virtualised list already exposes every loaded row through scrolling;
+				// the sentinel only fetches the next server page.
+				if (!windowed && visibleCount < filteredFiles.length) {
 					visibleCount = Math.min(visibleCount + BATCH_SIZE, filteredFiles.length);
 					return;
 				}
-				// Local batches exhausted — pull the next server page of the folder.
 				if (hasServerMore && !loading) onLoadMore();
 			},
 			{ root: scrollRoot ?? null, rootMargin: '600px 0px' }
@@ -237,11 +401,15 @@
 		missingImages.add(previewKey);
 	}
 
-	/** Shift-click selects the whole range from the previous anchor (visible batch). */
+	/**
+	 * Shift-click selects the whole range from the previous anchor. The range runs
+	 * over the complete result list, not the mounted window — the anchor can sit
+	 * outside the virtualised window after scrolling.
+	 */
 	function selectWithRange(file: MediaBase | MediaImage, shiftKey: boolean) {
 		const fileId = fileIdOf(file);
 		if (shiftKey && lastSelectedId) {
-			const ids = visibleFiles.map(fileIdOf);
+			const ids = filteredFiles.map(fileIdOf);
 			const from = ids.indexOf(lastSelectedId);
 			const to = ids.indexOf(fileId);
 			if (from !== -1 && to !== -1) {
@@ -260,6 +428,39 @@
 				(file.metadata as Record<string, unknown> | undefined)?.processingStatus
 			) ?? 'ready'
 		);
+	}
+
+	/**
+	 * The props accept the display union, but gallery rows are always stored media.
+	 * Narrowing here keeps the template free of type assertions (the compiler that
+	 * mounts this component in DOM tests does not parse TS inside markup).
+	 */
+	function imageOf(file: MediaBase | MediaImage): MediaImage {
+		return file as MediaImage;
+	}
+
+	function storedSize(file: MediaBase | MediaImage): number {
+		return (file as StoredMediaBase).size ?? 0;
+	}
+
+	function storedMime(file: MediaBase | MediaImage): string {
+		return (file as StoredMediaBase).mimeType ?? '';
+	}
+
+	/** Metadata values are unknown at the type level; only text is renderable. */
+	function metadataText(file: MediaBase | MediaImage, key: string): string | undefined {
+		const value = (file.metadata as Record<string, unknown> | undefined)?.[key];
+		return typeof value === 'string' && value ? value : undefined;
+	}
+
+	function thumbnailSize(thumbnail: unknown): number | undefined {
+		if (!thumbnail || typeof thumbnail !== 'object') return undefined;
+		const size = (thumbnail as { size?: unknown }).size;
+		return typeof size === 'number' ? size : undefined;
+	}
+
+	function thumbnailOf(thumbnails: ThumbnailSet | undefined, key: string): Thumbnail {
+		return thumbnails?.[key] as Thumbnail;
 	}
 
 	function isFileDrag(event: DragEvent): boolean {
@@ -372,10 +573,13 @@
 	bind:this={scrollRoot}
 	class="media-grid-scroll grid min-h-0 flex-1 content-start items-stretch gap-x-2 gap-y-3 overflow-y-auto overflow-x-hidden p-2 sm:gap-x-3 sm:gap-y-4 sm:px-3 sm:pt-2 sm:pb-3"
 	style:grid-template-columns="repeat(auto-fill, minmax({minColWidthCss}, 1fr))"
+	style:--media-tile-estimate="calc({minColWidthCss} + 2.25rem)"
 	role="grid"
 	tabindex="-1"
 	aria-label={mediagallery_media_grid_aria()}
+	aria-busy={isRefreshing}
 	data-testid="media-grid"
+	onscroll={handleGridScroll}
 	ondragenter={handleOsDragEnter}
 	ondragover={handleOsDragOver}
 	ondragleave={handleOsDragLeave}
@@ -442,7 +646,7 @@
 						class="hidden"
 						bind:this={fileUploadInput}
 						onchange={(e) => {
-							const input = e.target as HTMLInputElement;
+							const input = e.currentTarget;
 							if (input.files?.length) {
 								const event = new CustomEvent('externalUpload', {
 									detail: { files: input.files }
@@ -456,6 +660,19 @@
 			</div>
 		</div>
 	{:else}
+		<!--
+			Rows above the window are stood in for by a spacer. `content-visibility`
+			on the tiles lets the browser skip layout/paint for the offscreen members
+			of the mounted window as well.
+		-->
+		{#if virtualized && topSpacerHeight > 0}
+			<div
+				class="col-span-full"
+				style:height={`${topSpacerHeight}px`}
+				aria-hidden="true"
+				data-testid="media-grid-top-spacer"
+			></div>
+		{/if}
 		{#each visibleFiles as file (file._id || file.filename)}
 			{@const fileId = file._id?.toString() || file.filename}
 			{@const processing = processingStatusOf(file)}
@@ -474,7 +691,7 @@
 			     satisfying the grid's required row → gridcell ownership. -->
 			<div role="row" class="contents">
 				<div
-					class="rounded border border-surface-500 group relative flex h-full min-w-0 flex-col focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--admin-focus-ring) cursor-grab active:cursor-grabbing
+					class="media-grid-tile rounded border border-surface-500 group relative flex h-full min-w-0 flex-col focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-(--admin-focus-ring) cursor-grab active:cursor-grabbing
           {selectedFiles.has(fileId) ? 'ring-1 ring-inset ring-primary-500/50' : ''}"
 					role="gridcell"
 					tabindex="-1"
@@ -495,7 +712,7 @@
 					ondragstart={suppressNativeDragGhost}
 					data-testid="media-item"
 					data-media-id={fileId}
-					in:adminFade={{ duration: motionDuration(120) }}
+					in:adminFade={{ duration: virtualized ? 0 : motionDuration(120) }}
 					ontouchstart={(e) => {
 						e.stopPropagation();
 						touchActiveId = fileId;
@@ -550,19 +767,19 @@
 								tabindex="0"
 								class="relative h-full w-full cursor-grab text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 active:cursor-grabbing"
 								onclick={(e) => handleItemClick(file, e)}
-								onkeydown={(e: KeyboardEvent) => handleKeyDown(e, file)}
+								onkeydown={(e) => handleKeyDown(e, file)}
 								aria-label={mediagallery_preview_drag_aria({ name: file.filename })}
 							>
 								{#if candidateUrls.length > 0 && !previewFailed}
 									<div
 										class="h-full w-full transition-colors duration-500 {isImage ? '' : 'bg-white'}"
 										style:background-color={isImage
-											? (file.metadata?.dominantColor as string) || 'transparent'
+											? metadataText(file, 'dominantColor') || 'transparent'
 											: undefined}
 									>
 										{#if isImage && file.metadata?.placeholder}
 											<img
-												src={file.metadata.placeholder as string}
+												src={metadataText(file, 'placeholder')}
 												alt=""
 												class="absolute inset-0 h-full w-full scale-110 object-cover opacity-50 blur-xl"
 												aria-hidden="true"
@@ -585,7 +802,7 @@
 											draggable="false"
 											crossorigin="anonymous"
 											onerror={() => handlePreviewError(candidateUrls, previewKey, previewIndex)}
-											onload={(e) => (e.currentTarget as HTMLElement).classList.add('opacity-100')}
+											onload={(e) => e.currentTarget.classList.add('opacity-100')}
 										/>
 									</div>
 								{:else}
@@ -667,9 +884,9 @@
 								<MediaTableRowMenu
 									{file}
 									onDetails={() => onOpenFileDetails(file)}
-									onEdit={() => onEditImage(file as MediaImage)}
-									onFocal={() => onSetFocalPoint(file as MediaImage)}
-									onTags={() => openTagEditor(file as MediaImage)}
+									onEdit={() => onEditImage(imageOf(file))}
+									onFocal={() => onSetFocalPoint(imageOf(file))}
+									onTags={() => openTagEditor(imageOf(file))}
 									onDelete={() => ondeleteImage(file)}
 								/>
 							{:else}
@@ -725,14 +942,14 @@
 															>{getDimensionsLabel(file) || '-'}</td
 														>
 														<td class="py-1 px-2 text-end tabular-nums" colspan="2"
-															>{formatBytes((file as MediaImage).size)}</td
+															>{formatBytes(storedSize(file))}</td
 														>
 													</tr>
 													{#if file.thumbnails}
 														{@const hasWebp = hasWebpVariants(file.thumbnails)}
 														{@const primaryLabel = primaryFormatLabel(
 															file.thumbnails,
-															(file as MediaImage).mimeType
+															storedMime(file)
 														)}
 														<tr class="border-b border-(--admin-border-default)">
 															<td
@@ -745,7 +962,8 @@
 														</tr>
 														{#each deriveSizeKeys(file.thumbnails) as sizeKey (sizeKey)}
 															{@const webpKey = getWebpKey(file.thumbnails, sizeKey)}
-															{@const thumb = file.thumbnails[sizeKey]!}
+															{@const thumb = thumbnailOf(file.thumbnails, sizeKey)}
+															{@const thumbSize = thumbnailSize(thumb)}
 															<tr class="border-b border-(--admin-border-default) last:border-0">
 																<td
 																	class="py-1 px-2 font-bold text-tertiary-500 dark:text-primary-500 border-e border-(--admin-border-default) text-start"
@@ -760,11 +978,11 @@
 																	<td
 																		class="py-1 px-2 text-end tabular-nums border-e border-(--admin-border-default)"
 																	>
-																		{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+																		{thumbSize ? formatBytes(thumbSize) : '-'}
 																	</td>
 																	<td class="py-1 px-2 text-end tabular-nums">
 																		{#if webpKey}
-																			{formatBytes((file.thumbnails[webpKey] as any).size)}
+																			{formatBytes(thumbnailSize(file.thumbnails[webpKey]) ?? 0)}
 																		{:else}
 																			<span
 																				class="text-(--admin-text-muted) dark:text-(--admin-text-muted)"
@@ -774,7 +992,7 @@
 																	</td>
 																{:else}
 																	<td class="py-1 px-2 text-end tabular-nums">
-																		{(thumb as any).size ? formatBytes((thumb as any).size) : '-'}
+																		{thumbSize ? formatBytes(thumbSize) : '-'}
 																	</td>
 																{/if}
 															</tr>
@@ -793,7 +1011,7 @@
 									data-testid="media-edit-button"
 									onclick={(e) => {
 										e.stopPropagation();
-										onEditImage(file as MediaImage);
+										onEditImage(imageOf(file));
 									}}
 								>
 									{#snippet children()}
@@ -809,7 +1027,7 @@
 										data-testid="media-focal-button"
 										onclick={(e) => {
 											e.stopPropagation();
-											onSetFocalPoint(file as MediaImage);
+											onSetFocalPoint(imageOf(file));
 										}}
 									>
 										{#snippet children()}
@@ -823,13 +1041,12 @@
 										class={actionBtnClass}
 										onclick={(e) => {
 											e.stopPropagation();
-											openTagEditor(file as MediaImage);
+											openTagEditor(imageOf(file));
 										}}
 									>
 										{#snippet children()}
 											<iconify-icon
-												icon={(file as MediaImage).metadata?.tags?.length ||
-												(file as MediaImage).metadata?.aiTags?.length
+												icon={file.metadata?.tags?.length || file.metadata?.aiTags?.length
 													? 'mdi:tag'
 													: 'mdi:tag-outline'}
 												width={15}
@@ -895,17 +1112,27 @@
 					>
 						{#if gridSize !== 'tiny'}
 							<Badge preset="tonal" size="sm" class="shrink-0 whitespace-nowrap"
-								>{formatMimeType((file as MediaImage).mimeType)}</Badge
+								>{formatMimeType(storedMime(file))}</Badge
 							>
 						{/if}
 
 						<Badge preset="tonal" size="sm" class="shrink-0 whitespace-nowrap"
-							>{formatBytes((file as MediaImage).size)}</Badge
+							>{formatBytes(storedSize(file))}</Badge
 						>
 					</div>
 				</div>
 			</div>
 		{/each}
+
+		<!-- Rows below the window keep the scrollbar length identical to the full list. -->
+		{#if virtualized && bottomSpacerHeight > 0}
+			<div
+				class="col-span-full"
+				style:height={`${bottomSpacerHeight}px`}
+				aria-hidden="true"
+				data-testid="media-grid-bottom-spacer"
+			></div>
+		{/if}
 
 		{#if hasMore || serverHasMore}
 			<div
@@ -953,6 +1180,14 @@
 {/if}
 
 <style>
+	.media-grid-tile {
+		/* Skip layout/paint for tiles outside the viewport while keeping the DOM
+		   (selection, drag, focus semantics stay) — the row estimate is replaced by
+		   the remembered real size after first paint. */
+		content-visibility: auto;
+		contain-intrinsic-size: auto var(--media-tile-estimate, 14rem);
+	}
+
 	.media-checkerboard {
 		background-color: var(--color-surface-100);
 		background-image:

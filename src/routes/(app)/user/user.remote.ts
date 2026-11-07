@@ -202,3 +202,92 @@ export const revokePasskey = command(
     }
   },
 );
+
+export const getPasskeyRegisterOptions = command("unchecked", async (_input?: unknown) => {
+  try {
+    const event = getRequestEvent();
+    const user = getAuthenticatedUser(event.locals);
+    const {
+      generateWebAuthnChallenge,
+      buildRegistrationOptions,
+      resolveRpId,
+      storeWebAuthnChallenge,
+    } = await import("@src/databases/auth/webauthn/webauthn-service");
+
+    const challenge = generateWebAuthnChallenge();
+    const rpId = resolveRpId(new URL(event.request.url).hostname);
+    await storeWebAuthnChallenge(challenge, {
+      userId: String(user._id),
+      type: "registration",
+    });
+
+    const options = buildRegistrationOptions(user as any, rpId, challenge);
+    return {
+      success: true,
+      options: {
+        ...options,
+        challenge: Buffer.from(options.challenge).toString("base64url"),
+        user: {
+          ...options.user,
+          id: Buffer.from(options.user.id).toString("base64url"),
+        },
+        excludeCredentials: options.excludeCredentials?.map((c) => ({
+          ...c,
+          id: Buffer.from(c.id).toString("base64url"),
+        })),
+      },
+    };
+  } catch (err) {
+    return { success: false, message: remoteErrorMessage(err, "Failed to get passkey options") };
+  }
+});
+
+export const verifyPasskeyRegister = command("unchecked", async (data: { attestation: any }) => {
+  try {
+    const event = getRequestEvent();
+    const user = getAuthenticatedUser(event.locals);
+
+    const clientData = JSON.parse(
+      Buffer.from(data.attestation.response.clientDataJSON, "base64url").toString("utf8"),
+    );
+    const { consumeWebAuthnChallenge, verifyRegistrationResponse, resolveRpId } =
+      await import("@src/databases/auth/webauthn/webauthn-service");
+
+    const challengePayload = await consumeWebAuthnChallenge(clientData.challenge);
+    if (!challengePayload || challengePayload.userId !== String(user._id)) {
+      return {
+        success: false,
+        message: "Passkey registration challenge expired.",
+      };
+    }
+
+    const requestUrl = new URL(event.request.url);
+    const rpId = resolveRpId(requestUrl.hostname);
+    const authenticator = verifyRegistrationResponse(
+      data.attestation,
+      clientData.challenge,
+      rpId,
+      requestUrl.origin,
+    );
+
+    const { cms, tenantId } = await getRequestLocalCMS();
+    const freshResult = await cms.auth.getUserById(String(user._id), {
+      tenantId: tenantId as never,
+    });
+    const freshUser = freshResult?.success ? freshResult.data : null;
+    const existing = freshUser?.authenticators || [];
+
+    await cms.auth.updateUserAttributes(
+      String(user._id),
+      { authenticators: [...existing, authenticator] },
+      { tenantId: tenantId as never },
+    );
+
+    return { success: true, message: "Passkey registered successfully." };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err.message || "Passkey registration failed.",
+    };
+  }
+});

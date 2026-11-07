@@ -159,7 +159,7 @@ const LOCALE_TAG = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
  * True when `value` looks like one locale's SEO data (a flat object with
  * widget field names) rather than a locale-keyed record.
  */
-export function isSeoLocaleData(value: unknown): value is SeoLocaleData {
+function isSeoLocaleData(value: unknown): value is SeoLocaleData {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return (

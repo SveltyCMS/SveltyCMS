@@ -75,6 +75,7 @@ const DYNAMIC_HANDLERS: Record<string, () => Promise<any>> = {
   backups: () => import("./handlers/backups"),
   "content-sync": () => import("./handlers/content-sync"),
   commerce: () => import("./handlers/commerce"),
+  forms: () => import("./handlers/forms"),
 };
 
 const LOADED_HANDLERS: Record<string, any> = {

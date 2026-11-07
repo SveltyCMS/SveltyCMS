@@ -21,7 +21,7 @@ const ISO_639_1 = /^[a-z]{2}$/;
 const SYSTEM_LANGUAGE_COOKIE = "systemLanguage";
 const COOKIE_MAX_AGE = 31_536_000;
 
-export function normalizeLanguageTag(tag: string): string {
+function normalizeLanguageTag(tag: string): string {
   return tag.trim().toLowerCase().replace(/_/g, "-");
 }
 

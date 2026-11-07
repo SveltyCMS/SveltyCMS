@@ -31,6 +31,8 @@ import {
   getTenantCondition,
   applyTenantFilterToObject,
   buildRawTenantClause,
+  assertSafeSqlIdentifier,
+  convertIsoDatesForDrizzleWrite,
 } from "@src/databases/core/relational-utils";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import type { DatabaseId } from "@src/databases/db-interface";
@@ -309,6 +311,88 @@ describe("relational-utils unit tests", () => {
         sql: ' AND "tenantId" = ?',
         params: ["tenant_1"],
       });
+    });
+  });
+
+  describe("assertSafeSqlIdentifier", () => {
+    it("allows standard alphanumeric and underscore identifiers", () => {
+      expect(() => assertSafeSqlIdentifier("users")).not.toThrow();
+      expect(() => assertSafeSqlIdentifier("table_name_123")).not.toThrow();
+      expect(() => assertSafeSqlIdentifier("_private_col")).not.toThrow();
+    });
+
+    it("rejects malicious or invalid SQL identifiers", () => {
+      expect(() => assertSafeSqlIdentifier("users; DROP TABLE users;--")).toThrow();
+      expect(() => assertSafeSqlIdentifier("table name")).toThrow();
+      expect(() => assertSafeSqlIdentifier("col-name")).toThrow();
+      expect(() => assertSafeSqlIdentifier("")).toThrow();
+    });
+
+    it("enforces identifier length <= 63 characters", () => {
+      expect(() => assertSafeSqlIdentifier("a".repeat(63))).not.toThrow();
+      expect(() => assertSafeSqlIdentifier("a".repeat(64))).toThrow(/63 chars/);
+    });
+  });
+
+  describe("convertIsoDatesForDrizzleWrite", () => {
+    const ISO = "2026-09-21T19:01:20.779Z";
+
+    it("converts ISO date text to Date objects for a registered table's date columns", () => {
+      registerTableSchema("collection_drizzle_probe", [
+        "_id",
+        "data",
+        "createdAt",
+        "updatedAt",
+        "publishedAt",
+      ]);
+
+      const values = convertIsoDatesForDrizzleWrite(
+        { _id: "x", createdAt: ISO, updatedAt: ISO, publishedAt: null, title: ISO },
+        "collection_drizzle_probe",
+      ) as Record<string, unknown>;
+
+      expect(values.createdAt).toBeInstanceOf(Date);
+      expect((values.updatedAt as Date).toISOString()).toBe(ISO);
+      expect(values.publishedAt).toBeNull();
+      expect(values.title).toBe(ISO);
+    });
+
+    it("leaves non-date strings alone", () => {
+      const values = convertIsoDatesForDrizzleWrite({
+        status: "pending",
+        lastError: "No handler registered for task type: probe",
+        nextRunAt: ISO,
+      }) as Record<string, unknown>;
+
+      expect(values.lastError).toBe("No handler registered for task type: probe");
+      expect(values.nextRunAt).toBeInstanceOf(Date);
+    });
+
+    it("keeps Date instances and JSON values", () => {
+      const date = new Date(ISO);
+      const values = convertIsoDatesForDrizzleWrite({
+        updatedAt: date,
+        tags: ["a", "b"],
+        data: { nested: [1, 2] },
+      }) as Record<string, unknown>;
+
+      expect(values.updatedAt).toBe(date);
+      expect(values.tags).toEqual(["a", "b"]);
+      expect(values.data).toEqual({ nested: [1, 2] });
+    });
+
+    it("walks row arrays in place", () => {
+      const rows = [
+        { key: "a", createdAt: ISO, updatedAt: ISO },
+        { key: "b", createdAt: ISO, updatedAt: ISO },
+      ];
+      const out = convertIsoDatesForDrizzleWrite(rows) as Array<Record<string, unknown>>;
+
+      expect(out).toBe(rows);
+      for (const row of out) {
+        expect(row.createdAt).toBeInstanceOf(Date);
+        expect(row.updatedAt).toBeInstanceOf(Date);
+      }
     });
   });
 });

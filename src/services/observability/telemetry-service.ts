@@ -20,7 +20,7 @@ import { getCustomWidgetNames } from "@src/widgets/scanner";
 import { logger } from "@utils/logger";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 import { building, dev } from "$app/env";
-import pkg from "../../../package.json";
+import pkg from "@root/package.json";
 import { nowISODateString } from "@utils/date";
 
 /** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
@@ -153,7 +153,7 @@ export class TelemetryService {
         let dashboardWidgets: string[] = [];
         try {
           const { getInstalledDashboardWidgets } =
-            await import("../../routes/(app)/dashboard/widgets/manifest-registry");
+            await import("@src/services/core/dashboard-manifest-registry");
           dashboardWidgets = getInstalledDashboardWidgets().map((w) => w.id);
         } catch (err) {
           logger.debug("[Telemetry] Failed to collect dashboard widget info:", err);

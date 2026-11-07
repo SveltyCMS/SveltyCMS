@@ -46,7 +46,7 @@ interface InternalCacheEvent {
   type: "hit" | "miss" | "set" | "delete" | "clear";
 }
 
-export class CacheMetrics {
+class CacheMetrics {
   private hits = 0;
   private misses = 0;
   private l1Hits = 0;

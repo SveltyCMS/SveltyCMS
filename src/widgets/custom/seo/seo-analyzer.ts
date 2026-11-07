@@ -24,7 +24,7 @@ import type {
 } from "./seo-types";
 import { calculateReadability } from "@src/utils/readability";
 
-export class SeoAnalyzer {
+class SeoAnalyzer {
   private readonly config: SeoAnalysisConfig;
   private readonly stopWords: Set<string>;
   private readonly transitionWords: Set<string>;

@@ -27,7 +27,7 @@ export function getSchemaKey(schema?: Schema | null): string {
   return String(schema?._id || schema?.slug || schema?.name || "").toLowerCase();
 }
 
-export function getNodeCollectionKey(node?: ContentNode | null): string {
+function getNodeCollectionKey(node?: ContentNode | null): string {
   return String(
     node?.collectionDef?._id ||
       node?.collectionDef?.slug ||
@@ -38,7 +38,7 @@ export function getNodeCollectionKey(node?: ContentNode | null): string {
   ).toLowerCase();
 }
 
-export function isUserFacingCollectionId(value: unknown): boolean {
+function isUserFacingCollectionId(value: unknown): boolean {
   const id = String(value || "").toLowerCase();
   if (!id) return false;
   if (SYSTEM_COLLECTION_NAMES.has(id)) return false;
@@ -50,7 +50,7 @@ export function isUserFacingCollectionSchema(schema?: Schema | null): boolean {
   return isUserFacingCollectionId(getSchemaKey(schema));
 }
 
-export function isUserFacingCollectionNode(node?: ContentNode | null): boolean {
+function isUserFacingCollectionNode(node?: ContentNode | null): boolean {
   if (!node || node.nodeType !== "collection" || !node.collectionDef) return false;
   return isUserFacingCollectionId(getNodeCollectionKey(node));
 }
@@ -74,7 +74,7 @@ export function getNodePath(node: ContentNode): string {
   return pathValue.startsWith("/") ? pathValue : `/${pathValue}`;
 }
 
-export function compareCollectionNodes(
+function compareCollectionNodes(
   order?: Record<string, number> | null,
 ): (a: ContentNode, b: ContentNode) => number {
   return (a, b) => {
@@ -96,7 +96,7 @@ export function compareCollectionSchemas(a: Schema, b: Schema): number {
   return String(a.name || a._id || "").localeCompare(String(b.name || b._id || ""));
 }
 
-export function getFirstCollectionNode(
+function getFirstCollectionNode(
   nodes: ContentNode[],
   order?: Record<string, number> | null,
 ): ContentNode | null {
@@ -126,10 +126,7 @@ export function getFirstCollectionSchema(schemas: Schema[]): Schema | null {
   return best;
 }
 
-export function getCollectionRedirectPathFromNode(
-  node: ContentNode,
-  language: string = "en",
-): string {
+function getCollectionRedirectPathFromNode(node: ContentNode, language: string = "en"): string {
   return `/${language}${getNodePath(node)}`;
 }
 

@@ -42,21 +42,21 @@ const h = vi.hoisted(() => {
   };
 });
 
-vi.mock("@src/routes/setup/utils", () => ({
+vi.mock("@src/services/setup/setup-utils", () => ({
   getSetupDatabaseAdapter: h.getSetupDatabaseAdapter,
   buildDatabaseConnectionString: h.buildDatabaseConnectionString,
 }));
 
-vi.mock("@src/routes/setup/write-private-config", () => ({
+vi.mock("@src/services/setup/write-private-config", () => ({
   writePrivateConfig: h.writePrivateConfig,
   updatePrivateConfigMode: h.updatePrivateConfigMode,
 }));
 
-vi.mock("@src/routes/setup/seed", () => ({
+vi.mock("@src/services/setup/seed", () => ({
   initSystemFast: h.initSystemFast,
 }));
 
-import { testDatabaseConnection } from "@src/routes/setup/setup.server";
+import { testDatabaseConnection } from "@src/services/setup/setup.server";
 
 const MISSING_SQLITE_PATH = "/nonexistent-sveltycms-probe/db.sqlite";
 const EXISTING_FILE_PATH = path.resolve(process.cwd(), "package.json");

@@ -12,7 +12,7 @@
 
 import type { FederationEnrichment } from "@src/content/types";
 
-export function enrichmentKey(e: FederationEnrichment): string {
+function enrichmentKey(e: FederationEnrichment): string {
   return `${e.nativeField}::${e.virtualSlug}`;
 }
 

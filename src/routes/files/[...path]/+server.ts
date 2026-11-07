@@ -45,6 +45,7 @@ import {
 } from "@src/services/media/image-variant-storage";
 import { resolveConfiguredMediaFolder } from "@src/utils/media/storage-adapters";
 import { resolveMimeTypeFromPath } from "@src/utils/media/slim-sniffer.server";
+import { getMimeType } from "@src/utils/media/media-utils";
 import { apiHandler } from "@utils/api-handler";
 import { MEDIA_RESOURCE_HEADERS } from "@utils/security/constants";
 import { raise, rethrow } from "@utils/error-handling";
@@ -59,11 +60,43 @@ const _baseHeaders = {
 };
 
 /**
+ * Normalize a media type: strip RFC 7231 parameters and lowercase, so
+ * `text/html; charset=utf-8` cannot slip past the scriptable-type branch.
+ */
+function normalizeMediaType(mimeType: string): string {
+  return mimeType.split(";", 1)[0].trim().toLowerCase();
+}
+
+/** Types that must never render inline from the CMS origin. */
+const ATTACHMENT_ONLY_MIME = new Set([
+  "text/html",
+  "application/xhtml+xml",
+  "application/xml",
+  "text/xml",
+  "text/javascript",
+  "application/javascript",
+  "application/x-javascript",
+  "text/css",
+]);
+
+/**
  * Defense-in-depth for SVG responses: even if storage sanitization is bypassed,
  * block script execution when the browser treats the SVG as a document.
  */
 function headersForMime(mimeType: string): Record<string, string> {
-  if (mimeType === "image/svg+xml" || mimeType.startsWith("image/svg")) {
+  const normalized = normalizeMediaType(mimeType);
+  // Scriptable document types must never be rendered inline from the CMS origin:
+  // a stored HTML/XHTML/XML/JS file would otherwise execute with session cookies.
+  // (Uploads reject these types, but pre-existing files and future gaps exist.)
+  if (ATTACHMENT_ONLY_MIME.has(normalized)) {
+    return {
+      ..._baseHeaders,
+      "Content-Disposition": "attachment",
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+      "X-Content-Type-Options": "nosniff",
+    };
+  }
+  if (normalized === "image/svg+xml" || normalized.startsWith("image/svg")) {
     return {
       ..._baseHeaders,
       "Content-Security-Policy":
@@ -389,6 +422,18 @@ export const GET = apiHandler(async ({ params, request, locals }) => {
 
   // ====================== CLOUD STORAGE REDIRECT ======================
   if (storageType !== "local") {
+    // A 302 hands the response to the bucket/CDN, which decides the headers.
+    // Scriptable document types must never be served from the CMS origin's
+    // bucket without the attachment/CSP policy the local path enforces.
+    const cloudMime = getMimeType(filePath);
+    if (cloudMime && ATTACHMENT_ONLY_MIME.has(normalizeMediaType(cloudMime))) {
+      logger.warn("[files] Blocked cloud redirect for a scriptable type", {
+        requested: filePath,
+        mime: cloudMime,
+      });
+      raise(403, "This file type must be downloaded through the media API", "ACCESS_DENIED");
+    }
+
     const cloudPublicUrl =
       getPublicSettingSync("MEDIA_CLOUD_PUBLIC_URL") || getPublicSettingSync("MEDIASERVER_URL");
 

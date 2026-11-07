@@ -24,7 +24,7 @@ import { isAdmin } from "@src/databases/auth/constants";
 import { logger } from "@utils/logger";
 import type { Model, QueryFilter } from "mongoose";
 
-export class MongoMediaMethods {
+class MongoMediaMethods {
   constructor(private readonly mediaModel: Model<IMedia>) {
     logger.debug("MongoMediaMethods initialized with media model.");
   }

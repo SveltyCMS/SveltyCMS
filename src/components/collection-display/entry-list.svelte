@@ -72,7 +72,7 @@ bulk actions, and predictive preloading.
 	} from '@src/content/types';
 	import { StatusTypes } from '@src/content/types';
 	// ParaglideJS
-	import { EntryList_no_collection, entrylist_all, entrylist_dnd } from '@src/paraglide/messages';
+	import { EntryList_no_collection } from '@src/paraglide/messages';
 	// Stores
 	import {
 		collections,
@@ -89,7 +89,7 @@ bulk actions, and predictive preloading.
 	// Utils
 	// Utils
 	import { getEntry, invalidateCollectionCache, updateEntryStatus } from '@utils/api';
-	import { formatDisplayDate, nowISODateString } from '@utils/date';
+	import { formatDisplayDate } from '@utils/date';
 	import {
 		bulkEditEntries,
 		cloneEntries,
@@ -99,35 +99,29 @@ bulk actions, and predictive preloading.
 	import { loadEntryFormValues } from '@utils/entry-values';
 	// Using iconify-icon web component
 	import { logger } from '@utils/logger';
-	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	// Native UI Components
 	import { showDeleteConfirm, showStatusChangeConfirm } from '@utils/modal.svelte';
-	import { preloadEntry, reflectModeInURL } from '@utils/navigation';
+	import { reflectModeInURL } from '@utils/navigation';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { getFieldName } from '@utils/schema/field-utils';
 	import { meta_data } from '@utils/entry-actions';
 	import { untrack } from 'svelte';
-	import { flip } from 'svelte/animate';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-	import { draggable, droppable } from '@thisux/sveltednd';
-	import type { DragDropState } from '@thisux/sveltednd';
-	import Checkbox from '@components/ui/checkbox.svelte';
 	import { browser } from '$app/env';
 	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
+	import { createSmartTable } from '@components/ui/smart-table/create-smart-table.svelte';
+	import type { ColumnSortDescriptor } from '@components/ui/smart-table/types';
 	import {
-		createSmartTable,
 		pinCellClass,
 		SMART_TABLE,
-		SMART_TABLE_COLUMN_MANAGER,
 		SMART_TABLE_ROW_HOVER,
 		SMART_TABLE_ROW_SELECTED,
 		SMART_TABLE_SCROLL,
 		SMART_TABLE_TD,
 		SMART_TABLE_TH,
-		SMART_TABLE_THEAD,
-		type ColumnSortDescriptor
-	} from '@components/ui/smart-table';
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table/chrome';
 	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import SmartTableStatusFacets from '@components/ui/smart-table/smart-table-status-facets.svelte';
@@ -140,6 +134,10 @@ bulk actions, and predictive preloading.
 	import EntryListCell from './entry-list-cell.svelte';
 	import { createSmartFilter } from './create-smart-filter.svelte';
 	import SmartFilterRow from './smart-filter-row.svelte';
+	import EntryListColumnManager from './entry-list-column-manager.svelte';
+	import EntryListCardGrid from './entry-list-card-grid.svelte';
+	import { createEntryListHoverPreload } from './entry-list-hover-preload.svelte';
+	import { exportEntriesToCsv } from './entry-list-export';
 	import { memoizeLazyLoader } from '@utils/lazy-module';
 	import type { AdvancedFilterClause } from './advanced-filter-modal.svelte';
 	const loadBulkFieldEditModal = memoizeLazyLoader(() => import('./bulk-field-edit-modal.svelte'));
@@ -469,179 +467,25 @@ bulk actions, and predictive preloading.
 	// =================================================================
 	// 5. HOVER PRELOADING FOR EDIT MODE (Enterprise UX Optimization)
 	// =================================================================
-	let hoverPreloadTimeout: ReturnType<typeof setTimeout> | null = null;
-	const preloadedEntries = new SvelteMap<
-		string,
-		{ data: any; timestamp: number; hoverCount: number }
-	>();
-
-	const PRELOAD_CACHE_TTL = 30_000; // ms - keep preloaded data for 30 seconds
-
-	// Phase 2: Connection-aware preloading
-	let isSlowConnection = $state(false);
-	let isPreloadEnabled = $state(true);
-
-	// Phase 2: Predictive preloading - track hover patterns
-	const hoverPatterns = new SvelteMap<string, number>(); // entryId -> hover count
-	const predictivePreloadQueue: string[] = [];
-
-	// Detect connection speed
-	$effect(() => {
-		if (browser && 'connection' in navigator) {
-			const conn =
-				(navigator as any).connection ||
-				(navigator as any).mozConnection ||
-				(navigator as any).webkitConnection;
-			if (conn) {
-				const checkConnection = () => {
-					const effectiveType = conn.effectiveType;
-					const saveData = (conn as any).saveData;
-					isSlowConnection = saveData || effectiveType === 'slow-2g' || effectiveType === '2g';
-					isPreloadEnabled = !isSlowConnection;
-				};
-				checkConnection();
-				conn.addEventListener('change', checkConnection);
-				return () => conn.removeEventListener('change', checkConnection);
-			}
-		}
+	const hoverPreloader = createEntryListHoverPreload({
+		getCollectionId: () => (currentCollection?._id ? String(currentCollection._id) : null),
+		getTableData: () => tableData,
+		getMode: () => currentMode,
+		getPathname: () => page.url.pathname
 	});
 
-	function handleRowHoverStart(entryId: string) {
-		// Phase 2: Respect connection awareness
-		if (!isPreloadEnabled) {
-			logger.debug('[Preload] Disabled on slow connection');
-			return;
-		}
-
-		// ✅ Use SvelteKit's preloadData
-		preloadEntry(entryId, page.url.pathname);
-
-		// Phase 2: Track hover patterns for predictive preloading
-		const currentCount = hoverPatterns.get(entryId) || 0;
-		hoverPatterns.set(entryId, currentCount + 1);
-
-		// Phase 2: Predictive preloading - queue frequently hovered entries
-		if (currentCount >= 2) {
-			predictivePreloadQueue.push(entryId);
-		}
+	function handleHeadersChange(newHeaders: TableHeader[]) {
+		displayTableHeaders = newHeaders;
+		entryListPaginationSettings.displayTableHeaders = newHeaders;
 	}
 
-	function handleRowHoverEnd() {
-		// Cancel pending preload if user moves mouse away quickly
-		if (hoverPreloadTimeout) {
-			clearTimeout(hoverPreloadTimeout);
-			hoverPreloadTimeout = null;
+	function handleResetView() {
+		const currentCollId = currentCollection?._id;
+		if (browser && currentCollId) {
+			localStorage.removeItem(`entryListPaginationSettings_${currentCollId}`);
 		}
-	}
-
-	// Batch warm-cache: single POST for all visible row IDs (not one request per entry)
-	async function batchPreloadVisibleEntries() {
-		if (!(isPreloadEnabled && browser && currentCollection?._id)) {
-			return;
-		}
-
-		const entriesToPreload = tableData.slice(0, 5);
-		const entryIds = entriesToPreload
-			.map((e) => e._id as string)
-			.filter((id) => {
-				if (!id) return false;
-				const cached = preloadedEntries.get(id);
-				return !cached || Date.now() - cached.timestamp > PRELOAD_CACHE_TTL;
-			});
-
-		if (entryIds.length === 0) return;
-
-		const warm = async () => {
-			try {
-				await fetch('/api/collections/warm-cache', {
-					method: 'POST',
-					headers: clientJsonHeaders(),
-					body: JSON.stringify({
-						collectionId: currentCollection._id,
-						entryIds
-					})
-				});
-
-				const now = Date.now();
-				for (const id of entryIds) {
-					preloadedEntries.set(id, { data: null, timestamp: now, hoverCount: 0 });
-				}
-				logger.debug(`[Batch Preload] Warmed ${entryIds.length} entries in one request`);
-			} catch (error) {
-				logger.warn('[Batch Preload] Failed:', error);
-			}
-		};
-
-		if ('requestIdleCallback' in window) {
-			(window as any).requestIdleCallback(warm, { timeout: 2000 });
-		} else {
-			await warm();
-		}
-	}
-
-	// Trigger batch preload when data changes
-	$effect(() => {
-		if (tableData.length > 0 && currentMode === 'view') {
-			// Delay to avoid interfering with initial page load
-			setTimeout(() => batchPreloadVisibleEntries(), 2000);
-		}
-	});
-
-	// Cleanup preload cache periodically
-	$effect(() => {
-		const cleanupInterval = setInterval(() => {
-			const now = Date.now();
-			for (const [entryId, cached] of preloadedEntries.entries()) {
-				if (now - cached.timestamp > PRELOAD_CACHE_TTL) {
-					preloadedEntries.delete(entryId);
-				}
-			}
-		}, 10_000); // Cleanup every 10 seconds
-
-		return () => clearInterval(cleanupInterval);
-	});
-
-	// DND Logic for Headers — uses @thisux/sveltednd v0.7.0 dropPosition API
-	function handleColumnDrop(state: DragDropState<TableHeader>) {
-		const dragged = state.draggedItem;
-		if (!dragged) return;
-
-		const fromIndex = displayTableHeaders.findIndex(
-			(h) => h.id === dragged.id || (Boolean(dragged.name) && h.name === dragged.name)
-		);
-		if (fromIndex < 0) return;
-
-		const targetEl = state.targetElement?.closest('[data-header-id]') as HTMLElement | null;
-		const targetHeaderId = targetEl?.dataset?.headerId;
-
-		if (
-			targetHeaderId &&
-			(targetHeaderId === dragged.id || targetHeaderId === displayTableHeaders[fromIndex].id)
-		) {
-			return;
-		}
-
-		let targetIndex: number;
-		if (targetHeaderId) {
-			targetIndex = displayTableHeaders.findIndex((h) => h.id === targetHeaderId);
-			if (targetIndex >= 0 && state.dropPosition === 'after') {
-				targetIndex++;
-			}
-		} else {
-			targetIndex = displayTableHeaders.length;
-		}
-		if (targetIndex < 0) targetIndex = displayTableHeaders.length;
-		targetIndex = Math.max(0, Math.min(targetIndex, displayTableHeaders.length));
-
-		if (fromIndex === targetIndex) return;
-
-		displayTableHeaders = untrack(() => {
-			const newItems = [...displayTableHeaders];
-			const [movedItem] = newItems.splice(fromIndex, 1);
-			const adjusted = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
-			newItems.splice(adjusted, 0, movedItem);
-			return newItems;
-		});
+		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
+		displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
 		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
 	}
 
@@ -928,16 +772,6 @@ bulk actions, and predictive preloading.
 
 	const visibleTableHeaders = $derived(displayTableHeaders.filter((header) => header.visible));
 
-	const selectAllColumns = {
-		get value() {
-			return displayTableHeaders.length > 0 ? displayTableHeaders.every((h) => h.visible) : false;
-		},
-		set value(v: boolean) {
-			displayTableHeaders = displayTableHeaders.map((h) => ({ ...h, visible: v }));
-			entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
-		}
-	};
-
 	const cellPaddingClass = $derived(smartTable.cellPaddingClass);
 
 	/**
@@ -1108,23 +942,6 @@ bulk actions, and predictive preloading.
 		setEntriesStatus(getSelectedIds(), StatusTypes.draft, onActionSuccess, payload);
 	};
 
-	function handleColumnVisibilityToggle(headerToToggle: TableHeader) {
-		displayTableHeaders = displayTableHeaders.map((h) =>
-			h.id === headerToToggle.id ? { ...h, visible: !h.visible } : h
-		);
-		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
-	}
-
-	function resetViewSettings() {
-		const currentCollId = currentCollection?._id;
-		if (browser && currentCollId) {
-			localStorage.removeItem(`entryListPaginationSettings_${currentCollId}`);
-		}
-		entryListPaginationSettings = defaultPaginationSettings(currentCollId ?? null);
-		displayTableHeaders = tableHeaders.map((h) => ({ ...h, visible: true }));
-		entryListPaginationSettings.displayTableHeaders = displayTableHeaders;
-	}
-
 	// Advanced Filters State & Handler
 	let isAdvancedFilterOpen = $state(false);
 	let advancedFilterClauses = $state<AdvancedFilterClause[]>([]);
@@ -1166,44 +983,14 @@ bulk actions, and predictive preloading.
 
 	// Export Filtered Selection (Alt + X)
 	function exportData() {
-		const itemsToExport = smartTable.hasSelections ? smartTable.getSelectedRows() : tableData;
-		if (!itemsToExport || itemsToExport.length === 0) {
-			toast.warning('No data to export');
-			return;
-		}
-
-		const headersToUse = visibleTableHeaders.length > 0 ? visibleTableHeaders : tableHeaders;
-		const headerLabels = headersToUse.map(
-			(h) => `"${(h.label || h.name || '').replace(/"/g, '""')}"`
-		);
-		const headerKeys = headersToUse.map((h) => h.name || h.id || '');
-
-		const rowsCsv = itemsToExport.map((item) => {
-			return headerKeys
-				.map((k) => {
-					const val = (item as any)[k];
-					if (val == null) return '""';
-					if (typeof val === 'object') return `"${JSON.stringify(val).replace(/"/g, '""')}"`;
-					return `"${String(val).replace(/"/g, '""')}"`;
-				})
-				.join(',');
+		exportEntriesToCsv({
+			items: smartTable.hasSelections
+				? (smartTable.getSelectedRows() as CollectionEntry[])
+				: tableData,
+			visibleHeaders: visibleTableHeaders,
+			fallbackHeaders: tableHeaders,
+			collectionName: currentCollection?.name
 		});
-
-		const csvContent = [headerLabels.join(','), ...rowsCsv].join('\r\n');
-		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		const collectionName = currentCollection?.name || 'collection';
-		a.href = url;
-		a.download = `${collectionName}-export-${nowISODateString().slice(0, 10)}.csv`;
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		URL.revokeObjectURL(url);
-
-		toast.success(
-			`Exported ${itemsToExport.length} ${itemsToExport.length === 1 ? 'entry' : 'entries'} to CSV`
-		);
 	}
 
 	// Keyboard Grid Navigation (ATAG / WCAG 2.2 AA)
@@ -1506,84 +1293,11 @@ bulk actions, and predictive preloading.
 	</div>
 
 	{#if columnShow}
-		<!-- Column order -->
-		<div class="shrink-0 {CONTENT_PADDING}">
-			<div class={SMART_TABLE_COLUMN_MANAGER}>
-				<div class="text-sm dark:text-primary-500">{entrylist_dnd()}</div>
-				<!-- Select All Columns -->
-				<div
-					class="my-2 flex w-full flex-col items-center justify-center gap-2 sm:flex-row sm:gap-4"
-				>
-					<div class="flex items-center gap-2">
-						<Checkbox bind:checked={selectAllColumns.value} label={entrylist_all()} />
-
-						<Button
-							variant="outline"
-							onclick={resetViewSettings}
-							aria-label="reset-view"
-							class="bg-surface-400 text-white"
-						>
-							<iconify-icon icon="material-symbols-light:device-reset" width={24}></iconify-icon>
-							Reset View
-						</Button>
-					</div>
-					<!-- Droppable only on items (v0.7.0) — nested section+item droppables cause callback ambiguity -->
-					<section
-						class="flex w-full flex-wrap justify-center gap-2 p-2 border-2 border-dashed border-secondary-500/50 rounded transition-all hover:border-secondary-500"
-						role="list"
-						aria-label="Drag columns to reorder"
-					>
-						{#each displayTableHeaders as header (header.id)}
-							<div
-								animate:flip={{ duration: 300 }}
-								use:draggable={{
-									container: 'columns',
-									dragData: header,
-									keyboard: true,
-									handle: '.column-drag-handle'
-								}}
-								use:droppable={{
-									container: 'columns',
-									callbacks: { onDrop: handleColumnDrop },
-									direction: 'horizontal',
-									attributes: { dragOverClass: 'ring-2 ring-primary-500 scale-105' }
-								}}
-								data-header-id={header.id}
-								role="listitem"
-								class="inline-flex items-center rounded-lg border transition-all {header.visible
-									? 'bg-(--admin-bg-card) border-surface-500/30 dark:border-surface-600 text-(--admin-text-body)'
-									: 'bg-surface-500/10 dark:bg-surface-900/50 border-dashed border-surface-500 dark:border-surface-600 text-(--admin-text-muted)'}"
-							>
-								<button
-									type="button"
-									class="column-drag-handle cursor-grab active:cursor-grabbing p-1.5 inline-flex items-center justify-center text-surface-400 hover:text-primary-500 dark:hover:text-primary-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-									aria-label={`Drag to reorder column ${header.label}. Press Space to grab, arrows to move.`}
-									title="Drag to reorder"
-								>
-									<iconify-icon icon="mdi:drag-vertical" width={18}></iconify-icon>
-								</button>
-
-								<button
-									type="button"
-									onclick={() => handleColumnVisibilityToggle(header)}
-									aria-label={`Toggle visibility of ${header.label} column`}
-									class="inline-flex items-center gap-1.5 py-1 pe-2.5 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
-								>
-									{#if header.visible}
-										<iconify-icon icon="fa:check" width={14} class="text-success-500"
-										></iconify-icon>
-									{:else}
-										<iconify-icon icon="mdi:eye-off-outline" width={14} class="text-surface-400"
-										></iconify-icon>
-									{/if}
-									<span class="capitalize">{header.label}</span>
-								</button>
-							</div>
-						{/each}
-					</section>
-				</div>
-			</div>
-		</div>
+		<EntryListColumnManager
+			{displayTableHeaders}
+			onHeadersChange={handleHeadersChange}
+			onResetView={handleResetView}
+		/>
 	{/if}
 
 	<div class="flex min-h-0 flex-1 flex-col {CONTENT_PADDING}">
@@ -1617,151 +1331,25 @@ bulk actions, and predictive preloading.
 					{/snippet}
 
 					{#if smartTable.viewMode === 'card'}
-						<!-- Card View Grid -->
-						<div
-							bind:this={scrollContainerEl}
-							onscroll={onVirtualScroll}
-							class="{SMART_TABLE_SCROLL} max-h-none overflow-y-auto py-3"
-							tabindex="0"
-							role="grid"
-							aria-label="Collection entries card grid"
-							onkeydown={handleTableKeydown}
-						>
-							{#if filterShow && visibleTableHeaders.length > 0}
-								<div
-									class="mb-3 p-2 rounded-xl border border-surface-500/30 bg-surface-500/10 dark:bg-surface-900"
-								>
-									<SmartFilterRow
-										headers={visibleTableHeaders}
-										definitions={smartFilter.definitions}
-										filters={smartFilter.filters}
-										activeFilters={smartFilter.activeFilters}
-										{onFilterChange}
-										onClearAll={onClearAllFilters}
-										{onClearFilter}
-										onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
-										advancedCount={advancedFilterClauses.length}
-									/>
-								</div>
-							{/if}
-
-							{#if tableData.length > 0}
-								<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-									{#each visibleRows as entry, index (entry._id)}
-										{@const rowId = String(entry._id ?? '')}
-										{@const rowSelected = smartTable.isSelected(rowId)}
-										{@const isFocused = focusedRowIndex === index}
-										<div
-											class="group relative flex flex-col justify-between rounded-xl border p-4 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 {rowSelected
-												? 'border-primary-500 bg-primary-500/10 dark:bg-primary-500/20 shadow-xs'
-												: 'border-(--admin-border-default) bg-(--admin-bg-card) hover:border-primary-500/50 hover:shadow-md'}"
-											role="row"
-											tabindex={isFocused ? 0 : -1}
-											onclick={(e) => {
-												const target = e.target as HTMLElement | null;
-												if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-												const originalEntry = tableData.find(
-													(item: CollectionEntry) => item._id === entry._id
-												);
-												if (originalEntry) void openEntryForEdit(originalEntry);
-											}}
-											onkeydown={(e) => {
-												// Keyboard parity for the card view (WCAG 2.1.1): Enter opens the entry,
-												// Space toggles selection — the same mapping the table view uses.
-												const target = e.target as HTMLElement | null;
-												if (target?.closest('button, input, a, [data-prevent-row-click]')) return;
-												if (e.key === 'Enter') {
-													e.preventDefault();
-													const originalEntry = tableData.find(
-														(item: CollectionEntry) => item._id === entry._id
-													);
-													if (originalEntry) void openEntryForEdit(originalEntry);
-												} else if (e.key === ' ') {
-													e.preventDefault();
-													smartTable.toggleSelect(rowId);
-												}
-											}}
-										>
-											<!-- Top: Checkbox, Title/ID, Status -->
-											<div
-												class="flex items-start justify-between gap-2 border-b border-surface-500/20 pb-2.5"
-											>
-												<div class="flex items-center gap-2 min-w-0" data-prevent-row-click>
-													<Checkbox
-														checked={rowSelected}
-														onchange={() => smartTable.toggleSelect(rowId)}
-														label="Select entry {rowId}"
-														hideLabel
-													/>
-													<span
-														class="text-xs font-bold text-(--admin-text-body) truncate"
-														dir="auto"
-													>
-														{String(
-															entry[visibleTableHeaders[0]?.name as any] || entry._id || 'Entry'
-														)}
-													</span>
-												</div>
-												<div data-prevent-row-click>
-													<Status value={entry.status || entry.raw_status || 'draft'} />
-												</div>
-											</div>
-
-											<!-- Body: Key Fields -->
-											<div class="my-3 space-y-1.5 text-xs text-(--admin-text-muted)">
-												{#each visibleTableHeaders.slice(1, 5) as header (header.id)}
-													{@const fieldName = (header as TableHeader).name || ''}
-													<!-- System timestamps are ISO strings in the row, so `String()`
-													     printed "2026-10-31T09:12:33.000Z" in the card while the
-													     table view formatted the same column. -->
-													{@const isDateField =
-														fieldName === 'createdAt' || fieldName === 'updatedAt'}
-													{@const rawValue = (entry as Record<string, unknown>)[fieldName]}
-													{@const displayValue = isDateField
-														? formatDisplayDate(rawValue as string) || '-'
-														: String(rawValue ?? '-')}
-													<div class="flex items-center justify-between gap-2">
-														<span class="font-medium text-surface-500 capitalize truncate"
-															>{header.label}:</span
-														>
-														<span
-															dir="auto"
-															class="font-semibold text-(--admin-text-muted) truncate max-w-[60%]"
-														>
-															{displayValue}
-														</span>
-													</div>
-												{/each}
-											</div>
-
-											<!-- Footer: Quick Actions -->
-											<div
-												class="flex items-center justify-between pt-2 border-t border-surface-500/20 text-xs text-surface-400"
-											>
-												<span class="text-[11px]">
-													{formatDisplayDate(
-														(entry.updatedAt as string) || (entry.createdAt as string) || ''
-													)}
-												</span>
-												<Button
-													variant="ghost"
-													size="sm"
-													class="text-xs gap-1 text-primary-600 dark:text-primary-400 p-1"
-													onclick={() => {
-														void openEntryForEdit(entry);
-													}}
-												>
-													<iconify-icon icon="ic:round-edit" width="14"></iconify-icon>
-													Edit
-												</Button>
-											</div>
-										</div>
-									{/each}
-								</div>
-							{:else}
-								<div class="p-8 text-center text-(--admin-text-muted)">No results found.</div>
-							{/if}
-						</div>
+						<EntryListCardGrid
+							{tableData}
+							{visibleRows}
+							{visibleTableHeaders}
+							{filterShow}
+							{smartFilter}
+							{focusedRowIndex}
+							bind:scrollContainerEl
+							isSelected={(id) => smartTable.isSelected(id)}
+							toggleSelect={(id) => smartTable.toggleSelect(id)}
+							{openEntryForEdit}
+							{onFilterChange}
+							{onClearAllFilters}
+							{onClearFilter}
+							onOpenAdvanced={() => (isAdvancedFilterOpen = true)}
+							advancedCount={advancedFilterClauses.length}
+							{handleTableKeydown}
+							{onVirtualScroll}
+						/>
 					{:else}
 						<!-- Scrollable grid region: `tabindex="0"` + keydown are what make keyboard
 				     scrolling (WCAG 2.1.1) and arrow-key cell navigation possible; `role="region"`
@@ -1870,8 +1458,9 @@ bulk actions, and predictive preloading.
 													: undefined}
 												aria-selected={rowSelected}
 												tabindex={isFocused ? 0 : -1}
-												onmouseenter={() => entry._id && handleRowHoverStart(entry._id)}
-												onmouseleave={handleRowHoverEnd}
+												onmouseenter={() =>
+													entry._id && hoverPreloader.handleRowHoverStart(String(entry._id))}
+												onmouseleave={hoverPreloader.handleRowHoverEnd}
 												onclick={(e) => {
 													const target = e.target as HTMLElement | null;
 													if (target?.closest('button, input, a, [data-prevent-row-click]')) return;

@@ -21,7 +21,7 @@ import { error, isHttpError } from "@sveltejs/kit";
 import { logger } from "@utils/logger";
 import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { rethrow } from "@utils/error-handling";
-import { getSettingGroupsByRole } from "./settings-groups";
+import { getSettingGroupsByRole } from "@src/services/system/settings-groups";
 import { hasEmptyConfigFields } from "./settings-utils";
 import type { PageServerLoad } from "./$types";
 

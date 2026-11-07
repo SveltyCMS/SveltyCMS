@@ -21,7 +21,7 @@ import { cacheService } from "@src/databases/cache/cache-service";
 import { CacheCategory } from "@src/databases/cache/types";
 import { getRequestFlags } from "@utils/hook-utils";
 import { locales } from "@src/paraglide/runtime";
-import { findRegexRedirect } from "@src/routes/(app)/config/redirects/redirects-utils";
+import { findRegexRedirect } from "@utils/redirects-utils";
 
 /** Pattern rules are cached in-process per tenant; saves invalidate the entry. */
 const REGEX_RULE_CACHE_TTL_MS = 60_000;

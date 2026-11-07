@@ -192,6 +192,47 @@ function coerceScalarValue(key: string, value: unknown, type: string): unknown {
 }
 
 /**
+ * Duck-typed binary guard: `instanceof File/Blob` fails when the runtime supplies
+ * a different constructor (undici vs Node global, another realm).
+ */
+function isBinaryValue(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { arrayBuffer?: unknown; stream?: unknown; size?: unknown };
+  return (
+    typeof candidate.arrayBuffer === "function" &&
+    typeof candidate.stream === "function" &&
+    typeof candidate.size === "number"
+  );
+}
+
+/**
+ * Remove binary values at any depth. Public forms have no authenticated caller,
+ * so a File anywhere in the payload would be stored by the widget pipeline as
+ * `system`. Arrays/plain objects are rebuilt only when a child survives.
+ */
+function stripBinaryValues(value: unknown): unknown {
+  if (isBinaryValue(value)) return undefined;
+  if (Array.isArray(value)) {
+    const out = value.map(stripBinaryValues).filter((entry) => entry !== undefined);
+    return out.length > 0 ? out : undefined;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    let kept = false;
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      if (PROTO_KEYS.has(key)) continue;
+      const cleaned = stripBinaryValues(entry);
+      if (cleaned !== undefined) {
+        out[key] = cleaned;
+        kept = true;
+      }
+    }
+    return kept ? out : undefined;
+  }
+  return value;
+}
+
+/**
  * Builds the persisted payload from an untrusted submission:
  * - drops honeypot-adjacent/privileged keys and `_form*` metadata
  * - keeps only top-level keys declared by the collection schema
@@ -227,9 +268,16 @@ function sanitizeSubmission(
     if (!declared) continue;
 
     if (value === undefined) continue;
+    // 🛡️ Public forms have no authenticated caller. Dropping File/Blob (at any
+    // depth) keeps an anonymous submission from reaching the widget
+    // `modifyRequest` pipeline, which would otherwise store media as the
+    // `system` user (unauthenticated upload). Media must be attached through
+    // the authenticated media API.
+    const cleanedValue = stripBinaryValues(value);
+    if (cleanedValue === undefined) continue;
 
     const type = typeof declared.definition.type === "string" ? declared.definition.type : "";
-    clean[declared.storageKey] = coerceScalarValue(key, value, type.toLowerCase());
+    clean[declared.storageKey] = coerceScalarValue(key, cleanedValue, type.toLowerCase());
   }
 
   return clean;

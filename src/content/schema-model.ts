@@ -124,7 +124,7 @@ function coerceWhere(where: unknown): WhereRecord | null {
 }
 
 /** Enforce the `where` shape caps (length, depth, node count) in one pass. */
-export function assertWhereShape(where: WhereRecord): void {
+function assertWhereShape(where: WhereRecord): void {
   let encodedLength = 0;
   try {
     encodedLength = JSON.stringify(where).length;

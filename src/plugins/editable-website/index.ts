@@ -35,6 +35,9 @@ slotRegistry.register({
     collectionHasLivePreview(context?.collection?.livePreview),
 });
 
+export { stegaClean, stegaCleanDeep } from "./stega.ts";
+export { usePreview } from "./use-preview.svelte.ts";
+
 export const editableWebsitePlugin = definePlugin({
   metadata: {
     id: "editable-website",

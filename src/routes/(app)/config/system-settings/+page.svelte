@@ -60,7 +60,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	import GenericSettingsGroup from './generic-settings-group.svelte';
 
 	// Import settings structure
-	import { getSettingGroupsByRole } from './settings-groups';
+	import { getSettingGroupsByRole } from '@src/services/system/settings-groups';
 	import { beforeNavigate } from '$app/navigation';
 	import { showConfirm } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';

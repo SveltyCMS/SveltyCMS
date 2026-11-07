@@ -245,7 +245,7 @@ export const systemVirtualFolderSchema = new Schema<SystemVirtualFolder>(
   },
 );
 
-export const SystemVirtualFolderModel =
+const SystemVirtualFolderModel =
   (mongoose.models?.SystemVirtualFolder as Model<SystemVirtualFolder> | undefined) ||
   mongoose.model<SystemVirtualFolder>("SystemVirtualFolder", systemVirtualFolderSchema);
 

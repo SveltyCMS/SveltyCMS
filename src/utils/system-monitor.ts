@@ -184,7 +184,7 @@ function collectSnapshot(): SystemHealthSnapshot {
 
 // ─── Public API ───────────────────────────────────────────────────────────
 
-export function startSystemMonitor(): void {
+function startSystemMonitor(): void {
   if (_started) return;
 
   try {
@@ -215,7 +215,7 @@ export function startSystemMonitor(): void {
   logger.info("[SystemMonitor] Hardware-aware monitoring active");
 }
 
-export function stopSystemMonitor(): void {
+function stopSystemMonitor(): void {
   if (_interval) {
     clearInterval(_interval);
     _interval = null;
@@ -249,7 +249,7 @@ export function getCpuInfo(): { cores: number; model: string } {
   return { cores: hw.cores, model: hw.model };
 }
 
-export function getPressureMultiplier(): number {
+function getPressureMultiplier(): number {
   if (!_started || !_lastSnapshot) return 1.0;
 
   switch (_lastSnapshot.pressure) {
@@ -269,7 +269,7 @@ function shouldRejectMutations(): boolean {
   return _lastSnapshot.heapUsedPercent > PRESSURE_THRESHOLDS.rejectHeap;
 }
 
-export function getPressureLevel(): SystemHealthSnapshot["pressure"] {
+function getPressureLevel(): SystemHealthSnapshot["pressure"] {
   return _lastSnapshot?.pressure ?? "normal";
 }
 

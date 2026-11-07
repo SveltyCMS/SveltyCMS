@@ -229,7 +229,11 @@ export function resolveAdaptiveUserTier(event: RequestEvent): AdaptiveUserTier {
     try {
       const isSecure = isSecureCookieContext(event.url.protocol, event.url.hostname);
       const cookieName = getSessionCookieName(isSecure);
-      const sessionId = event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
+      // Secure contexts accept only `__Host-` — a plain cookie can be planted
+      // by a sibling subdomain and must not steer tier classification either.
+      const sessionId = isSecure
+        ? event.cookies.get(cookieName)
+        : event.cookies.get(cookieName) || event.cookies.get(SESSION_COOKIE_NAME);
       return sessionId ? peekSessionUserSync(sessionId) : null;
     } catch {
       return null;

@@ -43,7 +43,6 @@ import type {
 import {
   // Aliased: the class method `applyOrderBy` below owns the plain name.
   applyOrderBy as applyOrderByHelper,
-  executeWrite,
   getColumnHelper,
   getPhysicalSelection,
   isSystemTable,
@@ -52,36 +51,22 @@ import {
   SQL_TABLE_ALIASES,
   SYSTEM_LITERAL_COLUMNS,
   rowsAffected,
+  RAW_DECLINED,
+  type RawFindResult,
 } from "./drizzle-sql-helpers";
 import { normalizeCollectionTableName } from "./collection-name";
 import { generateUUID } from "@utils/native-utils";
-import { serializeSuccessEnvelope } from "@utils/fast-json";
-import { trimPointReadEnvelope } from "@utils/point-read-payload";
-import { versionTokenString } from "@utils/optimistic-lock";
-import { nowISODateString, isoDateStringToDate } from "@src/utils/date";
-import {
-  count as drizzleCount,
-  getTableColumns,
-  getTableName,
-  asc,
-  desc,
-  type Column,
-  eq,
-  and,
-} from "drizzle-orm";
-import { sql, type SQL } from "drizzle-orm";
+import { nowISODateString } from "@src/utils/date";
+import { getTableColumns, getTableName, asc, desc, type Column, eq, and } from "drizzle-orm";
+import { type SQL } from "drizzle-orm";
 import {
   applyTenantFilter,
-  assertSafeSqlIdentifier,
   convertArrayDatesToISO,
   convertDatesToISO,
   convertISOToDates,
-  assertFilteredDelete,
   getEffectiveTenantId,
-  getTenantCondition,
   registerNestedDataTable,
   registerTableSchema,
-  shouldBypassTenantCheck,
   validateId,
 } from "./relational-utils";
 import { RelationalAuthModule } from "./relational-auth";
@@ -91,46 +76,61 @@ import { RelationalSystemModule } from "./relational-system";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import { BatchModule } from "./batch-module";
 import { CollectionModule } from "./collection-module";
+import { normalizeSortDirection } from "./page-utils";
+import { clearJsonDataPatch, getJsonDataPatch, jsonPatchNeedsJsMerge } from "./query-primitives";
+import { SqlQueryBuilder, type SqlDialect, SQLITE_DIALECT } from "./sql-query-builder";
+import { type InsertDefaultEntry } from "../sql/value-preparation";
+import { canMergeJsonPatchInOneStatement, jsonMergeWrapperExpression } from "../sql/json-merge";
+import { queryHasSoftDeleteKey } from "../sql/read-predicates";
 import {
-  buildFindPageResult,
-  DEFAULT_PAGE_SIZE,
-  decodePageCursor,
-  defaultPageSortOption,
-  mergeKeysetFilter,
-  normalizeSortDirection,
-  resolvePageSort,
-  shouldUseEstimateCount,
-  withIdTiebreaker,
-} from "./page-utils";
+  executeSqlCount,
+  executeSqlExists,
+  executeSqlFindById,
+  executeSqlFindMany,
+  executeSqlFindOne,
+  executeSqlStreamMany,
+  type SqlCrudReadContext,
+} from "./sql-crud-read";
 import {
-  applyLookupStatus,
-  clearJsonDataPatch,
-  extractPkConflictId,
-  getJsonDataPatch,
-  jsonPatchNeedsJsMerge,
-  parseIdLookup,
-  setJsonDataPatch,
-} from "./query-primitives";
-import { isPublishedStatus } from "@src/utils/security/publication-policy";
-import { StatementCoalescer } from "./statement-coalescer";
-import { translateAggregation } from "./aggregation-translator";
-import { SqlQueryBuilder, type SqlDialect, readCount, SQLITE_DIALECT } from "./sql-query-builder";
+  buildJsonUpsertMergeSet,
+  executeSqlUpsert,
+  executeSqlUpsertMany,
+  type SqlUpsertContext,
+} from "./sql-upsert";
+import { executeSqlAggregate, type SqlAggregateContext } from "./sql-aggregate";
 import {
-  applyInsertDefaults,
-  buildInsertDefaultsPlan,
-  coerceDateBindValue,
-  collectDateColumnKeys,
-  isDateColumnKey,
-  isJsonSerializableValue,
-  type InsertDefaultEntry,
-} from "../sql/value-preparation";
+  executeFindPointWireStream,
+  executeFindListWireStream,
+  type RawPointWireStreamResult,
+  type RawListWireStreamResult,
+  type SqlWireStreamContext,
+} from "./sql-wire-stream";
 import {
-  canMergeJsonPatchInOneStatement,
-  jsonMergeSqlValue,
-  jsonMergeWrapperExpression,
-  mergeJsonPatchShallow,
-} from "../sql/json-merge";
-import { isSoftDeletedRow, queryHasSoftDeleteKey } from "../sql/read-predicates";
+  buildDefaultSoftDeleteSet,
+  executeSqlDelete,
+  executeSqlDeleteMany,
+  executeSqlRestore,
+  type SqlCrudDeleteContext,
+} from "./sql-crud-delete";
+import { estimateSqlTableRows, executeSqlFindPage } from "./sql-page-runner";
+import { SqlCoalescerManager, type SqlCoalescerContext } from "./sql-coalescer";
+import {
+  getSqlDateColumnKeys,
+  getSqlInsertDefaultsPlan,
+  prepareSqlValues,
+  synthesizeSqlInsertRow,
+  type SqlValuesContext,
+} from "./sql-values";
+import {
+  applySqlJsonMergeToSet,
+  assertTopLevelJsonPatchKey,
+  buildJsonKeyPatchSetValue,
+  buildJsonMergeSetValue,
+  hydrateSqlJsonDataPatch,
+  mergeSqlJsonPatchIntoSet,
+  serializeJsonPatchValue,
+  type SqlJsonPatchContext,
+} from "./sql-json-patch";
 
 // ============================================================================
 // System table schema pre-registration (module scope — evaluated once)
@@ -190,33 +190,7 @@ export interface ListIndexRequest {
   withTenant: boolean;
 }
 
-/**
- * Outcome of a native direct-to-wire point read (`rawFindPointWireStream`).
- *
- * - `found`    — the engine produced a pre-serialized wire body.
- * - `missing`  — the SELECT ran and returned no row (id absent or
- *                publication-clamped away). Definitively not servable by the
- *                wire plane.
- * - `declined` — the engine/table cannot produce a native wire body (no `data`
- *                column, no `status` column under `requirePublished`, an
- *                unembeddable column name, a transaction without a client, or a
- *                thrown error). The caller should fall back to `findOne` / the
- *                Domain Plane.
- */
-export type RawPointWireStreamResult =
-  | { kind: "found"; wireBody: string; etag: string }
-  | { kind: "missing" }
-  | { kind: "declined" };
-
-/**
- * Outcome of a native direct-to-wire list read (`rawFindListWireStream`).
- *
- * - `found`    — the engine produced a pre-serialized JSON array wire body.
- * - `declined` — the engine declines (e.g. client-server DBs where JS stringification is faster).
- */
-export type RawListWireStreamResult =
-  | { kind: "found"; wireBody: string; etag: string }
-  | { kind: "declined" };
+export type { RawPointWireStreamResult, RawListWireStreamResult };
 
 /**
  * Sentinel for the raw point-read fast path.
@@ -227,13 +201,9 @@ export type RawListWireStreamResult =
  * this split both cases returned `null`, so a 404 `findById` ran the raw SELECT
  * and then the identical Drizzle SELECT — two round trips on every miss.
  */
-export const RAW_DECLINED: unique symbol = Symbol("SveltyCMS.RAW_DECLINED");
-export type RawFindResult<T> = T | null | typeof RAW_DECLINED;
+export { RAW_DECLINED, type RawFindResult };
 
 const LIST_INDEX_FIELD = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-/** Upper bound on Phase-2 update coalescer cache entries (see getUpdateCoalescer). */
-const UPDATE_COALESCER_MAX = 512;
 
 /**
  * Index plan for a paginated list order. Only a same-direction `(column, _id)`
@@ -505,7 +475,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // --------------------------------------------------------------------------
 
   /** Options bag passed to convertDatesToISO / convertArrayDatesToISO. */
-  protected get convertDatesOptions(): Record<string, any> {
+  public get convertDatesOptions(): Record<string, any> {
     return { inPlace: true };
   }
 
@@ -515,7 +485,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * (`bindPgParam` Date→toISOString), so keeping ISO strings avoids the
    * ISO→Date→ISO round-trip the raw-db-ceiling probe never pays.
    */
-  protected get persistTimestampsAsDate(): boolean {
+  public get persistTimestampsAsDate(): boolean {
     return true;
   }
 
@@ -543,7 +513,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    *
    * Idempotent: returns immediately if the table was already registered.
    */
-  protected ensureTableSchemaRegistered(table: any, name: string): void {
+  public ensureTableSchemaRegistered(table: any, name: string): void {
     if (!table || typeof table !== "object") return;
     try {
       const columns = Object.keys(table);
@@ -562,239 +532,135 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // Instance-level cache to skip even the Map.has() call after first registration
   protected _registeredSchemas = new Set<string>();
 
+  public get registeredSchemas(): Set<string> {
+    return this._registeredSchemas;
+  }
+
+  public get dynamicColListCache() {
+    return this._dynamicColListCache;
+  }
+
+  public get escapedTableNameCache() {
+    return this._escapedTableNameCache;
+  }
+
   protected _insertDefaultsPlanCache = new WeakMap<object, InsertDefaultEntry[]>();
 
-  protected getInsertDefaultsPlan(tableCols: Record<string, any>) {
-    let plan = this._insertDefaultsPlanCache.get(tableCols);
-    if (plan) return plan;
+  public getInsertDefaultsPlanCache(): WeakMap<object, InsertDefaultEntry[]> {
+    return this._insertDefaultsPlanCache;
+  }
 
-    plan = buildInsertDefaultsPlan(tableCols);
-    this._insertDefaultsPlanCache.set(tableCols, plan);
-    return plan;
+  public getTableColumnsCache(): Map<any, Record<string, Column>> {
+    return this._tableColumnsCache;
+  }
+
+  public getDateKeyCache(): WeakMap<object, Set<string>> {
+    return this._dateKeyCache;
+  }
+
+  protected getInsertDefaultsPlan(tableCols: Record<string, any>) {
+    return getSqlInsertDefaultsPlan(this as unknown as SqlValuesContext, tableCols);
   }
 
   /**
    * Reconstruct the inserted row from prepared values + column defaults.
    * Sparse: omit columns with neither a value nor a client-side default so
-   * the INSERT lists only bound params (DB DEFAULT applies; postgres.js
-   * does not pay a NULL bind per unused column). CMS tables have no
-   * triggers / generated columns — listed columns + defaults match the
-   * row the engine stores.
+   * the INSERT lists only bound params.
    */
   protected synthesizeInsertRow(
     table: any,
     values: Record<string, any>,
     opts?: { intBooleans?: boolean },
   ): Record<string, any> {
-    // 🚀 Reuse the warm per-table column cache (populated by prepareValues /
-    // getRawFindByIdCols) instead of re-walking getTableColumns per insert.
-    const cached = this._tableColumnsCache.get(table);
-    const tableCols = cached ?? getTableColumns(table);
-    if (!cached && tableCols) this._tableColumnsCache.set(table, tableCols);
-    if (!tableCols) return { ...values };
-
-    const plan = this.getInsertDefaultsPlan(tableCols);
-    let now: Date | string | undefined;
-    return applyInsertDefaults(values, plan, () => (now ??= this.writeNow()), opts);
+    return synthesizeSqlInsertRow(this as unknown as SqlValuesContext, table, values, opts);
   }
 
   /** Whether INSERT … RETURNING is supported natively. */
-  protected get insertReturnsRows(): boolean {
+  public get insertReturnsRows(): boolean {
     return false;
   }
 
   /** Whether UPDATE … RETURNING is supported natively. */
-  protected get updateReturnsRows(): boolean {
+  public get updateReturnsRows(): boolean {
     return false;
   }
 
   /** Whether prepareValues should JSON.stringify object values (SQLite TEXT columns need it). */
-  protected get shouldJsonSerializeInPrepare(): boolean {
+  public get shouldJsonSerializeInPrepare(): boolean {
     return false;
   }
 
   /**
    * How a partial update merges the patch's dynamic fields into the `data`
-   * column (MongoDB gets the same semantics from `$set` per field):
-   *
-   * - `"operator"` — the dialect's merge operator is an **exact** shallow merge
-   *   that keeps explicit nulls (PostgreSQL `jsonb || jsonb`). Any patch is
-   *   merged in SQL, no read, no exception.
-   * - `"subset"` — the dialect operator (`SQLite json_patch`, `MariaDB
-   *   JSON_MERGE_PATCH`) is RFC 7396: it merges nested objects **recursively**
-   *   and deletes keys whose patch value is `null`. Both deviate from the
-   *   shallow/keep-null contract, so patches containing nested objects or
-   *   explicit nulls are hydrated and merged in JS instead (see
-   *   `hydrateJsonDataPatch`); scalar/array-only patches still merge in SQL.
+   * column (MongoDB gets the same semantics from `$set` per field).
    */
-  protected get jsonPatchMergeMode(): "operator" | "subset" {
+  public get jsonPatchMergeMode(): "operator" | "subset" {
     return "operator";
   }
 
-  /**
-   * Merge a partial-update JSON patch into `values.data` in JS, reading the
-   * stored blob first. Only called when `jsonPatchMergeMode === "subset"` and the
-   * patch is outside what `json_patch`/`JSON_MERGE_PATCH` express exactly, or when
-   * the SQL fast paths bailed and the Drizzle fallback would otherwise write the
-   * patch as the whole blob. Clears the patch marker, so every SQL builder after
-   * this point writes a complete blob.
-   *
-   * Throws on a read failure: failing the write is the only fail-closed option —
-   * falling through would persist the patch as the entire document.
-   */
   protected async hydrateJsonDataPatch(
     values: Record<string, unknown>,
     table: any,
     id: DatabaseId,
     options: BaseQueryOptions,
   ): Promise<void> {
-    const patch = getJsonDataPatch(values);
-    if (!patch) return;
-    const stored = await this.readJsonDataColumn(table, id, options);
-    if (stored === null) {
-      throw new Error(
-        `Cannot merge partial update: no row "${String(id)}" to merge into (fail-closed, nothing written)`,
-      );
-    }
-    const merged = mergeJsonPatchShallow(stored, patch);
-    values.data = this.shouldJsonSerializeInPrepare ? JSON.stringify(merged) || "{}" : merged;
-    clearJsonDataPatch(values);
+    return hydrateSqlJsonDataPatch(
+      this as unknown as SqlJsonPatchContext,
+      values,
+      table,
+      id,
+      options,
+    );
   }
 
-  /**
-   * SQL wrapper that merges a bound JSON patch parameter into the `data` blob:
-   * the column's SET expression becomes `<prefix><param><suffix>`. PostgreSQL's
-   * `jsonb || jsonb` is an exact shallow merge; SQLite `json_patch` and MariaDB
-   * `JSON_MERGE_PATCH` are RFC 7396 (recursive, null-deleting), so callers only
-   * use them for patches `jsonPatchNeedsJsMerge()` clears. The default is the
-   * PostgreSQL form — `jsonPatchMergeMode` is `"operator"` there.
-   */
-  protected jsonMergeWrapper(colSql: string): { prefix: string; suffix: string } {
+  public jsonMergeWrapper(colSql: string): { prefix: string; suffix: string } {
     return jsonMergeWrapperExpression(colSql);
   }
 
-  /**
-   * Can the live JSON patch be merged inside ONE statement on this dialect?
-   * "operator" dialects always can; "subset" dialects only for the patches
-   * `json_patch`/`JSON_MERGE_PATCH` express identically to a shallow merge.
-   */
   public canMergeJsonInOneStatement(patch: Record<string, unknown>): boolean {
     return canMergeJsonPatchInOneStatement(this.jsonPatchMergeMode, patch);
   }
 
-  /**
-   * Drizzle SET value for the JSON `data` column: wrap a bound patch parameter in
-   * the dialect merge operator (`json_patch(coalesce("data", '{}'), $1)` …).
-   * Zero reads — the merge happens inside the UPDATE.
-   */
   public jsonMergeSetValue(table: any, patch: Record<string, unknown>): SQL {
-    const physName = this.getColumn(table, "data")?.name ?? "data";
-    const wrapper = this.jsonMergeWrapper(
-      this.quoteIdentifier(assertSafeSqlIdentifier(physName, "column")),
-    );
-    return jsonMergeSqlValue(wrapper, patch);
+    return buildJsonMergeSetValue(this as unknown as SqlJsonPatchContext, table, patch);
   }
 
-  /**
-   * Inject the dialect merge operator into Drizzle `.set()` values — the zero-read
-   * path, valid only for patches `canMergeJsonInOneStatement()` accepts.
-   */
   public applyJsonMergeToSet(
     values: Record<string, unknown>,
     table: any,
     patch: Record<string, unknown>,
   ): void {
-    values.data = this.jsonMergeSetValue(table, patch);
-    clearJsonDataPatch(values);
+    applySqlJsonMergeToSet(this as unknown as SqlJsonPatchContext, values, table, patch);
   }
 
-  /**
-   * Merge-aware Drizzle `.set()` values: injects the dialect merge operator for
-   * the `data` blob when the patch is expressible in one statement, and hydrates
-   * + merges in JS when it is not (SQLite/MariaDB + nested/null patch). Callers
-   * that write MANY rows in one statement must check `canMergeJsonInOneStatement()`
-   * first — hydration is per row and cannot live in a single SET clause.
-   */
   public async mergeJsonPatchIntoSet(
     values: Record<string, unknown>,
     table: any,
     id: DatabaseId,
     options: BaseQueryOptions,
   ): Promise<void> {
-    const patch = getJsonDataPatch(values);
-    if (!patch) return;
-    if (this.canMergeJsonInOneStatement(patch)) {
-      this.applyJsonMergeToSet(values, table, patch);
-      return;
-    }
-    await this.hydrateJsonDataPatch(values, table, id, options);
-  }
-
-  // --------------------------------------------------------------------------
-  // Key-level JSON patching (lost-update-free blob writes)
-  // --------------------------------------------------------------------------
-
-  /**
-   * A patch key addresses exactly ONE top-level key of the document. The three
-   * dialects disagree about anything deeper — SQLite's `json_set` creates the
-   * intermediate object, MariaDB's `JSON_SET` silently ignores the write when the
-   * parent is missing, PostgreSQL's `jsonb_set` no-ops — so a non-identifier key
-   * fails closed here instead of being written three different ways. Every
-   * `media.files.updateMetadata` caller patches top-level keys only
-   * (`sharedLinks`, `processingStatus`, `processingError`, `imageVariants`).
-   */
-  protected assertTopLevelJsonPatchKey(key: string): string {
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
-      throw new Error(
-        `Unsupported JSON patch key "${key}": key-level patching addresses top-level keys only ` +
-          `(a nested path is created by SQLite, ignored by MariaDB, a no-op on PostgreSQL)`,
-      );
-    }
-    return key;
-  }
-
-  /**
-   * Bound JSON text for one patch value. `undefined` is rejected: it has no JSON
-   * form, so the old spread-and-write path silently dropped the key instead of
-   * writing it — a caller that wants that must omit the key.
-   */
-  protected serializeJsonPatchValue(key: string, value: unknown): string {
-    if (value === undefined) {
-      throw new Error(
-        `JSON patch value for "${key}" is undefined (no JSON representation) — omit the key`,
-      );
-    }
-    const text = JSON.stringify(value);
-    if (typeof text !== "string") {
-      throw new Error(`JSON patch value for "${key}" is not JSON-serializable`);
-    }
-    return text;
-  }
-
-  /**
-   * Drizzle `.set()` value that patches individual top-level keys of one JSON
-   * column *inside* the UPDATE. This is the lost-update-free replacement for
-   * "SELECT the blob, spread it, UPDATE the whole blob": no writer ever reads the
-   * document, so two writers patching different keys cannot resurrect a snapshot
-   * taken before the other's write (the later write used to win and drop keys).
-   */
-  public jsonKeyPatchSetValue(table: any, column: string, patch: Record<string, unknown>): SQL {
-    const physName = this.getColumn(table, column)?.name ?? column;
-    const colSql = this.quoteIdentifier(assertSafeSqlIdentifier(physName, "column"));
-    const entries = Object.entries(patch).map(
-      ([key, value]) =>
-        [this.assertTopLevelJsonPatchKey(key), this.serializeJsonPatchValue(key, value)] as const,
+    return mergeSqlJsonPatchIntoSet(
+      this as unknown as SqlJsonPatchContext,
+      values,
+      table,
+      id,
+      options,
     );
-    return this.jsonKeyPatchExpression(colSql, entries);
   }
 
-  /**
-   * Dialect arithmetic for {@link jsonKeyPatchSetValue}: the column with every
-   * `[key, jsonText]` pair set, one nested call per key. Implemented by each SQL
-   * adapter (MariaDB `JSON_SET`, PostgreSQL `jsonb_set`, SQLite `json_set`); the
-   * base class throws so a new dialect cannot silently inherit a wrong expression.
-   */
-  protected jsonKeyPatchExpression(
+  protected assertTopLevelJsonPatchKey(key: string): string {
+    return assertTopLevelJsonPatchKey(key);
+  }
+
+  protected serializeJsonPatchValue(key: string, value: unknown): string {
+    return serializeJsonPatchValue(key, value);
+  }
+
+  public jsonKeyPatchSetValue(table: any, column: string, patch: Record<string, unknown>): SQL {
+    return buildJsonKeyPatchSetValue(this as unknown as SqlJsonPatchContext, table, column, patch);
+  }
+
+  public jsonKeyPatchExpression(
     _colSql: string,
     _entries: ReadonlyArray<readonly [string, string]>,
   ): SQL {
@@ -806,7 +672,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * row" — the caller treats that as an error (a merge needs something to merge
    * into). Adapters whose dialect merges in SQL never call it.
    */
-  protected async readJsonDataColumn(
+  public async readJsonDataColumn(
     _table: any,
     _id: DatabaseId,
     _options: BaseQueryOptions,
@@ -864,7 +730,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * `null`, and the `findOne` fallback re-queried a missing row — a second
    * SELECT for the same 404 the Domain Plane then queried a third time.
    */
-  protected async rawFindPointWireStream(
+  public async rawFindPointWireStream(
     _table: any,
     _collection: string,
     _id: DatabaseId,
@@ -1337,21 +1203,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return this.prepareValues(table, data, id, now, options, true);
   }
 
-  /**
-   * Date-column key set for a table def — mirrors the original per-key
-   * predicate exactly (createdAt/updatedAt always; name-suffix heuristic AND
-   * date/timestamp column metadata otherwise) but evaluated ONCE per table def
-   * instead of per key per write. `schemaCols` is the cached getTableColumns
-   * object; its identity changes when the def is rebuilt, so the WeakMap entry
-   * is automatically stale-free and GC-able.
-   */
   protected getDateColumnKeys(schemaCols: Record<string, any>): Set<string> {
-    let keys = this._dateKeyCache.get(schemaCols);
-    if (keys) return keys;
-
-    keys = collectDateColumnKeys(schemaCols);
-    this._dateKeyCache.set(schemaCols, keys);
-    return keys;
+    return getSqlDateColumnKeys(this as unknown as SqlValuesContext, schemaCols);
   }
 
   public prepareValues(
@@ -1362,186 +1215,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: any,
     isUpdateOverride = false,
   ): any {
-    const isUpdate =
-      isUpdateOverride || options?.isUpdate === true || options?.operation === "update";
-    const values: any = {};
-    if (id && !isUpdate) {
-      values._id = id;
-    }
-
-    let schemaCols: Record<string, any> | undefined = this._tableColumnsCache.get(table);
-    if (!schemaCols) {
-      try {
-        const resolvedCols = getTableColumns(table);
-        if (resolvedCols && Object.keys(resolvedCols).length > 0) {
-          schemaCols = resolvedCols as any;
-          this._tableColumnsCache.set(table, schemaCols!);
-        }
-      } catch {
-        /* safe fallback */
-      }
-    }
-    // 🚀 PRE-COMPUTED DATE COLUMNS: the per-key `*Date/*At/*Time` heuristics
-    // below are resolved ONCE per table def (getDateColumnKeys) instead of per
-    // key per write. Null when schemaCols is unavailable → original fallback.
-    const dateKeys = schemaCols ? this.getDateColumnKeys(schemaCols) : null;
-
-    const hasDataCol = schemaCols ? schemaCols["data"] : this.getColumn(table, "data");
-    let dynamicData: Record<string, unknown> | null = null;
-    let hasDynamicKeys = false;
-
-    for (const k in data) {
-      if (!Object.hasOwn(data, k)) continue;
-      if (k === "_id" || k === "id") continue;
-      // createdAt is insert-only — never copy a caller-supplied value into SET.
-      // tenantId is likewise immutable after insert: a caller-supplied
-      // `data.tenantId` must never move a row into another tenant's scope
-      // (tenant hopping) unless an explicit system bypass is in effect.
-      if (isUpdate && k === "createdAt") continue;
-      if (isUpdate && k === "tenantId" && !shouldBypassTenantCheck(options)) continue;
-
-      const isPhysical = schemaCols ? schemaCols[k] : this.getColumn(table, k);
-
-      if (isPhysical) {
-        if (data[k] !== undefined) {
-          let val = data[k];
-          // Convert numeric timestamps or ISO date strings to Date objects for
-          // Drizzle timestamp_ms columns. ONLY when the column is a real
-          // date/timestamp column (or the special createdAt/updatedAt pair):
-          // the bare `*Date`/`*At` suffix heuristics over-matched TEXT columns
-          // (e.g. a materialized publishDate VARCHAR) and produced a Date that
-          // SQLite bindings serialize as a JSON-quoted string — double-encoded
-          // values that read back unparseable (temporal-integrity regression).
-          let isDateColumn = false;
-          if (dateKeys) {
-            isDateColumn = dateKeys.has(k);
-          } else {
-            // Fallback (no schemaCols): identical original per-key predicate.
-            isDateColumn = isDateColumnKey(k, isPhysical);
-          }
-
-          if (isDateColumn) {
-            val = coerceDateBindValue(val, this.persistTimestampsAsDate);
-          } else if (this.shouldJsonSerializeInPrepare && isJsonSerializableValue(val)) {
-            val = JSON.stringify(val);
-          }
-          values[k] = val;
-        }
-      } else if (hasDataCol && k !== "tenantId" && k !== "createdAt" && k !== "updatedAt") {
-        if (!dynamicData) dynamicData = {};
-        dynamicData[k] = data[k];
-        hasDynamicKeys = true;
-      }
-    }
-
-    if (id && !isUpdate) {
-      const idCol = schemaCols
-        ? schemaCols["_id"] || schemaCols["id"]
-        : this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (idCol) {
-        values[idCol.name] = id;
-      }
-    }
-
-    // Tenant stamp is INSERT-ONLY: the row's tenantId is immutable and the WHERE
-    // clause already carries tenant isolation (applyTenantFilter). Re-writing it
-    // on UPDATE dirties every tenant-prefixed index on the SQL engines and
-    // disables HOT updates — measured write amplification on the competitive
-    // update lane. A caller that legitimately passes tenantId in `data` still
-    // reaches SET through the physical-column loop above.
-    if (
-      !isUpdate &&
-      options?.tenantId &&
-      (schemaCols ? schemaCols["tenantId"] : this.getColumn(table, "tenantId"))
-    ) {
-      values.tenantId = options.tenantId;
-    }
-
-    // createdAt: only fill on INSERT when the caller didn't provide a value.
-    // On UPDATE, never set or overwrite createdAt.
-    if (
-      !isUpdate &&
-      (schemaCols ? schemaCols["createdAt"] : this.getColumn(table, "createdAt")) &&
-      values.createdAt === undefined
-    ) {
-      values.createdAt = now;
-    }
-    if (schemaCols ? schemaCols["updatedAt"] : this.getColumn(table, "updatedAt")) {
-      values.updatedAt = now;
-    }
-
-    // Map common fields explicitly
-    if (
-      (schemaCols ? schemaCols["collection"] : this.getColumn(table, "collection")) &&
-      "collection" in data
-    ) {
-      values.collection = data.collection;
-    }
-
-    if (schemaCols ? schemaCols["publishedAt"] : this.getColumn(table, "publishedAt")) {
-      const pubAt = data.publishedAt || data.metadata?.publishedAt;
-      if (pubAt !== undefined) {
-        values.publishedAt = pubAt;
-      }
-    }
-
-    if ((schemaCols ? schemaCols["slug"] : this.getColumn(table, "slug")) && "slug" in data) {
-      values.slug = data.slug;
-    }
-    if ((schemaCols ? schemaCols["locale"] : this.getColumn(table, "locale")) && "locale" in data) {
-      values.locale = data.locale;
-    }
-
-    if (hasDataCol && (!isUpdate || hasDynamicKeys || "data" in data)) {
-      const resolvedDynamic = dynamicData ?? {};
-      // A caller that passed `data` as a physical column (content revisions,
-      // drafts, jobs) already set `values.data` in the column loop above. The
-      // old code re-entered here with an empty `dynamicData` and overwrote the
-      // snapshot with `{}` — every revision was stored empty.
-      const suppliedPhysicalData = values.data !== undefined;
-      if (!suppliedPhysicalData) {
-        values.data = this.shouldJsonSerializeInPrepare
-          ? JSON.stringify(resolvedDynamic) || "{}"
-          : resolvedDynamic;
-      }
-      // Partial updates merge into the stored blob instead of replacing it. Only an
-      // explicit `replaceData: true` opts out — a partial payload must never delete the
-      // fields it does not mention, whatever the caller says about read-back.
-      //
-      // `skipReturning` used to imply the opt-out ("full document by contract"), which
-      // made the benchmark's no-read-back write path destroy the fields its two-field
-      // payload omitted — caught by the document-integrity guard in
-      // `tests/benchmarks/database-performance.test.ts`. Merging is safe there: the
-      // synthesized response reports only what the caller sent, i.e. it under-reports
-      // instead of claiming writes it did not make.
-      if (
-        !suppliedPhysicalData &&
-        isUpdate &&
-        hasDynamicKeys &&
-        (options as { replaceData?: boolean })?.replaceData !== true
-      ) {
-        setJsonDataPatch(values, resolvedDynamic);
-      }
-    }
-
-    if (!this.persistTimestampsAsDate) {
-      // PG: bind ISO text (raw-db-ceiling shape). convertISOToDates would
-      // allocate a Date per timestamp only for bindPgParam to toISOString it.
-      return values;
-    }
-
-    const result = convertISOToDates(values, {
-      ...this.convertDatesOptions,
-      table: getTableName(table),
-    });
-
-    // NOTE: no post-pass Date clone here — convertISOToDates already returns
-    // fresh Date objects for every date column (isoDateStringToDate / new
-    // Date(getTime())), and Drizzle + the raw prepared-statement paths bind
-    // Date instances natively (epoch ms via prepareAndExecute coercion).
-    // The former full-keys pass re-cloned every Date at pure cost.
-
-    return result;
+    return prepareSqlValues(
+      this as unknown as SqlValuesContext,
+      table,
+      data,
+      id,
+      now,
+      options,
+      isUpdateOverride,
+    );
   }
 
   // --------------------------------------------------------------------------
@@ -1577,196 +1259,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     query: QueryFilter<T>,
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T | null>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-
-    // 🚀 ALL-SQL ULTRA PATH: {_id} / {_id,tenantId} / + scalar status → findById
-    // (SQLite raw SELECT, Postgres/MariaDB eq+limit — skips mapQuery translation)
-    if (!options.includeDeleted && !options.bypassSafeQuery && this.hooks.length === 0) {
-      const lookup = parseIdLookup(query);
-      if (lookup) {
-        const fastOpts =
-          lookup.tenantId !== undefined && !options.tenantId
-            ? { ...options, tenantId: lookup.tenantId as any }
-            : options;
-        const byId = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
-        if (!byId.success || !lookup.status) return byId;
-        const matched = applyLookupStatus(byId.data, lookup);
-        return matched === byId.data ? byId : { ...byId, data: matched };
-      }
-    }
-
-    return this.wrap(async () => {
-      const q =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "find", collection, query, options)
-          : query;
-
-      // After hooks, re-check for id lookup (optional scalar status)
-      if (!options.includeDeleted) {
-        const lookup = parseIdLookup(q);
-        if (lookup) {
-          const fastOpts =
-            lookup.tenantId !== undefined && !options.tenantId
-              ? { ...options, tenantId: lookup.tenantId as any }
-              : options;
-          const byId = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
-          if (!byId.success) throw new Error(byId.message || "findById failed");
-          const data = applyLookupStatus(byId.data, lookup);
-          return this.hooks.length > 0
-            ? await this.runHooks("after", "find", collection, data, options)
-            : data;
-        }
-      }
-
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      // Register schema on read too — read-only workloads (never written via
-      // insert) must still get the fast date/JSON conversion path.
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
-
-      // 🔒 Soft-delete clamp: a non-permanent delete only sets `isDeleted`, so
-      // the caller's filter must be AND-ed with a live-row predicate.
-      const effectiveQuery = this.clampSoftDeleted<T>(table, q, options);
-
-      // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters compiled once with limit=1
-      if (this.executeCompiled && !options.transaction) {
-        try {
-          const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
-          builder.applyFilterAndOptions(effectiveQuery, { ...options, limit: 1 }, false);
-          const compiled = builder.compile("list");
-          if (compiled) {
-            const rawRows = await this.executeCompiled(compiled.sql, compiled.params, options);
-            const firstRow =
-              rawRows && rawRows.length > 0 ? (rawRows[0] as Record<string, unknown>) : null;
-            const excludeData = this.shouldExcludeData(table, options);
-            const data = firstRow
-              ? (convertDatesToISO(firstRow, {
-                  inPlace: true,
-                  table: collection,
-                  ...(excludeData ? { skipJson: true } : {}),
-                }) as T)
-              : null;
-            return this.hooks.length > 0
-              ? await this.runHooks("after", "find", collection, data, options)
-              : data;
-          }
-        } catch (err: unknown) {
-          if (this.isMissingTableError(err)) return null;
-          // Fall through to Drizzle dynamic path on compilation fallback
-        }
-      }
-
-      const where = this.mapQuery(table, effectiveQuery as any, options);
-
-      const isDynamic =
-        this.useDynamicSqlInFindMany &&
-        (collection.toLowerCase().includes("benchmark") ||
-          collection.startsWith("collection_") ||
-          !isSystemTable(collection));
-
-      let results;
-      let selectedColumns: string[] | null = null;
-      if (isDynamic) {
-        const hasCustomFields = Array.isArray(options.fields) && options.fields.length > 0;
-        let columns: string[];
-        let colList: string;
-        if (!hasCustomFields) {
-          let cachedEntry = this._dynamicColListCache.get(table);
-          if (!cachedEntry) {
-            cachedEntry = {};
-            this._dynamicColListCache.set(table, cachedEntry);
-          }
-          let cached = cachedEntry["withData"];
-          if (!cached) {
-            const selection = this.getProjectedSelection(table, options);
-            columns = Object.keys(selection);
-            colList = columns
-              .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
-              .join(", ");
-            cached = { colList, columns };
-            cachedEntry["withData"] = cached;
-          }
-          columns = cached.columns;
-          colList = cached.colList;
-        } else {
-          const selection = this.getProjectedSelection(table, options);
-          columns = Object.keys(selection);
-          colList = columns
-            .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
-            .join(", ");
-        }
-        selectedColumns = columns;
-
-        let escapedTable = this._escapedTableNameCache.get(table);
-        if (!escapedTable) {
-          escapedTable = this.quoteIdentifier(
-            assertSafeSqlIdentifier(getTableName(table), "table"),
-          );
-          this._escapedTableNameCache.set(table, escapedTable);
-        }
-
-        let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
-          escapedTable,
-        )} WHERE ${where || sql`1=1`}`;
-
-        // Parity with the compiled plan: without an explicit ORDER BY the two
-        // fallback engines (raw SQL / Drizzle) returned an arbitrary row for the
-        // same query the compile path answered with the sort-first row.
-        const sortConditions = this.buildDynamicOrderBy(
-          collection,
-          table,
-          getTableName(table),
-          options,
-        );
-        if (sortConditions.length > 0) {
-          sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
-        }
-        sqlQuery = sql`${sqlQuery} LIMIT 1`;
-
-        const db = this.getDrizzleInstance(options);
-        results = await this.executeDynamicSql(db, sqlQuery, options);
-      } else {
-        let builder: any = this.getDrizzleInstance(options)
-          .select(this.getProjectedSelection(table, options))
-          .from(table)
-          .where(where);
-        builder = this.applyOrderBy(builder, table, options);
-        results = await builder.limit(1);
-      }
-
-      let firstRow = results.length ? results[0] : null;
-      if (firstRow && Array.isArray(firstRow)) {
-        const cols = selectedColumns ?? Object.keys(this.getProjectedSelection(table, options));
-        const obj: any = {};
-        for (let c = 0; c < cols.length; c++) {
-          const val = firstRow[c];
-          if (val !== undefined) obj[cols[c]] = val;
-        }
-        firstRow = obj;
-      }
-
-      const data = firstRow
-        ? (convertDatesToISO(firstRow, {
-            inPlace: true,
-            table: collection,
-          }) as T)
-        : null;
-      return this.hooks.length > 0
-        ? await this.runHooks("after", "find", collection, data, options)
-        : data;
-    }, "FIND_ONE_FAILED");
+    return executeSqlFindOne(this as unknown as SqlCrudReadContext, collection, query, options);
   }
 
   // --------------------------------------------------------------------------
@@ -1778,74 +1271,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     id: DatabaseId,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
-    if (typeof collection !== "string" || !id) {
-      return {
-        success: false,
-        message: "Invalid collection or id",
-        error: { code: "INVALID_QUERY", message: "Invalid collection or id" },
-      };
-    }
-    const table = this.getTable(collection);
-    if (!table) {
-      return {
-        success: false,
-        message: `Collection table not found: ${collection}`,
-        error: {
-          code: "COLLECTION_NOT_FOUND",
-          message: `Collection table not found: ${collection}`,
-        },
-      };
-    }
-
-    // The raw stream self-catches and reports found / missing / declined.
-    const rawWire = await this.rawFindPointWireStream(table, collection, id, options);
-    // Fast path: the engine already produced the serialized wire body — return it
-    // without `wrap()` (which would re-enter the queue gate / AsyncLocalStorage /
-    // traceSpan for an in-memory object). Mirrors the `missing` early return; only
-    // the `declined` case needs the guarded findOne fallback below.
-    if (rawWire.kind === "found") {
-      return { success: true, data: { wireBody: rawWire.wireBody, etag: rawWire.etag } };
-    }
-    if (rawWire.kind === "missing") {
-      // Definitive: the compiled SELECT ran and returned no row (id absent or
-      // publication-clamped away). A distinct failure code lets the read lane
-      // skip its Domain-Plane re-query (handle-collection-read-lane.ts) and
-      // answer directly — the single-query missing-read behaviour the lane had
-      // before the wire plane existed. Do NOT `findOne`-fallback here: that is
-      // the redundant second SELECT this contract exists to eliminate.
-      return {
-        success: false,
-        message: "Entry not found",
-        error: { code: "RECORD_NOT_FOUND", message: "Entry not found" },
-      };
-    }
-
-    return this.wrap(async () => {
-      // Engine declined (no native JSON support, etc.) → findOne fallback.
-      // The HTTP point-read contract is the TRIMMED body
-      // (`trimPointReadEnvelope`: no tenantId/createdAt/updatedAt/isDeleted,
-      // no SDK `_collection`, null mirror columns dropped) — the compiled wire
-      // body is inherently lean, so the fallback must apply the same trim or a
-      // declined-engine read serves ~277 B of system noise the lane never does.
-      const findRes = await this.findOne(collection, { _id: id } as any, options as any);
-      const record =
-        findRes && typeof findRes === "object" && "success" in findRes
-          ? ((findRes as { success: boolean; data?: unknown }).data ?? null)
-          : findRes;
-      if (!record) return null;
-      // Wire Plane publication guarantee: the engine-level predicate only exists
-      // where the table has a `status` column. An unfiltered fallback read must
-      // never serialize unpublished bytes to a published-only caller.
-      if (options.requirePublished === true && !isPublishedStatus(record)) return null;
-      const trimmed = trimPointReadEnvelope({ success: true, data: record }) as {
-        data?: unknown;
-      };
-      const wireBody = serializeSuccessEnvelope(JSON.stringify(trimmed.data ?? null));
-      // Drizzle timestamp columns come back as Date on MariaDB/PostgreSQL;
-      // always render ISO so `If-Match` can parse the token back.
-      const etag = `"${String((record as any)._id ?? id)}-${versionTokenString((record as any).updatedAt)}"`;
-      return { wireBody, etag };
-    }, "FIND_POINT_WIRE_STREAM_FAILED");
+    return executeFindPointWireStream(
+      this as unknown as SqlWireStreamContext,
+      collection,
+      id,
+      options,
+    );
   }
 
   // --------------------------------------------------------------------------
@@ -1863,35 +1294,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       fields?: string[];
     } = {},
   ): Promise<DatabaseResult<{ wireBody: string; etag: string } | null>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: "Invalid collection",
-        error: { code: "INVALID_QUERY", message: "Invalid collection" },
-      };
-    }
-    const table = this.getTable(collection);
-    if (!table) {
-      return {
-        success: false,
-        message: `Collection table not found: ${collection}`,
-        error: {
-          code: "COLLECTION_NOT_FOUND",
-          message: `Collection table not found: ${collection}`,
-        },
-      };
-    }
-
-    const rawWire = await this.rawFindListWireStream(table, collection, options);
-    if (rawWire.kind === "found") {
-      return { success: true, data: { wireBody: rawWire.wireBody, etag: rawWire.etag } };
-    }
-
-    return {
-      success: false,
-      message: "Direct-to-wire list declined",
-      error: { code: "DECLINED", message: "Direct-to-wire list declined" },
-    };
+    return executeFindListWireStream(this as unknown as SqlWireStreamContext, collection, options);
   }
 
   // --------------------------------------------------------------------------
@@ -1903,192 +1306,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     query: QueryFilter<T>,
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T[]>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    return this.wrap(async () => {
-      const q =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "find", collection, query, options)
-          : query;
-
-      // 🚀 ULTRA PATH: {_id} (+ tenantId / scalar status) → findById
-      if (!options.includeDeleted && !options.bypassSafeQuery && !options.sort && !options.offset) {
-        const lookup = parseIdLookup(q);
-        if (lookup) {
-          const fastOpts =
-            lookup.tenantId !== undefined && !options.tenantId
-              ? { ...options, tenantId: lookup.tenantId as any }
-              : options;
-          const one = await this.findById<T>(collection, lookup.id as DatabaseId, fastOpts);
-          if (!one.success) throw new Error(one.message || "findById failed");
-          const row = applyLookupStatus(one.data, lookup);
-          const data = row ? ([row] as T[]) : ([] as T[]);
-          return this.hooks.length > 0
-            ? await this.runHooks("after", "find", collection, data, options)
-            : data;
-        }
-      }
-
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      // Register schema on read too (see findOne).
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
-
-      // 🔒 Soft-delete clamp (see findOne / clampSoftDeleted).
-      const effectiveQuery = this.clampSoftDeleted<T>(table, q, options);
-
-      // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters + sort + limit/offset compiled once
-      if (this.executeCompiled && !options.transaction) {
-        try {
-          const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
-          builder.applyFilterAndOptions(effectiveQuery, options, false);
-          const compiled = builder.compile("list");
-          if (compiled) {
-            const rawRows = await this.executeCompiled(compiled.sql, compiled.params, options);
-            const excludeData = this.shouldExcludeData(table, options);
-            const data = convertArrayDatesToISO(rawRows as Record<string, unknown>[], {
-              inPlace: true,
-              table: collection,
-              ...(excludeData ? { skipJson: true } : {}),
-            });
-            return this.hooks.length > 0
-              ? await this.runHooks("after", "find", collection, data, options)
-              : (data as T[]);
-          }
-        } catch (err: unknown) {
-          if (this.isMissingTableError(err)) return [];
-          // Fall through to Drizzle dynamic path on compilation fallback
-        }
-      }
-
-      const where = this.mapQuery(table, effectiveQuery as any, options);
-
-      const tableName = getTableName(table);
-      const isDynamic =
-        this.useDynamicSqlInFindMany &&
-        (collection.toLowerCase().includes("benchmark") ||
-          collection.startsWith("collection_") ||
-          !isSystemTable(collection));
-
-      let results;
-      const excludeData = this.shouldExcludeData(table, options);
-      try {
-        if (isDynamic) {
-          const hasCustomFields = Array.isArray(options.fields) && options.fields.length > 0;
-          let columns: string[];
-          let colList: string;
-
-          if (!hasCustomFields) {
-            let cachedEntry = this._dynamicColListCache.get(table);
-            if (!cachedEntry) {
-              cachedEntry = {};
-              this._dynamicColListCache.set(table, cachedEntry);
-            }
-            const cacheKey = excludeData ? "withoutData" : "withData";
-            let cached = cachedEntry[cacheKey];
-            if (!cached) {
-              const selection = this.getProjectedSelection(table, options);
-              columns = Object.keys(selection);
-              colList = columns
-                .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
-                .join(", ");
-              cached = { colList, columns };
-              cachedEntry[cacheKey] = cached;
-            }
-            columns = cached.columns;
-            colList = cached.colList;
-          } else {
-            const selection = this.getProjectedSelection(table, options);
-            columns = Object.keys(selection);
-            colList = columns
-              .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
-              .join(", ");
-          }
-
-          let escapedTable = this._escapedTableNameCache.get(table);
-          if (!escapedTable) {
-            escapedTable = this.quoteIdentifier(assertSafeSqlIdentifier(tableName, "table"));
-            this._escapedTableNameCache.set(table, escapedTable);
-          }
-
-          let sqlQuery = sql`SELECT ${sql.raw(colList)} FROM ${sql.raw(
-            escapedTable,
-          )} WHERE ${where || sql`1=1`}`;
-
-          if (options.sort) {
-            const sortConditions = this.buildDynamicOrderBy(collection, table, tableName, options);
-            if (sortConditions.length > 0) {
-              sqlQuery = sql`${sqlQuery} ORDER BY ${sql.join(sortConditions, sql`, `)}`;
-            }
-          }
-
-          if (options.limit !== undefined) sqlQuery = sql`${sqlQuery} LIMIT ${options.limit}`;
-          if (options.offset !== undefined) sqlQuery = sql`${sqlQuery} OFFSET ${options.offset}`;
-
-          const db = this.getDrizzleInstance(options);
-          const rawRows = await this.executeDynamicSql(db, sqlQuery, options);
-
-          const numRows = rawRows.length;
-          if (numRows > 0 && Array.isArray(rawRows[0])) {
-            const numCols = columns.length;
-            results = [];
-            for (let r = 0; r < numRows; r++) {
-              const row = rawRows[r];
-              const obj: any = {};
-              for (let c = 0; c < numCols; c++) {
-                const val = row[c];
-                if (val !== undefined) obj[columns[c]] = val;
-              }
-              results.push(obj);
-            }
-          } else {
-            results = rawRows;
-          }
-        } else {
-          let builder: any = this.getDrizzleInstance(options)
-            .select(this.getProjectedSelection(table, options))
-            .from(table)
-            .where(where);
-          builder = this.applyOrderBy(builder, table, options);
-          if (options.limit) builder = builder.limit(options.limit);
-          if (options.offset) builder = builder.offset(options.offset);
-          results = await builder;
-        }
-      } catch (err: any) {
-        if (this.isMissingTableError(err)) {
-          return [];
-        }
-        throw err;
-      }
-
-      // Projection: when data was excluded from the SELECT there is nothing to
-      // JSON-parse or flatten — but date/boolean normalization still applies
-      // (parity with full reads; avoids leaking raw 0/1 or driver Dates).
-      const data = excludeData
-        ? convertArrayDatesToISO(results as any, {
-            inPlace: true,
-            table: collection,
-            skipJson: true,
-          })
-        : convertArrayDatesToISO(results as any, {
-            inPlace: true,
-            table: collection,
-          });
-      return this.hooks.length > 0
-        ? await this.runHooks("after", "find", collection, data, options)
-        : (data as T[]);
-    }, "FIND_MANY_FAILED");
+    return executeSqlFindMany(this as unknown as SqlCrudReadContext, collection, query, options);
   }
 
   // --------------------------------------------------------------------------
@@ -2100,49 +1318,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     query: QueryFilter<T>,
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<AsyncIterable<T>>> {
-    return this.wrap(async () => {
-      const q =
-        this.hooks.length > 0
-          ? await this.runHooks("before", "find", collection, query, options)
-          : query;
-      const table = this.getTable(collection);
-      if (!table) throw new Error(`Collection table not found: ${collection}`);
-      // 🔒 Soft-delete clamp (see clampSoftDeleted).
-      const where = this.mapQuery(
-        table,
-        this.clampSoftDeleted(table, q as any, options) as any,
-        options,
-      );
-      const db = this.getDrizzleInstance(options);
-      const selection = this.getPhysicalSelection(table);
-      const convertOpts = { ...this.convertDatesOptions, table: collection };
-      const applyOrderBy = this.applyOrderBy.bind(this);
-      const pageSize = 500;
-      const startOffset = options.offset ?? 0;
-      const maxRows = options.limit ?? Number.MAX_SAFE_INTEGER;
-
-      async function* generator() {
-        let offset = startOffset;
-        let yielded = 0;
-        while (yielded < maxRows) {
-          const take = Math.min(pageSize, maxRows - yielded);
-          let pageQuery = db.select(selection).from(table).where(where);
-          pageQuery = applyOrderBy(pageQuery, table, options);
-          pageQuery = pageQuery.limit(take).offset(offset);
-          const results = await pageQuery;
-          if (!results || results.length === 0) break;
-          const data = convertDatesToISO(results, convertOpts) as T[];
-          for (let i = 0; i < data.length; i++) {
-            yield data[i];
-          }
-          yielded += data.length;
-          offset += data.length;
-          if (data.length < take) break;
-        }
-      }
-
-      return generator() as AsyncIterable<T>;
-    }, "STREAM_MANY_FAILED");
+    return executeSqlStreamMany(this as unknown as SqlCrudReadContext, collection, query, options);
   }
 
   // --------------------------------------------------------------------------
@@ -2174,71 +1350,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     query: QueryFilter<T> = {},
     options: FindPageOptions<T> = {},
   ): Promise<DatabaseResult<FindPageResult<T>>> {
-    const pageSize = options.limit && options.limit > 0 ? options.limit : DEFAULT_PAGE_SIZE;
-    // Keyset-stable ordering: append the _id tiebreaker in the same direction
-    // as the primary sort (matches mergeKeysetFilter's compound (field, _id)
-    // cursor) — without it, rows sharing the sort value order arbitrarily and
-    // page N+1 overlaps page N.
-    const sortOpt = withIdTiebreaker(
-      options.sort ?? defaultPageSortOption(),
-    ) as FindOptions<T>["sort"];
-    const resolvedSort = resolvePageSort(sortOpt);
-    const cursor = decodePageCursor(options.cursor);
-    const pageQuery = cursor
-      ? (mergeKeysetFilter(query as Record<string, unknown>, cursor) as QueryFilter<T>)
-      : query;
-
-    const fetchOpts: FindOptions<T> = {
-      ...options,
-      sort: sortOpt,
-      limit: pageSize + 1,
-      // Keyset supersedes offset for deep pages
-      offset: cursor ? 0 : options.offset,
-    };
-
-    const totalMode = options.total ?? "none";
-    // 🚀 Parallel: page fetch + optional total (count still short-TTL cached)
-    const countPromise =
-      totalMode !== "none"
-        ? this.count(collection, query, {
-            tenantId: options.tenantId,
-            systemScope: options.systemScope,
-            includeDeleted: options.includeDeleted,
-            bypassSafeQuery: options.bypassSafeQuery,
-            skipMeta: true,
-            mode: totalMode,
-          })
-        : null;
-
-    const [rowsRes, countRes] = await Promise.all([
-      this.findMany<T>(collection, pageQuery, fetchOpts),
-      countPromise ?? Promise.resolve(null),
-    ]);
-
-    if (!rowsRes.success) {
-      return {
-        success: false,
-        message: rowsRes.message,
-        error: rowsRes.error,
-      };
-    }
-
-    let totalMeta: { total: number; estimated: boolean } | undefined;
-    if (countRes && countRes.success && typeof countRes.data === "number") {
-      totalMeta = {
-        total: countRes.data,
-        estimated: shouldUseEstimateCount(query, {
-          mode: totalMode === "none" ? "auto" : totalMode,
-          tenantId: options.tenantId,
-          includeDeleted: options.includeDeleted,
-        }),
-      };
-    }
-
-    return {
-      success: true,
-      data: buildFindPageResult(rowsRes.data ?? [], pageSize, totalMeta, resolvedSort),
-    };
+    return executeSqlFindPage(this, collection, query, options);
   }
 
   // --------------------------------------------------------------------------
@@ -2250,83 +1362,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     id: DatabaseId,
     options: FindOptions<T> = {},
   ): Promise<DatabaseResult<T | null>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    if (id === undefined || id === null) {
-      return {
-        success: false,
-        message: `Invalid ID: ${id}`,
-        error: { code: "INVALID_ID", message: "ID must be a non-null value" },
-      };
-    }
-    return this.wrap(
-      async () => {
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Collection table not found: ${collection}`);
-
-        // Soft-delete clamp: a `delete()` without `permanent: true` only sets
-        // `isDeleted = true`, so point reads must hide those rows unless the caller
-        // opted in with `includeDeleted`. `findOne`/`findMany` route `{_id}` lookups
-        // here only when `!includeDeleted`, i.e. they assume this filter exists.
-        const clampDeleted = !options.includeDeleted && !options.bypassSafeQuery;
-
-        // Adapter-specific raw SQL fast-path (SQLite / PostgreSQL / MariaDB)
-        if (this.useRawFindById) {
-          const rawResult = await this.rawFindById<T>(table, collection, id, options);
-          // `null` = the SELECT ran and matched 0 rows → definitively absent:
-          // return it instead of re-running the identical Drizzle SELECT.
-          if (rawResult !== RAW_DECLINED) {
-            if (rawResult !== null && clampDeleted && isSoftDeletedRow(rawResult)) return null;
-            return rawResult as T | null;
-          }
-        }
-
-        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-        if (!idCol) throw new Error("ID column not found");
-
-        const conditions: SQL[] = [eq(idCol, id as any)];
-        const tenantCol = this.getColumn(table, "tenantId");
-        applyTenantFilter(conditions, tenantCol, options);
-        const isDeletedCol = clampDeleted ? this.getColumn(table, "isDeleted") : null;
-        if (isDeletedCol) conditions.push(eq(isDeletedCol, false as any));
-
-        const results = await this.getDrizzleInstance(options)
-          .select(this.getProjectedSelection(table, options))
-          .from(table)
-          .where(and(...conditions))
-          .limit(1);
-
-        if (results.length === 0) return null;
-        const excludeData = this.shouldExcludeData(table, options);
-        // 🚀 IN-PLACE CONVERSION: the Drizzle row is a fresh per-call object
-        // (nothing else holds a reference — the point-read lane never stores
-        // the converted object in the document cache), so the date walk and
-        // the JSON flatten mutate it instead of cloning every key first.
-        return excludeData
-          ? (convertDatesToISO(results[0], {
-              ...this.convertDatesOptions,
-              table: collection,
-              inPlace: true,
-              skipJson: true,
-            }) as T)
-          : (convertDatesToISO(results[0], {
-              ...this.convertDatesOptions,
-              table: collection,
-              inPlace: true,
-            }) as T);
-      },
-      "FIND_BY_ID_FAILED",
-      undefined,
-      { skipMeta: options.skipMeta === true },
-    );
+    return executeSqlFindById(this as unknown as SqlCrudReadContext, collection, id, options);
   }
 
   // --------------------------------------------------------------------------
@@ -2338,24 +1374,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     query: QueryFilter<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<boolean>> {
-    return this.wrap(async () => {
-      const table = this.getTable(collection);
-      if (!table) return false;
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-      // 🔒 Soft-delete clamp (see clampSoftDeleted).
-      const where = this.mapQuery(
-        table,
-        this.clampSoftDeleted(table, query as any, options) as any,
-        options,
-      );
-      const results = await this.getDrizzleInstance(options)
-        .select({ id: idCol })
-        .from(table)
-        .where(where)
-        .limit(1);
-      return results.length > 0;
-    }, "EXISTS_FAILED");
+    return executeSqlExists(this as unknown as SqlCrudReadContext, collection, query, options);
   }
 
   // --------------------------------------------------------------------------
@@ -2367,115 +1386,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     query: QueryFilter<T> = {},
     options: CountOptions = {},
   ): Promise<DatabaseResult<number>> {
-    return this.wrap(
-      async () => {
-        const table = this.getTable(collection);
-        if (!table) return 0;
-
-        // 🚀 ESTIMATE PATH: metadata/stats when unfiltered + untenanted (all SQL dialects).
-        if (
-          shouldUseEstimateCount(query, {
-            mode: options.mode,
-            tenantId: options.tenantId,
-            includeDeleted: options.includeDeleted,
-          })
-        ) {
-          const estimated = await this.estimateTableRows(table, collection);
-          if (estimated !== null && estimated >= 0) return estimated;
-          // Fall through to exact COUNT(*) if stats unavailable
-        }
-
-        // 🔒 Soft-delete clamp for the exact paths. Applied AFTER the estimate
-        // branch on purpose — the estimate is a documented-approximate
-        // whole-table statistic; the exact COUNT must not include deleted rows.
-        const effectiveQuery = this.clampSoftDeleted(
-          table,
-          query || ({} as QueryFilter<T>),
-          options,
-        );
-
-        // 🚀 PRE-COMPILED TEMPLATE PATH: physical filters count compiled once
-        if (this.executeCompiled && !options.transaction) {
-          try {
-            const builder = new SqlQueryBuilder<T>(this, collection, this.sqlDialect);
-            builder.applyFilterAndOptions(effectiveQuery, options, false);
-            const compiled = builder.compile("count");
-            if (compiled) {
-              const rows = await this.executeCompiled(compiled.sql, compiled.params, options);
-              return readCount(rows[0]);
-            }
-          } catch (err: unknown) {
-            if (this.isMissingTableError(err)) return 0;
-            // Fall through to Drizzle dynamic path
-          }
-        }
-
-        const where = this.mapQuery(table, effectiveQuery as any, options);
-        try {
-          const result = await this.getDrizzleInstance(options)
-            .select({ count: drizzleCount() })
-            .from(table)
-            .where(where);
-          return result[0].count;
-        } catch (err: any) {
-          if (this.isMissingTableError(err)) {
-            return 0;
-          }
-          throw err;
-        }
-      },
-      "COUNT_FAILED",
-      undefined,
-      { skipMeta: options.skipMeta, bypassSafeQuery: options.bypassSafeQuery },
-    );
+    return executeSqlCount(this as unknown as SqlCrudReadContext, collection, query, options);
   }
 
   /**
    * Dialect-aware approximate row count from engine statistics.
    * Returns null when stats are unavailable (caller falls back to exact COUNT).
    */
-  protected async estimateTableRows(table: any, _collection: string): Promise<number | null> {
-    const tableName = getTableName(table);
-    if (!tableName) return null;
-
-    try {
-      const dbType = (this.type || "").toLowerCase();
-
-      if (dbType === "postgresql" || dbType === "postgres") {
-        // pg_class.reltuples — planner estimate; free vs sequential COUNT(*)
-        const rows = await this.raw.execute(
-          `SELECT GREATEST(reltuples::bigint, 0) AS n FROM pg_class WHERE relname = $1 LIMIT 1`,
-          [tableName],
-        );
-        const n = extractEstimateNumber(rows, "n");
-        return n;
-      }
-
-      if (dbType === "mariadb" || dbType === "mysql") {
-        const rows = await this.raw.execute(
-          `SELECT TABLE_ROWS AS n FROM information_schema.TABLES
-           WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? LIMIT 1`,
-          [tableName],
-        );
-        return extractEstimateNumber(rows, "n");
-      }
-
-      if (dbType === "sqlite") {
-        // sqlite_stat1 after ANALYZE; if missing, exact COUNT is already sub-ms
-        const rows = await this.raw.execute(
-          `SELECT SUM(CAST(substr(stat, 1, instr(stat || ' ', ' ') - 1) AS INTEGER)) AS n
-           FROM sqlite_stat1 WHERE tbl = ?`,
-          [tableName],
-        );
-        const n = extractEstimateNumber(rows, "n");
-        // null/0 from missing ANALYZE → fall through to exact
-        if (n === null || n === 0) return null;
-        return n;
-      }
-    } catch {
-      return null;
-    }
-    return null;
+  protected async estimateTableRows(table: any, collection: string): Promise<number | null> {
+    return estimateSqlTableRows(this, table, collection);
   }
 
   /**
@@ -2654,64 +1573,19 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return false;
   }
 
-  protected get insertCoalesceWindowMs(): number {
+  public get insertCoalesceWindowMs(): number {
     return Number(process.env.SVELTY_COALESCE_INSERT_WINDOW_MS || 0);
   }
 
-  private _insertCoalescers?: Map<string, StatementCoalescer<any>>;
+  protected _coalescerManager = new SqlCoalescerManager(this as unknown as SqlCoalescerContext);
 
-  private getInsertCoalescer(collection: string): StatementCoalescer<any> {
-    if (!this._insertCoalescers) this._insertCoalescers = new Map();
-    let coalescer = this._insertCoalescers.get(collection);
-    if (!coalescer) {
-      // `getTable` resolves at drain time so auto-provisioned tables work.
-      coalescer = new StatementCoalescer<any>(
-        async (values) => {
-          const table = this.getTable(collection);
-          if (!table) return null;
-          const rawBatch = await this.rawInsertManyReturning(table, collection, values, {});
-          if (rawBatch !== null) return rawBatch;
-
-          // Multi-row Drizzle fallback if raw path declines
-          try {
-            const drizzleBatch = this.persistTimestampsAsDate
-              ? values
-              : values.map((row) =>
-                  convertISOToDates({ ...row }, { ...this.convertDatesOptions, table: collection }),
-                );
-            const query = this.getDrizzleInstance({}).insert(table).values(drizzleBatch);
-            if (this.insertReturnsRows) {
-              const results = await (query as any).returning();
-              return convertArrayDatesToISO(results as any, {
-                ...this.convertDatesOptions,
-                table: collection,
-              });
-            } else {
-              await (query as any);
-              return convertArrayDatesToISO(values, {
-                ...this.convertDatesOptions,
-                table: collection,
-              });
-            }
-          } catch {
-            return null;
-          }
-        },
-        undefined,
-        this.insertCoalesceWindowMs,
-      );
-      this._insertCoalescers.set(collection, coalescer);
-    }
-    return coalescer;
-  }
-
-  private submitCoalescedInsert<T extends BaseEntity>(
+  protected submitCoalescedInsert<T extends BaseEntity>(
     collection: string,
     _table: any,
     values: Record<string, any>,
     runSingle: () => Promise<T>,
   ): Promise<T> {
-    return this.getInsertCoalescer(collection).submit(values, runSingle);
+    return this._coalescerManager.submitCoalescedInsert(collection, values, runSingle);
   }
 
   // --------------------------------------------------------------------------
@@ -2726,47 +1600,13 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return false;
   }
 
-  protected get updateCoalesceWindowMs(): number {
+  public get updateCoalesceWindowMs(): number {
     return Number(
       process.env.SVELTY_COALESCE_UPDATE_WINDOW_MS || process.env.SVELTY_COALESCE_WINDOW_MS || 0,
     );
   }
 
-  private _updateCoalescers?: Map<string, StatementCoalescer<any>>;
-
-  private getUpdateCoalescer(key: string, collection: string): StatementCoalescer<any> {
-    if (!this._updateCoalescers) this._updateCoalescers = new Map();
-    let coalescer = this._updateCoalescers.get(key);
-    if (!coalescer) {
-      // 🔒 Bound the cache: one entry is created per (collection × column
-      // signature × tenant shape). Dynamically-created collections could
-      // otherwise grow this unboundedly for the process lifetime. Evict the
-      // oldest entry (Map insertion order) past the cap; a coalescer is cheap
-      // to recreate and any in-flight batch keeps its own drain timer.
-      if (this._updateCoalescers.size >= UPDATE_COALESCER_MAX) {
-        const oldest = this._updateCoalescers.keys().next().value;
-        if (oldest !== undefined) this._updateCoalescers.delete(oldest);
-      }
-      coalescer = new StatementCoalescer<any>(
-        async (entries) => {
-          const table = this.getTable(collection);
-          if (!table) return null;
-          const batch = entries as Array<{
-            id: DatabaseId;
-            values: Record<string, any>;
-            options: BaseQueryOptions;
-          }>;
-          return this.rawUpdateManyReturning(table, collection, batch);
-        },
-        undefined,
-        this.updateCoalesceWindowMs,
-      );
-      this._updateCoalescers.set(key, coalescer);
-    }
-    return coalescer;
-  }
-
-  private submitCoalescedUpdate<T extends BaseEntity>(
+  protected submitCoalescedUpdate<T extends BaseEntity>(
     collection: string,
     key: string,
     id: DatabaseId,
@@ -2774,7 +1614,14 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     options: BaseQueryOptions,
     runSingle: () => Promise<RawFindResult<T>>,
   ): Promise<RawFindResult<T>> {
-    return this.getUpdateCoalescer(key, collection).submit({ id, values, options }, runSingle);
+    return this._coalescerManager.submitCoalescedUpdate(
+      collection,
+      key,
+      id,
+      values,
+      options,
+      runSingle,
+    );
   }
 
   // --------------------------------------------------------------------------
@@ -3157,14 +2004,12 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * `isDeleted` and stamped `updatedAt`, so the trash rendered "Deleted by:
    * System" for every relational row.
    */
-  protected buildSoftDeleteSet(table: any, userId?: DatabaseId | null): Record<string, unknown> {
-    const now = isoDateStringToDate(nowISODateString());
-    const set: Record<string, unknown> = { isDeleted: true, updatedAt: now };
-    if (this.getColumn(table, "deletedAt")) set.deletedAt = now;
-    if (this.getColumn(table, "deletedBy") && userId != null) set.deletedBy = userId;
-    return set;
+  public buildSoftDeleteSet(table: any, userId?: DatabaseId | null): Record<string, unknown> {
+    return buildDefaultSoftDeleteSet(this, table, userId);
   }
 
+  // The extracted SQL modules declare a structural context; the adapter keeps
+  // its members protected, so the bridge cast is scoped to these call sites.
   async delete(
     collection: string,
     id: DatabaseId,
@@ -3173,62 +2018,8 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       userId?: DatabaseId;
     } = {},
   ): Promise<DatabaseResult<void>> {
-    if (typeof collection !== "string") {
-      return {
-        success: false,
-        message: `Invalid collection: expected string, got ${typeof collection}`,
-        error: {
-          code: "INVALID_COLLECTION",
-          message: "Collection name must be a string",
-        },
-      };
-    }
-    if (id === undefined || id === null) {
-      return {
-        success: false,
-        message: `Delete failed: ID is ${id}`,
-        error: {
-          code: "INVALID_ID",
-          message: `Cannot delete from ${collection} with ${id} ID`,
-        },
-      };
-    }
-    return this.wrap(
-      async () => {
-        if (this.hooks.length > 0)
-          await this.runHooks("before", "delete", collection, { _id: id }, options);
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Collection table not found: ${collection}`);
-        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-        if (!idCol) throw new Error("ID column not found");
-
-        const conditions: SQL[] = [eq(idCol, id as any)];
-        const tenantCol = this.getColumn(table, "tenantId");
-        applyTenantFilter(conditions, tenantCol, options);
-
-        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
-        if (options.permanent || !hasIsDeleted) {
-          await this.getDrizzleInstance(options)
-            .delete(table)
-            .where(and(...conditions));
-        } else {
-          await this.getDrizzleInstance(options)
-            .update(table)
-            .set(this.buildSoftDeleteSet(table, options.userId))
-            .where(and(...conditions));
-        }
-        if (this.hooks.length > 0)
-          await this.runHooks("after", "delete", collection, { _id: id }, options);
-      },
-      "DELETE_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
+    return executeSqlDelete(this as unknown as SqlCrudDeleteContext, collection, id, options);
   }
-
-  // --------------------------------------------------------------------------
-  // CRUD: deleteMany
-  // --------------------------------------------------------------------------
 
   async deleteMany<T extends BaseEntity>(
     collection: string,
@@ -3238,103 +2029,20 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       userId?: DatabaseId;
     } = {},
   ): Promise<DatabaseResult<{ deletedCount: number }>> {
-    return this.wrap(
-      async () => {
-        const table = this.getTable(collection);
-        if (!table) throw new Error(`Collection table not found: ${collection}`);
-        const execWrite = async (builder: { run?: () => Promise<unknown> }) =>
-          typeof builder.run === "function" ? builder.run() : builder;
-
-        // A missing filter must not compile to DELETE/UPDATE with no WHERE.
-        // mapQuery still adds a tenant predicate when one applies; confirmWipe
-        // is the only way to affect every row.
-        const whereCondition = this.mapQuery(table, query, options);
-        const hasIsDeleted = !!this.getColumn(table, "isDeleted");
-        const db = this.getDrizzleInstance(options);
-        if (!whereCondition) {
-          assertFilteredDelete(false, options.confirmWipe);
-          if (options.permanent || !hasIsDeleted) {
-            const wiped = await execWrite(db.delete(table) as { run?: () => Promise<unknown> });
-            return { deletedCount: rowsAffected(wiped) ?? -1 };
-          }
-          const wiped = await execWrite(
-            db.update(table).set(this.buildSoftDeleteSet(table, options.userId)) as {
-              run?: () => Promise<unknown>;
-            },
-          );
-          return { deletedCount: rowsAffected(wiped) ?? -1 };
-        }
-        // 🚀 Single-statement soft/hard delete instead of findMany + N deletes.
-        if (options.permanent || !hasIsDeleted) {
-          const hardDeleted = await execWrite(
-            db.delete(table).where(whereCondition) as { run?: () => Promise<unknown> },
-          );
-          return { deletedCount: rowsAffected(hardDeleted) ?? -1 };
-        }
-        const res = await execWrite(
-          db
-            .update(table)
-            .set(this.buildSoftDeleteSet(table, options.userId))
-            .where(whereCondition) as {
-            run?: () => Promise<unknown>;
-          },
-        );
-        // Affected rows differ per dialect: postgres.js -> .count, sqlite -> .changes,
-        // mysql2 -> [ResultSetHeader, fields]. Fall back to -1 (unknown) when the
-        // driver does not report one.
-        const affected = rowsAffected(res) ?? -1;
-        return { deletedCount: affected };
-      },
-      "DELETE_MANY_FAILED",
-      undefined,
-      { ...options, isWrite: true },
+    return executeSqlDeleteMany(
+      this as unknown as SqlCrudDeleteContext,
+      collection,
+      query,
+      options,
     );
   }
-
-  // --------------------------------------------------------------------------
-  // CRUD: restore
-  // --------------------------------------------------------------------------
 
   async restore(
     collection: string,
     id: DatabaseId,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<void>> {
-    if (id === undefined || id === null) {
-      return {
-        success: false,
-        message: `Restore failed: ID is ${id}`,
-        error: {
-          code: "INVALID_ID",
-          message: `Cannot restore in ${collection} with ${id} ID`,
-        },
-      };
-    }
-    return this.wrap(
-      async () => {
-        const table = this.getTable(collection);
-        const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-        if (!idCol) throw new Error("ID column not found");
-        // 🛡️ TENANT ISOLATION: scope by tenant exactly like delete(). Without it,
-        // a caller with a valid `_id` could soft-undelete a row owned by another
-        // tenant (assertTenantContext + applyTenantFilter fail closed).
-        const conditions: SQL[] = [eq(idCol, id as any)];
-        applyTenantFilter(conditions, this.getColumn(table, "tenantId"), options);
-        // A restored row must not keep the previous delete's audit stamp —
-        // otherwise a later delete by a caller without an actor reports the
-        // original deleter. Mongo unsets both on restore for the same reason.
-        const restoreSet: Record<string, unknown> = { isDeleted: false, updatedAt: new Date() };
-        if (this.getColumn(table, "deletedAt")) restoreSet.deletedAt = null;
-        if (this.getColumn(table, "deletedBy")) restoreSet.deletedBy = null;
-        await this.getDrizzleInstance(options)
-          .update(table)
-          .set(restoreSet)
-          .where(and(...conditions));
-      },
-      "RESTORE_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
+    return executeSqlRestore(this as unknown as SqlCrudDeleteContext, collection, id, options);
   }
 
   // --------------------------------------------------------------------------
@@ -3347,23 +2055,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     data: EntityCreate<T>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T>> {
-    const conflictId = extractPkConflictId(query);
-    const invalid = this.validateEntryId(collection, conflictId);
-    if (invalid) return invalid;
-    if (!conflictId) {
-      return this.upsertByFind(collection, query, data, options);
-    }
-    return this.wrap(
-      async () => {
-        const rows = await this.executeUpsertById(collection, [{ id: conflictId, data }], options, {
-          returning: true,
-        });
-        return rows[0];
-      },
-      "UPSERT_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
+    return executeSqlUpsert(this as unknown as SqlUpsertContext, collection, query, data, options);
   }
 
   async upsertMany<T extends BaseEntity>(
@@ -3371,338 +2063,27 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     items: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }>,
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<T[]>> {
-    if (!items.length) return { success: true, data: [] };
-    for (const item of items) {
-      const invalid = this.validateEntryId(collection, extractPkConflictId(item.query));
-      if (invalid) return invalid;
-    }
-    return this.wrap(
-      async () => {
-        const byId: Array<{ id: string; data: EntityCreate<T> }> = [];
-        const rest: Array<{ query: QueryFilter<T>; data: EntityCreate<T> }> = [];
-        for (const item of items) {
-          const id = extractPkConflictId(item.query);
-          if (id) byId.push({ id, data: item.data });
-          else rest.push(item);
-        }
-        const out: T[] = [];
-        if (byId.length > 0) {
-          const rows = await this.executeUpsertById(collection, byId, options, {
-            returning: (options as { skipReturning?: boolean }).skipReturning !== true,
-          });
-          out.push(...rows);
-        }
-        for (const item of rest) {
-          const res = await this.upsertByFind(collection, item.query, item.data, options);
-          if (res.success && res.data) out.push(res.data as T);
-        }
-        return out;
-      },
-      "UPSERT_MANY_FAILED",
-      undefined,
-      { ...options, isWrite: true },
-    );
+    return executeSqlUpsertMany(this as unknown as SqlUpsertContext, collection, items, options);
   }
 
-  /** findOne then insert/update — used when the conflict target is not `_id`. */
-  private async upsertByFind<T extends BaseEntity>(
-    collection: string,
-    query: QueryFilter<T>,
-    data: EntityCreate<T>,
-    options: BaseQueryOptions,
-  ): Promise<DatabaseResult<T>> {
-    // 🔒 FIND-THEN-INSERT/UPDATE is a read-modify-write race without a lock: two
-    // callers can both miss `findOne` and both INSERT → duplicate rows / unique
-    // violation. Serialize under the adapter's write lock (reentrant; a no-op
-    // where the engine has no cross-process writers).
-    return this.withWriteLock(async () => {
-      const existing = await this.findOne(collection, query, options);
-      if (existing.success && existing.data) {
-        const existingId =
-          (existing.data as { _id?: DatabaseId; id?: DatabaseId })._id ||
-          (existing.data as { id?: DatabaseId }).id;
-        if (existingId) {
-          return this.update(collection, existingId, data as EntityUpdate<T>, options);
-        }
-      }
-      return this.insert(collection, data, options);
-    });
-  }
-
-  /**
-   * Conflict-branch SET expression for the JSON `data` column: the dialect merge of the
-   * STORED blob with the row the INSERT proposed (`excluded."data"` on PostgreSQL/SQLite,
-   * `VALUES(data)` on MariaDB).
-   *
-   * The stored side is TABLE-QUALIFIED: inside `ON CONFLICT … DO UPDATE` PostgreSQL reads a
-   * bare `"data"` as ambiguous between the target row and `excluded` (verified: `ERROR:
-   * column reference "data" is ambiguous`), while a plain UPDATE has no such ambiguity.
-   *
-   * Assigning the proposed blob wholesale — the behaviour this replaces — deleted every
-   * field a partial upsert payload omitted, while MongoDB's `$set` kept them; the parity
-   * suite's `keeps the fields a partial upsert payload does not mention` case pins the
-   * contract, and the benchmark's document-integrity guard is what surfaced it.
-   */
-  protected jsonUpsertMergeSet(table: any): SQL {
-    const plainName = assertSafeSqlIdentifier(
-      this.getColumn(table, "data")?.name ?? "data",
-      "column",
-    );
-    const tableName = assertSafeSqlIdentifier(getTableName(table), "table");
-    const storedRef = `${this.quoteIdentifier(tableName)}.${this.quoteIdentifier(plainName)}`;
-    const { prefix, suffix } = this.jsonMergeWrapper(storedRef);
-    const mysql = this.type === "mariadb" || this.type === "mysql";
-    const incoming = mysql
-      ? sql`VALUES(${sql.identifier(plainName)})`
-      : sql`excluded.${sql.identifier(plainName)}`;
-    return sql`${sql.raw(prefix)}${incoming}${sql.raw(suffix)}`;
-  }
-
-  /**
-   * One INSERT … ON CONFLICT (_id) / ON DUPLICATE KEY per chunk.
-   * SQLite/PostgreSQL use `excluded.*`; MariaDB uses `VALUES()`.
-   */
-  private async executeUpsertById<T extends BaseEntity>(
-    collection: string,
-    rows: Array<{ id: string; data: EntityCreate<T> }>,
-    options: BaseQueryOptions,
-    opts: { returning: boolean },
-  ): Promise<T[]> {
-    const table = this.getTable(collection);
-    if (!table) throw new Error(`Collection table not found: ${collection}`);
-    if (!this._registeredSchemas.has(collection)) {
-      this.ensureTableSchemaRegistered(table, collection);
-      this._registeredSchemas.add(collection);
-    }
-    const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-    if (!idCol) throw new Error("ID column not found");
-
-    const now = this.writeNow();
-    const len = rows.length;
-    const batchValues: Record<string, unknown>[] = Array.from({ length: len });
-    for (let i = 0; i < len; i++) {
-      batchValues[i] = this.prepareValues(table, rows[i].data, rows[i].id, now, options);
-    }
-    if (!this.persistTimestampsAsDate) {
-      for (let i = 0; i < len; i++) {
-        batchValues[i] = convertISOToDates(
-          { ...batchValues[i] },
-          { ...this.convertDatesOptions, table: collection },
-        );
-      }
-    }
-
-    const mysql = this.type === "mariadb" || this.type === "mysql";
-    const skipReturning =
-      !opts.returning || (options as { skipReturning?: boolean }).skipReturning === true;
-    const wantReturning = !skipReturning && this.insertReturnsRows && !mysql;
-
-    const cols = new Set<string>();
-    for (let i = 0; i < len; i++) {
-      for (const k in batchValues[i]) cols.add(k);
-    }
-    // 🛡️ TENANT ISOLATION: `tenantId` is never written by the conflict branch —
-    // ownership is immutable, so a cross-tenant PK collision can no longer
-    // reassign the row to the caller's tenant. The remaining assignments are
-    // additionally guarded (setWhere on PG/SQLite, IF() on MariaDB) so a
-    // conflict against another tenant's row leaves it untouched.
-    const tenantCol = this.getColumn(table, "tenantId");
-    const tenantColName = tenantCol?.name;
-    const setObj: Record<string, unknown> = {};
-    for (const k of cols) {
-      if (k === "_id" || k === "id" || k === "createdAt" || k === "tenantId") continue;
-      const phys = assertSafeSqlIdentifier(this.getColumn(table, k)?.name ?? k, "column");
-      setObj[k] = mysql
-        ? tenantColName
-          ? sql`IF(${sql.identifier(tenantColName)} <=> VALUES(${sql.identifier(tenantColName)}), VALUES(${sql.identifier(phys)}), ${sql.identifier(phys)})`
-          : sql`VALUES(${sql.identifier(phys)})`
-        : sql`excluded.${sql.identifier(phys)}`;
-    }
-    // 🔀 PARTIAL-UPSERT MERGE: the conflict branch MERGES the JSON `data` blob instead of
-    // assigning the proposed one, so a payload that omits a field keeps the stored value
-    // (MongoDB `$set` semantics). A patch the dialect operator cannot express exactly
-    // (nested object / explicit null on SQLite + MariaDB, whose operators are RFC 7396)
-    // takes the per-row find→update path instead, which hydrates and merges in JS.
-    if (cols.has("data")) {
-      const mergeable = batchValues.every((v) => {
-        const patch = getJsonDataPatch(v);
-        return patch ? this.canMergeJsonInOneStatement(patch) : true;
-      });
-      if (!mergeable) {
-        const out: T[] = [];
-        for (const row of rows) {
-          const res = await this.upsertByFind(
-            collection,
-            { _id: row.id } as unknown as QueryFilter<T>,
-            row.data,
-            options,
-          );
-          if (res.success && res.data) out.push(res.data as T);
-        }
-        return out;
-      }
-      const dataMerge = this.jsonUpsertMergeSet(table);
-      const dataColName = assertSafeSqlIdentifier(
-        this.getColumn(table, "data")?.name ?? "data",
-        "column",
-      );
-      // MySQL/MariaDB `ON DUPLICATE KEY UPDATE` has no WHERE clause, so the blob
-      // merge gets the same tenant guard as the scalar columns above — otherwise a
-      // cross-tenant PK collision still rewrote the victim's JSON payload.
-      // PG/SQLite are covered by `setWhere` on the whole DO UPDATE.
-      setObj.data =
-        mysql && tenantColName
-          ? sql`IF(${sql.identifier(tenantColName)} <=> VALUES(${sql.identifier(tenantColName)}), ${dataMerge}, ${sql.identifier(dataColName)})`
-          : dataMerge;
-    }
-    if (Object.keys(setObj).length === 0) {
-      const idName = idCol.name || "_id";
-      setObj[idName] = sql`${idCol}`;
-    }
-
-    const maxParams = mysql || this.type === "postgresql" ? 65_000 : 900;
-    const chunkSize = Math.max(1, Math.floor(maxParams / Math.max(cols.size, 1)));
-
-    const run = async (): Promise<T[]> => {
-      const db = this.getDrizzleInstance(options);
-      const out: T[] = [];
-      for (let start = 0; start < len; start += chunkSize) {
-        const chunk = batchValues.slice(start, start + chunkSize);
-        const insert = db.insert(table).values(chunk);
-        // Scope the conflict UPDATE to the caller's tenant so a PK collision with
-        // another tenant's row is a no-op instead of a cross-tenant overwrite.
-        const setWhere = tenantCol ? getTenantCondition(tenantCol, options) : undefined;
-        const upserted = mysql
-          ? insert.onDuplicateKeyUpdate({ set: setObj })
-          : setWhere
-            ? insert.onConflictDoUpdate({ target: idCol, set: setObj, setWhere })
-            : insert.onConflictDoUpdate({ target: idCol, set: setObj });
-        if (wantReturning) {
-          const results = await (upserted as { returning: () => Promise<unknown[]> }).returning();
-          out.push(
-            ...(convertArrayDatesToISO(results as Record<string, unknown>[], {
-              ...this.convertDatesOptions,
-              table: collection,
-            }) as T[]),
-          );
-        } else {
-          await executeWrite(upserted);
-          out.push(
-            ...(convertArrayDatesToISO(chunk as Record<string, unknown>[], {
-              ...this.convertDatesOptions,
-              table: collection,
-            }) as T[]),
-          );
-        }
-      }
-      return out;
-    };
-
-    try {
-      return await run();
-    } catch (err: unknown) {
-      const provision = this as {
-        createModel?: (schema: { _id: string; name: string; fields: [] }) => Promise<unknown>;
-      };
-      if (this.isMissingTableError(err) && typeof provision.createModel === "function") {
-        await provision.createModel({ _id: collection, name: collection, fields: [] });
-        return await run();
-      }
-      throw err;
-    }
+  public jsonUpsertMergeSet(table: any): SQL {
+    return buildJsonUpsertMergeSet(this as unknown as SqlUpsertContext, table);
   }
 
   // --------------------------------------------------------------------------
   // CRUD: aggregate — MongoDB-style pipeline translated to SQL
   // --------------------------------------------------------------------------
 
-  /**
-   * Run an aggregation pipeline on a SQL engine.
-   *
-   * The pipeline is translated by `aggregation-translator.ts` into one statement:
-   * `$match` → `WHERE` (through `mapQuery`, so JSON fields, `getJsonEquals`
-   * containment and the tenant scope behave exactly like `find*`),
-   * `$group` → `GROUP BY` with `COUNT`/`SUM`/`AVG`/`MIN`/`MAX`, `$sort` →
-   * `ORDER BY`, `$skip`/`$limit` → `OFFSET`/`LIMIT`, `$count`/`$project` → the
-   * select list. Without `$group`/`$project`/`$count` the projection stays the
-   * normal physical selection, i.e. the result is the same document shape
-   * `findMany` returns (what MongoDB's `aggregate` also does).
-   *
-   * Anything the translator cannot express (e.g. `$lookup`, `$unwind`, `$facet`,
-   * compound `$group._id`, out-of-order stages) returns a named `NOT_SUPPORTED`
-   * error — never a silently wrong result.
-   *
-   * Known shape difference from MongoDB: a group key or `$project`ed field taken
-   * from the JSON `data` blob comes back as the engine's extraction type (text on
-   * PostgreSQL/MariaDB, typed on SQLite) rather than a native BSON value.
-   */
   async aggregate<R>(
     collection: string,
     pipeline: unknown[],
     options: BaseQueryOptions = {},
   ): Promise<DatabaseResult<R[]>> {
-    const table = this.getTable(collection);
-    const plan = table
-      ? translateAggregation(pipeline, {
-          engine: this.type,
-          field: (name) =>
-            (this.getColumn(table, name) as SQL | undefined) ?? this.getJsonField(name),
-          numericField: (name) =>
-            (this.getColumn(table, name) as SQL | undefined) ?? this.getJsonNumericField(name),
-          match: (filter) => this.mapQuery(table, filter, options),
-          orderedField: (name) =>
-            (this.getColumn(table, name) as SQL | undefined) ?? this.getJsonOrderedField(name),
-        })
-      : null;
-
-    // Fail-closed refusals are RESULTS, and they must be returned OUTSIDE `wrap()`:
-    // `wrap` treats every returned value as success data, so an envelope returned
-    // inside its callback reaches the caller as `{ success: true, data: { success:
-    // false, … } }` — a refusal that reads as a success.
-    if (plan && !plan.ok) {
-      return {
-        success: false,
-        message: plan.message,
-        error: { code: "NOT_SUPPORTED", message: plan.message },
-      };
-    }
-
-    return this.wrap(
-      async () => {
-        if (!table || !plan) throw new Error(`Collection table not found: ${collection}`);
-
-        const conditions: SQL[] = [];
-        // Tenant scope, exactly like `find*`: `mapQuery` applies `applyTenantFilter`
-        // for an empty filter, so an aggregation can never span tenants. The
-        // soft-delete clamp applies here too — a `$count`/`$sum` dashboard must
-        // not include deleted rows (parity with `findMany`/`count`).
-        const baseCondition = this.mapQuery(
-          table,
-          this.clampSoftDeleted(table, {} as QueryFilter<BaseEntity>, options) as any,
-          options,
-        ) as SQL | undefined;
-        if (baseCondition) conditions.push(baseCondition);
-        if (plan.where) conditions.push(plan.where);
-        const where = conditions.length === 0 ? undefined : and(...conditions);
-
-        let query = this.getDrizzleInstance(options)
-          .select((plan.select ?? this.getPhysicalSelection(table)) as Record<string, SQL>)
-          .from(table)
-          .where(where);
-        if (plan.groupBy?.length) query = query.groupBy(...plan.groupBy);
-        if (plan.orderBy?.length) query = query.orderBy(...plan.orderBy);
-        if (plan.limit !== undefined) query = query.limit(plan.limit);
-        if (plan.offset !== undefined) query = query.offset(plan.offset);
-
-        const rows = (await query) as Record<string, unknown>[];
-        return convertArrayDatesToISO(rows, {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as R[];
-      },
-      "AGGREGATE_FAILED",
-      undefined,
-      { ...options, isWrite: false },
+    return executeSqlAggregate(
+      this as unknown as SqlAggregateContext,
+      collection,
+      pipeline,
+      options,
     );
   }
 
@@ -3711,25 +2092,15 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
    * text need a cast before `SUM`/`AVG`. Default: the plain extraction (SQLite's
    * `json_extract` is already typed).
    */
-  protected getJsonNumericField(field: string): SQL {
+  public getJsonNumericField(field: string): SQL {
     return this.getJsonField(field);
   }
 
   /**
    * Ordering-safe extraction for `$min`/`$max` on a field that is NOT a column,
    * or `null` when this dialect cannot order the field's values type-safely.
-   *
-   * MIN/MAX compare what the extraction *returns*: SQLite's typed `json_extract`
-   * compares numbers as numbers and strings as strings (and, like MongoDB's BSON
-   * order, sorts numbers before strings), so the default is the plain extraction.
-   * PostgreSQL and MariaDB return `null` — their extractions are TEXT, and MIN/MAX
-   * over text is lexicographic (measured 2026-09-22: both return `"10"` as the MIN
-   * of `{10, 2}`); PostgreSQL additionally has no `min(jsonb)` to fall back on.
-   *
-   * Materialized columns never reach this hook: they are ordered by the engine in
-   * their native column type, which is the recommended path for `$min`/`$max`.
    */
-  protected getJsonOrderedField(field: string): SQL | null {
+  public getJsonOrderedField(field: string): SQL | null {
     return this.getJsonField(field);
   }
 
@@ -3739,24 +2110,6 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   public override destroy(): void {
     if (this.preparedStatements.size > 0) this.preparedStatements.clear();
-    if (this._updateCoalescers) this._updateCoalescers.clear();
+    this._coalescerManager.clear();
   }
-}
-
-/** Normalize raw.execute / driver rows into a non-negative integer estimate. */
-function extractEstimateNumber(rows: unknown, field: string): number | null {
-  if (rows == null) return null;
-  let row: any;
-  if (Array.isArray(rows)) {
-    row = rows[0];
-  } else if (typeof rows === "object" && rows !== null && "rows" in (rows as object)) {
-    row = (rows as any).rows?.[0];
-  } else if (typeof rows === "object") {
-    row = rows;
-  }
-  if (!row) return null;
-  const raw = row[field] ?? row[0];
-  const n = typeof raw === "bigint" ? Number(raw) : Number(raw);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return Math.floor(n);
 }

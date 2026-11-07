@@ -49,7 +49,13 @@ interface OllamaResponse {
  * SSRF surface.
  */
 async function fetchOllama(url: string, init: RequestInit): Promise<OllamaResponse> {
-  if (typeof window === "undefined") {
+  // `import.meta.env.SSR` is a compile-time constant: Rolldown folds it to
+  // `false` in the client build and drops this branch together with its
+  // `@utils/egress-guard` import. A bare `typeof window` check is runtime-only,
+  // so the browser bundle still contained the guard (and `node:dns/promises`),
+  // which the client-build builtin guard rejects. The runtime check stays as
+  // belt-and-braces for non-Vite consumers (scripts, tests).
+  if (import.meta.env.SSR && typeof window === "undefined") {
     // Cold path — only reached when this module is used outside the browser.
     const { safeFetch, validateEgressUrl } = await import("@utils/egress-guard");
     // OLLAMA_URL is admin-configured and normally loopback/LAN; allowPrivate is
