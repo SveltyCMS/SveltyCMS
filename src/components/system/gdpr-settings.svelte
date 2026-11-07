@@ -20,7 +20,7 @@
 	import Input from '@components/ui/input.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
-	import type { SettingGroup } from '@src/services/system/settings-groups';
+	import type { SettingGroup } from '@src/services/system/settings-groups.meta';
 	import { nowISODateString } from '@utils/date';
 
 	interface Props {

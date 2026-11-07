@@ -88,6 +88,9 @@ export function findUnsafeModuleTimers(files: SourceFile[]): TimerOffense[] {
   const offenses: TimerOffense[] = [];
 
   for (const file of files) {
+    // Cheap pre-gate: only `setInterval` / `setTimeout` call sites are in
+    // scope, and the AST parse dominates this function (~0.6 s over the tree).
+    if (!file.source.includes("setInterval") && !file.source.includes("setTimeout")) continue;
     const lines = file.source.split(/\r?\n/);
 
     for (const block of scriptBlocks(file)) {

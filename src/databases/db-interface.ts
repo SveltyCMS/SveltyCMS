@@ -230,11 +230,25 @@ export function withTenant(
 /**
  * Media list/query options — always last-arg options bag (no positional tenantId).
  * Extends pagination so getByFolder/search share one options type.
+ *
+ * The structured filters below are applied by the adapter BEFORE pagination and
+ * COUNT, so a match on a later page is found from page 1. Values are re-validated
+ * in the adapters (`normalizeMediaStructuredFilters`), not trusted here.
  */
 export type MediaQueryOptions = BaseQueryOptions &
   PaginationOptions & {
     recursive?: boolean;
     search?: string;
+    /** Exact MIME types (`image/png`); matched against the `mimeType` column. */
+    mimeTypes?: string[];
+    /** Inclusive byte-size bounds (`size` column). */
+    minSize?: number;
+    maxSize?: number;
+    /** Inclusive original pixel bounds (images only — `metadata.width` / `metadata.height`). */
+    minWidth?: number;
+    maxWidth?: number;
+    minHeight?: number;
+    maxHeight?: number;
   };
 
 export interface FindOptions<T> extends BaseQueryOptions {

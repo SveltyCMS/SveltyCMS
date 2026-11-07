@@ -29,7 +29,7 @@ import {
   FILTER_URL_PREFIX,
   hashQueryPayload,
   type CollectionFilterMap,
-} from "@utils/collection-query-filters";
+} from "@utils/collection-query-filter-meta";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

@@ -143,6 +143,12 @@ export const FAST_CHECKS: readonly CheckSpec[] = [
     kind: "ast",
     owner: "architecture",
   },
+  {
+    id: "check-source-lints",
+    script: "scripts/check/run-source-lints.ts",
+    kind: "ast",
+    owner: "architecture",
+  },
 ];
 
 /** Conservative AST-rule contract: the scanner must expose a pure core function. */

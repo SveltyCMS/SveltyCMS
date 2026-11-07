@@ -86,7 +86,7 @@ against the collection schema**, then loads via `CollectionService` (L1/L2 SWR).
 
 ```typescript
 // +page.server.ts
-import { parseCollectionListQuery } from "@utils/collection-query-filters";
+import { parseCollectionListQuery } from "@utils/collection-query-filters.server";
 
 const listQuery = parseCollectionListQuery(url.searchParams, currentCollection);
 // listQuery.filter  → only schema-allowed keys (whitelist)

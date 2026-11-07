@@ -75,13 +75,14 @@ flowchart TB
 
 ### Module map
 
-| Module                                   | Runtime          | Responsibility                                               |
-| ---------------------------------------- | ---------------- | ------------------------------------------------------------ |
-| `@utils/collection-filter-defs`          | Browser + server | Widget → control type, unsafe widgets, number-range encode   |
-| `@utils/collection-query-filters`        | Browser + server | URL parse, schema id whitelist, stable hash, cache key shape |
-| `services/core/collection-filter-engine` | Server           | FLAC resolve, secure compile, apply to QueryBuilder          |
-| `services/core/collection-service`       | Server           | SWR cache + load path using the engine                       |
-| `create-smart-filter.svelte.ts`          | Browser          | Reactive URL/filter state for admin tables                   |
+| Module                                   | Runtime          | Responsibility                                             |
+| ---------------------------------------- | ---------------- | ---------------------------------------------------------- |
+| `@utils/collection-filter-defs`          | Browser + server | Widget → control type, unsafe widgets, number-range encode |
+| `@utils/collection-query-filter-meta`    | Browser + server | URL prefix, filter map types, stable query hash            |
+| `@utils/collection-query-filters.server` | Server           | URL parse, schema id whitelist, coercion, cache key shape  |
+| `services/core/collection-filter-engine` | Server           | FLAC resolve, secure compile, apply to QueryBuilder        |
+| `services/core/collection-service`       | Server           | SWR cache + load path using the engine                     |
+| `create-smart-filter.svelte.ts`          | Browser          | Reactive URL/filter state for admin tables                 |
 
 ---
 

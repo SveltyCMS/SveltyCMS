@@ -43,6 +43,10 @@ export function findSilentCatches(files: SourceFile[]): SilentCatchOffense[] {
   const offenses: SilentCatchOffense[] = [];
 
   for (const file of files) {
+    // Cheap pre-gate: a file without `catch` cannot contain an empty catch
+    // clause, and the TypeScript parse below dominates this function (~0.8 s
+    // over the tree). Substring scan is a few microseconds.
+    if (!file.source.includes("catch")) continue;
     const lines = file.source.split(/\r?\n/);
 
     for (const block of scriptBlocks(file)) {

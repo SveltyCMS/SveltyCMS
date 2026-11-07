@@ -1,18 +1,19 @@
 /**
- * @file src/utils/collection-query-filters.ts
+ * @file src/utils/collection-query-filters.server.ts
  * @description
- * Database-agnostic helpers for collection list query params, filter
- * whitelisting, and stable cache-key fragments.
+ * Database-agnostic query parsing, schema coercion and filter whitelisting for
+ * collection lists. Server-only: the browser-safe contract (URL prefix, filter
+ * map types, query hash) lives in `collection-query-filter-meta.ts`.
  *
  * Used by:
  * - SSR loaders (`+page.server.ts`) — parse `filter_*` + `search` URL params
  * - `CollectionService` — stable L1/L2 cache keys with filter hashes
- * - `createSmartFilter` — shared prefix + query shape (no DB imports)
+ * - SDK collections namespace — coerce + assert filterable fields
  *
  * ### Features:
  * - URL param parsing (`filter_{field}`, `search`, sort)
  * - Schema field whitelist (never trust client field names)
- * - Stable serialization + short hash for cache keys
+ * - Declared-type coercion (boolean / numeric) with `400 FILTER_INVALID_VALUE`
  * - Adapter-agnostic filter payload `{ field: { contains } }`
  *
  * @see docs/reference/architecture/cache-system.mdx
@@ -28,11 +29,13 @@ import {
   decodeBooleanFilterParam,
   type BooleanFilterGroup,
 } from "@utils/boolean-filter";
+import {
+  FILTER_URL_PREFIX,
+  hashQueryPayload,
+  type CollectionFilterMap,
+} from "@utils/collection-query-filter-meta";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-
-/** URL query prefix for per-column filters (entry-list / createSmartFilter). */
-export const FILTER_URL_PREFIX = "filter_";
 
 /** System columns always allowed for filtering (when present on entries). */
 const SYSTEM_FILTER_FIELDS = ["status", "createdAt", "updatedAt", "_id"] as const;
@@ -46,21 +49,6 @@ const SORT_FIELD_ALIASES: Record<string, string> = {
 };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-/**
- * Adapter-agnostic per-field filter operators.
- * URL layer often sends `{ contains: string }`; advanced clients may send eq/in/isNull/gte/lte.
- */
-export type CollectionFilterOp =
-  | { contains: string }
-  | { eq: string | number | boolean }
-  | { in: Array<string | number | boolean> }
-  | { isNull: boolean }
-  | { gte?: string | number; lte?: string | number }
-  | string;
-
-/** Map of field id → operator, ready for QueryBuilder / CollectionService. */
-export type CollectionFilterMap = Record<string, CollectionFilterOp>;
 
 export interface ParsedCollectionQuery {
   page: number;
@@ -90,38 +78,6 @@ export interface BuildCollectionCacheKeyParams {
 }
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
-
-/**
- * Stable JSON serialization with sorted object keys.
- * Prevents cache key drift when filter key insertion order differs.
- */
-export function stableSerialize(value: unknown): string {
-  return JSON.stringify(value, (_key, val) => {
-    if (val && typeof val === "object" && !Array.isArray(val)) {
-      const obj = val as Record<string, unknown>;
-      const sorted: Record<string, unknown> = Object.create(null);
-      for (const k of Object.keys(obj).sort()) {
-        sorted[k] = obj[k];
-      }
-      return sorted;
-    }
-    return val;
-  });
-}
-
-/**
- * Portable short hash (djb2a) for cache key fragments.
- * Not cryptographic — only for key bucketing / uniqueness.
- */
-export function hashQueryPayload(payload: unknown): string {
-  const str = typeof payload === "string" ? payload : stableSerialize(payload);
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i);
-  }
-  // Unsigned 32-bit hex
-  return (hash >>> 0).toString(16).padStart(8, "0");
-}
 
 /** Field names a schema field can be addressed by (storage name, label, name/path/key). */
 function fieldStorageNames(

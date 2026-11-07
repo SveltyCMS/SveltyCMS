@@ -59,6 +59,10 @@
 	import AdminCard from '@components/admin-card.svelte';
 	import Portal from '@components/ui/portal.svelte';
 	import type { SearchCriteria } from '@utils/media/advanced-search';
+	import {
+		hasMediaStructuredFilters,
+		readMediaStructuredFilters
+	} from '@utils/media/media-query-filters';
 	import { mediaUrl, updateMediaMetadata, MEDIA_UPLOAD_ACCEPT } from '@utils/media/media-utils';
 	import {
 		IMAGE_EDITOR_MODAL_CLASSES,
@@ -99,7 +103,13 @@
 	import Select from '@components/ui/select.svelte';
 	import SmartTableSavedViewsMenu from '@components/ui/smart-table/smart-table-saved-views-menu.svelte';
 	import type { SmartTableSavedView } from '@utils/smart-table-saved-views';
-	import { buildMediaSearchUrl, MEDIA_SEARCH_MAX_LENGTH } from './media-search-query';
+	import {
+		buildMediaAdvancedSearchUrl,
+		buildMediaSearchUrl,
+		clientSideCriteria,
+		MEDIA_SEARCH_MAX_LENGTH,
+		structuredFiltersFromCriteria
+	} from './media-search-query';
 
 	let { data }: { data: PageData } = $props();
 
@@ -226,6 +236,14 @@
 		(page.url.searchParams.get('q') ?? page.url.searchParams.get('search') ?? '').trim()
 	);
 
+	/**
+	 * Structured filters the loader applied (`?mime=`, `?minSize=`, `?minWidth=`, …).
+	 * The URL is the single source of truth: the advanced modal writes it through
+	 * `goto`, so a shared link and the rendered result cannot disagree.
+	 */
+	const appliedFilters = $derived(readMediaStructuredFilters(page.url.searchParams));
+	const hasAppliedFilters = $derived(hasMediaStructuredFilters(appliedFilters));
+
 	const SEARCH_DEBOUNCE_MS = 300;
 	let isSearching = $state(false);
 	let searchInFlight = false;
@@ -233,6 +251,9 @@
 
 	$effect(() => {
 		if (!browser) return;
+		// A filter navigation owns the URL until its load settles, exactly like the
+		// search pipeline below; arming a timer mid-flight would race its target.
+		if (isSearching) return;
 
 		const next = globalSearchValue.trim().slice(0, MEDIA_SEARCH_MAX_LENGTH);
 		// `committedSearchQuery` is read so the effect settles after the server
@@ -282,6 +303,30 @@
 		});
 	}
 
+	/**
+	 * Apply an advanced search. The adapter-evaluable criteria (size, dimensions,
+	 * MIME) go into the URL and are re-queried across the whole folder; everything
+	 * else stays a page-scoped client filter. `?page=` is dropped by the builder —
+	 * page 7 of the previous result set is meaningless once the filter changed.
+	 */
+	async function applyAdvancedSearch(criteria: SearchCriteria, jsonPath: string) {
+		const target = buildMediaAdvancedSearchUrl(
+			buildMediaSearchUrl(page.url.href, globalSearchValue),
+			structuredFiltersFromCriteria(criteria),
+			{ jsonPath }
+		);
+
+		isSearching = true;
+		try {
+			await goto(target, { replace: true, reset: false });
+		} catch (err) {
+			logger.error('Advanced media search navigation failed', err);
+			toast.error('Could not apply the advanced search');
+		} finally {
+			isSearching = false;
+		}
+	}
+
 	$effect(() => {
 		// A search navigation owns the URL until its load settles; writing filter
 		// params from here mid-flight would race the `goto` target. The effect
@@ -328,16 +373,37 @@
 			selectedMediaType !== 'All' ||
 			selectedProcessingStatus !== 'all' ||
 			jsonPathFilter.trim() ||
+			hasAppliedFilters ||
 			searchCriteria
 		)
 	);
 
-	function clearMediaFilters() {
+	/**
+	 * Reset every filter. The structured ones are adapter filters, so they live in
+	 * the URL and clearing them needs one navigation. It is issued here together
+	 * with the `?q=` reset (`isSearching` holds the debounced search effect off) so
+	 * the two pipelines cannot race two different loads.
+	 */
+	async function clearMediaFilters() {
 		globalSearchValue = '';
 		selectedMediaType = 'All';
 		selectedProcessingStatus = 'all';
 		jsonPathFilter = '';
 		searchCriteria = null;
+		if (!hasAppliedFilters) return;
+
+		isSearching = true;
+		try {
+			await goto(
+				buildMediaAdvancedSearchUrl(buildMediaSearchUrl(page.url.href, ''), {}, { jsonPath: '' }),
+				{ replace: true, reset: false }
+			);
+		} catch (err) {
+			logger.error('Clearing media filters failed', err);
+			toast.error('Could not clear the filters');
+		} finally {
+			isSearching = false;
+		}
 	}
 
 	let bulkMoveFolderId = $state('');
@@ -511,9 +577,11 @@
 	);
 
 	const filteredFiles = $derived.by(() => {
-		// The quick search is server-side (`?q=` → adapter LIKE on filename /
-		// originalFilename). Re-filtering the loaded slice here would both duplicate
-		// it and hide matches that live on pages the client has not fetched yet.
+		// Quick search (`?q=`) and the advanced size/dimension/MIME filters are
+		// server-side — the adapter applies them before LIMIT and COUNT, so they cover
+		// the whole library. Re-filtering them here would both duplicate the work and
+		// hide a valid server match whose slimmed gallery row omitted the field.
+		// Everything still below runs on the assets loaded so far (page-scoped).
 		let result = files.filter((file) => {
 			if (selectedMediaType !== 'All' && file.type !== selectedMediaType) {
 				return false;
@@ -535,18 +603,6 @@
 					!file.filename?.toLowerCase().includes(searchCriteria.filename.toLowerCase())
 				)
 					return false;
-				if (searchCriteria.minSize && (file as StoredMediaBase).size < searchCriteria.minSize)
-					return false;
-				if (searchCriteria.maxSize && (file as StoredMediaBase).size > searchCriteria.maxSize)
-					return false;
-				if (searchCriteria.minWidth && (!img.width || img.width < searchCriteria.minWidth))
-					return false;
-				if (searchCriteria.maxWidth && (!img.width || img.width > searchCriteria.maxWidth))
-					return false;
-				if (searchCriteria.minHeight && (!img.height || img.height < searchCriteria.minHeight))
-					return false;
-				if (searchCriteria.maxHeight && (!img.height || img.height > searchCriteria.maxHeight))
-					return false;
 				if (
 					searchCriteria.uploadedAfter &&
 					new Date(file.createdAt || 0) < searchCriteria.uploadedAfter
@@ -555,12 +611,6 @@
 				if (
 					searchCriteria.uploadedBefore &&
 					new Date(file.createdAt || 0) > searchCriteria.uploadedBefore
-				)
-					return false;
-				if (
-					searchCriteria.fileTypes &&
-					searchCriteria.fileTypes.length > 0 &&
-					!searchCriteria.fileTypes.some((t) => (file as any).mimeType?.includes(t))
 				)
 					return false;
 
@@ -1529,6 +1579,7 @@
 								onclick={() => (showAdvancedSearch = true)}
 								aria-label={mediagallery_advanced_search()}
 								class="h-10! w-10! min-w-0! px-0! text-(--admin-text-muted) hover:bg-surface-500/10 dark:hover:bg-surface-500/20 {searchCriteria ||
+								hasAppliedFilters ||
 								jsonPathFilter.trim()
 									? 'text-primary-500'
 									: ''}"
@@ -1675,6 +1726,7 @@
 							aria-label={mediagallery_advanced_search()}
 							data-testid="media-advanced-search"
 							class="h-10! w-10! min-w-0! px-0! text-(--admin-text-muted) hover:bg-surface-500/10 dark:hover:bg-surface-500/20 {searchCriteria ||
+							hasAppliedFilters ||
 							jsonPathFilter.trim()
 								? 'text-primary-500'
 								: ''}"
@@ -1912,10 +1964,14 @@
 					<mod.default
 						{files}
 						initialJsonPath={jsonPathFilter}
+						initialFilters={appliedFilters}
 						onSearch={(criteria, path) => {
-							searchCriteria = criteria;
+							// Only the page-scoped criteria stay client-side; the adapter filters
+							// are already on their way into the URL below.
+							searchCriteria = clientSideCriteria(criteria);
 							jsonPathFilter = path;
 							showAdvancedSearch = false;
+							void applyAdvancedSearch(criteria, path);
 						}}
 						onClose={() => {
 							showAdvancedSearch = false;

@@ -116,11 +116,11 @@ Phase 6 improved the tree; Phase 7 makes each improvement enforced. Every item b
 1. **The client bundle budget is now gated.** `clientReachableKB` / `clientReachableFiles` were reported with `gated: false`, so the preset split could be silently undone. `evaluateLinkmapGate` now enforces a 0.5 % budget (+4 absolute floor): **4,212 KB against a 4,234 KB ceiling**, **454 files against 458**. Shrinking is always allowed.
 2. **The server-only boundary is explicit.** `src/services/setup/presets.ts` → `presets.server.ts`. SvelteKit rejects a client import of a `.server.ts` module at build time, and the linkmap classifies it `isServerOnly`, so a re-coupling becomes a `clientServerLeak` violation instead of a silent bundle regression. The client entry point remains `preset-meta.ts`.
 3. **The route manifest is validated in the fast tier.** `scripts/check/check-route-manifest.ts` imports `APP_ROUTE_COVERAGE` directly (no second list to drift) and runs the same bidirectional verification as `tests/unit/route-test-coverage.test.ts` — 29 routes / 68 test-file links in ~200 ms. A moved test file now fails at commit time instead of surfacing 35 s later.
-4. **Executed test inventory is ratcheted.** `scripts/test/run-unit-suite.ts` emits Vitest's JSON report from the same invocation and `scripts/check/check-test-inventory.ts` floors per-area test counts against `scripts/check/baselines/test-inventory-baseline.json`. Baseline: `unit` **844 files / 8,018 tests across 38 areas**, `components` **53 files / 238 tests**. A vanished area, a lower total, or an empty report fails; growth is free; subset runs print an explicit "ratchet skipped" line.
+4. **Executed test inventory is ratcheted.** `scripts/test/run-unit-suite.ts` emits Vitest's JSON report from the same invocation and `scripts/check/check-test-inventory.ts` floors per-area test counts against `scripts/check/baselines/test-inventory-baseline.json`. Baseline: `unit` **847 files / 8,058 tests across 38 areas**, `components` **53 files / 238 tests**. A vanished area, a lower total, or an empty report fails; growth is free; subset runs print an explicit "ratchet skipped" line.
 
 **Measurement note.** The tracked initial baseline (`linkmap-initial-baseline.json`, 2026-11-07T09:50Z) records **4,250 KB / 443 files**. Against that artifact the verified client-bundle delta is **−38 KB**, not the −47 KB figure quoted in Phase 6 — that number predates the baseline file and is not reproducible from tracked artifacts. The gate uses the tracked artifact, so the enforceable claim is 4,250 → 4,212 KB.
 
-**Verified 2026-11-07:** `bun run test:unit` **844 files / 8,018 tests** · `test:unit:components` **53 files / 238 tests** · linkmap budget: baseline 4,212 KB / ceiling 4,234 KB, current **4,229 KB / 456 files** · `check:route-manifest` 29 routes / 68 links · media E2E 64/64.
+**Verified 2026-11-07:** `bun run test:unit` **847 files / 8,058 tests** · `test:unit:components` **53 files / 238 tests** · client graph **4,202 KB / 456 files** (ceiling 4,251 / 460) · `check:route-manifest` 29 routes / 68 links · media E2E 64/64.
 
 ### Phase 8: Explainable, Machine-Readable Gates (2026-11-07)
 
@@ -129,3 +129,17 @@ Phase 6 improved the tree; Phase 7 makes each improvement enforced. Every item b
 3. **`--explain <file>`.** Answers why a module is client-reachable, server-only, orphaned, allowlisted or a boundary candidate — including runtime importers, static client importers, test importer count, unused exports and smells. `report.explain` carries the same data in JSON. Example: `bun run check:linkmap --explain src/services/setup/presets.server.ts` (server-only, 3 server importers, 0 client importers).
 4. **`--json` output.** `analyze-linkmap --json` emits `{ summary, cache, gate, baseline, explain }`; `slop-scanner --json` emits `{ ok, strict, filesScanned, counts, categories, inventoryCategories, autofixedFiles, violations }`. Both keep their exit codes, so CI annotations and dashboards can consume them without parsing ANSI output.
 5. **Boundary candidates are ratcheted.** The shared client+server review list (currently **32** modules above 120 LOC) is an advisory: it may fall, never rise. Adding a new shared module requires a reviewed re-baseline, which is the point — it forces a deliberate decision about which side owns the code.
+
+### Phase 9: Two-Process Source Lints (2026-11-07)
+
+The five source rules (`date-helpers`, `silent-catch`, `live-paths`, `transient-classification`, `global-timers`) were five registry entries, each spawning a process and sweeping `src`. Folding them into `check-ast-gates` removed the spawns but made that single process the critical path (**3,311 ms**). They now run as a second AST gate (`scripts/check/run-source-lints.ts`) over one shared read, concurrent with the linkmap:
+
+| Measurement                        |                  Before |        After |
+| :--------------------------------- | ----------------------: | -----------: |
+| Fast-tier processes                | 6 (5 linters + linkmap) |        **2** |
+| `src` tree reads                   |                       6 |        **2** |
+| AST gate                           |                3,311 ms | **1,144 ms** |
+| Source lints                       |         — (5 processes) | **1,186 ms** |
+| `run-fast-checks` total (19 gates) |                3,933 ms | **1,961 ms** |
+
+Two hot rules also gained a cheap pre-gate in their pure cores: `transient` **646 → 106 ms**, `global-timers` **620 → 127 ms** (`silent-catch` 824 → 680 ms; most files contain a `catch`, so its AST pass still dominates). The prefilters only let files through — they never skip a possible match — and every rule keeps its own fixture suite.

@@ -21,7 +21,7 @@
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
 import type { SmartTableLayoutPrefs, SmartTableSort } from "@components/ui/smart-table/types";
-import type { CollectionFilterMap } from "@utils/collection-query-filters";
+import type { CollectionFilterMap } from "@utils/collection-query-filter-meta";
 import { nowISODateString } from "@utils/date";
 
 const PREFIX = "smartTableViews:";

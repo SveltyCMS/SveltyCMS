@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from "vitest";
 import { buildCollectionDrilldownHref, isFilterableBucket } from "@utils/dashboard-drilldown";
-import { parseUrlFilterParams } from "@utils/collection-query-filters";
+import { parseUrlFilterParams } from "@utils/collection-query-filters.server";
 
 describe("buildCollectionDrilldownHref", () => {
   it("builds a plain collection link without filters", () => {

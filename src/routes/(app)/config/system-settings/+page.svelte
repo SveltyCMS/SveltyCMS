@@ -8,7 +8,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 (mobile), and one panel per group.
 
 @props
-- data: { isAdmin: boolean }
+- data: { isAdmin: boolean, activeGroup: SettingGroup | null, activeGroupValues, groupsNeedingConfig }
 
 ### Features:
 - Persistent group navigation (desktop rail, mobile select) — no reliance on the
@@ -60,20 +60,21 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	import GenericSettingsGroup from './generic-settings-group.svelte';
 
 	// Import settings structure
-	import { getSettingGroupsByRole } from '@src/services/system/settings-groups';
+	import { getSettingGroupSummariesByRole } from '@src/services/system/settings-groups.meta';
 	import { beforeNavigate } from '$app/navigation';
 	import { showConfirm } from '@utils/modal.svelte';
 	import Button from '@components/ui/button.svelte';
 	import Toggle from '@components/ui/toggle.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 
-	// Get user admin status from page data (set by +page.server.ts)
+	// Page load payload (set by +page.server.ts): role-filtered group catalog,
+	// active-group values and the groups that still need configuration.
 	const { data } = $props();
-	const isAdmin = $derived(data.isAdmin);
 
-	// 🚀 DERIVED: availableGroups is computed synchronously for SSR and instant client render
+	// 🚀 DERIVED: the navigator uses the static role-filtered summaries, so SSR
+	// paints immediately; the panel descriptor comes from the server load.
 	const availableGroups = $derived(
-		getSettingGroupsByRole(isAdmin).sort((a, b) => a.name.localeCompare(b.name))
+		getSettingGroupSummariesByRole(data.isAdmin).sort((a, b) => a.name.localeCompare(b.name))
 	);
 	let hasUnsavedChanges = $state(false);
 	let saveTrigger = $state<{ fire: () => void; discard?: () => void; reset?: () => void }>({
@@ -206,7 +207,7 @@ Catalog-driven settings grouped by domain. Mirrors the `(app)` page contract:
 	// onMount redirect writes `?group=` into the URL.
 	const selectedGroupId = $derived(page.url.searchParams.get('group'));
 	const activeGroupId = $derived(selectedGroupId ?? availableGroups[0]?.id ?? '');
-	const activeGroup = $derived(availableGroups.find((group) => group.id === activeGroupId) ?? null);
+	const activeGroup = $derived(data.activeGroup);
 	const groupOptions = $derived(
 		availableGroups.map((group) => ({ value: group.id, label: group.name }))
 	);

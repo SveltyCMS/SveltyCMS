@@ -83,7 +83,7 @@ Handles all field types and validation automatically
 	// Remote Functions — loaded dynamically for code splitting
 
 	// Types and Utilities
-	import type { SettingField, SettingGroup } from '@src/services/system/settings-groups';
+	import type { SettingField, SettingGroup } from '@src/services/system/settings-groups.meta';
 	import {
 		initializeGroupValues,
 		validateSettingField,

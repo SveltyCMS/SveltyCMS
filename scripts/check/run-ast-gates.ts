@@ -1,12 +1,20 @@
 #!/usr/bin/env bun
 /**
  * @file scripts/check/run-ast-gates.ts
- * @description Runs every AST gate in one process over a single workspace read.
+ * @description Runs the module-graph linkmap and the tenant-scope lint in one
+ * process over a single workspace read.
  *
  * `bun run check` used to spawn two processes that each read the `src` tree:
  * `lint-tenant-scope` and `check-linkmap`. They now share one `SourceFile` pass:
  * the linkmap consumes the preloaded text, and the tenant-scope lint receives the
  * same array. Both rules stay independently runnable for debugging.
+ *
+ * The five source linters (`date-helpers`, `silent-catch`, `live-paths`,
+ * `transient-classification`, `global-timers`) live in
+ * `scripts/check/run-source-lints.ts`: they also share one read, but run as a
+ * **separate** registry entry so the runner executes them concurrently with this
+ * gate. Merging them here made this process — not the runner — the critical
+ * path (measured 3.3 s vs ~1.3 s for this gate alone).
  *
  * Features:
  * - One read of the `src` tree (TypeScript and Svelte) for both gates
@@ -17,14 +25,6 @@
 
 import { loadWorkspaceSources } from "../lint/lib/workspace-sources";
 import { findTenantScopeConflicts, type TenantScopeOffense } from "../lint/lint-tenant-scope";
-import { findDirectIsoNow, type DateCallOffense } from "../lint/lint-date-helpers";
-import { findSilentCatches, type SilentCatchOffense } from "../lint/lint-silent-catch";
-import { findLivePathReferences, type LivePathOffense } from "../lint/lint-live-paths";
-import {
-  findUnclassifiedDeletes,
-  type TransientOffense,
-} from "../lint/lint-transient-classification";
-import { findUnsafeModuleTimers, type TimerOffense } from "../lint/lint-global-timers";
 import {
   analyzeWorkspaceLinkmap,
   evaluateAgainstBaseline,
@@ -35,11 +35,6 @@ import {
 export interface AstGateReport {
   ok: boolean;
   tenantScopeOffenses: TenantScopeOffense[];
-  dateCallOffenses: DateCallOffense[];
-  silentCatchOffenses: SilentCatchOffense[];
-  livePathOffenses: LivePathOffense[];
-  transientOffenses: TransientOffense[];
-  timerOffenses: TimerOffense[];
   linkmap: LinkmapReport;
   violations: string[];
 }
@@ -51,41 +46,12 @@ export function runAstGates(root = process.cwd()): AstGateReport {
   const sources = loadWorkspaceSources(root);
   const scopedSources = sources.map(({ path, source }) => ({ path, source }));
   const tenantScopeOffenses = findTenantScopeConflicts(scopedSources);
-  const dateCallOffenses = findDirectIsoNow(scopedSources);
-  const silentCatchOffenses = findSilentCatches(scopedSources);
-  const livePathOffenses = findLivePathReferences(scopedSources);
-  const transientOffenses = findUnclassifiedDeletes(scopedSources);
-  const timerOffenses = findUnsafeModuleTimers(scopedSources);
-
   const linkmap = analyzeWorkspaceLinkmap(root, { sources });
   const evaluation = evaluateAgainstBaseline(root, linkmap);
 
   const violations: string[] = [];
   for (const offense of tenantScopeOffenses) {
     violations.push(`tenant-scope ${offense.file}:${offense.line} — ${offense.detail}`);
-  }
-  for (const offense of dateCallOffenses) {
-    violations.push(
-      `date-helpers ${offense.file}:${offense.line} — direct new Date().toISOString()`,
-    );
-  }
-  for (const offense of silentCatchOffenses) {
-    violations.push(`silent-catch ${offense.file}:${offense.line} — empty catch block`);
-  }
-  for (const offense of livePathOffenses) {
-    violations.push(
-      `live-paths ${offense.file}:${offense.line} — unescaped live path constant '${offense.match}'`,
-    );
-  }
-  for (const offense of transientOffenses) {
-    violations.push(
-      `transient-classification ${offense.file}:${offense.line} — unclassified delete call '${offense.call}'`,
-    );
-  }
-  for (const offense of timerOffenses) {
-    violations.push(
-      `global-timers ${offense.file}:${offense.line} — timer '${offense.timer}' ${offense.reason}`,
-    );
   }
   if (evaluation && !evaluation.gate.passed) {
     violations.push(...evaluation.gate.violations);
@@ -94,11 +60,6 @@ export function runAstGates(root = process.cwd()): AstGateReport {
   return {
     ok: violations.length === 0,
     tenantScopeOffenses,
-    dateCallOffenses,
-    silentCatchOffenses,
-    livePathOffenses,
-    transientOffenses,
-    timerOffenses,
     linkmap,
     violations,
   };
@@ -122,11 +83,6 @@ if (import.meta.main) {
     );
   }
   console.log(`  tenant-scope violations: ${result.tenantScopeOffenses.length}`);
-  console.log(`  date-helpers violations: ${result.dateCallOffenses.length}`);
-  console.log(`  silent-catch violations: ${result.silentCatchOffenses.length}`);
-  console.log(`  live-paths violations: ${result.livePathOffenses.length}`);
-  console.log(`  transient-classification violations: ${result.transientOffenses.length}`);
-  console.log(`  global-timers violations: ${result.timerOffenses.length}`);
 
   if (!result.ok) {
     console.error(`\n❌ AST gates failed (${result.violations.length}):`);

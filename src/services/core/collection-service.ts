@@ -34,10 +34,8 @@ import {
   hashCollectionListQuery,
   type StatusFacetCounts,
 } from "@src/services/core/collection-filter-engine";
-import {
-  buildCollectionQueryCacheKey,
-  type CollectionFilterMap,
-} from "@utils/collection-query-filters";
+import type { CollectionFilterMap } from "@utils/collection-query-filter-meta";
+import { buildCollectionQueryCacheKey } from "@utils/collection-query-filters.server";
 import { blockedGuardedNames, stripGuardedSort } from "@utils/guarded-query";
 import { recordListQuery } from "@utils/list-query-metrics";
 import { modifyRequest } from "@utils/modify-request";

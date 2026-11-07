@@ -9,7 +9,7 @@
 
 import { command, query, getRequestEvent } from "$app/server";
 import { getRequestLocalCMS, remoteErrorMessage } from "@utils/server/request-cms.server";
-import { settingsGroups } from "@src/services/system/settings-groups";
+import { settingsGroups } from "@src/services/system/settings-groups.server";
 import { AppError } from "@utils/error-handling";
 
 function requireUser() {

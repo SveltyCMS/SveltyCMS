@@ -31,6 +31,7 @@ import type {
 } from "@src/databases/db-interface";
 import { StatusTypes, type StatusType } from "@src/content/types";
 import type { CollectionsNamespace } from "./collections-namespace";
+import type { TransactionalWriteOptions } from "./collections/transaction-context";
 import type { LocalApiOptions } from "./types";
 
 /** Draft statuses accepted by the `content_drafts.status` enum. */
@@ -226,6 +227,38 @@ export class DraftsNamespace {
   }
 
   /**
+   * Delete one staged row. The caller owns the ownership/collection check; the
+   * promotion already ran it when it loaded the row, so only the delete (and an
+   * optional transaction handle) belongs here.
+   */
+  private async _deleteDraftRow(
+    draftId: string,
+    tenantId: DatabaseId | null | undefined,
+    transaction?: unknown,
+  ): Promise<DatabaseResult<{ deletedCount: number }>> {
+    const deleted = await this._dbAdapter.content.drafts.delete(draftId as DatabaseId, {
+      tenantId: tenantId as DatabaseId,
+      ...(transaction ? { transaction } : {}),
+    });
+    if (!deleted.success) {
+      return { success: false, message: deleted.message, error: deleted.error };
+    }
+    return { success: true, data: { deletedCount: 1 } };
+  }
+
+  /**
+   * Whether this adapter can group the live write, the revision snapshot and the
+   * draft delete in one transaction. MongoDB is excluded even on a replica set:
+   * its CRUD lane does not carry the session handle, so a wrapper would only
+   * look atomic while committing through the default session.
+   */
+  private _supportsAtomicPromotion(): boolean {
+    if (this._dbAdapter.type === "mongodb") return false;
+    if (typeof this._dbAdapter.transaction !== "function") return false;
+    return this._dbAdapter.getCapabilities().supportsTransactions === true;
+  }
+
+  /**
    * Delete one draft. Another author's draft is reported as absent (404), not
    * forbidden, so the endpoint does not disclose draft ids.
    */
@@ -256,17 +289,7 @@ export class DraftsNamespace {
         raise(404, "Draft not found.", "NOT_FOUND");
       }
 
-      const deleted = await this._dbAdapter.content.drafts.delete(draftId as DatabaseId, {
-        tenantId: tenantId as DatabaseId,
-      });
-      if (!deleted.success) {
-        return {
-          success: false,
-          message: deleted.message,
-          error: deleted.error,
-        } as DatabaseResult<{ deletedCount: number }>;
-      }
-      return { success: true, data: { deletedCount: 1 } };
+      return this._deleteDraftRow(draftId, tenantId);
     } catch (err) {
       rethrow(err);
       logger.debug(`[Drafts] discardDraft failed for ${collectionId}/${draftId}:`, err);
@@ -303,14 +326,25 @@ export class DraftsNamespace {
    * Promotes an existing draft to the live collection entry.
    * Cleans internal __draft markers, updates or creates the live row, and clears the draft.
    *
-   * ### Write ordering
-   * The live write runs first and the draft row is deleted only after it lands,
-   * so a failed write leaves the draft intact and a retry re-promotes the same
-   * staged content. `IDBAdapter.transaction` exists, but the collection write
-   * lane runs validation, hooks, the revision snapshot and the outbox schedule
-   * outside any transaction handle; only this draft delete could join one. The
-   * ordered contract is therefore the fallback: a crash between the two writes
-   * leaves a stale draft, never a lost live write or a discarded draft.
+   * ### Transaction boundary
+   * The draft lookup, schema resolution and ownership/access gate run first,
+   * outside any transaction. Validation/hooks inside the write lane run before
+   * its first statement; every DB mutation after that point joins one
+   * transaction when the adapter supports it:
+   *
+   * 1. live row create/update (with the transaction handle),
+   * 2. the pre-write revision snapshot for revision-enabled collections (same handle),
+   * 3. the `content_drafts` delete (same handle).
+   *
+   * Cache invalidation, outbox emission, pubsub and `afterSave` hooks are queued
+   * while the transaction is open and replayed only once it commits. A failure at
+   * any step rolls the whole promotion back: no live write, no revision, draft intact.
+   *
+   * ### Non-transactional fallback
+   * MongoDB (and any adapter reporting `supportsTransactions: false`) keeps the
+   * historical ordered contract: live write first, draft delete only after it
+   * lands. A crash between the two leaves a stale draft, never a lost live write
+   * or a discarded draft — the draft remains retryable, but the pair is NOT atomic.
    */
   async promoteDraft(
     collectionId: string,
@@ -352,20 +386,80 @@ export class DraftsNamespace {
         delete liveData._scheduledBy;
       }
 
-      let result: DatabaseResult<unknown>;
-      if (isNew || !contentId) {
-        result = await this._collections.create(collectionId, liveData, options);
-      } else {
-        // Goes through the normal update lane, so the pre-write snapshot in
-        // `content_revisions` is recorded for revision-enabled collections.
-        result = await this._collections.update(collectionId, contentId, liveData, options);
+      const writeLive = (writeOptions: LocalApiOptions): Promise<DatabaseResult<unknown>> =>
+        isNew || !contentId
+          ? this._collections.create(collectionId, liveData, writeOptions)
+          : // Goes through the normal update lane, so the pre-write snapshot in
+            // `content_revisions` is recorded for revision-enabled collections.
+            this._collections.update(collectionId, contentId, liveData, writeOptions);
+
+      if (!this._supportsAtomicPromotion()) {
+        logger.debug(
+          `[Drafts] Adapter '${this._dbAdapter.type}' has no multi-document transaction — ` +
+            `promoting ${draftId} with the ordered live-write-then-draft-delete fallback.`,
+        );
+        const result = await writeLive(options);
+        if (result.success) {
+          try {
+            const removed = await this._deleteDraftRow(draftId, tenantId);
+            if (!removed.success) {
+              logger.debug(
+                `[Drafts] promoted ${draftId} but could not remove it: ${removed.message}`,
+              );
+            }
+          } catch (err) {
+            logger.debug(`[Drafts] promoted ${draftId} but could not remove it:`, err);
+          }
+        }
+        return result;
       }
 
+      // Post-write effects collected by the write lane; replayed only after COMMIT.
+      const afterCommit: Array<() => void> = [];
+      let thrown: unknown;
+      const result = await this._dbAdapter.transaction(
+        async (tx): Promise<DatabaseResult<unknown>> => {
+          try {
+            const writeOptions: TransactionalWriteOptions = {
+              ...options,
+              transaction: tx,
+              afterCommit,
+            };
+            const written = await writeLive(writeOptions);
+            // A failed live write (validation or adapter) rolls the transaction back.
+            if (!written.success) return written;
+
+            const removed = await this._deleteDraftRow(draftId, tenantId, tx);
+            // The draft delete is the last step: failing it must undo the live row
+            // and its revision rather than leave a promoted entry with a stale draft.
+            if (!removed.success) return removed;
+
+            return written;
+          } catch (err) {
+            // Keep the original AppError/hook failure so the caller still gets its
+            // status code; returning a failed envelope rolls the transaction back.
+            thrown = err;
+            const message = err instanceof Error ? err.message : "Draft promotion failed.";
+            return {
+              success: false,
+              message,
+              error: { code: "DRAFT_PROMOTION_FAILED", message },
+            };
+          }
+        },
+      );
+
+      if (thrown !== undefined) throw thrown;
       if (result.success) {
-        // Live row is durable: only now is the staged row allowed to disappear.
-        await this.discardDraft(collectionId, draftId, options).catch((err) => {
-          logger.debug(`[Drafts] promoted ${draftId} but could not remove it:`, err);
-        });
+        for (const effect of afterCommit) {
+          try {
+            effect();
+          } catch (err) {
+            // Post-write effects are best-effort and must never turn a committed
+            // promotion into a caller-visible failure.
+            logger.debug(`[Drafts] post-commit effect failed for ${draftId}:`, err);
+          }
+        }
       }
       return result;
     } catch (err) {

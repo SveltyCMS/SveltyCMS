@@ -572,7 +572,11 @@ const EMPTY_TX_OPTS: Record<string, unknown> = Object.freeze({});
 
 /**
  * Persist a mutation; schedule outbox emit off the critical path.
- * Single-statement INSERT/UPDATE/DELETE are natively atomic — no BEGIN/COMMIT wrapper.
+ *
+ * A standalone write is one INSERT/UPDATE/DELETE and is natively atomic. A
+ * transactional caller (draft promotion) supplies the adapter handle so the
+ * statement joins its transaction, and an `afterCommit` queue so the outbox
+ * event is emitted only once that transaction lands.
  */
 export async function persistWithOutbox(
   action: "create" | "update" | "delete",
@@ -582,23 +586,36 @@ export async function persistWithOutbox(
   user: any,
   getId: (result: any) => string,
   getData: (result: any) => any,
-  options?: { skipSideEffects?: boolean; skipReturning?: boolean },
+  options?: {
+    skipSideEffects?: boolean;
+    skipReturning?: boolean;
+    transaction?: unknown;
+    afterCommit?: Array<() => void>;
+  },
 ): Promise<any> {
   const writeMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:adapter-write") : null;
-  const result = await write(EMPTY_TX_OPTS);
+  const result = await write(
+    options?.transaction ? { transaction: options.transaction } : EMPTY_TX_OPTS,
+  );
   writeMark?.();
   if (result?.success) {
     const id = getId(result);
     if (id && !options?.skipSideEffects && !options?.skipReturning && !isOutboxDisabledEnv()) {
       const outboxMark = PROFILE_WRITE_ENABLED ? profileMark("ns:persist:outbox") : null;
-      scheduleOutboxEvent({
-        schema,
-        tenantId,
-        action,
-        id,
-        data: getData(result),
-        user,
-      });
+      const emit = () =>
+        scheduleOutboxEvent({
+          schema,
+          tenantId,
+          action,
+          id,
+          data: getData(result),
+          user,
+        });
+      // Inside a transaction the event must wait for COMMIT; a handle without a
+      // queue cannot be deferred, so the event is dropped rather than emitted
+      // for a write that may still roll back.
+      if (options?.transaction) options.afterCommit?.push(emit);
+      else emit();
       outboxMark?.();
     }
   }

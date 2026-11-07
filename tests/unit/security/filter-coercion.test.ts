@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from "vitest";
 import type { Schema } from "@src/content/types";
-import { coerceFilterValues } from "@src/utils/collection-query-filters";
+import { coerceFilterValues } from "@utils/collection-query-filters.server";
 
 const schema = {
   fields: [

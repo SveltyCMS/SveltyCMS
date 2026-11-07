@@ -12,7 +12,7 @@
 
 import type { Cookies } from "@sveltejs/kit";
 import { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER } from "@utils/security/csrf-utils";
-import type { SettingField, SettingGroup } from "@src/services/system/settings-groups";
+import type { SettingField, SettingGroup } from "@src/services/system/settings-groups.meta";
 
 /**
  * Build JSON headers with CSRF token from cookies when present.
@@ -103,6 +103,14 @@ export function validateSettingField(field: SettingField, value: unknown): strin
     if (field.max !== undefined && value > field.max) {
       return `${field.label} must be at most ${field.max}`;
     }
+  }
+
+  if (
+    field.maxLength !== undefined &&
+    typeof value === "string" &&
+    value.length > field.maxLength
+  ) {
+    return `Max ${field.maxLength} characters`;
   }
 
   if (field.validation) {

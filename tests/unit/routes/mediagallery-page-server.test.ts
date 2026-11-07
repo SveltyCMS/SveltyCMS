@@ -244,6 +244,98 @@ describe("mediagallery remoteUpload action (VULN-002 class)", () => {
   });
 });
 
+describe("mediagallery +page.server load — structured filters", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const adminLocals = {
+    user: { _id: { toString: () => "u1" }, email: "a@b.co" },
+    isAdmin: true,
+    roles: [],
+    tenantId: "t1",
+  };
+
+  function lastGetByFolderOptions() {
+    const calls = vi.mocked(dbAdapter.media.files.getByFolder).mock.calls;
+    expect(calls).toHaveLength(1);
+    return calls[0]?.[1] as Record<string, unknown>;
+  }
+
+  it("forwards valid size / dimension / MIME params to the adapter", async () => {
+    const data = (await load(
+      makeEvent(
+        adminLocals,
+        "?mime=image/png,image/jpeg&minSize=1024&maxSize=2048&minWidth=800&maxWidth=4000&minHeight=600&maxHeight=3000",
+      ),
+    )) as { mediaFilters: Record<string, unknown> };
+
+    expect(lastGetByFolderOptions()).toMatchObject({
+      mimeTypes: ["image/png", "image/jpeg"],
+      minSize: 1024,
+      maxSize: 2048,
+      minWidth: 800,
+      maxWidth: 4000,
+      minHeight: 600,
+      maxHeight: 3000,
+    });
+
+    // Normalized echo so the modal can reopen on the applied filters.
+    expect(data.mediaFilters).toMatchObject({
+      mimeTypes: ["image/png", "image/jpeg"],
+      minSize: 1024,
+      minWidth: 800,
+    });
+  });
+
+  it("drops invalid values instead of forwarding them", async () => {
+    await load(
+      makeEvent(
+        adminLocals,
+        "?mime=png,image/png,image/png;charset=utf-8&minSize=abc&maxSize=-5&minWidth=1.5&maxWidth=0&minHeight=10px&maxHeight=999999999",
+      ),
+    );
+
+    const options = lastGetByFolderOptions();
+    // Only the complete MIME token is accepted; every malformed number is dropped.
+    expect(options.mimeTypes).toEqual(["image/png"]);
+    for (const key of ["minSize", "maxSize", "minWidth", "maxWidth", "minHeight", "maxHeight"]) {
+      expect(options).not.toHaveProperty(key);
+    }
+  });
+
+  it("drops an inverted size range", async () => {
+    await load(makeEvent(adminLocals, "?minSize=4096&maxSize=128"));
+
+    const options = lastGetByFolderOptions();
+    expect(options.minSize).toBeUndefined();
+    expect(options.maxSize).toBeUndefined();
+  });
+
+  it("parses 1-based pages and clamps absurd offsets", async () => {
+    await load(makeEvent(adminLocals, "?page=3"));
+    expect(lastGetByFolderOptions().page).toBe(3);
+
+    vi.mocked(dbAdapter.media.files.getByFolder).mockClear();
+    await load(makeEvent(adminLocals, "?page=0"));
+    expect(lastGetByFolderOptions().page).toBe(1);
+
+    vi.mocked(dbAdapter.media.files.getByFolder).mockClear();
+    await load(makeEvent(adminLocals, "?page=abc"));
+    expect(lastGetByFolderOptions().page).toBe(1);
+
+    vi.mocked(dbAdapter.media.files.getByFolder).mockClear();
+    await load(makeEvent(adminLocals, "?page=999999"));
+    expect(lastGetByFolderOptions().page).toBe(10_000);
+  });
+
+  it("keeps quick search and structured filters on the same adapter call", async () => {
+    await load(makeEvent(adminLocals, "?q=beach&minSize=1024"));
+
+    expect(lastGetByFolderOptions()).toMatchObject({ search: "beach", minSize: 1024 });
+  });
+});
+
 interface MediaGalleryPageData {
   media: Array<{ _id: string; tenantId?: string | null }>;
   systemVirtualFolders: unknown[];

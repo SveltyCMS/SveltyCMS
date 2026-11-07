@@ -1,25 +1,25 @@
 {
   "version": 1,
   "summary": {
-    "generatedAt": "2026-11-07T17:24:06.943Z",
-    "totalFiles": 1489,
-    "totalLoc": 419512,
-    "totalBytes": 14176061,
-    "runtimeEdgeCount": 6129,
-    "typeEdgeCount": 1455,
+    "generatedAt": "2026-11-07T20:14:20.428Z",
+    "totalFiles": 1491,
+    "totalLoc": 420414,
+    "totalBytes": 14209962,
+    "runtimeEdgeCount": 6135,
+    "typeEdgeCount": 1456,
     "barrelCount": 8,
     "passThroughBarrelCount": 0,
     "reExportBridgeCount": 2,
-    "microFileCount": 259,
-    "singleCallerCount": 503,
+    "microFileCount": 260,
+    "singleCallerCount": 496,
     "sameDirUntestedSingleCallerCount": 12,
-    "orphanFileCount": 34,
-    "unusedRuntimeExportCount": 168,
-    "testOnlyRuntimeExportCount": 499,
+    "orphanFileCount": 19,
+    "unusedRuntimeExportCount": 153,
+    "testOnlyRuntimeExportCount": 486,
     "runtimeCycleCount": 0,
     "clientServerLeakCount": 0,
-    "clientReachableFiles": 454,
-    "clientReachableKB": 4212,
+    "clientReachableFiles": 456,
+    "clientReachableKB": 4229,
     "byArea": {
       "src/hooks.client.ts": {
         "files": 1,
@@ -47,7 +47,7 @@
         "loc": 24977,
         "microFiles": 46,
         "barrels": 29,
-        "singleCallers": 19
+        "singleCallers": 13
       },
       "src/utils": {
         "files": 217,
@@ -79,24 +79,24 @@
       },
       "src/services": {
         "files": 162,
-        "loc": 59646,
+        "loc": 59688,
         "microFiles": 15,
         "barrels": 2,
         "singleCallers": 54
       },
       "src/routes": {
-        "files": 330,
-        "loc": 107154,
-        "microFiles": 60,
+        "files": 332,
+        "loc": 107754,
+        "microFiles": 61,
         "barrels": 0,
-        "singleCallers": 135
+        "singleCallers": 136
       },
       "src/plugins": {
         "files": 187,
         "loc": 36584,
         "microFiles": 47,
         "barrels": 15,
-        "singleCallers": 66
+        "singleCallers": 64
       },
       "src/hooks": {
         "files": 24,
@@ -121,7 +121,7 @@
       },
       "src/components": {
         "files": 219,
-        "loc": 49610,
+        "loc": 49870,
         "microFiles": 43,
         "barrels": 9,
         "singleCallers": 96
@@ -133,7 +133,8 @@
       "dataLayerInversions": 0,
       "clientNodeLeaks": 0,
       "deepRelativeImports": 0,
-      "testInvariantViolations": 0
+      "testInvariantViolations": 0,
+      "clientBoundaryCandidates": 32
     },
     "publicApiBarrelPaths": [
       "src/components/ui/tabs/index.ts",

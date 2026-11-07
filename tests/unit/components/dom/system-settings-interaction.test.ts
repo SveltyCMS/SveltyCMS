@@ -23,7 +23,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { SvelteSet } from "svelte/reactivity";
 import GenericSettingsGroup from "@src/routes/(app)/config/system-settings/generic-settings-group.svelte";
-import type { SettingGroup } from "@src/services/system/settings-groups";
+import type { SettingGroup } from "@src/services/system/settings-groups.meta";
 import { click, renderComponent, settle, typeText } from "./render";
 
 const remote = vi.hoisted(() => ({

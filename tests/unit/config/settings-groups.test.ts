@@ -9,7 +9,11 @@ import {
   getSettingGroup,
   getEnabledSettingGroups,
   getSettingGroupsByRole,
-} from "@src/services/system/settings-groups";
+} from "@src/services/system/settings-groups.server";
+import {
+  SETTINGS_GROUP_SUMMARIES,
+  getSettingGroupSummariesByRole,
+} from "@src/services/system/settings-groups.meta";
 
 describe("settingsGroups catalog", () => {
   it("defines unique group ids", () => {
@@ -67,5 +71,40 @@ describe("settingsGroups catalog", () => {
     );
     expect(group!.fields.find((f) => f.key === "LOCALES")?.label).toMatch(/system language/i);
     expect(group!.fields.find((f) => f.key === "BASE_LOCALE")?.label).toMatch(/system language/i);
+  });
+
+  it("keeps field descriptors serializable for the page load", () => {
+    for (const group of settingsGroups) {
+      for (const field of group.fields) {
+        expect(typeof field.validation).toBe("undefined");
+      }
+    }
+  });
+});
+
+describe("settings group summaries (sidebar)", () => {
+  it("mirror catalog ids, labels, icons, flags and field keys", () => {
+    expect(SETTINGS_GROUP_SUMMARIES.map((g) => g.id)).toEqual(settingsGroups.map((g) => g.id));
+
+    for (const group of settingsGroups) {
+      const summary = SETTINGS_GROUP_SUMMARIES.find((candidate) => candidate.id === group.id);
+      expect(summary, `missing summary for ${group.id}`).toBeDefined();
+      expect(summary?.name).toBe(group.name);
+      expect(summary?.icon).toBe(group.icon);
+      expect(summary?.description).toBe(group.description);
+      expect(summary?.enabled).toBe(group.enabled);
+      expect(summary?.adminOnly).toBe(group.adminOnly);
+      expect(summary?.permissionId).toBe(group.permissionId);
+      expect(summary?.requiresRestart).toBe(group.requiresRestart);
+      expect(summary?.fields).toEqual(group.fields.map((f) => ({ key: f.key, label: f.label })));
+    }
+  });
+
+  it("role filter matches the catalog role filter", () => {
+    for (const isAdmin of [true, false]) {
+      expect(getSettingGroupSummariesByRole(isAdmin).map((g) => g.id)).toEqual(
+        getSettingGroupsByRole(isAdmin).map((g) => g.id),
+      );
+    }
   });
 });

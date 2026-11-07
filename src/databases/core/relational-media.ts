@@ -7,9 +7,26 @@
 
 import { isoDateStringToDate, nowISODateString } from "@src/utils/date";
 import { logger } from "@utils/logger";
-import { and, asc, count, desc, eq, inArray, isNull, like, or, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  like,
+  or,
+  sql,
+  type SQL,
+  type SQLWrapper,
+} from "drizzle-orm";
 import { escapeLikePattern } from "./drizzle-sql-helpers";
 import { type JsonPathClause, type JsonPathOp, parseJsonPathFilter } from "@utils/json-path-filter";
+import {
+  type MediaStructuredFilters,
+  normalizeMediaStructuredFilters,
+} from "@utils/media/media-query-filters";
 import type {
   DatabaseId,
   DatabaseResult,
@@ -133,13 +150,20 @@ export class RelationalMediaModule implements IMediaAdapter {
             }
 
             const jsonPathExpr = options?.jsonPath?.trim();
+            // One dialect resolution serves both the JSON-path and the pixel
+            // dimension clauses below (adapter identity never changes mid-call).
+            const dialect = resolveMediaJsonSqlDialect(
+              this.adapter as unknown as {
+                type?: string;
+                dialect?: string;
+              },
+            );
             if (jsonPathExpr) {
-              const dialect = resolveMediaJsonSqlDialect(this.adapter as any);
               const { conditions: jsonConds, unhandled } = buildMediaJsonPathSqlConditions(
                 dialect,
                 jsonPathExpr,
               );
-              for (const c of jsonConds) conditions.push(c as any);
+              for (const c of jsonConds) conditions.push(c);
               if (unhandled) {
                 logger.debug(
                   `[media] jsonPath has clauses not pushed to SQL (${dialect}); in-memory filter still applies`,
@@ -150,6 +174,15 @@ export class RelationalMediaModule implements IMediaAdapter {
                 );
               }
             }
+
+            // Structured advanced-search filters (size / dimensions / MIME) run in
+            // SQL, so they narrow the page query AND the COUNT below.
+            const structuredConditions = buildMediaStructuredSqlConditions(
+              dialect,
+              this.schema.mediaItems as Record<string, unknown>,
+              normalizeMediaStructuredFilters(options),
+            );
+            for (const c of structuredConditions) conditions.push(c);
 
             let q = this.getDb(options)
               .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
@@ -230,6 +263,17 @@ export class RelationalMediaModule implements IMediaAdapter {
               if (userConditions) conditions.push(userConditions);
             }
           }
+
+          // Same structured filters as getByFolder — `search()` is the other
+          // listing entry point, and an options bag must mean the same thing on both.
+          const structuredConditions = buildMediaStructuredSqlConditions(
+            resolveMediaJsonSqlDialect(
+              this.adapter as unknown as { type?: string; dialect?: string },
+            ),
+            this.schema.mediaItems as Record<string, unknown>,
+            normalizeMediaStructuredFilters(options),
+          );
+          for (const c of structuredConditions) conditions.push(c);
 
           let q = this.db
             .select(this.adapter.getPhysicalSelection(this.schema.mediaItems))
@@ -716,6 +760,133 @@ export function buildMediaJsonPathSqlConditions(
     conditions.push(cond);
   }
   return { conditions, unhandled, clauseCount: clauses.length };
+}
+
+/** A Drizzle column reference — the physical table exposes columns as SQLWrapper. */
+function mediaColumnRef(value: unknown): SQLWrapper | null {
+  return value && typeof value === "object" && "getSQL" in value ? (value as SQLWrapper) : null;
+}
+
+/**
+ * SQL WHERE fragments for the structured advanced-search filters.
+ *
+ * `size` and `mimeType` are physical columns, so their predicates stay
+ * index-eligible (a b-tree on `size` can serve `size BETWEEN`, and `mimeType IN`
+ * can serve an equality index). Width/height are NOT columns in any current
+ * schema — they live in `metadata` — so they go through the per-dialect JSON
+ * extractor. A future schema that adds a physical `width`/`height` column wins
+ * here automatically and the predicate becomes an ordinary indexed comparison.
+ *
+ * JSON extraction yields NULL for assets without dimensions, and `CAST(NULL)
+ * >= n` is NULL, so dimension filters exclude videos/documents exactly like the
+ * old client-side fallback did.
+ */
+export function buildMediaStructuredSqlConditions(
+  dialect: MediaJsonSqlDialect,
+  table: Record<string, unknown>,
+  filters: MediaStructuredFilters,
+): SQL[] {
+  const conditions: SQL[] = [];
+
+  const mimeColumn = mediaColumnRef(table.mimeType);
+  if (mimeColumn && filters.mimeTypes?.length) {
+    // Exact match on the already-lowercased filter values. Wrapping the column in
+    // lower() would defeat the MIME index on every engine, and the stored values
+    // are lowercased by the upload path.
+    conditions.push(inArray(mimeColumn, filters.mimeTypes));
+  }
+
+  const sizeColumn = mediaColumnRef(table.size);
+  if (sizeColumn) {
+    if (filters.minSize !== undefined) conditions.push(sql`${sizeColumn} >= ${filters.minSize}`);
+    if (filters.maxSize !== undefined) conditions.push(sql`${sizeColumn} <= ${filters.maxSize}`);
+  }
+
+  conditions.push(
+    ...mediaDimensionSqlConditions(
+      dialect,
+      table.width,
+      "width",
+      filters.minWidth,
+      filters.maxWidth,
+    ),
+    ...mediaDimensionSqlConditions(
+      dialect,
+      table.height,
+      "height",
+      filters.minHeight,
+      filters.maxHeight,
+    ),
+  );
+
+  return conditions;
+}
+
+function mediaDimensionSqlConditions(
+  dialect: MediaJsonSqlDialect,
+  physicalColumn: unknown,
+  field: "width" | "height",
+  min: number | undefined,
+  max: number | undefined,
+): SQL[] {
+  if (min === undefined && max === undefined) return [];
+
+  const column = mediaColumnRef(physicalColumn);
+  if (column) {
+    const conditions: SQL[] = [];
+    if (min !== undefined) conditions.push(sql`${column} >= ${min}`);
+    if (max !== undefined) conditions.push(sql`${column} <= ${max}`);
+    return conditions;
+  }
+
+  const extract = metadataJsonExtractSql(dialect, field);
+  const conditions: SQL[] = [];
+  if (min !== undefined) {
+    const cond = numericCompareSql(extract, "gte", String(min));
+    if (cond) conditions.push(cond);
+  }
+  if (max !== undefined) {
+    const cond = numericCompareSql(extract, "lte", String(max));
+    if (cond) conditions.push(cond);
+  }
+  return conditions;
+}
+
+/**
+ * MongoDB counterpart of {@link buildMediaStructuredSqlConditions}.
+ *
+ * `size`/`mimeType` are top-level document fields; the pixel bounds address the
+ * nested `metadata.width` / `metadata.height` paths (dot notation, so a missing
+ * value never matches — same video/document exclusion as the SQL side).
+ */
+export function buildMediaStructuredMongoFilter(
+  filters: MediaStructuredFilters,
+): Record<string, unknown> | null {
+  const filter: Record<string, unknown> = {};
+
+  if (filters.mimeTypes?.length) filter.mimeType = { $in: filters.mimeTypes };
+
+  const size = mongoRangeFilter(filters.minSize, filters.maxSize);
+  if (size) filter.size = size;
+
+  const width = mongoRangeFilter(filters.minWidth, filters.maxWidth);
+  if (width) filter["metadata.width"] = width;
+
+  const height = mongoRangeFilter(filters.minHeight, filters.maxHeight);
+  if (height) filter["metadata.height"] = height;
+
+  return Object.keys(filter).length > 0 ? filter : null;
+}
+
+function mongoRangeFilter(
+  min: number | undefined,
+  max: number | undefined,
+): { $gte?: number; $lte?: number } | null {
+  if (min === undefined && max === undefined) return null;
+  return {
+    ...(min !== undefined ? { $gte: min } : {}),
+    ...(max !== undefined ? { $lte: max } : {}),
+  };
 }
 
 /** Normalize adapter `type` / `dialect` strings to a supported SQL dialect. */

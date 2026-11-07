@@ -46,7 +46,7 @@ import type { StatusFacetCounts } from "@src/services/core/collection-filter-eng
 import { collectionService } from "@src/services/core/collection-service";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error, redirect } from "@sveltejs/kit";
-import { parseCollectionListQuery } from "@utils/collection-query-filters";
+import { parseCollectionListQuery } from "@utils/collection-query-filters.server";
 import { logger } from "@utils/logger";
 import { rethrow } from "@utils/error-handling";
 import { summarizeListQueryMetrics } from "@utils/list-query-metrics";

@@ -1,50 +1,16 @@
 /**
- * @file src/services/system/settings-groups.ts
- * @description Configuration groups for System Settings UI
- * Smart organization of all dynamic CMS settings with fine-grained permission control
+ * @file src/services/system/settings-groups.server.ts
+ * @description Authoritative catalog of dynamic CMS settings groups and their
+ * field schemas, organized for the System Settings UI with fine-grained
+ * permission control.
+ *
+ * Server-only: `settings-groups.meta.ts` is the browser-safe half (types +
+ * sidebar summaries). This module is imported by the page load, the settings
+ * remote/API handlers and the catalog tests.
  */
 
 import { SITE_NAME_MAX_LENGTH, SITE_SLOGAN_MAX_LENGTH } from "@src/databases/public-config-schema";
-
-export interface SettingField {
-  category: "private" | "public";
-  description: string;
-  key: string;
-  label: string;
-  max?: number;
-  min?: number;
-  options?: Array<{ value: string | number; label: string }>;
-  placeholder?: string;
-  readonly?: boolean;
-  required?: boolean;
-  sensitive?: boolean;
-  rows?: number;
-  type:
-    | "text"
-    | "number"
-    | "boolean"
-    | "security"
-    | "select"
-    | "array"
-    | "language-multi"
-    | "language-select"
-    | "loglevel-multi"
-    | "textarea";
-  unit?: string;
-  validation?: (value: unknown) => string | null;
-}
-
-export interface SettingGroup {
-  adminOnly?: boolean;
-  description: string;
-  enabled: boolean;
-  fields: SettingField[];
-  icon: string;
-  id: string;
-  name: string;
-  permissionId?: string;
-  requiresRestart?: boolean;
-}
+import type { SettingGroup } from "./settings-groups.meta";
 
 /**
  * All system settings organized into logical groups
@@ -829,10 +795,7 @@ export const settingsGroups: SettingGroup[] = [
         category: "public",
         required: true,
         placeholder: "SveltyCMS",
-        validation: (value) =>
-          typeof value === "string" && value.length > SITE_NAME_MAX_LENGTH
-            ? `Max ${SITE_NAME_MAX_LENGTH} characters`
-            : null,
+        maxLength: SITE_NAME_MAX_LENGTH,
       },
       {
         key: "SITE_SLOGAN",
@@ -841,10 +804,7 @@ export const settingsGroups: SettingGroup[] = [
         type: "text",
         category: "public",
         placeholder: "with Sveltekit Power",
-        validation: (value) =>
-          typeof value === "string" && value.length > SITE_SLOGAN_MAX_LENGTH
-            ? `Max ${SITE_SLOGAN_MAX_LENGTH} characters`
-            : null,
+        maxLength: SITE_SLOGAN_MAX_LENGTH,
       },
       {
         key: "TIMEZONE",

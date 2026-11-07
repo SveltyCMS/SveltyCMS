@@ -69,7 +69,7 @@ import {
   getAllowedFilterFieldIds,
   getNestedFilterPaths,
   rejectedFilterKeys,
-} from "@utils/collection-query-filters";
+} from "@utils/collection-query-filters.server";
 
 import {
   getDbModuleLazy,
@@ -120,6 +120,7 @@ import {
   recordRevision,
   restoreEntryRevision,
   revisionLimitOf,
+  type RecordRevisionOptions,
 } from "./collections/revisions";
 import { runCollectionAction } from "./collections/actions";
 import {
@@ -138,6 +139,11 @@ import {
   triggerLifecycleHook,
 } from "./collections/post-write";
 import { scheduleDefaultListWarm } from "./collections/list-warm";
+import {
+  afterCommitQueueOf,
+  runAfterCommit,
+  transactionOf,
+} from "./collections/transaction-context";
 
 /** Cached lazy handle to the content engine — one module-registry lookup instead of one per call. */
 let contentModulePromise: Promise<typeof import("@src/content/index.server")> | undefined;
@@ -1581,6 +1587,9 @@ export class CollectionsNamespace {
 
   async create(collectionId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
+    // Adapter handle supplied by a transactional caller (draft promotion).
+    // Absent for every standalone create, leaving the write path unchanged.
+    const transaction = transactionOf(options);
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const tSchema = writePhaseT0(options);
     const peeked = peekReadySchema(tenantId, collectionId);
@@ -1608,7 +1617,7 @@ export class CollectionsNamespace {
       const existing = await this._dbAdapter.crud.findOne(
         this.getCollectionName(schema._id as string),
         { _id: singletonId } as any,
-        { tenantId: tenantId as DatabaseId },
+        { tenantId: tenantId as DatabaseId, ...(transaction ? { transaction } : {}) },
       );
       if (existing?.success && existing.data) {
         throw new AppError(`Singleton '${collectionId}' already exists`, 409, "SINGLETON_EXISTS");
@@ -1734,7 +1743,11 @@ export class CollectionsNamespace {
       effectiveUser,
       (res) => String(res.data?._id ?? ""),
       (res) => res.data,
-      { skipSideEffects: options.skipSideEffects, skipReturning: options.skipReturning },
+      {
+        skipSideEffects: options.skipSideEffects,
+        skipReturning: options.skipReturning,
+        ...(transaction ? { transaction, afterCommit: afterCommitQueueOf(options) } : {}),
+      },
     );
     m3?.();
     markWritePhase(options, "dbwrite", tDb);
@@ -1748,25 +1761,28 @@ export class CollectionsNamespace {
       // Resolved once — the three side-effect schedules below shared the same
       // `decryptedCreate?.data ?? result.data` expression.
       const postWriteDoc = decryptedCreate?.data ?? result.data;
-      // ⚡ Response-path: never await side effects — concurrent create RPS depends on this
-      schedulePostWrite(
-        this._dbAdapter,
-        "create",
-        schema,
-        collectionId,
-        tenantId,
-        createdId,
-        postWriteDoc,
-        effectiveUser,
-        options,
-      );
-      scheduleAfterOperation(schema, hot, postWriteDoc, "create", effectiveUser, tenantId);
-      if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
-        scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
-        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
-          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+      // ⚡ Response-path: never await side effects — concurrent create RPS depends on this.
+      // Inside a transaction they are queued and replayed only after COMMIT.
+      runAfterCommit(options, () => {
+        schedulePostWrite(
+          this._dbAdapter,
+          "create",
+          schema,
+          collectionId,
+          tenantId,
+          createdId,
+          postWriteDoc,
+          effectiveUser,
+          options,
         );
-      }
+        scheduleAfterOperation(schema, hot, postWriteDoc, "create", effectiveUser, tenantId);
+        if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
+          scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
+          scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+            this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+          );
+        }
+      });
     }
     markWritePhase(options, "postwrite", tPost);
 
@@ -1775,6 +1791,9 @@ export class CollectionsNamespace {
 
   async update(collectionId: string, entryId: string, data: any, options: LocalApiOptions = {}) {
     const { user, tenantId, system } = options;
+    // Adapter handle supplied by a transactional caller (draft promotion).
+    // Absent for every standalone update, leaving the write path unchanged.
+    const transaction = transactionOf(options);
     if (!user && !system) throw new AppError("Authentication required", 401, "UNAUTHORIZED");
     const tSchema = writePhaseT0(options);
     const peekedUpdate = peekReadySchema(tenantId, collectionId);
@@ -1829,6 +1848,7 @@ export class CollectionsNamespace {
           // (`schedulePostWrite` invalidates asynchronously), which would make a
           // stale `If-Match` look current. The lock check must read the row.
           bypassCache: true,
+          ...(transaction ? { transaction } : {}),
         });
       }
       if (!preloadedExisting.success || !preloadedExisting.data) {
@@ -1878,7 +1898,7 @@ export class CollectionsNamespace {
         preloadedExisting = await this._dbAdapter.crud.findOne(
           this.getCollectionName(schema._id as string),
           { _id: entryId } as any,
-          { tenantId: tenantId as DatabaseId },
+          { tenantId: tenantId as DatabaseId, ...(transaction ? { transaction } : {}) },
         );
         const existingData =
           preloadedExisting.success && preloadedExisting.data
@@ -1964,7 +1984,7 @@ export class CollectionsNamespace {
           (await this._dbAdapter.crud.findOne(
             this.getCollectionName(schema._id as string),
             { _id: entryId } as any,
-            { tenantId: tenantId as DatabaseId },
+            { tenantId: tenantId as DatabaseId, ...(transaction ? { transaction } : {}) },
           ));
         if (prev.success && prev.data) {
           previousSnapshot = prev.data;
@@ -2082,7 +2102,11 @@ export class CollectionsNamespace {
       effectiveUser,
       () => entryId,
       (res) => res.data,
-      { skipSideEffects: options.skipSideEffects, skipReturning: options.skipReturning },
+      {
+        skipSideEffects: options.skipSideEffects,
+        skipReturning: options.skipReturning,
+        ...(transaction ? { transaction, afterCommit: afterCommitQueueOf(options) } : {}),
+      },
     );
     m3u?.();
     markWritePhase(options, "dbwrite", tDb);
@@ -2095,37 +2119,47 @@ export class CollectionsNamespace {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot before the request
       // returns. The write itself is already durable, but a fire-and-forget call
       // could be dropped by teardown and lose the revision entirely.
+      // Inside a promotion transaction the snapshot joins that transaction and a
+      // failure aborts it (`strict`), so a committed live write always has its
+      // revision.
       if (revisionEnabled && previousSnapshot) {
+        const revisionOptions: RecordRevisionOptions | undefined = transaction
+          ? { transaction, strict: true }
+          : undefined;
         await this.recordRevision(
           entryId,
           previousSnapshot,
           effectiveUser,
           tenantId,
           revisionLimitOf(schema),
+          revisionOptions,
         );
       }
       // Resolved once — the three side-effect schedules below shared the same
       // `decryptedUpdate?.data ?? result.data` expression.
       const postWriteDoc = decryptedUpdate?.data ?? result.data;
-      // ⚡ Response-path: never await side effects — concurrent update RPS depends on this
-      schedulePostWrite(
-        this._dbAdapter,
-        "update",
-        schema,
-        collectionId,
-        tenantId,
-        entryId,
-        postWriteDoc,
-        effectiveUser,
-        options,
-      );
-      scheduleAfterOperation(schema, hot, postWriteDoc, "update", effectiveUser, tenantId);
-      if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
-        scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
-        scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
-          this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+      // ⚡ Response-path: never await side effects — concurrent update RPS depends on this.
+      // Inside a transaction they are queued and replayed only after COMMIT.
+      runAfterCommit(options, () => {
+        schedulePostWrite(
+          this._dbAdapter,
+          "update",
+          schema,
+          collectionId,
+          tenantId,
+          entryId,
+          postWriteDoc,
+          effectiveUser,
+          options,
         );
-      }
+        scheduleAfterOperation(schema, hot, postWriteDoc, "update", effectiveUser, tenantId);
+        if (!shouldSkipWriteSideEffects(options) && !options.skipReturning) {
+          scheduleIndexNowPing(collectionId, postWriteDoc, tenantId);
+          scheduleDefaultListWarm(schema._id as string, tenantId, effectiveUser, (warmOpts) =>
+            this.find(collectionId, { tenantId: warmOpts.tenantId, user: warmOpts.user }),
+          );
+        }
+      });
     }
     markWritePhase(options, "postwrite", tPost);
 
@@ -2160,8 +2194,17 @@ export class CollectionsNamespace {
     user: any,
     tenantId: DatabaseId | null | undefined,
     revisionLimit: number = DEFAULT_REVISION_LIMIT,
+    options?: RecordRevisionOptions,
   ): Promise<void> {
-    return recordRevision(this._dbAdapter, entryId, previousData, user, tenantId, revisionLimit);
+    return recordRevision(
+      this._dbAdapter,
+      entryId,
+      previousData,
+      user,
+      tenantId,
+      revisionLimit,
+      options,
+    );
   }
 
   async runAction(

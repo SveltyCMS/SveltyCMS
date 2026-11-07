@@ -35,6 +35,13 @@ export interface TransientOffense {
 }
 
 const DELETE_CALLS = new Set(["unlink", "unlinkSync", "rm", "rmSync", "remove"]);
+
+/**
+ * Cheap pre-gate: only a file that mentions a delete call can hit the AST pass
+ * (~0.6 s over the tree). The regex only lets files through; it never skips a
+ * possible match, so the rule's results are unchanged.
+ */
+const DELETE_CALL_HINT = /\b(?:unlink|unlinkSync|rm|rmSync|remove)\b/;
 const USER_DATA_PATH = /(collection|compiled|config|private|preset)/i;
 const CLASSIFIED = /\b(?:ENOENT|isTransient|rethrow|throw)\b/;
 
@@ -84,6 +91,7 @@ export function findUnclassifiedDeletes(files: SourceFile[]): TransientOffense[]
   const offenses: TransientOffense[] = [];
 
   for (const file of files) {
+    if (!DELETE_CALL_HINT.test(file.source)) continue;
     const lines = file.source.split(/\r?\n/);
 
     for (const block of scriptBlocks(file)) {

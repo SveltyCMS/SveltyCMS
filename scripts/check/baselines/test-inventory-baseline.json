@@ -2,10 +2,10 @@
   "version": 1,
   "layers": {
     "unit": {
-      "generatedAt": "2026-11-07T18:54:22.146Z",
+      "generatedAt": "2026-11-07T20:36:29.708Z",
       "totals": {
-        "files": 844,
-        "tests": 8018
+        "files": 847,
+        "tests": 8058
       },
       "areas": {
         "unit": {
@@ -54,7 +54,7 @@
         },
         "unit/config": {
           "files": 12,
-          "tests": 64
+          "tests": 67
         },
         "unit/content": {
           "files": 16,
@@ -69,8 +69,8 @@
           "tests": 51
         },
         "unit/databases": {
-          "files": 87,
-          "tests": 706
+          "files": 88,
+          "tests": 717
         },
         "unit/graphql": {
           "files": 3,
@@ -110,15 +110,15 @@
         },
         "unit/routes": {
           "files": 63,
-          "tests": 337
+          "tests": 355
         },
         "unit/scripts": {
-          "files": 47,
-          "tests": 611
+          "files": 48,
+          "tests": 615
         },
         "unit/sdk": {
-          "files": 21,
-          "tests": 178
+          "files": 22,
+          "tests": 182
         },
         "unit/security": {
           "files": 39,

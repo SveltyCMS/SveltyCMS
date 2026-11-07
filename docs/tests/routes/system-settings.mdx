@@ -21,7 +21,8 @@ tags:
 | ------------------------------- | ------------------------------------------------------------------ |
 | `+page.server.ts`               | Auth + `config:settings` / admin gate                              |
 | `+page.svelte`                  | Group navigator, save/discard shell, MT migration, cache repair    |
-| `settings-groups.ts`            | Catalog of setting groups (role-filtered)                          |
+| `settings-groups.server.ts`     | Full field catalog + role filter (server load / API key checks)    |
+| `settings-groups.meta.ts`       | Sidebar summaries (ids, labels, icons, field keys)                 |
 | `settings-utils.ts`             | Pure helpers: CSRF headers, validation, import parse, empty-config |
 | `generic-settings-group.svelte` | Per-group form, save/export/import/reset/discard                   |
 | `settings.remote.ts`            | load/save/reset via `/api/settings/*` + CSRF                       |

@@ -21,6 +21,7 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import type { Schema } from "@src/content/types";
 import type { BooleanFilterGroup } from "@utils/boolean-filter";
+import { stableSerialize } from "@utils/collection-query-filter-meta";
 import {
   getAllowedFilterFieldIds,
   getNestedFilterPaths,
@@ -28,9 +29,8 @@ import {
   parseCollectionListQuery,
   parseSortDescriptors,
   rejectedFilterKeys,
-  stableSerialize,
   whitelistFilterParams,
-} from "@utils/collection-query-filters";
+} from "@utils/collection-query-filters.server";
 
 // ---------------------------------------------------------------------------
 // Fixture — mirrors the shape used by collection-query-filters.test.ts

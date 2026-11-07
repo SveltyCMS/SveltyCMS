@@ -349,16 +349,16 @@ const result = await cacheService.getOrSetSWR(
 
 Editorial list views are cached through `CollectionService.getCollectionData()` using **getOrSetSWR**, not raw `get`/`set`.
 
-| Concern                 | Implementation                                                                                                                  |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Key shape**           | `collection:{id}:query:{hash}:page:{n}:size:{s}:lang:{l}:tenant:{t}:user:{u}:edit:{e}`                                          |
-| **Query hash**          | `hashQueryPayload({ filter, search, sort })` — stable key order via `stableSerialize` (`src/utils/collection-query-filters.ts`) |
-| **Fresh / stale**       | TTL **60s** / stale window **300s** (SWR)                                                                                       |
-| **Category**            | `CacheCategory.COLLECTION`                                                                                                      |
-| **Tags**                | `collection`, `collection:{id}`                                                                                                 |
-| **Prefix invalidation** | `cacheService.invalidateCollection(id)` → `clearByPattern("collection:{id}:")` (O(1) prefix bucket)                             |
-| **Negative Bloom**      | **Not** applied to empty list pages — empty result sets are valid editorial states                                              |
-| **URL filters**         | `filter_{field}` + `search` parsed by `parseCollectionListQuery` (schema whitelist before DB)                                   |
+| Concern                 | Implementation                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Key shape**           | `collection:{id}:query:{hash}:page:{n}:size:{s}:lang:{l}:tenant:{t}:user:{u}:edit:{e}`                                              |
+| **Query hash**          | `hashQueryPayload({ filter, search, sort })` — stable key order via `stableSerialize` (`src/utils/collection-query-filter-meta.ts`) |
+| **Fresh / stale**       | TTL **60s** / stale window **300s** (SWR)                                                                                           |
+| **Category**            | `CacheCategory.COLLECTION`                                                                                                          |
+| **Tags**                | `collection`, `collection:{id}`                                                                                                     |
+| **Prefix invalidation** | `cacheService.invalidateCollection(id)` → `clearByPattern("collection:{id}:")` (O(1) prefix bucket)                                 |
+| **Negative Bloom**      | **Not** applied to empty list pages — empty result sets are valid editorial states                                                  |
+| **URL filters**         | `filter_{field}` + `search` parsed by `parseCollectionListQuery` (schema whitelist before DB)                                       |
 
 ```typescript
 // CollectionService (simplified)
