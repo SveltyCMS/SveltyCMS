@@ -75,8 +75,10 @@ const MAX_TRACKED_BUCKETS = 10000;
  * benchmark matrix raises it so a local load generator is not mistaken for a
  * DDoS. The adaptive/Redis limiter still runs and still enforces its own cap.
  */
-const L1_CAPACITY = Number(process.env.RATE_LIMIT_L1_CAPACITY) || undefined;
-const L1_REFILL_PER_SEC = Number(process.env.RATE_LIMIT_L1_REFILL_PER_SEC) || undefined;
+const L1_FILTER_OVERRIDES = {
+  capacity: Number(process.env.RATE_LIMIT_L1_CAPACITY) || undefined,
+  refillPerSec: Number(process.env.RATE_LIMIT_L1_REFILL_PER_SEC) || undefined,
+} as const;
 
 type RateLimitLane = "commerce" | "default";
 
@@ -414,10 +416,7 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
 
   // ⚡ L1 PRE-FILTER: Synchronous zero-allocation token bucket to drop volumetric DDoS floods
   // (>200 req/s) before executing costly adaptive calculations or async Redis checks.
-  const l1Check = checkL1PreFilter(clientIp, now, {
-    capacity: L1_CAPACITY,
-    refillPerSec: L1_REFILL_PER_SEC,
-  });
+  const l1Check = checkL1PreFilter(clientIp, now, L1_FILTER_OVERRIDES);
   if (!l1Check.allowed) {
     logger.warn(`[RateLimit] ${clientIp} exceeded L1 pre-filter flood threshold`, {
       pathname,

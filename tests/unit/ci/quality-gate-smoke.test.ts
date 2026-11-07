@@ -68,25 +68,27 @@ describe("pre-commit hook", () => {
     expect(hook).toContain("test:unit:components");
   });
 
-  it("builds before the diff integration instead of always deferring", () => {
+  it("keeps Stage 1 fast (white-box only) and leaves the harness build + integration to Stage 2", () => {
     const hook = readFileSync(join(ROOT, ".githooks/pre-commit"), "utf8");
-    expect(hook).toContain("Harness build (backend change)");
-    expect(hook).toContain("run-integration.ts --no-build --diff");
-    // The old freshness check skipped integration whenever src/ was edited.
-    expect(hook).not.toContain("deferred to pre-push");
+    const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
+    expect(hook).not.toContain("run-integration.ts");
+    expect(prePush).toContain("--ensure-build");
+    expect(prePush).toContain("run-integration.ts --no-build --diff");
   });
 });
 
 describe("pre-push hook", () => {
   it("re-runs the CI unit job and build/integration", () => {
     const prePush = readFileSync(join(ROOT, ".githooks/pre-push"), "utf8");
-    expect(prePush).toMatch(/(pm_run|\$RUN_CMD|\$PM_BIN" run|bun run) build/);
-    expect(prePush).toContain("COMPILE_ALL_ADAPTERS");
+    // The harness build verifies/reuses the 4-adapter artifact; it sets
+    // COMPILE_ALL_ADAPTERS internally, so assert the entry point rather than a
+    // literal env assignment in the hook.
+    expect(prePush).toContain("--ensure-build");
     // CI Unit parity: coverage + components + mutation, because a suite can be
     // 100 % green and still exit 1 on unhandled errors under the CI reporter.
-    expect(prePush).toContain("test:unit:coverage");
+    expect(prePush).toContain("test:coverage");
     expect(prePush).toContain("test:unit:components");
-    expect(prePush).toContain("test:mutation");
+    expect(prePush).toContain("scripts/test/mutate-core.ts");
     // The plain suite is not re-run: pre-commit already did it.
     expect(prePush).not.toMatch(/(?:pm_run|bun run) test:unit(?!:)/);
     expect(prePush).toContain("run-integration.ts");
@@ -130,7 +132,9 @@ describe("pre-push hook", () => {
     // integration or browser gate, an interrupted write would make every later
     // step fail on a mutated tree (observed locally as a cascade of unrelated
     // `includeDeleted` / `db.crud` errors).
-    expect(prePush.indexOf("test:mutation")).toBeGreaterThan(prePush.indexOf("E2E Browser Gate"));
+    expect(prePush.indexOf("scripts/test/mutate-core.ts")).toBeGreaterThan(
+      prePush.indexOf("E2E Browser Gate"),
+    );
     expect(prePush).toContain("MUTATION_CLEAN_BEFORE");
     expect(prePush).toContain("git checkout -- $MUTATION_TARGETS");
   });

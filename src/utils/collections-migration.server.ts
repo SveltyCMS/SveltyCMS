@@ -18,6 +18,7 @@ import path from "node:path";
 import { logger } from "./logger";
 import { generateUUID } from "@utils/native-utils";
 import { paths } from "./path-resolver";
+import { isAutomatedTestHarness } from "./private-config-policy";
 
 // 🛡️ Lock to prevent concurrent migration attempts
 let isMigrating = false;
@@ -42,24 +43,24 @@ async function moveFileAtomically(src: string, dest: string): Promise<boolean> {
 
 /**
  * Resolves the flat (single-tenant) and tenant-scoped collection directories.
- * Uses centralized paths module — no hardcoded process.cwd() strings.
+ * Uses centralized test-aware paths — never touches live config/collections under tests.
  */
 function getMigrationDirs(tenantId?: string | null) {
   const config = path.join(process.cwd(), "config");
+  const collFolder = isAutomatedTestHarness() ? "test-collections" : "collections";
   return {
-    flat: path.join(config, "collections"),
-    tenant: tenantId
-      ? path.join(config, tenantId, "collections")
-      : path.join(config, "collections"),
+    flat: path.join(config, collFolder),
+    tenant: tenantId ? path.join(config, tenantId, collFolder) : path.join(config, collFolder),
   };
 }
 
 function getMediaDirs(tenantId?: string | null) {
+  const baseMedia = isAutomatedTestHarness() ? "test-media" : "mediaFolder";
   return {
-    global: path.join(paths.root, "mediaFolder", "global"),
+    global: path.join(paths.root, baseMedia, "global"),
     tenant: tenantId
-      ? path.join(paths.root, "mediaFolder", tenantId)
-      : path.join(paths.root, "mediaFolder", "global"),
+      ? path.join(paths.root, baseMedia, tenantId)
+      : path.join(paths.root, baseMedia, "global"),
   };
 }
 

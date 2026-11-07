@@ -184,9 +184,12 @@ export async function wipeMediaFolder() {
   // benchmarks) wins over the persisted dev setting. Reading the DB setting
   // directly wiped `./mediaFolder` — the developer's real library — whenever a
   // test run isolated its uploads to another root.
-  const { resolveConfiguredMediaFolder } = await import("@utils/media/storage-adapters");
+  const { assertHarnessMediaFolderWritable, resolveConfiguredMediaFolder } =
+    await import("@utils/media/storage-adapters");
   const mediaRoot = resolveConfiguredMediaFolder() || "mediaFolder";
+  assertHarnessMediaFolderWritable(mediaRoot);
   const fullMediaRoot = path.resolve(process.cwd(), mediaRoot);
+  assertHarnessMediaFolderWritable(fullMediaRoot);
   if (fs.existsSync(fullMediaRoot)) {
     try {
       await fsp.rm(fullMediaRoot, { recursive: true, force: true });

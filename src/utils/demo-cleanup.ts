@@ -211,9 +211,10 @@ export async function cleanupExpiredDemoTenants() {
 
       // 3b. Delete Filesystem Artifacts (compiled collections, tenant config, uploads)
       try {
+        const { getCompiledCollectionsPath } = await import("@utils/tenant.server");
         const cwd = process.cwd();
         const tenantDirs = [
-          path.resolve(cwd, ".compiledCollections", tenantId),
+          getCompiledCollectionsPath(tenantId),
           path.resolve(cwd, "config", tenantId),
           path.resolve(cwd, "uploads", tenantId),
         ];

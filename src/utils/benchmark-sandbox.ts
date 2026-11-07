@@ -18,7 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { paths } from "./path-resolver.ts";
-import { isAutomatedTestHarness } from "./private-config-policy.ts";
+import { isAutomatedTestHarness, isCiRunner } from "./private-config-policy.ts";
 
 export type BenchmarkProfile = "local" | "ci-fresh";
 
@@ -132,17 +132,14 @@ export function isPlaywrightTest(env: NodeJS.ProcessEnv = process.env): boolean 
 /**
  * Whether the live-data write guard is active.
  *
- * Local benchmarks AND non-E2E automated harnesses (vitest / `bun test` /
- * integration) must never materialize builder categories in the developer's live
- * `config/collections`: an integration run stranded `unit-reorder-*` category
- * folders there, the scanner then adopted them as `source: "filesystem"`
- * categories, and every reconcile re-created them. E2E is exempt because
- * `ci.yml` `e2e-prep` deliberately prepares and archives a `config/collections`
- * tree for the Playwright server.
+ * Local benchmarks AND all automated harnesses (vitest / `bun test` /
+ * integration / Playwright E2E) must never write to the developer's live
+ * `config/private.ts`, `config/collections`, `config/database`, or root
+ * `.compiledCollections` (outside `.compiledCollections/test-collections`).
  */
 function guardIsActive(): boolean {
   if (isLocalBenchmarkSandbox()) return true;
-  return isAutomatedTestHarness() && !isPlaywrightTest();
+  return isAutomatedTestHarness();
 }
 
 function isSameOrInside(target: string, root: string): boolean {
@@ -170,8 +167,8 @@ export function resolveCompiledCollectionsPath(tenantId?: string | null): string
 
 /**
  * Fail-closed guard: throws before writing to live developer trees during local
- * benchmarks, and to the live source collection tree during non-E2E automated
- * harnesses. Sandboxes and the test collection trees stay writable.
+ * benchmarks and automated test harnesses (`config/private.ts`, `config/collections`,
+ * `config/database`, and root `.compiledCollections` outside `test-collections`).
  */
 export function assertLiveDataWriteAllowed(targetPath: string): void {
   if (!guardIsActive()) return;
@@ -191,22 +188,27 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
     return;
   }
 
-  // 2. Allow the sanctioned test collection trees
-  const testCollections = path.join(process.cwd(), "config", "test-collections");
-  const legacyTestDir = path.join(process.cwd(), "config", "collections", "test");
+  // 2. Allow the sanctioned test collection, test database, and test compiled trees
+  const cwd = process.cwd();
+  const testCollections = path.join(cwd, "config", "test-collections");
+  const legacyTestDir = path.join(cwd, "config", "collections", "test");
+  const testDatabase = path.join(cwd, "config", "test-database");
+  const testCompiled = path.join(cwd, ".compiledCollections", "test-collections");
   if (
     isSameOrInside(normalizedTarget, testCollections) ||
-    isSameOrInside(normalizedTarget, legacyTestDir)
+    isSameOrInside(normalizedTarget, legacyTestDir) ||
+    isSameOrInside(normalizedTarget, testDatabase) ||
+    (!isLocalBenchmarkSandbox() && isSameOrInside(normalizedTarget, testCompiled))
   ) {
     return;
   }
 
-  // 3. Local benchmark — block every live root (unchanged behaviour)
+  // 3. Local benchmark — block every live root (including private.test.ts)
   if (isLocalBenchmarkSandbox()) {
     for (const root of getLiveRoots()) {
       if (isSameOrInside(normalizedTarget, root)) {
         throw new Error(
-          `[BenchmarkSandbox] SECURITY VIOLATION: Attempted write to live data at '${path.relative(process.cwd(), normalizedTarget)}'. ` +
+          `[BenchmarkSandbox] SECURITY VIOLATION: Attempted write to live data at '${path.relative(cwd, normalizedTarget)}'. ` +
             `Use sandbox paths under ${SANDBOX_COMPILED_ROOT} or ${SANDBOX_MEDIA_REL}.`,
         );
       }
@@ -214,14 +216,39 @@ export function assertLiveDataWriteAllowed(targetPath: string): void {
     return;
   }
 
-  // 4. Non-E2E automated harness — protect the live SOURCE collection tree.
-  //    Compiled output legitimately lands in `.compiledCollections` during tests,
-  //    so only the source root is guarded here.
+  // 4. Automated test harness (unit / integration / E2E):
+  //    Allow `config/private.test.ts` (and `config/private.ts` ONLY on ephemeral CI runners).
+  //    Block writes to live `config/private.ts`, `config/collections`, `config/database`,
+  //    and root `.compiledCollections` (outside `.compiledCollections/test-collections`).
+  const livePrivate = path.normalize(paths.privateConfigLive);
+  if (!isCiRunner() && isSameOrInside(normalizedTarget, livePrivate)) {
+    throw new Error(
+      `[BenchmarkSandbox] SECURITY VIOLATION: automated harness attempted to write live config/private.ts at '${path.relative(cwd, normalizedTarget)}'. ` +
+        "Tests must write config/private.test.ts only.",
+    );
+  }
+
   const liveSource = path.normalize(paths.collections);
   if (isSameOrInside(normalizedTarget, liveSource)) {
     throw new Error(
-      `[BenchmarkSandbox] SECURITY VIOLATION: automated harness attempted to write live collections at '${path.relative(process.cwd(), normalizedTarget)}'. ` +
+      `[BenchmarkSandbox] SECURITY VIOLATION: automated harness attempted to write live collections at '${path.relative(cwd, normalizedTarget)}'. ` +
         "Tests must write under config/test-collections (or config/collections/test).",
+    );
+  }
+
+  const liveDatabase = path.normalize(paths.database);
+  if (isSameOrInside(normalizedTarget, liveDatabase)) {
+    throw new Error(
+      `[BenchmarkSandbox] SECURITY VIOLATION: automated harness attempted to write live database directory at '${path.relative(cwd, normalizedTarget)}'. ` +
+        "Tests must write under config/test-database.",
+    );
+  }
+
+  const liveCompiled = path.normalize(paths.compiledCollections);
+  if (isSameOrInside(normalizedTarget, liveCompiled)) {
+    throw new Error(
+      `[BenchmarkSandbox] SECURITY VIOLATION: automated harness attempted to write live .compiledCollections at '${path.relative(cwd, normalizedTarget)}'. ` +
+        "Tests must compile under .compiledCollections/test-collections.",
     );
   }
 }

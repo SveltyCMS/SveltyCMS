@@ -14,8 +14,8 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-06",
-      "fingerprint": "03e28c33151b39e7ccc01569b442757ac2c3c78481bd69b957ec7676bc2dda26"
+      "reviewed_at": "2026-11-07",
+      "fingerprint": "4fa4bdef377a1510b6b0029a854f253f45b74692c1bd700ac4f50c8136c37f87"
     },
     {
       "id": "auth-session",
@@ -37,8 +37,8 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-06",
-      "fingerprint": "44f79f0b1fa22d9c4baaf827759a33e57030fc81ff0d4f424b9f030d77ca0c2b"
+      "reviewed_at": "2026-11-07",
+      "fingerprint": "1758e4c841e1dd89ab3552491719a9186db4ee6d346c5b6a950eeb500eab315a"
     },
     {
       "id": "content-write",
@@ -57,7 +57,7 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-06",
+      "reviewed_at": "2026-11-07",
       "fingerprint": "6508bea71482db5a8da84e7c2c6a259cce49926fe03ffd89efe2a359ba09b84d"
     },
     {
@@ -74,8 +74,8 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-06",
-      "fingerprint": "df9053ba886c982d5bcf5aa5c9646a76c0aa62cb599d21d38f9ff7e05d31c6b3"
+      "reviewed_at": "2026-11-07",
+      "fingerprint": "9c80a1d0b4c4dba1b9cf6c7badd6a924b0d1f18055cab129def8b68be2ddec3b"
     },
     {
       "id": "admin-pages",
@@ -90,7 +90,7 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-06",
+      "reviewed_at": "2026-11-07",
       "fingerprint": "46047ed9276f77eb8740b96804cecf4a65e05d91196400e305d03cfa62aedb62"
     },
     {
@@ -131,8 +131,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-06",
-      "fingerprint": "14f6697bb89992ff0a46639e386974080407c546884611b4c6c6d0d63301760e"
+      "reviewed_at": "2026-11-07",
+      "fingerprint": "25c4140bb2ce4b41a1806113cb47b567673a77e3555e91bfccdf1bb12374a27c"
     }
   ]
 }

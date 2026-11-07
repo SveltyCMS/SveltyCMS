@@ -263,7 +263,7 @@ function noteTransientDeferral(fullPath: string): void {
  * Scans the .compiledCollections directory for compiled schema files.
  */
 export async function scanCompiledCollections(targetDir?: string): Promise<Schema[]> {
-  const collectionsDir = targetDir || path.resolve(process.cwd(), ".compiledCollections");
+  const collectionsDir = targetDir || getCompiledCollectionsPath();
 
   let promise = _scanPromises.get(collectionsDir);
   if (promise) return promise;
@@ -393,9 +393,8 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             _mtimeTree.delete(file.fullPath);
             await unlink(file.fullPath).catch(() => {});
             // Touch the source .ts file to trigger Vite HMR recompilation
-            const tsPath = file.fullPath
-              .replace(".compiledCollections", "config/collections")
-              .replace(/\.js$/, ".ts");
+            const relBrokenJs = path.relative(collectionsDir, file.fullPath);
+            const tsPath = path.join(getCollectionsPath(), relBrokenJs.replace(/\.js$/, ".ts"));
             try {
               const now = new Date();
               await utimes(tsPath, now, now);
@@ -417,9 +416,8 @@ export async function scanCompiledCollections(targetDir?: string): Promise<Schem
             _schemaCache.delete(file.fullPath);
             _mtimeTree.delete(file.fullPath);
             await unlink(file.fullPath).catch(() => {});
-            const tsPath = file.fullPath
-              .replace(".compiledCollections", "config/collections")
-              .replace(/\.js$/, ".ts");
+            const relInvalidJs = path.relative(collectionsDir, file.fullPath);
+            const tsPath = path.join(getCollectionsPath(), relInvalidJs.replace(/\.js$/, ".ts"));
             try {
               const now = new Date();
               await utimes(tsPath, now, now);
@@ -1075,7 +1073,7 @@ export const contentService = {
     }
 
     // Always enrich before cache checks — ensures path is set regardless of hit/miss
-    const collectionsDir = path.resolve(process.cwd(), ".compiledCollections");
+    const collectionsDir = getCompiledCollectionsPath(tenantId);
     enrichSchemaWithMetadata(schema, fullPath, collectionsDir);
 
     const hash = generateSchemaHash(schema);
@@ -1445,7 +1443,7 @@ let _pendingFullReload = false;
 
 /** Initializes the file system watcher for the compiled collections directory. */
 export function startContentWatcher() {
-  const targetDir = path.resolve(process.cwd(), ".compiledCollections");
+  const targetDir = getCompiledCollectionsPath();
 
   // Idempotent: one watcher per process. Re-calls (per-tenant init, HMR re-entry)
   // must not stack duplicate listeners or leak the previous FSWatcher handle.

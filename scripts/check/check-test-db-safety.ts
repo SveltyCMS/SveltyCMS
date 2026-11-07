@@ -16,8 +16,9 @@
  * Manual: bun run scripts/check-test-db-safety.ts
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isLiveMediaFolder } from "../../src/utils/media/storage-adapters.ts";
 import {
   isConfigSourceSafeForTesting,
   isUnsafeLiveDeveloperDbName,
@@ -26,6 +27,66 @@ import {
 const ROOT = process.cwd();
 const TEST_CONFIG_PATH = join(ROOT, "config", "private.test.ts");
 const LIVE_CONFIG_PATH = join(ROOT, "config", "private.ts");
+const LIVE_COLLECTIONS_DIR = join(ROOT, "config", "collections");
+const LIVE_COMPILED_DIR = join(ROOT, ".compiledCollections");
+const LIVE_DATABASE_DIR = join(ROOT, "config", "database");
+
+// 1. Guard MEDIA_FOLDER in test mode
+if (
+  (process.env.TEST_MODE === "true" || process.env.PLAYWRIGHT_TEST === "true") &&
+  process.env.MEDIA_FOLDER &&
+  isLiveMediaFolder(process.env.MEDIA_FOLDER)
+) {
+  console.error(
+    `❌ MEDIA_FOLDER='${process.env.MEDIA_FOLDER}' points at the live developer media directory under test mode. ` +
+      "Tests must use an isolated media directory (e.g. tests/integration/.media or tests/e2e/.media).",
+  );
+  process.exit(1);
+}
+
+// 2. Guard live config/collections against test/benchmark debris
+if (existsSync(LIVE_COLLECTIONS_DIR)) {
+  const leakedFiles = readdirSync(LIVE_COLLECTIONS_DIR).filter((name) =>
+    /^(mock_collection_|bench_|benchmark_)/i.test(name),
+  );
+  if (leakedFiles.length > 0) {
+    console.error(
+      `❌ Live config/collections/ contains test/benchmark artifacts: ${leakedFiles.join(", ")}. ` +
+        "Test collections belong in config/test-collections/ only.",
+    );
+    process.exit(1);
+  }
+}
+
+// 3. Guard live .compiledCollections root against test/benchmark debris
+if (existsSync(LIVE_COMPILED_DIR)) {
+  const leakedCompiled = readdirSync(LIVE_COMPILED_DIR).filter((name) =>
+    /^(mock_collection_|bench_|benchmark_|\.loader-test-)/i.test(name),
+  );
+  if (leakedCompiled.length > 0) {
+    console.error(
+      `❌ Live .compiledCollections/ root contains test/benchmark artifacts: ${leakedCompiled.join(", ")}. ` +
+        "Test compiled collections belong in .compiledCollections/test-collections/ only.",
+    );
+    process.exit(1);
+  }
+}
+
+// 4. Guard live config/database against test/benchmark SQLite DBs
+if (existsSync(LIVE_DATABASE_DIR)) {
+  const leakedDbs = readdirSync(LIVE_DATABASE_DIR).filter((name) => {
+    if (!/\.(sqlite|db)(-wal|-shm)?$/i.test(name)) return false;
+    const stem = name.replace(/\.(sqlite|db)(-wal|-shm)?$/i, "");
+    return isUnsafeLiveDeveloperDbName(stem);
+  });
+  if (leakedDbs.length > 0) {
+    console.error(
+      `❌ Live config/database/ contains isolated test/benchmark database file(s): ${leakedDbs.join(", ")}. ` +
+        "Test databases belong in config/test-database/ only.",
+    );
+    process.exit(1);
+  }
+}
 
 let liveDbName: string | undefined;
 

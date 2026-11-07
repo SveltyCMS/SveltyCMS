@@ -131,3 +131,54 @@ describe("expandSyntheticEdges", () => {
     expect(result).toEqual(["src/utils/slugify.ts"]);
   });
 });
+
+describe("mapChangedFileToIntegrationPaths", () => {
+  test("narrows media changes to media integration contracts + share-password route test", async () => {
+    const { mapChangedFileToIntegrationPaths } =
+      await import("../../../scripts/runs/run-integration.ts");
+    const paths = mapChangedFileToIntegrationPaths("src/utils/media/sharing.ts");
+    expect(paths).toContain("tests/integration/routes/share-password.test.ts");
+    expect(paths).toContain("tests/integration/api/media.test.ts");
+    expect(paths).not.toContain("tests/integration/databases/");
+    expect(paths).not.toContain("tests/integration/api/");
+  });
+
+  test("narrows adapter-specific changes to that adapter and core parity contracts", async () => {
+    const { mapChangedFileToIntegrationPaths } =
+      await import("../../../scripts/runs/run-integration.ts");
+    const paths = mapChangedFileToIntegrationPaths("src/databases/sqlite/modules/crud.ts");
+    expect(paths).toEqual([
+      "tests/integration/databases/sqlite-adapter.test.ts",
+      "tests/integration/databases/contract.test.ts",
+      "tests/integration/databases/adapter-parity.test.ts",
+    ]);
+  });
+
+  test("widens harness changes to the full integration suite", async () => {
+    const { mapChangedFileToIntegrationPaths } =
+      await import("../../../scripts/runs/run-integration.ts");
+    expect(mapChangedFileToIntegrationPaths("scripts/runs/integration-harness.ts")).toEqual([
+      "tests/integration/",
+    ]);
+  });
+});
+
+describe("mutate-core diff filtering & target listing", () => {
+  test("filters mutations by changed target file or mapped unit test", async () => {
+    const { filterChangedMutations, listTargetFiles, MUTATIONS, SECURITY_TARGETS } =
+      await import("../../../scripts/test/mutate-core.ts");
+    const pool = [...MUTATIONS, ...SECURITY_TARGETS];
+    const targets = listTargetFiles(pool);
+    expect(targets.length).toBeGreaterThan(5);
+
+    const sample = pool[0];
+    const bySource = filterChangedMutations(pool, new Set([sample.file]));
+    expect(bySource.some((m) => m.id === sample.id)).toBe(true);
+
+    const byTest = filterChangedMutations(pool, new Set([sample.tests[0]]));
+    expect(byTest.some((m) => m.id === sample.id)).toBe(true);
+
+    const unrelated = filterChangedMutations(pool, new Set(["docs/README.md"]));
+    expect(unrelated).toEqual([]);
+  });
+});

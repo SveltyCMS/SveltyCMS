@@ -158,6 +158,10 @@ export class CacheWarmingService {
       // it is expected teardown noise, not a cache failure.
       if (err instanceof Error && err.message.includes("Vite module runner has been closed")) {
         logger.debug("[CacheWarming] Skipped: dev module runner closed during reload/shutdown");
+        // The timer belongs to the old module graph. Stop it now instead of
+        // retrying every 4 minutes against a closed runner; the next HMR
+        // evaluation installs a fresh singleton.
+        this.dispose();
       } else {
         logger.error("Failed to warm cache", err);
       }
@@ -416,8 +420,30 @@ export class CacheWarmingService {
   }
 }
 
+/**
+ * HMR handoff: Vite re-evaluates this module without necessarily disposing the
+ * graph that imported it (DB init holds the service). The previous instance's
+ * 4-minute interval would then outlive the module runner and log a spurious
+ * "Failed to warm cache". Keep the singleton on a caller-provided store so the
+ * new evaluation can reach — and dispose — its predecessor before installing.
+ * Exported for the HMR regression test; production uses `globalThis`.
+ */
+export function installCacheWarmingSingleton(
+  store: { __sveltyCacheWarmingService?: CacheWarmingService },
+  create: () => CacheWarmingService = () => new CacheWarmingService(),
+): CacheWarmingService {
+  store.__sveltyCacheWarmingService?.dispose();
+  const instance = create();
+  store.__sveltyCacheWarmingService = instance;
+  return instance;
+}
+
+const globalStore = globalThis as typeof globalThis & {
+  __sveltyCacheWarmingService?: CacheWarmingService;
+};
+
 // Instance export expected by db-init
-export const cacheWarmingService = new CacheWarmingService();
+export const cacheWarmingService = installCacheWarmingSingleton(globalStore);
 
 // Teardown hooks: clear timers before Vite closes the module runner (HMR) or the
 // process exits, so a late warm can never log "Failed to warm cache".

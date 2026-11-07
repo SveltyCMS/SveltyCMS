@@ -44,7 +44,8 @@ export const RESOLVER_FILES: ReadonlySet<string> = new Set([
   "src/utils/benchmark-runtime.ts",
 ]);
 
-const LIVE_PATH = /\b(?:paths\.(?:collections|database)|DEFAULT_DATABASE_DIR)\b/;
+const LIVE_PATH =
+  /\b(?:paths\.(?:collections|database|compiledCollections|privateConfigLive)|DEFAULT_DATABASE_DIR)\b/;
 
 function isComment(line: string): boolean {
   const trimmed = line.trimStart();

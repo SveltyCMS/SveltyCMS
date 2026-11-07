@@ -73,15 +73,24 @@ export interface SchemaLoadResult {
 
 // ─── Path security ───────────────────────────────────────────────────────────
 
-let _pathBases: { compiledBase: string; collectionsBase: string } | null = null;
+let _pathBases: {
+  compiledBase: string;
+  collectionsBase: string;
+  testCollectionsBase: string;
+} | null = null;
 
 /** Lazily resolved confinement roots — never recomputed per schema file. */
-function getPathBases(): { compiledBase: string; collectionsBase: string } {
+function getPathBases(): {
+  compiledBase: string;
+  collectionsBase: string;
+  testCollectionsBase: string;
+} {
   if (!_pathBases) {
     const cwd = path.resolve(process.cwd());
     _pathBases = {
       compiledBase: path.join(cwd, ".compiledCollections").toLowerCase(),
       collectionsBase: path.join(cwd, "config", "collections").toLowerCase(),
+      testCollectionsBase: path.join(cwd, "config", "test-collections").toLowerCase(),
     };
   }
   return _pathBases;
@@ -90,13 +99,16 @@ function getPathBases(): { compiledBase: string; collectionsBase: string } {
 /** Validates that a schema file path is safe to load (no traversal, correct extension). */
 export function isSafeCollectionPath(fullPath: string): boolean {
   const resolved = path.resolve(fullPath).toLowerCase();
-  const { compiledBase, collectionsBase } = getPathBases();
+  const { compiledBase, collectionsBase, testCollectionsBase } = getPathBases();
 
   if (resolved.startsWith(compiledBase) && resolved.endsWith(".js")) {
     return true;
   }
 
-  if (resolved.startsWith(collectionsBase) && resolved.endsWith(".ts")) {
+  if (
+    (resolved.startsWith(collectionsBase) || resolved.startsWith(testCollectionsBase)) &&
+    resolved.endsWith(".ts")
+  ) {
     return true;
   }
 

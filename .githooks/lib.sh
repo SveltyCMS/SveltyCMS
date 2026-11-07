@@ -46,21 +46,26 @@ trap cleanup_on_interrupt INT TERM
 get_estimate_sec() {
   local label="$1"
   case "$label" in
-    *Database*safety*)  echo 2  ;;
-    *Format*|*lint*)    echo 3  ;;
+    *Database*safety*)  echo 1  ;;
+    *Format*|*lint*|*Quality*) echo 8 ;;
     *SBOM*)             echo 2  ;;
-    *Lint-staged*)      echo 3  ;;
-    *Unit*)             echo 35 ;;
+    *Lint-staged*)      echo 2  ;;
+    *Risk*audit*)       echo 10 ;;
+    *Unit*coverage*)    echo 35 ;;
+    *Unit*)             echo 25 ;;
     *Component*)        echo 4  ;;
     *Secret*)           echo 3  ;;
     *Tenant*)           echo 5  ;;
     *Backdoor*|*Probe*) echo 3  ;;
-    *Release*)         echo 5  ;;
-    *Bundle*)          echo 3  ;;
-    *Build*|*build*)    echo 90 ;;
-    *Integration*)      echo 150 ;;
-    *Parity*)            echo 300 ;;
-    *)                  echo 30 ;;
+    *Release*)          echo 2  ;;
+    *Bundle*)           echo 2  ;;
+    *Flake*)            echo 1  ;;
+    *Mutation*)         echo 15 ;;
+    *Build*|*build*)    echo 60 ;;
+    *Integration*)      echo 45 ;;
+    *E2E*)              echo 60 ;;
+    *Parity*)           echo 120 ;;
+    *)                  echo 20 ;;
   esac
 }
 
@@ -106,8 +111,14 @@ run() {
   "$@" > "$outfile" 2>&1 &
   CURRENT_CHILD_PID=$!
 
+  local ticks=0
   while kill -0 "$CURRENT_CHILD_PID" 2>/dev/null; do
-    sleep 1
+    if [ "$ticks" -lt 5 ]; then
+      sleep 0.2 2>/dev/null || sleep 1
+      ticks=$((ticks + 1))
+    else
+      sleep 1
+    fi
     local now
     now=$(date +%s 2>/dev/null || echo 0)
     local elapsed=$(( now - start_s ))

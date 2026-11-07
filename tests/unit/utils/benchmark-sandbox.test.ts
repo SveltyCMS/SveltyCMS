@@ -173,4 +173,47 @@ describe("benchmark-sandbox", () => {
       sandbox.assertLiveDataWriteAllowed(path.join(ROOT, "test-config-sync", "export_global_1")),
     ).not.toThrow();
   });
+
+  it("blocks writes to live private.ts, database, collections, and .compiledCollections under automated test harnesses (including Playwright)", () => {
+    vi.stubEnv("BENCHMARK", "");
+    vi.stubEnv("CI", "");
+    vi.stubEnv("GITHUB_ACTIONS", "");
+    vi.stubEnv("TEST_MODE", "true");
+    vi.stubEnv("PLAYWRIGHT_TEST", "1");
+
+    // Live paths MUST throw
+    expect(() => sandbox.assertLiveDataWriteAllowed(PRIVATE_TS)).toThrow(/SECURITY VIOLATION/);
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(path.join(ROOT, "config", "database", "sveltycms.sqlite")),
+    ).toThrow(/SECURITY VIOLATION/);
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(path.join(ROOT, "config", "collections", "pages.ts")),
+    ).toThrow(/SECURITY VIOLATION/);
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(path.join(ROOT, ".compiledCollections", "pages.js")),
+    ).toThrow(/SECURITY VIOLATION/);
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(
+        path.join(ROOT, ".compiledCollections", ".compilation-manifest.json"),
+      ),
+    ).toThrow(/SECURITY VIOLATION/);
+
+    // Isolated test paths MUST succeed
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(path.join(ROOT, "config", "private.test.ts")),
+    ).not.toThrow();
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(
+        path.join(ROOT, "config", "test-database", "sveltycms_test.sqlite"),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(path.join(ROOT, "config", "test-collections", "pages.ts")),
+    ).not.toThrow();
+    expect(() =>
+      sandbox.assertLiveDataWriteAllowed(
+        path.join(ROOT, ".compiledCollections", "test-collections", "pages.js"),
+      ),
+    ).not.toThrow();
+  });
 });

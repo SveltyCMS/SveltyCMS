@@ -218,6 +218,22 @@ function _resolveMediaRoot(): string {
   return resolve(process.cwd(), relative);
 }
 
+/**
+ * Resolve a stored media path under the configured root without re-rooting an
+ * absolute harness path. `path.resolve` already handles an absolute root;
+ * stripping its leading `/` first turned `/home/runner/.../.media` into a
+ * cwd-relative `home/runner/...` and 404'd every share download on Linux CI.
+ */
+export function resolveMediaPathUnderRoot(mediaFolder: string, storedPath = ""): string {
+  const trimmed = (mediaFolder || "mediaFolder").trim().replace(/^\.\//, "");
+  const root =
+    isAbsolute(trimmed) || trimmed.startsWith("/")
+      ? resolve(process.cwd(), trimmed)
+      : resolve(process.cwd(), trimmed.replace(/^\/+|\/+$/g, ""));
+  const cleanStored = storedPath.replace(/^\/files\//, "").replace(/^\/+/, "");
+  return cleanStored ? resolve(root, cleanStored) : root;
+}
+
 /** 🔒 Validate a stored path doesn't escape the media root. */
 function _safeResolve(storedPath: string): string | null {
   // Rows store storage-relative paths (`{tenant}/{hash}/original/…`), but legacy

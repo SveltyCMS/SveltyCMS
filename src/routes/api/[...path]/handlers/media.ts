@@ -30,6 +30,7 @@ import {
   createBulkArchive,
   streamArchive,
   cleanupArchive,
+  resolveMediaPathUnderRoot,
   type ShareLink,
 } from "@src/utils/media/sharing";
 import { hashSharePassword, verifySharePassword } from "@src/utils/media/share-link-hash.server";
@@ -1172,16 +1173,17 @@ export async function handleMediaShareDownload(
     });
   }
 
-  const normalizedFolder = mediaFolder.replace(/^\.\//, "").replace(/^\/+/, "");
   // `path.resolve` (not `join`) so an absolute harness `MEDIA_FOLDER`
-  // (`tests/integration/.media`, E2E) resolves instead of being appended to cwd.
-  const fullPath = path.resolve(process.cwd(), normalizedFolder, item.path);
+  // (`/home/runner/.../tests/integration/.media`, E2E) resolves instead of being
+  // appended to cwd. Do NOT strip a leading slash here — that re-rooted the
+  // absolute Linux harness path under cwd and 404'd every share download.
+  const fullPath = resolveMediaPathUnderRoot(mediaFolder, item.path);
 
   // 🛡️ Defense-in-depth: mirror the LocalStorageAdapter guard. item.path is
   // normally written only via buildOriginalRelPath (which the upload path
   // constrains), but legacy rows / direct DB edits must not turn this
   // download endpoint into a file-read primitive outside the media root.
-  const mediaRootFull = path.resolve(process.cwd(), normalizedFolder) + path.sep;
+  const mediaRootFull = resolveMediaPathUnderRoot(mediaFolder) + path.sep;
   if (!path.resolve(fullPath).startsWith(mediaRootFull)) {
     throw new AppError("Invalid media path", 400, "BAD_REQUEST");
   }

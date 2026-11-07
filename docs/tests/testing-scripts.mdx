@@ -72,33 +72,32 @@ scripts/
 >
 > The earlier opt-in policy (2026-10-23) was reverted after two green-local/red-CI Unit runs; the hooks now catch what the CI reporter caught.
 
-### `.githooks/pre-commit` — Check → Risk → Unit → Components (~2 min)
+### `.githooks/pre-commit` (Stage 1) — Safety → Lint-Staged → Check → Risk → Unit (~35–45s)
 
 Runs before every commit. Steps:
 
-1. **Database safety** — `scripts/check/check-test-db-safety.ts`
-2. **Format + lint + typecheck** — `bun run check`
-3. **Lint-staged** — `bun run gate:fast`
+1. **Database & live-config safety** — `scripts/check/check-test-db-safety.ts`
+2. **Lint-staged** — `bun run gate:fast` (formats staged files before `check` runs)
+3. **Quality Gate (`check`)** — `bun run check` (`oxfmt --check` + `oxlint` + custom guards + `svelte-kit sync` + `tsc` + `svelte-check`)
 4. **Risk audit** — `bun run risk:audit` (skipped for docs-only changes)
-5. **Unit tests** — `vitest run` (skipped for docs-only changes)
-6. **Component interactions** — `bun run test:unit:components` (real jsdom mounts)
-7. **Backend changes only** — harness build + `run-integration.ts --no-build --diff`
-8. **SBOM sync** — when `bun.lock` / `package.json` changed
+5. **Unit tests** — `node ./node_modules/vitest/vitest.mjs run` (skipped for docs-only changes)
+6. **Component interactions (conditional)** — `bun run test:unit:components` (runs when `.svelte` or UI/component/route/widget/store files are staged)
+7. **SBOM sync** — when `bun.lock` / `package.json` changed
 
-### `.githooks/pre-push` — CI unit parity → build → integration → browser → mutation (~5–6 min)
+### `.githooks/pre-push` (Stage 2) — Smart Build → CI Unit Parity → Integration → Browser → Changed Mutations (~3–6 min)
 
 Runs before every push, in this order:
 
-1. **Production build** — `COMPILE_ALL_ADAPTERS=true bun run build`
-2. **Build verifiers** — prod-backdoor probe + bundle-size gate
-3. **Quality Gate** — `bun run check`
-4. **CI Unit parity** — `test:unit:coverage` + `test:unit:components`
-5. **Release readiness** — `bun run version:verify`
+1. **Database & live-config safety** — `scripts/check/check-test-db-safety.ts`
+2. **Production build (smart reuse)** — `scripts/runs/integration-harness.ts --ensure-build` (reuses `build/` if fresh and `/api/testing`-enabled; rebuilds with `COMPILE_ALL_ADAPTERS=true` when stale)
+3. **Build verifiers** — prod-backdoor probe + bundle-size gate
+4. **Quality Gate** — `bun run check` (includes `version:verify` and `security:assurance`)
+5. **CI Unit parity** — `test:coverage` (`test:unit:coverage` + `test:coverage:budget`) + `test:unit:components`
 6. **Security/policy** — `bun audit`, `scan-secret-misuse --strict --full`, hardware probe, `lint:tenant -- --full` + `test:tenant`, deploy-backdoor probe
-7. **SQLite integration** — `run-integration.ts --no-build --diff` (full suite when no diff mapping)
+7. **SQLite integration** — `run-integration.ts --no-build --diff` (full suite when no diff mapping or when harness/helpers changed)
 8. **DB parity** — only when adapter/service code changed (plus a non-UTC clock run)
 9. **Browser gate** — `smoke.spec.ts` plus the changed-path accessibility, visual, behavioural and media-server specs (identical mapping on `next` and `main`); then `check-flake-budget.ts --max-flaky=0`
-10. **Mutation** — `test:mutation` runs **last**; it rewrites source files, restores them atomically, and the hook restores a dirty target from HEAD as a second line of defence
+10. **Mutation** — `scripts/test/mutate-core.ts --changed` runs **last** (`FULL_MUTATION=true` runs all 31 seams); it dynamically queries `--list-targets`, rewrites affected source files, restores them atomically, and the hook restores any dirty target from HEAD as a second line of defence
 
 ### Full DB Matrix (Local Pre-CI) — ~8 min
 

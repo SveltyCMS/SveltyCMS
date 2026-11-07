@@ -10,7 +10,10 @@
 import { generateSecureToken } from "@utils/native-utils";
 import type { DatabaseConfig } from "@src/databases/schemas";
 import { logger } from "@utils/logger";
-import { resolvePrivateConfigFileName } from "@utils/private-config-policy";
+import {
+  assertLocalMustNotMutatePrivateTs,
+  resolvePrivateConfigFileName,
+} from "@utils/private-config-policy";
 
 /**
  * Writes bootstrap-only credentials and security keys to private.ts
@@ -25,6 +28,10 @@ export async function writePrivateConfig(
 
   // Support automated test harness for isolated testing
   const configFileName = resolvePrivateConfigFileName();
+  if (configFileName === "private.ts") {
+    const { isAutomatedTestHarness } = await import("@utils/private-config-policy");
+    if (isAutomatedTestHarness()) assertLocalMustNotMutatePrivateTs("write");
+  }
   const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
 
   const { isLocalBenchmarkSandbox, assertLiveDataWriteAllowed } =
@@ -163,7 +170,13 @@ export async function updatePrivateConfigMode(modes: {
 
   // Support automated test harness for isolated testing
   const configFileName = resolvePrivateConfigFileName();
+  if (configFileName === "private.ts") {
+    const { isAutomatedTestHarness } = await import("@utils/private-config-policy");
+    if (isAutomatedTestHarness()) assertLocalMustNotMutatePrivateTs("update");
+  }
   const privateConfigPath = path.resolve(process.cwd(), "config", configFileName);
+  const { assertLiveDataWriteAllowed } = await import("@utils/benchmark-sandbox");
+  assertLiveDataWriteAllowed(privateConfigPath);
 
   try {
     logger.debug("DEBUG: [updatePrivateConfigMode] CALLED with:", JSON.stringify(modes));

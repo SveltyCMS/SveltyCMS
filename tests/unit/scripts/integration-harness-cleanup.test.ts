@@ -82,6 +82,9 @@ describe("integration harness cleanup — live folder protection", () => {
     });
     mkdirSync(join(root, "config", "iso-tenant-a", "test-collections"), { recursive: true });
     mkdirSync(join(root, "config", "iso-tenant-b", "test-collections"), { recursive: true });
+    // Empty live/customer tenant directories must NEVER be pruned even if they contain "tenant-"
+    mkdirSync(join(root, "config", "customer-tenant-1"), { recursive: true });
+    mkdirSync(join(root, "config", "tenant-prod"), { recursive: true });
 
     cleanupTestArtifacts(root);
 
@@ -89,6 +92,8 @@ describe("integration harness cleanup — live folder protection", () => {
     expect(existsSync(join(root, "config", "tenant-42"))).toBe(false);
     expect(existsSync(join(root, "config", "iso-tenant-a"))).toBe(false);
     expect(existsSync(join(root, "config", "iso-tenant-b"))).toBe(false);
+    expect(existsSync(join(root, "config", "customer-tenant-1"))).toBe(true);
+    expect(existsSync(join(root, "config", "tenant-prod"))).toBe(true);
     expect(
       existsSync(join(root, "config", "global", "collections", "live-category", "posts.ts")),
     ).toBe(true);

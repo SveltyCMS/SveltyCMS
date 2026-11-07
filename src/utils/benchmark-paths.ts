@@ -97,8 +97,15 @@ export async function cleanupAllBenchmarkWorkspaces(): Promise<number> {
     paths.isSafe(BENCHMARK_COMPILED_DIR, BENCHMARK_COMPILED_DIR) ||
     BENCHMARK_COMPILED_DIR.includes("test")
   ) {
-    await safeRemove(BENCHMARK_COMPILED_DIR);
-    await fs.mkdir(BENCHMARK_COMPILED_DIR, { recursive: true }).catch(() => {});
+    try {
+      const entries = await fs.readdir(BENCHMARK_COMPILED_DIR);
+      for (const entry of entries) {
+        if (entry.startsWith(".loader-test-")) continue;
+        await safeRemove(path.join(BENCHMARK_COMPILED_DIR, entry));
+      }
+    } catch {
+      await fs.mkdir(BENCHMARK_COMPILED_DIR, { recursive: true }).catch(() => {});
+    }
   }
   if (
     paths.isSafe(BENCHMARK_COLLECTIONS_DIR, BENCHMARK_COLLECTIONS_DIR) ||
@@ -106,9 +113,6 @@ export async function cleanupAllBenchmarkWorkspaces(): Promise<number> {
   ) {
     await safeRemove(BENCHMARK_COLLECTIONS_DIR);
     await fs.mkdir(BENCHMARK_COLLECTIONS_DIR, { recursive: true }).catch(() => {});
-  }
-  for (const legacy of LEGACY_COMPILED_BENCHMARK_DIRS) {
-    await safeRemove(path.join(USER_COMPILED_DIR, legacy));
   }
   return removed;
 }

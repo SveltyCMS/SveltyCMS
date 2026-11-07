@@ -27,6 +27,7 @@ import type {
 import { safeFetch } from "../../utils/egress-guard";
 import { isCleanRequestSurface, splitRequestUrl } from "./threat-scan";
 import { nowISODateString } from "@utils/date";
+import { resolveActiveDatabaseDir } from "@utils/benchmark-db-purge";
 
 // ============================================================================
 // CONSTANTS & POLICIES
@@ -133,7 +134,9 @@ export class SecurityResponseService {
   private readonly limiters = new Map<string, TokenBucketConfig>();
   private readonly lastAlertTime = new Map<string, number>();
   private readonly ALERT_COOLDOWN = 5 * 60 * 1000;
-  private readonly DUMP_PATH = path.resolve(process.cwd(), "config/database/security_rl_dump.json");
+  private get dumpPath(): string {
+    return path.join(resolveActiveDatabaseDir(), "security_rl_dump.json");
+  }
 
   constructor() {
     this.policies = [...DEFAULT_POLICIES];
@@ -761,8 +764,9 @@ export class SecurityResponseService {
     if (count === 0) return;
 
     try {
-      fs.mkdirSync(path.dirname(this.DUMP_PATH), { recursive: true });
-      fs.writeFileSync(this.DUMP_PATH, JSON.stringify(data), "utf8");
+      const targetDump = this.dumpPath;
+      fs.mkdirSync(path.dirname(targetDump), { recursive: true });
+      fs.writeFileSync(targetDump, JSON.stringify(data), "utf8");
       logger.info(`[Security] Rate limiter state dumped synchronously (${count} buckets)`);
     } catch (err) {
       logger.error("[Security] Failed to dump rate limiter state", err);
@@ -777,16 +781,17 @@ export class SecurityResponseService {
   private restoreStateSync(): void {
     if (building) return;
     try {
-      if (!fs.existsSync(this.DUMP_PATH)) return;
+      const targetDump = this.dumpPath;
+      if (!fs.existsSync(targetDump)) return;
 
-      const raw = fs.readFileSync(this.DUMP_PATH, "utf8");
+      const raw = fs.readFileSync(targetDump, "utf8");
       const data = JSON.parse(raw) as Record<string, TokenBucketState>;
       const count = Object.keys(data).length;
       if (count > 0) {
         memoryStore.restore(data);
         logger.info(`[Security] Rate limiter state loaded (${count} pending restores)`);
       }
-      fs.unlinkSync(this.DUMP_PATH);
+      fs.unlinkSync(targetDump);
     } catch (err) {
       logger.error("[Security] Failed to restore rate limiter state", err);
     }

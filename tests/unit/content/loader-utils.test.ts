@@ -32,9 +32,11 @@ function compiledPath(name: string): string {
 }
 
 beforeAll(async () => {
-  // Real confinement root: nested under <cwd>/.compiledCollections (gitignored),
-  // exactly like the production scanner's target directory.
-  tempDir = await fsPromises.mkdtemp(path.join(CWD, ".compiledCollections", ".loader-test-"));
+  // Real confinement root: nested under <cwd>/.compiledCollections/test-collections
+  // (never root .compiledCollections, which belongs to live user data).
+  const testCompiledRoot = path.join(CWD, ".compiledCollections", "test-collections");
+  await fsPromises.mkdir(testCompiledRoot, { recursive: true });
+  tempDir = await fsPromises.mkdtemp(path.join(testCompiledRoot, ".loader-test-"));
   await fsPromises.writeFile(
     compiledPath("posts.js"),
     `export const schema = {

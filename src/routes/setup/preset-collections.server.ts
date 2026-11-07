@@ -76,6 +76,8 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
   // completion (including the E2E wizard) must purge the directory it is about
   // to write to, or it deletes the developer's real collection files.
   const sourceDir = options?.collectionsDir ?? paths.getCollections();
+  assertHarnessCollectionsWritable(sourceDir);
+  const compiledDir = isAutomatedTestHarness() ? paths.getCompiledCollections() : USER_COMPILED_DIR;
 
   let removed = await cleanupAllBenchmarkWorkspaces();
 
@@ -109,7 +111,7 @@ export async function purgeBenchmarkCollectionArtifacts(options?: {
   }
 
   await purgeRootArtifacts(sourceDir, !!options?.wipeAllSource);
-  await purgeRootArtifacts(USER_COMPILED_DIR, false);
+  await purgeRootArtifacts(compiledDir, false);
 
   const { purgeBenchmarkDatabaseArtifacts } = await import("@utils/benchmark-db-purge");
   const dbResult = await purgeBenchmarkDatabaseArtifacts();
@@ -373,9 +375,7 @@ export async function writePresetCollectionFiles(
 
   try {
     const { compile } = await import("@utils/compilation/compile");
-    const compiledDir = options.tenantId
-      ? getCompiledCollectionsPath(options.tenantId)
-      : path.resolve(process.cwd(), ".compiledCollections");
+    const compiledDir = getCompiledCollectionsPath(options.tenantId);
     await compile({
       userCollections: dir,
       compiledCollections: compiledDir,

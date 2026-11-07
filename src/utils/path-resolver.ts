@@ -82,9 +82,20 @@ export const paths = {
     return tenantId ? path.join(cwd(), baseDir, tenantId) : path.join(cwd(), baseDir, "global");
   },
 
-  /** Compiled collections output directory */
+  /** Compiled collections output directory (live root) */
   get compiledCollections(): string {
     return path.join(cwd(), ".compiledCollections");
+  },
+
+  /**
+   * Test-aware compiled collections output directory.
+   * Automated harnesses resolve under `.compiledCollections/test-collections/`.
+   */
+  getCompiledCollections: (): string => {
+    const isTestHarness = isAutomatedTestHarness();
+    return isTestHarness
+      ? path.join(cwd(), ".compiledCollections", "test-collections")
+      : path.join(cwd(), ".compiledCollections");
   },
 
   /** Database directory */

@@ -8,8 +8,11 @@
  * "Failed to warm cache: Vite module runner has been closed".
  */
 
-import { describe, expect, it } from "vitest";
-import { CacheWarmingService } from "@src/databases/cache/cache-warming-service";
+import { describe, expect, it, vi } from "vitest";
+import {
+  CacheWarmingService,
+  installCacheWarmingSingleton,
+} from "@src/databases/cache/cache-warming-service";
 
 describe("CacheWarmingService shutdown", () => {
   it("does not warm after dispose", async () => {
@@ -27,5 +30,19 @@ describe("CacheWarmingService shutdown", () => {
     service.dispose();
 
     await expect(service.warmCriticalPaths({})).resolves.toBe(false);
+  });
+
+  it("disposes the previous singleton before installing the next (HMR handoff)", () => {
+    const first = new CacheWarmingService();
+    const store: { __sveltyCacheWarmingService?: CacheWarmingService } = {
+      __sveltyCacheWarmingService: first,
+    };
+    const dispose = vi.spyOn(first, "dispose");
+
+    const second = installCacheWarmingSingleton(store);
+
+    expect(second).not.toBe(first);
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(store.__sveltyCacheWarmingService).toBe(second);
   });
 });

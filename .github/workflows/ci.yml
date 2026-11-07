@@ -775,22 +775,32 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-v2-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          key: playwright-v3-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
           restore-keys: |
-            playwright-v2-${{ runner.os }}-
+            playwright-v3-${{ runner.os }}-
           fail-on-cache-miss: false
 
-      - name: Ensure Chromium system libraries
-        timeout-minutes: 2
+      - name: Ensure Playwright Chromium
+        timeout-minutes: 3
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          # Playwright's headless runner uses `chrome-headless-shell`, a separate
+          # download from the full `chrome` binary. A cache created by an older
+          # install can contain one without the other; verify both.
+          headless_bin="$(find ~/.cache/ms-playwright -type f -name chrome-headless-shell 2>/dev/null | head -1)"
           browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
-          if [ -n "$browser_bin" ] && ! ldd "$browser_bin" 2>/dev/null | grep -q 'not found'; then
-            echo "✅ Chromium shared libraries already present — skipping apt."
+          if [ -z "$headless_bin" ] || [ -z "$browser_bin" ]; then
+            echo "⚠️ Chromium or headless shell missing — installing Chromium."
+            timeout 110 bun x playwright install chromium
+            headless_bin="$(find ~/.cache/ms-playwright -type f -name chrome-headless-shell 2>/dev/null | head -1)"
+            browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
+          fi
+          if [ -n "$browser_bin" ] && [ -n "$headless_bin" ] && ! ldd "$browser_bin" "$headless_bin" 2>/dev/null | grep -q 'not found'; then
+            echo "✅ Chromium and headless-shell shared libraries already present — skipping apt."
             exit 0
           fi
-          echo "⚠️ Missing shared libraries (or no cached browser) — installing."
+          echo "⚠️ Missing shared libraries — installing Chromium with deps."
           timeout 110 bun x playwright install --with-deps chromium
 
       - name: Save Playwright Browsers cache
@@ -862,8 +872,11 @@ jobs:
       - name: Run E2E Wizard Setup
         run: bun x playwright test --project=wizard
 
+      - name: Run E2E Firstuser Setup
+        run: bun x playwright test --project=firstuser --no-deps
+
       - name: Run E2E Auth Setup
-        run: bun x playwright test --project=auth-setup
+        run: bun x playwright test --project=auth-setup --no-deps
 
       # Fail closed: empty admin.json (CSRF-only / no auth_sessions) poisons every chromium shard
       # with missing page-title and 401s. Catch it here instead of after 15 min of flaky retries.
@@ -900,7 +913,9 @@ jobs:
           sleep 2
 
       - name: Archive E2E Environment (single artifact)
-        run: tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/ config/test-database/ config/collections/
+        run: |
+          mkdir -p config/test-collections .compiledCollections/test-collections
+          tar --zstd -cf e2e-env.tar.zst build/ .svelte-kit/ src/paraglide/ tests/e2e/.auth/ config/private.ts config/private.test.ts config/database/ config/test-database/ config/collections/ config/test-collections/ .compiledCollections/
 
       - uses: actions/upload-artifact@v7
         with:
@@ -976,27 +991,36 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-v2-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          key: playwright-v3-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
           restore-keys: |
-            playwright-v2-${{ runner.os }}-
+            playwright-v3-${{ runner.os }}-
           fail-on-cache-miss: false
 
-      - name: Ensure Chromium system libraries
+      - name: Ensure Playwright Chromium
         # The runner image already ships Chrome's shared-library set. Installing
         # them unconditionally put every shard on the same apt mirror at once:
         # two shards sat in `install-deps` for 9m30s / 9m50s while the others took
         # 12-20s — about 80% of those jobs' wall clock, with no extra test run.
-        # Probe the cached binary with ldd first; only pay for apt on a miss.
-        timeout-minutes: 2
+        # Probe the cached binaries with ldd first; only pay for apt on a miss.
+        # The headless shell is a separate download from full Chrome, so check it
+        # explicitly before skipping.
+        timeout-minutes: 3
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          headless_bin="$(find ~/.cache/ms-playwright -type f -name chrome-headless-shell 2>/dev/null | head -1)"
           browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
-          if [ -n "$browser_bin" ] && ! ldd "$browser_bin" 2>/dev/null | grep -q 'not found'; then
-            echo "✅ Chromium shared libraries already present — skipping apt."
+          if [ -z "$headless_bin" ] || [ -z "$browser_bin" ]; then
+            echo "⚠️ Chromium or headless shell missing — installing Chromium."
+            timeout 110 bun x playwright install chromium
+            headless_bin="$(find ~/.cache/ms-playwright -type f -name chrome-headless-shell 2>/dev/null | head -1)"
+            browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
+          fi
+          if [ -n "$browser_bin" ] && [ -n "$headless_bin" ] && ! ldd "$browser_bin" "$headless_bin" 2>/dev/null | grep -q 'not found'; then
+            echo "✅ Chromium and headless-shell shared libraries already present — skipping apt."
             exit 0
           fi
-          echo "⚠️ Missing shared libraries (or no cached browser) — installing."
+          echo "⚠️ Missing shared libraries — installing Chromium with deps."
           timeout 110 bun x playwright install --with-deps chromium
 
       - name: Run E2E Tests
@@ -1128,18 +1152,30 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-v2-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
+          key: playwright-v3-${{ runner.os }}-${{ needs.bootstrap.outputs.pw-version }}
           restore-keys: |
-            playwright-v2-${{ runner.os }}-
+            playwright-v3-${{ runner.os }}-
           fail-on-cache-miss: false
 
-      - name: Install Playwright Browsers
-        if: steps.cache-playwright.outputs.cache-hit != 'true'
-        run: bun x playwright install --with-deps chromium
-
-      - name: Install Playwright Deps Only
-        if: steps.cache-playwright.outputs.cache-hit == 'true'
-        run: bun x playwright install-deps chromium
+      - name: Ensure Playwright Chromium
+        timeout-minutes: 3
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          headless_bin="$(find ~/.cache/ms-playwright -type f -name chrome-headless-shell 2>/dev/null | head -1)"
+          browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
+          if [ -z "$headless_bin" ] || [ -z "$browser_bin" ]; then
+            echo "⚠️ Chromium or headless shell missing — installing Chromium."
+            timeout 110 bun x playwright install chromium
+            headless_bin="$(find ~/.cache/ms-playwright -type f -name chrome-headless-shell 2>/dev/null | head -1)"
+            browser_bin="$(find ~/.cache/ms-playwright -type f -name chrome -path '*chrome-linux*' 2>/dev/null | head -1)"
+          fi
+          if [ -n "$browser_bin" ] && [ -n "$headless_bin" ] && ! ldd "$browser_bin" "$headless_bin" 2>/dev/null | grep -q 'not found'; then
+            echo "✅ Chromium and headless-shell shared libraries already present — skipping apt."
+            exit 0
+          fi
+          echo "⚠️ Missing shared libraries — installing Chromium with deps."
+          timeout 110 bun x playwright install --with-deps chromium
 
       - name: Restore flake history
         uses: actions/cache/restore@v6

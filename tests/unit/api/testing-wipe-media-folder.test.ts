@@ -17,6 +17,11 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { wipeMediaFolder } from "@src/routes/api/[...path]/handlers/testing/testing-shared";
+import {
+  assertHarnessMediaFolderWritable,
+  DEFAULT_HARNESS_MEDIA_FOLDER,
+  resolveConfiguredMediaFolder,
+} from "@src/utils/media/storage-adapters";
 
 describe("wipeMediaFolder", () => {
   let root: string;
@@ -45,5 +50,20 @@ describe("wipeMediaFolder", () => {
     expect(existsSync(isolatedRoot)).toBe(true);
     expect(readdirSync(isolatedRoot)).toEqual([]);
     expect(existsSync(join(devRoot, "keep.png"))).toBe(true);
+  });
+
+  it("refuses to wipe or write the live mediaFolder or media directory under a test harness", () => {
+    expect(() => assertHarnessMediaFolderWritable("mediaFolder")).toThrow(/\[LiveDataGuard\]/);
+    expect(() => assertHarnessMediaFolderWritable("./mediaFolder")).toThrow(/\[LiveDataGuard\]/);
+    expect(() => assertHarnessMediaFolderWritable("media")).toThrow(/\[LiveDataGuard\]/);
+    expect(() => assertHarnessMediaFolderWritable(isolatedRoot)).not.toThrow();
+  });
+
+  it("falls back to the isolated harness media folder when MEDIA_FOLDER is unset or points at live mediaFolder", () => {
+    vi.stubEnv("MEDIA_FOLDER", "");
+    expect(resolveConfiguredMediaFolder()).toBe(DEFAULT_HARNESS_MEDIA_FOLDER);
+
+    vi.stubEnv("MEDIA_FOLDER", "mediaFolder");
+    expect(resolveConfiguredMediaFolder()).toBe(DEFAULT_HARNESS_MEDIA_FOLDER);
   });
 });

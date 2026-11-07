@@ -243,9 +243,10 @@ export function buildIntegrationServerEnv(
     DB_USER: process.env.DB_USER ?? creds.user,
     DB_PASSWORD: process.env.DB_PASSWORD ?? creds.password,
     TEST_MODE: "true",
-    // Isolate uploads from the developer's `mediaFolder`: the testing reset
-    // empties this root. The benchmark matrix overrides it explicitly.
+    // Isolate uploads and config-sync exports from the developer's `mediaFolder`
+    // and `config/sync`: the testing reset and cleanup sweep these roots.
     MEDIA_FOLDER: process.env.MEDIA_FOLDER || join(ctx.root, "tests", "integration", ".media"),
+    SVELTY_CONFIG_SYNC_DIR: process.env.SVELTY_CONFIG_SYNC_DIR || "test-config-sync",
     NODE_ENV: process.env.NODE_ENV || "test",
     // 🧮 BODY-CEILING DETERMINISM: `API_MAX_BODY_SIZE_BYTES` is derived from the
     // memory tier in production (15–128 MB: a small box keeps the 15 MB floor,
@@ -605,10 +606,44 @@ export type EnsureIntegrationBuildOptions = {
   strictNoBuild?: boolean;
 };
 
+/** Newest mtime under a file/directory (0 when missing). */
+function newestMtime(targetPath: string): number {
+  let newest = 0;
+  try {
+    const stat = statSync(targetPath);
+    if (!stat.isDirectory()) return stat.mtimeMs;
+    for (const name of readdirSync(targetPath)) {
+      newest = Math.max(newest, newestMtime(join(targetPath, name)));
+    }
+  } catch {
+    /* missing or unreadable — ignore */
+  }
+  return newest;
+}
+
+/**
+ * True when any build input is newer than the production entrypoint (`build/index.js`).
+ * Kept intentionally narrow: only paths that change the runtime bundle.
+ */
+export function isIntegrationBuildStale(root: string): boolean {
+  const entry = join(root, "build", "index.js");
+  if (!existsSync(entry)) return true;
+  const buildMtime = statSync(entry).mtimeMs;
+  const inputs = [
+    "src",
+    "static",
+    "vite.config.ts",
+    "svelte.config.js",
+    "path-aliases.ts",
+    "package.json",
+  ];
+  return inputs.some((input) => newestMtime(join(root, input)) > buildMtime);
+}
+
 /**
  * Ensure a harness-enabled production build exists.
  * - Default: always rebuild with COMPILE_ALL_ADAPTERS
- * - --no-build: reuse if harness present; auto-rebuild if deploy-stripped
+ * - --no-build: reuse if harness present and bundle is fresh; auto-rebuild if deploy-stripped or stale
  * - --no-build --strict: exit 1 if stripped (used when rebuild must not happen in CI artifacts)
  */
 export async function ensureIntegrationBuild(
@@ -644,7 +679,15 @@ export async function ensureIntegrationBuild(
   }
 
   if (buildHasTestingHarness(root)) {
-    console.log("✅ Existing build includes testing harness (/api/testing)");
+    if (!strict && isIntegrationBuildStale(root)) {
+      console.log("ℹ️  Source is newer than build/ — rebuilding with COMPILE_ALL_ADAPTERS=true…");
+      await runProductionBuild(root);
+      if (!buildHasTestingHarness(root)) {
+        throw new Error("Rebuild finished but testing harness is still missing.");
+      }
+      return { rebuilt: true, harness: true };
+    }
+    console.log("✅ Existing build is fresh and includes testing harness (/api/testing)");
     return { rebuilt: false, harness: true };
   }
 
@@ -754,20 +797,32 @@ export function detectDockerAdapterHints(): {
  * - config/database/<harness-named>.sqlite / .db + WAL sidecars — never
  *   live-named files (shared test-name classifier, see `sweepHarnessSqliteFiles`)
  */
-export function cleanupTestArtifacts(root: string): void {
+function isTestTenantDirName(entry: string): boolean {
+  if (/prod|live|main/i.test(entry)) return false;
+  return (
+    entry.startsWith("iso-tenant-") ||
+    entry.startsWith("test-") ||
+    entry.startsWith("tenant-") ||
+    entry.startsWith("contract-") ||
+    isIsolatedTestDbName(entry)
+  );
+}
+
+export function cleanupTestArtifacts(root: string, options: { quiet?: boolean } = {}): void {
+  const rmOpts = { recursive: true, force: true, maxRetries: 5, retryDelay: 50 };
   const paths = [
     join(root, "config", "private.test.ts"),
     join(root, "config", "test-database"),
     join(root, "config", "test-collections"),
     join(root, ".compiledCollections", "test-collections"),
+    join(root, "tests", "integration", ".media"),
+    join(root, "tests", "e2e", ".media"),
     join(root, "test-media"),
-    // WAF rate-limiter persistence: state must never leak across harness runs
-    // (a negative bucket dumped <60s before the next boot re-locks logins).
-    join(root, "config", "database", "security_rl_dump.json"),
+    join(root, "test-config-sync"),
   ];
   for (const p of paths) {
     try {
-      rmSync(p, { recursive: true, force: true });
+      rmSync(p, rmOpts);
     } catch {
       /* ok */
     }
@@ -778,7 +833,8 @@ export function cleanupTestArtifacts(root: string): void {
   // root, and the content-nodes contract suite exercises the `global` tenant.
   // Only the `test-collections` subfolder is ever swept — `<tenant>/collections`
   // is live data and must never be touched. Empty test-tenant directories (e.g.
-  // config/iso-tenant-a, config/iso-tenant-b) are pruned once test-collections is gone.
+  // config/iso-tenant-a, config/iso-tenant-b, config/tenant-*) are pruned once
+  // test-collections is gone.
   const configRoot = join(root, "config");
   try {
     for (const entry of readdirSync(configRoot)) {
@@ -786,25 +842,16 @@ export function cleanupTestArtifacts(root: string): void {
       const candidate = join(tenantDir, "test-collections");
       if (existsSync(candidate)) {
         try {
-          rmSync(candidate, { recursive: true, force: true });
+          rmSync(candidate, rmOpts);
         } catch {
           /* locked — leave it for the next run */
         }
       }
 
-      // If a test tenant directory is now empty (e.g. iso-tenant-a, iso-tenant-b,
-      // tenant-* created solely for tests), remove the empty directory so test
-      // scaffolding does not litter config/.
-      const isTestTenant =
-        entry.startsWith("iso-tenant-") ||
-        entry.startsWith("test-") ||
-        entry.includes("tenant-") ||
-        isIsolatedTestDbName(entry);
-
-      if (isTestTenant && existsSync(tenantDir)) {
+      if (isTestTenantDirName(entry) && existsSync(tenantDir)) {
         try {
           if (readdirSync(tenantDir).length === 0) {
-            rmSync(tenantDir, { recursive: true, force: true });
+            rmSync(tenantDir, rmOpts);
           }
         } catch {
           /* locked */
@@ -822,16 +869,10 @@ export function cleanupTestArtifacts(root: string): void {
   try {
     for (const entry of readdirSync(compiledRoot)) {
       const candidate = join(compiledRoot, entry);
-      const isTestTenant =
-        entry.startsWith("iso-tenant-") ||
-        entry.startsWith("test-") ||
-        entry.startsWith("tenant-") ||
-        entry.startsWith("contract-") ||
-        isIsolatedTestDbName(entry);
-      if (!isTestTenant) continue;
+      if (!isTestTenantDirName(entry)) continue;
       try {
         if (statSync(candidate).isDirectory()) {
-          rmSync(candidate, { recursive: true, force: true });
+          rmSync(candidate, rmOpts);
         }
       } catch {
         /* locked — leave it for the next run */
@@ -842,10 +883,14 @@ export function cleanupTestArtifacts(root: string): void {
   }
 
   const swept = sweepHarnessSqliteFiles(root);
-  if (swept.length > 0) {
+  if (swept.length > 0 && !options.quiet) {
     console.log(`🧹 Swept harness DB leftovers from the live folder: ${swept.join(", ")}`);
   }
-  console.log("🧹 Test artifacts cleaned (live config/database and config/collections protected)");
+  if (!options.quiet) {
+    console.log(
+      "🧹 Test artifacts cleaned (live config/database and config/collections protected)",
+    );
+  }
 }
 
 /**
@@ -874,4 +919,11 @@ function sweepHarnessSqliteFiles(root: string): string[] {
     }
   }
   return removed;
+}
+
+if (import.meta.main && process.argv.includes("--ensure-build")) {
+  ensureIntegrationBuild(process.cwd(), { noBuild: true }).catch((err) => {
+    console.error(`❌ ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  });
 }

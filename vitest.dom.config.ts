@@ -55,11 +55,19 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    fsModuleCache: true,
     environment: "jsdom",
     include: ["tests/unit/components/dom/**/*.test.ts"],
+    globalSetup: [path.resolve(__dirname, "tests/unit/global-setup.ts")],
     setupFiles: [path.resolve(__dirname, "tests/unit/components/dom/setup.ts")],
     testTimeout: 15_000,
     hookTimeout: 15_000,
+    silent: "passed-only",
+    env: {
+      TEST_MODE: "true",
+      MEDIA_FOLDER: "tests/integration/.media",
+      QUIET: "true",
+    },
     // Component tests share one jsdom document; parallel forks are safe but add
     // startup cost. Keep the suite fast without masking cross-test DOM leaks.
     pool: "forks",

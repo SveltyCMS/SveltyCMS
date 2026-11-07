@@ -21,6 +21,8 @@
  *
  * ### Usage
  *   bun run scripts/test/mutate-core.ts --dry-run         # list mutations, run nothing
+ *   bun run scripts/test/mutate-core.ts --list-targets    # print unique target file paths
+ *   bun run scripts/test/mutate-core.ts --changed         # mutate only seams whose target or test changed
  *   bun run scripts/test/mutate-core.ts --max=2           # first two mutations
  *   bun run scripts/test/mutate-core.ts                   # full write-path set
  *   bun run scripts/test/mutate-core.ts --security-only   # auth/security/egress/write-pipeline
@@ -81,7 +83,7 @@ interface Outcome {
 
 const ROOT = join(import.meta.dirname, "../..");
 
-const HOST = typeof Bun !== "undefined" ? process.execPath : "bun";
+const VITEST_ENTRY = join(ROOT, "node_modules", "vitest", "vitest.mjs");
 
 const EXIT_SURVIVED = 1;
 const EXIT_USAGE = 2;
@@ -158,7 +160,7 @@ export function writeReport(path: string, report: MutationReport, root: string =
  * path goes through them) and the Drizzle write-count reader (every `updateMany`
  * on the SQL adapters). Each mutation flips one documented guarantee.
  */
-const MUTATIONS: readonly Mutation[] = [
+export const MUTATIONS: readonly Mutation[] = [
   {
     id: "lock-equality",
     file: "src/utils/optimistic-lock.ts",
@@ -625,17 +627,69 @@ function restoreTarget(relativePath: string): boolean {
 }
 
 function runTests(tests: readonly string[]): { status: number; output: string } {
-  const result = spawnSync(HOST, ["x", "vitest", "run", ...tests], {
+  const result = spawnSync("node", [VITEST_ENTRY, "run", ...tests], {
     cwd: ROOT,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     shell: false,
-    env: { ...process.env, TEST_MODE: "true" },
+    env: { ...process.env, TEST_MODE: "true", MEDIA_FOLDER: "tests/integration/.media" },
   });
   return {
     status: result.status ?? 1,
     output: `${result.stdout ?? ""}${result.stderr ?? ""}`,
   };
+}
+
+function resolveDiffBase(explicitBase: string | null): string {
+  if (explicitBase) return explicitBase;
+  for (const candidate of ["origin/next", "@{upstream}"]) {
+    const res = git(["merge-base", "HEAD", candidate]);
+    if (res.status === 0 && res.stdout) return res.stdout;
+  }
+  return "HEAD~1";
+}
+
+function resolveChangedFiles(explicitBase: string | null): Set<string> {
+  const base = resolveDiffBase(explicitBase);
+  const changed = new Set<string>();
+  const addLines = (stdout: string) => {
+    for (const line of stdout.split(/\r?\n/)) {
+      const normalized = line.trim().replace(/\\/g, "/");
+      if (normalized) changed.add(normalized);
+    }
+  };
+  const committed = git(["diff", "--name-only", base, "--"]);
+  if (committed.status === 0) addLines(committed.stdout);
+  const staged = git(["diff", "--cached", "--name-only"]);
+  if (staged.status === 0) addLines(staged.stdout);
+  const unstaged = git(["diff", "--name-only"]);
+  if (unstaged.status === 0) addLines(unstaged.stdout);
+  return changed;
+}
+
+/**
+ * Filter mutations to those whose target file or mapped unit test(s) appear in
+ * `changedFiles` (or return the full pool if the mutation runner itself changed).
+ */
+export function filterChangedMutations(
+  pool: readonly Mutation[],
+  changedFiles: ReadonlySet<string>,
+): Mutation[] {
+  if (changedFiles.has("scripts/test/mutate-core.ts")) {
+    return [...pool];
+  }
+  return pool.filter(
+    (mutation) =>
+      changedFiles.has(mutation.file) ||
+      mutation.tests.some((testPath) => changedFiles.has(testPath)),
+  );
+}
+
+/** Return unique target file paths across a mutation pool in declaration order. */
+export function listTargetFiles(
+  pool: readonly Mutation[] = [...MUTATIONS, ...SECURITY_TARGETS],
+): string[] {
+  return [...new Set(pool.map((mutation) => mutation.file))];
 }
 
 function tailLines(text: string, count: number): string {
@@ -704,6 +758,9 @@ function runMutation(mutation: Mutation): Outcome {
 
 export interface CliOptions {
   dryRun: boolean;
+  listTargets: boolean;
+  changed: boolean;
+  changedBase: string | null;
   max: number | null;
   help: boolean;
   securityOnly: boolean;
@@ -715,6 +772,9 @@ export interface CliOptions {
 
 export function parseArgs(argv: readonly string[]): CliOptions {
   let dryRun = false;
+  let listTargets = false;
+  let changed = false;
+  let changedBase: string | null = null;
   let max: number | null = null;
   let help = false;
   let securityOnly = false;
@@ -724,6 +784,21 @@ export function parseArgs(argv: readonly string[]): CliOptions {
   for (const arg of argv) {
     if (arg === "--dry-run") {
       dryRun = true;
+      continue;
+    }
+    if (arg === "--list-targets") {
+      listTargets = true;
+      continue;
+    }
+    if (arg === "--changed") {
+      changed = true;
+      continue;
+    }
+    if (arg.startsWith("--changed-base=")) {
+      const raw = arg.slice("--changed-base=".length).trim();
+      if (!raw) throw new Error("--changed-base=<ref> needs a non-empty git ref");
+      changed = true;
+      changedBase = raw;
       continue;
     }
     if (arg === "--help" || arg === "-h") {
@@ -766,21 +841,26 @@ export function parseArgs(argv: readonly string[]): CliOptions {
     throw new Error(`unknown argument "${arg}"`);
   }
 
-  return { dryRun, max, help, securityOnly, only, report };
+  return { dryRun, listTargets, changed, changedBase, max, help, securityOnly, only, report };
 }
 
 function printUsage(): void {
   console.log(`
-Usage: bun run scripts/test/mutate-core.ts [--dry-run] [--max=<n>] [--security-only]
+Usage: bun run scripts/test/mutate-core.ts [--dry-run] [--list-targets]
+                                            [--changed] [--changed-base=<ref>]
+                                            [--max=<n>] [--security-only]
                                             [--only=<id[,id]>]
                                             [--report=<path>|--no-report]
 
-  --dry-run        list the mutation set and exit (nothing is written)
-  --max=<n>        run at most the first n mutations
-  --security-only  mutate only the auth/security/egress/write-pipeline targets
-  --only=<ids>     run only the named mutation ids (comma-separated; pool order)
-  --report=<path>  JSON report path (default ${DEFAULT_REPORT_PATH})
-  --no-report      do not write a JSON report
+  --dry-run            list the mutation set and exit (nothing is written)
+  --list-targets       print unique target file paths (one per line) and exit
+  --changed            mutate only seams whose target or mapped test changed
+  --changed-base=<ref> diff base for --changed (default: origin/next or @{upstream})
+  --max=<n>            run at most the first n mutations
+  --security-only      mutate only the auth/security/egress/write-pipeline targets
+  --only=<ids>         run only the named mutation ids (comma-separated; pool order)
+  --report=<path>      JSON report path (default ${DEFAULT_REPORT_PATH})
+  --no-report          do not write a JSON report
 
 The default set is the write-path corpus plus the security corpus, so the
 security:assurance mutation floors get data for every configured area.
@@ -857,6 +937,14 @@ function main(): number {
   const pool: Mutation[] = options.securityOnly
     ? [...SECURITY_TARGETS]
     : [...MUTATIONS, ...SECURITY_TARGETS];
+
+  if (options.listTargets) {
+    for (const file of listTargetFiles(pool)) {
+      console.log(file);
+    }
+    return 0;
+  }
+
   let filtered = pool;
   if (options.only) {
     const byId = new Map(pool.map((mutation) => [mutation.id, mutation]));
@@ -867,6 +955,16 @@ function main(): number {
       return EXIT_USAGE;
     }
     filtered = options.only.map((id) => byId.get(id) as Mutation);
+  }
+  if (options.changed) {
+    const changedFiles = resolveChangedFiles(options.changedBase);
+    filtered = filterChangedMutations(filtered, changedFiles);
+    if (filtered.length === 0) {
+      console.log(
+        "ℹ️  No mutation target or mapped unit-test files changed — skipping seam mutations.",
+      );
+      return 0;
+    }
   }
   const selected = options.max ? filtered.slice(0, options.max) : filtered;
 
@@ -962,4 +1060,6 @@ process.on("exit", () => {
   if (dirty.length > 0) console.error(`🛑 restore on exit failed for: ${dirty.join(", ")}`);
 });
 
-process.exit(main());
+if (import.meta.main) {
+  process.exit(main());
+}

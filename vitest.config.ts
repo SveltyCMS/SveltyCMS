@@ -158,6 +158,7 @@ export default defineConfig({
     // `beforeAll`, so the 10s default hookTimeout failed entire files with no
     // test name under fork contention (saml, export-import-security).
     hookTimeout: 30000,
+    globalSetup: [path.resolve(__dirname, "tests/unit/global-setup.ts")],
     setupFiles: [path.resolve(__dirname, "tests/unit/setup.ts")],
     // Widget-local suites live beside their widget (custom widgets are glob-loaded,
     // so the tests ship with the widget rather than in tests/unit).
@@ -219,6 +220,7 @@ export default defineConfig({
     ...(isCI ? {} : { maxWorkers: isCoverageRun ? coverageMaxWorkers : localMaxWorkers }),
     env: {
       TEST_MODE: "true",
+      MEDIA_FOLDER: "tests/integration/.media",
       QUIET: "true",
     },
     diff: {
