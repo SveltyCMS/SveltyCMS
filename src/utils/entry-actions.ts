@@ -18,20 +18,27 @@ import { collections, setCollectionValue, setMode } from "@src/stores/collection
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { DEFAULT_THEMES, showCloneModal, showConfirm } from "@utils/modal.svelte";
-import {
-  batchDeleteEntries,
-  batchUpdateEntries,
-  createClones,
-  createEntry,
-  deleteEntry,
-  invalidateCollectionCache,
-  updateEntry,
-} from "./api";
 import { describeBulkWriteOutcome } from "./bulk-write-outcome";
 import { entryMessages } from "./entry-actions-messages";
 import { logger } from "./logger";
 import { deepClone } from "./native-utils";
 import { navigationManager } from "./navigation";
+
+type EntryApi = typeof import("./api");
+type BatchDeleteResult = Awaited<ReturnType<EntryApi["batchDeleteEntries"]>>;
+
+/**
+ * The collection client is loaded on demand: this module is imported by the
+ * app-wide `(app)` layout (header edit + right sidebar), so a static import here
+ * would put entries/drafts/revisions on every admin route. Every caller below is
+ * async and the module belongs to the collection route's chunk, so the import
+ * resolves from the module registry with no extra request.
+ */
+let entryApi: Promise<EntryApi> | null = null;
+function loadEntryApi(): Promise<EntryApi> {
+  entryApi ??= import("./api");
+  return entryApi;
+}
 
 /**
  * Delete intent → transport flag.
@@ -83,6 +90,7 @@ export async function setEntriesStatus(
     return;
   }
 
+  const { batchUpdateEntries } = await loadEntryApi();
   const result = await batchUpdateEntries(collId, {
     ids: entryIds,
     status,
@@ -152,6 +160,7 @@ export async function bulkEditEntries(
     return;
   }
 
+  const { batchUpdateEntries } = await loadEntryApi();
   const result = await batchUpdateEntries(collId, {
     ids: entryIds,
     data: fields,
@@ -195,6 +204,7 @@ async function deleteRowsIndividually(
   entryIds: string[],
   permanent: boolean,
 ): Promise<DeleteOutcome> {
+  const { deleteEntry } = await loadEntryApi();
   let deleted = 0;
   let error: string | undefined;
 
@@ -237,8 +247,9 @@ async function deleteSelection(
     return deleteRowsIndividually(collectionId, entryIds, permanent);
   }
 
-  let result: Awaited<ReturnType<typeof batchDeleteEntries>>;
+  let result: BatchDeleteResult;
   try {
+    const { batchDeleteEntries } = await loadEntryApi();
     result = await batchDeleteEntries(collectionId, entryIds, { permanent });
   } catch (e) {
     return { deleted: 0, failed: entryIds.length, error: (e as Error).message };
@@ -318,6 +329,7 @@ export async function cloneEntries(rawEntries: Record<string, unknown>[], onSucc
     return { ...rest, clonedFrom: _id };
   });
 
+  const { createClones } = await loadEntryApi();
   const result = await createClones(collId, entriesToClone);
   if (result.success) {
     toast.success("Entries cloned");
@@ -350,6 +362,7 @@ export async function saveEntry(
   }
   // Otherwise preserve the existing status from entryData
 
+  const { createEntry, invalidateCollectionCache, updateEntry } = await loadEntryApi();
   const result = entryId
     ? await updateEntry(collId, entryId, payload)
     : await createEntry(collId, payload);
@@ -443,6 +456,7 @@ function showDeleteConfirmation(
     theme: permanent ? DEFAULT_THEMES.delete : DEFAULT_THEMES.archive,
     onConfirm: async () => {
       try {
+        const { deleteEntry, invalidateCollectionCache } = await loadEntryApi();
         const result = await deleteEntry(collectionId, entryId, { permanent });
         if (!result.success) {
           throw new Error(result.error || result.message || "Delete failed");
@@ -501,6 +515,7 @@ export async function cloneCurrentEntry() {
 
         logger.debug("Cloning entry with payload:", clonedPayload);
 
+        const { createEntry, invalidateCollectionCache } = await loadEntryApi();
         const result = await createEntry(collectionId, clonedPayload);
         if (result.success) {
           toast.success({ description: entryMessages.entryCloned() });

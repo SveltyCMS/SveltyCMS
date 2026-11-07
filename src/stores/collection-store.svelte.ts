@@ -16,7 +16,6 @@
 import { browser } from "$app/env";
 import type { ContentNode, Schema, StatusType, WidgetFieldPermissions } from "@src/content/types";
 import { StatusTypes } from "@src/content/types";
-import { updateEntryStatus } from "@src/utils/api";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 
@@ -155,6 +154,9 @@ class CollectionState {
 
     try {
       if (this.activeValue?._id && this.active?._id) {
+        // Loaded on demand: the collection client (entries/drafts/revisions) must not
+        // be a static dependency of this app-wide store, or every route pulls it.
+        const { updateEntryStatus } = await import("@src/utils/api");
         const result = await updateEntryStatus(
           String(this.active._id),
           String(this.activeValue._id),

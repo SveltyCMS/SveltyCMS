@@ -10,7 +10,7 @@
  * - Uses shared fetchApi mutation CSRF policy
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 import type { Webhook } from "@src/services/background/webhook-service";
 
 export async function listWebhooks(): Promise<ApiResponse<Webhook[]>> {

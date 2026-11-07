@@ -13,7 +13,7 @@
  * - User preference overrides
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 import type { StoredAdminTheme, ThemeSummary } from "@src/services/core/admin-theme-service";
 import type { MarketplaceItem } from "@src/services/core/marketplace-service";
 

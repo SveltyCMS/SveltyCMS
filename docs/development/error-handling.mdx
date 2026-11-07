@@ -29,7 +29,8 @@ The unified error handling system consists of three core modules:
 | --------------------- | ----------------------------- | ---------------------------------------------- |
 | **error-handling.ts** | `src/utils/error-handling.ts` | Core error types, handlers, and utilities      |
 | **api-handler.ts**    | `src/utils/api-handler.ts`    | Higher-order function for API route protection |
-| **api.ts**            | `src/utils/api.ts`            | Client-side fetch wrapper with error handling  |
+| **http-client.ts**    | `src/utils/http-client.ts`    | Client-side fetch wrapper with error handling  |
+| **api.ts**            | `src/utils/api.ts`            | Collection client (entries, drafts, revisions) |
 
 ```mermaid
 graph TD
@@ -175,7 +176,7 @@ throw new Error("Something went wrong");
 Use `fetchApi` for all API calls to get consistent error handling:
 
 ```
-import { fetchApi } from "@utils/api";
+import { fetchApi } from "@utils/http-client";
 
 // GET request
 const response = await fetchApi<User[]>("/api/users");

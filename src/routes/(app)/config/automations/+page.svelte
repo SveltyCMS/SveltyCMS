@@ -11,7 +11,7 @@ Lists all configured workflow automations with status, trigger, and operation su
 	import { AUTOMATION_EVENTS } from '@src/services/background/automation/types';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { showConfirm } from '@utils/modal.svelte';
-	import { unwrapList } from '@utils/api';
+	import { unwrapList } from '@utils/http-client';
 	import { formatDate } from '@utils/format-date';
 	import { slide } from 'svelte/transition';
 	import Badge from '@components/ui/badge.svelte';

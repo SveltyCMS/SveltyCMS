@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { unwrapList } from "@utils/api";
+import { unwrapList } from "@utils/http-client";
 
 describe("unwrapList", () => {
   it("returns [] for a failed response", () => {

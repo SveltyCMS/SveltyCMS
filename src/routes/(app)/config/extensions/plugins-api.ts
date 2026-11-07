@@ -3,7 +3,7 @@
  * @description Browser API for plugin enable/disable (Testing 2026).
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 
 export async function togglePlugin(
   pluginId: string,

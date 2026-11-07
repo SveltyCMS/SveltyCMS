@@ -47,7 +47,6 @@
 	import { setCollectionValue, collections } from '@src/stores/collection-store.svelte';
 	import { modeTransitionGuard } from '@src/stores/mode-transition-guard.svelte';
 	import { screen } from '@src/stores/screen-size-store.svelte';
-	import { createEntry, invalidateCollectionCache } from '@utils/api';
 	import { deleteCurrentEntry, saveEntry } from '@utils/entry-actions';
 	import { getFieldName } from '@utils/schema/field-utils';
 	// --- Derived from page & stores ---
@@ -431,6 +430,9 @@
 				payload.status = StatusTypes.draft;
 				payload.clonedFrom = currentEntry._id;
 
+				// Loaded on demand so the app-wide header does not statically pull the
+				// collection client into every admin route.
+				const { createEntry, invalidateCollectionCache } = await import('@utils/api');
 				const result = await createEntry(currentCollection._id, payload);
 				if (result.success) {
 					toast.success('Entry cloned successfully.');

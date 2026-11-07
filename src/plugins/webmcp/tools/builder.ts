@@ -18,7 +18,7 @@
  * - No server-only imports (safe in the client bundle)
  */
 
-import { fetchApi } from "@utils/api";
+import { fetchApi } from "@utils/http-client";
 import { logger } from "@utils/logger";
 
 // ── Internal model context (browser only) ────────────────────────

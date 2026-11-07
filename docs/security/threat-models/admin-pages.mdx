@@ -39,4 +39,5 @@ The admin layout owns the session-aware page payload; the authorization hook
 - The authorization hook runs before every `(app)` and `(admin)` request, including client-side navigations that hit a server load.
 - The browser imports the UI plugin catalog (`src/plugins/client.ts`), never the server barrel; a plugin that adds `ui`/`parts` must be added to that catalog (enforced by `tests/unit/plugins/plugin-client-catalog.test.ts`).
 - Secondary admin modals (role editor, translation cockpit) are dynamically imported on first open. Lazy loading changes only when the chunk downloads; the API authorization gates remain the enforcement point.
+- Admin config pages use the domain-free `@utils/http-client` transport. Collection-domain calls stay in `@utils/api`, which app-wide stores load dynamically, so `api.ts` is not part of the config route's eager graph. Both modules still call the same CSRF-protected `/api` endpoints and inherit the dispatcher's permission checks.
 - Security headers (CSP, HSTS, `X-Frame-Options`) are applied globally by `src/hooks/handle-security-headers.ts`.

@@ -48,7 +48,7 @@
 	} from '@src/paraglide/messages';
 	import { onMount } from 'svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
-	import { fetchApi } from '@utils/api';
+	import { fetchApi } from '@utils/http-client';
 
 	interface CatalogItem {
 		id: string;

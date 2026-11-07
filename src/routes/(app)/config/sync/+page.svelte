@@ -12,7 +12,7 @@ Allows synchronization between filesystem and database, safety mode selection, a
 -->
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { fetchApi, type ApiResponse } from '@utils/api';
+	import { fetchApi, type ApiResponse } from '@utils/http-client';
 	import { logger } from '@utils/logger';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';

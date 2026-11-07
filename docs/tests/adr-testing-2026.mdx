@@ -181,13 +181,13 @@ positives, so `fillUntil` carries that intent explicitly.)
 
 ## 5. Shared mutation client — **implemented**
 
-| Piece                        | Location                                                | Status |
-| ---------------------------- | ------------------------------------------------------- | ------ |
-| CSRF on mutations            | `fetchApi` → `clientJsonHeaders` (`src/utils/api.ts`)   | ✅     |
-| Domain API clients           | `webhooks-api.ts`, `automations-api.ts`, `trash-api.ts` | ✅     |
-| Pure validation              | `webhooks-utils.ts`, `redirects-utils.ts`, …            | ✅     |
-| Admin gates                  | `+page.server.ts` unit tests                            | ✅     |
-| Access save / plugins / sync | `fetchApi` (no manual CSRF)                             | ✅     |
+| Piece                        | Location                                                      | Status |
+| ---------------------------- | ------------------------------------------------------------- | ------ |
+| CSRF on mutations            | `fetchApi` → `clientJsonHeaders` (`src/utils/http-client.ts`) | ✅     |
+| Domain API clients           | `webhooks-api.ts`, `automations-api.ts`, `trash-api.ts`       | ✅     |
+| Pure validation              | `webhooks-utils.ts`, `redirects-utils.ts`, …                  | ✅     |
+| Admin gates                  | `+page.server.ts` unit tests                                  | ✅     |
+| Access save / plugins / sync | `fetchApi` (no manual CSRF)                                   | ✅     |
 
 Canonical stack (copy for new routes):
 
@@ -230,7 +230,7 @@ Seed/reset under `/api/testing` exist **only** for CI/E2E.
 
 | Piece                  | Path                                                                                                                                                            |
 | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CSRF mutation client   | `src/utils/api.ts` + `src/utils/security/client-csrf.ts`                                                                                                        |
+| CSRF mutation client   | `src/utils/http-client.ts` + `src/utils/security/client-csrf.ts`                                                                                                |
 | Testing / bypass gate  | `src/utils/test-bypass.server.ts` (`assertTestingApiAllowed`)                                                                                                   |
 | Testing handler        | `src/routes/api/[...path]/handlers/testing.ts`                                                                                                                  |
 | E2E seeds              | `tests/e2e/helpers/api.ts`                                                                                                                                      |

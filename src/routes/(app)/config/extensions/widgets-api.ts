@@ -5,7 +5,7 @@
  * Mutations go through fetchApi so CSRF is automatic.
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 
 export interface WidgetListItem {
   name: string;

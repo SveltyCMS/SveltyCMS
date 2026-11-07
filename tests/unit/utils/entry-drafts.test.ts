@@ -25,7 +25,8 @@ import {
   readDraftResume,
   saveEntryDraft,
 } from "@utils/entry-drafts";
-import type { ApiResponse, DraftRecord } from "@utils/api";
+import type { ApiResponse } from "@utils/http-client";
+import type { DraftRecord } from "@utils/api";
 
 const NOW = nowISODateString() as ISODateString;
 const COLLECTION = "posts-collection-id";

@@ -12,11 +12,13 @@
  * - warm-only semantics: `attach: false` leaves the item without `_populated_*`
  * - caps: at most 4 declared relation fields and 50 unique ids per pass
  * - no relation values ⇒ no deferred pass at all
+ * - the background L2 write is never awaited and cannot fail the pass
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { scheduleRelationWarmup } from "@src/services/sdk/namespaces/populate-resolver";
 import { cacheService } from "@src/databases/cache/cache-service";
+import { CacheCategory } from "@src/databases/cache/types";
 
 const ADMIN = { _id: "admin-1", role: "admin" };
 const EDITOR = { _id: "editor-1", role: "editor" };
@@ -49,12 +51,22 @@ async function flushWarmup(): Promise<void> {
   await vi.advanceTimersByTimeAsync(0);
 }
 
+function deferred<T = void>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.mocked(cacheService.getSync).mockReturnValue(null);
   vi.mocked(cacheService.getMany).mockImplementation(async (keys: string[]) =>
     keys.map(() => null),
   );
+  vi.mocked(cacheService.set).mockReset();
+  vi.mocked(cacheService.set).mockResolvedValue(undefined);
   vi.mocked(cacheService.setSync).mockClear();
 });
 
@@ -74,7 +86,34 @@ describe("scheduleRelationWarmup", () => {
     expect(findMany.mock.calls.map(([collection]) => collection)).toEqual(["authors", "tags"]);
     expect(findMany.mock.calls[0][1]).toEqual({ _id: { $in: ["u1"] } });
     expect(findMany.mock.calls[1][1]).toEqual({ _id: { $in: ["t1", "t2"] } });
-    expect(vi.mocked(cacheService.setSync)).toHaveBeenCalledTimes(3);
+    // One L1+L2 `set` per fetched row — never the L1-only `setSync`.
+    expect(vi.mocked(cacheService.setSync)).not.toHaveBeenCalled();
+    expect(vi.mocked(cacheService.set).mock.calls).toEqual([
+      [
+        "t1:collection:authors:u1",
+        { success: true, data: { _id: "u1" } },
+        180,
+        "t1",
+        CacheCategory.ENTRY,
+        ["doc:authors:u1"],
+      ],
+      [
+        "t1:collection:tags:t1",
+        { success: true, data: { _id: "t1" } },
+        180,
+        "t1",
+        CacheCategory.ENTRY,
+        ["doc:tags:t1"],
+      ],
+      [
+        "t1:collection:tags:t2",
+        { success: true, data: { _id: "t2" } },
+        180,
+        "t1",
+        CacheCategory.ENTRY,
+        ["doc:tags:t2"],
+      ],
+    ]);
     expect(Object.keys(item).some((key) => key.startsWith("_populated_"))).toBe(false);
   });
 
@@ -152,7 +191,51 @@ describe("scheduleRelationWarmup", () => {
 
     expect(findMany).toHaveBeenCalledTimes(1);
     expect(findMany.mock.calls[0][1]._id.$in).toHaveLength(50);
-    expect(vi.mocked(cacheService.setSync)).toHaveBeenCalledTimes(50);
+    expect(vi.mocked(cacheService.set)).toHaveBeenCalledTimes(50);
+  });
+
+  it("keeps warming other rows when the background cache write rejects", async () => {
+    const { findMany, adapter } = stubAdapter();
+    vi.mocked(cacheService.set).mockRejectedValue(new Error("redis unavailable"));
+
+    scheduleRelationWarmup(
+      [{ _id: "p1", author: "u1", tags: ["t1", "t2"] }],
+      postsSchema,
+      "t1",
+      adapter,
+      identityName,
+      { user: ADMIN },
+    );
+    await flushWarmup();
+
+    // The rejection is swallowed by the background handler, so the pass still
+    // writes every fetched row.
+    expect(findMany).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(cacheService.set)).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not await the background cache write", async () => {
+    const { findMany, adapter } = stubAdapter();
+    const pending = deferred();
+    vi.mocked(cacheService.set).mockReturnValue(pending.promise);
+
+    scheduleRelationWarmup(
+      [{ _id: "p1", tags: ["t1", "t2"] }],
+      postsSchema,
+      "t1",
+      adapter,
+      identityName,
+      { user: ADMIN },
+    );
+    await flushWarmup();
+
+    // Both ids were warmed although the first write is still unresolved — an
+    // awaited `set` would have stalled the loop after the first id.
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(cacheService.set)).toHaveBeenCalledTimes(2);
+
+    pending.resolve();
+    await pending.promise;
   });
 
   it("does nothing when the row has no relation values", async () => {

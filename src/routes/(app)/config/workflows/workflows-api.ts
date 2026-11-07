@@ -10,7 +10,7 @@
  * - save workflow definition
  */
 
-import { fetchApi, unwrapList, type ApiResponse } from "@utils/api";
+import { fetchApi, unwrapList, type ApiResponse } from "@utils/http-client";
 import type { WorkflowDefinition } from "@src/types/workflow-types";
 
 export interface WorkflowCollectionOption {

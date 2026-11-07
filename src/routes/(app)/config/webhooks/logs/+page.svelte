@@ -4,7 +4,7 @@
 	 * @description UI for monitoring Webhook delivery logs and the Dead-Letter Queue (DLQ).
 	 */
 	import { onMount } from 'svelte';
-	import { fetchApi } from '@utils/api';
+	import { fetchApi } from '@utils/http-client';
 	import { toast } from '@src/stores/toast.svelte';
 	import { formatDisplayDate } from '@utils/date';
 	import type { WebhookDeliveryLog } from '@src/services/background/webhook-service';

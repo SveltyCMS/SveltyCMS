@@ -29,7 +29,7 @@ const h = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@utils/api", () => ({ fetchApi: h.fetchApi }));
+vi.mock("@utils/http-client", () => ({ fetchApi: h.fetchApi }));
 vi.mock("@src/stores/toast.svelte.ts", () => ({ toast: h.toast }));
 
 const FAILED_LOG = {

@@ -5,7 +5,7 @@
  * Mutations go through fetchApi — CSRF is automatic. No raw fetch in Svelte pages.
  */
 
-import { fetchApi, type ApiResponse } from "@utils/api";
+import { fetchApi, type ApiResponse } from "@utils/http-client";
 import type { AutomationFlow } from "@src/services/background/automation/types";
 
 export async function listAutomations(): Promise<ApiResponse<AutomationFlow[]>> {

@@ -260,16 +260,22 @@ export async function resolvePopulatedRelations(
                 const rid = String(rel._id);
                 relatedMap.set(rid, rel);
 
-                // Synchronously warm L1 for immediate reuse without promise lag
+                // `set` writes L1 before its first await, so the local read is
+                // warm synchronously; the L2/Redis write is buffered in the
+                // background. Never await it — the read must not pay the
+                // Redis round-trip, and a failed write must not fail the read.
                 const cacheKey = `${tenantKey}:collection:${collectionId}:${rid}`;
-                cacheService.setSync?.(
-                  cacheKey,
-                  { success: true, data: rel },
-                  180,
-                  tenantId,
-                  CacheCategory.ENTRY,
-                  [`doc:${collectionId}:${rid}`],
-                );
+                void cacheService
+                  .set(cacheKey, { success: true, data: rel }, 180, tenantId, CacheCategory.ENTRY, [
+                    `doc:${collectionId}:${rid}`,
+                  ])
+                  .catch((err: unknown) => {
+                    logger.debug(
+                      `[SDK] relation cache warm-up failed for "${cacheKey}": ${
+                        err instanceof Error ? err.message : String(err)
+                      }`,
+                    );
+                  });
               }
             }
           }

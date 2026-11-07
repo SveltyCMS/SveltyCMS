@@ -527,6 +527,8 @@ Registrations are **additive** — knowledge only grows: a later `registerTableS
 
 **The default list sort is already index-covered (2026-11-07).** `defaultListSortOption()` is `updatedAt DESC, _id DESC` — **not** `createdAt`. `EXPLAIN QUERY PLAN` on SQLite shows the status-filtered default using `(tenantId, status, updatedAt, _id)` and the unfiltered default using `(tenantId, updatedAt, _id)`, both with **no** `USE TEMP B-TREE FOR ORDER BY`. Other sort columns get the lazy covering index above. A `createdAt`-first composite would not serve the default sort and would only add write cost, so none was added.
 
+**Relation cache writes through to L2 (2026-11-07).** Populated relation rows now use `cacheService.set` instead of the L1-only `setSync`: the L1 write still happens synchronously before the first await, while the Redis write is buffered in the background. The resolver never awaits the L2 write, so a single-node read keeps its latency; other workers can hit the warm L2 entry instead of repeating the `$in` query.
+
 ### Allocation pooling
 
 **Ring-buffer result pool.** All `BaseAdapter.wrap()` calls now use a 64-slot ring-buffer pool for `{ success, data }` result wrappers. Pooled slots are safe in single-threaded JS — callers consume results synchronously after `await`. Eliminates 100% of result wrapper allocations.

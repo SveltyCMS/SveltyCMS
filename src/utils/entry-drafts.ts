@@ -14,7 +14,8 @@
  * - Idempotent discard keys, so Save + Cancel on the same form issues one request
  */
 
-import type { ApiResponse, DraftRecord, DraftSavePayload } from "@utils/api";
+import type { ApiResponse } from "@utils/http-client";
+import type { DraftRecord, DraftSavePayload } from "@utils/api";
 import type { ISODateString } from "@src/content/types";
 import { logger } from "@utils/logger";
 import { rethrow } from "@utils/error-handling";

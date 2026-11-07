@@ -1,12 +1,12 @@
 {
   "version": 1,
   "summary": {
-    "generatedAt": "2026-11-07T22:16:05.094Z",
-    "totalFiles": 1500,
-    "totalLoc": 423145,
-    "totalBytes": 14314077,
-    "runtimeEdgeCount": 6166,
-    "typeEdgeCount": 1464,
+    "generatedAt": "2026-11-07T23:27:21.822Z",
+    "totalFiles": 1501,
+    "totalLoc": 423315,
+    "totalBytes": 14321343,
+    "runtimeEdgeCount": 6168,
+    "typeEdgeCount": 1466,
     "barrelCount": 8,
     "passThroughBarrelCount": 0,
     "reExportBridgeCount": 2,
@@ -18,8 +18,8 @@
     "testOnlyRuntimeExportCount": 496,
     "runtimeCycleCount": 0,
     "clientServerLeakCount": 0,
-    "clientReachableFiles": 465,
-    "clientReachableKB": 4171,
+    "clientReachableFiles": 464,
+    "clientReachableKB": 4150,
     "byArea": {
       "src/hooks.client.ts": {
         "files": 1,
@@ -50,8 +50,8 @@
         "singleCallers": 13
       },
       "src/utils": {
-        "files": 220,
-        "loc": 46044,
+        "files": 221,
+        "loc": 46082,
         "microFiles": 29,
         "barrels": 2,
         "singleCallers": 58
@@ -72,21 +72,21 @@
       },
       "src/stores": {
         "files": 23,
-        "loc": 7444,
+        "loc": 7446,
         "microFiles": 4,
         "barrels": 0,
         "singleCallers": 3
       },
       "src/services": {
         "files": 165,
-        "loc": 60750,
+        "loc": 60871,
         "microFiles": 16,
         "barrels": 2,
         "singleCallers": 55
       },
       "src/routes": {
         "files": 333,
-        "loc": 108133,
+        "loc": 108135,
         "microFiles": 60,
         "barrels": 0,
         "singleCallers": 137
@@ -121,7 +121,7 @@
       },
       "src/components": {
         "files": 220,
-        "loc": 50285,
+        "loc": 50292,
         "microFiles": 43,
         "barrels": 9,
         "singleCallers": 97
@@ -134,7 +134,7 @@
       "clientNodeLeaks": 0,
       "deepRelativeImports": 0,
       "testInvariantViolations": 0,
-      "clientBoundaryCandidates": 29
+      "clientBoundaryCandidates": 30
     },
     "publicApiBarrelPaths": [
       "src/components/ui/tabs/index.ts",

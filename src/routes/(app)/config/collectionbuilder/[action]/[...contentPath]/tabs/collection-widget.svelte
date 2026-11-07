@@ -7,7 +7,7 @@
 	import type { FieldInstance } from '@src/content/types';
 	import type { Role } from '@src/databases/auth/types';
 	import { generateUUID } from '@utils/native-utils';
-	import { fetchApi } from '@utils/api';
+	import { fetchApi } from '@utils/http-client';
 	import { collections, setCollection, setTargetWidget } from '@src/stores/collection-store.svelte';
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { getWidgetFunction, widgets } from '@src/stores/widget-store.svelte.ts';
