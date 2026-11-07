@@ -26,5 +26,10 @@ describe("fast-check rule registry", () => {
     expect(kindById.get("check-ast-gates")).toBe("ast");
     expect(kindById.has("check-linkmap")).toBe(false);
     expect(kindById.has("lint-tenant-scope")).toBe(false);
+    expect(kindById.has("lint-global-timers")).toBe(false);
+    expect(kindById.has("lint-live-paths")).toBe(false);
+    expect(kindById.has("lint-transient-classification")).toBe(false);
+    expect(kindById.has("lint-date-helpers")).toBe(false);
+    expect(kindById.has("lint-silent-catch")).toBe(false);
   });
 });

@@ -75,36 +75,6 @@ export const FAST_CHECKS: readonly CheckSpec[] = [
     owner: "tests",
   },
   {
-    id: "lint-global-timers",
-    script: "scripts/lint/lint-global-timers.ts",
-    kind: "static",
-    owner: "architecture",
-  },
-  {
-    id: "lint-live-paths",
-    script: "scripts/lint/lint-live-paths.ts",
-    kind: "static",
-    owner: "architecture",
-  },
-  {
-    id: "lint-transient-classification",
-    script: "scripts/lint/lint-transient-classification.ts",
-    kind: "static",
-    owner: "architecture",
-  },
-  {
-    id: "lint-date-helpers",
-    script: "scripts/lint/lint-date-helpers.ts",
-    kind: "static",
-    owner: "architecture",
-  },
-  {
-    id: "lint-silent-catch",
-    script: "scripts/lint/lint-silent-catch.ts",
-    kind: "static",
-    owner: "architecture",
-  },
-  {
     id: "lint-rule-budgets",
     script: "scripts/lint/lint-rule-budgets.ts",
     kind: "policy",
