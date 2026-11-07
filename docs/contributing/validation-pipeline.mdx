@@ -21,36 +21,39 @@ SveltyCMS uses a **three-tier validation architecture** that balances developer 
 > [!TIP]
 > New to the repo? Run **`bun run test:doctor --list`** for the live gate map, or **`bun run test:doctor`** to run unit + SQLite integration. Live dashboard: [Test Status](../tests/test-status.mdx).
 
-## Tier 1 — Pre-commit (~40–60s)
+## Tier 1 — Pre-commit (~2–3 min warm)
 
 Hook: `.githooks/pre-commit` · Manual: `bun run precommit`
 
-1. `scripts/check/check-test-db-safety.ts` — never point tests at a live DB name
-2. `bun run check` — format (oxfmt) + lint (oxlint)
-3. `bun run gate:fast` — lint-staged
+1. `scripts/check/check-test-db-safety.ts` — never point tests at a live DB name or live config path
+2. `bun run gate:fast` — lint-staged (formats staged files before `check` runs)
+3. `bun run check` — `oxfmt --check` + `oxlint` + 21 parallel policy gates + `svelte-kit sync` + `tsc`/`svelte-check` (parallel typecheck)
 4. **`bun run risk:audit`** — 6 parallel gates: global security-risk scan (all 4 adapters + loopback/tenant/test-mode/AST batch guards) + secret misuse + slop + tenant-isolation API hygiene (`lint-tenant-api`) + `bun audit` + OSV.dev (skipped if only docs changed; pass `--full` to force non-incremental scanning)
-5. `bun run test:unit` — full Vitest suite (skipped if only docs changed)
-6. **SBOM sync** — `bun run audit:sbom` when `bun.lock` / `package.json` changed
+5. `bun run test:unit` — full Vitest suite, invoked directly (skipped if only docs changed)
+6. `bun run test:unit:components` — real-DOM interaction suite (only when `.svelte` or UI/component/route/widget/store files are staged)
+7. **SBOM sync** — `bun run audit:sbom` when `bun.lock` / `package.json` changed
 
-## Tier 2 — Pre-push (~5–8 min)
+## Tier 2 — Pre-push (~8–12 min warm)
 
 Hook: `.githooks/pre-push` · Manual: **`bun run gate`** or `bun run prepush`
 
-1. Production build with `COMPILE_ALL_ADAPTERS=true`
-2. **Prod build backdoor verify** — `scripts/security/verify-prod-build-backdoor.ts --mode=bench`
-3. **Bundle size gate** — `scripts/check/check-bundle-size.ts`
+1. `scripts/check/check-test-db-safety.ts`
+2. Production build via `scripts/runs/integration-harness.ts --ensure-build` — reuses a fresh 4-adapter build (with `/api/testing`) in <1 s, rebuilds when stale
+3. **Prod build backdoor verify** — `scripts/security/verify-prod-build-backdoor.ts --mode=bench` · **Bundle size gate** — `scripts/check/check-bundle-size.ts`
 4. `bun run check` — TypeScript / Svelte quality gate
-5. Secret misuse scan — `scripts/security/scan-secret-misuse.ts --strict`
-6. **Tenant isolation** — `bun run test:tenant`
-7. SQLite integration: `bun test --timeout 300000 tests/integration/`  
-   (in-suite harness starts preview + `config/private.test.ts`)
+5. **CI unit parity** — `bun run test:coverage` (full suite under coverage, ~4 min) + `bun run test:unit:components`
+6. Security/policy — `bun audit`, `scan-secret-misuse --strict --full`, hardware probe, `lint:tenant -- --full` + `test:tenant`, deploy-backdoor probe
+7. SQLite integration — `scripts/runs/run-integration.ts --no-build --diff` (diff-scoped; full suite when harness/helpers or an unmapped path changed)
+8. **DB parity** — only when adapter/service code changed, plus a non-UTC clock run
+9. **Browser gate** — `smoke.spec.ts` plus the changed-path accessibility/visual/behavioural/media specs, then `check-flake-budget.ts`
+10. **Mutation** — `scripts/test/mutate-core.ts --changed` runs last (`FULL_MUTATION=true` for all seams)
 
-Docs-only pushes skip build + integration. Multi-DB matrix, benchmarks, and Playwright E2E are **not** on pre-push — they run in CI.
+Docs-only pushes skip build + integration. The multi-engine DB matrix and benchmarks are **CI-only**; pre-push runs the SQLite suite plus the changed-path browser contracts, not the full 9-shard E2E partition.
 
 **Release preparation** — `--release[=kind]` runs `scripts/version.ts` after a green gate, commits the manifest as `chore(release): bump version to vX.Y.Z` and prints the push that publishes it. Reaches the hook two ways: `bun run gate --release`, or `bun run git push --release …` (the wrapper consumes the flag and exports `SVELTY_RELEASE`, since git never forwards hook arguments). Skipped on the docs-only and `--only-failures` paths — a release commit is only prepared behind a full gate. Details: [Release Pipeline](../guides/configuration/version-channels.mdx).
 
 > [!IMPORTANT]
-> **No double-run rule:** full unit suite runs on pre-commit only. Pre-push does **not** re-run all unit tests.
+> **CI-parity rule:** pre-push re-runs the full unit suite **under coverage** (`test:coverage`), because unhandled errors and coverage floors only surface under the CI reporter and instrumentation. The plain, un-instrumented suite is not re-run — pre-commit already ran it.
 
 ## Tier 3 — GitHub Actions
 

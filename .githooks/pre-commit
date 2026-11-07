@@ -2,9 +2,10 @@
 # =============================================================================
 # SveltyCMS Pre-Commit (Stage 1) — Safety → Lint-Staged → Check → Risk → Unit
 #
-# Fast white-box gate (~35-45 s). No production build or server spin-up runs at
-# commit time — Stage 2 (.githooks/pre-push) owns the 4-adapter build, SQLite
-# integration, DB parity, E2E browser contracts, and seam mutations.
+# Fast white-box gate (~2-3 min on a warm tree: `check` ~70 s + unit suite
+# ~45 s dominate). No production build or server spin-up runs at commit time —
+# Stage 2 (.githooks/pre-push) owns the 4-adapter build, SQLite integration, DB
+# parity, E2E browser contracts, and seam mutations.
 # POLICY: enforced. A commit only lands when quality, risk, and unit gates pass.
 # --no-verify is blocked; use 'bun run scripts/git-safe.ts commit'.
 # =============================================================================

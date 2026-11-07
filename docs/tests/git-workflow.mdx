@@ -48,7 +48,7 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 
 #### Pre-commit (Stage 1: `DB safety` → lint-staged → `check` → **risk:audit** → unit → UI components → SBOM)
 
-`.githooks/pre-commit` is the fast white-box gate (~35–45s) and runs:
+`.githooks/pre-commit` is the white-box gate (~2–3 min warm; the quality gate and the unit suite dominate) and runs:
 
 1. **Database & live-config safety** — `scripts/check/check-test-db-safety.ts` blocks unsafe `private.test.ts`, live `private.ts` pointing at test DBs, live `MEDIA_FOLDER` leaks under test mode, and benchmark/test debris in live `config/collections/`.
 2. **Lint-staged** — `bun run gate:fast` auto-formats staged files first so `bun run check` never fails on formatting or runs twice.
@@ -63,7 +63,7 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 >
 > **Live data rule:** automated local runs never read, write, or wipe `config/private.ts`, `config/collections/`, `.compiledCollections/` (root), `mediaFolder/`, or the user database — only `private.test.ts`, `config/test-collections/`, `.compiledCollections/test-collections/`, `tests/integration/.media/`, `tests/e2e/.media/`, and isolated DB names.
 
-#### Pre-push (Stage 2: ~3–6 min) — smart build + CI unit coverage + SQLite integration + E2E + changed mutations
+#### Pre-push (Stage 2: ~8–12 min warm) — smart build + CI unit coverage + SQLite integration + E2E + changed mutations
 
 `.githooks/pre-push` runs:
 
@@ -73,9 +73,9 @@ SveltyCMS uses native Git hooks for local quality gates — no external precheck
 | Production build (4 adapters) | `scripts/runs/integration-harness.ts --ensure-build` (smart reuse)     | <1s–90s  |
 | Prod backdoor verify          | `scripts/security/verify-prod-build-backdoor.ts --mode=bench`          | ~3s      |
 | Bundle size gate              | `scripts/check/check-bundle-size.ts`                                   | ~1s      |
-| Quality gate                  | `bun run check` (includes `version:verify` + `security:assurance`)     | ~15s     |
-| Unit coverage + budget        | `bun run test:coverage`                                                | ~35–60s  |
-| Component interactions        | `bun run test:unit:components`                                         | ~4s      |
+| Quality gate                  | `bun run check` (21 parallel policy gates + parallel typecheck)        | ~70s     |
+| Unit coverage + budget        | `bun run test:coverage`                                                | ~4 min   |
+| Component interactions        | `bun run test:unit:components`                                         | ~15s     |
 | Secret misuse scan            | `scripts/security/scan-secret-misuse.ts --strict --full`               | ~2s      |
 | Hardware tiers probe          | `scripts/probe/probe-hardware-tiers.ts`                                | ~2s      |
 | Tenant isolation              | `lint:tenant -- --full` + `test:tenant`                                | ~5s      |

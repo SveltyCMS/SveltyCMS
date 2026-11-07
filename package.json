@@ -92,7 +92,7 @@
     "check:copy": "bun run scripts/check/check-hardcoded-copy.ts",
     "check:routes": "bun run scripts/check/check-route-behaviour.ts --check --min=99",
     "check:seams": "bun run scripts/check/check-seam-assertions.ts",
-    "typecheck": "svelte-kit sync && tsc --noEmit -p tsconfig.json && bun run scripts/check/check-svelte-diagnostics.ts",
+    "typecheck": "svelte-kit sync && bun run scripts/check/run-typecheck.ts",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "oxlint --deny-warnings --ignore-pattern 'src/types/**'",
     "lint:ci": "oxlint --deny-warnings --quiet --format=github --ignore-pattern 'src/types/**'",

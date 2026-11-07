@@ -40,6 +40,15 @@ describe("package gate scripts", () => {
     expect(existsSync(join(ROOT, "tests/e2e/smoke.spec.ts"))).toBe(true);
   });
 
+  it("runs the type gates concurrently without dropping the warning gate", () => {
+    const scripts = readPkgScripts();
+    expect(scripts.typecheck).toContain("svelte-kit sync");
+    expect(scripts.typecheck).toContain("scripts/check/run-typecheck.ts");
+    const runner = readFileSync(join(ROOT, "scripts/check/run-typecheck.ts"), "utf8");
+    expect(runner).toContain("node_modules/typescript/lib/tsc.js");
+    expect(runner).toContain("scripts/check/check-svelte-diagnostics.ts");
+  });
+
   it("does not ship deleted ghost entrypoints", () => {
     expect(existsSync(join(ROOT, "scripts/run-integration-tests.ts"))).toBe(false);
     expect(existsSync(join(ROOT, "scripts/security-regression.ts"))).toBe(false);

@@ -72,7 +72,7 @@ scripts/
 >
 > The earlier opt-in policy (2026-10-23) was reverted after two green-local/red-CI Unit runs; the hooks now catch what the CI reporter caught.
 
-### `.githooks/pre-commit` (Stage 1) — Safety → Lint-Staged → Check → Risk → Unit (~35–45s)
+### `.githooks/pre-commit` (Stage 1) — Safety → Lint-Staged → Check → Risk → Unit (~2–3 min warm)
 
 Runs before every commit. Steps:
 
@@ -84,7 +84,7 @@ Runs before every commit. Steps:
 6. **Component interactions (conditional)** — `bun run test:unit:components` (runs when `.svelte` or UI/component/route/widget/store files are staged)
 7. **SBOM sync** — when `bun.lock` / `package.json` changed
 
-### `.githooks/pre-push` (Stage 2) — Smart Build → CI Unit Parity → Integration → Browser → Changed Mutations (~3–6 min)
+### `.githooks/pre-push` (Stage 2) — Smart Build → CI Unit Parity → Integration → Browser → Changed Mutations (~8–12 min warm)
 
 Runs before every push, in this order:
 
@@ -407,6 +407,17 @@ bun run scripts/check/check-bundle-size.ts
 ```
 
 Use it when a local step only needs a runnable `build/` (integration preview, E2E, bundle gate). Use `bun run build` when you need stack traces mapped back to the original sources.
+
+### `scripts/check/run-fast-checks.ts` — Parallel static-gate runner
+
+Runs the 21 read-only policy/AST/assurance gates concurrently (8 workers) and fails closed on any non-zero exit. `bun run check` calls it instead of chaining 21 `bun run` processes with `&&`.
+
+- Measured on a 24-thread machine: **~2–3 s warm**, ~10 s cold, against ~20 s for the sequential chain.
+- Output is buffered per gate, so a failure prints that gate's own log and the gate id.
+
+### `scripts/check/run-typecheck.ts` — Parallel type gates
+
+Runs `tsc --noEmit` and `scripts/check/check-svelte-diagnostics.ts` at the same time, after `svelte-kit sync` has generated the route types. Both are independent readers of the same sources; the old serial chain cost ~100 s, the parallel run ~50 s on a warm tree. The svelte-check warning gate is unchanged — it is still the authority on warnings as well as errors.
 
 ### `scripts/check/check-flake-budget.ts` — Flake Budget Enforcement
 
