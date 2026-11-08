@@ -819,7 +819,13 @@ export const _handler = async (event: RequestEvent) => {
       };
       response.headers.forEach((val, key) => {
         const lowerKey = key.toLowerCase();
-        const exists = Object.keys(respHeaders).some((k) => k.toLowerCase() === lowerKey);
+        let exists = false;
+        for (const k in respHeaders) {
+          if (k.toLowerCase() === lowerKey) {
+            exists = true;
+            break;
+          }
+        }
         if (!exists) respHeaders[key] = val;
       });
       return new Response(responseBody, {

@@ -290,11 +290,17 @@ async function tryGraphqlFastPath(
       (!(targetCollection as { ownership?: unknown }).ownership &&
         !hot._hasGuardedFields &&
         !getAllowedFieldSet(String(targetCollection._id), role)));
-  if (
-    wireReadSafe &&
-    typeof adapter.crud?.findListWireStream === "function" &&
-    (!matched.filter || Object.keys(matched.filter).length === 0)
-  ) {
+  let isFilterEmpty = true;
+  if (matched.filter) {
+    for (const _ in matched.filter) {
+      if (matched.filter) {
+        isFilterEmpty = false;
+        break;
+      }
+    }
+  }
+
+  if (wireReadSafe && typeof adapter.crud?.findListWireStream === "function" && isFilterEmpty) {
     const wireRes = await adapter.crud.findListWireStream(String(targetCollection._id), {
       tenantId: ctx.tenantId as DatabaseId,
       limit: matched.limit,
