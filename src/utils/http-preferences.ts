@@ -38,6 +38,14 @@ export function prefersMinimalReturn(
 
     // Fast-path: if search string is empty or absent, skip URLSearchParams instantiations
     if (searchStr && searchStr.length > 0) {
+      // Direct string checks for high-speed early return
+      if (searchStr.includes("return=minimal")) return true;
+      if (searchStr.includes("return=representation") || searchStr.includes("return=full")) {
+        return false;
+      }
+      if (searchStr.includes("minimal=true") || searchStr.includes("minimal=1")) return true;
+      if (searchStr.includes("minimal=false") || searchStr.includes("minimal=0")) return false;
+
       const searchParams =
         urlOrQuery instanceof URLSearchParams
           ? urlOrQuery
@@ -60,6 +68,10 @@ export function prefersMinimalReturn(
     }
   }
   if (!header) return true; // Default: minimal status-only ack.
+  // Direct fast path for common exact header tokens
+  if (header === "return=minimal") return true;
+  if (header === "return=representation") return false;
+
   let decision: "minimal" | "representation" | null = null;
   for (const token of header.split(",")) {
     const eq = token.indexOf("=");
