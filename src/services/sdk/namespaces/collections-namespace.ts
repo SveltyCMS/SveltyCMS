@@ -137,6 +137,7 @@ import { ownershipFilter, ownerValue, stripUnownedRows } from "./collections/acc
 export { ownershipFilter, ownerValue, stripUnownedRows };
 import {
   casVersionCandidates,
+  reconstructRevisionSnapshot,
   recordRevision,
   restoreEntryRevision,
   revisionLimitOf,
@@ -1727,7 +1728,7 @@ export class CollectionsNamespace {
   ) {
     const { tenantId, limit, page } = options;
     const { HistoryService } = await getHistoryServiceLazy();
-    return HistoryService.getRevisions({
+    const result = await HistoryService.getRevisions({
       collectionId,
       entryId,
       tenantId: tenantId as string,
@@ -1735,6 +1736,33 @@ export class CollectionsNamespace {
       limit: limit || 100,
       page: page || 1,
     });
+
+    // Delta payloads are a storage encoding, not the public shape. Callers (the
+    // history UI and the undo path) expect a complete snapshot under `data`, so
+    // each delta is expanded against its nearest baseline before it leaves here.
+    const rows = (result as { data?: { items?: unknown[] } }).data?.items;
+    if (result.success && Array.isArray(rows) && rows.length > 0) {
+      const store = this._dbAdapter.content.revisions as unknown as Parameters<
+        typeof reconstructRevisionSnapshot
+      >[0];
+      const scope = tenantId ? { tenantId: tenantId as DatabaseId } : undefined;
+      const expanded = await Promise.all(
+        rows.map(async (item) => {
+          const row = item as Record<string, unknown>;
+          const version = Number(row.version);
+          if (!Number.isInteger(version) || version < 1) return item;
+          const snapshot = await reconstructRevisionSnapshot(
+            store,
+            entryId as DatabaseId,
+            version,
+            scope,
+          );
+          return snapshot ? { ...row, data: snapshot } : item;
+        }),
+      );
+      (result as { data: { items: unknown[] } }).data.items = expanded;
+    }
+    return result;
   }
 
   async bulkCreate(collectionId: string, data: any[], options: LocalApiOptions = {}) {
