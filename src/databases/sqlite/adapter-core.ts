@@ -2240,7 +2240,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     await provisionSqliteTable(
       {
         getTable: (col) => this.getTable(col),
-        prepareAndExecute: (sql, method, params) => this.prepareAndExecute(sql, method, params),
+        prepareAndExecute: (sql, method, ...params) =>
+          this.prepareAndExecute(sql, method, ...params),
         raw: this.raw,
         provisionedTables: this._provisionedTables,
         materializedColumns: this.materializedColumns,

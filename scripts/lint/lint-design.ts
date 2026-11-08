@@ -51,6 +51,12 @@ export interface DesignCardViolation {
   attribute: string;
 }
 
+export interface DesignNestedStyleOffense {
+  file: string;
+  line: number;
+  reason: string;
+}
+
 export interface DesignLintResult {
   ok: boolean;
   definedPresetCount: number;
@@ -58,6 +64,7 @@ export interface DesignLintResult {
   unresolvedPresetOffenses: DesignUnresolvedPreset[];
   cardViolations: DesignCardViolation[];
   missingDynamic: string[];
+  nestedStyleOffenses: DesignNestedStyleOffense[];
 }
 
 const CSS_FILES = ["src/app.css", "src/utilities.css"];
@@ -173,6 +180,7 @@ export function findDesignViolations(
   const deadClassOffenses: DesignOffense[] = [];
   const unresolvedPresetOffenses: DesignUnresolvedPreset[] = [];
   const cardViolations: DesignCardViolation[] = [];
+  const nestedStyleOffenses: DesignNestedStyleOffense[] = [];
 
   // `AdminCard` must omit `variant`/`preset` so the `--admin-*` token path applies
   const ADMINCARD_EXEMPT = new Set(["design-system-preview.svelte"]);
@@ -223,6 +231,28 @@ export function findDesignViolations(
       }
     }
 
+    // Top-level <style> check: Svelte components must place <style> at file root,
+    // not nested inside template markup/blocks where Svelte emits them verbatim.
+    if (file.path.endsWith(".svelte")) {
+      const styleMatches = [...content.matchAll(/<style\b[^>]*>/g)];
+      if (styleMatches.length > 0) {
+        const lastEndStyle = content.lastIndexOf("</style>");
+        if (lastEndStyle !== -1) {
+          const trailingMarkup = content.slice(lastEndStyle + 8).trim();
+          if (trailingMarkup.length > 0) {
+            const firstStyle = styleMatches[0];
+            const lineNum = content.slice(0, firstStyle.index).split("\n").length;
+            nestedStyleOffenses.push({
+              file: relPath,
+              line: lineNum,
+              reason:
+                "<style> block must be at the root of the file, not nested inside component markup",
+            });
+          }
+        }
+      }
+    }
+
     lines.forEach((lineText, idx) => {
       const lineNum = idx + 1;
       const trimmed = lineText.trim();
@@ -258,12 +288,14 @@ export function findDesignViolations(
       deadClassOffenses.length === 0 &&
       unresolvedPresetOffenses.length === 0 &&
       cardViolations.length === 0 &&
-      missingDynamic.length === 0,
+      missingDynamic.length === 0 &&
+      nestedStyleOffenses.length === 0,
     definedPresetCount: definedPresets.size,
     deadClassOffenses,
     unresolvedPresetOffenses,
     cardViolations,
     missingDynamic,
+    nestedStyleOffenses,
   };
 }
 
@@ -315,6 +347,17 @@ function reportDesignLint(result: DesignLintResult): boolean {
     console.error(
       `\n❌ Missing dynamic color recipes in safelist: ${result.missingDynamic.join(", ")}`,
     );
+  }
+
+  // Report nested <style> blocks
+  if (result.nestedStyleOffenses.length > 0) {
+    hasError = true;
+    console.error(
+      `\n❌ Found ${result.nestedStyleOffenses.length} nested <style> block(s) (must be at root level of .svelte file):`,
+    );
+    for (const s of result.nestedStyleOffenses) {
+      console.error(`    ${s.file}:${s.line} — ${s.reason}`);
+    }
   }
 
   return hasError;

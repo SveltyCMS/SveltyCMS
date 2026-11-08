@@ -1342,25 +1342,6 @@ and preview/test functionality. Reuses TokenPicker patterns.
 							{/if}
 						</div>
 
-						<!-- copy:ignore -->
-						<style>
-							.dropdown {
-								position: relative;
-								display: inline-block;
-							}
-							.dropdown-content {
-								display: none;
-								position: absolute;
-								right: 0;
-								bottom: 100%;
-								min-width: 160px;
-								z-index: 100;
-							}
-							.dropdown:hover .dropdown-content {
-								display: block;
-							}
-						</style>
-
 						<!-- Token Reference -->
 						<details class="rounded border border-surface-500/20 bg-surface-500/10">
 							<summary class="p-3 cursor-pointer font-medium text-sm flex items-center gap-2">
@@ -1473,3 +1454,21 @@ and preview/test functionality. Reuses TokenPicker patterns.
 		</div>
 	{/if}
 </AdminPageShell>
+
+<style>
+	.dropdown {
+		position: relative;
+		display: inline-block;
+	}
+	.dropdown-content {
+		display: none;
+		position: absolute;
+		right: 0;
+		bottom: 100%;
+		min-width: 160px;
+		z-index: 50;
+	}
+	.dropdown:hover .dropdown-content {
+		display: block;
+	}
+</style>

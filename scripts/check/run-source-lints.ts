@@ -202,6 +202,9 @@ export function runSourceLints(
       `design ${violation.file}:${violation.line} — AdminCard ${violation.attribute}`,
     );
   }
+  for (const offense of designResult.nestedStyleOffenses) {
+    violations.push(`design ${offense.file}:${offense.line} — ${offense.reason}`);
+  }
   if (designResult.missingDynamic.length > 0) {
     violations.push(
       `design src/app.css — missing dynamic color recipes: ${designResult.missingDynamic.join(", ")}`,

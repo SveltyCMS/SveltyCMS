@@ -891,79 +891,6 @@
 			}}></textarea>
 	{/if}
 
-	<!-- copy:ignore -->
-	<style>
-		:global(.ProseMirror) {
-			height: 100%;
-			min-height: inherit;
-			text-align: start;
-		}
-		/* Ensure the editor fills the container and is clickable everywhere */
-		:global(.ProseMirror > *:first-child) {
-			margin-top: 0;
-		}
-		:global(.ProseMirror > *:last-child) {
-			margin-bottom: 0;
-		}
-		/* Dark mode cursor visibility */
-		:global(.dark .ProseMirror) {
-			color: #f9fafb; /* gray-50 - high contrast white text */
-			caret-color: #60a5fa; /* gray-50 - high contrast white text */
-		}
-		:global(.dark .ProseMirror p),
-		:global(.dark .ProseMirror h1),
-		:global(.dark .ProseMirror h2),
-		:global(.dark .ProseMirror h3),
-		:global(.dark .ProseMirror li) {
-			color: #f9fafb; /* gray-50 */
-		}
-		:global(.ProseMirror-focused) {
-			caret-color: #2563eb; /* blue-600 */
-		}
-		:global(.dark .ProseMirror-focused) {
-			caret-color: #60a5fa; /* blue-400 */
-		}
-		:global(.ProseMirror p.is-editor-empty:first-child::before) {
-			float: left;
-			height: 0;
-			color: #adb5bd;
-			pointer-events: none;
-			content: attr(data-placeholder);
-		}
-		:global(.dark .ProseMirror p.is-editor-empty:first-child::before) {
-			color: #6b7280; /* gray-500 for better dark mode visibility */
-		}
-		:global(.ProseMirror table) {
-			width: 100%;
-			margin: 0;
-			overflow: hidden;
-			table-layout: fixed;
-			border-collapse: collapse;
-		}
-		:global(.ProseMirror td),
-		:global(.ProseMirror th) {
-			position: relative;
-			box-sizing: border-box;
-			min-width: 1em;
-			padding: 6px 8px;
-			vertical-align: top;
-			border: 1px solid #ced4da;
-		}
-		:global(.ProseMirror th) {
-			font-weight: bold;
-			text-align: left;
-			background-color: #f1f3f5;
-		}
-		/* Dark mode table styles */
-		:global(.dark .ProseMirror td),
-		:global(.dark .ProseMirror th) {
-			border-color: #3f3f46; /* surface-700 */
-		}
-		:global(.dark .ProseMirror th) {
-			background-color: #27272a; /* surface-800 */
-		}
-	</style>
-
 	<!-- Error -->
 	{#if error}
 		<div
@@ -1051,3 +978,76 @@
 		onchange={handleColorChange}
 	/>
 </div>
+
+<!-- copy:ignore -->
+<style>
+	:global(.ProseMirror) {
+		height: 100%;
+		min-height: inherit;
+		text-align: start;
+	}
+	/* Ensure the editor fills the container and is clickable everywhere */
+	:global(.ProseMirror > *:first-child) {
+		margin-top: 0;
+	}
+	:global(.ProseMirror > *:last-child) {
+		margin-bottom: 0;
+	}
+	/* Dark mode cursor visibility */
+	:global(.dark .ProseMirror) {
+		color: #f9fafb; /* gray-50 - high contrast white text */
+		caret-color: #60a5fa; /* gray-50 - high contrast white text */
+	}
+	:global(.dark .ProseMirror p),
+	:global(.dark .ProseMirror h1),
+	:global(.dark .ProseMirror h2),
+	:global(.dark .ProseMirror h3),
+	:global(.dark .ProseMirror li) {
+		color: #f9fafb; /* gray-50 */
+	}
+	:global(.ProseMirror-focused) {
+		caret-color: #2563eb; /* blue-600 */
+	}
+	:global(.dark .ProseMirror-focused) {
+		caret-color: #60a5fa; /* blue-400 */
+	}
+	:global(.ProseMirror p.is-editor-empty:first-child::before) {
+		float: left;
+		height: 0;
+		color: #adb5bd;
+		pointer-events: none;
+		content: attr(data-placeholder);
+	}
+	:global(.dark .ProseMirror p.is-editor-empty:first-child::before) {
+		color: #6b7280; /* gray-500 for better dark mode visibility */
+	}
+	:global(.ProseMirror table) {
+		width: 100%;
+		margin: 0;
+		overflow: hidden;
+		table-layout: fixed;
+		border-collapse: collapse;
+	}
+	:global(.ProseMirror td),
+	:global(.ProseMirror th) {
+		position: relative;
+		box-sizing: border-box;
+		min-width: 1em;
+		padding: 6px 8px;
+		vertical-align: top;
+		border: 1px solid #ced4da;
+	}
+	:global(.ProseMirror th) {
+		font-weight: bold;
+		text-align: left;
+		background-color: #f1f3f5;
+	}
+	/* Dark mode table styles */
+	:global(.dark .ProseMirror td),
+	:global(.dark .ProseMirror th) {
+		border-color: #3f3f46; /* surface-700 */
+	}
+	:global(.dark .ProseMirror th) {
+		background-color: #27272a; /* surface-800 */
+	}
+</style>

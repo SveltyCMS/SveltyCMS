@@ -229,22 +229,26 @@
 }
 
 /* Specific Focus logic for raw form controls (native components bring their
-   own ring via utilities; this is the baseline for untouched inputs). */
-input:focus,
-textarea:focus,
-select:focus {
-  box-shadow: 0 0 0 1px inset var(--color-tertiary-500) !important;
-  border-color: var(--color-tertiary-500) !important;
-  outline: none !important;
-}
+   own ring via utilities; this is the baseline for untouched inputs).
+   Placed in @layer base without !important so component classes and utilities
+   (like focus:ring-*, error states, etc.) can cleanly override them. */
+@layer base {
+  input:focus,
+  textarea:focus,
+  select:focus {
+    box-shadow: 0 0 0 1px inset var(--color-tertiary-500);
+    border-color: var(--color-tertiary-500);
+    outline: none;
+  }
 
-:where(.dark) input:focus,
-:where(.dark) textarea:focus,
-:where(.dark) select:focus {
-  background-color: var(--color-surface-900) !important;
-  color: white !important;
-  box-shadow: 0 0 0 1px inset var(--color-primary-400) !important;
-  border-color: var(--color-primary-400) !important;
+  :where(.dark) input:focus,
+  :where(.dark) textarea:focus,
+  :where(.dark) select:focus {
+    background-color: var(--color-surface-900);
+    color: white;
+    box-shadow: 0 0 0 1px inset var(--color-primary-400);
+    border-color: var(--color-primary-400);
+  }
 }
 
 /* ------------------------------------------------------------------ */

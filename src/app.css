@@ -4,6 +4,7 @@
  */
 
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @import "./utilities.css";
 
 @source "../src/**/*.svelte";
