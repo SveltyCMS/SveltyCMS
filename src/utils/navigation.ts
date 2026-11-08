@@ -47,6 +47,42 @@ interface SlugifyOptions {
 
 // --- Slugification ---
 
+interface PrecompiledSlugPatterns {
+  delimiters: RegExp;
+  allowedChars: RegExp;
+  multiDashes: RegExp;
+  trimDashes: RegExp;
+}
+
+const DEFAULT_SLUG_PATTERNS: PrecompiledSlugPatterns = {
+  delimiters: /[_.\\s]+/g,
+  allowedChars: /[^a-z0-9-]/gi,
+  multiDashes: /-{2,}/g,
+  trimDashes: /^-+|-+$/g,
+};
+
+const customSlugPatternsCache = new Map<string, PrecompiledSlugPatterns>();
+
+function getSlugPatterns(replacement: string): PrecompiledSlugPatterns {
+  if (replacement === "-") return DEFAULT_SLUG_PATTERNS;
+
+  let cached = customSlugPatternsCache.get(replacement);
+  if (!cached) {
+    if (customSlugPatternsCache.size > 50) {
+      customSlugPatternsCache.clear();
+    }
+    const esc = replacement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    cached = {
+      delimiters: /[_.\\s]+/g,
+      allowedChars: new RegExp(`[^a-z0-9${esc}]`, "gi"),
+      multiDashes: new RegExp(`(${esc}){2,}`, "g"),
+      trimDashes: new RegExp(`^${esc}+|${esc}+$`, "g"),
+    };
+    customSlugPatternsCache.set(replacement, cached);
+  }
+  return cached;
+}
+
 /**
  * Converts a string into a URL-safe slug.
  * Handles potential regex injection and catastrophic backtracking.
@@ -60,20 +96,18 @@ export function slugify(string: string, options: SlugifyOptions = {}): string {
   if (options.remove) slug = slug.replace(options.remove, "");
   if (lower) slug = slug.toLowerCase();
 
-  // Escape replacement for regex safety
-  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const patterns = getSlugPatterns(replacement);
 
-  slug = slug.replace(new RegExp(`[_.\\s]+`, "g"), replacement);
+  slug = slug.replace(patterns.delimiters, replacement);
 
   if (strict) {
-    slug = slug.replace(new RegExp(`[^a-z0-9${esc(replacement)}]`, "gi"), "");
+    slug = slug.replace(patterns.allowedChars, "");
   }
 
-  slug = slug.replace(new RegExp(`(${esc(replacement)}){2,}`, "g"), replacement);
+  slug = slug.replace(patterns.multiDashes, replacement);
 
   if (trim) {
-    const r = esc(replacement);
-    slug = slug.replace(new RegExp(`^${r}+|${r}+$`, "g"), "");
+    slug = slug.replace(patterns.trimDashes, "");
   }
 
   return slug;

@@ -222,6 +222,27 @@ export function normalizeRedirectRow(
   };
 }
 
+const COMPILED_REDIRECT_REGEX_CACHE = new Map<string, RegExp | null>();
+const MAX_COMPILED_REDIRECT_REGEX_CACHE_SIZE = 500;
+
+function getCompiledRedirectRegex(pattern: string): RegExp | null {
+  const cached = COMPILED_REDIRECT_REGEX_CACHE.get(pattern);
+  if (cached !== undefined) return cached;
+
+  if (COMPILED_REDIRECT_REGEX_CACHE.size >= MAX_COMPILED_REDIRECT_REGEX_CACHE_SIZE) {
+    COMPILED_REDIRECT_REGEX_CACHE.clear();
+  }
+
+  try {
+    const re = new RegExp(pattern);
+    COMPILED_REDIRECT_REGEX_CACHE.set(pattern, re);
+    return re;
+  } catch {
+    COMPILED_REDIRECT_REGEX_CACHE.set(pattern, null);
+    return null;
+  }
+}
+
 /**
  * First pattern row whose `source` matches `path`.
  *
@@ -244,11 +265,8 @@ export function findRegexRedirect<T>(
     const pattern = getPattern(row)?.trim();
     if (!pattern || pattern.length > 512) continue;
     tested++;
-    try {
-      if (new RegExp(pattern).test(path)) return row;
-    } catch {
-      // Ignore invalid patterns written outside the admin (direct DB edits).
-    }
+    const compiled = getCompiledRedirectRegex(pattern);
+    if (compiled && compiled.test(path)) return row;
   }
   return null;
 }
