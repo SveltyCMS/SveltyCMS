@@ -36,7 +36,7 @@
 	import Toggle from '@components/ui/toggle.svelte';
 	import { formatDateTime } from '@utils/format-date';
 	import type { CollectionEntry } from '@src/content/types';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 	// ParaglideJS
 	import {
 		form_required,

@@ -18,7 +18,7 @@
 	// Components
 	import Toggle from '@components/ui/toggle.svelte';
 	import Badge from '@components/ui/badge.svelte';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 	// ParaglideJs
 	import {
 		button_delete,

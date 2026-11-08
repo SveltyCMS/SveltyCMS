@@ -23,7 +23,10 @@ The SveltyCMS Content System is a high-performance, reactive engine. The server 
 
 | File                              | Role                                                                                        |
 | :-------------------------------- | :------------------------------------------------------------------------------------------ |
-| `index.ts`                        | Browser-safe public facade (`contentSystem`, SSE init)                                      |
+| `index.ts`                        | Re-export facade (`contentSystem`, SSE init) — browser-safe public surface                  |
+| `context.ts`                      | Client context: `initializeContent` / `setContentContext` / `useContent`                    |
+| `content-navigation.ts`           | Navigation tree + metrics (server-side consumers)                                           |
+| `content-tree.ts`                 | Tree helpers (`sortContentNodes`, `hasDuplicateSiblingName`, category nodes)                |
 | `index.server.ts`                 | Server facade + `ensureContentInitialized()` + re-exports ContentSync                       |
 | `sync-content-state.server.ts`    | **ContentSync** — `boot` / `compile` / `gui-save` / `watcher` / `collection-save` / reorder |
 | `schema-contract.ts`              | Post-load schema assert (Valibot shape, soft empty fields, structure fingerprint)           |
@@ -31,7 +34,7 @@ The SveltyCMS Content System is a high-performance, reactive engine. The server 
 | `engine.server.ts`                | Scanner, reconciliation, cache invalidation, dev watcher, CRUD                              |
 | `loader.server.ts`                | `loadSchema()`, worker pool, `isSafeCollectionPath()`, `contentRuntime`                     |
 | `module-worker.server.ts`         | Worker-thread entry (spawned by loader pool; must stay separate)                            |
-| `content-utils.ts`                | Navigation tree, progressive nav, field sanitize/validate helpers                           |
+| `content-utils.ts`                | Field sanitize/validate helpers (re-exports the tree helpers)                               |
 | `content-hmr.ts`                  | Client-safe surgical HMR patch (`applyContentHmrPatch`) vs full layout invalidate           |
 | `content-sse.svelte.ts`           | Client SSE → debounced `contentSystem.refresh()`                                            |
 | `types.ts` / `types.generated.ts` | Domain types + build-time collection unions (`generate-content-types.ts`)                   |

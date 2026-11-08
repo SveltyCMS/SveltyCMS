@@ -181,7 +181,8 @@ src/services/site/
 └── website-starter-seed.server.ts  # Shared seed blueprint (setup + testing API)
 
 src/services/content/seo/
-├── seo-head.ts             # Pure head metadata builder (locale fallback, escaping)
+├── seo-head-core.ts        # Client-safe locale fallback + entity helpers
+├── seo-head.ts             # Pure head metadata builder (JSON-LD, OG, hreflang)
 ├── seo-head.server.ts      # Server assembly incl. media ID → URL resolution
 └── sitemap-builder.ts      # sitemap.xml + robots.txt serializers
 ```

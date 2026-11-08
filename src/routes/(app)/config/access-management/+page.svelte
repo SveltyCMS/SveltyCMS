@@ -49,7 +49,7 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { deepClone } from '@utils/native-utils';
-	import { rethrow } from '@utils/error-handling';
+	import { rethrow } from '@utils/rethrow';
 	import { page } from '$app/state';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { untrack } from 'svelte';

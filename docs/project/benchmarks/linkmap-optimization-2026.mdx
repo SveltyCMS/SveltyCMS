@@ -49,7 +49,7 @@ This document records the baseline and post-optimization telemetry for the Svelt
 
 ### Phase 1: All 6 Runtime Import Cycles Broken (`6 → 0`) & Client/Server Boundary
 
-1. **`src/databases/auth/constants.ts` ↔ `src/utils/security/session-cookie.ts`**: Moved `SESSION_COOKIE_NAME`, `HOST_SESSION_COOKIE_NAME`, and `SECURE_SESSION_COOKIE_NAME` into leaf `session-cookie.ts` and re-exported from `constants.ts`.
+1. **`src/databases/auth/constants.ts` ↔ `src/utils/security/session-cookie.ts`**: The cookie name strings (`SESSION_COOKIE_NAME`, `HOST_SESSION_COOKIE_NAME`, `SECURE_SESSION_COOKIE_NAME`) live in the client-safe `constants.ts`; `session-cookie.ts` imports them from there and `constants.ts` re-exports nothing back, so the edge is one-way.
 2. **`src/components/collection-display/schedule-modal.svelte` ↔ `src/utils/modal.svelte.ts`**: Passed `initialAction`, `meta`, and `close` via `$props()` from `DialogManager`.
 3. **`src/databases/core/relational-auth.ts` ↔ `src/databases/core/sql-adapter-core.ts`**: Extracted `RAW_DECLINED` and `RawFindResult<T>` into leaf `src/databases/core/drizzle-sql-helpers.ts`.
 4. **`src/databases/sqlite/adapter-core.ts` ↔ `src/databases/sqlite/transaction-module.ts`**: Extracted the process-wide re-entrant `Mutex` and `sqliteWriteMutex` into leaf `src/databases/sqlite/write-mutex.ts`.

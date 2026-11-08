@@ -2,10 +2,10 @@
   "version": 1,
   "layers": {
     "unit": {
-      "generatedAt": "2026-11-08T15:11:03.854Z",
+      "generatedAt": "2026-11-08T16:10:56.378Z",
       "totals": {
-        "files": 867,
-        "tests": 8211
+        "files": 870,
+        "tests": 8242
       },
       "areas": {
         "unit": {
@@ -125,8 +125,8 @@
           "tests": 533
         },
         "unit/services": {
-          "files": 82,
-          "tests": 733
+          "files": 84,
+          "tests": 757
         },
         "unit/setup": {
           "files": 6,
@@ -149,8 +149,8 @@
           "tests": 143
         },
         "unit/utils": {
-          "files": 103,
-          "tests": 978
+          "files": 104,
+          "tests": 985
         },
         "unit/widgets": {
           "files": 28,

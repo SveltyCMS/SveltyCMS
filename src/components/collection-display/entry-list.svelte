@@ -69,7 +69,7 @@ bulk actions, and predictive preloading.
 		TableHeader,
 		CollectionEntry
 	} from '@src/content/types';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 	// ParaglideJS
 	import { EntryList_no_collection } from '@src/paraglide/messages';
 	// Stores

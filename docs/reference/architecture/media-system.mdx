@@ -307,7 +307,7 @@ The format comes from the public setting `MEDIA_OUTPUT_FORMAT_QUALITY` (`{ forma
 
 - **Opting into WebP/AVIF** — set the same record, e.g. `{ "format": "webp", "quality": 80 }` or `{ "format": "avif", "quality": 50 }`. The setup wizard seeds `{ "format": "jpeg", "quality": 80 }` for new installs; the value is stored per tenant with the other public settings (`setPublicSetting` / `cms.system.settings.set`). Nested-object settings such as this one and `IMAGE_SIZES` are not part of the System Settings form yet.
 - **Existing installs keep what they stored.** A site that already saved `{ "format": "webp" }` keeps producing WebP until the value is changed — a stored setting always wins over the default.
-- **Fail safe**: an absent or unrecognised `format` (e.g. `heic`) falls back to JPEG (`normalizeDerivativeFormat()` in `media-models.ts`), so derivatives are never skipped over a typo.
+- **Fail safe**: an absent or unrecognised `format` (e.g. `heic`) falls back to JPEG (`normalizeDerivativeFormat()` in `media-values.ts`), so derivatives are never skipped over a typo.
 - **Transparency is preserved**: JPEG has no alpha channel, so a source whose decoded `hasAlpha` is true is written as WebP for that ladder instead of being flattened onto the encoder's background.
 - **WebP sidecars** belong to `original` mode — the pre-2026-09 pairing of a source-format primary with a modern-format alternative. An explicit `jpeg`/`webp`/`avif` writes exactly one file per step; a per-request alternative is available from the delivery route (`/files/**?fmt=webp`, or `Accept` negotiation).
 - **Unchanged**: the original upload is stored byte-for-byte and never re-encoded, and the 32 px LQIP lives on its own rule (`metadata.placeholder` stays a WebP data-URI, `media-processing.server.ts`).
@@ -620,34 +620,23 @@ await parseMultipartStream(request, {
 
 ### Design
 
-`media-models.ts` uses `as const` maps (not enums) for tree-shakable, JSON-safe value lists. Each map doubles as the runtime valid-value list:
+`media-values.ts` holds the runtime surface (`as const` maps, guards, normalisers) and `media-models.ts` holds the type surface. The split exists so a client component can import one runtime value without charging the whole type module to the client graph; `media-models.ts` imports `MediaTypeEnum` from the leaf and creates no reverse runtime edge. `media-values.ts` uses `as const` maps (not enums) for tree-shakable, JSON-safe value lists. Each map doubles as the runtime valid-value list:
 
 ```typescript
 // Type guards — narrow discriminated union at runtime
-if (isMediaImage(item)) item.width;           // MediaImage
-if (isStoredMedia(item)) item.hash;           // StoredMedia (excludes remote video)
-if (isMediaOfType(item, MediaType.Video)) item.duration; // MediaVideo
+if (isMediaImage(item)) item.width; // MediaImage
+if (isStoredMedia(item)) item.hash; // StoredMedia (excludes remote video)
 
 // DTO types — server-assigned fields rejected at compile time
-const draft: NewMedia<MediaImage> = { ... };  // no _id, hash, url, createdBy
-const patch: MediaPatch = { alt: "photo" };   // PATCH-safe fields only
-
-// Exhaustiveness — a new media type turns every affected switch into a compile error
-switch (item.type) {
-  case MediaType.Image:    return item.width;
-  case MediaType.RemoteVideo: return item.provider;
-  // ...
-  default: return assertNever(item);
-}
+const draft: NewMedia<MediaImage> = { ... }; // no _id, hash, url, createdBy
+const patch: MediaPatch = { alt: "photo" }; // PATCH-safe fields only
 ```
 
-| Improvement         | Before                                      | After                                                    |
-| :------------------ | :------------------------------------------ | :------------------------------------------------------- |
-| Type safety         | `any` everywhere, zero guards               | Discriminated union + 7 type guards                      |
-| DTO safety          | Client could PATCH `hash`/`url`/`createdBy` | `NewMedia<T>`, `MediaPatch` block server-assigned fields |
-| Exhaustiveness      | Missing type = silent bug                   | `assertNever()` catches at compile time                  |
-| Tree-shaking        | `enum` blocks `erasableSyntaxOnly`          | `as const` maps are fully erasable                       |
-| Watermark positions | Sharp-rejected `"top"`/`"bottom"`           | `normalizeWatermarkPosition()` maps to compass values    |
+| Improvement  | Before                                      | After                                                    |
+| :----------- | :------------------------------------------ | :------------------------------------------------------- |
+| Type safety  | `any` everywhere, zero guards               | Discriminated union + type guards                        |
+| DTO safety   | Client could PATCH `hash`/`url`/`createdBy` | `NewMedia<T>`, `MediaPatch` block server-assigned fields |
+| Tree-shaking | `enum` blocks `erasableSyntaxOnly`          | `as const` maps are fully erasable                       |
 
 ---
 

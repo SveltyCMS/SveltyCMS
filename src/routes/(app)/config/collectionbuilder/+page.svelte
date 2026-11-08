@@ -40,7 +40,7 @@ None (TreeView has its own keyboard navigation)
 	import { generateUUID } from '@utils/native-utils';
 	import { hasDuplicateSiblingName } from '@src/content/content-tree';
 	import { getDescendantIds } from './collectionbuilder-utils';
-	import { rethrow } from '@utils/error-handling';
+	import { rethrow } from '@utils/rethrow';
 	import { stripHtml } from '@utils/sanitize-html';
 	import {
 		button_save,

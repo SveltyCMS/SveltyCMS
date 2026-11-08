@@ -866,16 +866,7 @@ When saving a collection with breaking changes, a **confirmation modal** display
 
 ### Code-Level Warnings
 
-The schema comparison engine (`collectionSchemaWarnings.ts`) can be used programmatically:
-
-```
-import { analyzeSchemaChanges } from "@utils/collectionSchemaWarnings";
-
-const result = analyzeSchemaChanges(oldSchema, newSchema);
-if (result.hasDataLoss) {
-  console.warn("⚠️ Data loss detected:", result.summary);
-}
-```
+The programmatic schema-comparison entry point (`analyzeSchemaChanges`) was removed; the breaking-change types (`BreakingChange`, `BreakingChangeType`, `SchemaDiffResult`) remain exported from `src/utils/collection-schema-warnings.ts` for tooling that needs to describe a detected change.
 
 ---
 

@@ -18,7 +18,7 @@ Values form StatusTypes
 
 <script lang="ts">
 	import Badge from '@components/ui/badge.svelte';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 
 	const { value } = $props(); // The status value to display
 

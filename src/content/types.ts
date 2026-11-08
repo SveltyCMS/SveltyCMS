@@ -23,18 +23,11 @@ export type { ContentTypes, CollectionMap };
 
 // Define core value and status types
 export type FieldValue = string | number | boolean | object | null;
-// Status types for collections and entries
-export const StatusTypes = {
-  archive: "archive",
-  draft: "draft",
-  publish: "publish",
-  unpublish: "unpublish",
-  schedule: "schedule",
-  clone: "clone",
-  delete: "delete",
-} as const;
-
-export type StatusType = (typeof StatusTypes)[keyof typeof StatusTypes];
+// Status types for collections and entries. The definition lives in `./status`
+// so a runtime import of `StatusTypes` does not pull this type-only module
+// (~650 LOC) into the client graph. Re-exported here for existing importers.
+import type { StatusType } from "./status";
+export { StatusTypes, type StatusType } from "./status";
 
 // --- Strongly-Typed Identifiers ---
 export type DatabaseId = string & { readonly __brand: "DatabaseId" };

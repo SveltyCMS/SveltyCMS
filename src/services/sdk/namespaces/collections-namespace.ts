@@ -143,6 +143,7 @@ import {
   type RecordRevisionOptions,
 } from "./collections/revisions";
 import { runCollectionAction } from "./collections/actions";
+import { getCollectionExecutionPlan } from "./collections/execution-plan";
 import {
   executeBulkCreate,
   executeBulkDelete,
@@ -895,6 +896,7 @@ export class CollectionsNamespace {
     const effectivePage = options.page ?? Math.floor(offset / limit) + 1;
     const ttl = options.ttl ? Number(options.ttl) : undefined;
     const schema = options.collection ?? (await this.schemaOf(collectionId, tenantId));
+    const plan = getCollectionExecutionPlan(schema);
 
     let inputFilter = { ...(filter as Record<string, unknown>) };
     if (editEntryId) {
@@ -954,14 +956,16 @@ export class CollectionsNamespace {
       }
     }
 
-    const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
-      dbAdapter: this._dbAdapter.crud,
-      getCollectionName: (id) => this.getCollectionName(id),
-      resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
-      tenantId,
-      user: options.user,
-      system: options.system,
-    });
+    const resolvedFilter = plan.hasRelations
+      ? await compileRelationFilters(normalizedFilter, schema, {
+          dbAdapter: this._dbAdapter.crud,
+          getCollectionName: (id) => this.getCollectionName(id),
+          resolveTargetSchema: (id) => this.schemaOf(id, tenantId),
+          tenantId,
+          user: options.user,
+          system: options.system,
+        })
+      : normalizedFilter;
     const baseQuery: any = decodedCursor
       ? mergeKeysetFilter(resolvedFilter as Record<string, unknown>, decodedCursor)
       : resolvedFilter;
@@ -978,12 +982,16 @@ export class CollectionsNamespace {
     );
 
     const hot = ensureSchemaHotFlags(schema);
-    const encCtx = readEncryptionContext(schema, tenantId, hot);
-    assertEncryptedFieldsNotQueried(
-      query,
-      hot,
-      options.sortField || (Array.isArray(options.sort) ? options.sort?.[0]?.[0] : undefined),
-    );
+    const encCtx = plan.hasEncryption
+      ? readEncryptionContext(schema, tenantId, hot)
+      : NO_ENCRYPTION_CONTEXT;
+    if (plan.hasEncryption) {
+      assertEncryptedFieldsNotQueried(
+        query,
+        hot,
+        options.sortField || (Array.isArray(options.sort) ? options.sort?.[0]?.[0] : undefined),
+      );
+    }
 
     if (
       !decodedCursor &&
@@ -1031,7 +1039,7 @@ export class CollectionsNamespace {
           ]);
         }
         if (row) {
-          if (hot._hasActiveWidgets) {
+          if (plan.hasWidgets && hot._hasActiveWidgets) {
             const payload = [row];
             await applyWidgetPipeline(schema, payload, {
               dbAdapter: this._dbAdapter,
@@ -1052,6 +1060,9 @@ export class CollectionsNamespace {
           (row as any)._collection = collectionMeta;
         }
         const envelope = { success: true, data: row ? [row] : [], entries: row ? [row] : [] };
+        if (plan.isPlain) {
+          return envelope;
+        }
         return presentRead(envelope, schema, hot, encCtx, options.user, options.system);
       }
     }
@@ -1256,7 +1267,9 @@ export class CollectionsNamespace {
             mode: "list",
           }),
         );
-        await hydrateRelationDisplays(data, schema, this._dbAdapter, tenantId);
+        if (plan.hasRelations) {
+          await hydrateRelationDisplays(data, schema, this._dbAdapter, tenantId);
+        }
       }
 
       if (!editEntryId && res.success && data.length > 0) {
@@ -1401,6 +1414,9 @@ export class CollectionsNamespace {
             rowCount: Array.isArray(cached.payload?.data) ? cached.payload.data.length : 0,
             queryHash: cacheKey,
           });
+          if (plan.isPlain) {
+            return cached.payload;
+          }
           return presentRead(cached.payload, schema, hot, encCtx, options.user, options.system);
         }
       }
@@ -1444,6 +1460,9 @@ export class CollectionsNamespace {
       queryHash: cacheKey || "",
     });
 
+    if (plan.isPlain) {
+      return result;
+    }
     return presentRead(result, schema, hot, encCtx, options.user, options.system);
   }
 
@@ -2022,10 +2041,11 @@ export class CollectionsNamespace {
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
     let hot = ensureSchemaHotFlags(schema);
+    const plan = getCollectionExecutionPlan(schema);
     // A populated hot flag means every declared lazy widget was already loaded
     // before the flag plan was frozen. Avoid the per-write widget-name array,
     // registry scan, and resolved-Promise hop on warm write paths.
-    if (hot._hasActiveWidgets === undefined) {
+    if (plan.hasWidgets && hot._hasActiveWidgets === undefined) {
       await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
       hot = ensureSchemaHotFlags(schema);
     }
@@ -2066,12 +2086,18 @@ export class CollectionsNamespace {
 
     const effectiveUser = system ? { _id: "system", role: "admin" } : user;
 
-    // 🚪 Publication gate: workflows with gatePublication block direct
-    // publishing of brand-new entries (no instance exists yet — the workflow
-    // must approve before publish). System writes bypass the gate.
+    // 🚪 Publication gate:
+    // 1) Workflows with gatePublication block direct publishing of brand-new entries
+    //    (no instance exists yet — the workflow must approve before publish).
+    // 2) Required fields for publish must always be validated when publishing.
+    // System writes bypass both gates.
     const requestedStatus = (data as { status?: string } | null)?.status;
-    if (!system && (requestedStatus === "publish" || requestedStatus === "published")) {
+    const isPublishing =
+      !system && (requestedStatus === "publish" || requestedStatus === "published");
+
+    if (isPublishing) {
       if (
+        plan.hasWorkflows &&
         !isAdmin(effectiveUser) &&
         effectiveUser?.role !== "admin" &&
         !workflowKnownAbsent(schema._id as string, tenantId as string | undefined)
@@ -2107,21 +2133,23 @@ export class CollectionsNamespace {
     }
 
     const mBefore = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
-    let finalData = triggerLifecycleHook(
-      this._dbAdapter,
-      "beforeSave",
-      collectionId,
-      entryData,
-      options,
-      schema,
-    );
+    let finalData = plan.hasHooks
+      ? triggerLifecycleHook(
+          this._dbAdapter,
+          "beforeSave",
+          collectionId,
+          entryData,
+          options,
+          schema,
+        )
+      : entryData;
     if (isThenable(finalData)) finalData = await finalData;
     mBefore?.();
 
     const m2 = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
     // Widget pipeline only when this payload actually hits a modifyRequest widget.
     // DateTime is inlined in prepareWritePayload — skip the async round-trip.
-    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
+    if (plan.hasWidgets && hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -2140,14 +2168,16 @@ export class CollectionsNamespace {
     markWritePhase(options, "prep", tPrep);
 
     const collectionName = this.getCollectionName(schema._id as string);
-    const encCtx = hot._hasEncryptedFields
+    const encCtx = plan.hasEncryption
       ? fieldEncryptionContext(schema, tenantId)
       : NO_ENCRYPTION_CONTEXT;
     const tEnc = writePhaseT0(options);
     const mEnc = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     // `encryptWritePayload` is a synchronous identity — no Promise, no context
     // read — for schemas without `encrypt: true` fields.
-    const encryptedCreate = encryptWritePayload(finalData, hot, encCtx);
+    const encryptedCreate = plan.hasEncryption
+      ? encryptWritePayload(finalData, hot, encCtx)
+      : finalData;
     finalData = isThenable(encryptedCreate) ? await encryptedCreate : encryptedCreate;
     mEnc?.();
     markWritePhase(options, "encrypt", tEnc);
@@ -2176,9 +2206,10 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedCreate = options.skipReturning
-      ? result
-      : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedCreate =
+      options.skipReturning || !plan.hasEncryption
+        ? result
+        : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       const createdId = result.data!._id as string;
       // Resolved once — the three side-effect schedules below shared the same
@@ -2226,10 +2257,11 @@ export class CollectionsNamespace {
         ? await profileSpan("ns:getSchema", () => this.schemaOf(collectionId, tenantId))
         : await this.schemaOf(collectionId, tenantId);
     let hot = ensureSchemaHotFlags(schema);
+    const plan = getCollectionExecutionPlan(schema);
     // See create(): only schemas whose flag plan could not be frozen yet need
     // a lazy-factory check. This preserves widget processing on a cold schema
     // while keeping established PATCHes entirely synchronous before validation.
-    if (hot._hasActiveWidgets === undefined) {
+    if (plan.hasWidgets && hot._hasActiveWidgets === undefined) {
       await widgetRegistryService.ensureWidgets(widgetNamesOf(schema));
       hot = ensureSchemaHotFlags(schema);
     }
@@ -2315,7 +2347,7 @@ export class CollectionsNamespace {
     // direct API PATCH without `status` could blank a required field and leave a
     // published entry invalid (the client hid the field, the server did not).
     if (!system && (explicitPublish || touchesRequiredFields(hot, updateData))) {
-      if (explicitPublish) {
+      if (explicitPublish && plan.hasWorkflows) {
         if (
           !isAdmin(effectiveUser) &&
           effectiveUser?.role !== "admin" &&
@@ -2372,19 +2404,21 @@ export class CollectionsNamespace {
     }
 
     const mBeforeU = PROFILE_WRITE_ENABLED ? profileMark("ns:beforeSave") : null;
-    let finalData = triggerLifecycleHook(
-      this._dbAdapter,
-      "beforeSave",
-      collectionId,
-      updateData,
-      options,
-      schema,
-    );
+    let finalData = plan.hasHooks
+      ? triggerLifecycleHook(
+          this._dbAdapter,
+          "beforeSave",
+          collectionId,
+          updateData,
+          options,
+          schema,
+        )
+      : updateData;
     if (isThenable(finalData)) finalData = await finalData;
     mBeforeU?.();
 
     const m2u = PROFILE_WRITE_ENABLED ? profileMark("ns:widgets") : null;
-    if (hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
+    if (plan.hasWidgets && hot._hasActiveWidgets && writeTouchesActiveWidgets(hot, finalData)) {
       const payload = [finalData];
       await applyWidgetPipeline(schema, payload, {
         dbAdapter: this._dbAdapter,
@@ -2423,14 +2457,16 @@ export class CollectionsNamespace {
     mRev?.();
     markWritePhase(options, "snapshot", tSnap);
 
-    const encCtx = hot._hasEncryptedFields
+    const encCtx = plan.hasEncryption
       ? fieldEncryptionContext(schema, tenantId)
       : NO_ENCRYPTION_CONTEXT;
     const tEnc = writePhaseT0(options);
     const mEncU = PROFILE_WRITE_ENABLED ? profileMark("ns:encrypt") : null;
     // `encryptWritePayload` is a synchronous identity — no Promise, no context
     // read — for schemas without `encrypt: true` fields.
-    const encryptedUpdate = encryptWritePayload(finalData, hot, encCtx);
+    const encryptedUpdate = plan.hasEncryption
+      ? encryptWritePayload(finalData, hot, encCtx)
+      : finalData;
     finalData = isThenable(encryptedUpdate) ? await encryptedUpdate : encryptedUpdate;
     mEncU?.();
     markWritePhase(options, "encrypt", tEnc);
@@ -2538,9 +2574,10 @@ export class CollectionsNamespace {
     markWritePhase(options, "dbwrite", tDb);
 
     const tPost = writePhaseT0(options);
-    const decryptedUpdate = options.skipReturning
-      ? result
-      : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
+    const decryptedUpdate =
+      options.skipReturning || !plan.hasEncryption
+        ? result
+        : decryptReadResult(result, hot, encCtx, DECRYPT_CLONE_OPTIONS);
     if (result && result.success && result.data) {
       // 🛡️ REVISION TRACKING: persist the pre-write snapshot before the request
       // returns. The write itself is already durable, but a fire-and-forget call

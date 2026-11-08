@@ -247,6 +247,35 @@ export class MongoCrudMethods<T extends BaseEntity> {
         queryOptions.readPreference = options.hints.mongo.readPreference;
       }
 
+      // 🚀 Driver Fast-Path: bypass Mongoose Query instantiation when native collection is available
+      if (
+        this.model.collection &&
+        typeof (this.model.collection as any).findOne === "function" &&
+        this.model.collection?.name !== "auth_tokens" &&
+        this.model.collection?.name !== "sessions"
+      ) {
+        try {
+          const projection = options.fields?.length
+            ? Object.fromEntries(options.fields.map((f) => [f, 1]))
+            : undefined;
+          const rawDoc = await (this.model.collection as any).findOne(secureQuery, {
+            ...queryOptions,
+            ...(projection ? { projection } : {}),
+          });
+          const meta = { executionTime: performance.now() - startTime };
+          if (!rawDoc) {
+            return { success: true, data: null, meta };
+          }
+          return {
+            success: true,
+            data: this.mapDates(plainNativeDoc<T>(rawDoc)),
+            meta,
+          };
+        } catch {
+          // Fall back to Mongoose query execution below
+        }
+      }
+
       const result = await this.model
         .findOne(secureQuery, options.fields?.join(" "), queryOptions)
         .lean()

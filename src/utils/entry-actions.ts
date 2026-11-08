@@ -4,7 +4,7 @@
  */
 
 import type { StatusType } from "@src/content/types";
-import { StatusTypes } from "@src/content/types";
+import { StatusTypes } from "@src/content/status";
 // ParaglideJS
 import {
   button_cancel,

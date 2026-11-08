@@ -1,25 +1,25 @@
 {
   "version": 1,
   "summary": {
-    "generatedAt": "2026-11-07T23:27:21.822Z",
-    "totalFiles": 1501,
-    "totalLoc": 423315,
-    "totalBytes": 14321343,
-    "runtimeEdgeCount": 6168,
-    "typeEdgeCount": 1466,
+    "generatedAt": "2026-11-08T15:42:18.983Z",
+    "totalFiles": 1505,
+    "totalLoc": 423193,
+    "totalBytes": 14314514,
+    "runtimeEdgeCount": 6186,
+    "typeEdgeCount": 1463,
     "barrelCount": 8,
     "passThroughBarrelCount": 0,
     "reExportBridgeCount": 2,
-    "microFileCount": 259,
+    "microFileCount": 262,
     "singleCallerCount": 499,
     "sameDirUntestedSingleCallerCount": 12,
     "orphanFileCount": 19,
-    "unusedRuntimeExportCount": 159,
-    "testOnlyRuntimeExportCount": 496,
+    "unusedRuntimeExportCount": 123,
+    "testOnlyRuntimeExportCount": 502,
     "runtimeCycleCount": 0,
     "clientServerLeakCount": 0,
     "clientReachableFiles": 464,
-    "clientReachableKB": 4150,
+    "clientReachableKB": 4130,
     "byArea": {
       "src/hooks.client.ts": {
         "files": 1,
@@ -37,7 +37,7 @@
       },
       "src/hooks.ws.ts": {
         "files": 1,
-        "loc": 322,
+        "loc": 323,
         "microFiles": 0,
         "barrels": 0,
         "singleCallers": 0
@@ -51,8 +51,8 @@
       },
       "src/utils": {
         "files": 221,
-        "loc": 46082,
-        "microFiles": 29,
+        "loc": 45580,
+        "microFiles": 31,
         "barrels": 2,
         "singleCallers": 58
       },
@@ -79,17 +79,17 @@
       },
       "src/services": {
         "files": 165,
-        "loc": 60871,
+        "loc": 60728,
         "microFiles": 16,
         "barrels": 2,
-        "singleCallers": 55
+        "singleCallers": 54
       },
       "src/routes": {
-        "files": 333,
-        "loc": 108135,
-        "microFiles": 60,
+        "files": 334,
+        "loc": 108610,
+        "microFiles": 61,
         "barrels": 0,
-        "singleCallers": 137
+        "singleCallers": 138
       },
       "src/plugins": {
         "files": 188,
@@ -100,28 +100,28 @@
       },
       "src/hooks": {
         "files": 24,
-        "loc": 10856,
+        "loc": 10887,
         "microFiles": 2,
         "barrels": 0,
         "singleCallers": 8
       },
       "src/databases": {
         "files": 147,
-        "loc": 69264,
+        "loc": 69140,
         "microFiles": 9,
         "barrels": 2,
         "singleCallers": 61
       },
       "src/content": {
-        "files": 18,
-        "loc": 6886,
+        "files": 21,
+        "loc": 7016,
         "microFiles": 3,
         "barrels": 1,
         "singleCallers": 4
       },
       "src/components": {
         "files": 220,
-        "loc": 50292,
+        "loc": 50302,
         "microFiles": 43,
         "barrels": 9,
         "singleCallers": 97
@@ -134,7 +134,7 @@
       "clientNodeLeaks": 0,
       "deepRelativeImports": 0,
       "testInvariantViolations": 0,
-      "clientBoundaryCandidates": 30
+      "clientBoundaryCandidates": 27
     },
     "publicApiBarrelPaths": [
       "src/components/ui/tabs/index.ts",

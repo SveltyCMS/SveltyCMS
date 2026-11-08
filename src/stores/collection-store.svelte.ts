@@ -15,7 +15,7 @@
  */
 import { browser } from "$app/env";
 import type { ContentNode, Schema, StatusType, WidgetFieldPermissions } from "@src/content/types";
-import { StatusTypes } from "@src/content/types";
+import { StatusTypes } from "@src/content/status";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
 

@@ -25,7 +25,7 @@
 	import Button from '@components/ui/button.svelte';
 	// Components
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
-	import { StatusTypes } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
 	import {
 		button_delete,
 		button_loading,

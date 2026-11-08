@@ -4,7 +4,8 @@
  -->
 <script lang="ts">
 	import AdminPageShell from '@components/admin-page-shell.svelte';
-	import { StatusTypes, type FieldInstance, type Schema } from '@src/content/types';
+	import { StatusTypes } from '@src/content/status';
+	import type { FieldInstance, Schema } from '@src/content/types';
 	import type { User } from '@src/databases/auth/types';
 	import type { Role } from '@src/databases/auth/types';
 	import {

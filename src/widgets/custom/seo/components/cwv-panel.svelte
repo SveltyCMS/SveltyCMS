@@ -25,7 +25,7 @@ URL) for LCP / INP / CLS, color-coded by the Web Vitals thresholds.
 		seo_cwv_webdev_link,
 		seo_cwv_field_data
 	} from '@src/paraglide/messages';
-	import { rethrow } from '@utils/error-handling';
+	import { rethrow } from '@utils/rethrow';
 	import { isAbsoluteHttpUrl, parsePsiReport, type CwvRating, type CwvReport } from '../cwv';
 
 	interface Props {

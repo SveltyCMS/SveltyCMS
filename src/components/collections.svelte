@@ -27,7 +27,7 @@ Provides an organized interface for navigating hierarchical content structures.
 	import TreeView from '@components/ui/tree-view.svelte';
 	import SystemTooltip from '@src/components/system/system-tooltip.svelte';
 	import type { ContentNode, Schema } from '@src/content/types';
-	import { type StatusType, StatusTypes } from '@src/content/types';
+	import { type StatusType, StatusTypes } from '@src/content/status';
 	import {
 		applyRemoteContentStructure,
 		collections,

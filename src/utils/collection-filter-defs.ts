@@ -13,7 +13,7 @@
  */
 
 import type { FieldInstance, Schema } from "@src/content/types";
-import { StatusTypes } from "@src/content/types";
+import { StatusTypes } from "@src/content/status";
 import { getFieldName } from "@utils/schema/field-utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

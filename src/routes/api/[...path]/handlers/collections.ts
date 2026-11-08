@@ -17,15 +17,21 @@ import { AppError } from "@utils/error-handling";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { LocalCMS } from "@src/services/sdk";
 import type { DatabaseId, Schema } from "@src/content/types";
-import type { ContentDraft, DatabaseResult } from "@src/databases/db-interface";
+import type { ContentDraft } from "@src/databases/db-interface";
 import { StatusTypes } from "@src/content/types";
 import { prepareCollectionFields } from "@src/content/content-write-prep.server";
 import { collectionTableName, buildCollectionCacheTags } from "@src/databases/core/collection-name";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
 import { logger } from "@utils/logger";
 import { successResponse, fastSuccessResponse, rawResponse } from "./base";
-import { fastEscapeString } from "@utils/fast-json";
 import { prefersMinimalReturn } from "@utils/http-preferences";
+import {
+  unwrapWritePayload,
+  isPublishWrite,
+  promoteStagedDraft,
+  minimalWriteAck,
+  extractExpectedVersion,
+} from "@src/services/sdk/namespaces/collections/http-bridge";
 import { trimPointReadEnvelope, trimListEnvelope } from "@utils/point-read-payload";
 import { streamingExportResponse, streamingJsonResponse } from "./streaming";
 import {
@@ -53,26 +59,6 @@ const MAX_BULK_ITEMS = 1000;
 /** Default / cap for streamed collection exports (cursor-backed, not fully buffered). */
 const DEFAULT_EXPORT_LIMIT = 100_000;
 const MAX_EXPORT_LIMIT = 1_000_000;
-
-/**
- * Admin list/edit clients historically wrapped writes as `{ data, tenantId }`.
- * Only unwrap when those are the sole keys so a real `data` widget field is preserved.
- */
-function unwrapWritePayload(raw: unknown): unknown {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
-  const obj = raw as Record<string, unknown>;
-  if (obj.data && typeof obj.data === "object" && !Array.isArray(obj.data)) {
-    let hasExtras = false;
-    for (const k in obj) {
-      if (Object.hasOwn(obj, k) && k !== "data" && k !== "tenantId") {
-        hasExtras = true;
-        break;
-      }
-    }
-    if (!hasExtras) return obj.data;
-  }
-  return raw;
-}
 
 /** Accept `string[]`, `{ entryIds }`, `{ ids }`, or `{ entries: [{ _id }] }`. */
 function extractEntryIds(payload: unknown): string[] {
@@ -124,67 +110,6 @@ function collectionConditionalGet(
     search: event.url.search,
     userCacheId: getUserCacheId(event.locals.user),
   });
-}
-
-/** Statuses that mean "publish" in a write payload (`published` is the workflow alias). */
-const PUBLISH_STATUSES = new Set([StatusTypes.publish, "published"]);
-
-/**
- * A publish request is the only write that promotes a staged draft. A plain
- * Save keeps writing the live row from the submitted form, exactly as before.
- */
-function isPublishWrite(rawData: unknown): boolean {
-  if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) return false;
-  const status = (rawData as Record<string, unknown>).status;
-  return typeof status === "string" && PUBLISH_STATUSES.has(status);
-}
-
-/**
- * Promote the author's staged draft for a publish request.
- *
- * `null` means "no draft for this author" and the caller keeps the historical
- * write path. A failed draft lookup is returned as-is: writing the live row from
- * the submitted form after failing to read the staged content would silently
- * drop that content, so the publish fails closed instead. The SDK method owns the
- * author/ownership gate, the live-write-first ordering and the revision snapshot.
- */
-async function promoteStagedDraft(
-  cms: LocalCMS,
-  collectionId: string,
-  entryId: string | undefined,
-  tenantId: DatabaseId,
-  user: unknown,
-  options: { expectedVersion?: string | number | null } = {},
-): Promise<DatabaseResult<unknown> | null> {
-  const draft = await cms.drafts.getDraft(collectionId, entryId, { user, tenantId });
-  if (!draft.success) return draft;
-  if (!draft.data) return null;
-
-  return cms.drafts.promoteDraft(collectionId, String(draft.data._id), {
-    user,
-    tenantId,
-    status: StatusTypes.publish,
-    ...(options.expectedVersion !== undefined &&
-    options.expectedVersion !== null &&
-    options.expectedVersion !== ""
-      ? { expectedVersion: options.expectedVersion }
-      : {}),
-    // Deliberately NOT `skipReturning`: that adapter path cannot tell a
-    // zero-row UPDATE from a successful one, so a deleted live row would
-    // "promote" and then discard the draft. Promotion is rare; read the row.
-  });
-}
-
-/** RFC 7240 status-only ack shared by the create/update promotion paths. */
-function minimalWriteAck(
-  event: RequestEvent,
-  result: DatabaseResult<unknown>,
-  status: number,
-): Response {
-  const data = result.success ? (result.data as { _id?: unknown; id?: unknown } | null) : null;
-  const rawId = data?._id ?? data?.id;
-  const safeId = fastEscapeString(String(rawId ?? ""));
-  return fastSuccessResponse(event, `{"_id":"${safeId}"}`, { _id: rawId }, status);
 }
 
 // ─── Main Dispatcher ─────────────────────────────────────────────────────────
@@ -782,23 +707,7 @@ export async function handleCollectionUpdate(
         : await event.request.json()),
   );
   const isMinimal = prefersMinimalReturn(event.request.headers.get("prefer"), event.url);
-  // 🔒 OPTIMISTIC LOCKING: the version the client loaded. `If-Match` wins over a
-  // body field (HTTP semantics); the query param is the escape hatch for clients
-  // that cannot set headers. `expectedVersion` is stripped from the payload so it
-  // is never mistaken for a schema field.
-  const bodyExpected =
-    rawData && typeof rawData === "object"
-      ? (rawData as Record<string, unknown>).expectedVersion
-      : undefined;
-  if (bodyExpected !== undefined && rawData && typeof rawData === "object") {
-    delete (rawData as Record<string, unknown>).expectedVersion;
-  }
-  const expectedVersion =
-    event.request.headers.get("if-match") ??
-    (typeof bodyExpected === "string" || typeof bodyExpected === "number"
-      ? bodyExpected
-      : undefined) ??
-    event.url.searchParams.get("expectedVersion");
+  const expectedVersion = extractExpectedVersion(event, rawData);
   // 🔭 FIELD PROJECTION: `?fields=_id,count,updatedAt` prunes the UPDATE's
   // RETURNING read-back to the requested columns — a caller that only needs
   // the changed fields skips re-reading (and de-TOASTing) the JSON `data`
@@ -841,8 +750,7 @@ export async function handleCollectionUpdate(
   // which is 82x what a caller that only needs "it worked" puts on the wire. The write
   // itself, its validation and its hooks are unchanged; only the representation is dropped.
   if (result?.success && isMinimal) {
-    const safeEntryId = fastEscapeString(String(entryId ?? ""));
-    return fastSuccessResponse(event, `{"_id":"${safeEntryId}"}`, { _id: entryId }, 200);
+    return minimalWriteAck(event, result, 200, entryId);
   }
 
   if (!PROFILE_WRITE_ENABLED) return successResponse(event, result);

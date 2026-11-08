@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-07T23:27:21.822Z",
+  "generatedAt": "2026-11-08T15:42:18.983Z",
   "smellSummary": {
     "zombieIslands": 0,
     "crossRouteSmugglings": 0,
@@ -7,6 +7,6 @@
     "clientNodeLeaks": 0,
     "deepRelativeImports": 0,
     "testInvariantViolations": 0,
-    "clientBoundaryCandidates": 30
+    "clientBoundaryCandidates": 27
   }
 }
