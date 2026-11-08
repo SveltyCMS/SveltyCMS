@@ -90,9 +90,7 @@ export function trimPointReadEnvelope(envelope: unknown): unknown {
  */
 function copyWithoutCollection(item: Record<string, unknown>): Record<string, unknown> {
   const copy: Record<string, unknown> = {};
-  const keys = Object.keys(item);
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
+  for (const key in item) {
     if (key !== "_collection") copy[key] = item[key];
   }
   return copy;

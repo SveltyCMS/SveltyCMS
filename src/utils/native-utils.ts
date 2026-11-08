@@ -497,3 +497,15 @@ export class FastLRU<K, V> {
     return this.entries();
   }
 }
+
+/**
+ * Returns true if an object has at least one own enumerable property,
+ * without allocating an array of keys (unlike `Object.keys(obj).length > 0`).
+ */
+export function hasOwnProperties(obj: unknown): boolean {
+  if (!obj || typeof obj !== "object") return false;
+  for (const key in obj) {
+    if (Object.hasOwn(obj, key)) return true;
+  }
+  return false;
+}

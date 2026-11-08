@@ -89,8 +89,19 @@ export async function fetchApi<T>(
   // row, batch counts), while the API's default is now a minimal status-only ack
   // (`Prefer: return=minimal`). Explicitly opt the UI back into the full
   // representation — unless the caller already chose a preference.
-  if (isMutation && !Object.keys(headers).some((h) => h.toLowerCase() === "prefer")) {
-    headers.prefer = "return=representation";
+  if (isMutation) {
+    let hasPrefer = headers.prefer !== undefined || headers.Prefer !== undefined;
+    if (!hasPrefer) {
+      for (const h in headers) {
+        if (h.length === 6 && h.toLowerCase() === "prefer") {
+          hasPrefer = true;
+          break;
+        }
+      }
+    }
+    if (!hasPrefer) {
+      headers.prefer = "return=representation";
+    }
   }
 
   try {
