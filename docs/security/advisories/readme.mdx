@@ -139,9 +139,9 @@ identifier: the gate checks the shape, a human checks the source.
 `bun run security:assurance --only=advisories` runs
 `scripts/security/check-advisories.ts --fail-on-breach`. The full aggregate
 (`bun run security:assurance`) is part of `bun run check` and the CI whitebox
-job, so it runs on every change; the nightly
-`.github/workflows/security-mutation.yml` run repeats it, so an advisory that
-ages past its SLA fails even when nobody opens a pull request.
+job, so it runs on every change; the scheduled
+`.github/workflows/security-assurance.yml` run repeats it, so an advisory that
+ages past its SLA fails even when nobody pushes.
 
 The gate fails the run (exit 1) when a record breaks the schema or the semantic
 rules, when two records share an id, when a released record took longer than

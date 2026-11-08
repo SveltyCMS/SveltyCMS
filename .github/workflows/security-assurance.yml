@@ -1,12 +1,13 @@
-# .github/workflows/security-mutation.yml
-# Nightly mutation run for the security surface.
+# .github/workflows/security-assurance.yml
+# Scheduled run of the time-based assurance gates.
 #
-# The four assurance checks already run on every pull request through
-# `bun run check` (ci.yml, whitebox 01-policy), and the red-team corpus +
-# invariants run in the unit suite. What is too slow for a PR is the mutation
-# harness, so this workflow is the only place that produces a report for
-# `scripts/security/check-test-strength.ts` to score.
-name: Security Mutation
+# Every code change already runs the full aggregate in `bun run check` and the
+# CI whitebox job (`01-policy`), and the 31-seam mutation harness runs in the
+# whitebox `04-unit` job (a 24-seam subset would be strictly redundant there).
+# What an event-driven gate cannot notice is that *time* has passed: an advisory
+# aging past its SLA, a threat model past its review window, or a stale
+# external-validation claim. This workflow exists only for that clock.
+name: Security Assurance (scheduled)
 
 on:
   schedule:
@@ -18,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: security-mutation-${{ github.ref }}
+  group: security-assurance-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -26,10 +27,10 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  mutation:
-    name: Mutation score + assurance
+  assurance:
+    name: Time-based assurance gates
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,16 +60,8 @@ jobs:
       - name: Generate Paraglide & SvelteKit types
         run: bun run paraglide && bun x svelte-kit sync
 
-      - name: Mutate the security seams
-        run: bun run test:mutation:security
-
-      - name: Enforce mutation floors and every assurance gate
-        run: bun run security:assurance --require-mutation
-
-      - name: Upload mutation report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mutation-report
-          path: .mutation/report.json
-          if-no-files-found: warn
+      # Mutation floors are enforced by the whitebox 04-unit job on every full
+      # tier run; absence of a report here is expected (test-strength exits 0
+      # with a notice), while the dated checks below still fail on a breach.
+      - name: Time-based assurance (advisory SLA, threat-model age, external validation)
+        run: bun run security:assurance

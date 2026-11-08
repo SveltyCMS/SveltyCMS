@@ -146,6 +146,7 @@ jobs:
       pw-version: ${{ steps.pw.outputs.version }}
       test-secret: ${{ steps.secret-gen.outputs.secret }}
       db-matrix: ${{ steps.matrices.outputs.db }}
+      bench-matrix: ${{ steps.matrices.outputs.bench }}
       e2e-matrix: ${{ steps.matrices.outputs.e2e }}
     steps:
       - uses: actions/checkout@v7
@@ -160,9 +161,13 @@ jobs:
       # it here instead of spending two extra runners (~7s each) on it.
       - name: Generate test matrices
         id: matrices
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
         run: |
           {
             echo "db=$(node .github/workflows/db-matrix.ts)"
+            echo "bench=$(node .github/workflows/db-matrix.ts --bench)"
             echo "e2e=$(node .github/workflows/e2e-matrix.ts)"
           } >> "$GITHUB_OUTPUT"
 
@@ -554,7 +559,10 @@ jobs:
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.bootstrap.outputs.db-matrix) }}
+      # Narrowed to SQLite by `db-matrix.ts --bench` when the trigger cannot fail
+      # the run (a `next` push treats benchmark drift as a warning). The other
+      # three engines run on `main`, the merge queue and the nightly schedule.
+      matrix: ${{ fromJson(needs.bootstrap.outputs.bench-matrix) }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-sveltycms

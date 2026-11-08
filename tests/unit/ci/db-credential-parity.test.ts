@@ -8,6 +8,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { buildDbMatrix } from "../../../.github/workflows/db-matrix";
 import {
   DOCKER_DEFAULT_DB_CREDENTIALS,
   getBenchmarkTestEnv,
@@ -60,7 +61,7 @@ describe("Docker default DB credential parity", () => {
     expect(ci).toContain("sveltycms_udh_fixture");
   });
 
-  it("ci.yml db-tests and bench-core use matrix db_user/db_password from the bootstrap db-matrix output", () => {
+  it("ci.yml db-tests and bench-core use matrix db_user/db_password from the bootstrap matrix outputs", () => {
     const ci = readRepoFile(".github/workflows/ci.yml");
 
     expect(ci).toContain("DB_USER: ${{ matrix.db_user }}");
@@ -70,11 +71,28 @@ describe("Docker default DB credential parity", () => {
     expect(ci).toMatch(
       /db-tests:[\s\S]*matrix: \$\{\{ fromJson\(needs\.bootstrap\.outputs\.db-matrix\) \}\}/,
     );
+    // bench-core reads the narrowed matrix: a `next` push can only warn on
+    // benchmark drift, so it runs SQLite alone (see db-matrix.ts --bench).
     expect(ci).toMatch(
-      /bench-core:[\s\S]*matrix: \$\{\{ fromJson\(needs\.bootstrap\.outputs\.db-matrix\) \}\}/,
+      /bench-core:[\s\S]*matrix: \$\{\{ fromJson\(needs\.bootstrap\.outputs\.bench-matrix\) \}\}/,
     );
     // bench-summary must depend on bench-core; the tier gate (`plan`) is an
     // extra direct dependency, so match the list, not a fixed pair.
     expect(ci).toMatch(/bench-summary:[\s\S]*needs: \[[^\]]*bench-core[^\]]*\]/);
+  });
+
+  it("bench matrix narrows to SQLite only when the gate can only warn", () => {
+    expect(
+      buildDbMatrix({ benchOnly: true, eventName: "push", ref: "refs/heads/main" }).db,
+    ).toEqual(["sqlite", "mongodb", "mariadb", "postgresql"]);
+
+    const advisory = buildDbMatrix({ benchOnly: true, eventName: "push", ref: "refs/heads/next" });
+    expect(advisory.db).toEqual(["sqlite"]);
+    expect(advisory.include).toHaveLength(1);
+
+    // The merge queue and the nightly keep the full matrix even with --bench.
+    expect(
+      buildDbMatrix({ benchOnly: true, eventName: "merge_group", ref: "refs/heads/next" }).db,
+    ).toHaveLength(4);
   });
 });

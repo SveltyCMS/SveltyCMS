@@ -94,7 +94,7 @@ Rules the checker applies:
 # 1. Mutate the write-path + security surface (31 seams today). Writes .mutation/report.json.
 bun run test:mutation
 
-# Security-only subset (24 seams), as used by the nightly security workflow.
+# Security-only subset (24 seams), for a focused re-run.
 bun run test:mutation:security
 
 # Explicit seam selection (same dirty-target guard and exit codes).
@@ -214,11 +214,15 @@ network calls.
   `bun run check` (CI whitebox `01-policy`). Without a mutation report the
   floor check exits 0 with a notice; the corpus runs in the unit suite and in
   `test:security`.
-- **Nightly and manual runs** (`.github/workflows/security-mutation.yml`)
-  execute `bun run test:mutation:security`, then
-  `bun run security:assurance --require-mutation`, and upload
-  `.mutation/report.json` as an artifact. A surviving mutation fails the job
-  even when the area floor still passes.
+- **Full-tier CI runs** (whitebox `04-unit`) execute `bun run test:mutation`
+  (all 31 seams) followed by
+  `security:assurance --only=test-strength --require-mutation`, so a surviving
+  mutation fails the job even when the area floor still passes. The local
+  pre-push hook runs the same harness over the changed seams.
+- **Scheduled runs** (`.github/workflows/security-assurance.yml`) execute
+  `bun run security:assurance` for the time-based gates (advisory SLA,
+  threat-model review age, external validation). They do not repeat the
+  mutation harness, which the full-tier run already covers.
 
 ## Related reading
 
