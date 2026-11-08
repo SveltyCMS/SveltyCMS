@@ -312,10 +312,17 @@ describe("Vite 8 / AST Linkmap Analyzer", () => {
   });
 
   it("explains an unanalysed path instead of throwing", () => {
-    const report = analyzeWorkspaceLinkmap(undefined, { explainPath: "tests/unit/nope.test.ts" });
+    // Tests are outside src/ and excluded from linkmap analysis. An empty workspace
+    // root exercises the missing-node branch without re-walking the entire disk.
+    const emptyRoot = mkdtempSync(join(tmpdir(), "linkmap-empty-"));
+    try {
+      const report = analyzeWorkspaceLinkmap(emptyRoot, { explainPath: "tests/unit/nope.test.ts" });
 
-    expect(report.explain?.found).toBe(false);
-    expect(report.explain?.notes.join(" ")).toContain("Not analysed");
+      expect(report.explain?.found).toBe(false);
+      expect(report.explain?.notes.join(" ")).toContain("Not analysed");
+    } finally {
+      rmSync(emptyRoot, { recursive: true, force: true });
+    }
   });
 
   it("reads the tracked baselines so the gate is enforced on a fresh checkout", () => {
