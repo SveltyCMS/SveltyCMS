@@ -10,7 +10,11 @@ vi.mock("@src/services/core/settings-service", async (importOriginal) => {
   return await importOriginal<typeof import("@src/services/core/settings-service")>();
 });
 
-import { loadSettingsCache, invalidateSettingsCache } from "@src/services/core/settings-service";
+import {
+  loadSettingsCache,
+  invalidateSettingsCache,
+  getPublicSettingSync,
+} from "@src/services/core/settings-service";
 
 describe("SettingsService - Dynamic Scaling Infrastructure", () => {
   let mockAdapter: any;
@@ -78,5 +82,24 @@ describe("SettingsService - Dynamic Scaling Infrastructure", () => {
 
     expect(cache.private.JWT_SECRET_KEY).toBe("static-secret");
     expect((cache.private as any).LICENSE_KEY).toBe("dynamic-license");
+  });
+
+  it("keeps the last-known snapshot readable through a synchronous accessor after invalidation", async () => {
+    const getPrivateEnv = vi.fn(() => ({})) as any;
+    mockAdapter.system.preferences.getMany.mockImplementation(async () => ({
+      success: true,
+      data: { SITE_STARTER_ENABLED: true },
+    }));
+
+    await loadSettingsCache("global", { dbAdapter: mockAdapter, getPrivateEnv });
+    expect(getPublicSettingSync("SITE_STARTER_ENABLED")).toBe(true);
+
+    // Invalidation must not leave an empty cache behind. `getPublicSettingSync`
+    // cannot await a reload, so deleting the entry made it return `undefined`
+    // (fail-closed) until an unrelated async load happened — the E2E seed wrote
+    // the setting, invalidated, and the next request still redirected guests
+    // to /login.
+    invalidateSettingsCache();
+    expect(getPublicSettingSync("SITE_STARTER_ENABLED")).toBe(true);
   });
 });

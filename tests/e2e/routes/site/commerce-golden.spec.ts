@@ -23,7 +23,13 @@ const PRODUCT_PRICE = "49.00";
 const COMMERCE_TENANT = "global";
 
 test.use({
+  // The seed below posts `TEST_API_HEADERS` (worker index + secret), which routes
+  // it to this worker's isolated SQLite file. A file-level `extraHTTPHeaders`
+  // REPLACES the project headers instead of merging, so declaring only the
+  // tenant here made the guest page read the base DB — and the seeded product
+  // was never visible. Keep the isolation headers on both sides.
   extraHTTPHeaders: {
+    ...TEST_API_HEADERS,
     "x-test-tenant-id": COMMERCE_TENANT,
   },
 });
@@ -61,6 +67,12 @@ test.describe("Guest commerce golden journey", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test.beforeAll(async ({ request }) => {
+    // 0. `/shop` and `/cart` live in the `(site)` group and are only public
+    //    while `SITE_STARTER_ENABLED` is on. A worker-isolated DB starts
+    //    without it, so a guest request would be redirected to /login before
+    //    any product is read. The starter seed is idempotent and enables it.
+    await postTesting(request, "seed-website-starter", { siteName: "E2E Commerce Site" });
+
     // 1. Enable the commerce plugin (core, always registered — fail hard).
     await postTesting(request, "enable-plugin", { pluginId: "commerce", enabled: true });
 

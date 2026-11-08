@@ -1567,10 +1567,21 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     this._provisionPromise = (async () => {
       try {
         const { bootstrapSystemSchema } = await import("../core/system-schema-bootstrap");
-        // 🛡️ HARDENING: File-based lock so only one instance runs boot provisioning
-        await withMigrationLock(this as any, "sqlite", async () => {
+        const bootstrap = async () => {
           await bootstrapSystemSchema("sqlite", this._sqlite);
-        });
+        };
+        const inMemory = this._resolvedDbPath === ":memory:";
+        if (inMemory) {
+          // The file lock only serialises shared on-disk databases. A `:memory:`
+          // database is private to this process, so a competing Vitest worker
+          // winning the lock does NOT create these tables — the loser used to
+          // mark itself provisioned and fail later with "no such table:
+          // content_drafts". Bootstrap unconditionally instead.
+          await bootstrap();
+        } else {
+          // 🛡️ HARDENING: File-based lock so only one instance runs boot provisioning
+          await withMigrationLock(this as any, "sqlite", bootstrap);
+        }
         await this._warmTableRegistry();
         this._provisioned = true;
       } catch (err: any) {

@@ -374,9 +374,15 @@ jobs:
         run: |
           for f in /tmp/unit-coverage.log /tmp/unit-components.log /tmp/unit-mutation.log; do
             [ -f "$f" ] || continue
-            # Prefer the unhandled-error block: every test can pass and the process
-            # still exits 1. Fall back to the tail (threshold / crashed worker).
-            detail="$(sed 's/\x1b\[[0-9;]*m//g' "$f" | grep -A 30 -m 1 'Unhandled Errors' | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-3500)"
+            # Prefer the failing-test block: it names the file, the test and the
+            # assertion. The tail alone reported only counts ("1 failed"), which
+            # made a CI-only flake impossible to identify from the run page.
+            detail="$(sed 's/\x1b\[[0-9;]*m//g' "$f" | grep -A 25 -m 1 'Failed Tests' | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-3500)"
+            if [ -z "$detail" ]; then
+              # Prefer the unhandled-error block: every test can pass and the process
+              # still exits 1. Fall back to the tail (threshold / crashed worker).
+              detail="$(sed 's/\x1b\[[0-9;]*m//g' "$f" | grep -A 30 -m 1 'Unhandled Errors' | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-3500)"
+            fi
             if [ -z "$detail" ]; then
               detail="$(sed 's/\x1b\[[0-9;]*m//g' "$f" | tail -n 12 | tr '\n' ' ' | sed 's/%/%25/g' | cut -c1-1500)"
             fi

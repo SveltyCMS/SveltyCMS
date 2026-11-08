@@ -26,6 +26,9 @@ SveltyCMS is **headless** — you can always build public sites with Astro, Next
 > [!NOTE]
 > `SITE_STARTER_ENABLED` defaults to **`false`**. The Website Starter preset sets it to `true`; enable it manually for existing headless installs.
 
+> [!IMPORTANT]
+> The flag is read synchronously (`getPublicSettingSync`) by the hooks that decide whether `/shop`, `/cart` and the `pages` routes are reachable. The settings service keeps the last-known snapshot readable across an invalidation and writes new values through on `setPublicSetting`, so enabling or disabling the starter takes effect on the next request — no restart, and no window where the flag reads `undefined` and bounces guests to `/login`.
+
 ---
 
 ## Architecture

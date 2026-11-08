@@ -160,8 +160,9 @@ export async function invalidateAllCaches(tenantId: DatabaseId) {
     // The settings-service cache is a separate in-memory map — resets wipe the
     // DB rows but not this cache, so post-reset requests would keep serving
     // stale public settings (e.g. SITE_STARTER_ENABLED) until the next boot.
-    const { invalidateSettingsCache } = await loadSettingsServiceModule();
-    invalidateSettingsCache(tenantId);
+    // Hard-clear: `invalidateSettingsCache` keeps the snapshot for sync readers.
+    const { clearSettingsCache } = await loadSettingsServiceModule();
+    clearSettingsCache(tenantId);
 
     const { apiSpecService } = await import("@services/system/api-spec-service");
     await apiSpecService.invalidateCache(tenantId);

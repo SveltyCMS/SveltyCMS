@@ -14,8 +14,8 @@
         "src/databases/auth/permission-catalog.ts"
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
-      "reviewed_at": "2026-11-07",
-      "fingerprint": "2050002075f62ae49f13832eaac02139c654621d4cd919b44c235d7bcc7b606e"
+      "reviewed_at": "2026-11-08",
+      "fingerprint": "e62a5ae2913c79be607fc7de7259e1de033f90ac74aba68efdee83a5f4157dfa"
     },
     {
       "id": "auth-session",
@@ -37,7 +37,7 @@
         "src/routes/api/[...path]/handlers/scim.ts"
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
-      "reviewed_at": "2026-11-07",
+      "reviewed_at": "2026-11-08",
       "fingerprint": "ed264c9baa20ed8bc156e36dc12b18bf38acde6af19ed92719174ebfac5774f2"
     },
     {
@@ -57,7 +57,7 @@
         "src/hooks/handle-collection-write-lane.ts"
       ],
       "model": "docs/security/threat-models/content-write.mdx",
-      "reviewed_at": "2026-11-07",
+      "reviewed_at": "2026-11-08",
       "fingerprint": "334ef4119278ff1f9fa0c2a66e8a15f675ebe37f2dff2add8460fff04f595c64"
     },
     {
@@ -74,7 +74,7 @@
         "src/routes/api/[...path]/handlers/media-transcode.ts"
       ],
       "model": "docs/security/threat-models/media-files.mdx",
-      "reviewed_at": "2026-11-07",
+      "reviewed_at": "2026-11-08",
       "fingerprint": "6d3c2a75a169706664eeb737628b522568ee530ba10ef53ea044adcd96f24544"
     },
     {
@@ -90,7 +90,7 @@
         "src/utils/page-guards.server.ts"
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
-      "reviewed_at": "2026-11-07",
+      "reviewed_at": "2026-11-08",
       "fingerprint": "37f5b20937969db1ed293996e1102442c677fa239a30df9b491c5909bb754bc2"
     },
     {
@@ -131,8 +131,8 @@
         "src/utils/test-bypass.server.ts"
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
-      "reviewed_at": "2026-11-07",
-      "fingerprint": "1e319eed9f514f602006a077964f8fe50e50bb0261decb1623162f956a0ed293"
+      "reviewed_at": "2026-11-08",
+      "fingerprint": "a12fa2d5af85b3a7bfa47071dc1cf34a857821359dd91166e6744c8a0d7c0ac5"
     }
   ]
 }

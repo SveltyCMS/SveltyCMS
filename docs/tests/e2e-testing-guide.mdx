@@ -88,6 +88,8 @@ Playwright uses **database-per-worker isolation** to eliminate SQLite locking is
 - **Unique Database per Worker**: Each Playwright worker operates on its own dedicated SQLite file (e.g., `cms_worker_1.db`).
 - **Header-Based Routing**: The system uses the `x-test-worker-index` header to automatically route requests to the correct isolated database.
 - **Secret Handshake**: `/api/testing` calls must include the shared `TEST_API_SECRET`.
+- **Seed in the database you assert in**: a fresh worker file starts empty. A file-level `test.use({ extraHTTPHeaders })` **replaces** the project headers, so keep `TEST_API_HEADERS` (worker index + secret) on both the seed request and the page context — otherwise the seed lands in one database and the assertion reads another.
+- **Public `(site)` routes need the starter flag**: `/shop`, `/cart` and the seeded homepage are public only while `SITE_STARTER_ENABLED` is on. A worker database starts without it, so a guest-journey spec seeds `seed-website-starter` (idempotent) in `beforeAll` before asserting.
 - **Safety Rule**: `config/private.test.ts` is the source of truth. Any `config/private.ts` present in CI is only a temporary mirror of the test config and must never point at live data.
 
 ### 3. Use `data-testid` Selectors
