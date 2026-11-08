@@ -16,6 +16,14 @@
  * ignored — wrapping a `<div data-testid>` around a component never duplicates
  * ids, and repeated ids inside a list are a legitimate pattern there.
  *
+ * Second rule: the same literal testid on **two instances of one component** in
+ * the same file is always an offense. That is the shape a duplicated paste
+ * produces — the redirects modal was rendered twice, so two
+ * `<AdminCard data-testid="redirects-modal">` nodes stacked and the top backdrop
+ * swallowed every click. Different components sharing an id across `{#if}` /
+ * `{:else}` branches stay out of scope (mutually exclusive), as do dynamic
+ * (`data-testid="row-{id}"`) and native-element ids.
+ *
  * Suppress one line with `testid-allow` (attribute or comment on the tag):
  *
  * ```svelte
@@ -49,6 +57,8 @@ export interface TestIdOffense {
   line: number;
   tag: string;
   testId: string;
+  /** `within-file`: the same file declares the id twice; `cross-file`: a route reuses a component's id. */
+  kind: "within-file" | "cross-file";
 }
 
 const TESTID_ATTR = /data-testid\s*=\s*(?:"([^"]+)"|'([^']+)')/;
@@ -159,6 +169,34 @@ export function findDuplicateTestIds(files: SvelteSource[]): TestIdOffense[] {
   const declared = declaredTestIds(files);
   const offenses: TestIdOffense[] = [];
 
+  // Rule 1 — the same literal id on two instances of one component in a file.
+  // A duplicated paste (the redirects modal) renders two stacked backdrops, and
+  // Playwright plus real users then act on the top one. Different components
+  // sharing an id across exclusive branches, dynamic ids, and native elements
+  // are out of scope.
+  for (const file of files) {
+    const seen = new Set<string>();
+    for (const tag of componentTags(file.source)) {
+      if (isAllowed(file.source, tag)) continue;
+      const testId = TESTID_ATTR.exec(tag.attrs)?.[1] ?? TESTID_ATTR.exec(tag.attrs)?.[2];
+      if (!testId || testId.includes("{")) continue;
+      const key = `${tag.name}\u0000${testId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        continue;
+      }
+      offenses.push({
+        file: file.path,
+        line: lineOf(file.source, tag.index),
+        tag: tag.name,
+        testId,
+        declaredIn: file.path,
+        kind: "within-file",
+      });
+    }
+  }
+
+  // Rule 2 — a route reusing a component's own id (the Media & Dashboard shape).
   for (const file of files) {
     if (!file.path.startsWith(ROUTE_ROOT)) continue;
     for (const tag of componentTags(file.source)) {
@@ -173,6 +211,7 @@ export function findDuplicateTestIds(files: SvelteSource[]): TestIdOffense[] {
         tag: tag.name,
         testId,
         declaredIn: owners[0],
+        kind: "cross-file",
       });
     }
   }
@@ -218,7 +257,9 @@ function main(): void {
   console.error(`❌ data-testid duplicates: ${offenses.length}`);
   for (const offense of offenses) {
     console.error(
-      `   ${offense.file}:${offense.line} — <${offense.tag} data-testid="${offense.testId}"> but ${offense.declaredIn} already renders it.`,
+      offense.kind === "within-file"
+        ? `   ${offense.file}:${offense.line} — <${offense.tag} data-testid="${offense.testId}"> is declared twice in this file.`
+        : `   ${offense.file}:${offense.line} — <${offense.tag} data-testid="${offense.testId}"> but ${offense.declaredIn} already renders it.`,
     );
   }
   console.error(

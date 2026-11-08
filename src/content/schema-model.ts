@@ -211,9 +211,17 @@ function relationList(value: unknown): unknown[] {
 function matchCondition(actual: unknown, condition: unknown): boolean {
   const record = asRecord(condition);
   if (record) {
-    const keys = Object.keys(record);
-    if (keys.length > 0 && keys.every((key) => OPERATOR_ALIASES[key])) {
-      for (const key of keys) {
+    let hasKeys = false;
+    let allValidOps = true;
+    for (const key in record) {
+      hasKeys = true;
+      if (!OPERATOR_ALIASES[key]) {
+        allValidOps = false;
+        break;
+      }
+    }
+    if (hasKeys && allValidOps) {
+      for (const key in record) {
         if (!applyOperator(OPERATOR_ALIASES[key], actual, record[key])) return false;
       }
       return true;
