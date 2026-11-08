@@ -13,11 +13,21 @@
  * - Client-side decoration: user favorites, tag taxonomy, and pinned items
  *   (user-scoped localStorage, cross-tab sync via the `storage` event).
  */
-import { browser } from "$app/env";
 import type { ContentNode, Schema, StatusType, WidgetFieldPermissions } from "@src/content/types";
 import { StatusTypes } from "@src/content/status";
 import { toast } from "@src/stores/toast.svelte.ts";
 import { logger } from "@utils/logger";
+
+/**
+ * Client-side guard.
+ *
+ * `$app/env` is a SvelteKit virtual module: importing it here breaks every
+ * non-SvelteKit loader — the `db-init` content service, the background worker
+ * and scripts load this store outside the framework's resolver and fail with
+ * `Cannot find package '$app'`. SvelteKit's `browser` is exactly this check,
+ * so the behaviour is identical without the dependency.
+ */
+const browser = typeof window !== "undefined" && typeof window.addEventListener === "function";
 
 /** Cheap FNV-1a fingerprint — avoids JSON.stringify of large ContentNode trees (client-safe). */
 function structureFingerprint(nodes: ContentNode[]): string {

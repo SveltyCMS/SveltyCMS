@@ -18,7 +18,8 @@
  * - empty-safe resolve (fixed Home center + Settings)
  */
 
-import { browser } from "$app/env";
+/** `$app/env` is virtual: non-SvelteKit loaders (db-init, workers, scripts) cannot resolve it. */
+const browser = typeof window !== "undefined" && typeof window.addEventListener === "function";
 import { isAdmin } from "@src/databases/auth/constants";
 import { generateUUID } from "@utils/native-utils";
 

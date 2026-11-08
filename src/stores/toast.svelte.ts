@@ -10,7 +10,8 @@
 
 import { logger } from "@utils/logger";
 import { generateUUID } from "@utils/native-utils";
-import { browser } from "$app/env";
+/** `$app/env` is virtual: non-SvelteKit loaders (db-init, workers, scripts) cannot resolve it. */
+const browser = typeof window !== "undefined" && typeof window.addEventListener === "function";
 import { screen, ScreenSize } from "@stores/screen-size-store.svelte.ts";
 
 // Test-friendly runtime checks.

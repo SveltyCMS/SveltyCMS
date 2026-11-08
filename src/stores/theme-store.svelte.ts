@@ -10,7 +10,8 @@ import type { Theme } from "@src/databases/db-interface";
 import type { UserThemePreferences } from "@utils/theme-merge";
 import { nowISODateString } from "@src/utils/date";
 import { logger } from "@utils/logger";
-import { browser } from "$app/env";
+/** `$app/env` is virtual: non-SvelteKit loaders (db-init, workers, scripts) cannot resolve it. */
+const browser = typeof window !== "undefined" && typeof window.addEventListener === "function";
 
 // --- Theme Preference Type ---
 export type ThemePreference = "system" | "light" | "dark" | "unknown";
