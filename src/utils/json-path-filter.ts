@@ -160,6 +160,26 @@ function evaluateCompiledClause(actual: unknown, clause: CompiledClause): boolea
     return a <= b;
   }
 
+  // String fast path: an exact match (the seeded row) settles the clause without
+  // allocating a lowercase copy. Only the non-exact remainder pays for folding.
+  if (typeof actual === "string") {
+    const expectedRaw = clause.expectedRaw;
+    const expectedLower = clause.expectedLower;
+
+    if (op === "contains") {
+      if (actual === expectedRaw) return true;
+      // Lowercasing preserves length for every BMP code point, so a shorter
+      // haystack cannot contain the needle.
+      if (actual.length < expectedLower.length) return false;
+      return actual.toLowerCase().includes(expectedLower);
+    }
+
+    if (actual === expectedRaw) return op !== "neq";
+    // Same length rule settles eq/neq before any folding happens.
+    if (actual.length !== expectedLower.length) return op === "neq";
+    return actual.toLowerCase() === expectedLower ? op === "eq" : op === "neq";
+  }
+
   const aStr = String(actual).toLowerCase();
   if (op === "contains") return aStr.includes(clause.expectedLower);
   if (op === "neq") return aStr !== clause.expectedLower;
