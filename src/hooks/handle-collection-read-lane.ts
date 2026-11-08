@@ -587,15 +587,27 @@ export function isWirePlaneAdmissible(
     if (key === "filter") {
       const filterVal = search.get("filter");
       if (!filterVal) continue;
+      // Fast path: literal published status filter check without JSON.parse or Object.keys allocation
+      if (
+        filterVal === '{"status":"published"}' ||
+        filterVal === '{"status":"publish"}' ||
+        filterVal === '{"status": "published"}' ||
+        filterVal === '{"status": "publish"}'
+      ) {
+        continue;
+      }
       try {
         const parsed = JSON.parse(filterVal);
-        const keys = Object.keys(parsed);
-        // If filter is only { status: "published" | "publish" }, wire plane enforces this natively!
-        if (
-          keys.length === 1 &&
-          keys[0] === "status" &&
-          (parsed.status === "published" || parsed.status === "publish")
-        ) {
+        let count = 0;
+        let isStatusMatch = false;
+        for (const k in parsed) {
+          count++;
+          if (count > 1) return false;
+          if (k === "status" && (parsed.status === "published" || parsed.status === "publish")) {
+            isStatusMatch = true;
+          }
+        }
+        if (isStatusMatch && count === 1) {
           continue;
         }
         return false;
