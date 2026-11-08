@@ -28,6 +28,7 @@ const p0CoverageInclude = [
   "src/utils/error-handling.ts",
   "src/utils/security/**/*.ts",
   "src/routes/api/[...path]/+server.ts",
+  "src/routes/api/[...path]/response-headers.ts",
 ];
 
 /**

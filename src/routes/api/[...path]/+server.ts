@@ -5,6 +5,7 @@
  */
 
 import { logger } from "@utils/logger";
+import { mergeResponseHeaders } from "./response-headers";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { validateCsrfForRequest } from "@utils/security/csrf-utils";
 import { apiHandler } from "@utils/api-handler";
@@ -817,17 +818,7 @@ export const _handler = async (event: RequestEvent) => {
         ..._noCacheHeaders,
         ETag: etag,
       };
-      response.headers.forEach((val, key) => {
-        const lowerKey = key.toLowerCase();
-        let exists = false;
-        for (const k in respHeaders) {
-          if (k.toLowerCase() === lowerKey) {
-            exists = true;
-            break;
-          }
-        }
-        if (!exists) respHeaders[key] = val;
-      });
+      mergeResponseHeaders(respHeaders, response.headers);
       return new Response(responseBody, {
         status: response.status,
         statusText: response.statusText,

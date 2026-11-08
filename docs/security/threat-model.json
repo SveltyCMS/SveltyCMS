@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "d2d143ae4cb893f3edc635da82a4ce205ffbddec60634ad68df0e84a5434dfbe"
+      "fingerprint": "26bf0691c6aa1e8e9a31f431100e459e3ab17cce5b86f18aba232f4fd1e6c40c"
     },
     {
       "id": "auth-session",
