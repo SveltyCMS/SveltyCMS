@@ -235,7 +235,13 @@ export function deepSortKeys(val: unknown): unknown {
     return val.map(deepSortKeys);
   }
   const obj = val as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
+  const keys = Object.keys(obj);
+  if (keys.length <= 1) {
+    if (keys.length === 0) return {};
+    const k = keys[0]!;
+    return { [k]: deepSortKeys(obj[k]) };
+  }
+  keys.sort();
   const sorted: Record<string, unknown> = {};
   for (let i = 0; i < keys.length; i++) {
     const k = keys[i]!;
@@ -292,6 +298,13 @@ function graphqlMemoKey(
   return `${rawQuery}\u0000${rawVariables}\u0000${publicationFilter}\u0000${normalizedUserId ?? ""}`;
 }
 
+function hasAnyProperty(obj: Record<string, unknown>): boolean {
+  for (const _ in obj) {
+    if (obj) return true;
+  }
+  return false;
+}
+
 export function buildGraphQLResponseCacheKey(
   query: string,
   variables?: unknown,
@@ -326,7 +339,7 @@ export function buildGraphQLResponseCacheKey(
     varsObj = variables as Record<string, unknown>;
   }
 
-  if (Object.keys(varsObj).length > 0) {
+  if (hasAnyProperty(varsObj)) {
     varsStr = JSON.stringify(deepSortKeys(varsObj));
   }
   const queryHash = hashStr(`${query}:${varsStr}:${publicationFilter}`);
