@@ -2,10 +2,10 @@
   "version": 1,
   "layers": {
     "unit": {
-      "generatedAt": "2026-11-07T20:36:29.708Z",
+      "generatedAt": "2026-11-08T14:12:06.981Z",
       "totals": {
-        "files": 847,
-        "tests": 8058
+        "files": 866,
+        "tests": 8207
       },
       "areas": {
         "unit": {
@@ -13,12 +13,12 @@
           "tests": 79
         },
         "unit/api": {
-          "files": 54,
-          "tests": 519
+          "files": 55,
+          "tests": 529
         },
         "unit/auth": {
-          "files": 31,
-          "tests": 309
+          "files": 32,
+          "tests": 314
         },
         "unit/bench": {
           "files": 1,
@@ -30,7 +30,7 @@
         },
         "unit/ci": {
           "files": 5,
-          "tests": 40
+          "tests": 41
         },
         "unit/collaboration": {
           "files": 1,
@@ -49,32 +49,32 @@
           "tests": 17
         },
         "unit/components": {
-          "files": 20,
-          "tests": 179
+          "files": 21,
+          "tests": 190
         },
         "unit/config": {
           "files": 12,
           "tests": 67
         },
         "unit/content": {
-          "files": 16,
-          "tests": 179
+          "files": 17,
+          "tests": 184
         },
         "unit/core": {
-          "files": 10,
-          "tests": 125
+          "files": 11,
+          "tests": 127
         },
         "unit/dashboard": {
           "files": 7,
           "tests": 51
         },
         "unit/databases": {
-          "files": 88,
-          "tests": 717
+          "files": 91,
+          "tests": 738
         },
         "unit/graphql": {
-          "files": 3,
-          "tests": 30
+          "files": 4,
+          "tests": 37
         },
         "unit/hooks": {
           "files": 36,
@@ -85,8 +85,8 @@
           "tests": 2
         },
         "unit/media": {
-          "files": 24,
-          "tests": 282
+          "files": 25,
+          "tests": 294
         },
         "unit/multi-tenancy": {
           "files": 6,
@@ -101,32 +101,32 @@
           "tests": 41
         },
         "unit/plugins": {
-          "files": 58,
-          "tests": 432
+          "files": 59,
+          "tests": 438
         },
         "unit/rate-limit": {
           "files": 12,
           "tests": 91
         },
         "unit/routes": {
-          "files": 63,
-          "tests": 355
+          "files": 64,
+          "tests": 369
         },
         "unit/scripts": {
-          "files": 48,
-          "tests": 615
+          "files": 49,
+          "tests": 626
         },
         "unit/sdk": {
-          "files": 22,
-          "tests": 182
+          "files": 25,
+          "tests": 201
         },
         "unit/security": {
           "files": 39,
           "tests": 533
         },
         "unit/services": {
-          "files": 80,
-          "tests": 709
+          "files": 82,
+          "tests": 733
         },
         "unit/setup": {
           "files": 6,
@@ -149,8 +149,8 @@
           "tests": 143
         },
         "unit/utils": {
-          "files": 101,
-          "tests": 973
+          "files": 102,
+          "tests": 974
         },
         "unit/widgets": {
           "files": 28,

@@ -165,7 +165,7 @@ export function createSmartFilter(
   }
 
   function clearAll() {
-    for (const key of Object.keys(filters)) {
+    for (const key in filters) {
       delete filters[key];
     }
   }
@@ -194,7 +194,7 @@ export function createSmartFilter(
     }
 
     if (anyFilterInUrl) {
-      for (const key of Object.keys(filters)) {
+      for (const key in filters) {
         if (!seen.has(key)) {
           delete filters[key];
           hasChanges = true;
