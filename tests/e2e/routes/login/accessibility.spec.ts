@@ -9,7 +9,7 @@
 
 import { expect, test, type Page } from "../../fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { loginAsAdmin } from "../../helpers/auth";
+import { loginAsAdmin, waitForHydration } from "../../helpers/auth";
 import { resetAndSeedDatabase } from "../../helpers/api";
 
 /**
@@ -243,6 +243,17 @@ test.describe("Universal Accessibility Audits", () => {
     // primary fill with the page background and reports a phantom contrast
     // failure: tertiary-600 (#0465d6) at ~75 % opacity reads as #649fe2 (2.67:1).
     await waitForSettledOpacity(page, '[data-testid="user-identity-panel"]');
+
+    // The identity panel's Edit button is `disabled={!hydration.hydrated}`; a
+    // disabled Button renders at opacity 0.6, and Axe composites that to
+    // #649fe2 (2.67:1) even though the settled control is #0465d6 (5.4:1).
+    // Wait for the real, enabled control before auditing, not just the fade.
+    await waitForHydration(page, 15_000);
+    await expect(page.getByTestId("edit-user-settings-btn")).toBeEnabled({ timeout: 15_000 });
+    // Enabling flips the attribute immediately, but `transition-all duration-200`
+    // is still animating opacity 0.6 → 1; Axe samples the first frame and
+    // composites the fill to #649fe2. Wait for the button's own settled opacity.
+    await waitForSettledOpacity(page, '[data-testid="edit-user-settings-btn"]');
 
     // 4. Run accessibility audit against the RTL layout
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa"]).analyze();
