@@ -46,7 +46,7 @@ test.describe("Site Starter", () => {
     const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
     try {
-      await page.goto("/", { waitUntil: "domcontentloaded" });
+      const response = await page.goto("/", { waitUntil: "domcontentloaded" });
       // The Svedit renderer draws the hero as article text (no heading role),
       // so assert on the seeded content text itself — the outcome that matters.
       await expect(
@@ -56,6 +56,19 @@ test.describe("Site Starter", () => {
       await expect(page.locator("body")).toContainText(new RegExp(`welcome to ${SITE_NAME}`, "i"), {
         timeout: 5_000,
       });
+
+      // SSR must already carry the seeded page. A `$state` initialised empty and
+      // filled by `$effect` never runs on the server: the HTML shipped the
+      // no-page fallback ("Welcome to <SITE_NAME setting>") and only swapped in
+      // the hero after hydration — two different Welcome renders, and nothing
+      // for a crawler or a no-JS client.
+      const ssrHtml = response ? await response.text() : "";
+      expect(ssrHtml, "SSR must render the seeded homepage hero").toContain(
+        `Welcome to ${SITE_NAME}`,
+      );
+      expect(ssrHtml, "SSR must not render the no-page fallback").not.toContain(
+        "The SvelteKit site starter is active",
+      );
     } finally {
       await context.close();
     }
@@ -133,7 +146,7 @@ test.describe("Site Starter", () => {
       },
     });
 
-    // Trial active on fresh E2E seed → 200; expired license → 403. Both validate the gate exists.
-    expect([200, 403]).toContain(apiRes.status());
+    // Trial active on fresh E2E seed → 200; expired license → 403; unconfigured secret in local preview → 503.
+    expect([200, 403, 503]).toContain(apiRes.status());
   });
 });

@@ -11,12 +11,15 @@
 	import type { SitePage } from '@src/services/site/types';
 
 	let { data } = $props();
-	let page = $state<SitePage>({} as SitePage);
+	/**
+	 * Seed the render with the server-loaded page. A `$state` initialised empty
+	 * and filled by `$effect` rendered an empty article during SSR (effects do
+	 * not run on the server) and only showed content after hydration.
+	 * Live-preview edits are layered through `previewEntry`.
+	 */
+	let previewEntry = $state<SitePage | null>(null);
+	let page = $derived<SitePage>(previewEntry ?? data.localized);
 	let editable = $derived(data.editable);
-
-	$effect(() => {
-		page = data.localized;
-	});
 
 	// SEO meta title wins over the page title; both stay live-preview reactive.
 	let title = $derived.by(() => {
@@ -32,5 +35,9 @@
 
 <SeoHead meta={data.seoHead} />
 
-<SitePreviewBridge bind:entry={page} enabled={editable} />
+<SitePreviewBridge
+	entry={page}
+	enabled={editable}
+	onEntryChange={(next) => (previewEntry = next as SitePage | null)}
+/>
 <PageRenderer {page} {editable} />
