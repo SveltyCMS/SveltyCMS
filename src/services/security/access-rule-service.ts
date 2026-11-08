@@ -36,6 +36,7 @@
 import { getPrivateSettingSync } from "@src/services/core/settings-service";
 import { logger } from "@utils/logger";
 import { isAdmin } from "@src/databases/auth/constants";
+import { hasOwnProperties } from "@utils/native-utils";
 
 export type AccessRuleScalar = string | number | boolean;
 export type AccessRuleValue = AccessRuleScalar | AccessRuleScalar[];
@@ -79,7 +80,7 @@ export function getAccessRuleConfig(): AccessRuleConfig | null {
   if (cachedAt !== 0 && now - cachedAt < CONFIG_TTL_MS) return cachedConfig;
 
   const parsed = normalizeConfig(getPrivateSettingSync("ACCESS_RULES") as unknown);
-  hasConfig = parsed !== null && Object.keys(parsed).length > 0;
+  hasConfig = parsed !== null && hasOwnProperties(parsed);
   cachedConfig = parsed;
   cachedAt = now;
   return hasConfig ? parsed : null;
@@ -125,8 +126,10 @@ export function buildReadConstraint(
 
   const constraint: Record<string, unknown> = {};
   let keys = 0;
-  for (const [field, value] of Object.entries(readRule)) {
+  for (const field in readRule) {
+    if (!Object.hasOwn(readRule, field)) continue;
     if (!field || UNSAFE_KEYS.has(field)) continue;
+    const value = (readRule as Record<string, unknown>)[field];
     if (Array.isArray(value)) {
       constraint[field] = { $in: value.map((entry) => resolveScalar(entry, ctx)) };
     } else if (
@@ -160,8 +163,8 @@ export function mergeAccessConstraint(
   query: Record<string, unknown> | null | undefined,
   constraint: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> {
-  const base = query && Object.keys(query).length > 0 ? query : null;
-  const scope = constraint && Object.keys(constraint).length > 0 ? constraint : null;
+  const base = query && hasOwnProperties(query) ? query : null;
+  const scope = constraint && hasOwnProperties(constraint) ? constraint : null;
   if (!scope) return base ?? {};
   if (!base) return scope;
   return { $and: [scope, base] };
@@ -187,11 +190,13 @@ export function rowMatchesConstraint(
   row: unknown,
   constraint: Record<string, unknown> | null | undefined,
 ): boolean {
-  if (!constraint || Object.keys(constraint).length === 0) return true;
+  if (!constraint || !hasOwnProperties(constraint)) return true;
   if (!row || typeof row !== "object") return false;
   const record = row as Record<string, unknown>;
 
-  for (const [field, expected] of Object.entries(constraint)) {
+  for (const field in constraint) {
+    if (!Object.hasOwn(constraint, field)) continue;
+    const expected = constraint[field];
     if (field === "$and") {
       if (!Array.isArray(expected)) return false;
       if (!expected.every((entry) => rowMatchesConstraint(row, entry as never))) return false;
