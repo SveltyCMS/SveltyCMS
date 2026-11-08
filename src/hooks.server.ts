@@ -68,6 +68,7 @@ import {
   type WalCheckpointResult,
 } from "@src/services/background/wal-checkpoint.server";
 import { outboxService } from "@src/services/outbox/outbox-service";
+import { scheduleBackgroundBoot } from "@src/services/boot/deferred-boot";
 // ESM shims for CJS packages that still read __filename / __dirname at runtime
 if (typeof (globalThis as any).__filename === "undefined") {
   (globalThis as any).__filename = fileURLToPath(import.meta.url);
@@ -380,46 +381,55 @@ if (!building) {
             "[Background] Pollers delegated to external child worker (SVELTY_BACKGROUND_MODE=child)",
           );
         } else {
-          jobQueue.startPolling();
-          automationService.init();
-          watchdog.start();
-          startScheduler();
-          startBehavioralEngine();
-          // Transactional outbox — deliver pending events (webhooks fan-out)
-          outboxService.startPolling(5_000);
+          // 🚀 DEFERRED BACKGROUND BOOT (cold start): none of these services is
+          // needed to answer a health probe or the first page request, so they
+          // start one macrotask AFTER the boot promise resolves instead of inside
+          // it. Calls, order and per-service error handling are unchanged.
+          scheduleBackgroundBoot(async () => {
+            jobQueue.startPolling();
+            automationService.init();
+            watchdog.start();
+            startScheduler();
+            startBehavioralEngine();
+            // Transactional outbox — deliver pending events (webhooks fan-out)
+            outboxService.startPolling(5_000);
 
-          // 🧹 WAL housekeeping — see startWalHousekeeping().
-          await startWalHousekeeping().catch((err) =>
-            logger.error("[WAL] Housekeeping scheduler failed to start", err),
-          );
+            // 🧹 WAL housekeeping — see startWalHousekeeping(). Pure periodic
+            // housekeeping (a 5s PASSIVE-checkpoint interval whose first tick is
+            // at +5s), so it defers with the rest: no write depends on it having
+            // started, only the WAL-size cap (64 MB) and idle checkpoints do.
+            await startWalHousekeeping().catch((err) =>
+              logger.error("[WAL] Housekeeping scheduler failed to start", err),
+            );
 
-          // Telemetry check
-          const globalWithTelemetry = globalThis as typeof globalThis & {
-            __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
-          };
+            // Telemetry check
+            const globalWithTelemetry = globalThis as typeof globalThis & {
+              __SVELTY_TELEMETRY_INTERVAL__?: NodeJS.Timeout;
+            };
 
-          if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
-            clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
-          }
+            if (globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__) {
+              clearInterval(globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__);
+            }
 
-          const initialTelemetryCheck = setTimeout(() => {
-            telemetryService
-              .checkUpdateStatus()
-              .catch((err) => logger.error("Initial telemetry check failed", err));
-          }, 10_000);
-          // Housekeeping timers must never keep the event loop alive (clean Ctrl+C exit).
-          void initialTelemetryCheck.unref?.();
-
-          const telemetryInterval = setInterval(
-            () => {
+            const initialTelemetryCheck = setTimeout(() => {
               telemetryService
                 .checkUpdateStatus()
-                .catch((err) => logger.error("Periodic telemetry check failed", err));
-            },
-            1000 * 60 * 60 * 12, // 12 hours
-          );
-          void telemetryInterval.unref?.();
-          globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = telemetryInterval;
+                .catch((err) => logger.error("Initial telemetry check failed", err));
+            }, 10_000);
+            // Housekeeping timers must never keep the event loop alive (clean Ctrl+C exit).
+            void initialTelemetryCheck.unref?.();
+
+            const telemetryInterval = setInterval(
+              () => {
+                telemetryService
+                  .checkUpdateStatus()
+                  .catch((err) => logger.error("Periodic telemetry check failed", err));
+              },
+              1000 * 60 * 60 * 12, // 12 hours
+            );
+            void telemetryInterval.unref?.();
+            globalWithTelemetry.__SVELTY_TELEMETRY_INTERVAL__ = telemetryInterval;
+          }, "Background");
         }
 
         // 🚀 PRE-WARM LAZY WRITE-PATH MODULES (cold-start): the first collection

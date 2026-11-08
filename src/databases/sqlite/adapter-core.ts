@@ -311,7 +311,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   protected override get updateCoalescingEnabled(): boolean {
-    return process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
+    return process.env.SVELTY_WRITE_COALESCE_UPDATE !== "0";
   }
 
   /**
