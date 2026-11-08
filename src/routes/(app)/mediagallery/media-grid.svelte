@@ -43,14 +43,14 @@
 	import Tooltip from '@components/ui/tooltip.svelte';
 	import MediaGridActionTooltip from './media-grid-action-tooltip.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
-	import {
-		type MediaBase,
-		type MediaImage,
-		type StoredMediaBase,
-		type Thumbnail,
-		type ThumbnailSet,
-		normalizeProcessingStatus
+	import type {
+		MediaBase,
+		MediaImage,
+		StoredMediaBase,
+		Thumbnail,
+		ThumbnailSet
 	} from '@utils/media/media-models';
+	import { normalizeProcessingStatus } from '@utils/media/media-values';
 	import { mediaDisplayUrl, mediaPreviewCandidates } from '@utils/media/media-utils';
 	import { adminFade, motionDuration } from '@utils/admin-transitions';
 	import {

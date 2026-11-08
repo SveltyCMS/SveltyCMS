@@ -21,11 +21,8 @@ import { logger } from "@utils/logger";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { getStorageAdapter, getConfig } from "./storage-adapters";
 import { getMimeType } from "./media-utils";
-import {
-  normalizeDerivativeFormat,
-  type DerivativeFormat,
-  type ResizedImage,
-} from "./media-models";
+import type { DerivativeFormat, ResizedImage } from "./media-models";
+import { normalizeDerivativeFormat } from "./media-values";
 import { getSharp, MAX_INPUT_PIXELS } from "./sharp-loader.server";
 import { FastLRU, generateUUID } from "@utils/native-utils";
 import { nowISODateString } from "@src/utils/date";

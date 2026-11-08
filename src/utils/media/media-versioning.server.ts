@@ -22,7 +22,8 @@ import {
 } from "./media-utils";
 import { assertMimeAgreement, sniffMimeType } from "./slim-sniffer.server";
 import { isRasterImage } from "./media-lifecycle.server";
-import { MediaProcessingStatus, type MediaItem } from "./media-models";
+import type { MediaItem } from "./media-models";
+import { MediaProcessingStatus } from "./media-values";
 import type {
   DatabaseError,
   DatabaseId,

@@ -3,7 +3,8 @@
  * @description Advanced client-side media search with filtering
  */
 
-import { isMediaImage, isStoredMedia, type MediaImage, type MediaItem } from "./media-models";
+import type { MediaImage, MediaItem } from "./media-models";
+import { isMediaImage, isStoredMedia } from "./media-values";
 
 export interface SearchCriteria {
   aspectRatio?: "landscape" | "portrait" | "square";

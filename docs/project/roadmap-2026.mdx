@@ -36,6 +36,11 @@ tags:
 
 ## 1. Core Architecture & Performance (Active Backlog)
 
+- **CRUD Pipeline Consolidation (Phases 1–4)**:
+  - [x] **Phase 1: Hoisted SQL Adapter Core (`SqlAdapterCore`)**: Hoisted `getTable()` and `rawFindById()` into `SqlAdapterCore` with `tableRegistry` caching, identifier allow-lists, length guards, dynamic column injection, and per-table pre-compiled statement caches (`withData`, `withoutData`, `withDataTenant`, `withDataNull`).
+  - [x] **Phase 2: Deleted `CollectionService` (−701 LOC) & Unified List Loading**: Retired `CollectionService` and consolidated SSR collection list queries, filtering, search, and status facets directly under `CollectionsNamespace.find` (`LocalCMS.collections.find`).
+  - [x] **Phase 3: Centralized HTTP Write Bridge (`http-bridge.ts`)**: Standardized HTTP collection write ingestion with payload unwrapping (`unwrapWritePayload`), publish draft promotion (`promoteStagedDraft`), optimistic locking (`extractExpectedVersion`), and RFC 7240 minimal write acknowledgments (`minimalWriteAck`, `Prefer: return=minimal`).
+  - [x] **Phase 4: Pre-Compiled Execution Plans & Driver Fast-Paths**: Added `WeakMap`-backed `getCollectionExecutionPlan` with `isPlain` fast path (>80% of collections) skipping widget pipelines, encryption context evaluation, and workflow gates. Implemented MongoDB native collection projection bypass in `MongoCrudMethods.findOne`.
 - **SQLite Write Tail Acceptance Gate**:
   - The SQLite group commit batcher is default ON. Finalize acceptance: achieve a replica run free of 🔴 rows and pass `--strict-variance` across a ≥3-run ensemble.
 - **Write-Lane Adaptive Coalescing (2027)**:

@@ -51,7 +51,7 @@ tags:
 
 | Dimension      | Tests | Status | Worst Δ | Issues |
 | -------------- | ----: | ------ | ------- | ------ |
-| **Core**       |    23 | 🟢     | -36%    | 0      |
+| **Core**       |    23 | 🟢     | +49%    | 0      |
 | **API**        |     0 | ⚪     | —       | 0      |
 | **Scale**      |     0 | ⚪     | —       | 0      |
 | **Resilience** |     0 | ⚪     | —       | 0      |
@@ -62,31 +62,31 @@ tags:
 
 ### Executive latency matrix
 
-| Scenario                         | Latency | Trend                                    | Budget | Result |
-| -------------------------------- | ------- | ---------------------------------------- | ------ | ------ |
-| **Competitive Workload Replica** | 0.150ms | ⚪ stable at 0.151ms (±0.067ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.289ms | ⚪ stable at 0.292ms (±0.103ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.126ms | ⚪ stable at 0.198ms (±0.083ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.279ms | ⚪ stable at 0.303ms (±0.053ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.224ms | ⚪ stable at 0.246ms (±0.134ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.466ms | ⚪ stable at 0.459ms (±0.086ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.375ms | ⚪ stable at 0.402ms (±0.130ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.352ms | ⚪ stable at 1.31ms (±0.186ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.140ms | ⚪ stable at 0.199ms (±0.068ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.315ms | ⚪ stable at 0.383ms (±0.097ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.195ms | ⚪ stable at 0.227ms (±0.053ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.355ms | ⚪ stable at 0.416ms (±0.155ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.113ms | ⚪ stable at 0.172ms (±0.074ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.271ms | ⚪ stable at 0.336ms (±0.108ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.626ms | ⚪ stable at 0.737ms (±0.142ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.928ms | ⚪ stable at 2.27ms (±0.634ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.530ms | ⚪ stable at 0.578ms (±0.084ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.520ms | ⚪ stable at 1.77ms (±0.337ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.432ms | ⚪ stable at 0.540ms (±0.138ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 1.826ms | ⚪ stable at 2.07ms (±0.562ms) (7 runs)  | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 0.817ms | ⚪ stable at 0.877ms (±0.099ms) (7 runs) | < 5ms  | 🟢     |
-| **Competitive Workload Replica** | 3.946ms | ⚪ stable at 4.48ms (±1.34ms) (7 runs)   | < 5ms  | 🟢     |
-| **Ingestion**                    | 0.064ms | ⚪ stable at 0.069ms (±0.029ms) (7 runs) | < 5ms  | 🟢     |
+| Scenario                         | Latency | Trend                                        | Budget | Result |
+| -------------------------------- | ------- | -------------------------------------------- | ------ | ------ |
+| **Competitive Workload Replica** | 0.157ms | ⚪ stable at 0.151ms (±0.067ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.387ms | ⚪ stable at 0.292ms (±0.092ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.144ms | ⚪ stable at 0.188ms (±0.083ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.383ms | ⚪ stable at 0.303ms (±0.059ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.291ms | ⚪ stable at 0.238ms (±0.134ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.610ms | 🔴 slower: 0.466ms → 0.610ms (+31%) (7 runs) | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.559ms | ⚪ stable at 0.375ms (±0.130ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.882ms | 🔴 slower: 1.31ms → 1.88ms (+43%) (7 runs)   | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.215ms | ⚪ stable at 0.182ms (±0.102ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.506ms | ⚪ stable at 0.351ms (±0.114ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.261ms | ⚪ stable at 0.220ms (±0.056ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.449ms | ⚪ stable at 0.416ms (±0.155ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.191ms | ⚪ stable at 0.172ms (±0.100ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.397ms | ⚪ stable at 0.336ms (±0.109ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.749ms | ⚪ stable at 0.737ms (±0.195ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 2.572ms | ⚪ stable at 2.27ms (±0.632ms) (7 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.487ms | ⚪ stable at 0.560ms (±0.084ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.487ms | ⚪ stable at 1.77ms (±0.351ms) (7 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 0.481ms | ⚪ stable at 0.540ms (±0.138ms) (7 runs)     | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.925ms | ⚪ stable at 2.07ms (±0.562ms) (7 runs)      | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 1.076ms | 🔴 slower: 0.866ms → 1.08ms (+24%) (7 runs)  | < 5ms  | 🟢     |
+| **Competitive Workload Replica** | 4.390ms | ⚪ stable at 4.48ms (±1.35ms) (7 runs)       | < 5ms  | 🟢     |
+| **Ingestion**                    | 0.098ms | ⚪ stable at 0.069ms (±0.032ms) (7 runs)     | < 5ms  | 🟢     |
 
 ### Historical pulse
 
@@ -123,14 +123,14 @@ quadrantChart
   quadrant-2 Investigate soon
   quadrant-3 Acceptable variance
   quadrant-4 Critical — fix first
-    Competitive Workload Replica: [0.05, 0.95]
-    Competitive Workload Replica: [0.06, 0.25]
-    Competitive Workload Replica: [0.05, 0.82]
-    Competitive Workload Replica: [0.08, 0.49]
-    Competitive Workload Replica: [0.05, 0.39]
-    Competitive Workload Replica: [0.09, 0.40]
-    Competitive Workload Replica: [0.05, 0.94]
-    Competitive Workload Replica: [0.07, 0.53]
+    Competitive Workload Replica: [0.15, 0.66]
+    Competitive Workload Replica: [0.06, 0.48]
+    Competitive Workload Replica: [0.15, 0.54]
+    Competitive Workload Replica: [0.11, 0.45]
+    Competitive Workload Replica: [0.24, 0.63]
+    Competitive Workload Replica: [0.22, 0.95]
+    Competitive Workload Replica: [0.73, 0.88]
+    Competitive Workload Replica: [0.08, 0.37]
 ```
 
 </details>
@@ -151,33 +151,33 @@ quadrantChart
 
 > ⚠️ Executive PASS/FAIL reflects the last full matrix run.
 
-**Run ID:** `01a1bb85-0b97-703c-9417-74bee9af569d` · **Tests invoked:** 1 · **Metrics:** 23 · **DB:** sqlite
+**Run ID:** `01a1bbef-f093-732a-907f-221a5cca02e3` · **Tests invoked:** 1 · **Metrics:** 23 · **DB:** sqlite
 
-| Test                         | Metric                              | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                   |
-| ---------------------------- | ----------------------------------- | -------- | -------- | ----- | ----- | ---------------------------------------- |
-| Competitive Workload Replica | findById (Warm Sequential)          | 0.150    | 0.248    | 6630  | 🟢    | ⚪ stable at 0.137ms (±0.058ms) (7 runs) |
-| Competitive Workload Replica | findById (Warm Concurrent 8c)       | 0.289    | 0.495    | 27391 | 🟢    | ⚪ stable at 0.282ms (±0.108ms) (7 runs) |
-| Competitive Workload Replica | findByIdRandom (Warm Sequential)    | 0.126    | 0.207    | 7874  | 🟢    | ⚪ stable at 0.188ms (±0.092ms) (7 runs) |
-| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c) | 0.279    | 0.388    | 28253 | 🟢    | ⚪ stable at 0.299ms (±0.066ms) (7 runs) |
-| Competitive Workload Replica | listFilterSort (Warm Sequential)    | 0.224    | 0.328    | 4437  | 🟢    | ⚪ stable at 0.246ms (±0.174ms) (7 runs) |
-| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c) | 0.466    | 0.641    | 16888 | 🟢    | ⚪ stable at 0.445ms (±0.087ms) (7 runs) |
-| Competitive Workload Replica | listLarge (Warm Sequential)         | 0.375    | 0.520    | 2658  | 🟢    | ⚪ stable at 0.402ms (±0.130ms) (7 runs) |
-| Competitive Workload Replica | listLarge (Warm Concurrent 8c)      | 1.352    | 1.946    | 5786  | 🟢    | ⚪ stable at 1.31ms (±0.186ms) (7 runs)  |
-| Competitive Workload Replica | listPlain (Warm Sequential)         | 0.140    | 0.231    | 7083  | 🟢    | ⚪ stable at 0.199ms (±0.105ms) (7 runs) |
-| Competitive Workload Replica | listPlain (Warm Concurrent 8c)      | 0.315    | 0.465    | 24792 | 🟢    | ⚪ stable at 0.383ms (±0.114ms) (7 runs) |
-| Competitive Workload Replica | listPopulated (Warm Sequential)     | 0.195    | 0.287    | 5106  | 🟢    | ⚪ stable at 0.220ms (±0.081ms) (7 runs) |
-| Competitive Workload Replica | listPopulated (Warm Concurrent 8c)  | 0.355    | 0.545    | 22084 | 🟢    | ⚪ stable at 0.385ms (±0.162ms) (7 runs) |
-| Competitive Workload Replica | findMissing (Warm Sequential)       | 0.113    | 0.187    | 8762  | 🟢    | ⚪ stable at 0.158ms (±0.100ms) (7 runs) |
-| Competitive Workload Replica | findMissing (Warm Concurrent 8c)    | 0.271    | 0.349    | 28799 | 🟢    | ⚪ stable at 0.336ms (±0.116ms) (7 runs) |
-| Competitive Workload Replica | create (Warm Sequential)            | 0.626    | 0.806    | 1593  | 🟢    | ⚪ stable at 0.689ms (±0.203ms) (7 runs) |
-| Competitive Workload Replica | create (Warm Concurrent 8c)         | 1.928    | 2.511    | 4110  | 🟢    | ⚪ stable at 1.96ms (±0.770ms) (7 runs)  |
-| Competitive Workload Replica | update (Warm Sequential)            | 0.530    | 0.673    | 1883  | 🟢    | ⚪ stable at 0.560ms (±0.140ms) (7 runs) |
-| Competitive Workload Replica | update (Warm Concurrent 8c)         | 1.520    | 1.874    | 5214  | 🟢    | ⚪ stable at 1.61ms (±0.441ms) (7 runs)  |
-| Competitive Workload Replica | graphql (Warm Sequential)           | 0.432    | 0.574    | 2309  | 🟢    | ⚪ stable at 0.456ms (±0.151ms) (7 runs) |
-| Competitive Workload Replica | graphql (Warm Concurrent 8c)        | 1.826    | 2.362    | 4306  | 🟢    | ⚪ stable at 1.97ms (±0.396ms) (7 runs)  |
-| Competitive Workload Replica | mixed (Warm Sequential)             | 0.817    | 1.649    | 1222  | 🟢    | ⚪ stable at 0.866ms (±0.245ms) (7 runs) |
-| Competitive Workload Replica | mixed (Warm Concurrent 8c)          | 3.946    | 6.371    | 1994  | 🟢    | ⚪ stable at 4.33ms (±1.53ms) (7 runs)   |
-| Competitive Workload Replica | Seed Burst (500 docs, HTTP)         | 0.064    | 0.064    | 15565 | 🟢    | ⚪ stable at 0.068ms (±0.022ms) (7 runs) |
+| Test                         | Metric                              | Avg (ms) | p95 (ms) | RPS   | Trend | Detail                                       |
+| ---------------------------- | ----------------------------------- | -------- | -------- | ----- | ----- | -------------------------------------------- |
+| Competitive Workload Replica | findById (Warm Sequential)          | 0.157    | 0.257    | 6310  | 🟢    | ⚪ stable at 0.150ms (±0.056ms) (7 runs)     |
+| Competitive Workload Replica | findById (Warm Concurrent 8c)       | 0.387    | 0.540    | 20449 | 🟢    | ⚪ stable at 0.289ms (±0.103ms) (7 runs)     |
+| Competitive Workload Replica | findByIdRandom (Warm Sequential)    | 0.144    | 0.221    | 6895  | 🟢    | ⚪ stable at 0.188ms (±0.081ms) (7 runs)     |
+| Competitive Workload Replica | findByIdRandom (Warm Concurrent 8c) | 0.383    | 0.570    | 20602 | 🟢    | ⚪ stable at 0.299ms (±0.059ms) (7 runs)     |
+| Competitive Workload Replica | listFilterSort (Warm Sequential)    | 0.291    | 0.458    | 3421  | 🟢    | ⚪ stable at 0.246ms (±0.134ms) (7 runs)     |
+| Competitive Workload Replica | listLarge (Warm Sequential)         | 0.559    | 0.671    | 1781  | 🟢    | ⚪ stable at 0.402ms (±0.116ms) (7 runs)     |
+| Competitive Workload Replica | listPlain (Warm Sequential)         | 0.215    | 0.449    | 4624  | 🟢    | ⚪ stable at 0.199ms (±0.102ms) (7 runs)     |
+| Competitive Workload Replica | listPlain (Warm Concurrent 8c)      | 0.506    | 1.364    | 15576 | 🟢    | ⚪ stable at 0.383ms (±0.114ms) (7 runs)     |
+| Competitive Workload Replica | listPopulated (Warm Sequential)     | 0.261    | 0.349    | 3814  | 🟢    | ⚪ stable at 0.220ms (±0.054ms) (7 runs)     |
+| Competitive Workload Replica | listPopulated (Warm Concurrent 8c)  | 0.449    | 0.618    | 17381 | 🟢    | ⚪ stable at 0.385ms (±0.162ms) (7 runs)     |
+| Competitive Workload Replica | findMissing (Warm Sequential)       | 0.191    | 0.322    | 5201  | 🟢    | ⚪ stable at 0.158ms (±0.100ms) (7 runs)     |
+| Competitive Workload Replica | findMissing (Warm Concurrent 8c)    | 0.397    | 0.587    | 19703 | 🟢    | ⚪ stable at 0.336ms (±0.109ms) (7 runs)     |
+| Competitive Workload Replica | create (Warm Sequential)            | 0.749    | 0.930    | 1333  | 🟢    | ⚪ stable at 0.689ms (±0.159ms) (7 runs)     |
+| Competitive Workload Replica | create (Warm Concurrent 8c)         | 2.572    | 4.028    | 3070  | 🟢    | ⚪ stable at 1.96ms (±0.578ms) (7 runs)      |
+| Competitive Workload Replica | update (Warm Sequential)            | 0.487    | 0.660    | 2047  | 🟢    | ⚪ stable at 0.560ms (±0.051ms) (7 runs)     |
+| Competitive Workload Replica | update (Warm Concurrent 8c)         | 1.487    | 1.918    | 5318  | 🟢    | ⚪ stable at 1.61ms (±0.292ms) (7 runs)      |
+| Competitive Workload Replica | graphql (Warm Sequential)           | 0.481    | 0.668    | 2071  | 🟢    | ⚪ stable at 0.456ms (±0.138ms) (7 runs)     |
+| Competitive Workload Replica | graphql (Warm Concurrent 8c)        | 1.925    | 2.740    | 4084  | 🟢    | ⚪ stable at 1.97ms (±0.324ms) (7 runs)      |
+| Competitive Workload Replica | mixed (Warm Concurrent 8c)          | 4.390    | 6.949    | 1794  | 🟢    | ⚪ stable at 4.33ms (±1.35ms) (7 runs)       |
+| Competitive Workload Replica | Seed Burst (500 docs, HTTP)         | 0.098    | 0.098    | 10254 | 🟢    | ⚪ stable at 0.068ms (±0.021ms) (7 runs)     |
+| Competitive Workload Replica | listFilterSort (Warm Concurrent 8c) | 0.610    | 1.293    | 12170 | ⚪    | 🔴 slower: 0.466ms → 0.610ms (+31%) (7 runs) |
+| Competitive Workload Replica | listLarge (Warm Concurrent 8c)      | 1.882    | 2.901    | 4157  | ⚪    | 🔴 slower: 1.35ms → 1.88ms (+39%) (7 runs)   |
+| Competitive Workload Replica | mixed (Warm Sequential)             | 1.076    | 1.955    | 928   | ⚪    | 🔴 slower: 0.866ms → 1.08ms (+24%) (7 runs)  |
 
 <!-- SUMMARY_RUN_OVERLAY_END -->
 
@@ -1432,9 +1432,18 @@ Throughput dropped 40% — check connection pool saturation or lock contention.
 
 <!-- SECTION:INGESTION:START -->
 <details id="section-ingestion">
-<summary><strong>🏷️ Ingestion</strong> · 🟢 0.064ms · ➡️ ⚪ stable at 0.068ms (±0.022ms) (7 runs) (2026-11-08 14:17:47) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<summary><strong>🏷️ Ingestion</strong> · 🟢 0.098ms · ↗️ ⚪ stable at 0.068ms (±0.021ms) (7 runs) (2026-11-08 16:14:31) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
+<!-- LEDGER_INSIGHT_START -->
+> [!NOTE]
+> **Specific to this test**: Both avg and p95 degraded — likely adapter or infrastructure bottleneck. Check DB connection pool, indexes, or recent commits.  
+Throughput dropped 25% — check connection pool saturation or lock contention.  
+**Severe degradation** (+44%) — review recent commits immediately.
+<!-- LEDGER_INSIGHT_END -->
+
 <!-- LEDGER_TRUTH_START -->
+
 > ⏳ Pending
+
 <!-- LEDGER_TRUTH_END -->
 
 </details>
@@ -1786,25 +1795,18 @@ Throughput dropped 74% — check connection pool saturation or lock contention.
 
 <!-- SECTION:COMPETITIVE:START -->
 <details id="section-competitive">
-<summary><strong>🏷️ competitive workload replica</strong> · 🟢 3.946ms · ↘️ ⚪ stable at 4.33ms (±1.53ms) (7 runs) (2026-11-08 14:17:46) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
-<!-- LEDGER_INSIGHT_START -->
-> [!NOTE]
-> **Specific to this test**: Performance improved — recent optimizations or cache warming likely effective.
-<!-- LEDGER_INSIGHT_END -->
-
+<summary><strong>🏷️ competitive workload replica</strong> · 🟢 4.390ms · ➡️ ⚪ stable at 4.33ms (±1.35ms) (7 runs) (2026-11-08 16:14:31) · <a href="../../../tests/benchmarks/competitive-workload-replica.test.ts">source</a></summary>
 <!-- LEDGER_TRUTH_START -->
-
 ```text
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                SVELTYCMS — SEED BURST (DATASET SETUP)                                 ║
 ║                      File: tests/benchmarks/competitive-workload-replica.test.ts                      ║
-║                                       Ran: 2026-11-08 14:17:46                                        ║
+║                                       Ran: 2026-11-08 16:14:31                                        ║
 ║              Seq + concurrent (8 workers), harness iteration counts, median of N rounds.              ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ Seed Burst (500 docs, HTTP)    │        0.064 ms │ p95:        0.064 ms │ RPS:     15,565 ║
+║ Seed Burst (500 docs, HTTP)    │        0.098 ms │ p95:        0.098 ms │ RPS:     10,254 ║
 ╚═══════════════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
-
 <!-- LEDGER_TRUTH_END -->
 
 </details>

@@ -33,7 +33,7 @@
 	import { page } from '$app/state';
 	import { clientJsonHeaders } from '@utils/security/client-csrf';
 	import { formatDate, formatDateTime } from '@utils/format-date';
-	import { normalizeProcessingStatus } from '@utils/media/media-models';
+	import { normalizeProcessingStatus } from '@utils/media/media-values';
 	import type { AltTextResult } from '@src/services/ai-client/types';
 	import { logger } from '@utils/logger';
 	import Tooltip from '@components/ui/tooltip.svelte';

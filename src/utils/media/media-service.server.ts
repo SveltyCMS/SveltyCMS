@@ -30,7 +30,8 @@ import type {
   EntityCreate,
   EntityUpdate,
 } from "@src/databases/db-interface";
-import { MediaProcessingStatus, mediaTypeFromMime, type MediaItem } from "./media-models";
+import type { MediaItem } from "./media-models";
+import { MediaProcessingStatus, mediaTypeFromMime } from "./media-values";
 import {
   buildOriginalRelPath,
   getMimeType,

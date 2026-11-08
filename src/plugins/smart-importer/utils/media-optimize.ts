@@ -13,7 +13,8 @@
 import { publicEnv } from "@src/stores/global-settings.svelte";
 import { logger } from "@utils/logger";
 import { getSharp, MAX_INPUT_PIXELS } from "@utils/media/sharp-loader.server";
-import { normalizeDerivativeFormat, type DerivativeFormat } from "@utils/media/media-models";
+import type { DerivativeFormat } from "@utils/media/media-models";
+import { normalizeDerivativeFormat } from "@utils/media/media-values";
 
 /** Matches `MEDIA_OUTPUT_FORMAT_QUALITY.format` in public config (JPEG by default). */
 export type CmsMediaOutputFormat = DerivativeFormat;

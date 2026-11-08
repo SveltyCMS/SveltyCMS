@@ -11,10 +11,13 @@
  *
  * ### Features:
  * - nested path walk (`a.b.c`)
+ * - compiled path filter evaluation with LRU plan caching
  * - case-insensitive string compare
  * - multi-clause AND via `;` or `&&`
  * - pure function — easy to unit-test
  */
+
+import { FastLRU } from "@utils/native-utils";
 
 export type JsonPathOp = "eq" | "neq" | "contains" | "gt" | "lt" | "gte" | "lte";
 
@@ -24,7 +27,23 @@ export interface JsonPathClause {
   value: string;
 }
 
+export type PathSegment = string | number;
+
+export interface CompiledClause {
+  segments: PathSegment[];
+  op: JsonPathOp;
+  expectedRaw: string;
+  expectedNum: number;
+  expectedLower: string;
+}
+
+export type CompiledJsonPathFilter = (item: unknown) => boolean;
+
 const CLAUSE_RE = /^\s*([A-Za-z0-9_.[\]]+)\s*(==|!=|>=|<=|~|\*=|=|>|<)\s*(.+?)\s*$/;
+const ARRAY_INDEX_RE = /^([A-Za-z0-9_]+)\[(\d+)\]$/;
+
+const MAX_FILTER_PLAN_CACHE = 500;
+const filterPlanCache = new FastLRU<string, CompiledJsonPathFilter>({ max: MAX_FILTER_PLAN_CACHE });
 
 function opFromToken(token: string): JsonPathOp {
   switch (token) {
@@ -57,6 +76,43 @@ function unquote(raw: string): string {
   return t;
 }
 
+/** Pre-parse dotted path expression into array segments (e.g. "tags[0]" -> ["tags", 0]) */
+export function parsePathSegments(path: string): PathSegment[] {
+  if (!path) return [];
+  const parts = path.split(".").filter(Boolean);
+  const segments: PathSegment[] = [];
+  for (const part of parts) {
+    const idxMatch = part.match(ARRAY_INDEX_RE);
+    if (idxMatch) {
+      const [, key, idxStr] = idxMatch;
+      segments.push(key);
+      segments.push(Number(idxStr));
+    } else {
+      segments.push(part);
+    }
+  }
+  return segments;
+}
+
+/** Resolve pre-parsed segments on an object with zero regex evaluations. */
+export function getBySegments(root: unknown, segments: readonly PathSegment[]): unknown {
+  if (root == null) return undefined;
+  let current: unknown = root;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (typeof seg === "number") {
+      if (!Array.isArray(current) || seg < 0 || seg >= current.length) return undefined;
+      current = current[seg];
+    } else {
+      if (!current || typeof current !== "object" || !(seg in (current as object))) {
+        return undefined;
+      }
+      current = (current as Record<string, unknown>)[seg];
+    }
+  }
+  return current;
+}
+
 /**
  * Parse a filter expression into clauses.
  * Returns [] for empty input; ignores malformed clauses.
@@ -87,37 +143,16 @@ export function parseJsonPathFilter(expression: string): JsonPathClause[] {
 /** Resolve dotted path on an object (`metadata.exif.camera`). */
 export function getByPath(root: unknown, path: string): unknown {
   if (root == null || !path) return undefined;
-  const parts = path.split(".").filter(Boolean);
-  let current: unknown = root;
-  for (const part of parts) {
-    // Support simple array index: tags[0]
-    const idxMatch = part.match(/^([A-Za-z0-9_]+)\[(\d+)\]$/);
-    if (idxMatch) {
-      const [, key, idxStr] = idxMatch;
-      if (!current || typeof current !== "object" || !(key in (current as object))) {
-        return undefined;
-      }
-      current = (current as Record<string, unknown>)[key];
-      const idx = Number(idxStr);
-      if (!Array.isArray(current) || idx < 0 || idx >= current.length) return undefined;
-      current = current[idx];
-      continue;
-    }
-    if (!current || typeof current !== "object" || !(part in (current as object))) {
-      return undefined;
-    }
-    current = (current as Record<string, unknown>)[part];
-  }
-  return current;
+  return getBySegments(root, parsePathSegments(path));
 }
 
-function compareValues(actual: unknown, op: JsonPathOp, expected: string): boolean {
+function evaluateCompiledClause(actual: unknown, clause: CompiledClause): boolean {
   if (actual === undefined || actual === null) return false;
 
-  // Numeric ops
+  const op = clause.op;
   if (op === "gt" || op === "lt" || op === "gte" || op === "lte") {
     const a = Number(actual);
-    const b = Number(expected);
+    const b = clause.expectedNum;
     if (Number.isNaN(a) || Number.isNaN(b)) return false;
     if (op === "gt") return a > b;
     if (op === "lt") return a < b;
@@ -126,11 +161,51 @@ function compareValues(actual: unknown, op: JsonPathOp, expected: string): boole
   }
 
   const aStr = String(actual).toLowerCase();
-  const bStr = expected.toLowerCase();
+  if (op === "contains") return aStr.includes(clause.expectedLower);
+  if (op === "neq") return aStr !== clause.expectedLower;
+  return aStr === clause.expectedLower; // eq
+}
 
-  if (op === "contains") return aStr.includes(bStr);
-  if (op === "neq") return aStr !== bStr;
-  return aStr === bStr; // eq
+/**
+ * Compiles a JSON path filter expression into an evaluation plan function.
+ * Caches compiled plans in a FastLRU cache to avoid repeated string splitting,
+ * regex parsing, and path segmentation across large item lists.
+ */
+export function compileJsonPathFilter(expression: string): CompiledJsonPathFilter {
+  const trimmed = expression?.trim() ?? "";
+  if (!trimmed) {
+    return () => true;
+  }
+
+  const cached = filterPlanCache.get(trimmed);
+  if (cached) return cached;
+
+  const rawClauses = parseJsonPathFilter(trimmed);
+  if (rawClauses.length === 0) {
+    const passAll: CompiledJsonPathFilter = () => true;
+    filterPlanCache.set(trimmed, passAll);
+    return passAll;
+  }
+
+  const compiledClauses: CompiledClause[] = rawClauses.map((c) => ({
+    segments: parsePathSegments(c.path),
+    op: c.op,
+    expectedRaw: c.value,
+    expectedNum: Number(c.value),
+    expectedLower: c.value.toLowerCase(),
+  }));
+
+  const compiled: CompiledJsonPathFilter = (item: unknown) => {
+    for (let i = 0; i < compiledClauses.length; i++) {
+      const clause = compiledClauses[i];
+      const actual = getBySegments(item, clause.segments);
+      if (!evaluateCompiledClause(actual, clause)) return false;
+    }
+    return true;
+  };
+
+  filterPlanCache.set(trimmed, compiled);
+  return compiled;
 }
 
 /**
@@ -138,12 +213,6 @@ function compareValues(actual: unknown, op: JsonPathOp, expected: string): boole
  * Empty expression / no valid clauses → true (no filtering).
  */
 export function matchesJsonPathFilter(item: unknown, expression: string): boolean {
-  const clauses = parseJsonPathFilter(expression);
-  if (clauses.length === 0) return true;
-
-  for (const clause of clauses) {
-    const actual = getByPath(item, clause.path);
-    if (!compareValues(actual, clause.op, clause.value)) return false;
-  }
-  return true;
+  if (!expression || !expression.trim()) return true;
+  return compileJsonPathFilter(expression)(item);
 }

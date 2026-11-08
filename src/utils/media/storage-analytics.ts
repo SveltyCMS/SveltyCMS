@@ -15,7 +15,7 @@ import path from "node:path";
 import type { DatabaseId } from "@src/databases/db-interface";
 import { formatBytes } from "../file";
 import type { MediaItem } from "./media-models";
-import { isStoredMedia } from "./media-models";
+import { isStoredMedia } from "./media-values";
 
 /** Typed breakdown entry (replaces `Record<string, any>`). */
 export interface SizeCount {

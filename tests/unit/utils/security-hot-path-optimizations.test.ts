@@ -118,6 +118,16 @@ describe("permissionCache — identity-memoized role segment keeps key semantics
     expect(permissionCache.get(USER_A, "other:permission", roles)).toBe(false);
   });
 
+  it("keeps results isolated per tenant", () => {
+    const roles = ["editor"];
+    permissionCache.set(USER_A, PERMISSION, roles, true, "tenant-alpha");
+    permissionCache.set(USER_A, PERMISSION, roles, false, "tenant-beta");
+
+    expect(permissionCache.get(USER_A, PERMISSION, roles, "tenant-alpha")).toBe(true);
+    expect(permissionCache.get(USER_A, PERMISSION, roles, "tenant-beta")).toBe(false);
+    expect(permissionCache.get(USER_A, PERMISSION, roles)).toBeNull(); // global / default
+  });
+
   it("invalidateUser still drops only the targeted user's entries", () => {
     const roles = ["editor", "author"];
     permissionCache.set(USER_A, PERMISSION, roles, true);

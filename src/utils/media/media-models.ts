@@ -24,56 +24,21 @@ import type { CmsMediaMetadata, DatabaseId, ISODateString } from "@src/databases
 export type { CmsMediaMetadata };
 
 /* -------------------------------------------------------------------------- */
-/* Value maps — single source of truth for both types AND runtime lists       */
+/* Value-derived types — the runtime maps live in media-values                */
+/*                                                                            */
+/* MediaTypeEnum is imported as a value so the interfaces below can use        */
+/* typeof MediaTypeEnum.Image; every use is a type position, so the runtime    */
+/* import is elided at build time.                                            */
 /* -------------------------------------------------------------------------- */
 
-const MediaType = {
-  Image: "image",
-  Video: "video",
-  Audio: "audio",
-  Document: "document",
-  RemoteVideo: "remoteVideo",
-} as const;
-
-export type MediaType = (typeof MediaType)[keyof typeof MediaType];
-
-const MediaAccess = {
-  Public: "public",
-  Private: "private",
-  Protected: "protected",
-} as const;
-
-export type MediaAccess = (typeof MediaAccess)[keyof typeof MediaAccess];
+import type { MediaAccess, MediaType } from "./media-values";
+import { MediaTypeEnum } from "./media-values";
 
 const STORAGE_TYPES = ["local", "s3", "r2", "cloudinary"] as const;
 export type StorageType = (typeof STORAGE_TYPES)[number];
 
 const REMOTE_VIDEO_PROVIDERS = ["youtube", "vimeo"] as const;
 export type RemoteVideoProvider = (typeof REMOTE_VIDEO_PROVIDERS)[number] | (string & {});
-
-/**
- * Derivative pipeline state stored on the media document.
- *
- * `processing` — the original is safe, derived renditions are still being written.
- * `ready`      — every rendition the pipeline produces is available.
- * `failed`     — derivation failed; the original remains servable.
- */
-export const MediaProcessingStatus = {
-  Processing: "processing",
-  Ready: "ready",
-  Failed: "failed",
-} as const;
-
-export type MediaProcessingStatusValue =
-  (typeof MediaProcessingStatus)[keyof typeof MediaProcessingStatus];
-
-/** Normalise a persisted status value; `undefined` means "not recorded yet". */
-export function normalizeProcessingStatus(value: unknown): MediaProcessingStatusValue | undefined {
-  if (value === MediaProcessingStatus.Processing) return MediaProcessingStatus.Processing;
-  if (value === MediaProcessingStatus.Ready) return MediaProcessingStatus.Ready;
-  if (value === MediaProcessingStatus.Failed) return MediaProcessingStatus.Failed;
-  return undefined;
-}
 
 /* -------------------------------------------------------------------------- */
 /* Derivative output formats                                                  */
@@ -89,36 +54,6 @@ export function normalizeProcessingStatus(value: unknown): MediaProcessingStatus
 const DERIVATIVE_FORMATS = ["jpeg", "webp", "avif", "original"] as const;
 
 export type DerivativeFormat = (typeof DERIVATIVE_FORMATS)[number];
-
-/**
- * Default derivative format — JPEG, the cheapest encode of the set, so the ladder
- * cost stays dominated by the resize rather than the encoder. See
- * `docs/reference/architecture/media-system.mdx` ("Derivative output format").
- */
-const DEFAULT_DERIVATIVE_FORMAT: DerivativeFormat = "jpeg";
-
-/**
- * Normalise an operator-configured derivative format. Fail-safe by design: a
- * non-string or an unrecognised value keeps `DEFAULT_DERIVATIVE_FORMAT` instead of
- * guessing a format the install may not be able to write. `jpg` is the historical
- * spelling of `jpeg` and means the same encoder.
- */
-export function normalizeDerivativeFormat(value: unknown): DerivativeFormat {
-  if (typeof value !== "string") return DEFAULT_DERIVATIVE_FORMAT;
-  switch (value.trim().toLowerCase()) {
-    case "webp":
-      return "webp";
-    case "avif":
-      return "avif";
-    case "original":
-      return "original";
-    case "jpg":
-    case "jpeg":
-      return "jpeg";
-    default:
-      return DEFAULT_DERIVATIVE_FORMAT;
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /* Shared building blocks                                                     */
@@ -193,29 +128,29 @@ export interface StoredMediaBase extends MediaBase {
 /* -------------------------------------------------------------------------- */
 
 export interface MediaImage extends StoredMediaBase {
-  type: typeof MediaType.Image;
+  type: typeof MediaTypeEnum.Image;
   width: number;
   height: number;
 }
 
 export interface MediaVideo extends StoredMediaBase {
-  type: typeof MediaType.Video;
+  type: typeof MediaTypeEnum.Video;
   duration?: number;
   thumbnailUrl?: string;
 }
 
 export interface MediaAudio extends StoredMediaBase {
-  type: typeof MediaType.Audio;
+  type: typeof MediaTypeEnum.Audio;
   duration?: number;
 }
 
 export interface MediaDocument extends StoredMediaBase {
-  type: typeof MediaType.Document;
+  type: typeof MediaTypeEnum.Document;
   pageCount?: number;
 }
 
 export interface MediaRemoteVideo extends MediaBase {
-  type: typeof MediaType.RemoteVideo;
+  type: typeof MediaTypeEnum.RemoteVideo;
   provider: RemoteVideoProvider;
   externalId: string;
   duration?: number;
@@ -226,11 +161,11 @@ export interface MediaRemoteVideo extends MediaBase {
 /* -------------------------------------------------------------------------- */
 
 export interface MediaItemMap {
-  [MediaType.Image]: MediaImage;
-  [MediaType.Video]: MediaVideo;
-  [MediaType.Audio]: MediaAudio;
-  [MediaType.Document]: MediaDocument;
-  [MediaType.RemoteVideo]: MediaRemoteVideo;
+  [MediaTypeEnum.Image]: MediaImage;
+  [MediaTypeEnum.Video]: MediaVideo;
+  [MediaTypeEnum.Audio]: MediaAudio;
+  [MediaTypeEnum.Document]: MediaDocument;
+  [MediaTypeEnum.RemoteVideo]: MediaRemoteVideo;
 }
 
 export type MediaItem = MediaItemMap[MediaType];
@@ -240,21 +175,6 @@ export type MediaOf<T extends MediaType> = MediaItemMap[T];
 
 /** Any media asset whose bytes are stored in a backend (everything but remote video). */
 export type StoredMedia = Exclude<MediaItem, MediaRemoteVideo>;
-
-/* -------------------------------------------------------------------------- */
-/* Type guards & runtime helpers                                              */
-/* -------------------------------------------------------------------------- */
-
-export const isMediaImage = (item: MediaItem): item is MediaImage => item.type === MediaType.Image;
-export const isStoredMedia = (item: MediaItem): item is StoredMedia =>
-  item.type !== MediaType.RemoteVideo;
-
-const TOP_LEVEL_MIMES = new Set<string>([MediaType.Image, MediaType.Video, MediaType.Audio]);
-
-export function mediaTypeFromMime(mimeType: string): MediaType {
-  const top = mimeType.split("/", 1)[0]?.toLowerCase() ?? "";
-  return TOP_LEVEL_MIMES.has(top) ? (top as MediaType) : MediaType.Document;
-}
 
 /* -------------------------------------------------------------------------- */
 /* DTO derivatives — keep client/server payloads honest                       */
@@ -303,9 +223,3 @@ export interface WatermarkOptions {
   scale: number;
   url: string;
 }
-
-/* -------------------------------------------------------------------------- */
-/* Backwards compatibility                                                    */
-/* -------------------------------------------------------------------------- */
-
-export { MediaType as MediaTypeEnum };

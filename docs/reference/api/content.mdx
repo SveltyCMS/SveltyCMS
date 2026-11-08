@@ -72,7 +72,7 @@ Search across multiple collections simultaneously using the unified search engin
 
 Per-collection **view mode** lists are driven by URL query parameters on the admin collection route
 (`/(app)/[language]/[...collection]`). The page loader parses params, **whitelists field names
-against the collection schema**, then loads via `CollectionService` (L1/L2 SWR).
+against the collection schema**, then loads via `LocalCMS.collections.find` (or `CollectionsNamespace.find`) (L1/L2 SWR).
 
 | Param                | Purpose                                                                            | Client source                          |
 | -------------------- | ---------------------------------------------------------------------------------- | -------------------------------------- |
@@ -92,14 +92,16 @@ const listQuery = parseCollectionListQuery(url.searchParams, currentCollection);
 // listQuery.filter  → only schema-allowed keys (whitelist)
 // listQuery.queryHash → stable hash for cache keys
 
-await collectionService.getCollectionData({
+await locals.cms.collections.find(String(currentCollection._id), {
   collection: currentCollection,
   page: listQuery.page,
   pageSize: listQuery.pageSize,
   sort: listQuery.sort,
   filter: listQuery.filter, // { field: { contains: "value" } }
   search: listQuery.search,
-  // ...
+  language,
+  user: typedUser,
+  tenantId,
 });
 ```
 
@@ -107,7 +109,7 @@ await collectionService.getCollectionData({
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | **Never trust client field names** | `whitelistFilterParams` drops unknown keys before the DB layer                                                                     |
 | **Operator shape**                 | Adapter-agnostic `{ contains: string }` today; range ops can extend without changing URL prefixes                                  |
-| **Tenant isolation**               | `CollectionService` injects `tenantId` into the final filter when multi-tenant is enabled                                          |
+| **Tenant isolation**               | `CollectionsNamespace.find` injects `tenantId` into the final filter when multi-tenant is enabled                                  |
 | **Cache**                          | Keys include `query:{hash}` so each filter/search combination is a distinct L1/L2 entry; mutations call `invalidateCollection(id)` |
 
 ### Global search vs column filters
@@ -170,6 +172,45 @@ While GraphQL is the primary mechanism for structured querying, we have separate
 For comprehensive details on schema definitions, mutations, queries, and subscriptions, please see:
 
 - [GraphQL API Reference](./graphql.mdx)
+
+---
+
+## 5. HTTP Write Bridge (`http-bridge.ts`)
+
+HTTP collection write endpoints (`POST /api/collections/{id}`, `PATCH /api/collections/{id}/{entryId}`) and the write lane pass incoming payloads through `src/services/sdk/namespaces/collections/http-bridge.ts` before delegating to `LocalCMS.collections`:
+
+### Write Payload Unwrapping (`unwrapWritePayload`)
+
+Historical admin list/edit forms wrapped write payloads in `{ data: Record<string, unknown>, tenantId?: string }`. To preserve compatibility with external API consumers sending flat payloads while safely handling legacy wrappers, `unwrapWritePayload`:
+
+- Inspects top-level payload keys.
+- If and only if `data` is an object and no other keys exist (besides optional `tenantId`), unwraps and returns `raw.data`.
+- If extra keys exist (e.g. custom top-level fields or real collection fields named `data`), the payload is preserved as-is without data loss.
+
+### Optimistic Locking (`extractExpectedVersion`)
+
+To prevent concurrent overwrite anomalies in collaborative editorial workflows, SveltyCMS enforces version checks:
+
+- Inspects `If-Match` header first (standard HTTP ETag semantics).
+- If absent, inspects body field `expectedVersion` (and strips it from the payload to prevent accidental schema column persistence).
+- If absent, checks query parameter `?expectedVersion=`.
+- Passes the extracted version token to `cms.collections.update` / `cms.drafts.promoteDraft`. If the existing record's `_version` does not match, a `409 Conflict` is returned.
+
+### Draft Promotion (`promoteStagedDraft` / `isPublishWrite`)
+
+When an editor performs a publish action (status is `publish` or `published` via `isPublishWrite`):
+
+- `promoteStagedDraft` verifies whether the current user has a staged draft in `content_drafts`.
+- If a staged draft exists, it is promoted directly to the live row via `cms.drafts.promoteDraft` with optimistic version validation, ensuring in-progress form edits match the staged draft.
+- If no draft exists (`null`), the operation continues normally writing the submitted payload.
+
+### Minimal Return Acknowledgments (`minimalWriteAck`, RFC 7240)
+
+For high-frequency write operations, callers can specify the standard RFC 7240 `Prefer: return=minimal` header:
+
+- `prefersMinimalReturn(event)` detects the header.
+- Instead of re-reading and serializing the complete document entity over the wire, `minimalWriteAck` responds with status `200 OK` (or `201 Created`) containing only `{"_id":"<id>"}` and header `Preference-Applied: return=minimal`.
+- Saves serialization CPU time and payload bandwidth on bulk/batch write paths.
 
 ---
 

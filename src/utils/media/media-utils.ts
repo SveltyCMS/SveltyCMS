@@ -73,7 +73,8 @@ export function sanitize(input: string): string {
   return result;
 }
 
-import { isStoredMedia, type MediaItem } from "./media-models";
+import type { MediaItem } from "./media-models";
+import { isStoredMedia } from "./media-values";
 
 // ─── MIME database (merged + expanded from mime-utils) ────────────────────
 

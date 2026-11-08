@@ -307,24 +307,23 @@ $effect(() => {
 
 ```typescript
 // Server turns the URL param into a query filter
-// src/routes/(app)/[language]/[...collection]/+page.server.ts:177
+// src/routes/(app)/[language]/[...collection]/+page.server.ts:180
 const editEntryId = url.searchParams.get("edit");
 
-const { entries, pagination, revisions, contentLanguage, collectionSchema } =
-  await collectionService.getCollectionData({
-    collection: currentCollection,
-    page: listQuery.page,
-    pageSize: listQuery.pageSize,
-    sort: listQuery.sort,
-    filter: listQuery.filter,
-    search: listQuery.search,
-    language,
-    user: typedUser,
-    tenantId,
-    editEntryId: editEntryId || undefined, // ← pinned by _id inside the service
-  });
+const listResult = await cms.collections.find(String(currentCollection._id), {
+  collection: currentCollection,
+  page: listQuery.page,
+  pageSize: listQuery.pageSize,
+  sort: listQuery.sort,
+  filter: listQuery.filter,
+  search: listQuery.search,
+  language,
+  user: typedUser,
+  tenantId,
+  editEntryId: editEntryId || undefined, // ← pinned by _id inside the service
+});
 
-// src/services/core/collection-service.ts:300
+// src/services/sdk/namespaces/collections-namespace.ts
 if (editEntryId) {
   baseWhere._id = editEntryId; // translate ?edit=UUID into an exact-id read
 }

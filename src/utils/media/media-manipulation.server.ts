@@ -27,7 +27,8 @@ import type {
   MediaItem as DbMediaItem,
 } from "@src/databases/db-interface";
 import { normalizeFocalPercent } from "./focal-point";
-import { MediaProcessingStatus, type MediaItem } from "./media-models";
+import type { MediaItem } from "./media-models";
+import { MediaProcessingStatus } from "./media-values";
 import { buildOriginalRelPath, clampManipulatedDimensions } from "./media-utils";
 import { getSharp, MAX_INPUT_PIXELS, type SharpOverlayOptions } from "./sharp-loader.server";
 import {

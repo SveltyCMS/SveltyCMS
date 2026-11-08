@@ -346,9 +346,9 @@ const result = await cacheService.getOrSetSWR(
 );
 ```
 
-### Collection List Queries (entry-list / CollectionService) {#collection-list-queries-entry-list--collectionservice}
+### Collection List Queries (entry-list / CollectionsNamespace) {#collection-list-queries-entry-list--collectionservice}
 
-Editorial list views are cached through `CollectionService.getCollectionData()` using **getOrSetSWR**, not raw `get`/`set`.
+Editorial list views are cached through `CollectionsNamespace.find()` using **getOrSetSWR**, not raw `get`/`set`.
 
 | Concern                 | Implementation                                                                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
@@ -362,7 +362,7 @@ Editorial list views are cached through `CollectionService.getCollectionData()` 
 | **URL filters**         | `filter_{field}` + `search` parsed by `parseCollectionListQuery` (schema whitelist before DB)                                       |
 
 ```typescript
-// CollectionService (simplified)
+// CollectionsNamespace.find (simplified)
 const queryHash = hashQueryPayload({ filter, search, sort });
 const cacheKey = buildCollectionQueryCacheKey({ collectionId, page, pageSize, queryHash, language, tenantId, userId });
 

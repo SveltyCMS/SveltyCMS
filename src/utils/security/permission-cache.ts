@@ -8,18 +8,20 @@
  *   (which reuses one array per source `Role[]`). Repeated calls with the same
  *   array instance skip the per-call spread/sort/join entirely. Both caches
  *   share the same contract: the roleIds array is treated as immutable.
+ * - Multi-tenant isolation is enforced via the `${tenantId || "global"}:${userId}:${permission}` key structure.
+ * - Backed by FastLRU to prevent unbounded memory growth and eliminate garbage collector churn.
  */
+
+import { FastLRU } from "@utils/native-utils";
 
 const PERMISSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const MAX_CACHE_SIZE = 1000;
 
-interface CacheEntry {
-  result: boolean;
-  timestamp: number;
-}
-
 class PermissionCache {
-  private cache = new Map<string, CacheEntry>();
+  private cache = new FastLRU<string, boolean>({
+    max: MAX_CACHE_SIZE,
+    ttl: PERMISSION_CACHE_TTL,
+  });
 
   /** Sorted-role segment memoized per roleIds array identity (see header). */
   private sortedRoleIdsCache = new WeakMap<readonly string[], string>();
@@ -37,43 +39,53 @@ class PermissionCache {
     return sorted;
   }
 
-  private getKey(userId: string, permissionId: string, roleIds: string[]): string {
-    return `${userId}:${permissionId}:${this.getSortedRoleIds(roleIds)}`;
+  private getKey(
+    userId: string,
+    permissionId: string,
+    roleIds: string[],
+    tenantId?: string | null,
+  ): string {
+    const tid = tenantId || "global";
+    return `${tid}:${userId}:${permissionId}:${this.getSortedRoleIds(roleIds)}`;
   }
 
-  get(userId: string, permissionId: string, roleIds: string[]): boolean | null {
-    const key = this.getKey(userId, permissionId, roleIds);
-    const entry = this.cache.get(key);
-
-    if (!entry) return null;
-
-    // Check if entry is expired
-    if (Date.now() - entry.timestamp > PERMISSION_CACHE_TTL) {
-      this.cache.delete(key);
-      return null;
-    }
-
-    return entry.result;
+  get(
+    userId: string,
+    permissionId: string,
+    roleIds: string[],
+    tenantId?: string | null,
+  ): boolean | null {
+    const key = this.getKey(userId, permissionId, roleIds, tenantId);
+    const result = this.cache.get(key);
+    return result !== undefined ? result : null;
   }
 
-  set(userId: string, permissionId: string, roleIds: string[], result: boolean): void {
-    // Evict oldest entries if cache is too large (LRU-like)
-    if (this.cache.size >= MAX_CACHE_SIZE) {
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey) this.cache.delete(firstKey);
-    }
-
-    const key = this.getKey(userId, permissionId, roleIds);
-    this.cache.set(key, {
-      result,
-      timestamp: Date.now(),
-    });
+  set(
+    userId: string,
+    permissionId: string,
+    roleIds: string[],
+    result: boolean,
+    tenantId?: string | null,
+  ): void {
+    const key = this.getKey(userId, permissionId, roleIds, tenantId);
+    this.cache.set(key, result);
   }
 
-  invalidateUser(userId: string): void {
+  invalidateUser(userId: string, tenantId?: string | null): void {
+    const prefix = tenantId !== undefined ? `${tenantId || "global"}:${userId}:` : null;
+    const userSearch = `:${userId}:`;
+
     for (const key of this.cache.keys()) {
-      if (key.startsWith(`${userId}:`)) {
-        this.cache.delete(key);
+      if (prefix) {
+        if (key.startsWith(prefix)) {
+          this.cache.delete(key);
+        }
+      } else {
+        // Unscoped invalidation: match user across all tenants
+        const firstColon = key.indexOf(":");
+        if (firstColon !== -1 && key.startsWith(userSearch, firstColon)) {
+          this.cache.delete(key);
+        }
       }
     }
   }

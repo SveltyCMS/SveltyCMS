@@ -108,10 +108,10 @@ flowchart TB
 
 ## Modes
 
-| Mode         | Use when                                         | Sort / page / filter                     |
-| ------------ | ------------------------------------------------ | ---------------------------------------- |
-| **`server`** | Collection lists, media, large multi-tenant data | URL + SSR + `CollectionService` (secure) |
-| **`client`** | Small admin widgets, settings tables             | In-memory in `createSmartTable`          |
+| Mode         | Use when                                         | Sort / page / filter                        |
+| ------------ | ------------------------------------------------ | ------------------------------------------- |
+| **`server`** | Collection lists, media, large multi-tenant data | URL + SSR + `CollectionsNamespace` (secure) |
+| **`client`** | Small admin widgets, settings tables             | In-memory in `createSmartTable`             |
 
 ```typescript
 // CMS / entry-list (server mode)

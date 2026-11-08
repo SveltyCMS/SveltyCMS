@@ -31,11 +31,8 @@
 	import ColumnResizeHandle from '@components/ui/smart-table/column-resize-handle.svelte';
 	import MediaTableRowMenu from './media-table-row-menu.svelte';
 	import { mediaDisplayUrl, mediaPreviewCandidates } from '@utils/media/media-utils';
-	import {
-		type MediaBase,
-		type MediaImage,
-		normalizeProcessingStatus
-	} from '@utils/media/media-models';
+	import type { MediaBase, MediaImage } from '@utils/media/media-models';
+	import { normalizeProcessingStatus } from '@utils/media/media-values';
 	import { draggable } from '@thisux/sveltednd';
 	import {
 		MEDIA_DRAG_CONTAINER,

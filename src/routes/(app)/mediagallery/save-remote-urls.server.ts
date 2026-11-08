@@ -5,7 +5,7 @@
 
 import type { DatabaseId } from "@src/content/types";
 import { dbAdapter } from "@src/databases/db";
-import type { MediaAccess } from "@src/utils/media/media-models";
+import type { MediaAccess } from "@src/utils/media/media-values";
 import { logger } from "@utils/logger";
 
 /** Per-URL failure, surfaced to the caller instead of a generic toast. */

@@ -100,13 +100,16 @@ export interface AuditLogEntry extends BaseEntity {
   result: "success" | "failure" | "partial";
   hash?: string;
   previousHash?: string;
+  rawJson?: string;
 }
+
+export type BufferedAuditEntry = Omit<AuditLogEntry, "_id"> & { _id?: DatabaseId };
 
 export class AuditService {
   private readonly collectionName = "auditLogs";
   private readonly logFile = path.join(process.cwd(), "logs", "audit.log");
   private lastHash: string = "0000000000000000000000000000000000000000000000000000000000000000";
-  private buffer: any[] = [];
+  private buffer: BufferedAuditEntry[] = [];
   private flushTimer: any = null;
   private microBatchTimer: NodeJS.Timeout | null = null;
   private inFlightFlush: Promise<void> | null = null;
@@ -198,12 +201,12 @@ export class AuditService {
         }
       }
 
-      const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
+      const logData = entriesToFlush.map((e) => e.rawJson ?? JSON.stringify(e)).join("\n") + "\n";
       await fsPromises.appendFile(this.logFile, logData);
     } catch (error) {
       if (this.isMissingAuditStoreError(error)) {
         logger.warn("[Audit] Audit store unavailable during flush; dropping buffered entries");
-        const logData = entriesToFlush.map((e) => JSON.stringify(e)).join("\n") + "\n";
+        const logData = entriesToFlush.map((e) => e.rawJson ?? JSON.stringify(e)).join("\n") + "\n";
         await fsPromises.appendFile(this.logFile, logData).catch(() => {});
         return;
       }
@@ -355,8 +358,11 @@ export class AuditService {
 
         // Tamper-evident audit chain (SHA-256 of the entry JSON), not a password KDF.
         // codeql[js/insufficient-password-hash]
-        const hash = createHash("sha256").update(JSON.stringify(entry)).digest("hex");
-        const fullEntry = { ...entry, hash };
+        const serialized = JSON.stringify(entry);
+        const hash = createHash("sha256").update(serialized).digest("hex");
+        // Pre-serialize full entry sharing base serialized attributes to eliminate double JSON.stringify on flush
+        const fullSerialized = `${serialized.slice(0, -1)},"hash":${JSON.stringify(hash)}}`;
+        const fullEntry: BufferedAuditEntry = { ...entry, hash, rawJson: fullSerialized };
         this.lastHash = hash;
 
         this.buffer.push(fullEntry);

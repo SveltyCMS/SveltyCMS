@@ -31,7 +31,7 @@ function loadCacheServiceModule(): Promise<typeof import("@src/databases/cache/c
 
 // Utils
 import type { MediaItem, SystemVirtualFolder } from "@root/src/databases/db-interface";
-import type { MediaAccess } from "@root/src/utils/media/media-models";
+import type { MediaAccess } from "@root/src/utils/media/media-values";
 // Auth
 import { dbAdapter } from "@src/databases/db";
 import {

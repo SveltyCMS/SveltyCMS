@@ -3,7 +3,12 @@
  * @description Unit tests for media gallery JSON path filter helper.
  */
 import { describe, expect, it } from "vitest";
-import { getByPath, matchesJsonPathFilter, parseJsonPathFilter } from "@utils/json-path-filter";
+import {
+  compileJsonPathFilter,
+  getByPath,
+  matchesJsonPathFilter,
+  parseJsonPathFilter,
+} from "@utils/json-path-filter";
 
 describe("json-path-filter", () => {
   const sample = {
@@ -54,5 +59,15 @@ describe("json-path-filter", () => {
   it("empty / malformed expression does not filter out items", () => {
     expect(matchesJsonPathFilter(sample, "")).toBe(true);
     expect(matchesJsonPathFilter(sample, "not a filter")).toBe(true);
+  });
+
+  it("compileJsonPathFilter compiles and caches plan, evaluating repeatedly without re-parse", () => {
+    const filter = compileJsonPathFilter("metadata.camera ~ Canon; metadata.iso >= 400");
+    expect(filter(sample)).toBe(true);
+    expect(filter({ metadata: { camera: "Nikon", iso: 800 } })).toBe(false);
+
+    // Identity check on cached plan function
+    const filter2 = compileJsonPathFilter("metadata.camera ~ Canon; metadata.iso >= 400");
+    expect(filter2).toBe(filter);
   });
 });

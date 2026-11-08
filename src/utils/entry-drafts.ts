@@ -18,7 +18,7 @@ import type { ApiResponse } from "@utils/http-client";
 import type { DraftRecord, DraftSavePayload } from "@utils/api";
 import type { ISODateString } from "@src/content/types";
 import { logger } from "@utils/logger";
-import { rethrow } from "@utils/rethrow";
+import { rethrow } from "./rethrow";
 
 /** Marker key the draft row carries inside `data` (see roadmap: draft storage). */
 const DRAFT_MARKER_KEY = "__draft";

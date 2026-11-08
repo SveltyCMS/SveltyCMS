@@ -73,13 +73,12 @@
 	import { toast } from '@src/stores/toast.svelte.ts';
 	import { logger } from '@utils/logger';
 	import { motionDuration } from '@utils/admin-transitions';
+	import type { MediaBase, MediaImage } from '@utils/media/media-models';
 	import {
-		type MediaBase,
-		type MediaImage,
-		type MediaType,
 		MediaTypeEnum,
-		normalizeProcessingStatus
-	} from '@utils/media/media-models';
+		normalizeProcessingStatus,
+		type MediaType
+	} from '@utils/media/media-values';
 	import { droppable, dndState, type DragDropState } from '@thisux/sveltednd';
 	import {
 		MEDIA_DRAG_CONTAINER,

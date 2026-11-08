@@ -12,7 +12,7 @@
  * staged upload lands in the folder the user was browsing.
  */
 
-import type { MediaAccess } from "@root/src/utils/media/media-models";
+import type { MediaAccess } from "@root/src/utils/media/media-values";
 // Large uploads use formData; body size validated at server level (Vite/SvelteKit config).
 // Files over configurable limit are rejected before parsing with a clear error.
 import { dbAdapter } from "@src/databases/db";
