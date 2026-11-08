@@ -100,12 +100,18 @@ export function stripPrivilegedUserFields<T extends Record<string, unknown>>(upd
 
 /** True if any key is a privilege-escalation field (before stripping). */
 export function hasPrivilegeEscalationFields(updates: Record<string, unknown>): boolean {
-  return Object.keys(updates).some((k) => ESCALATION_SET.has(k));
+  for (const k in updates) {
+    if (Object.prototype.hasOwnProperty.call(updates, k) && ESCALATION_SET.has(k)) return true;
+  }
+  return false;
 }
 
 /** True if any key in the patch is a privileged field (before stripping). */
 export function hasPrivilegedUserFields(updates: Record<string, unknown>): boolean {
-  return Object.keys(updates).some((k) => PRIVILEGED_SET.has(k));
+  for (const k in updates) {
+    if (Object.prototype.hasOwnProperty.call(updates, k) && PRIVILEGED_SET.has(k)) return true;
+  }
+  return false;
 }
 
 /** Caller is a system/super admin for attribute-update purposes. */
