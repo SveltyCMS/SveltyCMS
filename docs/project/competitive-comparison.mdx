@@ -4,7 +4,7 @@ title: "Headless CMS Comparison 2026: SveltyCMS vs. Payload CMS vs. Strapi vs. D
 description: "Objective 2026 technical comparison of open-source headless CMS platforms: SveltyCMS, Payload CMS, Strapi, and Directus across performance, multi-tenancy, AI capabilities, and total cost of ownership."
 author: "SveltyCMS Team"
 created: "2026-03-21"
-updated: "2026-10-29"
+updated: "2026-11-08"
 tags:
   - "comparison"
   - "buyers-guide"
@@ -55,7 +55,7 @@ What differs in **public product packaging** and **our self-measured stack** (no
 | **SCIM 2.0**                | Documented in core                                                                                                                                                                                      | Enterprise (public docs)                                                         | Enterprise (public docs)                                                                        | Enterprise module (public docs)                                   |
 | **Audit logs**              | Crypto-chained logs in core (self-described)                                                                                                                                                            | Enterprise (public docs)                                                         | Plugin / Enterprise (public docs)                                                               | Activity log; audit module Enterprise                             |
 | **Multi-tenancy**           | Native `tenantId` isolation in core                                                                                                                                                                     | Not documented as built-in (as of July 2026 public docs)                         | Not documented as built-in                                                                      | Enterprise plan (public docs)                                     |
-| **Cold start**              | **~2.0s** boot / **~1.4s** respawn (self-measured, SQLite, 2026-09-18; [SQLite ledger](./benchmarks/benchmark_sqlite.mdx))                                                                              | ~3–5s (figures from public write-ups; not same harness)                          | ~4–8s (public write-ups)                                                                        | ~3–6s (public write-ups)                                          |
+| **Cold start**              | **~1.9s** boot (self-measured, SQLite, 2026-11-07; [SQLite ledger](./benchmarks/benchmark_sqlite.mdx))                                                                                                  | ~3–5s (figures from public write-ups; not same harness)                          | ~4–8s (public write-ups)                                                                        | ~3–6s (public write-ups)                                          |
 | **Admin UI runtime model**  | Svelte 5 compile (no React VDOM in admin)                                                                                                                                                               | React VDOM                                                                       | React admin                                                                                     | Vue reactivity                                                    |
 | **i18n**                    | Paraglide compile-time; EN/DE shipped; extra locales GUI + machine-translate then human review; field-level content translations via per-field toggle in Collection Builder (self-described, Sept 2026) | i18next runtime; 30+ admin languages in `@payloadcms/translations` (public docs) | Admin locales via `config.locales` (code); content locales from a predefined list (public docs) | vue-i18n runtime; Data Studio languages via Crowdin (public docs) |
 | **Out-of-the-box API**      | REST + GraphQL + OpenAPI 3.1                                                                                                                                                                            | REST + GraphQL                                                                   | REST + GraphQL                                                                                  | REST + GraphQL                                                    |
@@ -104,9 +104,9 @@ Every CMS admin panel carries a cost: cold-start latency, server memory, and run
 
 | Capability         | SveltyCMS                                                                 | Payload CMS                                   | Strapi                              | Directus                         |
 | :----------------- | :------------------------------------------------------------------------ | :-------------------------------------------- | :---------------------------------- | :------------------------------- |
-| **Stack**          | SvelteKit 2 + Svelte 5 (Runes)                                            | Next.js + React                               | Koa + React admin                   | Vue 3 + Express                  |
+| **Stack**          | SvelteKit 3 (RC) + Svelte 5 (Runes)                                       | Next.js + React                               | Koa + React admin                   | Vue 3 + Express                  |
 | **Admin UI model** | Svelte 5 compile                                                          | React VDOM                                    | React admin                         | Vue reactivity                   |
-| **Cold start**     | **~2.0s boot / ~1.4s respawn (self-measured, SQLite, 2026-09-18)**        | ~3–5s (public write-ups)                      | ~4–8s                               | ~3–6s                            |
+| **Cold start**     | **~1.9s boot (self-measured, SQLite, 2026-11-07)**                        | ~3–5s (public write-ups)                      | ~4–8s                               | ~3–6s                            |
 | **i18n**           | Paraglide (compile-time); extra locales start as machine-translate drafts | i18next (runtime); community language modules | Plugin / `config.locales` (runtime) | vue-i18n (runtime); Crowdin      |
 | **Type safety**    | TypeScript + Valibot                                                      | Zod (common)                                  | Partial                             | Partial                          |
 | **Production DBs** | MongoDB, MariaDB, PostgreSQL, SQLite                                      | MongoDB, PostgreSQL                           | SQLite, PostgreSQL, MySQL, MariaDB  | PostgreSQL, MySQL, SQLite, MSSQL |
@@ -150,6 +150,8 @@ Warm concurrent 8-worker HTTP (`SVELTY_BENCHMARK_SERVER_MODE=production`, `BENCH
 | **`mixed`**          | 1,774 |     4.37 |     9.65 |
 
 60-second soak (same 8 workers): **2,020 avg RPS** (min 1,826, max 2,224, instability 17.9%).
+
+A later run of the same harness on this host (2026-10-12) recorded higher warm lanes — `findById` **16 236 RPS**, `create` **5 266 RPS**, `update` **6 745 RPS**, seed burst **12 406 docs/s**. Both tables are dated, self-measured snapshots with their conditions stated; the [Achievements Log](./achievements-2026.mdx) carries the later numbers. Neither is a competitor ranking.
 
 #### The Architectural Paradox: Why SveltyCMS is Both Faster AND More Secure
 

@@ -6,7 +6,7 @@ order: 99
 icon: "mdi:map-clock-outline"
 author: "SveltyCMS Team"
 created: "2026-01-18"
-updated: "2026-11-05"
+updated: "2026-11-08"
 tags:
   - "roadmap"
   - "backlog"
@@ -24,12 +24,13 @@ tags:
 
 ## 🎯 Priority for Implementers
 
-| Priority | Initiative                       | Key Deliverables                                                                                                   |
-| :------- | :------------------------------- | :----------------------------------------------------------------------------------------------------------------- |
-| **P0**   | **System Language P0 remainder** | ✅ Complete (2026-11-01): `bun run check:copy` is at 0 offenses; keep new copy localized as a regression guard.    |
-| **P1**   | **Quality Gate Type-Checking**   | Wire `svelte-check --threshold error` into `bun run check` to eliminate silent type drift                          |
-| **P2**   | **Commerce Engine Add-Ons**      | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing |
-| **P2**   | **Enterprise Cluster & Cloud**   | Distributed session clustering, Redis pub/sub worker bridge, and Svelty Managed Cloud recipes                      |
+| Priority | Initiative                         | Key Deliverables                                                                                                            |
+| :------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
+| **P0**   | **System Language P0 remainder**   | ✅ Complete (2026-11-01): `bun run check:copy` is at 0 offenses; keep new copy localized as a regression guard.             |
+| **P1**   | **Two-Plane Phase 5 verification** | 24 h PostgreSQL soak, noise-aware leak proof, and the published 4-cell wire/domain matrix (§1)                              |
+| **P1**   | **External validation**            | Independent penetration test plus the SLSA/Sigstore/Scorecard bundle — the one enterprise gate automation cannot close (§8) |
+| **P2**   | **Commerce Engine Add-Ons**        | Promotion rule groups (`ConditionPlugin`), BOGO/tiered discounts, multi-warehouse, FX resolver, and Stripe Billing          |
+| **P2**   | **Enterprise Cluster & Cloud**     | Distributed session clustering, Redis pub/sub worker bridge, and Svelty Managed Cloud recipes                               |
 
 ---
 
@@ -96,7 +97,7 @@ tags:
     - Editor: autosave writes the draft, resume shows Restore/Discard, Cancel discards, and a successful Save/Publish discards server-side. **Ship the sink and resume together**; never auto-create an entry on resume (preserve the M1 invariant).
       - [x] Editor half (2026-11-01): `autoSaveDraft` posts to `/api/collections/:id/drafts` (live row untouched, no `_id` stamped); `+page.server.ts` reads the author's latest draft through `cms.drafts.getDraft` and the editor offers Restore/Discard; Save/Publish/Delete/Clone (and Cancel) discard the form's drafts once. See [fields](../reference/components/fields.mdx#autosave-navigation-guard). Publish **promotion** (turning a draft into the live row) shipped 2026-11-07 through the collection write handlers.
   - [ ] Migration/opt-in path for collections that already exist without the flag (deliberately not auto-flipped).
-  - **Not shipped:** draft-version rollback, a cross-table transaction for live-write + draft-delete, and a migration for existing collections. Publish promotion is shipped (2026-11-07); do not describe rollback as available.
+  - **Not shipped:** draft-version rollback and a migration for existing collections. Publish promotion is shipped (2026-11-07) and atomic on SQL adapters — the live write, the revision snapshot and the draft delete share one `dbAdapter.transaction()`; MongoDB keeps the documented ordered fallback because its CRUD does not carry a session handle. Do not describe rollback as available.
 - **CMS Tables & List Platform (Smart Table)**:
   - Team & Cloud Saved Views: enterprise tenant-shared view presets with RBAC visibility controls.
   - Observability integration: pipe `list-query-metrics` into continuous benchmark trend reporting.
@@ -119,7 +120,7 @@ tags:
   - Add ThumbHash LQIP support via the `thumbhash` package.
 - **Media gallery coverage & unimplemented surfaces (2026-10-21)**:
   - [x] Server pagination: the loader reads `?page`, preserves the adapter total and the views merge pages; pinned by `tests/e2e/routes/mediagallery/media-pagination.spec.ts` (2026-10-24).
-  - [ ] **Server-side search across unfetched pages**: `getByFolder` has no `search` option on all four adapters, so search still ranges over fetched rows. Needs an adapter-level contract + `?q=` in the loader.
+  - [x] **Server-side search across unfetched pages** (2026-11-07): `getByFolder({ search })` is an adapter-level `LIKE` on filename/originalFilename on all four adapters, and the loader maps `?q=` to it before `LIMIT`/`COUNT`, so a match on page 7 is found from page 1; a new query resets `?page=`.
   - [x] Large-library batched rendering (60-tile window + IntersectionObserver sentinel) pinned by `tests/e2e/routes/mediagallery/large-library.spec.ts`.
   - [x] Client-side pre-upload optimization (Canvas 2D, 1920×1080 clamp, WebP) pinned by `upload-optimization.spec.ts` against the stored dimensions.
   - [x] Remote-URL ingestion success + SSRF rejection pinned by `remote-ingestion.spec.ts` (real local HTTP peer via the test-only exact-origin allowlist).
@@ -323,3 +324,20 @@ Findings from the 2026-10-24 theme/UX review that need a design decision or a cr
 - [ ] **Permissions matrix**: the access-management permissions table is still bespoke. Move it onto `SmartTableShell` (or the native table primitives) so sorting, empty state and responsive overflow match the other admin lists.
 - [ ] **Save models**: the Design System page exposes three separate save paths (user overrides, admin theme, preset import). Define one dirty-state/save contract and make the action bar consistent across them. _(The tab-level split that caused this is gone — `?tab=customizer` owns one draft — but the personal-overrides save is still a separate POST.)_
 - [ ] **SmartTableShell adoption**: media table, trash, queue and webhook logs still hand-roll their tables. Adopt `SmartTableShell` (including its unused `toolbar` slot) so list chrome has one owner.
+
+---
+
+## 11. Innovation Frontier (candidates, not commitments)
+
+Shortlisted differentiators that are **not** scheduled. Each is recorded here with a scope and an acceptance criterion so it can be promoted into §1–§10 (and later the [Achievements Log](./achievements-2026.mdx)) only when it has an owner and a test.
+
+- **Temporal reads (as-of revision)** — read an entry as it existed at a revision or timestamp, reusing `content_revisions` and the existing projections. Buyers in regulated segments ask for this in place of full database PITR.
+  - _Acceptance:_ `GET /api/collections/:c/:id?asOf=<revision|ISO>` returns the historical row, tenant-scoped, with normal projection/access rules; pinned by unit + integration tests on SQLite and PostgreSQL.
+- **Audit-chain external anchoring** — periodically anchor the SHA-256 chain head with an RFC 3161 timestamp authority (and optionally a public transparency log), plus a verification endpoint. Moves the audit trail from self-attested to third-party-witnessed.
+  - _Acceptance:_ `security:assurance` verifies an anchored head; editing a cloned ledger row fails verification.
+- **Agent write-approval lane** — WebMCP/agent tokens may propose mutations but not commit them; a human approves a diff and the approval (actor, hash, timestamp) joins the audit chain. Extends the agent surface without widening its blast radius.
+  - _Acceptance:_ an agent token can create a proposal and cannot write a live row; the approval endpoint requires a human session; both events appear in the audit chain.
+- **Zero-compilation boot** — persist a source-hash-keyed compiled-schema artifact so a restart with unchanged collection sources skips `transpileModule`.
+  - _Acceptance:_ the second boot after a fresh build stays inside the existing 5 s cold-start budget with zero transpile calls (instrumented); a hash mismatch forces recompilation and is logged.
+- **Plugin capability sandbox** — declare `capabilities` (`fs`, `net`, `env`, `collections`) in the plugin manifest and fail closed when a plugin exceeds them. Complements the marketplace trust story with an enforceable boundary.
+  - _Acceptance:_ a fixture plugin that uses `net` without declaring it does not load; declared capabilities render in the plugins UI and are checked by a scanner in `risk:audit`.
