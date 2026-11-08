@@ -16,6 +16,7 @@
  */
 
 import { dbInitPromise } from "@src/databases/db";
+import { markBoot } from "@utils/boot-profile";
 import { metricsService } from "@src/services/observability/metrics-service";
 import { getSystemState, isSystemReady } from "@src/stores/system/state.svelte.ts";
 import type { SystemState } from "@src/stores/system/types";
@@ -84,6 +85,8 @@ async function awaitInitOrThrow(): Promise<void> {
   } catch {
     // timed out — checked below
   }
+  // Boot profile: the first request has now paid for adapter + service init.
+  markBoot("db-ready");
   if (initializationState === "failed" && lastInitError) throw lastInitError;
 }
 

@@ -2,10 +2,10 @@
   "version": 1,
   "layers": {
     "unit": {
-      "generatedAt": "2026-11-08T16:28:37.397Z",
+      "generatedAt": "2026-11-08T16:49:42.823Z",
       "totals": {
         "files": 870,
-        "tests": 8244
+        "tests": 8246
       },
       "areas": {
         "unit": {
@@ -118,7 +118,7 @@
         },
         "unit/sdk": {
           "files": 25,
-          "tests": 201
+          "tests": 203
         },
         "unit/security": {
           "files": 39,

@@ -18,6 +18,12 @@ import { CollectionsNamespace } from "@src/services/sdk/namespaces/collections-n
 import type { ContentRevision, DatabaseId } from "@src/databases/db-interface";
 import type { Schema } from "@src/content/types";
 import { generateUUID } from "@src/utils/native-utils";
+import {
+  computeAtomicDelta,
+  applyRevisionDelta,
+  isRevisionDeltaPayload,
+  reconstructRevisionSnapshot,
+} from "@src/services/sdk/namespaces/collections/revisions";
 
 const COLLECTION = "revision_history_contract";
 
@@ -105,5 +111,110 @@ describe("CollectionsNamespace revision history on SQLite", () => {
       pageSize: 20,
     });
     expect(afterRestore.success && afterRestore.data.items.length).toBe(3);
+  });
+
+  it("computes atomic deltas for consecutive revisions and reconstructs snapshots", async () => {
+    const deltaEntryId = generateUUID();
+    const inserted = await adapter.crud.insert(COLLECTION, {
+      _id: deltaEntryId,
+      title: "initial title",
+      description: "initial desc",
+      tags: ["alpha", "beta"],
+      status: "draft",
+    } as never);
+    expect(inserted.success).toBe(true);
+
+    // Edit 1: change title only
+    const update1 = await ns.update(COLLECTION, deltaEntryId, { title: "second title" }, { user });
+    expect(update1.success).toBe(true);
+
+    // Edit 2: change description and tags
+    const update2 = await ns.update(
+      COLLECTION,
+      deltaEntryId,
+      { description: "second desc", tags: ["gamma"] },
+      { user },
+    );
+    expect(update2.success).toBe(true);
+
+    const history = await adapter.content.revisions.getHistory(deltaEntryId as DatabaseId, {
+      pageSize: 20,
+    });
+    expect(history.success).toBe(true);
+    const revisions = history.success ? history.data.items : [];
+    expect(revisions).toHaveLength(2);
+
+    // Rev 1 was full baseline snapshot:
+    expect(revisions[1].version).toBe(1);
+    expect(isRevisionDeltaPayload(revisions[1].data)).toBe(false);
+    expect(revisions[1].data).toMatchObject({
+      title: "initial title",
+      description: "initial desc",
+    });
+
+    // Rev 2 was atomic delta:
+    expect(revisions[0].version).toBe(2);
+    expect(isRevisionDeltaPayload(revisions[0].data)).toBe(true);
+
+    // Reconstructing v1:
+    const v1 = await reconstructRevisionSnapshot(
+      adapter.content.revisions as never,
+      deltaEntryId as DatabaseId,
+      1,
+    );
+    expect(v1?.title).toBe("initial title");
+    expect(v1?.description).toBe("initial desc");
+
+    // Reconstructing v2:
+    const v2 = await reconstructRevisionSnapshot(
+      adapter.content.revisions as never,
+      deltaEntryId as DatabaseId,
+      2,
+    );
+    expect(v2?.title).toBe("second title");
+    expect(v2?.description).toBe("initial desc");
+
+    // Restoring v1 via ns.restoreRevision:
+    const restoredV1 = await ns.restoreRevision(COLLECTION, deltaEntryId, 1, { user });
+    expect(restoredV1.success).toBe(true);
+
+    const liveAfterRestore = await adapter.crud.findOne(COLLECTION, { _id: deltaEntryId } as never);
+    expect(liveAfterRestore.success).toBe(true);
+    if (liveAfterRestore.success) {
+      expect((liveAfterRestore.data as { title?: string } | null)?.title).toBe("initial title");
+    }
+  });
+
+  it("handles pure computeAtomicDelta and applyRevisionDelta correctly", () => {
+    const baseline = {
+      title: "Original",
+      count: 10,
+      tags: ["a", "b"],
+      deletedField: "should be deleted",
+    };
+    const current = {
+      title: "Updated",
+      count: 10,
+      tags: ["a", "b", "c"],
+      newField: 123,
+    };
+
+    const delta = computeAtomicDelta(baseline, current);
+    expect(delta._delta).toBe(true);
+    expect(delta.changes).toEqual({
+      title: "Updated",
+      tags: ["a", "b", "c"],
+      newField: 123,
+    });
+    expect(delta.deletedKeys).toEqual(["deletedField"]);
+
+    const applied = applyRevisionDelta(baseline, delta);
+    expect(applied).toEqual({
+      title: "Updated",
+      count: 10,
+      tags: ["a", "b", "c"],
+      newField: 123,
+    });
+    expect(applied.deletedField).toBeUndefined();
   });
 });

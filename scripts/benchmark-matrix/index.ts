@@ -275,6 +275,7 @@ const GROUPS = [
       "behavioral-learning",
       "cache-eviction-leak",
       "cache-service",
+      "json-path-filter",
       "database-failover",
     ],
   },
@@ -410,6 +411,7 @@ const TEST_WEIGHTS: Record<string, number> = {
   "behavioral-learning": 10,
   "cache-eviction-leak": 15,
   "cache-service": 20,
+  "json-path-filter": 10,
   "database-failover": 15,
   // Filesystem + Stress: ~30s avg
   "content-scan": 15,

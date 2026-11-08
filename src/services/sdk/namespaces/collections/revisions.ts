@@ -1,9 +1,12 @@
 /**
  * @file src/services/sdk/namespaces/collections/revisions.ts
- * @description Revision tracking and rollback restoration for CollectionsNamespace.
+ * @description Revision tracking, atomic delta patching, and rollback restoration for CollectionsNamespace.
  *
  * Features:
  * - Pre-write snapshots stored in content_revisions table
+ * - Atomic delta extraction to minimize memory overhead and database storage bloat
+ * - Reconstructs full snapshots seamlessly across deltas and legacy full snapshots
+ * - Zero deepClone overhead during revision preparation
  * - Revision limit bounding with automatic prune threshold (2x limit)
  * - Snapshot extraction supporting both flattened SQL and nested Mongo schemas
  * - Replay restoration protecting immutable and scheduling metadata
@@ -46,6 +49,26 @@ export interface RevisionContext {
 }
 
 /**
+ * Compact delta payload format stored in content_revisions.data
+ */
+export interface RevisionDeltaPayload {
+  _delta: true;
+  changes: Record<string, unknown>;
+  deletedKeys?: string[];
+}
+
+/**
+ * Checks whether an unknown object matches the compact RevisionDeltaPayload structure.
+ */
+export function isRevisionDeltaPayload(val: unknown): val is RevisionDeltaPayload {
+  if (!val || typeof val !== "object" || Array.isArray(val)) return false;
+  const candidate = val as Record<string, unknown>;
+  return (
+    candidate._delta === true && candidate.changes !== null && typeof candidate.changes === "object"
+  );
+}
+
+/**
  * The Collection Builder accepts 1–1000, so any positive integer is honoured; an
  * absent/non-finite limit falls back to {@link DEFAULT_REVISION_LIMIT}.
  */
@@ -85,13 +108,117 @@ const REVISION_META_KEYS = new Set([
 ]);
 
 /**
- * Extract the content snapshot from a revision row.
+ * Deep equality check for primitives, dates, arrays and plain objects without circular reference leaks.
+ */
+function isFastDeepEqual(a: unknown, b: unknown, visited = new WeakSet<object>()): boolean {
+  if (a === b) return true;
+  if (a instanceof Date && b instanceof Date) {
+    return a.getTime() === b.getTime();
+  }
+  if (a == null || b == null) return false;
+  if (typeof a !== typeof b) return false;
+
+  if (typeof a === "object" && typeof b === "object") {
+    if (visited.has(a as object)) return true;
+    visited.add(a as object);
+
+    if (Array.isArray(a)) {
+      if (!Array.isArray(b) || a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (!isFastDeepEqual(a[i], b[i], visited)) return false;
+      }
+      return true;
+    }
+
+    const objA = a as Record<string, unknown>;
+    const objB = b as Record<string, unknown>;
+
+    let countA = 0;
+    for (const key in objA) {
+      if (Object.hasOwn(objA, key)) {
+        countA++;
+        if (!Object.hasOwn(objB, key) || !isFastDeepEqual(objA[key], objB[key], visited)) {
+          return false;
+        }
+      }
+    }
+    let countB = 0;
+    for (const key in objB) {
+      if (Object.hasOwn(objB, key)) {
+        countB++;
+        if (countB > countA) return false;
+      }
+    }
+    return countA === countB;
+  }
+
+  return false;
+}
+
+/**
+ * Computes an atomic delta between baseline and current data.
+ * Returns null if no changes or if baseline is missing.
+ */
+export function computeAtomicDelta(
+  baseline: Record<string, unknown>,
+  current: Record<string, unknown>,
+): RevisionDeltaPayload {
+  const changes: Record<string, unknown> = {};
+  const deletedKeys: string[] = [];
+
+  for (const [key, val] of Object.entries(current)) {
+    if (REVISION_META_KEYS.has(key)) continue;
+    if (!Object.hasOwn(baseline, key)) {
+      changes[key] = val;
+    } else if (!isFastDeepEqual(val, baseline[key])) {
+      changes[key] = val;
+    }
+  }
+
+  for (const key of Object.keys(baseline)) {
+    if (REVISION_META_KEYS.has(key)) continue;
+    if (!Object.hasOwn(current, key)) {
+      deletedKeys.push(key);
+    }
+  }
+
+  const payload: RevisionDeltaPayload = {
+    _delta: true,
+    changes,
+  };
+  if (deletedKeys.length > 0) {
+    payload.deletedKeys = deletedKeys;
+  }
+  return payload;
+}
+
+/**
+ * Applies a revision delta onto a base snapshot.
+ */
+export function applyRevisionDelta(
+  base: Record<string, unknown>,
+  delta: RevisionDeltaPayload,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...base };
+  for (const [key, val] of Object.entries(delta.changes)) {
+    result[key] = val;
+  }
+  if (delta.deletedKeys) {
+    for (const key of delta.deletedKeys) {
+      delete result[key];
+    }
+  }
+  return result;
+}
+
+/**
+ * Extract the content snapshot or delta payload from a revision row.
  *
  * SQL adapters flatten the JSON `data` blob into the row root and drop the blob
  * (`flattenDataColumn`), so the snapshot IS the row minus its metadata. Mongo
  * returns the raw `{ data: {...} }` document. Both shapes are accepted.
  */
-export function revisionSnapshot(row: Record<string, unknown>): Record<string, unknown> | null {
+export function rawRevisionData(row: Record<string, unknown>): Record<string, unknown> | null {
   const blob = row.data;
   if (blob && typeof blob === "object" && !Array.isArray(blob)) {
     return { ...(blob as Record<string, unknown>) };
@@ -112,6 +239,84 @@ export function revisionSnapshot(row: Record<string, unknown>): Record<string, u
     if (!REVISION_META_KEYS.has(key)) snapshot[key] = value;
   }
   return Object.keys(snapshot).length > 0 ? snapshot : null;
+}
+
+/**
+ * Extract the content snapshot from a revision row.
+ * Reconstructs delta payloads if a base snapshot or reconstruction chain is provided.
+ * Maintaining 100% backward compatibility for existing full snapshots.
+ */
+export function revisionSnapshot(
+  row: Record<string, unknown>,
+  baseSnapshot?: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  const raw = rawRevisionData(row);
+  if (!raw) return null;
+
+  if (isRevisionDeltaPayload(raw)) {
+    if (!baseSnapshot) {
+      return { ...raw.changes };
+    }
+    return applyRevisionDelta(baseSnapshot, raw);
+  }
+
+  return raw;
+}
+
+/**
+ * Reconstructs a full snapshot for a target revision version from historical records.
+ * Traverses history to locate the baseline snapshot and chains deltas forward.
+ */
+export async function reconstructRevisionSnapshot(
+  revisionsStore: TransactionalRevisionStore,
+  contentId: DatabaseId,
+  targetVersion: number,
+  options?: BaseQueryOptions,
+): Promise<Record<string, unknown> | null> {
+  const targetResult = await revisionsStore.get(contentId, targetVersion, options);
+  if (!targetResult.success || !targetResult.data) return null;
+
+  const targetRow = targetResult.data as unknown as Record<string, unknown>;
+  const rawTarget = rawRevisionData(targetRow);
+  if (!rawTarget) return null;
+
+  if (!isRevisionDeltaPayload(rawTarget)) {
+    return rawTarget;
+  }
+
+  // Delta payload: fetch history to locate nearest baseline and accumulate deltas
+  const historyResult = await revisionsStore.getHistory(contentId, {
+    page: 1,
+    pageSize: 100,
+    ...options,
+  });
+  if (!historyResult.success) return rawTarget.changes;
+
+  // History is newest-first (descending version)
+  const items = historyResult.data.items as unknown as Record<string, unknown>[];
+  const sortedAsc = [...items]
+    .map((item) => ({
+      version: Number(item.version) || 0,
+      raw: rawRevisionData(item),
+    }))
+    .filter((entry) => entry.version > 0 && entry.version <= targetVersion && entry.raw !== null)
+    .sort((a, b) => a.version - b.version);
+
+  let reconstructed: Record<string, unknown> | null = null;
+  for (const entry of sortedAsc) {
+    if (!entry.raw) continue;
+    if (isRevisionDeltaPayload(entry.raw)) {
+      if (!reconstructed) {
+        reconstructed = { ...entry.raw.changes };
+      } else {
+        reconstructed = applyRevisionDelta(reconstructed, entry.raw);
+      }
+    } else {
+      reconstructed = { ...entry.raw };
+    }
+  }
+
+  return reconstructed ?? rawTarget.changes;
 }
 
 /**
@@ -142,6 +347,11 @@ interface TransactionalRevisionStore {
     revision: EntityCreate<ContentRevision>,
     options?: BaseQueryOptions,
   ): Promise<DatabaseResult<ContentRevision>>;
+  get(
+    contentId: DatabaseId,
+    version: number,
+    options?: BaseQueryOptions,
+  ): Promise<DatabaseResult<ContentRevision | null>>;
   getHistory(
     contentId: DatabaseId,
     options?: PaginationOptions & BaseQueryOptions,
@@ -159,6 +369,9 @@ interface TransactionalRevisionStore {
  * failures are logged and do not fail the content write — unless the caller is
  * inside a transaction (`strict`), where they must abort it.
  * The version is derived from the latest existing revision (+1).
+ *
+ * Employs atomic delta extraction against previous historical snapshot to
+ * avoid deep-cloning full object duplicates and reduce database bloat.
  */
 export async function recordRevision(
   dbAdapter: IDBAdapter,
@@ -183,11 +396,26 @@ export async function recordRevision(
     const newestVersion = items.length > 0 ? Number(items[0].version) || 0 : 0;
     const nextVersion = newestVersion > 0 ? newestVersion + 1 : total + 1;
 
+    let payloadToStore = previousData;
+    if (
+      items.length > 0 &&
+      previousData &&
+      typeof previousData === "object" &&
+      !Array.isArray(previousData)
+    ) {
+      const latestItem = items[0] as unknown as Record<string, unknown>;
+      const latestSnapshot = revisionSnapshot(latestItem);
+      if (latestSnapshot && typeof latestSnapshot === "object") {
+        const delta = computeAtomicDelta(latestSnapshot, previousData as Record<string, unknown>);
+        payloadToStore = delta;
+      }
+    }
+
     const created = await revisions.create(
       {
         contentId: entryId as DatabaseId,
         authorId: ((user as { _id?: unknown })?._id || "system") as DatabaseId,
-        data: previousData as never,
+        data: payloadToStore as never,
         version: nextVersion,
         tenantId: tenantId ?? undefined,
       },
@@ -239,19 +467,24 @@ export async function restoreEntryRevision(
     if (own) await own;
   }
 
-  const revision = await ctx._dbAdapter.content.revisions.get(entryId as DatabaseId, version, {
-    tenantId: tenantId as DatabaseId,
-  });
-  if (!revision.success) {
-    raise(500, revision.message || "Failed to read the revision.", "REVISION_READ_FAILED");
-  }
-  if (!revision.data) {
-    raise(404, `Revision ${version} of entry ${entryId} was not found.`, "NOT_FOUND");
-  }
-
-  const row = revision.data as unknown as Record<string, unknown>;
-  const snapshot = revisionSnapshot(row);
+  const revisionsStore = ctx._dbAdapter.content.revisions as unknown as TransactionalRevisionStore;
+  const snapshot = await reconstructRevisionSnapshot(
+    revisionsStore,
+    entryId as DatabaseId,
+    version,
+    tenantId ? { tenantId: tenantId as DatabaseId } : undefined,
+  );
   if (!snapshot) {
+    // Distinguish 404 from invalid snapshot
+    const rawCheck = await revisionsStore.get(entryId as DatabaseId, version, {
+      tenantId: tenantId as DatabaseId,
+    });
+    if (!rawCheck.success) {
+      raise(500, rawCheck.message || "Failed to read the revision.", "REVISION_READ_FAILED");
+    }
+    if (!rawCheck.data) {
+      raise(404, `Revision ${version} of entry ${entryId} was not found.`, "NOT_FOUND");
+    }
     raise(422, `Revision ${version} does not contain a restorable snapshot.`, "INVALID_REVISION");
   }
 

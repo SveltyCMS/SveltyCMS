@@ -12,6 +12,9 @@
  */
 
 // 🟢 Bun/Node compatibility: Shim `node:v8` for the `bson` package
+// Boot profiler first: its `performance.now()` origin must be the earliest
+// possible point of module evaluation for the phase deltas to mean anything.
+import { markBoot } from "@utils/boot-profile";
 import "@utils/v8-shim";
 
 /** Cached lazy handle to the settings service — one module-registry lookup instead of one per call. */
@@ -281,6 +284,7 @@ async function ensureFullMiddleware() {
   }
 
   fullMiddlewareInitialized = true;
+  markBoot("middleware-ready");
   // 🛡️ Invalidate any pipeline cached before the real handlers were loaded:
   // a first request racing the async module load would otherwise be served
   // by passThrough handlers forever (security/authz permanently bypassed).
@@ -1238,3 +1242,7 @@ TokenRegistry.setSiteResolver(async () => {
   const { getAllSettings } = await loadSettingsServiceModule();
   return await getAllSettings();
 });
+
+// Boot profile: every static import in this file (and the module body above) has
+// finished evaluating. The next phase is the first request's DB init.
+markBoot("hooks-evaluated");
