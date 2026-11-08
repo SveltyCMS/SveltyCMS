@@ -45,6 +45,32 @@ const KEYED_FILES = [
   "scripts/test/coverage-budget.json",
 ] as const;
 
+/**
+ * Paths excluded from the tree hash because they only carry release metadata:
+ * a version bump changes the tree but cannot change what a test proves. Their
+ * *meaningful* content is keyed separately (`package.json` by dependency /
+ * script projection below, `bun.lock` by its real hash).
+ */
+const TREE_EXCLUDED = new Set(["package.json", "sbom.json", "bun.lock"]);
+
+/** package.json fields that can change gate behaviour (everything but `version`). */
+const PACKAGE_MEANINGFUL_FIELDS = [
+  "name",
+  "type",
+  "packageManager",
+  "engines",
+  "scripts",
+  "workspaces",
+  "imports",
+  "exports",
+  "dependencies",
+  "devDependencies",
+  "optionalDependencies",
+  "peerDependencies",
+  "overrides",
+  "resolutions",
+] as const;
+
 /** Environment that selects a different test execution. */
 const KEYED_ENV = ["DB_TYPE", "TEST_MODE", "PLAYWRIGHT_TEST", "CI"] as const;
 
@@ -116,11 +142,53 @@ function cacheFile(): string {
 function fileHashes(): Record<string, string> {
   const hashes: Record<string, string> = {};
   for (const file of KEYED_FILES) {
-    hashes[file] = existsSync(file)
-      ? createHash("sha256").update(readFileSync(file)).digest("hex").slice(0, 16)
-      : "missing";
+    if (!existsSync(file)) {
+      hashes[file] = "missing";
+      continue;
+    }
+    // A release bump rewrites `version` and nothing else. Hash only the fields
+    // that can change what a gate does, so the same code is not re-validated
+    // because a number moved.
+    if (file === "package.json") {
+      try {
+        const manifest = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+        const projection: Record<string, unknown> = {};
+        for (const key of PACKAGE_MEANINGFUL_FIELDS) {
+          if (key in manifest) projection[key] = manifest[key];
+        }
+        hashes[file] = createHash("sha256")
+          .update(JSON.stringify(projection))
+          .digest("hex")
+          .slice(0, 16);
+        continue;
+      } catch {
+        // Unparseable manifest is a miss, never a silent reuse.
+        hashes[file] = "invalid";
+        continue;
+      }
+    }
+    hashes[file] = createHash("sha256").update(readFileSync(file)).digest("hex").slice(0, 16);
   }
   return hashes;
+}
+
+/**
+ * Tree hash with release-metadata paths removed.
+ *
+ * `HEAD^{tree}` changes when only `package.json.version` or `sbom.json` change,
+ * which forced a full re-validation of an identical codebase on every release.
+ * Excluding those paths keeps the cache honest for code while letting a version
+ * bump reuse the evidence from the commit it was cut from.
+ */
+function normalisedTree(source: "HEAD" | "index" = "HEAD"): string {
+  const listing =
+    source === "index" ? git(["ls-files", "-s"]) : git(["ls-tree", "-r", "--full-tree", "HEAD"]);
+  const lines = listing.split("\n").filter((line) => {
+    const tab = line.indexOf("\t");
+    const path = tab === -1 ? "" : line.slice(tab + 1);
+    return path !== "" && !TREE_EXCLUDED.has(path);
+  });
+  return createHash("sha256").update(lines.join("\n")).digest("hex");
 }
 
 function currentKey(tree: string): string {
@@ -155,14 +223,14 @@ function main(): number {
   }
 
   if (command === "key") {
-    console.log(currentKey(git(["rev-parse", "HEAD^{tree}"])));
+    console.log(currentKey(normalisedTree()));
     return 0;
   }
 
   if (command === "hit") {
     const gate = rest[0];
     if (!gate || !headIsRecordable(git(["status", "--porcelain"]))) return 1;
-    const key = currentKey(git(["rev-parse", "HEAD^{tree}"]));
+    const key = currentKey(normalisedTree());
     return readCache(file).entries[key]?.gates[gate] ? 0 : 1;
   }
 
@@ -176,7 +244,7 @@ function main(): number {
       : headIsRecordable(git(["status", "--porcelain"]));
     if (!recordable) return 0;
 
-    const tree = useIndex ? git(["write-tree"]) : git(["rev-parse", "HEAD^{tree}"]);
+    const tree = normalisedTree(useIndex ? "index" : "HEAD");
     const state = readCache(file);
     const key = currentKey(tree);
     state.entries[key] ??= { gates: {} };
