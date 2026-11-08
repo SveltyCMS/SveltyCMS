@@ -53,7 +53,6 @@ import {
 import { resolveUserTier } from "@utils/rate-limit/adaptive";
 import { getTenantPlanScale } from "@utils/rate-limit/tenant-plan";
 import { initRateLimiter, rateLimit, resetRateLimitStores } from "@utils/rate-limit";
-import { checkL1PreFilter, resetL1Filter } from "@utils/rate-limit/l1-filter";
 import {
   getSessionCookieName,
   isAdmin,
@@ -69,16 +68,6 @@ void initRateLimiter();
 
 const DEFAULT_WINDOW_MS = 60_000;
 const MAX_TRACKED_BUCKETS = 10000;
-
-/**
- * Harness-only L1 flood ceiling. Production keeps the 200 req/s default; the
- * benchmark matrix raises it so a local load generator is not mistaken for a
- * DDoS. The adaptive/Redis limiter still runs and still enforces its own cap.
- */
-const L1_FILTER_OVERRIDES = {
-  capacity: Number(process.env.RATE_LIMIT_L1_CAPACITY) || undefined,
-  refillPerSec: Number(process.env.RATE_LIMIT_L1_REFILL_PER_SEC) || undefined,
-} as const;
 
 type RateLimitLane = "commerce" | "default";
 
@@ -418,26 +407,6 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
   const lane = getRateLimitLane(pathname);
   const now = Date.now();
 
-  // ⚡ L1 PRE-FILTER: Synchronous zero-allocation token bucket to drop volumetric DDoS floods
-  // (>200 req/s) before executing costly adaptive calculations or async Redis checks.
-  const l1Check = checkL1PreFilter(clientIp, now, L1_FILTER_OVERRIDES);
-  if (!l1Check.allowed) {
-    logger.warn(`[RateLimit] ${clientIp} exceeded L1 pre-filter flood threshold`, {
-      pathname,
-      method,
-    });
-    return withSecurityHeaders(
-      buildRateLimitResponse(event, {
-        retryAfterSeconds: l1Check.retryAfterSeconds,
-        limit: 200,
-        reason: "Too Many Requests (Flood Protection)",
-        scope: "ip",
-        lane,
-      }),
-      event,
-    );
-  }
-
   const clientKey = getClientKey(event, lane);
   // 🚀 LANE-LEAN RATE LIMIT: the warm collection write lane sets this flag —
   // the in-memory bucket enforces synchronously and the Redis ledger gets the
@@ -606,7 +575,6 @@ export const handleRateLimit: Handle = async ({ event, resolve }) => {
  */
 export function resetRateLimitBuckets(): void {
   resetRateLimitStores();
-  resetL1Filter();
 }
 
 // ─── Targeted Endpoint & Action Rate Limiter ───────────────────────────────
