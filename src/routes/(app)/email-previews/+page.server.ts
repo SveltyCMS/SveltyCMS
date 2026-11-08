@@ -34,6 +34,26 @@ import { LocalCMS } from "@src/services/sdk";
 const EMAILS_PATH = "src/components/emails";
 
 /**
+ * Prepare rendered email HTML for the opaque-origin `srcdoc` preview iframe.
+ *
+ * A sandboxed `srcdoc` document without `allow-same-origin` has an opaque
+ * origin, so Chromium resolves root-relative URLs against `about:srcdoc` and
+ * logs `net::ERR_INVALID_ARGUMENT` for the template logo. Expand them to the
+ * request origin. Scripts and inline handlers are stripped as well: the iframe
+ * is sandboxed regardless, and every blocked script makes Chrome log a console
+ * error that the E2E zero-error guard (rightly) fails on.
+ */
+function preparePreviewHtml(html: string, origin: string): string {
+  return html
+    .replace(/<script\b[\s\S]*?<\/script>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(
+      /\s(src|href)="\/(?!\/)([^"]*)"/gi,
+      (_full: string, attr: string, path: string) => ` ${attr}="${origin}/${path}"`,
+    );
+}
+
+/**
  * Representative props so every template can render standalone. Templates
  * declare their own defaults (`?? ''`), but a few require values — the password
  * reset/ magic-link flows and the password-updated notice — so the previewer
@@ -119,7 +139,7 @@ export async function load({
         throw new Error(`Email template '${selectedEmail}' was not found.`);
       }
       const rendered = await renderEmailToStrings(component, selectedEmail, PREVIEW_PROPS);
-      previewHtml = rendered.html;
+      previewHtml = preparePreviewHtml(rendered.html, url.origin);
     } catch (err: unknown) {
       rethrow(err);
       previewError = err instanceof Error ? err.message : String(err);

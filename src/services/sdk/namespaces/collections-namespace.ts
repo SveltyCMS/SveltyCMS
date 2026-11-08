@@ -1530,6 +1530,13 @@ export class CollectionsNamespace {
   private async loadOneById(schema: Schema, entryId: string, options: any, cacheKey?: string) {
     const { tenantId, ttl, bypassCache } = options;
     const collectionName = this.getCollectionName(schema._id as string);
+    // Content rows are written under the canonical `"global"` tenant (SQL) or
+    // `null` (Mongo) when tenancy is off, while the adapter's `tenantId: null`
+    // pins SQL filters to `IS NULL` and Mongo to `tenantId: null` (correct for
+    // auth/settings rows, wrong for content). A missing tenant is the unscoped
+    // read that matches content rows on both families — passing `"global"`
+    // still added a Mongo tenant filter and missed rows stored with `null`.
+    const adapterTenant = (tenantId || undefined) as DatabaseId | undefined;
     const effectivePublicationFilter =
       options.effectivePublicationFilter ||
       resolvePublicationFilter(
@@ -1543,11 +1550,11 @@ export class CollectionsNamespace {
     const result =
       typeof crud.findById === "function"
         ? await crud.findById(collectionName, entryId as DatabaseId, {
-            tenantId: tenantId as DatabaseId,
+            tenantId: adapterTenant,
             skipMeta: true,
           })
         : await crud.findOne(collectionName, { _id: entryId } as any, {
-            tenantId: tenantId as DatabaseId,
+            tenantId: adapterTenant,
             skipMeta: true,
           });
 

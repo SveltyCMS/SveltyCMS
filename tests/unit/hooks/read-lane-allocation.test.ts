@@ -108,10 +108,14 @@ describe("collection read lane — wire stream cold point reads", () => {
     expect(res.headers.get("etag")).toBe(wireEtag);
     expect(await res.text()).toBe(wireBody);
     expect(findByIdMock).not.toHaveBeenCalled();
+    // A null request tenant is the unscoped content read: a literal null pins
+    // SQL to `tenantId IS NULL` and Mongo to `tenantId: null`, which only match
+    // auth/settings rows. `"global"` is not equivalent either — Mongo still adds
+    // a tenant filter and misses rows stored with null.
     expect(wireMock).toHaveBeenCalledWith(
       "posts",
       "abc",
-      expect.objectContaining({ tenantId: null, requirePublished: false }),
+      expect.objectContaining({ tenantId: undefined, requirePublished: false }),
     );
 
     // The point tier (skipSharedL1) admits on the second sighting — the same

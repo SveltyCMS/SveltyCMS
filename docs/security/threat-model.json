@@ -58,7 +58,7 @@
       ],
       "model": "docs/security/threat-models/content-write.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "334ef4119278ff1f9fa0c2a66e8a15f675ebe37f2dff2add8460fff04f595c64"
+      "fingerprint": "d030fd0219f980523f44dc6b9ee32cf6422b46cdf54a9a8ae51cf895930fe542"
     },
     {
       "id": "media-files",
@@ -132,7 +132,7 @@
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "a12fa2d5af85b3a7bfa47071dc1cf34a857821359dd91166e6744c8a0d7c0ac5"
+      "fingerprint": "c495c81f85680b97819fa96e1da568a3b13a1f72775ec1dbdaa8164e9d0a642d"
     }
   ]
 }

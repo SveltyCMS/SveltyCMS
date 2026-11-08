@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.5",
-  "serialNumber": "urn:uuid:c4f36581-176a-4fe7-bab8-6325e17e479c",
+  "serialNumber": "urn:uuid:b9db966f-8e31-4be1-97db-1292ae9d5124",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-07T19:48:56.969Z",
+    "timestamp": "2026-11-08T07:23:25.363Z",
     "tools": [
       {
         "name": "sveltycms-sbom",
@@ -3440,6 +3440,19 @@
     },
     {
       "type": "library",
+      "name": "@tailwindcss/typography",
+      "version": "0.5.20",
+      "purl": "pkg:npm/@tailwindcss/typography@0.5.20",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-hwbzQuNUfcPvbegQFatVPl/MY/tcM9KLl963hQ5laJKPh81TEZ1+dNG9PirGvcaDBkp+BCshExAyKVPW91dozw=="
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "@tailwindcss/vite",
       "version": "4.3.5",
       "purl": "pkg:npm/@tailwindcss/vite@4.3.5",
@@ -5086,6 +5099,19 @@
         {
           "alg": "SHA-512",
           "content": "sha512-YUifsXXuknHlUsmlgyY0PKzgPOr7/FjCePfHNt0jxm83wHZi44VDMQ7/fGNkjY3/jV1MC+1CmZbaHzugyeRtpg=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cssesc",
+      "version": "3.0.0",
+      "purl": "pkg:npm/cssesc@3.0.0",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg=="
         }
       ]
     },
@@ -7262,6 +7288,19 @@
     },
     {
       "type": "library",
+      "name": "postcss-selector-parser",
+      "version": "7.1.7",
+      "purl": "pkg:npm/postcss-selector-parser@7.1.7",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-wWBro/7hJ40ye6TPiXkUQoXKCw23xSsjriUvqd7Uls9Sso3oLiON1flc18cCdnjgCRXw4fBVqUJJeOdDTh3P3g=="
+        }
+      ]
+    },
+    {
+      "type": "library",
       "name": "postcss-value-parser",
       "version": "4.2.0",
       "purl": "pkg:npm/postcss-value-parser@4.2.0",
@@ -8479,6 +8518,19 @@
         {
           "alg": "SHA-512",
           "content": "sha512-IGjKp/o0NL3Bso1PymYURCJxMPNAf/ILOpendP9f5B6e1rTJgdgiOvgfoT8VxCAdY+Wisb9uhGaJJf3yZ2V9nw=="
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "util-deprecate",
+      "version": "1.0.2",
+      "purl": "pkg:npm/util-deprecate@1.0.2",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-512",
+          "content": "sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw=="
         }
       ]
     },

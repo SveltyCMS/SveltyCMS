@@ -34,6 +34,8 @@ handlers and `src/utils/test-bypass.server.ts`.
 | **Tampering** — open redirect via the redirect hook                | `src/hooks/handle-redirects.ts`                                                                        | Redirect targets are resolved through the shared safe-redirect validation before a 3xx response is returned.                                                                                                                                            | Redirect rules authored by administrators can still point at external hosts if the rule syntax allows it.                    |
 | **Tampering** — stale settings survive a database reset            | `src/services/core/settings-service.ts`, `src/routes/api/[...path]/handlers/testing/testing-shared.ts` | `invalidateCache()` marks snapshots stale so sync readers keep the last-known value; the testing reset calls `clearCache()` so rows removed by the wipe cannot survive in memory. `setPublicSetting`/`setPrivateSetting` write through to the snapshot. | A manual DB wipe outside the testing reset must restart the process (or call `clearCache`) or the old snapshot persists.     |
 
+| **Information disclosure** — cache scope diverges from the DB a request reads | `src/hooks/handle-collection-read-lane.ts`, `src/services/cache/response-cache.ts` | Content reads treat a null tenant as unscoped; response-cache L1 keys include the tenant and the E2E worker index, and worker-scoped requests skip shared L2. | Non-worker callers keep the shared L2 (5 min TTL); invalidation on write stays epoch/tag based. |
+
 ## Assumptions
 
 - `src/hooks.server.ts` is the only pipeline composition; adding a hook requires updating this surface and its fingerprint.

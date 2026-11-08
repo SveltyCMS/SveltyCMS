@@ -2350,6 +2350,14 @@ These figures were produced by `bun run build` on 2026-11-01 and re-measured fro
 - **Threat models re-reviewed:** `api-dispatch.mdx` and `system-ops.mdx` gained explicit control rows for the test-reset cache clear and the settings-snapshot semantics.
 - **Verified 2026-11-08:** `bun run check` **15/15** static gates with `tsc` and `svelte-check` clean, unit **862 files / 8,185 tests**, components **55 / 248**, `lint:tenant --full` (1,085 files), `lint:docs` **290 files 0/0**, site E2E **5/5**.
 
+### 3.74 November 2026 — Content tenant parity, worker-scoped cache, sandbox-safe previews (2026-11-08)
+
+- **Editor point reads see the rows the list returns.** Content rows are stored under the canonical `"global"` tenant when tenancy is off, while the adapter maps `tenantId: null` to `IS NULL` (correct for auth/settings rows). The SDK `findById` and the collection read lane now treat a null request tenant as unscoped (no tenant filter) before querying — the scope that matches content rows stored as `"global"` (SQL) or `null` (Mongo) while system tables keep the `IS NULL` scope — so opening an entry no longer logs `[Edit] Could not load entry …: Entry not found` and the Live Preview tab renders. Pinned by `site-starter.spec.ts` (admin → Live Preview) and `read-lane-allocation.test.ts`.
+- **Response bodies are worker-namespaced in E2E.** L1 keys append the worker index and worker-scoped requests skip shared L2, so a Playwright worker restarted after a failure cannot be served a body cached for another worker/database. Pinned by `response-cache-worker-isolation.test.ts` (2 tests).
+- **Email previews survive an opaque-origin `srcdoc` iframe.** Root-relative URLs are expanded to the request origin (Chromium reports `net::ERR_INVALID_ARGUMENT` for them inside a sandboxed `srcdoc`) and scripts/inline handlers are stripped, so the browser cannot log a blocked-script console error that the zero-error guard would fail on.
+- **Threat models re-reviewed:** `content-write.mdx` and `system-ops.mdx` gained control rows for tenant-scope parity and the worker cache namespace.
+- **Verified 2026-11-08:** `bun run check` **15/15** with `tsc` and `svelte-check` clean, unit **865 files / 8,196 tests**, components **55 / 248**, site + email E2E **6/6**.
+
 ## Related
 
 - [Project Roadmap](./roadmap-2026.mdx)
