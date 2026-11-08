@@ -1,6 +1,12 @@
 <!--
 @file src/routes/(app)/config/queue/+page.svelte
 @description Queue Observability Dashboard UI.
+
+### Features:
+- SmartTableShell adoption: consistent table chrome, interactive column sorting, pagination, token-compliant empty states
+- Stat counters with direct filter routing and tooltips
+- Job details inspection modal with raw payload viewer
+- Safe job deletion and retries with toast notifications
 -->
 
 <script lang="ts">

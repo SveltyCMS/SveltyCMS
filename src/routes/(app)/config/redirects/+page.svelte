@@ -5,9 +5,10 @@
 
 ### Features:
 - Admin-only shell with stable data-testids
+- SmartTableShell adoption: consistent table chrome, interactive column sorting, client pagination, token-compliant empty states
 - Client search filter via redirects-utils
 - showConfirm for destructive delete (no window.confirm)
-- invalidateAll after mutations (no full page reload)
+- refreshAll after mutations (no full page reload)
 -->
 
 <script lang="ts">
@@ -18,6 +19,14 @@
 	import Select from '@components/ui/select.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
+	import {
+		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table/chrome';
 	import SystemTooltip from '@components/system/system-tooltip.svelte';
 	import HelpIcon from '@components/ui/help-icon.svelte';
 	import { deleteRedirect, saveRedirect } from './redirects.remote';
@@ -74,11 +83,61 @@
 		type RedirectDraft
 	} from '@utils/redirects-utils';
 
+	type SortField = 'from' | 'to' | 'type' | 'active';
+	type SortOrder = 'asc' | 'desc';
+
 	let { data } = $props();
 	let redirects = $derived((data.redirects || []) as Array<RedirectDraft & { _id?: string }>);
 
 	let searchQuery = $state('');
 	let filteredRedirects = $derived(filterRedirectsByQuery(redirects, searchQuery));
+
+	let sortField = $state<SortField>('from');
+	let sortOrder = $state<SortOrder>('asc');
+
+	let currentPage = $state(1);
+	let rowsPerPage = $state(10);
+
+	function toggleSort(field: SortField) {
+		if (sortField === field) {
+			sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortField = field;
+			sortOrder = 'asc';
+		}
+	}
+
+	const sortedRedirects = $derived.by(() => {
+		const items = [...filteredRedirects];
+		items.sort((a, b) => {
+			let cmp = 0;
+			switch (sortField) {
+				case 'from':
+					cmp = (a.from || '').localeCompare(b.from || '');
+					break;
+				case 'to':
+					cmp = (a.to || '').localeCompare(b.to || '');
+					break;
+				case 'type':
+					cmp = (a.type ?? 301) - (b.type ?? 301);
+					break;
+				case 'active': {
+					const aVal = a.active !== false ? 1 : 0;
+					const bVal = b.active !== false ? 1 : 0;
+					cmp = aVal - bVal;
+					break;
+				}
+			}
+			return sortOrder === 'asc' ? cmp : -cmp;
+		});
+		return items;
+	});
+
+	const pagesCount = $derived(Math.max(1, Math.ceil(sortedRedirects.length / rowsPerPage)));
+	const paginatedRedirects = $derived.by(() => {
+		const start = (currentPage - 1) * rowsPerPage;
+		return sortedRedirects.slice(start, start + rowsPerPage);
+	});
 
 	let selectedRedirect = $state<(RedirectDraft & { _id?: string }) | null>(null);
 	let isModalOpen = $state(false);
@@ -291,84 +350,260 @@
 				{/if}
 			</p>
 
-			<div class="w-full overflow-x-auto" data-testid="redirects-table">
-				<table class="w-full border-collapse text-sm">
-					<thead>
-						<tr
-							class="border-b border-surface-500/30 text-start text-xs uppercase tracking-wider text-surface-400 dark:border-surface-500/40"
-						>
-							<th class="pb-3 font-semibold">{redirects_from_path()}</th>
-							<th class="pb-3 font-semibold">{redirects_to_path()}</th>
-							<th class="pb-3 font-semibold">{redirects_type()}</th>
-							<th class="pb-3 font-semibold">{redirects_status()}</th>
-							<th class="pb-3 pe-2 font-semibold">{redirects_actions()}</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
-						{#each filteredRedirects as redirect (redirect._id || redirect.from + redirect.to)}
+			<div class="w-full" data-testid="redirects-table">
+				<SmartTableShell
+					empty={sortedRedirects.length === 0}
+					emptyTitle={searchQuery.trim() ? redirects_empty_match() : redirects_empty_none()}
+					emptyDescription={searchQuery.trim()
+						? 'No redirects match your current search query.'
+						: 'Configure redirect rules to forward visitors and search engines.'}
+					emptyIcon="mdi:arrow-decision"
+					showPagination={sortedRedirects.length > 0}
+					bind:currentPage
+					bind:rowsPerPage
+					{pagesCount}
+					totalItems={sortedRedirects.length}
+					rowsPerPageOptions={[10, 25, 50, 100]}
+				>
+					{#snippet emptyAction()}
+						<div data-testid="redirects-empty" class="contents"></div>
+					{/snippet}
+
+					<table class={SMART_TABLE}>
+						<thead class={SMART_TABLE_THEAD}>
 							<tr
-								class="text-surface-600 hover:bg-surface-500/40 dark:text-surface-400 dark:hover:bg-surface-900/20"
-								data-testid={`redirect-row-${redirect._id || 'new'}`}
-								data-from={redirect.from}
+								class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 							>
-								<td class="py-3 font-mono text-xs">{redirect.from}</td>
-								<td class="py-3 font-mono text-xs">{redirect.to}</td>
-								<td class="py-3">
-									<Badge
-										variant={redirect.type === 301 || redirect.type === 308 ? 'success' : 'warning'}
+								<th class="{SMART_TABLE_TH} text-start ps-3">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => toggleSort('from')}
 									>
-										{redirect.type}
-									</Badge>
-								</td>
-								<td class="py-3">
-									{#if redirect.active}
-										<Badge variant="primary">{common_active()}</Badge>
-									{:else}
-										<Badge variant="surface">{redirects_inactive()}</Badge>
-									{/if}
-								</td>
-								<td class="py-3 pe-2">
-									<div class="flex min-w-20 items-center justify-end gap-2">
-										<Button
-											variant="outline"
-											size="sm"
-											onclick={() => openModal(redirect)}
-											aria-label={redirects_edit_aria({ from: redirect.from })}
-											data-testid="redirect-edit"
-										>
-											<iconify-icon icon="mdi:pencil" width="18" height="18"></iconify-icon>
-											<span class="sr-only">{redirects_edit()}</span>
-										</Button>
-										<Button
-											variant="error"
-											size="sm"
-											aria-label={redirects_delete_aria({ from: redirect.from })}
-											data-testid="redirect-delete"
-											onclick={() => confirmDelete(redirect)}
-										>
-											<iconify-icon icon="mdi:trash-can" width="18" height="18"></iconify-icon>
-											<span class="sr-only">Delete</span>
-										</Button>
-									</div>
-								</td>
+										{redirects_from_path()}
+										{#if sortField === 'from'}
+											<iconify-icon
+												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-start ps-3">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => toggleSort('to')}
+									>
+										{redirects_to_path()}
+										{#if sortField === 'to'}
+											<iconify-icon
+												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => toggleSort('type')}
+									>
+										{redirects_type()}
+										{#if sortField === 'type'}
+											<iconify-icon
+												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-center">
+									<button
+										type="button"
+										class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+										onclick={() => toggleSort('active')}
+									>
+										{redirects_status()}
+										{#if sortField === 'active'}
+											<iconify-icon
+												icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+												class="text-primary-500"
+											></iconify-icon>
+										{/if}
+									</button>
+								</th>
+								<th class="{SMART_TABLE_TH} text-end pe-3">{redirects_actions()}</th>
 							</tr>
-						{:else}
-							<tr>
-								<td colspan="5" class="py-12 text-center opacity-50" data-testid="redirects-empty">
-									{#if searchQuery.trim()}
-										{redirects_empty_match()}
-									{:else}
-										{redirects_empty_none()}
-									{/if}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+						</thead>
+						<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+							{#each paginatedRedirects as redirect (redirect._id || redirect.from + redirect.to)}
+								<tr
+									class={SMART_TABLE_ROW_HOVER}
+									data-testid={`redirect-row-${redirect._id || 'new'}`}
+									data-from={redirect.from}
+								>
+									<td class="{SMART_TABLE_TD} text-start ps-3 font-mono text-xs">{redirect.from}</td
+									>
+									<td class="{SMART_TABLE_TD} text-start ps-3 font-mono text-xs">{redirect.to}</td>
+									<td class={SMART_TABLE_TD}>
+										<Badge
+											variant={redirect.type === 301 || redirect.type === 308
+												? 'success'
+												: 'warning'}
+										>
+											{redirect.type}
+										</Badge>
+									</td>
+									<td class={SMART_TABLE_TD}>
+										{#if redirect.active}
+											<Badge variant="primary">{common_active()}</Badge>
+										{:else}
+											<Badge variant="surface">{redirects_inactive()}</Badge>
+										{/if}
+									</td>
+									<td class="{SMART_TABLE_TD} text-end pe-3">
+										<div class="inline-flex min-w-20 items-center justify-end gap-2">
+											<Button
+												variant="ghost"
+												size="sm"
+												onclick={() => openModal(redirect)}
+												aria-label={redirects_edit_aria({ from: redirect.from })}
+												data-testid="redirect-edit"
+											>
+												<iconify-icon icon="mdi:pencil" width="18" height="18"></iconify-icon>
+												<span class="sr-only">{redirects_edit()}</span>
+											</Button>
+											<Button
+												variant="error"
+												size="sm"
+												aria-label={redirects_delete_aria({ from: redirect.from })}
+												data-testid="redirect-delete"
+												onclick={() => confirmDelete(redirect)}
+											>
+												<iconify-icon icon="mdi:trash-can" width="18" height="18"></iconify-icon>
+												<span class="sr-only">Delete</span>
+											</Button>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</SmartTableShell>
 			</div>
 		</AdminCard>
 	</div>
 </AdminPageShell>
+
+{#if isModalOpen && selectedRedirect}
+	<div
+		class="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-surface-900/50 p-4 backdrop-blur"
+		role="presentation"
+		data-testid="redirects-modal-backdrop"
+	>
+		<AdminCard
+			class="max-h-[calc(100dvh-2rem)] w-full max-w-lg space-y-4 overflow-y-auto border border-surface-500/30 bg-white p-6 shadow-xl backdrop-blur-md dark:border-surface-500/40 dark:bg-surface-900/20"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="redirect-modal-title"
+			data-testid="redirects-modal"
+		>
+			<h3 id="redirect-modal-title" class="h3">
+				{selectedRedirect._id || selectedRedirect.id
+					? redirects_modal_action_edit()
+					: redirects_modal_action_add()}
+				{redirects_modal_noun()}
+			</h3>
+
+			<!-- First-time orientation: what a redirect does and which type to pick. -->
+			<div
+				class="rounded border border-tertiary-500/30 bg-tertiary-500/10 p-3 dark:border-primary-500/30 dark:bg-primary-500/10"
+				data-testid="redirects-help"
+			>
+				<p class="flex items-center gap-2 text-sm font-semibold text-(--admin-text-body)">
+					<iconify-icon
+						icon="mdi:lightbulb-on-outline"
+						width="18"
+						class="shrink-0 text-tertiary-500 dark:text-primary-500"
+					></iconify-icon>
+					{redirects_help_title()}
+				</p>
+				<p class="mt-1 text-xs text-(--admin-text-body)">{redirects_help_intro()}</p>
+				<ul class="mt-2 list-disc space-y-1 ps-4 text-xs text-(--admin-text-muted)">
+					<li>{redirects_help_permanent()}</li>
+					<li>{redirects_help_temporary()}</li>
+					<li>{redirects_help_regex()}</li>
+				</ul>
+				<p class="mt-2 text-xs text-(--admin-text-muted)">{redirects_help_example()}</p>
+			</div>
+
+			<form onsubmit={handleSave} class="space-y-4" data-testid="redirects-form">
+				<Input
+					label={redirects_from_path()}
+					labelSnippet={fromLabel}
+					placeholder={redirects_from_placeholder()}
+					bind:value={formFrom}
+					required
+					error={formErrors.from}
+					data-testid="redirect-from"
+					aria-label={redirects_from_aria()}
+				/>
+				<Input
+					label={redirects_to_path()}
+					labelSnippet={toLabel}
+					placeholder={redirects_to_placeholder()}
+					bind:value={formTo}
+					required
+					error={formErrors.to}
+					data-testid="redirect-to"
+					aria-label={redirects_to_aria()}
+				/>
+
+				<div class="grid grid-cols-2 gap-4" data-testid="redirect-type-status">
+					<Select
+						label={redirects_type()}
+						labelSnippet={typeLabel}
+						value={String(selectedRedirect.type)}
+						options={redirectTypeOptions}
+						onchange={(v) => (selectedRedirect!.type = parseInt(v, 10))}
+					/>
+					<Select
+						label={redirects_status()}
+						labelSnippet={statusLabel}
+						value={selectedRedirect.active ? 'true' : 'false'}
+						options={statusOptions}
+						onchange={(v) => (selectedRedirect!.active = v === 'true')}
+					/>
+				</div>
+
+				<div data-testid="redirect-regex">
+					<Checkbox
+						bind:checked={selectedRedirect.isRegex}
+						label={redirects_regex_label()}
+						labelSnippet={regexLabel}
+					/>
+				</div>
+
+				<div class="flex justify-end gap-2 pt-4">
+					<Button
+						variant="outline"
+						type="button"
+						onclick={closeModal}
+						disabled={saving}
+						data-testid="redirect-cancel"
+					>
+						{redirects_cancel()}
+					</Button>
+					<Button variant="tertiary" type="submit" disabled={saving} data-testid="redirect-save">
+						{saving ? 'Saving...' : button_save()}
+					</Button>
+				</div>
+			</form>
+		</AdminCard>
+	</div>
+{/if}
 
 {#if isModalOpen && selectedRedirect}
 	<div
