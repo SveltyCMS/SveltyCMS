@@ -4,6 +4,7 @@
 
 ### Features:
 - Admin-only page gate
+- SmartTableShell adoption: consistent table chrome, sorting, overflow, token-compliant empty/loading states
 - showConfirm before restore
 - Mutations via trash-api → fetchApi (CSRF automatic)
 - Control-risk data-testids for E2E
@@ -17,12 +18,18 @@
 	import { formatTrashActor } from '@utils/trash-item';
 	import Badge from '@components/ui/badge.svelte';
 	import Button from '@components/ui/button.svelte';
-	import Loader from '@components/ui/loader.svelte';
 	import AdminCard from '@components/admin-card.svelte';
 	import AdminPageShell from '@components/admin-page-shell.svelte';
+	import SmartTableShell from '@components/ui/smart-table/smart-table-shell.svelte';
+	import {
+		SMART_TABLE,
+		SMART_TABLE_ROW_HOVER,
+		SMART_TABLE_TD,
+		SMART_TABLE_TH,
+		SMART_TABLE_THEAD
+	} from '@components/ui/smart-table/chrome';
 	import {
 		button_refresh,
-		trash_aria_loading,
 		trash_aria_refresh,
 		trash_aria_restore,
 		trash_empty_description,
@@ -43,10 +50,59 @@
 	} from '@src/paraglide/messages';
 	import { listTrash, restoreTrashItem, unwrapTrashList, type TrashItem } from './trash-api';
 
+	type SortField = 'content' | 'collection' | 'deletedAt' | 'deletedBy';
+	type SortOrder = 'asc' | 'desc';
+
 	let { data } = $props();
 
 	let trashedItems = $state<TrashItem[]>(untrack(() => data.items));
 	let isLoading = $state(false);
+	let sortField = $state<SortField>('deletedAt');
+	let sortOrder = $state<SortOrder>('desc');
+
+	function toggleSort(field: SortField) {
+		if (sortField === field) {
+			sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortField = field;
+			sortOrder = field === 'deletedAt' ? 'desc' : 'asc';
+		}
+	}
+
+	const sortedItems = $derived.by(() => {
+		const items = [...trashedItems];
+		items.sort((a, b) => {
+			let cmp = 0;
+			switch (sortField) {
+				case 'content': {
+					const aVal = a.title || a.name || a._id;
+					const bVal = b.title || b.name || b._id;
+					cmp = aVal.localeCompare(bVal);
+					break;
+				}
+				case 'collection': {
+					const aVal = a.collectionName || a.collectionId;
+					const bVal = b.collectionName || b.collectionId;
+					cmp = aVal.localeCompare(bVal);
+					break;
+				}
+				case 'deletedAt': {
+					const aTime = a.deletedAt ? new Date(a.deletedAt).getTime() : 0;
+					const bTime = b.deletedAt ? new Date(b.deletedAt).getTime() : 0;
+					cmp = aTime - bTime;
+					break;
+				}
+				case 'deletedBy': {
+					const aVal = formatTrashActor(a.deletedBy);
+					const bVal = formatTrashActor(b.deletedBy);
+					cmp = aVal.localeCompare(bVal);
+					break;
+				}
+			}
+			return sortOrder === 'asc' ? cmp : -cmp;
+		});
+		return items;
+	});
 
 	async function loadTrash() {
 		isLoading = true;
@@ -99,77 +155,132 @@
 
 	<div data-testid="trash-page" class="contents">
 		{#if isLoading}
-			<AdminCard class="flex h-64 items-center justify-center p-6" data-testid="trash-loading">
-				<Loader variant="text" lines={2} lastLineWidth="40%" ariaLabel={trash_aria_loading()} />
-			</AdminCard>
-		{:else if trashedItems.length === 0}
-			<div in:adminFade={{ delay: 100 }}>
-				<AdminCard
-					class="p-12 text-center border-dashed border-2 shadow-xs"
-					data-testid="trash-empty"
-				>
-					<iconify-icon
-						icon="mdi:trash-can-outline"
-						width="64"
-						class="mx-auto mb-4 text-tertiary-500 dark:text-primary-500"
-					></iconify-icon>
-					<h3 class="text-xl font-semibold">{trash_empty_title()}</h3>
-					<p class="text-surface-500">{trash_empty_description()}</p>
+			<div data-testid="trash-loading" class="contents">
+				<AdminCard class="my-2 flex h-64 min-h-0 w-full flex-col sm:my-3">
+					<SmartTableShell loading={true} />
 				</AdminCard>
 			</div>
 		{:else}
-			<div in:adminFade={{ delay: 100 }}>
-				<AdminCard class="p-6 shadow-xs" data-testid="trash-table">
-					<div class="overflow-x-auto w-full">
-						<table class="w-full text-sm border-collapse">
-							<thead>
+			<div in:adminFade class="flex min-h-0 flex-1 flex-col">
+				<AdminCard
+					class="my-2 flex h-full min-h-0 w-full flex-col sm:my-3"
+					data-testid="trash-table"
+				>
+					<SmartTableShell
+						empty={sortedItems.length === 0}
+						emptyTitle={trash_empty_title()}
+						emptyDescription={trash_empty_description()}
+						emptyIcon="mdi:trash-can-outline"
+						showPagination={false}
+					>
+						{#snippet emptyAction()}
+							<div data-testid="trash-empty" class="contents"></div>
+						{/snippet}
+
+						<table class={SMART_TABLE}>
+							<thead class={SMART_TABLE_THEAD}>
 								<tr
-									class="border-b border-(--admin-border-default) text-start text-xs uppercase tracking-wider text-surface-400"
+									class="border-b border-surface-500/30 text-xs uppercase tracking-wide dark:border-surface-600"
 								>
-									<th class="pb-3 font-semibold">{trash_th_content()}</th>
-									<th class="pb-3 font-semibold">{trash_th_collection()}</th>
-									<th class="pb-3 font-semibold">{trash_th_deleted_at()}</th>
-									<th class="pb-3 font-semibold">{trash_th_deleted_by()}</th>
-									<th class="pb-3 font-semibold text-end">{trash_th_actions()}</th>
+									<th class="{SMART_TABLE_TH} text-center">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('content')}
+										>
+											{trash_th_content()}
+											{#if sortField === 'content'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-center">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('collection')}
+										>
+											{trash_th_collection()}
+											{#if sortField === 'collection'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-center">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('deletedAt')}
+										>
+											{trash_th_deleted_at()}
+											{#if sortField === 'deletedAt'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-center">
+										<button
+											type="button"
+											class="inline-flex items-center gap-1 font-semibold tracking-wider hover:text-primary-500 focus:outline-none"
+											onclick={() => toggleSort('deletedBy')}
+										>
+											{trash_th_deleted_by()}
+											{#if sortField === 'deletedBy'}
+												<iconify-icon
+													icon={sortOrder === 'asc' ? 'mdi:arrow-up' : 'mdi:arrow-down'}
+													class="text-primary-500"
+												></iconify-icon>
+											{/if}
+										</button>
+									</th>
+									<th class="{SMART_TABLE_TH} text-center">{trash_th_actions()}</th>
 								</tr>
 							</thead>
-							<tbody class="divide-y divide-surface-100 dark:divide-surface-800/60">
-								{#each trashedItems as item (item._id)}
-									<tr
-										class="text-surface-600 dark:text-surface-400 hover:bg-surface-500/40 dark:hover:bg-surface-900/20"
-										data-testid={`trash-row-${item._id}`}
-									>
-										<td class="py-3">
+							<tbody class="divide-y divide-surface-200/30 dark:divide-surface-700/30">
+								{#each sortedItems as item (item._id)}
+									<tr class={SMART_TABLE_ROW_HOVER} data-testid={`trash-row-${item._id}`}>
+										<td class={SMART_TABLE_TD}>
 											<span class="font-medium">{item.title || item.name || item._id}</span>
 											<div class="text-xs opacity-50 font-mono">{item._id}</div>
 										</td>
-										<td class="py-3">
+										<td class={SMART_TABLE_TD}>
 											<Badge preset="tonal" color="secondary">{item.collectionName}</Badge>
 										</td>
-										<td class="py-3">{formatDisplayDate(item.deletedAt || '')}</td>
-										<td class="py-3">{formatTrashActor(item.deletedBy)}</td>
-										<td class="py-3 text-end">
-											<Button
-												variant="tertiary"
-												onclick={() =>
-													restoreItem(
-														item.collectionId,
-														item._id,
-														item.title || item.name || item._id
-													)}
-												size="sm"
-												leadingIcon="mdi:restore"
-												data-testid="trash-restore"
-												aria-label={trash_aria_restore()}
-											>
-												{trash_restore_button()}
-											</Button>
+										<td class={SMART_TABLE_TD}>{formatDisplayDate(item.deletedAt || '')}</td>
+										<td class={SMART_TABLE_TD}>{formatTrashActor(item.deletedBy)}</td>
+										<td class={SMART_TABLE_TD}>
+											<div class="flex items-center justify-center">
+												<Button
+													variant="tertiary"
+													onclick={() =>
+														restoreItem(
+															item.collectionId,
+															item._id,
+															item.title || item.name || item._id
+														)}
+													size="sm"
+													leadingIcon="mdi:restore"
+													data-testid="trash-restore"
+													aria-label={trash_aria_restore()}
+												>
+													{trash_restore_button()}
+												</Button>
+											</div>
 										</td>
 									</tr>
 								{/each}
 							</tbody>
 						</table>
-					</div>
+					</SmartTableShell>
 				</AdminCard>
 			</div>
 		{/if}

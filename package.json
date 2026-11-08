@@ -175,6 +175,7 @@
     "audit:sbom": "bun run scripts/security/generate-sbom.ts",
     "verify:benchmark-local": "bun run scripts/verify-benchmark-local.ts",
     "benchmark": "bun run verify:benchmark-local && bun scripts/benchmark-matrix/index.ts",
+    "benchmark:clean": "bun run scripts/benchmark-matrix/prune-benchmark-results.ts",
     "benchmark:ci": "bun scripts/benchmark-matrix/index.ts --ci",
     "benchmark:core": "bun run verify:benchmark-local && bun run scripts/runs/run-core-benchmarks.ts",
     "benchmark:gate": "bun run scripts/benchmark-matrix/ci-regression-gate.ts",

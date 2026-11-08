@@ -292,8 +292,18 @@ describe("Vite 8 / AST Linkmap Analyzer", () => {
     }
   });
 
+  let cachedWorkspaceReport: ReturnType<typeof analyzeWorkspaceLinkmap> | null = null;
+  const getWorkspaceReport = (): ReturnType<typeof analyzeWorkspaceLinkmap> => {
+    if (!cachedWorkspaceReport) {
+      cachedWorkspaceReport = analyzeWorkspaceLinkmap(undefined, {
+        explainPath: "src/utils/date.ts",
+      });
+    }
+    return cachedWorkspaceReport;
+  };
+
   it("explains a module's classification, reachability and findings", () => {
-    const report = analyzeWorkspaceLinkmap(undefined, { explainPath: "src/utils/date.ts" });
+    const report = getWorkspaceReport();
 
     expect(report.explain?.found).toBe(true);
     expect(report.explain?.classification?.serverOnly).toBe(false);
@@ -368,7 +378,7 @@ describe("Vite 8 / AST Linkmap Analyzer", () => {
   });
 
   it("produces a complete workspace linkmap report with valid metrics", () => {
-    const report = analyzeWorkspaceLinkmap();
+    const report = getWorkspaceReport();
     expect(report.summary.totalFiles).toBeGreaterThan(1000);
     expect(report.summary.runtimeEdgeCount).toBeGreaterThan(3000);
     expect(report.summary.runtimeCycleCount).toBe(0);
