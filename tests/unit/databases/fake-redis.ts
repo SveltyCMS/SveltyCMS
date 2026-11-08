@@ -108,7 +108,7 @@ export class FakeRedis {
   multi(): {
     set: (key: string, value: string, opts?: SetOptions) => void;
     sAdd: (key: string, member: string | string[]) => void;
-    del: (...keys: string[]) => void;
+    del: (...keys: (string | string[])[]) => void;
     exec: () => Promise<unknown[]>;
   } {
     // Arrow functions capture `this` lexically (the FakeRedis instance) —
@@ -121,8 +121,9 @@ export class FakeRedis {
       sAdd: (key: string, member: string | string[]) => {
         ops.push({ op: "sAdd", key, value: member });
       },
-      del: (...keys: string[]) => {
-        ops.push({ op: "del", key: keys.join("\u0000"), value: undefined });
+      del: (...keys: (string | string[])[]) => {
+        const flat = keys.flat(Infinity) as string[];
+        ops.push({ op: "del", key: flat.join("\u0000"), value: undefined });
       },
       exec: async () => {
         const replies: unknown[] = [];
@@ -185,13 +186,16 @@ export class FakeRedis {
   ): Promise<{ cursor: string; keys: string[] }> {
     const pattern = opts.MATCH ?? "*";
     const regex = globToRegExp(pattern);
-    const keys: string[] = [];
+    const keys = new Set<string>();
     for (const key of this.store.keys()) {
-      if (regex.test(key) && this.rawGet(key) !== null) keys.push(key);
+      if (regex.test(key) && this.rawGet(key) !== null) keys.add(key);
+    }
+    for (const key of this.sets.keys()) {
+      if (regex.test(key)) keys.add(key);
     }
     void cursor;
     void opts.COUNT;
-    return { cursor: "0", keys };
+    return { cursor: "0", keys: Array.from(keys) };
   }
 
   async keys(pattern: string): Promise<string[]> {

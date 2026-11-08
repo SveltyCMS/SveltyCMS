@@ -1099,6 +1099,7 @@ export class CacheService {
         const isWildcardTenant =
           tenantId === "*" || tenantId === undefined || tenantId === null || tenantId === "";
         if (isWildcardTenant) {
+          const CHUNK_SIZE = 50;
           for (const tag of tags) {
             const match = `tag:*:${tag}`;
             let cursor = "0";
@@ -1106,44 +1107,71 @@ export class CacheService {
               const reply = await this.l2.scan(cursor, { MATCH: match, COUNT: 200 });
               cursor = reply.cursor;
               const found: string[] = reply.keys ?? [];
-              for (const tagKey of found) {
-                const members = await this.l2.sMembers(tagKey);
-                if (members?.length > 0) {
-                  if (typeof this.l2.unlink === "function") await this.l2.unlink(members);
-                  else await this.l2.del(members);
+              for (let i = 0; i < found.length; i += CHUNK_SIZE) {
+                const tagKeyChunk = found.slice(i, i + CHUNK_SIZE);
+                const membersChunks = await Promise.all(
+                  tagKeyChunk.map((tagKey) => this.l2.sMembers(tagKey).catch(() => [] as string[])),
+                );
+
+                if (typeof this.l2.multi === "function") {
+                  const multi = this.l2.multi();
+                  for (let j = 0; j < tagKeyChunk.length; j++) {
+                    const members = membersChunks[j];
+                    if (members && members.length > 0) {
+                      if (typeof multi.unlink === "function") multi.unlink(members);
+                      else multi.del(members);
+                    }
+                    if (typeof multi.unlink === "function") multi.unlink(tagKeyChunk[j]);
+                    else multi.del(tagKeyChunk[j]);
+                  }
+                  await multi.exec();
+                } else {
+                  const allToDel: string[] = [...tagKeyChunk];
+                  for (let j = 0; j < membersChunks.length; j++) {
+                    const members = membersChunks[j];
+                    if (members && members.length > 0) allToDel.push(...members);
+                  }
+                  if (allToDel.length > 0) {
+                    if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
+                    else await this.l2.del(allToDel);
+                  }
                 }
-                if (typeof this.l2.unlink === "function") await this.l2.unlink(tagKey);
-                else await this.l2.del(tagKey);
               }
             } while (cursor !== "0");
           }
         } else {
+          const CHUNK_SIZE = 50;
           const tagPrefix = `${this.normalizeTenantId(tenantId)}:`;
           const tagKeys = tags.map((t) => `tag:${tagPrefix}${t}`);
-          const membersList = await Promise.all(
-            tagKeys.map((tk) => this.l2.sMembers(tk).catch(() => [])),
-          );
-          if (typeof this.l2.multi === "function") {
-            const multi = this.l2.multi();
-            for (let i = 0; i < tagKeys.length; i++) {
-              const keys = membersList[i];
-              if (keys && keys.length > 0) {
-                if (typeof multi.unlink === "function") multi.unlink(keys);
-                else multi.del(keys);
+
+          for (let i = 0; i < tagKeys.length; i += CHUNK_SIZE) {
+            const tagKeyChunk = tagKeys.slice(i, i + CHUNK_SIZE);
+            const membersChunks = await Promise.all(
+              tagKeyChunk.map((tk) => this.l2.sMembers(tk).catch(() => [] as string[])),
+            );
+
+            if (typeof this.l2.multi === "function") {
+              const multi = this.l2.multi();
+              for (let j = 0; j < tagKeyChunk.length; j++) {
+                const keys = membersChunks[j];
+                if (keys && keys.length > 0) {
+                  if (typeof multi.unlink === "function") multi.unlink(keys);
+                  else multi.del(keys);
+                }
+                if (typeof multi.unlink === "function") multi.unlink(tagKeyChunk[j]);
+                else multi.del(tagKeyChunk[j]);
               }
-              if (typeof multi.unlink === "function") multi.unlink(tagKeys[i]);
-              else multi.del(tagKeys[i]);
-            }
-            await multi.exec();
-          } else {
-            const allToDel: string[] = [...tagKeys];
-            for (let i = 0; i < membersList.length; i++) {
-              const m = membersList[i];
-              if (m && m.length > 0) allToDel.push(...m);
-            }
-            if (allToDel.length > 0) {
-              if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
-              else await this.l2.del(allToDel);
+              await multi.exec();
+            } else {
+              const allToDel: string[] = [...tagKeyChunk];
+              for (let j = 0; j < membersChunks.length; j++) {
+                const m = membersChunks[j];
+                if (m && m.length > 0) allToDel.push(...m);
+              }
+              if (allToDel.length > 0) {
+                if (typeof this.l2.unlink === "function") await this.l2.unlink(allToDel);
+                else await this.l2.del(allToDel);
+              }
             }
           }
         }
