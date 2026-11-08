@@ -83,7 +83,7 @@ This layout provides the administrative shell, including sidebars and header con
 	import { afterNavigate, invalidate, onNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 
-	import { setContentContext } from '@src/content';
+	import { setContentContext } from '@src/content/context';
 
 	// =============================================
 	// TYPE DEFINITIONS

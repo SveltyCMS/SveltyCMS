@@ -13,7 +13,8 @@
 import { AuthGuardService } from "@src/services/security/auth-guard";
 import { isAdmin, getRequestFlags, isPublicRoute } from "@utils/hook-utils";
 import { SetupState } from "@utils/server/setup-check";
-import { readSessionCookie, isSecureCookieContext } from "@src/databases/auth/constants";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import type { Role } from "@src/databases/auth/types";
 import type { DatabaseId } from "../content/types";
 import {

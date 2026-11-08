@@ -22,7 +22,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Schema } from "@src/content/types";
 import type { User } from "@src/databases/auth/types";
 import { dbAdapter } from "@src/databases/db";
-import { collectionService } from "@src/services/core/collection-service";
+import { LocalCMS } from "@src/services/sdk";
 import { cloneFixture, COLLECTIONS, USERS } from "@tests/harness";
 
 /** Schema as the harness stores it: `title`/`body` translated, `slug` not. */
@@ -65,7 +65,7 @@ function storedRows(): Record<string, unknown>[] {
 
 /**
  * Install the rows on the harness dbAdapter (vitest setup mocks `@src/databases/db`)
- * and give it the query-builder surface the list path needs. `execute()` returns the
+ * and give it the query surface the list path needs. `findMany()` returns the
  * SAME row objects it was given, so a projection that writes into them is observable.
  */
 function installRows(rows: Record<string, unknown>[]): void {
@@ -83,13 +83,26 @@ function installRows(rows: Record<string, unknown>[]): void {
   adapter.crud = {
     ...adapter.crud,
     count: vi.fn(async () => ({ success: true, data: rows.length })),
+    findMany: vi.fn(async (_col, query) => {
+      if (query?._id) {
+        const found = rows.find((r) => r._id === query._id);
+        return { success: true, data: found ? [found] : [] };
+      }
+      return { success: true, data: rows };
+    }),
     findByIds: vi.fn(async () => ({ success: true, data: [] })),
   };
 }
 
+const contentMock = {
+  getCollection: vi.fn(() => COLLECTION),
+  getCollections: vi.fn(() => [COLLECTION]),
+};
+const cms = new LocalCMS(dbAdapter, contentMock as any);
+
 /** List mode: the current page, no edit target, cache bypassed (hits the DB load path). */
 async function loadList(language = "en") {
-  return collectionService.getCollectionData({
+  return cms.collections.find(COLLECTION._id as string, {
     collection: COLLECTION,
     user: USER,
     language,
@@ -155,7 +168,7 @@ describe("CollectionService list projection (B2)", () => {
   it("keeps every locale when loading one entry for the editor (edit mode)", async () => {
     installRows(storedRows());
 
-    const result = await collectionService.getCollectionData({
+    const result = await cms.collections.find(COLLECTION._id as string, {
       collection: COLLECTION,
       user: USER,
       language: "en",

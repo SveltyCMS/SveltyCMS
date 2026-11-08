@@ -27,7 +27,8 @@ import { generateUUID } from "@utils/native-utils";
 import { isRedirect, isHttpError, type RequestEvent } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import type { DatabaseAdapter } from "@src/databases/db-interface";
-import { readSessionCookie, isAdmin } from "@src/databases/auth/constants";
+import { isAdmin } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import {
   isApiLike,
   isBootstrapRoute,

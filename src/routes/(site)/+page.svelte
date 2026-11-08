@@ -8,7 +8,7 @@
 	import SeoHead from '@components/site/seo-head.svelte';
 	import SiteFallbackHome from '@components/site/site-fallback-home.svelte';
 	import SitePreviewBridge from '@components/site/site-preview-bridge.svelte';
-	import { pickSeoPageTitle } from '@src/services/content/seo/seo-head';
+	import { pickSeoPageTitle } from '@src/services/content/seo/seo-head-core';
 	import type { SitePage } from '@src/services/site/types';
 
 	let { data } = $props();

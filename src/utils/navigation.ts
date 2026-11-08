@@ -5,13 +5,11 @@
  * ### Hardening (audit 2026-07):
  * - Race-condition guard: AbortController cancels stale navigation promises on rapid clicks
  * - Memory-leak protection: preloadTimers properly cleaned up with proper ReturnType typing
- * - URL sanitization: slugify uses escaped regex to prevent injection/backtracking
  * - encodeURIComponent: entryId is URL-encoded for safety
  *
  * Consolidates:
  * - NavigationManager (locking, mode transitions, loading state)
  * - Navigation Utilities (preloading, URL parsing, reflection)
- * - Slugify (URL-safe identifier generation)
  */
 
 import { goto, preloadData } from "$app/navigation";
@@ -35,82 +33,6 @@ interface ParsedURL {
   entryId?: string;
   language: string;
   mode: ModeType;
-}
-
-interface SlugifyOptions {
-  replacement?: string;
-  remove?: RegExp;
-  lower?: boolean;
-  strict?: boolean;
-  trim?: boolean;
-}
-
-// --- Slugification ---
-
-interface PrecompiledSlugPatterns {
-  delimiters: RegExp;
-  allowedChars: RegExp;
-  multiDashes: RegExp;
-  trimDashes: RegExp;
-}
-
-const DEFAULT_SLUG_PATTERNS: PrecompiledSlugPatterns = {
-  delimiters: /[_.\\s]+/g,
-  allowedChars: /[^a-z0-9-]/gi,
-  multiDashes: /-{2,}/g,
-  trimDashes: /^-+|-+$/g,
-};
-
-const customSlugPatternsCache = new Map<string, PrecompiledSlugPatterns>();
-
-function getSlugPatterns(replacement: string): PrecompiledSlugPatterns {
-  if (replacement === "-") return DEFAULT_SLUG_PATTERNS;
-
-  let cached = customSlugPatternsCache.get(replacement);
-  if (!cached) {
-    if (customSlugPatternsCache.size > 50) {
-      customSlugPatternsCache.clear();
-    }
-    const esc = replacement.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    cached = {
-      delimiters: /[_.\\s]+/g,
-      allowedChars: new RegExp(`[^a-z0-9${esc}]`, "gi"),
-      multiDashes: new RegExp(`(${esc}){2,}`, "g"),
-      trimDashes: new RegExp(`^${esc}+|${esc}+$`, "g"),
-    };
-    customSlugPatternsCache.set(replacement, cached);
-  }
-  return cached;
-}
-
-/**
- * Converts a string into a URL-safe slug.
- * Handles potential regex injection and catastrophic backtracking.
- */
-export function slugify(string: string, options: SlugifyOptions = {}): string {
-  if (typeof string !== "string") return "";
-
-  const { replacement = "-", lower = true, strict = true, trim = true } = options;
-
-  let slug = string.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (options.remove) slug = slug.replace(options.remove, "");
-  if (lower) slug = slug.toLowerCase();
-
-  const patterns = getSlugPatterns(replacement);
-
-  slug = slug.replace(patterns.delimiters, replacement);
-
-  if (strict) {
-    slug = slug.replace(patterns.allowedChars, "");
-  }
-
-  slug = slug.replace(patterns.multiDashes, replacement);
-
-  if (trim) {
-    slug = slug.replace(patterns.trimDashes, "");
-  }
-
-  return slug;
 }
 
 // --- Navigation Utilities ---

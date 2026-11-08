@@ -36,9 +36,16 @@ import { logger } from "@utils/logger";
 import { AppError, raise } from "@utils/error-handling";
 import { isAdmin } from "@src/databases/auth/constants";
 import { isMultiTenantEnabled } from "@utils/tenant-isolation.server";
-import type { DatabaseId, IDBAdapter } from "@src/databases/db-interface";
+import type {
+  BaseEntity,
+  CountOptions,
+  DatabaseId,
+  IDBAdapter,
+  QueryFilter,
+  QueryBuilder,
+} from "@src/databases/db-interface";
 import type { contentSystem as serverContentSystem } from "@src/content/index.server";
-import type { FieldInstance, Schema } from "@src/content/types";
+import type { FieldInstance, Schema, RevisionData } from "@src/content/types";
 import { DEFAULT_REVISION_LIMIT } from "@src/content/revision-defaults";
 import { type LocalApiOptions, type CollectionProxy } from "./types";
 import { resolvePopulatedRelations, scheduleRelationWarmup } from "./populate-resolver";
@@ -105,7 +112,20 @@ import {
   readEncryptionContext,
   NO_ENCRYPTION_CONTEXT,
   DECRYPT_CLONE_OPTIONS,
+  hydrateRelationDisplays,
+  isHotCollectionId,
+  COLLECTION_QUERY_TTL_MS,
+  COLLECTION_QUERY_STALE_MS,
+  COLLECTION_QUERY_HOT_STALE_MS,
 } from "./collections/read-pipeline";
+import { mapEntryValues } from "@utils/entry-values";
+import { getSearchableFieldNames } from "@utils/collection-query-filters.server";
+import {
+  countStatusFacets,
+  type StatusFacetCounts,
+} from "@src/services/core/collection-filter-engine";
+import { recordListQuery } from "@utils/list-query-metrics";
+import { deepClone } from "@utils/native-utils";
 import {
   applyWidgetPipeline,
   encryptWritePayload,
@@ -342,6 +362,36 @@ function scheduleIndexNowPing(
     .catch((err) => {
       logger.debug("[IndexNow] Publish ping scheduling failed (non-fatal)", { error: err });
     });
+}
+
+const clientSchemaMemo = new WeakMap<object, Schema>();
+
+function normalizeFilterOperators(f: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(f)) {
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      const vObj = v as Record<string, unknown>;
+      if ("contains" in vObj && typeof vObj.contains === "string") {
+        out[k] = { $contains: vObj.contains };
+      } else if ("in" in vObj && Array.isArray(vObj.in)) {
+        out[k] = { $in: vObj.in };
+      } else if ("eq" in vObj) {
+        out[k] = { $eq: vObj.eq };
+      } else if ("isNull" in vObj && typeof vObj.isNull === "boolean") {
+        out[k] = vObj.isNull ? { $eq: null } : { $ne: null };
+      } else if ("gte" in vObj || "lte" in vObj) {
+        const range: Record<string, unknown> = {};
+        if ("gte" in vObj) range.$gte = vObj.gte;
+        if ("lte" in vObj) range.$lte = vObj.lte;
+        out[k] = range;
+      } else {
+        out[k] = v;
+      }
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
 }
 
 export class CollectionsNamespace {
@@ -823,31 +873,42 @@ export class CollectionsNamespace {
   }
 
   async find(collectionId: string, options: any = {}) {
+    const t0 = performance.now();
     const {
       tenantId,
       filter = {},
-      limit: requestedLimit = 50,
-      offset = 0,
       bypassCache = false,
+      editEntryId,
+      language,
+      search,
+      sorts,
+      orGroups,
+      swr = false,
+      includeFacets = false,
+      includeCount = false,
     } = options;
-    // Hard ceiling on the SDK funnel both REST and GraphQL reads go through — a
-    // client-supplied limit can never reach `crud.findMany` unbounded.
+
+    const requestedLimit = options.pageSize ?? options.limit ?? 50;
     const limit = clampPageSize(requestedLimit, 50);
+    const offset =
+      options.offset !== undefined ? options.offset : options.page ? (options.page - 1) * limit : 0;
+    const effectivePage = options.page ?? Math.floor(offset / limit) + 1;
     const ttl = options.ttl ? Number(options.ttl) : undefined;
-    const schema = await this.schemaOf(collectionId, tenantId);
-    // REST query strings are strings: coerce to the declared field type before
-    // the filter reaches the adapter, so `?filter[featured]=true` means the
-    // boolean `true` on every engine (not "matches nothing" / inverted rows).
-    let inputFilter = filter as Record<string, unknown>;
+    const schema = options.collection ?? (await this.schemaOf(collectionId, tenantId));
+
+    let inputFilter = { ...(filter as Record<string, unknown>) };
+    if (editEntryId) {
+      inputFilter._id = editEntryId;
+    }
+    inputFilter = normalizeFilterOperators(inputFilter);
+
     if (options.validateFilter === true) {
-      assertFilterableFields(schema, filter);
+      assertFilterableFields(schema, inputFilter);
       inputFilter = coerceFilterValues(schema, inputFilter);
     }
     const guarded = blockedGuardedNames(schema, options.user, options.system);
     const normalizedFilter = stripGuardedFilter(normalizeRelationshipFilter(inputFilter), guarded);
     const ownership = ownershipFilter(schema, options.user, options.system);
-    // Ownership declared but the caller has no user id: fail closed, never fall
-    // back to an unscoped list.
     if (ownership === null) return { success: true, data: [] };
     const accessConstraint = getReadConstraint(schema.name || String(schema._id), {
       user: options.user,
@@ -855,24 +916,44 @@ export class CollectionsNamespace {
       tenantId: tenantId ? String(tenantId) : null,
     });
     const decodedCursor = decodePageCursor(options.cursor);
-    // A supplied cursor that fails to decode must fail the request, not
-    // silently fall back to an offset page (which would return duplicates).
     if (options.cursor && !decodedCursor) {
       throw new AppError("Invalid keyset cursor", 400);
     }
     if (guarded && decodedCursor?.f && guarded.has(String(decodedCursor.f).split(".")[0])) {
       throw new AppError("Invalid keyset cursor", 400);
     }
-    // Keyset mode: cursor-driven deep pagination, opted into by `keyset: true`
-    // (first page) or by carrying a cursor (continuation pages). Cursor pages
-    // bypass the L1/L2 query cache (every page is a unique key with meta the
-    // cache would drop) and fetch limit+1 so `hasMore` + `nextCursor` come
-    // from the rows actually returned — the REST exposure of W2 (deep-offset
-    // cliff). Without the opt-in, responses stay byte-identical to before.
     const keysetMode = decodedCursor !== null || options.keyset === true;
-    // Relation operators ($some/$none/$every) need target-collection lookups,
-    // which are async. Resolve them to plain $in/$nin before the synchronous
-    // query builder (and the keyset merge) runs.
+
+    if (typeof search === "string" && search.trim() && !editEntryId) {
+      const searchStr = search.trim();
+      const searchableFields = getSearchableFieldNames(schema);
+      if (searchableFields.length > 0) {
+        const searchConditions = searchableFields.map((field) => ({
+          [field]: { $contains: searchStr },
+        }));
+        if (normalizedFilter.$or && Array.isArray(normalizedFilter.$or)) {
+          normalizedFilter.$and = [
+            ...(normalizedFilter.$and && Array.isArray(normalizedFilter.$and)
+              ? normalizedFilter.$and
+              : []),
+            { $or: normalizedFilter.$or },
+            { $or: searchConditions },
+          ];
+          delete normalizedFilter.$or;
+        } else {
+          normalizedFilter.$or = searchConditions;
+        }
+      }
+    }
+
+    if (Array.isArray(orGroups) && orGroups.length > 0 && !editEntryId) {
+      if (normalizedFilter.$or && Array.isArray(normalizedFilter.$or)) {
+        normalizedFilter.$or = [...normalizedFilter.$or, ...orGroups];
+      } else {
+        normalizedFilter.$or = orGroups;
+      }
+    }
+
     const resolvedFilter = await compileRelationFilters(normalizedFilter, schema, {
       dbAdapter: this._dbAdapter.crud,
       getCollectionName: (id) => this.getCollectionName(id),
@@ -884,8 +965,6 @@ export class CollectionsNamespace {
     const baseQuery: any = decodedCursor
       ? mergeKeysetFilter(resolvedFilter as Record<string, unknown>, decodedCursor)
       : resolvedFilter;
-    // Ownership wins over a caller-supplied field of the same name; the access
-    // constraint is merged as `$and` so a caller filter can never widen it.
     const scopedQuery = mergeAccessConstraint(
       ownership ? { ...baseQuery, ...ownership } : baseQuery,
       accessConstraint,
@@ -899,8 +978,6 @@ export class CollectionsNamespace {
     );
 
     const hot = ensureSchemaHotFlags(schema);
-    // Unencrypted schemas (the common read case) share the frozen placeholder —
-    // `decryptReadResult` never reads the context without `_hasEncryptedFields`.
     const encCtx = readEncryptionContext(schema, tenantId, hot);
     assertEncryptedFieldsNotQueried(
       query,
@@ -908,15 +985,19 @@ export class CollectionsNamespace {
       options.sortField || (Array.isArray(options.sort) ? options.sort?.[0]?.[0] : undefined),
     );
 
-    // Id lookup (optional tenant + scalar status from publication clamp):
-    // one findOne on the adapter ultra path, `{ data: T[] }` envelope.
-    if (!decodedCursor && !offset && !options.fields && !options.populate) {
+    if (
+      !decodedCursor &&
+      !offset &&
+      !options.fields &&
+      !options.populate &&
+      !language &&
+      !includeFacets &&
+      !swr &&
+      !search &&
+      !includeCount
+    ) {
       const lookup = parseIdLookup(query);
       if (lookup) {
-        // Negative 404 fast path: a bare `_id` lookup (no status constraint)
-        // maps 1:1 onto the point-read cache key, so a known miss can skip the
-        // adapter entirely. Status-constrained lookups keep suffix semantics
-        // and are left to the cache below.
         const negativeKey =
           lookup.status === undefined
             ? `${tenantId || "global"}:collection:${schema._id}:${lookup.id}`
@@ -970,25 +1051,28 @@ export class CollectionsNamespace {
           (schema as any)._collectionMeta = collectionMeta;
           (row as any)._collection = collectionMeta;
         }
-        const envelope = { success: true, data: row ? [row] : [] };
+        const envelope = { success: true, data: row ? [row] : [], entries: row ? [row] : [] };
         return presentRead(envelope, schema, hot, encCtx, options.user, options.system);
       }
     }
 
     const requestedSort =
-      options.sort ||
-      (options.sortField
-        ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
-        : undefined);
+      sorts && sorts.length > 0
+        ? sorts.map((s: { field: string; direction?: "asc" | "desc" }) => [
+            s.field,
+            s.direction || "desc",
+          ])
+        : options.sort
+          ? typeof options.sort === "object" &&
+            !Array.isArray(options.sort) &&
+            "field" in options.sort
+            ? [[options.sort.field, options.sort.direction || "desc"]]
+            : options.sort
+          : options.sortField
+            ? ([[options.sortField, options.sortDirection || "desc"]] as [string, "asc" | "desc"][])
+            : undefined;
     const sort = stripGuardedSort(requestedSort, guarded);
 
-    // Keyset mode: the cursor is self-describing, so a walk without an explicit
-    // sort continues in the cursor's own field/direction; the `_id` tiebreaker
-    // is appended so the emitted ORDER BY matches the compound (field, _id)
-    // cursor filter — without it, rows sharing the sort value order arbitrarily
-    // and the `(field = v AND _id …)` branch skips or repeats them. The first
-    // keyset page without a sort falls back to the findPage default (updatedAt
-    // desc) so the walk's order is defined once and never drifts.
     const sortForDb = keysetMode
       ? withIdTiebreaker(
           sort ??
@@ -998,13 +1082,7 @@ export class CollectionsNamespace {
                 : { _id: decodedCursor.d === "asc" ? 1 : -1 }
               : defaultPageSortOption()),
         )
-      : // Deterministic default order (2026-09-28): an unsorted list read must have a
-        // defined row order — without one the engine picks the access path, and the
-        // LIMIT/OFFSET window can differ between two plans of the same query (SDK path
-        // vs the Direct-to-Wire list statement), which also makes OFFSET pagination
-        // non-deterministic. `_id` asc is unique and always indexed; the wire plane
-        // compiles the same ORDER BY, which is what makes byte parity provable.
-        (sort ?? defaultListSortOption());
+      : (sort ?? defaultListSortOption());
 
     const skipRequestCache = bypassCache || options.bypassRequestCache;
     const cacheKey = keysetMode
@@ -1024,141 +1102,408 @@ export class CollectionsNamespace {
           options,
         });
 
-    if (cacheKey) {
-      const cacheHit = await readThroughCache(cacheKey, tenantId, {
-        skipRequestCache,
-        bypassCache,
-      });
-      if (cacheHit.hit) {
-        // Re-register with the collection id so list keys join the keyspace index.
-        CollectionsNamespace.setRequestCache(
-          cacheKey,
-          cacheHit.payload,
-          schema._id as string,
-          tenantId,
-        );
-        return presentRead(cacheHit.payload, schema, hot, encCtx, options.user, options.system);
-      }
-    }
+    const shouldCount =
+      !keysetMode &&
+      (includeCount ||
+        options.page !== undefined ||
+        options.pageSize !== undefined ||
+        includeFacets ||
+        swr);
 
-    const fetchFromDb = () =>
-      this._dbAdapter.crud.findMany(this.getCollectionName(schema._id as string), query, {
-        limit: keysetMode ? limit + 1 : limit,
+    const loadFullData = async () => {
+      const fetchOpts = {
+        limit: keysetMode || shouldCount ? limit + 1 : limit,
         offset: keysetMode ? 0 : offset,
         sort: sortForDb,
         fields: options.fields,
         populate: options.populate,
-      });
+      };
 
-    const result = cacheKey
-      ? await cacheService.coalesceQuery(cacheKey, fetchFromDb)
-      : await fetchFromDb();
-
-    // Keyset continuation: slice the probe row and derive the next cursor from
-    // the last returned row. The cursor's own field/direction are authoritative
-    // when the caller repeats them (self-describing cursor), so a walk never
-    // drifts from the ORDER BY its pages were built with.
-    if (keysetMode && result.success && Array.isArray(result.data)) {
-      const hasMore = result.data.length > limit;
-      if (hasMore) result.data = result.data.slice(0, limit);
-      const cursorSort = resolvePageSort(sortForDb);
-      const last = hasMore ? (result.data[result.data.length - 1] as any) : null;
-      if (hasMore && last && last._id !== undefined && last._id !== null) {
-        const payload: Parameters<typeof encodePageCursor>[0] = {
-          id: String(last._id),
-          d: cursorSort.direction,
-        };
-        if (cursorSort.field !== "_id") {
-          payload.f = cursorSort.field;
-          payload.v = (last[cursorSort.field] as string | number | boolean | null) ?? null;
-        }
-        (result as { meta?: Record<string, unknown> }).meta = {
-          hasMore: true,
-          nextCursor: encodePageCursor(payload),
-        };
-      } else {
-        (result as { meta?: Record<string, unknown> }).meta = { hasMore: false };
-      }
-    }
-
-    if (result.success && result.data) {
-      if (hot._hasActiveWidgets) {
-        await applyWidgetPipeline(schema, result.data as unknown as EntryData[], {
-          dbAdapter: this._dbAdapter,
-          user: options.user || { _id: "system", role: "admin" },
-          type: "GET",
-          tenantId,
-          collectionName: schema.name,
-          skipValidation: options.skipValidation,
-          action: "find",
-        });
-      }
-
-      if (Array.isArray(result.data)) {
-        const collectionMeta = (schema as any)._collectionMeta || {
-          id: schema._id,
-          name: schema.name,
-          label: schema.label,
-        };
-        (schema as any)._collectionMeta = collectionMeta;
-        for (let i = 0; i < result.data.length; i++) {
-          const item = result.data[i] as any;
-          if (item) {
-            item._collection = collectionMeta;
-          }
-        }
-      }
-    }
-
-    if (options.populate && result.success && Array.isArray(result.data)) {
-      await resolvePopulatedRelations(
-        result.data,
-        schema,
-        options.populate,
-        tenantId,
-        this._dbAdapter,
-        this.getCollectionName.bind(this),
-        {
-          user: options.user,
-          system: options.system,
-          requestedPublicationFilter: effectivePublicationFilter,
-          resolveTargetSchema: (id: string) => this.schemaOf(id, tenantId),
-        },
-      );
-    }
-
-    if (!bypassCache && cacheKey && result.success && result.data) {
-      try {
-        const cachePayload = result.data;
-        await cacheService.set(
-          cacheKey,
-          cachePayload,
-          ttl || 180,
-          (tenantId || undefined) as string,
-          CacheCategory.CONTENT,
-          // 🚀 List/query caches are collection-wide: any write to the collection
-          // must clear them. Tagged so clearByTags is O(#list-keys), not O(#docs).
-          // Superset (as-passed + physical + bare spellings) so a physical-only
-          // invalidator (Mongo crud → BaseAdapter.invalidateQueryCache) reaches
-          // logical-spelled entries too.
-          buildCollectionCacheTags(schema._id as string),
+      const fetchFromDb = async () => {
+        let r = await this._dbAdapter.crud.findMany(
+          this.getCollectionName(schema._id as string),
+          query,
+          fetchOpts,
         );
+        if (!r.success) {
+          try {
+            await this._dbAdapter.collection?.createModel?.(schema);
+          } catch (healError) {
+            logger.warn(`[CollectionsNamespace] Physical model heal failed for ${schema._id}`, {
+              healError,
+            });
+          }
+          r = await this._dbAdapter.crud.findMany(
+            this.getCollectionName(schema._id as string),
+            query,
+            fetchOpts,
+          );
+        }
+        return r;
+      };
 
-        // Negative Caching: If result is empty and it was a specific ID query
-        if (
-          query._id &&
-          (!result.data || (Array.isArray(result.data) && result.data.length === 0))
-        ) {
-          cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
+      const countPromise =
+        shouldCount && !editEntryId
+          ? this.count(collectionId, {
+              tenantId,
+              filter: inputFilter,
+              user: options.user,
+              system: options.system,
+              publicationFilter: options.publicationFilter,
+            }).catch(() => ({ success: false, data: undefined }))
+          : Promise.resolve({ success: false, data: undefined });
+
+      const [res, countRes] = await Promise.all([fetchFromDb(), countPromise]);
+
+      let rawRows: unknown[] = [];
+      let hasMore = false;
+      if (res.success && Array.isArray(res.data)) {
+        rawRows = res.data;
+        if (keysetMode || shouldCount) {
+          hasMore = rawRows.length > limit;
+          if (hasMore) rawRows = rawRows.slice(0, limit);
+        }
+      }
+
+      let totalItems: number | undefined;
+      if (shouldCount) {
+        if (editEntryId) {
+          totalItems = rawRows.length > 0 ? 1 : 0;
+        } else if (countRes.success && typeof countRes.data === "number") {
+          totalItems = countRes.data;
+        } else if (effectivePage === 1 && !hasMore && res.success) {
+          totalItems = rawRows.length;
+        } else {
+          totalItems = hasMore
+            ? (effectivePage - 1) * limit + rawRows.length + 1
+            : (effectivePage - 1) * limit + rawRows.length;
+        }
+      }
+
+      let data: unknown[] = rawRows;
+
+      if (keysetMode && res.success && data.length > 0) {
+        const cursorSort = resolvePageSort(sortForDb);
+        const last = hasMore ? (data[data.length - 1] as Record<string, unknown>) : null;
+        if (hasMore && last && last._id !== undefined && last._id !== null) {
+          const payload: Parameters<typeof encodePageCursor>[0] = {
+            id: String(last._id),
+            d: cursorSort.direction,
+          };
+          if (cursorSort.field !== "_id") {
+            payload.f = cursorSort.field;
+            payload.v = (last[cursorSort.field] as string | number | boolean | null) ?? null;
+          }
+          (res as { meta?: Record<string, unknown> }).meta = {
+            hasMore: true,
+            nextCursor: encodePageCursor(payload),
+          };
+        } else {
+          (res as { meta?: Record<string, unknown> }).meta = { hasMore: false };
+        }
+      }
+
+      if (res.success && data.length > 0) {
+        if (hot._hasActiveWidgets) {
+          await applyWidgetPipeline(schema, data as EntryData[], {
+            dbAdapter: this._dbAdapter,
+            user: options.user || { _id: "system", role: "admin" },
+            type: "GET",
+            tenantId,
+            collectionName: schema.name,
+            skipValidation: options.skipValidation,
+            action: "find",
+          });
         }
 
+        if (!language) {
+          const collectionMeta = (schema as { _collectionMeta?: unknown })._collectionMeta || {
+            id: schema._id,
+            name: schema.name,
+            label: schema.label,
+          };
+          (schema as { _collectionMeta?: unknown })._collectionMeta = collectionMeta;
+          data = (data as Array<Record<string, unknown>>).map((item) => {
+            if (item) {
+              return { ...item, _collection: collectionMeta };
+            }
+            return item;
+          });
+        }
+      }
+
+      if (options.populate && res.success && data.length > 0) {
+        await resolvePopulatedRelations(
+          data,
+          schema,
+          options.populate,
+          tenantId,
+          this._dbAdapter,
+          this.getCollectionName.bind(this),
+          {
+            user: options.user,
+            system: options.system,
+            requestedPublicationFilter: effectivePublicationFilter,
+            resolveTargetSchema: (id: string) => this.schemaOf(id, tenantId),
+          },
+        );
+      }
+
+      if (language && !editEntryId && res.success && data.length > 0) {
+        data = (data as Array<Record<string, unknown>>).map((entry) =>
+          mapEntryValues(entry, schema.fields, {
+            language,
+            mode: "list",
+          }),
+        );
+        await hydrateRelationDisplays(data, schema, this._dbAdapter, tenantId);
+      }
+
+      if (!editEntryId && res.success && data.length > 0) {
+        try {
+          const { pluginRegistry } = await import("@src/plugins");
+          const hooks = await pluginRegistry.getSSRHooks(String(schema._id), tenantId, schema);
+          if (hooks.length > 0) {
+            const pluginContext = {
+              user: options.user,
+              tenantId: tenantId || "default",
+              language: language || "en",
+              dbAdapter: this._dbAdapter,
+              collectionSchema: schema,
+            };
+            const allPluginData = await Promise.all(
+              hooks.map((hook) => hook(pluginContext, data as EntryData[])),
+            );
+            for (const hookData of allPluginData) {
+              for (const entryData of hookData) {
+                const found = (
+                  data as Array<{ _id?: unknown; pluginData?: Record<string, unknown> }>
+                ).find((r) => String(r._id) === String(entryData.entryId));
+                if (found) {
+                  found.pluginData = { ...found.pluginData, ...entryData.data };
+                }
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn("Failed to run plugin SSR hooks", { error: err });
+        }
+      }
+
+      let revisions: RevisionData[] | undefined;
+      if (editEntryId && schema.revision) {
+        try {
+          const { HistoryService } = await import("@src/services/content/history-service");
+          const revisionsResult = await HistoryService.getRevisions({
+            collectionId: String(schema._id),
+            entryId: editEntryId,
+            tenantId: tenantId || "",
+            dbAdapter: this._dbAdapter,
+            limit: 100,
+          });
+          if (revisionsResult.success && "data" in revisionsResult) {
+            revisions = ((revisionsResult.data as { items?: RevisionData[] }).items ||
+              []) as RevisionData[];
+          }
+        } catch (e) {
+          logger.warn("Failed to load revisions", e);
+        }
+      }
+
+      let facets: StatusFacetCounts | undefined;
+      if (includeFacets) {
+        try {
+          facets = await this.getStatusFacets(schema, {
+            tenantId,
+            totalItems,
+          });
+        } catch (err) {
+          logger.debug("[CollectionsNamespace] Status facets failed", { error: err });
+          facets = {};
+        }
+      }
+
+      let clientSchema = clientSchemaMemo.get(schema);
+      if (!clientSchema) {
+        clientSchema = deepClone(schema) as Schema;
+        clientSchemaMemo.set(schema, clientSchema);
+      }
+
+      const envelope: Record<string, unknown> = {
+        ...res,
+        data,
+        entries: data,
+      };
+      if (shouldCount && totalItems !== undefined) {
+        envelope.pagination = {
+          totalItems,
+          pagesCount: Math.ceil(totalItems / limit) || 1,
+          currentPage: effectivePage,
+          pageSize: limit,
+          hasMore,
+        };
+      }
+      if (facets !== undefined) {
+        envelope.facets = facets;
+        envelope.statusFacets = facets;
+      }
+      if (revisions !== undefined) envelope.revisions = revisions;
+      if (language !== undefined) envelope.contentLanguage = language;
+      envelope.collectionSchema = clientSchema;
+
+      return envelope;
+    };
+
+    let result: Record<string, unknown> | null | undefined;
+    let cacheHit = false;
+
+    if (swr && cacheKey && !bypassCache) {
+      const staleTtlMs =
+        options.staleTtl ??
+        (isHotCollectionId(schema._id as string, tenantId)
+          ? COLLECTION_QUERY_HOT_STALE_MS
+          : COLLECTION_QUERY_STALE_MS);
+      const ttlMs =
+        (options.ttl ? Number(options.ttl) * 1000 : undefined) ?? COLLECTION_QUERY_TTL_MS;
+      const tags = buildCollectionCacheTags(schema._id as string);
+
+      result = await cacheService.getOrSetSWR(
+        cacheKey,
+        loadFullData,
+        ttlMs,
+        staleTtlMs,
+        tenantId,
+        CacheCategory.CONTENT,
+        tags,
+      );
+      cacheHit = true;
+      if (result) {
         CollectionsNamespace.setRequestCache(cacheKey, result, schema._id as string, tenantId);
-      } catch (error) {
-        logger.debug("[collections-namespace] suppressed error", error);
+      }
+    } else {
+      if (cacheKey) {
+        const cached = await readThroughCache(cacheKey, tenantId, {
+          skipRequestCache,
+          bypassCache,
+        });
+        if (cached.hit) {
+          CollectionsNamespace.setRequestCache(
+            cacheKey,
+            cached.payload,
+            schema._id as string,
+            tenantId,
+          );
+          recordListQuery({
+            source: "CollectionsNamespace.find",
+            durationMs: Math.round((performance.now() - t0) * 100) / 100,
+            cache: "hit",
+            collectionId: String(schema._id),
+            rowCount: Array.isArray(cached.payload?.data) ? cached.payload.data.length : 0,
+            queryHash: cacheKey,
+          });
+          return presentRead(cached.payload, schema, hot, encCtx, options.user, options.system);
+        }
+      }
+
+      result = cacheKey
+        ? await cacheService.coalesceQuery(cacheKey, loadFullData)
+        : await loadFullData();
+
+      if (!bypassCache && cacheKey && result?.success && result?.data) {
+        try {
+          await cacheService.set(
+            cacheKey,
+            result,
+            ttl || 180,
+            (tenantId || undefined) as string,
+            CacheCategory.CONTENT,
+            buildCollectionCacheTags(schema._id as string),
+          );
+
+          if (
+            query._id &&
+            (!result.data || (Array.isArray(result.data) && result.data.length === 0))
+          ) {
+            cacheService.recordMiss(cacheKey, (tenantId || undefined) as string);
+          }
+
+          CollectionsNamespace.setRequestCache(cacheKey, result, schema._id as string, tenantId);
+        } catch (error) {
+          logger.debug("[collections-namespace] suppressed error", error);
+        }
       }
     }
+
+    const durationMs = Math.round((performance.now() - t0) * 100) / 100;
+    recordListQuery({
+      source: "CollectionsNamespace.find",
+      durationMs,
+      cache: cacheHit ? "hit" : bypassCache ? "bypass" : "miss",
+      collectionId: String(schema._id),
+      rowCount: Array.isArray(result?.data) ? result.data.length : 0,
+      queryHash: cacheKey || "",
+    });
 
     return presentRead(result, schema, hot, encCtx, options.user, options.system);
+  }
+
+  /**
+   * Status facet counts for filter chips (P1). Tenant-scoped.
+   *
+   * SWR-cached under `collection:{id}:facets:{tenant}` with the list's tag
+   * contract, so `cacheService.invalidateCollection(id)` also drops the counts.
+   */
+  public async getStatusFacets(
+    collectionIdOrSchema: string | Schema,
+    input: {
+      tenantId?: string | DatabaseId | null;
+      totalItems?: number;
+    } = {},
+  ): Promise<StatusFacetCounts> {
+    if (input.totalItems === 0) {
+      return { publish: 0, draft: 0, unpublish: 0, schedule: 0, archive: 0 };
+    }
+
+    const schema =
+      typeof collectionIdOrSchema === "string"
+        ? await this.schemaOf(collectionIdOrSchema, input.tenantId as DatabaseId | null | undefined)
+        : collectionIdOrSchema;
+    const collectionId = String(schema._id ?? schema.name ?? "unknown");
+    const tenantKey = input.tenantId ? String(input.tenantId) : "global";
+    const cacheKey = `collection:${collectionId}:facets:${tenantKey}`;
+    const tags = ["collection", `collection:${collectionId}`];
+
+    return cacheService.getOrSetSWR<StatusFacetCounts>(
+      cacheKey,
+      async () => {
+        const baseWhere: Record<string, unknown> = {};
+        if (isMultiTenantEnabled() && input.tenantId != null) {
+          baseWhere.tenantId = input.tenantId;
+        }
+
+        return countStatusFacets({
+          queryBuilder: (table) =>
+            this._dbAdapter.queryBuilder(table) as QueryBuilder<Record<string, unknown>>,
+          collectionTableName: collectionTableName(collectionId),
+          baseWhere,
+          tenantId: input.tenantId,
+          crudCount: (table, filter, opts) =>
+            this._dbAdapter.crud.count(
+              table,
+              filter as QueryFilter<BaseEntity>,
+              opts as CountOptions,
+            ) as Promise<{
+              success: boolean;
+              data?: number;
+            }>,
+        });
+      },
+      COLLECTION_QUERY_TTL_MS,
+      COLLECTION_QUERY_STALE_MS,
+      input.tenantId,
+      CacheCategory.COLLECTION,
+      tags,
+    );
   }
 
   async findStreaming(

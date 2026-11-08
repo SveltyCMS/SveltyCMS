@@ -21,7 +21,8 @@ import {
   tryCollectionNotModified,
 } from "@src/services/cache/collection-etag";
 import { CACHEABLE_PREFIXES } from "./handle-request-classifier";
-import { readSessionCookie, isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
+import { isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { getRoleBitsetVersion } from "@src/databases/auth/permission-bitmask";
 import { validateSessionMfaRequirement } from "@src/databases/auth/permissions";
 import { isSurfaceStepUp, type SessionRiskAction } from "@src/databases/auth/session-user";

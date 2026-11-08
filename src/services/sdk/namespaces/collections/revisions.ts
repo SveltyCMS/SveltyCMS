@@ -1,6 +1,6 @@
 /**
  * @file src/services/sdk/namespaces/collections/revisions.ts
- * @description Revision tracking, history retrieval, and rollback restoration for CollectionsNamespace.
+ * @description Revision tracking and rollback restoration for CollectionsNamespace.
  *
  * Features:
  * - Pre-write snapshots stored in content_revisions table
@@ -73,7 +73,7 @@ export function casVersionCandidates(version: unknown): unknown[] {
 }
 
 /** Revision-row columns that are storage metadata, never part of the snapshot. */
-export const REVISION_META_KEYS = new Set([
+const REVISION_META_KEYS = new Set([
   "_id",
   "contentId",
   "version",
@@ -212,31 +212,6 @@ export async function recordRevision(
       `[Revisions] Failed to record revision for ${entryId}: ${(err as Error)?.message ?? err}`,
     );
   }
-}
-
-/**
- * Retrieve revision history for a single collection entry.
- */
-export async function getEntryRevisions(
-  ctx: RevisionContext,
-  collectionId: string,
-  entryId: string,
-  options: LocalApiOptions & { limit?: number; offset?: number } = {},
-): Promise<unknown> {
-  const { tenantId, user, system } = options;
-  if (!user && !system) raise(401, "Authentication required", "UNAUTHORIZED");
-  const schema = await ctx.schemaOf(collectionId, tenantId);
-  if (!system) {
-    const own = ctx.assertEntryOwnership(schema, entryId, tenantId, user, system);
-    if (own) await own;
-  }
-  const revisionTable = `${ctx.getCollectionName(schema._id as string)}_revisions`;
-  return ctx._dbAdapter.crud.find(revisionTable, { contentId: entryId } as never, {
-    tenantId: tenantId as DatabaseId,
-    limit: options.limit ?? 20,
-    offset: options.offset ?? 0,
-    sort: { version: -1 } as never,
-  });
 }
 
 /**

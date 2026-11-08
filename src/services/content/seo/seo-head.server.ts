@@ -16,12 +16,8 @@ import type { DatabaseId, MediaItem } from "@src/databases/db-interface";
 import { logger } from "@utils/logger";
 import { rethrow } from "@utils/error-handling";
 import { resolveMediaPublicPath } from "@utils/media/media-utils";
-import {
-  buildSeoHead,
-  pickSeoLocaleData,
-  type SeoHeadResult,
-  type SeoWidgetStoredValue,
-} from "./seo-head";
+import { buildSeoHead, type SeoHeadResult, type SeoWidgetStoredValue } from "./seo-head";
+import { pickSeoLocaleData } from "./seo-head-core";
 
 export interface LoadSeoHeadForPageOptions {
   /** The resolved site page entry (may carry the SEO widget's stored value). */

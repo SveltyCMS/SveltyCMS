@@ -39,33 +39,33 @@
  * system columns plus the SDK-injected cross-collection meta — none of them
  * has an HTTP point-read consumer (see file header for the evidence).
  */
-const POINT_READ_DROP_ALWAYS = [
+const POINT_READ_DROP_ALWAYS = new Set<string>([
   "_collection",
   "tenantId",
   "createdAt",
   "updatedAt",
   "isDeleted",
-] as const;
+]);
 
 /**
  * Physical columns that mirror document fields. `prepareValues` writes them
  * only when the document itself carries the key, so a null value is the
  * column default (pure wire noise) while a non-null value is document content.
  */
-const POINT_READ_DROP_WHEN_NULL = ["collection", "locale", "publishedAt"] as const;
+const POINT_READ_DROP_WHEN_NULL = new Set<string>(["collection", "locale", "publishedAt"]);
 
 /**
  * Copy-trim one single-entry row. Returns a new object with the system keys
- * removed; the input row is never mutated (it may be referenced by the SDK
+ * removed via key-skipping copy; the input row is never mutated (it may be referenced by the SDK
  * request cache or an L2 write).
  */
 function trimPointReadRow(row: unknown): Record<string, unknown> {
-  const trimmed = { ...(row as Record<string, unknown>) };
-  for (const key of POINT_READ_DROP_ALWAYS) {
-    delete trimmed[key];
-  }
-  for (const key of POINT_READ_DROP_WHEN_NULL) {
-    if (trimmed[key] === null) delete trimmed[key];
+  const src = row as Record<string, unknown>;
+  const trimmed: Record<string, unknown> = {};
+  for (const key in src) {
+    if (POINT_READ_DROP_ALWAYS.has(key)) continue;
+    if (src[key] === null && POINT_READ_DROP_WHEN_NULL.has(key)) continue;
+    trimmed[key] = src[key];
   }
   return trimmed;
 }

@@ -41,15 +41,15 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /** Only allow hex colours (#RGB, #RRGGBB, #RRGGBBAA) in dynamically-built SVG. */
-export const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$/;
+const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 
 /** Only allow plain numeric strings (no expressions, no units) in SVG attributes. */
-export const SAFE_NUMBER = /^-?\d+(\.\d+)?$/;
+const SAFE_NUMBER = /^-?\d+(\.\d+)?$/;
 
 type SharpPipeline = ReturnType<typeof sharp>;
 
 /** One encoder configuration for manipulated output and the optional cap pass. */
-export function encodeManipulatedOutput(
+function encodeManipulatedOutput(
   pipeline: SharpPipeline,
   ext: string,
   isCircle: boolean,
@@ -63,7 +63,7 @@ export function encodeManipulatedOutput(
 /**
  * Validate a value against a regex; return a safe fallback when it fails.
  */
-export function guardAttr(value: string, pattern: RegExp, fallback: string): string {
+function guardAttr(value: string, pattern: RegExp, fallback: string): string {
   if (pattern.test(value)) return value;
   logger.warn(`[MediaService] Rejected unsafe SVG attribute value: "${value}"`);
   return fallback;
@@ -72,7 +72,7 @@ export function guardAttr(value: string, pattern: RegExp, fallback: string): str
 /**
  * Like guardAttr but for numeric values.
  */
-export function guardNumeric(value: number, fallback: number): number {
+function guardNumeric(value: number, fallback: number): number {
   if (SAFE_NUMBER.test(String(value))) return value;
   logger.warn(`[MediaService] Rejected unsafe SVG numeric value: ${value}`);
   return fallback;

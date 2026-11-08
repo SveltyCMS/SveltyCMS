@@ -351,11 +351,10 @@ export function formatUptime(uptime: number): string {
 
 export function ReadableExpireIn(expiresIn: string): string {
   const expiresInNumber = Number.parseInt(expiresIn, 10);
-  const expirationTime = expiresInNumber
-    ? new Date(Date.now() + expiresInNumber * 1000)
-    : new Date();
-  const diff = expirationTime.getTime() - Date.now();
-
+  if (!expiresInNumber || expiresInNumber <= 0) {
+    return "";
+  }
+  const diff = expiresInNumber * 1000;
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   const hours = Math.floor(diff / (1000 * 60 * 60)) % 24;
   const minutes = Math.floor(diff / (1000 * 60)) % 60;
@@ -376,4 +375,4 @@ export function formatIsoDuration(isoDuration: string | undefined): string | und
     : `${m}:${s.padStart(2, "0")}`;
 }
 
-export const getCurrentDate = () => formatDateString(new Date(), "yyyy-MM-dd");
+export const getCurrentDate = (): string => nowISODateString().slice(0, 10);

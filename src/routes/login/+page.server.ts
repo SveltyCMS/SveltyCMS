@@ -25,7 +25,7 @@ import {
   googleAuth,
 } from "@src/databases/auth/google-auth";
 import { auth, dbInitPromise } from "@src/databases/db";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { resolveUserPostAuthLanding } from "@utils/auth/post-auth-landing.server";
 import { isRedirect, type Actions, fail, redirect } from "@sveltejs/kit";
 import { RateLimiter } from "@src/hooks/handle-rate-limit";

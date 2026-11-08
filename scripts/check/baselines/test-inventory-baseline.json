@@ -2,10 +2,10 @@
   "version": 1,
   "layers": {
     "unit": {
-      "generatedAt": "2026-11-08T14:12:06.981Z",
+      "generatedAt": "2026-11-08T15:11:03.854Z",
       "totals": {
-        "files": 866,
-        "tests": 8207
+        "files": 867,
+        "tests": 8211
       },
       "areas": {
         "unit": {
@@ -149,8 +149,8 @@
           "tests": 143
         },
         "unit/utils": {
-          "files": 102,
-          "tests": 974
+          "files": 103,
+          "tests": 978
         },
         "unit/widgets": {
           "files": 28,

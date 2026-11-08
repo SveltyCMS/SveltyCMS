@@ -39,7 +39,8 @@ import {
   DASHBOARD_READ_PERMISSION,
   SYSTEM_DASHBOARD_PERMISSION,
 } from "@src/databases/auth/dashboard-access";
-import { isSecureCookieContext, readSessionCookie, isAdmin } from "@src/databases/auth/constants";
+import { isSecureCookieContext, isAdmin } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { pluginRouteRegistry } from "@src/plugins/plugin-route-registry";
 import {
   responseCache,

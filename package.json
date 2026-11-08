@@ -96,6 +96,7 @@
     "check:seams": "bun run scripts/check/check-seam-assertions.ts",
     "check:linkmap": "bun run scripts/check/analyze-linkmap.ts",
     "check:linkmap:changed": "bun run scripts/check/analyze-linkmap.ts --changed --check",
+    "check:leanness": "bun run scripts/check/leanness-benchmark.ts",
     "check:ast": "bun run scripts/check/run-ast-gates.ts",
     "typecheck": "svelte-kit sync && bun run scripts/check/run-typecheck.ts",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

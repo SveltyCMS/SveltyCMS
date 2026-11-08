@@ -24,7 +24,7 @@ import {
   type PublicationFilter,
 } from "@utils/security/publication-policy";
 import { cacheService } from "@src/databases/cache/cache-service";
-import type { DatabaseId } from "@src/databases/db-interface";
+import type { BaseEntity, DatabaseId, IDBAdapter } from "@src/databases/db-interface";
 import { getRequestCache, setRequestCache } from "./request-cache";
 import { serializeQueryShape } from "@utils/fast-json";
 import { FastLRU } from "@utils/native-utils";
@@ -35,11 +35,13 @@ import {
 } from "@utils/security/field-encryption";
 import type { SchemaHotFlags } from "./schema-store";
 import { logger } from "@utils/logger";
-import type { FieldInstance, Schema } from "@src/content/types";
+import type { FieldInstance, Schema, CollectionEntry } from "@src/content/types";
 import { isAdmin } from "@src/databases/auth/constants";
 import { redactReadEnvelope } from "@utils/field-access";
 import { stripUnownedRows } from "./access-filter";
 import type { LocalApiOptions } from "../types";
+import { collectionTableName } from "@src/databases/core/collection-name";
+import { getHotCollections } from "@src/services/intelligence/behavioral-learner";
 
 /** Logical combinators — their array values are branches, never relation arrays. */
 const LOGICAL_FILTER_KEYS = new Set(["$and", "$or", "$not", "AND", "OR", "NOT"]);
@@ -158,10 +160,14 @@ export interface BuildFindCacheKeyParams {
   skipRequestCache: boolean;
   bypassCache: boolean;
   options: {
-    fields?: any;
-    populate?: any;
+    fields?: unknown;
+    populate?: unknown;
     sortField?: string;
     sortDirection?: string;
+    language?: string;
+    search?: string;
+    editEntryId?: string;
+    [key: string]: unknown;
   };
 }
 
@@ -283,9 +289,13 @@ export function buildFindCacheKey(params: BuildFindCacheKeyParams): string | nul
   if (skipRequestCache && bypassCache) return null;
 
   const tenantPrefix = tenantId ? `${tenantId}:` : "global:";
+  const langSuffix = options.language ? `:lang:${options.language}` : "";
   const isDefaultList =
     !options.fields &&
     !options.populate &&
+    !options.language &&
+    !options.search &&
+    !options.editEntryId &&
     limit === 50 &&
     offset === 0 &&
     !sort &&
@@ -295,18 +305,28 @@ export function buildFindCacheKey(params: BuildFindCacheKeyParams): string | nul
   if (isDefaultList) {
     return `${tenantPrefix}collection:${schemaId}:find:default_50${publicationCacheSuffix(effectiveFilter)}`;
   }
-  if (query._id && isSingleKeyObject(query, "_id") && limit === 50 && offset === 0 && !sort) {
+  if (
+    query._id &&
+    isSingleKeyObject(query, "_id") &&
+    limit === 50 &&
+    offset === 0 &&
+    !sort &&
+    !options.language &&
+    !options.search
+  ) {
     return `${tenantPrefix}collection:${schemaId}:find:id:${query._id}`;
   }
-  if (!decodedCursor && isEmptyQueryFilter(filter)) {
+  if (!decodedCursor && isEmptyQueryFilter(filter) && !options.search && !options.editEntryId) {
     // Status-only list (no extra filter) — skip JSON.stringify. Fields/populate
     // interpolate via the canonical token (comma join for arrays) so repeated
     // finds with identical projections reuse the same string.
-    return `${tenantPrefix}collection:${schemaId}:find:${effectiveFilter}:${limit}:${offset}:${options.sortField ?? ""}:${options.sortDirection ?? "desc"}:${canonicalFieldToken(options.fields)}:${canonicalFieldToken(options.populate)}`;
+    return `${tenantPrefix}collection:${schemaId}:find:${effectiveFilter}:${limit}:${offset}:${options.sortField ?? ""}:${options.sortDirection ?? "desc"}:${canonicalFieldToken(options.fields)}:${canonicalFieldToken(options.populate)}${langSuffix}`;
   }
   // Sync FNV with flat delimited query shape — avoids JSON.stringify
   // reflection tax on list queries. fields/populate shape the RESPONSE,
   // so they must be part of the key (pre-serialized via the token cache).
+  const searchPart = options.search ? `|search:${options.search}` : "";
+  const editPart = options.editEntryId ? `|edit:${options.editEntryId}` : "";
   const queryHash = syncQueryHash(
     serializeQueryShape(
       query,
@@ -315,9 +335,133 @@ export function buildFindCacheKey(params: BuildFindCacheKeyParams): string | nul
       sort,
       serializeShapeComponent(options.fields),
       serializeShapeComponent(options.populate),
-    ),
+    ) +
+      langSuffix +
+      searchPart +
+      editPart,
   );
   return `${tenantPrefix}collection:${schemaId}:find:${queryHash}`;
+}
+
+/** Fresh window: 60s — list data changes often during editorial work. */
+export const COLLECTION_QUERY_TTL_MS = 60_000;
+/** Stale window: 5 min — serve stale while revalidating (SWR). */
+export const COLLECTION_QUERY_STALE_MS = 300_000;
+/**
+ * Hot window: lists of behaviorally-hot collections keep the same fresh TTL but
+ * are served stale much longer (SWR) — background revalidation absorbs editorial
+ * writes without blocking frequent readers. Cold collections keep the default.
+ */
+export const COLLECTION_QUERY_HOT_STALE_MS = 15 * 60_000;
+const HOT_COLLECTIONS_LIMIT = 20;
+const HOT_COLLECTIONS_MEMO_MS = 10_000;
+const _hotCollectionMemo = new Map<string, { at: number; ids: ReadonlySet<string> }>();
+
+/**
+ * Heat-aware SWR: true when this list key belongs to a currently-hot collection.
+ */
+export function isHotCollectionId(collectionId: string, tenantId?: string | null): boolean {
+  const tid = tenantId || "global";
+  const now = Date.now();
+  let memo = _hotCollectionMemo.get(tid);
+  if (!memo || now - memo.at > HOT_COLLECTIONS_MEMO_MS) {
+    const ids = new Set(getHotCollections(tid, HOT_COLLECTIONS_LIMIT).map((c) => c.id));
+    memo = { at: now, ids };
+    _hotCollectionMemo.set(tid, memo);
+  }
+  return memo.ids.has(collectionId);
+}
+
+/**
+ * One findByIds per related collection so list cells do not HTTP-fetch each row.
+ * Replaces stored ids with `{ _id, [displayField] }` for Relation Display.
+ */
+export async function hydrateRelationDisplays(
+  entries: CollectionEntry[] | unknown[],
+  collection: Schema,
+  dbAdapter: IDBAdapter,
+  tenantId?: string | null,
+): Promise<void> {
+  if (!entries || entries.length === 0 || !Array.isArray(collection.fields)) return;
+
+  type RelField = { name: string; table: string; displayField: string };
+  const relFields: RelField[] = [];
+  for (const field of collection.fields as Array<Record<string, unknown>>) {
+    const widgetName = (field.widget as { Name?: string } | undefined)?.Name;
+    if (widgetName !== "Relation" && widgetName !== "RelationList") continue;
+    const target = typeof field.collection === "string" ? field.collection : "";
+    const displayField = typeof field.displayField === "string" ? field.displayField : "";
+    const name = String(field.db_fieldName || field.name || field.label || "");
+    if (!target || !displayField || !name) continue;
+    relFields.push({ name, table: collectionTableName(target), displayField });
+  }
+  if (relFields.length === 0) return;
+
+  const byTable = new Map<string, { displayField: string; names: string[]; ids: Set<string> }>();
+  for (const rel of relFields) {
+    let group = byTable.get(rel.table);
+    if (!group) {
+      group = { displayField: rel.displayField, names: [], ids: new Set() };
+      byTable.set(rel.table, group);
+    }
+    group.names.push(rel.name);
+    for (const entry of entries as Array<Record<string, unknown>>) {
+      const raw = entry[rel.name];
+      const values = Array.isArray(raw) ? raw : raw ? [raw] : [];
+      for (const v of values) {
+        if (typeof v === "string" && v) group.ids.add(v);
+      }
+    }
+  }
+
+  const lookups = await Promise.all(
+    [...byTable.entries()].map(async ([table, group]) => {
+      const ids = [...group.ids];
+      if (ids.length === 0) return { group, rows: [] as Record<string, unknown>[] };
+      try {
+        const res = await dbAdapter.crud.findByIds<BaseEntity & Record<string, unknown>>(
+          table,
+          ids as DatabaseId[],
+          {
+            tenantId: tenantId as DatabaseId,
+            fields: ["_id", group.displayField],
+            limit: ids.length,
+          },
+        );
+        const rows = res.success && Array.isArray(res.data) ? res.data : [];
+        return { group, rows };
+      } catch (err) {
+        logger.debug("[read-pipeline] Relation hydrate skipped", { table, err });
+        return { group, rows: [] as Record<string, unknown>[] };
+      }
+    }),
+  );
+
+  for (const { group, rows } of lookups) {
+    if (rows.length === 0) continue;
+    const byId = new Map<string, Record<string, unknown>>();
+    for (const row of rows) {
+      const id = String(row._id ?? "");
+      if (id) byId.set(id, row as Record<string, unknown>);
+    }
+    for (const entry of entries as Array<Record<string, unknown>>) {
+      for (const name of group.names) {
+        const raw = entry[name];
+        if (Array.isArray(raw)) {
+          entry[name] = raw.map((v) =>
+            typeof v === "string" && byId.has(v)
+              ? { _id: v, [group.displayField]: byId.get(v)?.[group.displayField] }
+              : v,
+          );
+        } else if (typeof raw === "string" && byId.has(raw)) {
+          entry[name] = {
+            _id: raw,
+            [group.displayField]: byId.get(raw)?.[group.displayField],
+          };
+        }
+      }
+    }
+  }
 }
 
 /** Wrap a raw cache payload into the canonical `{ success, data }` envelope. */

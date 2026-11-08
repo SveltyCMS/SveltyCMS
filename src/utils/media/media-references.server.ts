@@ -32,7 +32,7 @@ export interface ReferencesContext {
 }
 
 /** Enrich index references with legacy fields for backward compatibility. */
-export function enrichReferences(
+function enrichReferences(
   refs: MediaReference[],
   entryNameMap: Map<string, string>,
 ): MediaReference[] {
@@ -46,7 +46,7 @@ export function enrichReferences(
 /**
  * Rebuilds the in-memory reference index by scanning all collection entries in parallel.
  */
-export async function executeRebuildReferenceIndex(
+async function executeRebuildReferenceIndex(
   db: IDBAdapter,
   tenantId: DatabaseId | null | undefined,
   state: {
@@ -100,7 +100,7 @@ export async function executeRebuildReferenceIndex(
   state.referenceIndex.markBuilt();
 }
 
-export async function ensureReferenceIndex(
+async function ensureReferenceIndex(
   ctx: ReferencesContext,
   tenantId?: DatabaseId | null,
 ): Promise<ReferenceIndexTenantState> {

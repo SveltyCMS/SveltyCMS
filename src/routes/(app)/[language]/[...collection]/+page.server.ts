@@ -43,7 +43,6 @@
 import { contentSystem } from "@src/content/index.server";
 import type { User } from "@src/databases/auth/types";
 import type { StatusFacetCounts } from "@src/services/core/collection-filter-engine";
-import { collectionService } from "@src/services/core/collection-service";
 import { getPublicSettingSync } from "@src/services/core/settings-service";
 import { error, redirect } from "@sveltejs/kit";
 import { parseCollectionListQuery } from "@utils/collection-query-filters.server";
@@ -200,47 +199,59 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
         : null;
 
     // =================================================================
-    // 4. LOAD COLLECTION DATA (via CollectionService + getOrSetSWR)
+    // 4. LOAD COLLECTION DATA (via LocalCMS collections.find + SWR)
     // =================================================================
-    // Service builds `collection:{id}:query:{hash}:…` keys and uses SWR.
+    // SDK builds harmonized cache keys and uses SWR.
     // Content mutations must call invalidateCollection(id) (prefix clear).
-    const { entries, pagination, revisions, contentLanguage, collectionSchema } =
-      await collectionService.getCollectionData({
-        collection: currentCollection,
-        page: listQuery.page,
-        pageSize: listQuery.pageSize,
-        sort: listQuery.sort,
-        sorts: listQuery.sorts,
-        orGroups: listQuery.orGroups,
-        filter: listQuery.filter,
-        search: listQuery.search,
-        language,
-        user: typedUser,
-        tenantId,
-        editEntryId: editEntryId || undefined,
-      });
+    if (!locals.cms) {
+      throw error(500, "CMS service is not initialized");
+    }
+    const cms = locals.cms;
+    const listResult = await cms.collections.find(String(currentCollection._id), {
+      collection: currentCollection,
+      page: listQuery.page,
+      pageSize: listQuery.pageSize,
+      sort: listQuery.sort,
+      sorts: listQuery.sorts,
+      orGroups: listQuery.orGroups,
+      filter: listQuery.filter,
+      search: listQuery.search,
+      language,
+      user: typedUser,
+      tenantId,
+      editEntryId: editEntryId || undefined,
+      swr: true,
+      includeFacets: true,
+    });
+
+    const entries = listResult.entries ?? listResult.data ?? [];
+    const pagination = listResult.pagination;
+    const revisions = listResult.revisions ?? [];
+    const contentLanguage = listResult.contentLanguage ?? language;
+    const collectionSchema = listResult.collectionSchema ?? currentCollection;
 
     // Status facets for filter chips — streamed so the list paints without
     // waiting for the 5 × crud.count chain. Soft-fail is preserved: the
     // promise resolves to {} on any error and never rejects, so consumers can
     // {#await} it unconditionally. No rethrow here on purpose — rethrowing an
     // HttpError would reject the stream and take the whole page down.
-    const statusFacets: Promise<StatusFacetCounts> = collectionService
-      .getStatusFacets({
-        collection: currentCollection,
-        tenantId,
-        totalItems: pagination?.totalItems,
-      })
-      .catch((err: unknown): StatusFacetCounts => {
-        logger.debug("Status facets unavailable — chips render without counts", {
-          error: err instanceof Error ? err.message : "unknown error",
-          collection,
-        });
-        return {};
+    const statusFacets: Promise<StatusFacetCounts> = (
+      listResult.facets
+        ? Promise.resolve(listResult.facets)
+        : cms.collections.getStatusFacets(currentCollection, {
+            tenantId,
+            totalItems: pagination?.totalItems,
+          })
+    ).catch((err: unknown): StatusFacetCounts => {
+      logger.debug("Status facets unavailable — chips render without counts", {
+        error: err instanceof Error ? err.message : "unknown error",
+        collection,
       });
+      return {};
+    });
 
     // In-process list metrics (SSR snapshot for ?debug=table badge)
-    const listMetrics = summarizeListQueryMetrics("CollectionService.getCollectionData");
+    const listMetrics = summarizeListQueryMetrics("CollectionsNamespace.find");
 
     // =================================================================
     // 5. PREPARE FINAL RESPONSE

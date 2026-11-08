@@ -9,7 +9,7 @@
  * - portable Web Crypto digest
  * - hex-encoded output for indexed equality lookups
  * - sync server-side digest for auth middleware hot paths
- * - 🚀 Ring-buffer Hash instance pooling for zero-GC sync digests
+ * - direct C++ crypto.hash when available for minimal allocation
  *
  * ### Security model:
  * Inputs are CSPRNG website tokens / API keys (`generateSecureToken(32)`,
@@ -22,7 +22,10 @@
 // This runs once at module init and is only used in server-side code.
 import { createRequire } from "node:module";
 const _require = createRequire(import.meta.url);
-const { createHash: _createHash } = _require("node:crypto");
+const _crypto = _require("node:crypto");
+const _nodeHash: ((algorithm: string, data: string, outputEncoding: "hex") => string) | undefined =
+  typeof _crypto.hash === "function" ? _crypto.hash.bind(_crypto) : undefined;
+const _createHash = _crypto.createHash;
 const HEX_TABLE = Array.from({ length: 256 }, (_, i) => i.toString(16).padStart(2, "0"));
 
 // Shared encoder — TextEncoder is stateless (encode() returns a fresh
@@ -49,24 +52,15 @@ export async function hashCredentialSha256Hex(value: string): Promise<string> {
   return bytesToSha256Hex(new Uint8Array(hash));
 }
 
-// 🚀 RING-BUFFER HASH POOL: Reuses Hash instances to eliminate per-hash
-// Buffer/Uint8Array allocations under sustained auth load. node:crypto Hash
-// objects can be `.copy()`d cheaply — but `createHash` itself is lightweight;
-// the real cost is the hex-string allocation. We pre-allocate a small pool of
-// reusable output buffers and cycle through them round-robin.
-const POOL_SIZE = 8;
-const _hexPool: string[] = Array.from({ length: POOL_SIZE });
-let _poolIdx = 0;
-
 /**
  * Sync SHA-256 (hex) for server middleware — avoids double-hashing on auth hot paths.
- * 🚀 Uses a round-robin pool index to reuse the hex-encode path stably.
+ * Uses `crypto.hash` direct C++ binding when available to eliminate intermediate Stream/Hash objects.
  */
 export function hashCredentialSha256HexSync(value: string): string {
   // codeql[js/insufficient-password-hash]: high-entropy CSPRNG token equality
   // lookup (GitHub-style digest), not a password KDF — login is Argon2id.
-  const hex = _createHash("sha256").update(value).digest("hex") as string;
-  _hexPool[_poolIdx] = hex;
-  _poolIdx = (_poolIdx + 1) & (POOL_SIZE - 1);
-  return hex;
+  if (_nodeHash) {
+    return _nodeHash("sha256", value, "hex");
+  }
+  return _createHash("sha256").update(value).digest("hex") as string;
 }

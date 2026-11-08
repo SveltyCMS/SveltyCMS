@@ -42,13 +42,13 @@ export interface RawMediaStructuredFilters {
 }
 
 /** `size` is a 32-bit signed integer column in every SQL schema (2 GiB - 1). */
-export const MEDIA_MAX_FILTER_BYTES = 2_147_483_647;
+const MEDIA_MAX_FILTER_BYTES = 2_147_483_647;
 /** Far beyond any real asset and keeps a hand-written URL bounded. */
-export const MEDIA_MAX_FILTER_DIMENSION = 100_000;
+const MEDIA_MAX_FILTER_DIMENSION = 100_000;
 /** `?mime=` entries — enough for every format a folder realistically mixes. */
-export const MEDIA_MAX_MIME_FILTERS = 20;
+const MEDIA_MAX_MIME_FILTERS = 20;
 /** `type/subtype` tokens are short; anything longer is not a MIME type. */
-export const MEDIA_MAX_MIME_LENGTH = 100;
+const MEDIA_MAX_MIME_LENGTH = 100;
 
 /** URL names for the filter params — loader, modal and tests share this map. */
 export const MEDIA_FILTER_PARAMS = {
@@ -68,7 +68,7 @@ const MIME_TOKEN = /^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/;
  * Normalize a MIME filter value (`string`, comma-separated string, or array).
  * Case is folded and duplicates collapse; unparsable entries are dropped.
  */
-export function normalizeMediaMimeTypes(value: unknown): string[] | undefined {
+function normalizeMediaMimeTypes(value: unknown): string[] | undefined {
   const entries = Array.isArray(value) ? value : [value];
   const accepted = new Set<string>();
 

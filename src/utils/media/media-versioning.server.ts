@@ -99,16 +99,16 @@ export function validateMime(mimeType: string, filename: string): void {
 }
 
 /** Coerce index-signature values (`unknown`) back to the string/number shape a version entry stores. */
-export function textOr(value: unknown, fallback = ""): string {
+function textOr(value: unknown, fallback = ""): string {
   return typeof value === "string" && value ? value : fallback;
 }
 
-export function firstText(...values: unknown[]): string {
+function firstText(...values: unknown[]): string {
   for (const value of values) if (typeof value === "string" && value) return value;
   return "";
 }
 
-export function numberOr(value: unknown, fallback = 0): number {
+function numberOr(value: unknown, fallback = 0): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 

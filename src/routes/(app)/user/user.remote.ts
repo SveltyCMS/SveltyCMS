@@ -10,7 +10,8 @@ import { getAuthenticatedUser } from "@utils/page-guards.server";
 import { AppError } from "@utils/error-handling";
 import { verifyPassword as verifyPasswordHash } from "@src/databases/auth";
 import { hasPermissionWithRoles } from "@src/databases/auth/permissions";
-import { isAdmin, readSessionCookie } from "@src/databases/auth/constants";
+import { isAdmin } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { invalidateSessionCache } from "@src/hooks/handle-authentication";
 import type { User } from "@src/databases/auth/types";
 

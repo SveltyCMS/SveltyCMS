@@ -28,11 +28,13 @@ import { generateSecureToken, generateUUID } from "@utils/native-utils";
 import {
   getSessionCookieName,
   isSecureCookieContext,
-  readSessionCookie,
-  clearAllSessionCookies as clearCookiesHelper,
   sessionTtlMs,
   isAdmin,
 } from "@src/databases/auth/constants";
+import {
+  readSessionCookie,
+  clearAllSessionCookies as clearCookiesHelper,
+} from "@utils/security/session-cookie";
 import type { Role, User } from "@src/databases/auth/types";
 import { isValidApiKeyFormat, hashApiKey } from "@src/databases/auth/api-keys";
 import { recordApiKeyUsage } from "@src/databases/auth/api-key-usage-accumulator";

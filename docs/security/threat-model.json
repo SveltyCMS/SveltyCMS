@@ -15,7 +15,7 @@
       ],
       "model": "docs/security/threat-models/api-dispatch.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "26bf0691c6aa1e8e9a31f431100e459e3ab17cce5b86f18aba232f4fd1e6c40c"
+      "fingerprint": "a482cb2169370721c9e146adc2ebb3e744f8f829196bee67d1b245790ecb37ca"
     },
     {
       "id": "auth-session",
@@ -38,7 +38,7 @@
       ],
       "model": "docs/security/threat-models/auth-session.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "ed264c9baa20ed8bc156e36dc12b18bf38acde6af19ed92719174ebfac5774f2"
+      "fingerprint": "c20eb32d6fb03d094b0c2095603f826d1f8e348c1a71113d25d416bc95d325c8"
     },
     {
       "id": "content-write",
@@ -58,7 +58,7 @@
       ],
       "model": "docs/security/threat-models/content-write.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "1e042822c8ed223a986f68879320d94b7ce5ffaad0f2aa34111c67058ed0d51e"
+      "fingerprint": "1f066860069a1099ad1687cda3dc02ac7d7afee88851f2a44b0e14fcab578884"
     },
     {
       "id": "media-files",
@@ -75,7 +75,7 @@
       ],
       "model": "docs/security/threat-models/media-files.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "6d3c2a75a169706664eeb737628b522568ee530ba10ef53ea044adcd96f24544"
+      "fingerprint": "37de4de329a303e9e47b08862a4b5e2f7f84990c64d7e35ef8ef5faa4f2a2ff1"
     },
     {
       "id": "admin-pages",
@@ -91,7 +91,7 @@
       ],
       "model": "docs/security/threat-models/admin-pages.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "2c27f707ae87e0237e2529fbeefb201c1b234de7fdd4ec204c44c2118270192e"
+      "fingerprint": "f20bfa6782a9d3ad7fc550c62f7406253fe9e8332eec993c6c3076479e527388"
     },
     {
       "id": "system-ops",
@@ -132,7 +132,7 @@
       ],
       "model": "docs/security/threat-models/system-ops.mdx",
       "reviewed_at": "2026-11-08",
-      "fingerprint": "964efef85f72a822f5b7d7f403d36491a35365a4120e8dc5bed3ce849aff24d6"
+      "fingerprint": "210328d23ca83b82d492cef8e6ab763cf65ec6b231d924ac7a86a018c7d68b84"
     }
   ]
 }

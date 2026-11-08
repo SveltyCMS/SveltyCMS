@@ -31,7 +31,8 @@ import type { Handle } from "@sveltejs/kit/hooks";
 import { AppError, handleApiError } from "@utils/error-handling";
 import { wafGuard } from "./handle-waf-guard";
 import { isAiOrScannerBot } from "@src/services/security/threat-scan";
-import { isSecureCookieContext, readSessionCookie } from "@src/databases/auth/constants";
+import { isSecureCookieContext } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import {
   hasPermissionBitmask,
   isPermissionBitsetStale,

@@ -197,7 +197,7 @@ This layout initializes the most critical global states (i18n, Theme, Settings).
 	// ============================================================================
 
 	import { applyRemoteContentStructure } from '@src/stores/collection-store.svelte';
-	import { initializeContent } from '@src/content';
+	import { initializeContent } from '@src/content/context';
 	import Button from '@components/ui/button.svelte';
 
 	// Initialize public environment settings from server data

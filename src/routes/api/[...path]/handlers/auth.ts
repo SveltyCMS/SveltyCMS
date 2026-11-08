@@ -46,10 +46,9 @@ import type { DatabaseId, ISODateString } from "@src/content/types";
 import {
   getSessionCookieName,
   isSecureCookieContext,
-  readSessionCookie,
-  clearAllSessionCookies,
   isAdmin,
 } from "@src/databases/auth/constants";
+import { readSessionCookie, clearAllSessionCookies } from "@utils/security/session-cookie";
 import { TwoFactorAuthService } from "@src/databases/auth/two-factor-auth";
 import {
   handleSAMLResponse,

@@ -37,7 +37,7 @@ const MediaType = {
 
 export type MediaType = (typeof MediaType)[keyof typeof MediaType];
 
-export const MediaAccess = {
+const MediaAccess = {
   Public: "public",
   Private: "private",
   Protected: "protected",
@@ -95,7 +95,7 @@ export type DerivativeFormat = (typeof DERIVATIVE_FORMATS)[number];
  * cost stays dominated by the resize rather than the encoder. See
  * `docs/reference/architecture/media-system.mdx` ("Derivative output format").
  */
-export const DEFAULT_DERIVATIVE_FORMAT: DerivativeFormat = "jpeg";
+const DEFAULT_DERIVATIVE_FORMAT: DerivativeFormat = "jpeg";
 
 /**
  * Normalise an operator-configured derivative format. Fail-safe by design: a
@@ -245,10 +245,6 @@ export type StoredMedia = Exclude<MediaItem, MediaRemoteVideo>;
 /* Type guards & runtime helpers                                              */
 /* -------------------------------------------------------------------------- */
 
-export function isMediaOfType<T extends MediaType>(item: MediaItem, type: T): item is MediaOf<T> {
-  return item.type === type;
-}
-
 export const isMediaImage = (item: MediaItem): item is MediaImage => item.type === MediaType.Image;
 export const isStoredMedia = (item: MediaItem): item is StoredMedia =>
   item.type !== MediaType.RemoteVideo;
@@ -258,11 +254,6 @@ const TOP_LEVEL_MIMES = new Set<string>([MediaType.Image, MediaType.Video, Media
 export function mediaTypeFromMime(mimeType: string): MediaType {
   const top = mimeType.split("/", 1)[0]?.toLowerCase() ?? "";
   return TOP_LEVEL_MIMES.has(top) ? (top as MediaType) : MediaType.Document;
-}
-
-/** Compile-time exhaustiveness helper — a missed union member fails to compile. */
-export function assertNever(value: never, message = "Unhandled media type"): never {
-  throw new Error(`${message}: ${JSON.stringify(value)}`);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -311,17 +302,6 @@ export interface WatermarkOptions {
   /** 0–1, relative to the shorter image edge. */
   scale: number;
   url: string;
-}
-
-/** Map convenience aliases to sharp-compatible compass positions. */
-export function normalizeWatermarkPosition(pos: WatermarkPosition): string {
-  const MAP: Record<string, string> = {
-    top: "north",
-    bottom: "south",
-    left: "west",
-    right: "east",
-  };
-  return MAP[pos] ?? pos;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -16,7 +16,7 @@ import {
 import { AppError, raise, rethrow } from "@utils/error-handling";
 import { logger } from "@utils/logger";
 import { invalidateSessionCache, primeSessionMemoryCache } from "@src/hooks/handle-authentication";
-import { readSessionCookie } from "@src/databases/auth/constants";
+import { readSessionCookie } from "@utils/security/session-cookie";
 import { withSystemScope } from "@src/databases/system-tenant-scope";
 
 /** Cached lazy handle to the turbo GET hook — one module-registry lookup instead of one per call. */
