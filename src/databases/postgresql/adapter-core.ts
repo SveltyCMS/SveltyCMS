@@ -24,7 +24,6 @@ import { getHardwareProfile } from "@utils/hardware-profile";
 import { PROFILE_WRITE_ENABLED, profileMark } from "@utils/write-profiler";
 import {
   SqlAdapterCore,
-  RAW_DECLINED,
   type ListIndexRequest,
   type RawFindResult,
   type RawPointWireStreamResult,
@@ -39,7 +38,6 @@ import type {
   DatabaseResult,
   DatabaseId,
 } from "../db-interface";
-import { isSystemTable } from "../core/drizzle-sql-helpers";
 import { provisionPostgresTable } from "./schema-sync";
 import {
   bindPgParam,
@@ -65,7 +63,6 @@ import {
   convertDatesToISO,
   registerTableSchema,
 } from "../core/relational-utils";
-import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
 import { TenantPoolManager } from "../sql/tenant-pool-manager";
@@ -228,13 +225,21 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
       const sqlText = `INSERT INTO "${safeTableName}" (${colList}) VALUES (${placeholders.join(", ")})`;
       const unnestSqlText = `INSERT INTO "${safeTableName}" (${colList}) SELECT ${selectCols} FROM UNNEST(${unnestPlaceholders}) AS u(${uAliasCols})`;
       tpl = { synthCols, sqlText, unnestSqlText, isJsonMap };
+      this.evictIfFull(this._insertTemplateCache);
       this._insertTemplateCache.set(key, tpl);
-      if (this._insertTemplateCache.size >= 256) {
-        const oldest = this._insertTemplateCache.keys().next().value;
-        if (oldest !== undefined) this._insertTemplateCache.delete(oldest);
-      }
     }
     return tpl;
+  }
+
+  /**
+   * Clear all cached prepared statements and templates (call after any DDL
+   * that changes table shape: createModel, clearDatabase, migrations).
+   */
+  public override clearStatementCaches(): void {
+    super.clearStatementCaches();
+    this._insertTemplateCache.clear();
+    this._updateValuesTemplateCache.clear();
+    this._updateTemplateCache.clear();
   }
 
   protected async rawInsertReturning<T extends import("../db-interface").BaseEntity>(
@@ -482,119 +487,22 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     }
   }
 
-  protected override get useRawFindById(): boolean {
-    return true;
+  protected override async rawExec<R = Record<string, unknown>>(
+    sqlText: string,
+    params: readonly unknown[],
+    options?: BaseQueryOptions,
+  ): Promise<R[] | null> {
+    const txnSql = options ? this.getTxnSql(options) : null;
+    if (options?.transaction && !txnSql) return null;
+    const exec = txnSql ?? this.sql;
+    if (!exec) return null;
+    const rows = await exec.unsafe(sqlText, [...params], { prepare: true });
+    return Array.isArray(rows) ? (rows as R[]) : [];
   }
-
-  private _rawFindByIdSqlCache = new WeakMap<
-    any,
-    {
-      withData: string;
-      withoutData: string;
-      withDataTenant: string;
-      withoutDataTenant: string;
-      withDataNull: string;
-      withoutDataNull: string;
-    }
-  >();
 
   /** Cache for Direct-to-Wire SQL JSON statements (2027 architecture). */
   /** Engine for Direct-to-Wire SQL JSON stream queries. */
   private _wireStreamEngine = new PostgresWireStreamEngine();
-
-  protected override async rawFindById<T extends import("../db-interface").BaseEntity>(
-    table: any,
-    collection: string,
-    id: DatabaseId,
-    options: import("../db-interface").FindOptions<T>,
-  ): Promise<RawFindResult<T>> {
-    const txnSql = this.getTxnSql(options);
-    if (options?.transaction && !txnSql) return RAW_DECLINED;
-    const exec = txnSql ?? this.sql!;
-    if (!exec) return RAW_DECLINED;
-
-    try {
-      // Read-path schema registration: raw reads must normalize timestamps to
-      // ISODateString even on read-only workloads (parity with SQLite/MariaDB).
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
-      const tableName = getTableName(table);
-      const fields = options?.fields;
-      const wantsData =
-        !Array.isArray(fields) ||
-        fields.length === 0 ||
-        fields.some((f) => {
-          if (f === "data") return true;
-          if (
-            f === "_id" ||
-            f === "id" ||
-            f === "tenantId" ||
-            f === "status" ||
-            f === "createdAt" ||
-            f === "updatedAt" ||
-            f === "isDeleted"
-          )
-            return false;
-          return !this.getColumn(table, String(f));
-        });
-
-      let cachedSql = this._rawFindByIdSqlCache.get(table);
-      if (!cachedSql) {
-        const safeTable = `"${assertSafeSqlIdentifier(tableName, "table")}"`;
-        const selectWithData = this.getRawFindByIdCols(table, true)
-          .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
-          .join(", ");
-        const selectWithoutData = this.getRawFindByIdCols(table, false)
-          .map((c) => `"${assertSafeSqlIdentifier(c, "column")}"`)
-          .join(", ");
-
-        cachedSql = {
-          withData: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
-          withoutData: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 LIMIT 1`,
-          withDataTenant: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
-          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" = $2 LIMIT 1`,
-          withDataNull: `SELECT ${selectWithData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
-          withoutDataNull: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE "_id" = $1 AND "tenantId" IS NULL LIMIT 1`,
-        };
-        this._rawFindByIdSqlCache.set(table, cachedSql);
-      }
-
-      // Reuse the shared tenant-clause contract (respects bypass + "global")
-      // so the raw path scopes identically to SQLite/MariaDB and the Drizzle
-      // fallback below. Distinguish a real tenant (param present) from the
-      // canonical global scope (IS NULL, no param).
-      const tenantClause = buildRawTenantClause(options, "postgres", { paramIndex: 2 });
-      const hasTenantParam = tenantClause.params.length > 0;
-      const hasTenantClause = tenantClause.sql !== "";
-
-      const sqlText = hasTenantClause
-        ? hasTenantParam
-          ? wantsData
-            ? cachedSql.withDataTenant
-            : cachedSql.withoutDataTenant
-          : wantsData
-            ? cachedSql.withDataNull
-            : cachedSql.withoutDataNull
-        : wantsData
-          ? cachedSql.withData
-          : cachedSql.withoutData;
-
-      const params = [String(id), ...tenantClause.params];
-      const rows = await exec.unsafe(sqlText, params, { prepare: true });
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-
-      return convertDatesToISO(rows[0], {
-        ...this.convertDatesOptions,
-        table: collection,
-        skipJson: !wantsData,
-      }) as unknown as T;
-    } catch {
-      // Declined (SQL error) — the caller may fall back to Drizzle.
-      return RAW_DECLINED;
-    }
-  }
 
   /**
    * Direct-to-Wire point stream optimization for PostgreSQL (2027 architecture):
@@ -1438,64 +1346,6 @@ export abstract class PostgresAdapterCore extends SqlAdapterCore {
     // data->> returns text; bind scalars as text so `text = boolean/numeric`
     // never throws and JSON-stored booleans/numbers actually match.
     return typeof val === "boolean" || typeof val === "number" ? String(val) : val;
-  }
-
-  public getTable(collection: string): any {
-    if (typeof collection !== "string") return null;
-
-    const cached = this.tableRegistry.get(collection);
-    if (cached) return cached;
-
-    if (this._resolving.has(collection)) {
-      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
-      return null;
-    }
-    this._resolving.add(collection);
-
-    try {
-      if (isSystemTable(collection)) {
-        const aliased = this.getAliasedTable(collection);
-        if (aliased) {
-          this.tableRegistry.set(collection, aliased);
-          return aliased;
-        }
-      }
-
-      const cleanId = collection.replace(/-/g, "");
-      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
-      // (rawFindById/insert/insertMany/update/DDL). Dash-stripping alone did
-      // not stop quote breakout from admin-typed collection names — fail
-      // closed BEFORE any SQL is assembled.
-      assertSafeSqlIdentifier(cleanId, "collection");
-      // ⚠️ Composite length guard: the interpolated identifier is
-      // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
-      // not enough — the composite can exceed NAMEDATALEN=63 and PG would
-      // silently truncate, colliding with a longer sibling name. Fail closed
-      // on the FINAL identifier (normalizeCollectionTableName is the single
-      // source of truth for the physical name derivation).
-      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
-
-      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (isSystemTable(cleanName) && cleanName !== collection) {
-        return this.getTable(cleanName);
-      }
-
-      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
-      // createModel) exist in the Drizzle def so filters/sorts/writes use the
-      // column; the `data` blob keeps only dynamic fields. Previously the
-      // physical columns created by createModel were never registered in the
-      // runtime table def — dead columns.
-      const dynamicTable = this.createDynamicTableDefinition(
-        tableName,
-        this.materializedColumns.get(cleanName) ||
-          this.materializedColumns.get(tableName) ||
-          undefined,
-      );
-      this.tableRegistry.set(collection, dynamicTable);
-      return dynamicTable;
-    } finally {
-      this._resolving.delete(collection);
-    }
   }
 
   // --------------------------------------------------------------------------

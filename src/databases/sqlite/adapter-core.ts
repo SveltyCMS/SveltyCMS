@@ -20,15 +20,10 @@ import type {
   DatabaseCapabilities,
   DatabaseResult,
   DatabaseId,
-  FindOptions,
   EntityCreate,
   ISqlAdapter,
 } from "../db-interface";
-import {
-  isSystemTable,
-  resolveSystemTableName,
-  shouldMaterializeField,
-} from "../core/drizzle-sql-helpers";
+import { shouldMaterializeField } from "../core/drizzle-sql-helpers";
 import { resolveSqliteAdapterPath } from "./path-resolver";
 import { provisionSqliteTable } from "./schema-sync";
 import { FastLRU, generateUUID } from "@utils/native-utils";
@@ -122,21 +117,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   private _insertTemplateCache = new Map<string, { cols: string[]; sqlText: string }>();
   /** table|cols|returning|tenant → UPDATE SQL. */
   private _updateSqlCache = new Map<string, string>();
-  private _sqliteSelectColsCache = new WeakMap<object, string>();
-  /**
-   * Pre-assembled findById SQL (entry engine). Tenant variants bake the
-   * parameterized `AND "tenantId" = ?` clause — values stay bound, never inlined.
-   * Postgres/Maria keep driver-prepared tagged/`execute` paths instead.
-   */
-  private _rawFindByIdSqlCache = new WeakMap<
-    object,
-    {
-      withData: string;
-      withoutData: string;
-      withDataTenant: string;
-      withoutDataTenant: string;
-    }
-  >();
 
   /** Engine for Direct-to-Wire SQL JSON stream queries. */
   private _wireStreamEngine = new SqliteWireStreamEngine();
@@ -155,7 +135,8 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
    * Clear all cached prepared statements (call after any DDL that changes
    * table shape: createModel, clearDatabase, migrations).
    */
-  protected clearStatementCaches(): void {
+  public override clearStatementCaches(): void {
+    super.clearStatementCaches();
     for (const client of this._preparedStatementClients) {
       try {
         client.clearStatementCache?.();
@@ -182,9 +163,6 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     return true;
   }
   protected get useDynamicSqlInFindMany(): boolean {
-    return true;
-  }
-  protected get useRawFindById(): boolean {
     return true;
   }
 
@@ -282,93 +260,13 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
     return (db as { values: (q: SQL) => Promise<any[]> }).values(sqlQuery);
   }
 
-  protected async rawFindById<T>(
-    table: any,
-    collection: string,
-    id: DatabaseId,
-    options: FindOptions<T>,
-  ): Promise<RawFindResult<T>> {
-    try {
-      // Read-path schema registration: raw reads must normalize SQLite INTEGER
-      // ms timestamps to ISODateString even on read-only workloads.
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
-      const tableName = getTableName(table);
-      // Bound parameters for _id + tenantId (no string interpolation of identifiers/values)
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "sqlite");
-      // Projection: when fields are all physical columns, skip the data blob
-      // (avoids JSON.parse + flattenDataColumn on the hot read path).
-      const fields = options?.fields;
-      const wantsData =
-        !Array.isArray(fields) ||
-        fields.length === 0 ||
-        fields.some((f) => {
-          if (f === "data") return true;
-          if (
-            f === "_id" ||
-            f === "id" ||
-            f === "tenantId" ||
-            f === "status" ||
-            f === "createdAt" ||
-            f === "updatedAt" ||
-            f === "isDeleted"
-          )
-            return false;
-          return !this.getColumn(table, String(f));
-        });
-
-      let cachedSql = this._rawFindByIdSqlCache.get(table);
-      if (!cachedSql) {
-        let selectWithoutData = this._sqliteSelectColsCache.get(table);
-        if (!selectWithoutData) {
-          selectWithoutData = this.getRawFindByIdCols(table, false)
-            .map((c) => `"${c}"`)
-            .join(", ");
-          this._sqliteSelectColsCache.set(table, selectWithoutData);
-        }
-        const quoted = `"${tableName}"`;
-        cachedSql = {
-          withData: `SELECT * FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
-          withoutData: `SELECT ${selectWithoutData} FROM ${quoted} WHERE "_id" = ? LIMIT 1`,
-          withDataTenant: `SELECT * FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
-          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${quoted} WHERE "_id" = ? AND "tenantId" = ? LIMIT 1`,
-        };
-        this._rawFindByIdSqlCache.set(table, cachedSql);
-      }
-      // Parameterized sqlite tenant clause is stable (` AND "tenantId" = ?`).
-      // Any other fragment falls back to concat so we never bind the wrong SQL.
-      const useTenantCache = tenantSql === ` AND "tenantId" = ?`;
-      let rawSql: string;
-      if (useTenantCache) {
-        rawSql = wantsData ? cachedSql.withDataTenant : cachedSql.withoutDataTenant;
-      } else if (!tenantSql) {
-        rawSql = wantsData ? cachedSql.withData : cachedSql.withoutData;
-      } else {
-        const selectCols = wantsData ? "*" : (this._sqliteSelectColsCache.get(table) ?? "*");
-        rawSql = `SELECT ${selectCols} FROM "${tableName}" WHERE "_id" = ?${tenantSql} LIMIT 1`;
-      }
-
-      const rawRow = this.prepareAndExecute(rawSql, "get", String(id), ...tenantParams);
-      if (rawRow) {
-        if (!wantsData) {
-          // Projected read: normalize dates/booleans without the blob parse.
-          return convertDatesToISO(rawRow, {
-            inPlace: true,
-            table: collection,
-            skipJson: true,
-          }) as T;
-        }
-        // inPlace: the driver row is a fresh object — parse/flatten the data
-        // blob in place instead of copying every key into a new object.
-        return convertDatesToISO(rawRow, { inPlace: true, table: collection }) as T;
-      }
-      return null;
-    } catch (rawErr: any) {
-      logger.debug("[SQLite raw findById prototype] falling back to Drizzle:", rawErr?.message);
-      return RAW_DECLINED;
-    }
+  protected override async rawExec<R = Record<string, unknown>>(
+    sqlText: string,
+    params: readonly unknown[],
+    _options?: BaseQueryOptions,
+  ): Promise<R[] | null> {
+    const rawRow = this.prepareAndExecute(sqlText, "get", ...params);
+    return rawRow ? [rawRow as R] : [];
   }
 
   /**
@@ -447,10 +345,7 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
         const placeholders = cols.map(() => "?").join(", ");
         const sqlText = `INSERT INTO "${assertSafeSqlIdentifier(tableName, "table")}" (${colList}) VALUES (${placeholders})`;
         tpl = { cols, sqlText };
-        if (this._insertTemplateCache.size >= 256) {
-          const oldest = this._insertTemplateCache.keys().next().value;
-          if (oldest) this._insertTemplateCache.delete(oldest);
-        }
+        this.evictIfFull(this._insertTemplateCache);
         this._insertTemplateCache.set(cacheKey, tpl);
       }
       const params = tpl.cols.map((c) => synthesized[c]);
@@ -915,136 +810,76 @@ export abstract class SQLiteAdapterCore extends SqlAdapterCore implements ISqlAd
   }
 
   // --------------------------------------------------------------------------
-  // getTable — SQLite-specific with columnsToAdd from content_nodes
+  // Dynamic columns hook for collection tables
   // --------------------------------------------------------------------------
 
-  public getTable(collection: string): any {
-    if (typeof collection !== "string") return null;
-
-    const cached = this.tableRegistry.get(collection);
-    if (cached) return cached;
-
-    if (this._resolving.has(collection)) {
-      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
-      return null;
+  protected override getColumnsToAdd(
+    collection: string,
+    tableName: string,
+    cleanName: string,
+  ): Map<string, string> {
+    const columnsToAdd = new Map<string, string>();
+    if (this._provisionedTables.has(collection)) {
+      columnsToAdd.set("collection", "text");
+      columnsToAdd.set("slug", "text");
+      columnsToAdd.set("locale", "text");
+      columnsToAdd.set("publishedAt", "integer");
     }
-    this._resolving.add(collection);
+    // 🚀 ROW-STORE HYBRID: materialized scalar columns (populated by
+    // createModel — covers benchmark/auto-provisioned collections that have
+    // no content_nodes structure row).
+    const fromMap =
+      this.materializedColumns.get(collection) ||
+      this.materializedColumns.get(tableName) ||
+      this.materializedColumns.get(cleanName);
+    if (fromMap) {
+      for (const [name, type] of fromMap.entries()) {
+        if (!columnsToAdd.has(name)) columnsToAdd.set(name, type);
+      }
+    }
 
     try {
-      if (isSystemTable(collection)) {
-        const aliased = this.getAliasedTable(collection);
-        if (aliased) {
-          this.tableRegistry.set(collection, aliased);
-          return aliased;
+      const client = this._sqlite ? this.sqlite : null;
+      if (client) {
+        let row: any = null;
+        if (client.query) {
+          row = client.query(`SELECT data FROM content_nodes WHERE _id = ? LIMIT 1`).get(cleanName);
+        } else if (client.prepare) {
+          row = client
+            .prepare(`SELECT data FROM content_nodes WHERE _id = ? LIMIT 1`)
+            .get(cleanName);
         }
-      }
-
-      const cleanId = collection.replace(/-/g, "");
-      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
-      // (SELECT/INSERT/DDL) across the adapter. Dash-stripping alone did not
-      // stop quote/backtick breakout from admin-typed collection names — fail
-      // closed BEFORE any SQL is assembled.
-      assertSafeSqlIdentifier(cleanId, "collection");
-      // ⚠️ Composite length guard: the interpolated identifier is
-      // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
-      // not enough — the composite can exceed SQLite's identifier limits and
-      // would be silently truncated, colliding with a longer sibling name.
-      // Fail closed on the FINAL identifier (normalizeCollectionTableName is
-      // the single source of truth for the physical name derivation).
-      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
-
-      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (isSystemTable(cleanName) && cleanName !== collection) {
-        return this.getTable(cleanName);
-      }
-
-      const columnsToAdd = new Map<string, string>();
-      if (this._provisionedTables.has(collection)) {
-        columnsToAdd.set("collection", "text");
-        columnsToAdd.set("slug", "text");
-        columnsToAdd.set("locale", "text");
-        columnsToAdd.set("publishedAt", "integer");
-      }
-      // 🚀 ROW-STORE HYBRID: materialized scalar columns (populated by
-      // createModel — covers benchmark/auto-provisioned collections that have
-      // no content_nodes structure row).
-      const fromMap =
-        this.materializedColumns.get(collection) ||
-        this.materializedColumns.get(tableName) ||
-        this.materializedColumns.get(cleanName);
-      if (fromMap) {
-        for (const [name, type] of fromMap.entries()) {
-          if (!columnsToAdd.has(name)) columnsToAdd.set(name, type);
-        }
-      }
-
-      try {
-        const client = this._sqlite ? this.sqlite : null;
-        if (client) {
-          let row: any = null;
-          if (client.query) {
-            row = client
-              .query(`SELECT data FROM content_nodes WHERE _id = ? LIMIT 1`)
-              .get(cleanName);
-          } else if (client.prepare) {
-            row = client
-              .prepare(`SELECT data FROM content_nodes WHERE _id = ? LIMIT 1`)
-              .get(cleanName);
-          }
-          if (row?.data) {
-            const nodeData = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
-            let def = nodeData.collectionDef;
-            if (def) {
-              if (typeof def === "string") def = JSON.parse(def);
-              if (def && Array.isArray(def.fields)) {
-                for (const field of def.fields) {
-                  // Row-store hybrid: every scalar field becomes a column
-                  // (indexed/unique fields too, when scalar-shaped).
-                  if (shouldMaterializeField(field)) {
-                    const fieldName = field.db_fieldName || field.label;
-                    if (fieldName && !columnsToAdd.has(fieldName)) {
-                      let colType = "text";
-                      if (field.type === "number" || field.type === "integer") {
-                        colType = "integer";
-                      } else if (field.type === "boolean") {
-                        colType = "boolean";
-                      }
-                      columnsToAdd.set(fieldName, colType);
+        if (row?.data) {
+          const nodeData = typeof row.data === "string" ? JSON.parse(row.data) : row.data;
+          let def = nodeData.collectionDef;
+          if (def) {
+            if (typeof def === "string") def = JSON.parse(def);
+            if (def && Array.isArray(def.fields)) {
+              for (const field of def.fields) {
+                // Row-store hybrid: every scalar field becomes a column
+                // (indexed/unique fields too, when scalar-shaped).
+                if (shouldMaterializeField(field)) {
+                  const fieldName = field.db_fieldName || field.label;
+                  if (fieldName && !columnsToAdd.has(fieldName)) {
+                    let colType = "text";
+                    if (field.type === "number" || field.type === "integer") {
+                      colType = "integer";
+                    } else if (field.type === "boolean") {
+                      colType = "boolean";
                     }
+                    columnsToAdd.set(fieldName, colType);
                   }
                 }
               }
             }
           }
         }
-      } catch {
-        /* Safe fallback */
       }
-
-      const dynamicTable = this.createDynamicTableDefinition(tableName, columnsToAdd);
-      this.tableRegistry.set(collection, dynamicTable);
-      return dynamicTable;
-    } finally {
-      this._resolving.delete(collection);
+    } catch {
+      /* Safe fallback */
     }
-  }
 
-  // --------------------------------------------------------------------------
-  // getAliasedTable — SQLite-specific with resolveSystemTableName
-  // --------------------------------------------------------------------------
-
-  protected getAliasedTable(collection: string): any {
-    const schemaAny = this.schema as any;
-    const physicalName = resolveSystemTableName(collection);
-    if (schemaAny[physicalName]) return schemaAny[physicalName];
-    const camelName = physicalName.replace(/_([a-z])/g, (g: string) => g[1].toUpperCase());
-    if (schemaAny[camelName]) return schemaAny[camelName];
-    if (physicalName.includes("workflow_definitions") && schemaAny.workflowDefinitions)
-      return schemaAny.workflowDefinitions;
-    if (physicalName.includes("workflow_instances") && schemaAny.workflowInstances)
-      return schemaAny.workflowInstances;
-    if (schemaAny[collection]) return schemaAny[collection];
-    return null;
+    return columnsToAdd;
   }
 
   // --------------------------------------------------------------------------

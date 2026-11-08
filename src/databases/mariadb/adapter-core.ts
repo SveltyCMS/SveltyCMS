@@ -18,10 +18,8 @@ import { logger } from "@src/utils/logger";
 import { getHardwareProfile } from "@utils/hardware-profile";
 import {
   SqlAdapterCore,
-  RAW_DECLINED,
   boundedSqlIndexName,
   type ListIndexRequest,
-  type RawFindResult,
   type RawPointWireStreamResult,
   type RawListWireStreamResult,
 } from "../core/sql-adapter-core";
@@ -41,10 +39,8 @@ import type {
   DatabaseId,
   EntityCreate,
   EntityUpdate,
-  FindOptions,
   QueryFilter,
 } from "../db-interface";
-import { isSystemTable } from "../core/drizzle-sql-helpers";
 import { provisionMariadbTable } from "./schema-sync";
 import { getTableName } from "drizzle-orm";
 // Namespace import on purpose: exposed as `adapter.schema` (public surface, see the class field).
@@ -62,7 +58,6 @@ import {
   convertDatesToISO,
   registerTableSchema,
 } from "../core/relational-utils";
-import { normalizeCollectionTableName } from "../core/collection-name";
 import { generateUUID } from "@src/utils/native-utils";
 import { extractPkConflictId } from "../core/query-primitives";
 import { NetworkDbQueueGate } from "../core/network-db-queue-gate";
@@ -118,10 +113,6 @@ export abstract class AdapterCore extends SqlAdapterCore {
   private _db: MySql2Database<typeof schema> | null = null;
   public activeDatabaseName: string = "unknown";
   private _transactionModule?: import("./transaction-module").TransactionModule;
-  private _mariaSelectColsCache = new WeakMap<
-    object,
-    { withData?: string; withoutData?: string }
-  >();
   private _mariaInsertTplCache = new Map<
     string,
     {
@@ -142,12 +133,16 @@ export abstract class AdapterCore extends SqlAdapterCore {
   /** rawInsertReturning template cache (fixed `?` placeholders, one per column). */
   private _mariaInsertReturningTplCache = new Map<string, string>();
 
-  /** FIFO-evict a Map cache at `cap` entries (mirrors the SQLite twin). */
-  private evictIfFull(cache: Map<unknown, unknown>, cap = 256): void {
-    if (cache.size >= cap) {
-      const oldest = cache.keys().next().value;
-      if (oldest !== undefined) cache.delete(oldest);
-    }
+  /**
+   * Clear all cached prepared statements and templates (call after any DDL
+   * that changes table shape: createModel, clearDatabase, migrations).
+   */
+  public override clearStatementCaches(): void {
+    super.clearStatementCaches();
+    this._mariaInsertTplCache.clear();
+    this._mariaUpdateTplCache.clear();
+    this._mariaUpsertTplCache.clear();
+    this._mariaInsertReturningTplCache.clear();
   }
 
   // --------------------------------------------------------------------------
@@ -255,93 +250,18 @@ export abstract class AdapterCore extends SqlAdapterCore {
    * statements; a stable parameterized SELECT skips Drizzle's per-call AST
    * building + escaping on the hottest read path.
    */
-  protected get useRawFindById(): boolean {
-    return true;
-  }
-
   protected override get updateCoalescingEnabled(): boolean {
     return process.env.SVELTY_WRITE_COALESCE_UPDATE === "1";
   }
 
-  protected async rawFindById<T extends BaseEntity>(
-    table: any,
-    collection: string,
-    id: DatabaseId,
-    options: FindOptions<T>,
-  ): Promise<RawFindResult<T>> {
-    try {
-      const tableName = getTableName(table);
-      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
-      if (!idCol) throw new Error("ID column not found");
-      const idColName = idCol.name || "_id";
-      const { sql: tenantSql, params: tenantParams } = buildRawTenantClause(options, "mysql");
-      // Projection-aware: skip the JSON data blob when all requested fields
-      // are physical columns (avoids LONGTEXT transfer + JSON.parse on reads).
-      const fields = options?.fields;
-      const wantsData =
-        !Array.isArray(fields) ||
-        fields.length === 0 ||
-        fields.some((f) => {
-          if (f === "data") return true;
-          if (
-            f === "_id" ||
-            f === "id" ||
-            f === "tenantId" ||
-            f === "status" ||
-            f === "createdAt" ||
-            f === "updatedAt" ||
-            f === "isDeleted"
-          )
-            return false;
-          return !this.getColumn(table, String(f));
-        });
-      let entry = this._mariaSelectColsCache.get(table);
-      let selectCols = wantsData ? entry?.withData : entry?.withoutData;
-      if (!selectCols) {
-        selectCols = this.getRawFindByIdCols(table, wantsData)
-          .map((c) => `\`${c}\``)
-          .join(", ");
-        if (!entry) {
-          entry = {};
-          this._mariaSelectColsCache.set(table, entry);
-        }
-        if (wantsData) entry.withData = selectCols;
-        else entry.withoutData = selectCols;
-      }
-      // Defense-in-depth: tableName derives from getTable (already allow-listed),
-      // but assert again at the raw-SQL site so the invariant is local.
-      const rawSql = `SELECT ${selectCols} FROM \`${assertSafeSqlIdentifier(
-        tableName,
-        "table",
-      )}\` WHERE \`${idColName}\` = ?${tenantSql} LIMIT 1`;
-      // Read-path schema registration: raw reads must normalize timestamps to
-      // ISODateString even on read-only workloads (relational-utils isEpochMs).
-      if (!this._registeredSchemas.has(collection)) {
-        this.ensureTableSchemaRegistered(table, collection);
-        this._registeredSchemas.add(collection);
-      }
-      // Tx-aware: inside a transaction reads MUST stay on the txn connection
-      // (the pool would see pre-transaction state — phantom reads).
-      const rows = (await this.getRawExec(options)(rawSql, [String(id), ...tenantParams])) as any[];
-      if (Array.isArray(rows) && rows.length > 0) {
-        const row = rows[0];
-        if (!wantsData) {
-          return convertDatesToISO(row, {
-            ...this.convertDatesOptions,
-            table: collection,
-            skipJson: true,
-          }) as T;
-        }
-        return convertDatesToISO(row, {
-          ...this.convertDatesOptions,
-          table: collection,
-        }) as T;
-      }
-      return null;
-    } catch (rawErr: any) {
-      logger.debug("[MariaDB raw findById] falling back to Drizzle:", rawErr?.message);
-      return RAW_DECLINED;
-    }
+  protected override async rawExec<R = Record<string, unknown>>(
+    sqlText: string,
+    params: readonly unknown[],
+    options?: BaseQueryOptions,
+  ): Promise<R[] | null> {
+    const exec = this.getRawExec(options ?? {});
+    const rows = await exec(sqlText, [...params]);
+    return Array.isArray(rows) ? (rows as R[]) : [];
   }
 
   private _wireStreamEngine = new MariadbWireStreamEngine();
@@ -430,63 +350,6 @@ export abstract class AdapterCore extends SqlAdapterCore {
     // JSON_UNQUOTE(JSON_EXTRACT(...)) renders JSON booleans as the text
     // "true"/"false"; binding a JS boolean (1/0) never matches those rows.
     return typeof val === "boolean" ? String(val) : val;
-  }
-
-  public getTable(collection: string): any {
-    if (typeof collection !== "string") return null;
-
-    const cached = this.tableRegistry.get(collection);
-    if (cached) return cached;
-
-    if (this._resolving.has(collection)) {
-      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
-      return null;
-    }
-    this._resolving.add(collection);
-
-    try {
-      if (isSystemTable(collection)) {
-        const aliased = this.getAliasedTable(collection);
-        if (aliased) {
-          this.tableRegistry.set(collection, aliased);
-          return aliased;
-        }
-      }
-
-      const cleanId = collection.replace(/-/g, "");
-      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
-      // (rawFindById/insert/update/DDL). Dash-stripping alone did not stop
-      // backtick breakout from admin-typed collection names — fail closed
-      // BEFORE any SQL is assembled.
-      assertSafeSqlIdentifier(cleanId, "collection");
-      // ⚠️ Composite length guard: the interpolated identifier is
-      // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
-      // not enough — the composite can exceed MariaDB's 64-char identifier
-      // limit and would be silently truncated, colliding with a longer
-      // sibling name. Fail closed on the FINAL identifier
-      // (normalizeCollectionTableName is the single source of truth for the
-      // physical name derivation).
-      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
-
-      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
-      if (isSystemTable(cleanName) && cleanName !== collection) {
-        return this.getTable(cleanName);
-      }
-
-      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
-      // createModel) exist in the Drizzle def so filters/sorts/writes use the
-      // column; the `data` blob keeps only dynamic fields.
-      const dynamicTable = this.createDynamicTableDefinition(
-        tableName,
-        this.materializedColumns.get(cleanName) ||
-          this.materializedColumns.get(tableName) ||
-          undefined,
-      );
-      this.tableRegistry.set(collection, dynamicTable);
-      return dynamicTable;
-    } finally {
-      this._resolving.delete(collection);
-    }
   }
 
   // --------------------------------------------------------------------------

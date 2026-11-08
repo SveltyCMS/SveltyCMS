@@ -24,6 +24,7 @@
  * - pure JSON-merge / value-preparation / soft-delete predicates live in `src/databases/sql/`
  */
 import { BaseAdapter } from "./base-adapter";
+import { logger } from "@utils/logger";
 import type {
   BaseEntity,
   BaseQueryOptions,
@@ -48,6 +49,7 @@ import {
   isSystemTable,
   mapQuery,
   materializedColumnTypes,
+  resolveSystemTableName,
   SQL_TABLE_ALIASES,
   SYSTEM_LITERAL_COLUMNS,
   rowsAffected,
@@ -61,6 +63,8 @@ import { getTableColumns, getTableName, asc, desc, type Column, eq, and } from "
 import { type SQL } from "drizzle-orm";
 import {
   applyTenantFilter,
+  assertSafeSqlIdentifier,
+  buildRawTenantClause,
   convertArrayDatesToISO,
   convertDatesToISO,
   convertISOToDates,
@@ -256,8 +260,78 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
   // Abstract template hooks — each adapter MUST implement these
   // --------------------------------------------------------------------------
 
-  /** Resolve a collection name to its Drizzle table definition. */
-  public abstract getTable(collection: string): any;
+  /**
+   * Resolve a collection name to its Drizzle table definition.
+   * Cached in `tableRegistry`. Handles system tables, collection_ prefix normalization,
+   * safe identifier validation, and dynamic materialized column injection.
+   */
+  public getTable(collection: string): any {
+    if (typeof collection !== "string") return null;
+
+    const cached = this.tableRegistry.get(collection);
+    if (cached) return cached;
+
+    if (this._resolving.has(collection)) {
+      logger.error(`Infinite recursion detected in getTable for: ${collection}`);
+      return null;
+    }
+    this._resolving.add(collection);
+
+    try {
+      if (isSystemTable(collection)) {
+        const aliased = this.getAliasedTable(collection);
+        if (aliased) {
+          this.tableRegistry.set(collection, aliased);
+          return aliased;
+        }
+      }
+
+      const cleanId = collection.replace(/-/g, "");
+      // 🛡️ Identifier allow-list: this name is embedded in raw SQL identifiers
+      // (SELECT/INSERT/DDL) across the adapter. Dash-stripping alone did not
+      // stop quote/backtick breakout from admin-typed collection names — fail
+      // closed BEFORE any SQL is assembled.
+      assertSafeSqlIdentifier(cleanId, "collection");
+      // ⚠️ Composite length guard: the interpolated identifier is
+      // `collection_${cleanId}` (11-char prefix). A bare-label pass alone is
+      // not enough — the composite can exceed identifier limits.
+      // Fail closed on the FINAL identifier (normalizeCollectionTableName is
+      // the single source of truth for the physical name derivation).
+      const tableName = assertSafeSqlIdentifier(normalizeCollectionTableName(collection), "table");
+
+      const cleanName = collection.startsWith("collection_") ? collection.slice(11) : collection;
+      if (isSystemTable(cleanName) && cleanName !== collection) {
+        return this.getTable(cleanName);
+      }
+
+      // 🚀 ROW-STORE HYBRID: materialized scalar fields (populated by
+      // createModel) exist in the Drizzle def so filters/sorts/writes use the
+      // column; the `data` blob keeps only dynamic fields.
+      const columnsToAdd = this.getColumnsToAdd(collection, tableName, cleanName);
+      const dynamicTable = this.createDynamicTableDefinition(tableName, columnsToAdd);
+      this.tableRegistry.set(collection, dynamicTable);
+      return dynamicTable;
+    } finally {
+      this._resolving.delete(collection);
+    }
+  }
+
+  /**
+   * Hook for resolving dynamic columns to add to dynamic collection tables.
+   * Default implementation checks materializedColumns registry.
+   */
+  protected getColumnsToAdd(
+    collection: string,
+    tableName: string,
+    cleanName: string,
+  ): Map<string, string> | undefined {
+    return (
+      this.materializedColumns.get(cleanName) ||
+      this.materializedColumns.get(tableName) ||
+      this.materializedColumns.get(collection) ||
+      undefined
+    );
+  }
 
   /** Return dialect-specific JSON field extraction SQL (e.g., json_extract, JSON_EXTRACT, data->>). */
   public abstract getJsonField(field: string): SQL;
@@ -393,6 +467,7 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
       this.tableRegistry.delete(key);
       this.dynamicTables.delete(key);
     }
+    this.clearStatementCaches();
 
     const primary = ids[0];
     if (!primary) return;
@@ -403,8 +478,27 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     }
   }
 
+  /**
+   * Clear cached prepared statement templates and SQL strings.
+   * Called after DDL operations or schema mutations.
+   */
+  public clearStatementCaches(): void {
+    this._rawFindByIdSqlCache = new WeakMap();
+  }
+
+  /** FIFO-evict a Map cache at `cap` entries. */
+  protected evictIfFull(cache: Map<unknown, unknown>, cap = 256): void {
+    if (cache.size >= cap) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+  }
+
   /** Create a Drizzle dynamic table definition using dialect-specific column types. */
-  public abstract createDynamicTableDefinition(name: string): any;
+  public abstract createDynamicTableDefinition(
+    name: string,
+    columnsToAdd?: Map<string, string>,
+  ): any;
 
   private _rawColsCache = new WeakMap<object, { withData: string[]; withoutData: string[] }>();
   private _dynamicColListCache = new WeakMap<
@@ -694,9 +788,37 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return `"${name.replace(/"/g, '""')}"`;
   }
 
+  /** Cached parameterized SQL statements for raw point reads. */
+  protected _rawFindByIdSqlCache = new WeakMap<
+    object,
+    {
+      withData: string;
+      withoutData: string;
+      withDataTenant: string;
+      withoutDataTenant: string;
+      withDataNull: string;
+      withoutDataNull: string;
+      selectWithData: string;
+      selectWithoutData: string;
+    }
+  >();
+
+  /**
+   * Low-level driver execution hook for raw point-read SELECT queries.
+   * Takes raw SQL text and bound parameters, respecting transaction context.
+   * Returns array of row objects, or null if transaction was declined, not supported, or client unavailable.
+   */
+  protected async rawExec<R = Record<string, unknown>>(
+    _sqlText: string,
+    _params: readonly unknown[],
+    _options?: BaseQueryOptions,
+  ): Promise<R[] | null> {
+    return null;
+  }
+
   /** Whether findById has an adapter-specific raw-SQL optimization. */
   protected get useRawFindById(): boolean {
-    return false;
+    return true;
   }
 
   /** Execute a raw SQL query for the dynamic findMany path. */
@@ -711,14 +833,141 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
     return (execResult as any).rows || [];
   }
 
-  /** Adapter-specific raw findById optimisation — RAW_DECLINED when not used. */
+  /**
+   * Shared raw findById point-read optimization for SQL adapters.
+   * Uses driver-level statement caching, safe SQL identifiers, tenant scoping,
+   * and projection skipping of JSON blob. Returns RAW_DECLINED on driver error
+   * or when transactions decline raw execution.
+   */
   protected async rawFindById<T extends BaseEntity>(
-    _table: any,
-    _collection: string,
-    _id: DatabaseId,
-    _options: FindOptions<T>,
+    table: unknown,
+    collection: string,
+    id: DatabaseId,
+    options: FindOptions<T>,
   ): Promise<RawFindResult<T>> {
-    return RAW_DECLINED;
+    try {
+      // 1. Read-path schema registration: raw reads must normalize timestamps to
+      // ISODateString even on read-only workloads.
+      if (!this._registeredSchemas.has(collection)) {
+        this.ensureTableSchemaRegistered(table, collection);
+        this._registeredSchemas.add(collection);
+      }
+
+      const tableName = getTableName(table as any);
+      if (!tableName) throw new Error("Table name could not be resolved");
+      const idCol = this.getColumn(table, "_id") || this.getColumn(table, "id");
+      const idColName = idCol?.name || "_id";
+
+      // 2. Projection check: when fields are all physical columns, skip the data blob
+      // (avoids JSON.parse + flattenDataColumn on the hot read path).
+      const fields = options?.fields;
+      const wantsData =
+        !Array.isArray(fields) ||
+        fields.length === 0 ||
+        fields.some((f) => {
+          if (f === "data") return true;
+          if (
+            f === "_id" ||
+            f === "id" ||
+            f === "tenantId" ||
+            f === "status" ||
+            f === "createdAt" ||
+            f === "updatedAt" ||
+            f === "isDeleted"
+          )
+            return false;
+          return !this.getColumn(table, String(f));
+        });
+
+      // 3. Statement caching & SQL generation
+      const tableObj = table as object;
+      let cachedSql = this._rawFindByIdSqlCache.get(tableObj);
+      if (!cachedSql) {
+        const safeTable = this.quoteIdentifier(assertSafeSqlIdentifier(tableName, "table"));
+        const safeIdCol = this.quoteIdentifier(assertSafeSqlIdentifier(idColName, "column"));
+        const safeTenantCol = this.quoteIdentifier("tenantId");
+
+        const selectWithData =
+          this.sqlDialect.id === "sqlite"
+            ? "*"
+            : this.getRawFindByIdCols(table, true)
+                .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
+                .join(", ");
+        const selectWithoutData = this.getRawFindByIdCols(table, false)
+          .map((c) => this.quoteIdentifier(assertSafeSqlIdentifier(c, "column")))
+          .join(", ");
+
+        const p1 = this.sqlDialect.bindAt(0);
+        const p2 = this.sqlDialect.bindAt(1);
+
+        cachedSql = {
+          withData: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} LIMIT 1`,
+          withoutData: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} LIMIT 1`,
+          withDataTenant: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} = ${p2} LIMIT 1`,
+          withoutDataTenant: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} = ${p2} LIMIT 1`,
+          withDataNull: `SELECT ${selectWithData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} IS NULL LIMIT 1`,
+          withoutDataNull: `SELECT ${selectWithoutData} FROM ${safeTable} WHERE ${safeIdCol} = ${p1} AND ${safeTenantCol} IS NULL LIMIT 1`,
+          selectWithData,
+          selectWithoutData,
+        };
+        this._rawFindByIdSqlCache.set(tableObj, cachedSql);
+      }
+
+      // 4. Dialect-specific tenant clause
+      const dialectName =
+        this.sqlDialect.id === "mariadb"
+          ? "mysql"
+          : this.sqlDialect.id === "postgresql"
+            ? "postgres"
+            : "sqlite";
+      const tenantClause = buildRawTenantClause(options, dialectName, { paramIndex: 2 });
+      const hasTenantParam = tenantClause.params.length > 0;
+      const hasTenantClause = tenantClause.sql !== "";
+
+      const p1 = this.sqlDialect.bindAt(0);
+      const p2 = this.sqlDialect.bindAt(1);
+      const safeTenantCol = this.quoteIdentifier("tenantId");
+
+      let sqlText: string;
+      if (hasTenantClause) {
+        if (hasTenantParam && tenantClause.sql === ` AND ${safeTenantCol} = ${p2}`) {
+          sqlText = wantsData ? cachedSql.withDataTenant : cachedSql.withoutDataTenant;
+        } else if (!hasTenantParam && tenantClause.sql === ` AND ${safeTenantCol} IS NULL`) {
+          sqlText = wantsData ? cachedSql.withDataNull : cachedSql.withoutDataNull;
+        } else {
+          const selectCols = wantsData ? cachedSql.selectWithData : cachedSql.selectWithoutData;
+          const safeTable = this.quoteIdentifier(assertSafeSqlIdentifier(tableName, "table"));
+          const safeIdCol = this.quoteIdentifier(assertSafeSqlIdentifier(idColName, "column"));
+          sqlText = `SELECT ${selectCols} FROM ${safeTable} WHERE ${safeIdCol} = ${p1}${tenantClause.sql} LIMIT 1`;
+        }
+      } else {
+        sqlText = wantsData ? cachedSql.withData : cachedSql.withoutData;
+      }
+
+      const params = [String(id), ...tenantClause.params];
+
+      // 5. Driver execution hook
+      const rows = await this.rawExec(sqlText, params, options);
+      if (rows === null) {
+        return RAW_DECLINED;
+      }
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return null;
+      }
+
+      // 6. Normalization
+      return convertDatesToISO(rows[0], {
+        ...this.convertDatesOptions,
+        table: collection,
+        skipJson: !wantsData,
+      }) as unknown as T;
+    } catch (rawErr: unknown) {
+      logger.debug(
+        `[${this.type} raw findById] falling back to Drizzle:`,
+        (rawErr as Error)?.message,
+      );
+      return RAW_DECLINED;
+    }
   }
 
   /**
@@ -861,10 +1110,21 @@ export abstract class SqlAdapterCore extends BaseAdapter implements ISqlAdapter 
 
   /** Resolve a collection name to a Drizzle schema object (system tables). */
   protected getAliasedTable(collection: string): any {
-    const schemaAny = this.schema as any;
+    const schemaRecord = this.schema as Record<string, unknown> | null | undefined;
+    if (!schemaRecord) return null;
+    const physicalName = resolveSystemTableName(collection);
+    if (schemaRecord[physicalName]) return schemaRecord[physicalName];
+    const camelName = physicalName.replace(/_([a-z])/g, (_, letter: string) =>
+      letter.toUpperCase(),
+    );
+    if (schemaRecord[camelName]) return schemaRecord[camelName];
+    if (physicalName.includes("workflow_definitions") && schemaRecord.workflowDefinitions)
+      return schemaRecord.workflowDefinitions;
+    if (physicalName.includes("workflow_instances") && schemaRecord.workflowInstances)
+      return schemaRecord.workflowInstances;
     const alias = SQL_TABLE_ALIASES[collection];
-    if (alias && schemaAny[alias]) return schemaAny[alias];
-    if (schemaAny[collection]) return schemaAny[collection];
+    if (alias && schemaRecord[alias]) return schemaRecord[alias];
+    if (schemaRecord[collection]) return schemaRecord[collection];
     return null;
   }
 
